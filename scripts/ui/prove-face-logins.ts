@@ -760,6 +760,7 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
     geminiClientPaneLines,
     geminiPickOptions,
     handlesWaitPaneLines,
+    keyPromptPaneLines,
     loginsFlowLegendOf,
     loginsPickOptions,
     openaiDevicePaneLines,
@@ -796,7 +797,13 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   t.check('each component consumes its login door', read('src/components/RouterOpenaiConnect.tsx').includes('finishOpenaiSubscriptionConnect') && read('src/components/RouterOpenrouterConnect.tsx').includes('finishOpenrouterConnect') && read('src/components/GeminiConnect.tsx').includes('finishGeminiOauthConnect'))
 
   t.check('the openrouter pick is the landed card, byte-same', JSON.stringify(loginsPickOptions('openrouter').map(o => o.label)) === JSON.stringify(['Sign in with the browser — OAuth mints a scoped key', 'Headless — OpenRouter shows a code you paste here', 'Paste an API key (stored locally, mode 600)']))
-  t.check('the gemini labels flip on the gate exactly as landed', geminiPickOptions(true, false)[1]!.label === 'Google OAuth — needs an OAuth client first (set it below)' && geminiPickOptions(false, true)[1]!.label === 'Sign in with Google (OAuth, browser)' && geminiPickOptions(false, true)[2]!.label === 'Update the stored OAuth client (id/secret)' && geminiPickOptions(true, false)[2]!.label === 'Set the OAuth client (id/secret from Google Cloud Console)')
+  const { geminiConnectRows } = await import('../../src/components/geminiConnectGuide.js')
+  const geminiFacts = [{ oauthConnected: false }, { keySource: 'stored' as const, oauthConnected: false }, { clientSource: 'stored' as const, oauthConnected: false }, { clientSource: 'env' as const, oauthConnected: true }]
+  t.check("the gemini pick is the card's rows byte-same in every state: the key row first, the account row, the change row only over a stored client", geminiFacts.every(f => JSON.stringify(geminiPickOptions(f)) === JSON.stringify(geminiConnectRows(f))) && geminiPickOptions({ oauthConnected: false })[0]!.label === 'API key — the easiest: create one in AI Studio, paste it here' && geminiPickOptions({ clientSource: 'stored', oauthConnected: false })[2]!.label === 'Change the stored client id (step 5 again)' && geminiPickOptions({ oauthConnected: false }).length === 2)
+  const geminiWait = handlesWaitPaneLines({ leg: 'gemini-oauth', phase: 'waiting', authorizeUrl: 'https://accounts.google.test/o/oauth2/v2/auth?state=elided', copied: false }, 0)
+  t.check("the gemini wait pane speaks step 6's title and detail; the OpenAI and OpenRouter arms keep the loopback sentence", geminiWait.join(' ').includes('Sign in with Google in the browser: Pick your account') && geminiWait.join(' ').includes('If nothing opened, visit:') && handlesWaitPaneLines({ leg: 'openrouter-browser', phase: 'waiting', authorizeUrl: 'https://o.test/', copied: false }, 0).join(' ').includes('A browser window should be opening; the loopback listener completes automatically.'))
+  const geminiKeyPane = keyPromptPaneLines('gemini-key', null, 0, false, 'opened')
+  t.check("the gemini key pane names AI Studio's opened page and its address; the other key panes are the landed ones", geminiKeyPane[0] === 'Gemini API key' && geminiKeyPane.join(' ').includes('AI Studio opened in your browser: press Create API key there, then paste the key here.') && geminiKeyPane.join('').includes('https://aistudio.google.com/apikey') && geminiKeyPane.join(' ').includes('GOOGLE_API_KEY / GEMINI_API_KEY win over the store.') && keyPromptPaneLines('openrouter-key', null, 0, false).join(' ') === keyPromptPaneLines('openrouter-key', null, 0, false, 'opened').join(' ') && keyPromptPaneLines('openrouter-key', null, 0, false)[1] === 'Stored auth-scoped (mode 600), never' && keyPromptPaneLines('openrouter-key', null, 0, false).length === 6)
 
   const openaiWait = { leg: 'openai-browser' as const, phase: 'waiting' as const, authorizeUrl: 'https://auth.openai.test/' + 'q'.repeat(50), copied: false }
   const wait = handlesWaitPaneLines(openaiWait, 5)
@@ -810,15 +817,21 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   const dev = openaiDevicePaneLines({ userCode: 'WXYZ-9876', verifyHint: 'visit chatgpt.com/device and enter the code', copied: false })
   t.check('the opdevice pane: the code · the hint · the honest stop-watching esc', dev.includes('    WXYZ-9876') && dev.join(' ').includes('chatgpt.com/device') && dev[dev.length - 1] === 'c copies the code · esc stops watching')
   t.check('the stop-watching receipt is the landed sentence', OPENAI_DEVICE_STOPPED_RECEIPT.includes('stopped watching') && OPENAI_DEVICE_STOPPED_RECEIPT.includes('the connection still lands'))
-  const clientId = geminiClientPaneLines({ field: 'id', clientId: '', note: null }, 8, 'my-client')
-  const clientSecret = geminiClientPaneLines({ field: 'secret', clientId: 'my-client.apps.example', note: null }, 6, '••••••')
-  t.check('the client prompt: the id PLAIN, the secret MASKED and optional, one esc one layer', clientId.some(l => l === 'id: my-client▌') && clientSecret.join(' ').includes('my-client.apps.example ✓') && clientSecret.some(l => l.includes('secret (optional, ↵ skips): ••••••▌')) && clientId[clientId.length - 1] === '↵ continues · esc back' && clientSecret[clientSecret.length - 1] === '↵ stores · esc back to the id')
+  const clientId = geminiClientPaneLines({ step: 5, from: 'walk', field: 'id', clientId: '', note: null }, 8, 'my-client')
+  const clientSecret = geminiClientPaneLines({ step: 5, from: 'walk', field: 'secret', clientId: 'my-client.apps.example', note: null }, 6, '••••••')
+  t.check('the client prompt is step 5 of the guide: the id PLAIN, the secret MASKED and optional, the way out before the detail', clientId[0] === 'Connect a Google account — step 5 of 6' && clientId[1] === '› 5. Paste the client id' && clientId.some(l => l === 'id: my-client▌') && clientSecret.join(' ').includes('my-client.apps.example ✓') && clientSecret.some(l => l.includes('secret (optional, ↵ skips): ••••••▌')) && clientId.includes('↵ continues · esc back') && clientSecret.includes('↵ stores · esc back to the id') && clientSecret.join(' ').includes('Stored as given'))
+  const step3 = geminiClientPaneLines({ step: 3, from: 'walk', field: 'id', clientId: '', note: null, opened: 'opened' }, 0, '')
+  const wayOutAt = step3.indexOf('↵ next · o open · esc back')
+  const detailAt = step3.findIndex(l => l.startsWith('On the Audience page'))
+  t.check("a page step paints the guide's title and current line, the address whole, the open state and the way out before the detail", step3[0] === 'Connect a Google account — step 3 of 6' && step3.slice(1, 3).join(' ').replace(/\s+/g, ' ') === '› 3. Set up the consent screen for testing' && step3.join('').includes('https://console.developers.google.com/auth/audience') && step3.includes('the overview page:') && step3.includes('opened in your browser') && wayOutAt >= 0 && detailAt >= 0 && wayOutAt < detailAt, step3.join(' | '))
+  t.check('the client legend follows the step', loginsFlowLegendOf({ kind: 'client', client: { step: 3, from: 'walk', field: 'id', clientId: '', note: null }, draftLen: 0, draft: '' }) === '↵ next · o open · esc back' && loginsFlowLegendOf({ kind: 'client', client: { step: 5, from: 'walk', field: 'id', clientId: '', note: null }, draftLen: 0, draft: '' }) === '↵ continue · esc back')
 
   const src = read('src/components/BootLoginsScreen.tsx')
   t.check('the d-switch cancels the browser flow and remounts the device leg', src.includes("handlesRef.current?.cancel('switching to the device-code flow');") && src.includes('startOpenaiDeviceRun();'))
   t.check('the opdevice esc paints the honest stopped receipt', src.includes('setFlow({ kind: \'receipt\', receipt: OPENAI_DEVICE_STOPPED_RECEIPT, ok: false });'))
   t.check('a handles esc backs where the leg came from', src.includes("if (h.leg === 'openai-browser') closeFlow();") && src.includes("else if (h.leg === 'gemini-oauth') openPick('gemini');") && src.includes("else openPick('openrouter');"))
-  t.check('the gemini OAuth pick honors the client gate (the landed redirect)', src.includes("if (value === 'client' || Boolean(geminiOauthClientMissingCopy())) {"))
+  t.check('the gemini account pick opens the guide at step 1 without a client and signs in from step 6 with one; the change row opens step 5', src.includes("if (geminiGuideOpeningStep(liveGeminiConnectFacts()) === 6) {") && src.includes("openGuideStep(1, 'walk');") && src.includes("openGuideStep(5, 'pick');"))
+  t.check('the gemini key pick opens AI Studio and the sign-in refusal returns to step 3 with its page', src.includes('void openBrowser(GEMINI_API_KEY_PAGE.address)') && src.includes("openGuideStep(back, 'walk', errorMessageWithCause(error));"))
   t.check('the client store rides the ONE owner (writeGeminiOauthClientConfig)', src.includes('writeGeminiOauthClientConfig({') && src.includes('clientId: c.clientId,'))
 }
 
@@ -955,7 +968,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   t.check('the success notice is the fixed const (no interpolated notify anywhere)', model.includes('deps.notify?.(LOGIN_SUCCESS_NOTICE)') && (model.match(/deps\.notify\?\.\(/g) ?? []).length === 1)
 
   const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean): string[]'))
+  t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean, opened?: GeminiGuideOpenState): string[]'))
   t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number): string[]'))
   t.check('the handles pane signature takes draftLen, never the draft', screen.includes('export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[]'))
   t.check("the c and d handlers fire on an empty paste only (c with a URL), and the hint composer gates on the same", screen.includes("h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined") && screen.includes("h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === ''") && screen.includes('lines.push(handlesWaitWayOut(h, draftLen));') && screen.includes("const copy = draftLen === 0 && h.authorizeUrl !== undefined;"))

@@ -11,15 +11,15 @@
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
    │ signed in                                                      │  │ ❯ Google Gemini — API key or Google OAuth  │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Claude subscription account                   op@example.com │  │ Connect a Google account — step 5 of 6     │
-   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ › 5. Paste the client id                   │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ id: my-client.apps.example ✓               │
-   │                                                                │  │ secret (optional, ↵ skips): ••••••▌        │
-   │ available                                                      │  │ ↵ stores · esc back to the id              │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ The client secret is optional for a        │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ desktop app. The id is kept for good:      │
-   │ ❯ Google Gemini — API key or Google OAuth        not signed in │  │ your next sign-in starts at step 6.        │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ Stored as given — proved at the next       │
+   │   Claude subscription account                   op@example.com │  │ Connect a Google account — step 3 of 6     │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ › 3. Set up the consent screen for         │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ testing                                    │
+   │                                                                │  │ https://console.developers.google.com/     │
+   │ available                                                      │  │ auth/audience                              │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ the overview page:                         │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ https://console.developers.google.com/     │
+   │ ❯ Google Gemini — API key or Google OAuth        not signed in │  │ auth/overview                              │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ opened in your browser                     │
    │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
    ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  Google account — step 5 of 6                                                                │
+   │ ● System ready  │  Google account — step 3 of 6                                                                │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                                   ↵ store · esc back
+                                               ↵ next · o open · esc back

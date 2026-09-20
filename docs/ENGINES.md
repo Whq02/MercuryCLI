@@ -182,6 +182,24 @@ come from its owning account resolvers:
 - **openai** — the subscription store and the stored key, both shown when both exist;
 - **gemini** — Google OAuth or an API key. The cockpit, daemon and session
   runner read OAuth and locally stored keys from the same auth-scoped store.
+  The `/logins` card offers the API key first, as
+  `API key — the easiest: create one in AI Studio, paste it here`: choosing it
+  opens https://aistudio.google.com/apikey in the browser, prints the address
+  for a box without one, and takes the key by one paste. The Google account is
+  six numbered steps, each opening its Console page: 1. Create a Google Cloud project;
+  2. Enable the Gemini API on it (that page picks the project, or creates one);
+  3. Set up the consent screen for testing (on the Audience page: the user type
+  External, and your own Google address under Test users —
+  Google lets an unpublished app sign in only its listed test users);
+  4. Create an OAuth client for a desktop app; 5. Paste the client id (the
+  secret is optional; the id is kept for good, so the next sign-in starts at
+  step 6); 6. Sign in with Google in the browser (Continue past "Google
+  hasn't verified this app", then Allow). A sign-in Google refuses with
+  `access_denied` returns the card to step 3 with its page open. The Console
+  addresses are dated facts (observed 2026-09-20) kept beside the words; the
+  release-day check fetches each one and refuses a dead host, and a page that
+  moved still shows its words and its address on the card. The scopes stay
+  Google's two.
   Google-account chats use the native generation endpoint and preserve signed
   response parts across tool rounds and resume, exactly as Google returned
   them (a signature that streams in after the text rides the text part it

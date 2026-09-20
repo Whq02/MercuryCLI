@@ -22,6 +22,8 @@ const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/services/providers/dee
 const { GEMINI_PRICE_PINS } = await import('../../src/services/providers/gemini/geminiPins.js')
 const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/huggingface/huggingfacePins.js')
 const model = await import('../../src/utils/model/model.js')
+const { geminiGuidePages } = await import('../../src/components/geminiConnectGuide.js')
+const pages = geminiGuidePages()
 const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
 
 const gptIds = GPT_DISPLAY_PINS.map(p => p.id)
@@ -43,6 +45,7 @@ const lists: Record<string, string[]> = {
   moonshot: KIMI_DISPLAY_PINS.map(p => p.id),
 }
 const failing: Record<string, number> = {}
+let deadPage: string | undefined
 const hits: string[] = []
 const zaiProbes: Array<{ model: string; maxTokens: unknown; stream: unknown; bearer: string | undefined }> = []
 let zaiRefusesKey = false
@@ -59,6 +62,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(status, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ error: { message: `fixture ${family} answers ${status}` } }))
     return true
+  }
+  if (req.method === 'HEAD') {
+    if (path === deadPage) { res.writeHead(404); res.end(); return }
+    res.writeHead(302, { location: 'https://accounts.google.com/ServiceLogin' }); res.end(); return
   }
   if (req.method === 'POST' && path === '/zai/v4/chat/completions') {
     let raw = ''
@@ -141,7 +148,7 @@ const run = async (extra: Record<string, string | undefined> = {}, args: string[
   for (const [k, v] of Object.entries(extra)) { if (v === undefined) delete env[k]; else env[k] = v }
   hits.length = 0
   zaiProbes.length = 0
-  const child = spawn(process.execPath, [SCRIPT, ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [SCRIPT, '--signin-pages-base', `${base}/pages`, ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString('utf8') })
@@ -172,6 +179,10 @@ check('Z.AI, with no model list, reads its dated typed table without the flag: o
 check('no Z.AI request of any kind without the flag (no models GET, no completion)', !hits.some(h => h.includes('/zai/')) && zaiProbes.length === 0, hits.filter(h => h.includes('/zai/')).join(', '))
 check('the summary line says every judged id is served and counts the eight lists, the dated family left out', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served') && / \(8 of 8 lists fetched\)$/.test(l)), all.lines.at(-1))
 check('no credential value appears in the output', secretLeak(all) === undefined, secretLeak(all))
+const pageLines = all.lines.filter(l => l.startsWith('sign-in page · '))
+check(`one line per sign-in page from the one address owner (${pages.length}), each dated and answering the fixture's redirect`, pageLines.length === pages.length && pages.every(p => pageLines.some(l => l.includes(` · ${p.address} · observed ${p.observedAt} · answers HTTP 302`))), pageLines.join('\n'))
+check('every page was asked with one HEAD on the fixture, never a GET', pages.every(p => hits.includes(`HEAD /pages${new URL(p.address).pathname}`)) && !hits.some(h => h.startsWith('GET /pages')), hits.filter(h => h.includes('/pages')).join(', '))
+check('the pages summary says every page answered and names the sign-in wall the HEAD cannot see past', all.lines.some(l => l.startsWith(`sign-in pages: every one of ${pages.length} answered`) && l.includes("a page that moved behind that wall still reads alive here")), all.lines.filter(l => l.startsWith('sign-in pages')).join('\n'))
 
 section("§2 the subscription serves the owner's five ids: every typed id served under that source, exit 0")
 lists.subscription = [...OWNER_LIST]
@@ -252,6 +263,16 @@ check('the script says so once, in its own words', dark.lines.filter(l => l === 
 check('the Z.AI ids read their dated-table lines exactly as without the flag', glmIds.every(id => dark.lines.includes(`zai · Z.AI API key (env) · ${id} · no live list — typed table dated ${glmDated}`)) && !dark.lines.some(l => l.startsWith('zai') && / · (served|not served|unreachable)/.test(l)), dark.lines.filter(l => l.startsWith('zai')).join('\n'))
 check('Z.AI stays out of the fetched count', dark.lines.some(l => / of 8 lists fetched\)$/.test(l)), dark.lines.at(-1))
 check('exit 0 and no credential value in the output', dark.status === 0 && secretLeak(dark) === undefined, `status ${dark.status}`)
+
+section('§5d a dead sign-in page: the line names it, the summary counts it, the exit is 1 while every typed id still reads served')
+deadPage = '/pages/auth/clients'
+const deadPageRun = await run()
+check('exit 1', deadPageRun.status === 1, `status ${deadPageRun.status}`)
+check('the clients page reads dead with the status', deadPageRun.lines.some(l => l.startsWith('sign-in page · https://console.developers.google.com/auth/clients · ') && l.endsWith(' · dead (HTTP 404)')), deadPageRun.lines.filter(l => l.startsWith('sign-in page')).join('\n'))
+check('the other pages still answer', deadPageRun.lines.filter(l => l.startsWith('sign-in page · ') && l.endsWith(' · answers HTTP 302')).length === pages.length - 1)
+check(`the pages summary counts the one dead page of ${pages.length}`, deadPageRun.lines.some(l => l.startsWith(`sign-in pages: 1 of ${pages.length} dead`)), deadPageRun.lines.filter(l => l.startsWith('sign-in pages')).join('\n'))
+check('every typed id still reads served (the model-id judgement is untouched)', deadPageRun.lines.filter(l => l.endsWith(' · served')).length === typedTotal && deadPageRun.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')))
+deadPage = undefined
 
 section('§6 the check writes nothing under the config home across every run')
 check('the home holds the same files with the same sizes and mtimes as before the first run, but the auth file the proof itself rewrote', snapshotHome().split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n') === before.split('\n').filter(l => !l.startsWith('.openai-auth.json')).join('\n'), `before:\n${before}\nafter:\n${snapshotHome()}`)
