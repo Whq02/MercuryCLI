@@ -33,6 +33,7 @@ import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
+import type { ProcessSweepEntry } from './processSweep.js'
 
 export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
@@ -60,6 +61,7 @@ export interface ControlServerDeps {
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
+  processSweep?: (request: { action: 'facts' | 'end'; expected?: ProcessSweepEntry }) => Promise<Extract<DaemonReply, { op: 'processSweep' }>>
   nudgeAgent?: (agentName: string) => void
   crewSpawn?: (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }>
   concourseAdmit?: (req: {
@@ -1068,6 +1070,19 @@ async function routeControlRequest(
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no sign-in view' })
       }
       return answer(sock, { ok: true, op: 'signIns', view: deps.signIns({ refresh: raw.refresh === true }) })
+    }
+
+    case 'processSweep': {
+      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+      if (!deps.processSweep) {
+        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no process sweep' })
+      }
+      const action = raw.action === 'end' ? 'end' : raw.action === 'facts' ? 'facts' : null
+      if (action === null) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'processSweep needs action facts or end' })
+      }
+      const expected = raw.expected !== null && typeof raw.expected === 'object' ? (raw.expected as ProcessSweepEntry) : undefined
+      return answer(sock, await deps.processSweep({ action, ...(expected === undefined ? {} : { expected }) }))
     }
 
     case 'attach': {
