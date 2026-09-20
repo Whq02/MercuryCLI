@@ -187,6 +187,16 @@
    "file": "src/utils/undercover.ts",
    "class": "archive",
    "reason": "Attribution-suppression mode, inert by in-file ruling: 'Documented intent, kept for a future re-enablement' — every entry point returns its constant, and constants/prompts.ts records the fold to always-emit. The file IS the documented intent; deleting it erases the recorded re-enablement contract."
+  },
+  {
+   "file": "src/daemon/processSweepWindows.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The Windows process reader and single-process signal behind the process sweep's seam, win32-only by design. No src module imports it on any platform: the sweep's I/O owner answers an incomplete table and refuses every ending on win32 until this leg is wired to it, so only the winreg proofs reach it today."
+  },
+  {
+   "file": "src/daemon/processSweepWindowsHost.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The PowerShell host script the Windows process reader spawns, imported by that reader alone; it is reached only through the winreg proofs until the reader is wired into the sweep's I/O owner."
   }
  ]
 }
