@@ -159,14 +159,18 @@ export interface ProcessSweepDaemonRecord {
   startedAt: number
 }
 
+export interface ProcessSweepSeatHolder {
+  stamp: string
+  terminalPid: number | undefined
+}
+
 export interface ProcessSweepRunnerRecord {
   pid: number | undefined
   procStart: string | undefined
   endedAt: number | undefined
   stoppedAt: number | undefined
   parkedAt: number | undefined
-  attachedBy: string | undefined
-  focusedBy: string | undefined
+  seatHolders: ProcessSweepSeatHolder[]
   schedules: number
   activity: 'working' | 'waiting' | 'idle' | undefined
   warm: boolean
@@ -279,13 +283,12 @@ function pidAlive(pid: number | null | undefined, table: readonly ProcessSweepOb
 }
 
 function seatHolderAlive(record: ProcessSweepRunnerRecord, table: readonly ProcessSweepObservation[]): ProcessSweepRead {
-  const holders = [record.attachedBy, record.focusedBy].filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+  const holders = record.seatHolders.filter(holder => typeof holder.stamp === 'string' && holder.stamp.trim() !== '')
   if (holders.length === 0) return false
   let verdict: ProcessSweepRead = false
   for (const holder of holders) {
-    const match = /^operator:(\d+)$/.exec(holder.trim())
-    if (match === null) return true
-    const alive = pidAlive(Number(match[1]), table)
+    if (holder.terminalPid === undefined) return true
+    const alive = pidAlive(holder.terminalPid, table)
     if (alive === true) return true
     if (alive === null) verdict = null
   }

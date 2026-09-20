@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, utimes, writeFile } from 'n
 import { join } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
-import { readSessionWorkersSnapshot } from './concourseSupervisor.js'
+import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
 import { getProcessStartTokenAsync } from './ownerWatch.js'
@@ -36,6 +36,21 @@ const REGISTRATION_SCHEMA = 1
 export function processSweepWaitMs(): number {
   const raw = Number(flagEnv('MERCURY_PROCESS_SWEEP_WAIT_MS') ?? 4000)
   return Number.isFinite(raw) && raw >= 100 && raw <= 30_000 ? Math.floor(raw) : 4000
+}
+
+export function sweepRunnerRecord(record: ConcourseWorkerRecordV1 | undefined, pid: number | undefined, warm: boolean): ProcessSweepRunnerRecord {
+  const stamps = [record?.attachedBy, record?.focusedBy].filter((stamp): stamp is string => typeof stamp === 'string' && stamp.trim() !== '')
+  return {
+    pid,
+    procStart: record?.procStart,
+    endedAt: record?.endedAt,
+    stoppedAt: record?.stoppedAt,
+    parkedAt: record?.parkedAt,
+    seatHolders: stamps.map(stamp => ({ stamp, terminalPid: stampedTerminalPid(stamp) })),
+    schedules: Array.isArray(record?.schedules) ? record.schedules.length : 0,
+    activity: record?.activity?.state,
+    warm,
+  }
 }
 
 export function processRecordsDir(home: string = getMercuryHome()): string {
@@ -173,18 +188,7 @@ async function readPlane(dir: string, own: boolean, rpc: (request: DaemonRequest
   }
   const snapshot = readSessionWorkersSnapshot(dir)
   const runners: ProcessSweepRunnerRecord[] | null = snapshot.state === 'known'
-    ? Object.values(snapshot.workers).map(record => ({
-        pid: record.pid,
-        procStart: record.procStart,
-        endedAt: record.endedAt,
-        stoppedAt: record.stoppedAt,
-        parkedAt: record.parkedAt,
-        attachedBy: record.attachedBy,
-        focusedBy: record.focusedBy,
-        schedules: Array.isArray(record.schedules) ? record.schedules.length : 0,
-        activity: record.activity?.state,
-        warm: false,
-      }))
+    ? Object.values(snapshot.workers).map(record => sweepRunnerRecord(record, record.pid, false))
     : null
   let answer: ProcessSweepDaemonAnswer | null = null
   if (own && supervisor !== null) {
