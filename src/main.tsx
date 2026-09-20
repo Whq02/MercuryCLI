@@ -1355,6 +1355,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   if (userSpecifiedModel) setMainLoopModelOverride(userSpecifiedModel)
   setInitialMainLoopModel(userSpecifiedModel ?? null)
+  if (printMode) {
+    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')
+    await readComputedDefaultCatalogue()
+  }
   const resolvedInitialModel = getMainLoopModel()
 
   if (teammateMode === 'auto' || teammateMode === 'tmux' || teammateMode === 'in-process') {

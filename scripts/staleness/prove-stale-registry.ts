@@ -169,6 +169,7 @@ src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
+src/services/providers/moonshot/moonshotCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
