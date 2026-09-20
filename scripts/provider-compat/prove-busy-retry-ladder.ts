@@ -170,5 +170,15 @@ try {
   globalThis.fetch = realFetch
   delete process.env.MERCURY_BUSY_RETRY_SCALE
 }
+console.log('── the other lanes and the router, untouched')
+const { readFileSync } = await import('node:fs')
+const untouched = ['deepseek/deepseekCallModel.ts', 'huggingface/huggingfaceCallModel.ts', 'local/localCallModel.ts', 'moonshot/moonshotCallModel.ts', 'openaicompat/compatCallModel.ts', 'openrouter/openrouterCallModel.ts', 'callModelRouter.ts', 'zai/zaiCallModel.ts', 'openai/openaiCallModel.ts']
+for (const name of untouched) {
+  const source = readFileSync(new URL(`../../src/services/providers/${name}`, import.meta.url), 'utf8')
+  const delegating = !name.startsWith('zai/') && !name.startsWith('openai/') && name !== 'callModelRouter.ts'
+  check(`${name} takes no ladder and keeps its yield union`, !source.includes('busyRetry') && !source.includes('BusyRecovery') && (!delegating || source.includes('): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {')))
+}
+const profiles = readFileSync(new URL('../../src/services/providers/gemini/geminiCallModel.ts', import.meta.url), 'utf8')
+check('only the Gemini lane profile asks for the ladder', (profiles.match(/busyRetry: true/g) ?? []).length === 1 && readFileSync(new URL('../../src/services/providers/openaicompat/compatChatCallModel.ts', import.meta.url), 'utf8').includes("if (profile.busyRetry === true && outcome.retryEligible && isBusyRefusal(outcome.fault) && !providerWaitIsWindow(askedMs)) {"))
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)
