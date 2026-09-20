@@ -22,7 +22,7 @@ function seed(source: 'oauth' | 'api-key' = 'oauth'): void {
 seed()
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { geminiCallModel, geminiLiveProofState } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
+const { geminiCallModel, geminiLaneProfile, geminiLiveProofState, GEMINI_ACCOUNT_BILLING_REMEDY } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getUsageForModel } = await import('../../src/bootstrap/state.ts')
@@ -58,7 +58,8 @@ function sse(chunks: unknown[]): Response {
 }
 type Hit = { url: string; auth: string | null; body: Record<string, any> }
 const hits: Hit[] = []
-let scenario: 'text' | 'tools' | 'tool-result' | 'refused-tool' | 'refuse' | 'refresh' | 'overflow' | 'rate' = 'text'
+let scenario: 'text' | 'tools' | 'tool-result' | 'refused-tool' | 'refuse' | 'refresh' | 'overflow' | 'rate' | 'overload' | 'billing' = 'text'
+const overloadReason = 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.'
 const realFetch = globalThis.fetch
 globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
@@ -78,6 +79,8 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   if (scenario === 'refuse' || (scenario === 'refresh' && auth !== `Bearer ${refreshed}`)) return Response.json({ error: { code: 401, status: 'UNAUTHENTICATED', message: `rejected ${auth}` } }, { status: 401 })
   if (scenario === 'overflow') return Response.json({ error: { code: 400, status: 'INVALID_ARGUMENT', message: 'The input token count (1200000) exceeds the maximum number of tokens allowed (1000000)' } }, { status: 400 })
   if (scenario === 'rate') return Response.json({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } }, { status: 429, headers: { 'retry-after': '600' } })
+  if (scenario === 'overload') return Response.json({ error: { code: 503, status: 'UNAVAILABLE', message: overloadReason } }, { status: 503 })
+  if (scenario === 'billing') return Response.json({ error: { code: 402, message: 'payment is required' } }, { status: 402 })
   if (scenario === 'refused-tool') return sse([
     { candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'NoSuchTool', args: { text: 'x' } }, thoughtSignature: 'fixture-refused-signature' }, { functionCall: { name: 'FixtureEcho', args: { text: 'ok' } } }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
   ])
@@ -180,6 +183,7 @@ try {
   const refused = await drain(params([user('Say hello.')]))
   const refusal = text(refused)
   check('a repeated native 401 names the Google account and truthful retry, never an API key', refusal.includes("the Google account's token was refused (HTTP 401)") && refusal.includes('/logins re-connects the Google account') && refusal.includes('refreshed and the call retried once') && !refusal.includes('API_KEY') && !refusal.includes(access) && !refusal.includes(refreshed))
+  check("Google's own reason rides third in the compat detail shape, the bearer masked out of it", refusal.endsWith('before this refusal. The wire said: api-UNAUTHENTICATED: rejected Bearer «masked»') && refusal.indexOf('The wire said') > refusal.indexOf('retried once'))
   scenario = 'overflow'
   const overflow = await drain(params([user('Say hello.')]))
   check('native context overflow retains the typed compaction signal', overflow.some(message => message.overflowSignal !== undefined && message.overflowSignal !== null))
@@ -187,6 +191,14 @@ try {
   hits.length = 0
   const rate = await drain(params([user('Say hello.')]))
   check('a provider wait outside the retry budget is not slept or retried', hits.length === 1 && rate.some(message => message.error === 'rate_limit' && typeof message.providerWaitEndsAtMs === 'number'))
+  scenario = 'overload'
+  hits.length = 0
+  const overloaded = await drain(params([user('Say hello.')]))
+  const overloadWords = overloaded.filter(message => message.isApiErrorMessage).map(message => text([message]))
+  check("a native 503 is retried once by the shared runtime, then carries its overload words with Google's reason", hits.length === 2 && overloadWords.at(-1) === `API Error: Gemini stream failed (api-UNAVAILABLE) — ${overloadReason}` && overloaded.some(message => message.error === 'server_error'))
+  scenario = 'billing'
+  const billed = text(await drain(params([user('Say hello.')])))
+  check('a native billing refusal names the Google sign-in remedy, the API-key form unchanged', billed.endsWith(`— ${GEMINI_ACCOUNT_BILLING_REMEDY}`) && billed.includes('out of credit (http-402: payment is required)') && geminiLaneProfile.billingRemedy!.includes('behind this key'))
 } finally {
   globalThis.fetch = realFetch
 }

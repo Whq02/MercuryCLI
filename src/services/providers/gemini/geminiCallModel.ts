@@ -13,6 +13,7 @@ import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
 import { geminiEffortVocabularyFor } from './geminiCatalogue.js'
 import { recordGeminiRateHeaders } from './geminiUsageState.js'
+import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { streamGeminiContent } from './geminiClient.js'
 import type { GeminiTurnItem } from './geminiCodec.js'
 import { mapMessagesToZai } from '../zai/zaiCodec.js'
@@ -53,6 +54,9 @@ export const geminiLaneProfile: CompatLaneProfile = {
   },
 }
 
+export const GEMINI_ACCOUNT_BILLING_REMEDY =
+  "the Google sign-in's quota and billing cannot be changed from here · /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
+
 export function geminiLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('gemini')
 }
@@ -68,8 +72,10 @@ export async function* geminiCallModel(
   let bearer: string | undefined
   let status: number | undefined
   let recovery: 'retried' | 'no-new-credential' | undefined
+  let wireSaid: string | undefined
   const profile: CompatLaneProfile = {
     ...geminiLaneProfile,
+    billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY,
     resolveCredential: async () => {
       const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth' })
       if (!auth) return undefined
@@ -90,8 +96,15 @@ export async function* geminiCallModel(
     },
     streamTransport: (options, messages) => {
       let turn: GeminiTurnItem | undefined
+      const upstream = streamGeminiContent({ ...options, messages, onTurn: item => { turn = item } })
+      async function* observed(): AsyncGenerator<CompatStreamEvent> {
+        for await (const event of upstream) {
+          if (event.type === 'stream-fault') wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
+          yield event
+        }
+      }
       return {
-        events: streamGeminiContent({ ...options, messages, onTurn: item => { turn = item } }),
+        events: observed(),
         settle: minted => {
           const last = minted.at(-1)
           if (!last || !turn) return
@@ -109,7 +122,7 @@ export async function* geminiCallModel(
         ? ' The stored token was refreshed and the call retried once before this refusal.'
         : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
       yield createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: the Google account's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins re-connects the Google account; /model picks another model meanwhile.${refreshed}`,
+        content: `${API_ERROR_MESSAGE_PREFIX}: the Google account's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins re-connects the Google account; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
         error: item.error,
         errorDetails: item.errorDetails,
       })
