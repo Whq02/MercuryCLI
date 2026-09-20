@@ -17,7 +17,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 if (process.platform === 'win32') {
-  console.log('process sweep doctor drive: POSIX only (Windows reads the list and ends nothing on this lane)')
+  console.log('process sweep doctor drive: POSIX only (the Windows read and ending are proved by scripts/winreg/prove-process-sweep-doctor.ts on a Windows box)')
   process.exit(0)
 }
 
