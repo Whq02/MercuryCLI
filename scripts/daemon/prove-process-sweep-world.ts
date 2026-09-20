@@ -28,7 +28,7 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 if (process.platform === 'win32') {
-  console.log('process sweep world: Windows reads the list and ends nothing on this lane — the world proof is POSIX-only')
+  console.log('process sweep world: POSIX only — the Windows read and ending are proved by scripts/winreg/prove-process-sweep-doctor.ts on a Windows box')
   process.exit(0)
 }
 
