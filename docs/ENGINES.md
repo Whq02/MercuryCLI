@@ -40,6 +40,21 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
+Moonshot's default, picker and specialist choices follow the account's live
+model list. An API key reads the platform list; a Kimi sign-in reads its
+region's coding list with the same credential used for chat. The newest
+creation time leads, with provider order preserved when times are absent
+or equal. A successful empty list offers no row. With no fetched list,
+the recorded rows stand in with their observation date. An id missing from
+a fetched list is refused before chat, with the account label and offered
+ids; an unreachable catalogue permits a named id with an explicit note.
+An unnamed first chat reads the catalogue within the existing bounded
+allowance; idle boot and explicit model choices remain unchanged.
+
+Z.AI documents no model-list endpoint. Its rows therefore remain recorded
+observations, dated 2026-08-21, not a claim of current availability. A chat
+refusal carries Z.AI's own reason after the status.
+
 A retired DeepSeek id resolves to its current one wherever a model id is
 read — a saved setting, `MERCURY_MODEL`, `/model`, a sub-agent's model —
 and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and

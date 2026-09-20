@@ -9,7 +9,9 @@ import { buildRouterModelSnapshot } from '../router/modelRegistry.js'
 import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
 import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
-import { KIMI_STATIC_CATALOGUE } from '../router/providers/moonshot.js'
+import { moonshotCatalogueEntries } from '../router/providers/moonshot.js'
+import { qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
+import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { DEEPSEEK_STATIC_CATALOGUE, deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import {
   compatSlotModelIds,
@@ -64,7 +66,7 @@ export function engineDispatchModelsForSchema(): readonly string[] {
     ...ENGINE_DISPATCH_MODELS,
     ...GPT_DISPLAY_PINS.map(pin => pin.id),
     ...GLM_STATIC_CATALOGUE.map(entry => entry.id),
-    ...KIMI_STATIC_CATALOGUE.map(entry => entry.id),
+    ...moonshotCatalogueEntries().map(entry => entry.id),
     ...DEEPSEEK_STATIC_CATALOGUE.map(entry => entry.id),
     ...compatSlotModelIds(),
     ...HUGGINGFACE_STATIC_CATALOGUE.map(entry => entry.id),
@@ -310,7 +312,8 @@ export async function resolveEngineDispatch(
     }
     if (modelParam === 'kimi') {
       await requireProviderAvailable('moonshot')
-      const pin = KIMI_STATIC_CATALOGUE[0]
+      await refreshMoonshotCatalogue()
+      const pin = moonshotCatalogueEntries()[0]
       if (!pin) throw new Error('Engine provider moonshot has no catalogue entry — cannot resolve a model.')
       return { backend: 'moonshot', model: pin.id, displayLabel: pin.displayLabel }
     }
@@ -353,13 +356,12 @@ export async function resolveEngineDispatch(
     }
     if (/^(kimi|moonshot)-/i.test(id)) {
       await requireProviderAvailable('moonshot')
-      const pin = KIMI_STATIC_CATALOGUE.find(entry => entry.id === id.toLowerCase())
-      if (!pin) {
-        throw new Error(
-          `Kimi model '${id}' is not a catalogue-verified id (pins: ${KIMI_STATIC_CATALOGUE.map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
-        )
+      const qualification = await qualifyMoonshotModel(id.toLowerCase())
+      if (qualification.kind === 'refused') throw new Error(qualification.message)
+      return {
+        backend: 'moonshot', model: qualification.modelId,
+        displayLabel: `${kimiDisplayName(id) ?? id}${qualification.kind === 'degraded' ? ` (${qualification.note})` : ''}`,
       }
-      return { backend: 'moonshot', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (/^deepseek-/i.test(id)) {
       await requireProviderAvailable('deepseek')

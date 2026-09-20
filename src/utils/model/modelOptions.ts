@@ -24,6 +24,7 @@ import {
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
+import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
@@ -445,14 +446,9 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneP
     }))
   }
   if (provider === 'moonshot') {
-    const { KIMI_DISPLAY_PINS } =
-      require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
-    return KIMI_DISPLAY_PINS.map(pin => ({
-      id: pin.id,
-      displayName: pin.displayName,
-      observedAt: pin.observedAt,
-      ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
-    }))
+    const { moonshotCatalogueRows } =
+      require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
+    return moonshotCatalogueRows().rows
   }
   const { deepseekCatalogueRows } =
     require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
@@ -607,6 +603,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
   kickDeepseekCatalogue()
+  kickMoonshotCatalogue()
   for (const row of keyLaneProviderRows()) {
     pushIfAbsent(options, row)
   }

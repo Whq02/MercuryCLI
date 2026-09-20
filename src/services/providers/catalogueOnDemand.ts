@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -50,6 +50,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         const sourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
         if (!nothingUsable(getCachedGeminiCatalogue(sourceKind))) return false
         await bounded(refreshGeminiCatalogue(sourceKind), boundMs)
+        return true
+      }
+      case 'moonshot': {
+        const { getCachedMoonshotCatalogue, refreshMoonshotCatalogue } = await import('./moonshot/moonshotCatalogue.js')
+        if (!catalogueTrafficVerdict('moonshot').allowed) return false
+        if (!nothingUsable(getCachedMoonshotCatalogue())) return false
+        await bounded(refreshMoonshotCatalogue(), boundMs)
         return true
       }
       case 'huggingface': {
