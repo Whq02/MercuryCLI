@@ -225,12 +225,12 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   const ctx = makeCtx(store)
   registerAsyncAgent({ agentId: minted, description: 'harbour-count', prompt: 'count the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   const byId = (await SendMessageTool.call({ to: minted, message: 'a word for the harbour' } as never, ctx, undefined as never, { requestId: 'req_1' } as never)) as SendAnswer
-  check("SendMessage to the receipt's id queues the message for the running agent", byId.data.success === true && /Message queued for/.test(byId.data.message), byId.data.message)
+  check("SendMessage to the receipt's id delivers the message to the running agent, read at its next tool boundary", byId.data.success === true && /Message delivered to agent/.test(byId.data.message) && /next tool boundary/.test(byId.data.message), byId.data.message)
   const pending = (): string[] => ((store.get().tasks[minted] as { pendingMessages?: string[] } | undefined)?.pendingMessages ?? [])
-  check("…and the words sit in that task's pending queue", pending().includes('a word for the harbour'))
+  check("…and the words sit in that task's pending queue, in the notice's shape that names the sender", pending().some(p => p.includes('a word for the harbour') && p.includes('<status>message</status>') && p.includes('The main agent sent a message')), JSON.stringify(pending()))
   store.set(prev => ({ ...prev, agentNameRegistry: new Map([['harbour', minted]]) }))
   const byName = (await SendMessageTool.call({ to: 'harbour', message: 'a second word' } as never, ctx, undefined as never, { requestId: 'req_2' } as never)) as SendAnswer
-  check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /Message queued for/.test(byName.data.message) && pending().includes('a second word'), byName.data.message)
+  check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /Message delivered to agent/.test(byName.data.message) && pending().some(p => p.includes('a second word')), byName.data.message)
   const ghost = generateTaskId('local_agent')
   const toGhost = (await SendMessageTool.call({ to: ghost, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_3' } as never)) as SendAnswer
   check('an id with no running task and no transcript is refused with the facts — no running task, no transcript, which address to use', toGhost.data.success === false && !/is registered/.test(toGhost.data.message) && /no running task/i.test(toGhost.data.message) && /no transcript/i.test(toGhost.data.message), toGhost.data.message)

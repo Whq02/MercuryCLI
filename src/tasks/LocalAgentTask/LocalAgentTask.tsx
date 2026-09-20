@@ -1,4 +1,5 @@
 import {
+  MESSAGE_TAG,
   OUTPUT_FILE_TAG,
   STATUS_TAG,
   SUMMARY_TAG,
@@ -33,7 +34,8 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
-import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
+import { emitTaskTerminatedSdk, enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
+import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
@@ -378,6 +380,36 @@ export function enqueueAgentReceiptRow(args: { taskId: string; description: stri
 <${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
 </${TASK_NOTIFICATION_TAG}>`
   enqueuePendingNotification({ value: message, mode: 'task-notification', priority: 'next' })
+}
+
+export function agentMessageSummary(sender: { taskId: string; description?: string } | null): string {
+  return sender === null ? MAIN_AGENT_MESSAGE_SUMMARY : `Agent "${sender.description ?? sender.taskId}" sent a message`
+}
+
+export function agentMessageNotice(args: { taskId: string; summary: string; text: string }): string {
+  return `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
+<${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>${AGENT_MESSAGE_STATUS}</${STATUS_TAG}>
+<${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
+<${MESSAGE_TAG}>${args.text}</${MESSAGE_TAG}>
+</${TASK_NOTIFICATION_TAG}>`
+}
+
+export function enqueueMessageToMainAgent(args: { fromTaskId: string; description: string; text: string }): void {
+  const summary = agentMessageSummary({ taskId: args.fromTaskId, description: args.description })
+  enqueuePendingNotification({ value: agentMessageNotice({ taskId: args.fromTaskId, summary, text: args.text }), mode: 'task-notification', priority: 'next' })
+}
+
+export function speakAgentMessageFrame(taskId: string, notice: string): void {
+  const summary = new RegExp(`<${SUMMARY_TAG}>([\\s\\S]*?)</${SUMMARY_TAG}>`).exec(notice)?.[1]?.trim()
+  enqueueSdkEvent({
+    type: 'system',
+    subtype: 'task_notification',
+    task_id: taskId,
+    output_file: getTaskOutputPath(taskId),
+    summary: summary === undefined || summary === '' ? 'a message' : summary,
+  })
 }
 
 export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
@@ -833,6 +865,7 @@ export function drainPendingMessages(
     pendingMessages: [],
   }))
   consumeAgentMessages(taskId)
+  for (const notice of pending) speakAgentMessageFrame(taskId, notice)
   return pending
 }
 

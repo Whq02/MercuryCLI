@@ -624,6 +624,16 @@ has not read by its end is read as soon as the turn ends, together with any
 queued beside it. The chat paints the carried message as one counted row,
 exactly as it paints a run of separate notices.
 
+A message one agent sends another takes the completion's road. A background
+sub-agent reaches the agent that launched it at `main`; the main agent reaches
+a sub-agent by the id its launch receipt names or by its name. The message
+reaches the receiver at its next tool boundary while its turn runs, else at
+the end of its turn; a receiver between turns starts a turn for it, and a
+sub-agent whose run has ended is resumed with it. It arrives as a task
+notification whose status is `message`, naming the sender, and the runner
+speaks one `task_notification` frame for it on the wire, without a status
+word: a message ends nothing.
+
 ## Where the pieces live
 
 - The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.
