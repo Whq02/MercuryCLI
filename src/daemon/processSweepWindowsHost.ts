@@ -52,12 +52,14 @@ function Tri($value) {
   if ($value -eq 0) { return $false }
   return $null
 }
-function Row($process) {
+function Row($process, $full = $true) {
   $sid = $null
-  try {
-    $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwnerSid -ErrorAction Stop
-    if ($owner.ReturnValue -eq 0) { $sid = $owner.Sid }
-  } catch {}
+  if ($full) {
+    try {
+      $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwnerSid -ErrorAction Stop
+      if ($owner.ReturnValue -eq 0) { $sid = $owner.Sid }
+    } catch {}
+  }
   $started = $null
   $token = $null
   if ($null -ne $process.CreationDate) {
@@ -79,9 +81,15 @@ function Row($process) {
     startToken = $token
     user = $sid
     sessionId = $session
-    consoleAttached = (Tri ([ProcessProbe]::ConsoleState($process.ProcessId)))
+    consoleAttached = $(if ($full) { Tri ([ProcessProbe]::ConsoleState($process.ProcessId)) } else { $null })
     sessionConnected = $connected
   }
+}
+function Wanted($process, $pids) {
+  if ($pids.ContainsKey([int]$process.ProcessId)) { return $true }
+  $name = [string]$process.Name
+  if ($name -notmatch '^(node|bun|mercury)(\.exe)?$') { return $false }
+  return ([string]$process.CommandLine) -match '(^|[\\/])mercury(\.mjs|\.cmd|\.exe)?($|[\s"])'
 }
 function Request() {
   $line = [Console]::ReadLine()
@@ -95,7 +103,9 @@ try {
   $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   if ([string]::IsNullOrEmpty($user)) { throw 'The current user identity could not be read' }
   if ($request.op -eq 'table') {
-    $rows = @(Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -gt 0 } | ForEach-Object { Row $_ })
+    $pids = @{}
+    foreach ($wanted in @($request.pids)) { if ($null -ne $wanted) { $pids[[int]$wanted] = $true } }
+    $rows = @(Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -gt 0 } | ForEach-Object { Row $_ (Wanted $_ $pids) })
     Emit @{ rows = $rows }
   } elseif ($request.op -eq 'signal') {
     $targetPid = [uint32]$request.pid
