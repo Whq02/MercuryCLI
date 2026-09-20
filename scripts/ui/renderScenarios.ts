@@ -7,6 +7,7 @@ import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import {
   STREAM_FAULT_RECOVERY_NUDGE,
   streamFaultAfterPartialText,
+  streamFaultNoticeLine,
 } from '../../src/services/api/errors.ts'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
@@ -480,7 +481,12 @@ export function writeSyntheticSession(
             content: [{ type: 'text', text: STREAM_FAULT_TEXT }], stop_reason: 'stop_sequence', stop_sequence: '',
             usage: { input_tokens: 0, output_tokens: 0 } },
           timestamp: '2026-06-19T12:00:03.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000003', type: 'user',
+        base({ parentUuid: '00000000-0000-4000-8000-000000000003', type: 'system', subtype: 'stream_cut',
+          uuid: '00000000-0000-4000-8000-000000000006', isMeta: false, level: 'info', count: 1,
+          road: 'OpenAI', sent: 'stream closed unexpectedly mid-response', code: 'server_error',
+          content: streamFaultNoticeLine(STREAM_FAULT_TEXT, 'asked the model to continue from where it stopped (continuation 1 of 1)'),
+          timestamp: '2026-06-19T12:00:03.500Z' }),
+        base({ parentUuid: '00000000-0000-4000-8000-000000000006', type: 'user',
           uuid: '00000000-0000-4000-8000-000000000004', isMeta: true,
           message: { role: 'user', content: STREAM_FAULT_RECOVERY_NUDGE },
           timestamp: '2026-06-19T12:00:04.000Z' }),

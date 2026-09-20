@@ -130,6 +130,7 @@ export {
   createStopHookSummaryMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
+  createStreamCutMessage,
   createThinkingDeadMessage,
   createThinkingNoteMessage,
   createSystemMessage,

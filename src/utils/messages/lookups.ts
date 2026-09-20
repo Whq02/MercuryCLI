@@ -269,6 +269,11 @@ export function buildMessageLookups(
       }
     }
 
+    if (msg.type === 'system' && (msg as { subtype?: string }).subtype === 'stream_cut' && pendingStreamFaultUuids.length > 0) {
+      for (const uuid of pendingStreamFaultUuids) recoveredStreamFaultUuids.add(uuid)
+      pendingStreamFaultUuids.length = 0
+    }
+
     if (msg.type === 'assistant') {
       if (isContinuableStreamFaultMessage(msg as unknown as AssistantMessage)) {
         pendingStreamFaultUuids.push(msg.uuid)

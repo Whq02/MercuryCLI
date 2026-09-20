@@ -24,11 +24,20 @@ console.log('recovered stream-fault presentation ──')
   check('lookups compute the recovered set', lk.includes('recoveredStreamFaultUuids'))
   const atm = src('src/components/messages/AssistantTextMessage.tsx')
   check(
-    'renderer: recovered+continuable+collapsed → restrained row',
-    atm.includes('recovered && isContinuableStreamFaultText(text) && !verbose') &&
+    'renderer: a recovered continuable fault paints nothing in the default view',
+    atm.includes('if (streamFaultRecovered && isContinuableStreamFaultText(text) && !verbose) return null') &&
       atm.includes('recovered={streamFaultRecovered}'),
   )
-  check('renderer: the restrained row keeps ctrl+o truth', /recovered && isContinuableStreamFaultText\(text\) && !verbose[\s\S]{0,400}CtrlOToExpand/.test(atm))
+  check('renderer: the expansion paints the recovered fault whole, quietly', /recovered && isContinuableStreamFaultText\(text\)\) \{\s*return <Text dimColor>\{text\}<\/Text>/.test(atm))
+  const stm = src('src/components/messages/SystemTextMessage.tsx')
+  check('the calm line is the stream_cut row, in the collapsed tool row\u2019s tokens', /case 'stream_cut':[\s\S]{0,600}<Text color="subtle">[\s\S]{0,200}Continued after <Text bold>\{message\.count\}<\/Text> \{plural\(message\.count, 'stream cut'\)\} · context sent again/.test(stm))
+  check('the calm line carries no glyph and no warning colour', !/case 'stream_cut':[\s\S]{0,900}GLYPH\./.test(stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':"))) && !stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':")).includes('warning'))
+  const tm2 = src('src/run-core/turn-machine.ts')
+  const qe = src('src/QueryEngine.ts')
+  check('the headless engine records the stream_cut row (the daemon-hosted cockpit paints from the transcript file)', /systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'/.test(qe))
+  const recordRule = /if \(\s*\(systemMessage as \{ level\?: string \}\)\.level === 'warning' \|\|\s*\(systemMessage as \{ level\?: string \}\)\.level === 'error' \|\|\s*systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'\s*\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
+  check('the record rule is bounded: a warning or error level, the thinking receipt, the stream_cut row — an info row of any other kind still never leaves the runner', recordRule.test(qe))
+  check('the continue branch mints the typed row, the exhausted branch keeps the warning', tm2.includes('message: createStreamCutMessage({') && tm2.includes("`stopped after ${streamFaultRecoveryCount} continuation"))
   const msg = src('src/components/Message.tsx')
   check(
     'Message.tsx threads the lookup by normalized uuid',
@@ -72,6 +81,28 @@ console.log('recovered stream-fault presentation ──')
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
     check('a TERMINAL fault (no nudge after) stays out', lookups.recoveredStreamFaultUuids.size === 0)
+  }
+  {
+    const { createStreamCutMessage, createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
+    const row = createStreamCutMessage({ count: 1, content: 'OpenAI ended the stream after partial content — stream died (server_error); asked the model to continue from where it stopped (continuation 1 of 1)', road: 'OpenAI', sent: 'stream died', code: 'server_error' })
+    const messages = [
+      mk.user('u1', 'summarize'),
+      mk.assistant('a1', 'partial half —'),
+      mk.assistant('a2', faultText, true),
+      row as never,
+      mk.assistant('a3', '— finished.'),
+    ]
+    const lookups = buildMessageLookups(normalizeMessages(messages), messages)
+    check('the typed stream_cut row after a fault marks it recovered without the nudge (the live road)', lookups.recoveredStreamFaultUuids.has('a2') && lookups.recoveredStreamFaultUuids.size === 1)
+    const warning = createSystemMessage('OpenAI ended the stream after partial content — stream died (server_error); stopped after 1 continuation; the reply so far stands', 'warning')
+    const exhausted = [
+      mk.user('u1', 'summarize'),
+      mk.assistant('a1', 'partial half —'),
+      mk.assistant('a2', faultText, true),
+      warning as never,
+    ]
+    const exhaustedLookups = buildMessageLookups(normalizeMessages(exhausted), exhausted)
+    check('the exhausted branch\u2019s warning row never marks the fault recovered', exhaustedLookups.recoveredStreamFaultUuids.size === 0)
   }
   {
     const messages = [
@@ -127,8 +158,10 @@ for (const cols of [80, 120]) {
     grid: Array<Array<{ c: string }>>
   }
   const text = grid.grid.map(row => row.map(cell => cell.c).join('')).join('\n')
-  check(`@${cols}: the restrained ▲ resumed row paints`, text.includes('stream dropped mid-response'))
+  check(`@${cols}: the one calm line paints`, text.includes('Continued after 1 stream cut · context sent again'))
+  check(`@${cols}: no warning triangle names the cut`, !text.split('\n').some(line => line.includes('▲') && /stream|continu/i.test(line)))
   check(`@${cols}: NO terminal API-error card in the default view`, !text.includes('API Error:'))
+  check(`@${cols}: the partial prose stands above`, text.includes('first the schema swap'))
   check(`@${cols}: the continuation prose renders beneath`, text.includes('completing the summary'))
 }
 
