@@ -11,7 +11,10 @@ const STALE_MARGIN_MS = 6 * 60_000
 const ANTHROPIC_VERSION = '2023-06-01'
 const ANTHROPIC_DEFAULT_BASE = 'https://api.anthropic.com'
 
-type ListResult = { ids: string[] } | { unreachable: string }
+const PROBE_BY_COMPLETION = process.argv.includes('--probe-by-completion')
+
+type ProbeVerdict = { id: string; served: true } | { id: string; served: false; reason: string } | { id: string; unreachable: string }
+type ListResult = { ids: string[] } | { unreachable: string } | { typedTable: string } | { probed: ProbeVerdict[] }
 type FamilyCheck = { family: string; source: string; typed: string[]; list: () => Promise<ListResult>; current?: (id: string) => string }
 
 const { getApiFetch, getProxyFetchOptions } = await import('../../src/utils/proxy.js')
@@ -41,20 +44,31 @@ function staleToken(expiresAtMs: number | null | undefined, words: string): stri
   return expiresAtMs - Date.now() < STALE_MARGIN_MS ? words : undefined
 }
 
-async function keyLaneList(family: 'zai' | 'moonshot', baseUrl: string, key: string): Promise<ListResult> {
-  const specifier = ['..', '..', 'src', 'services', 'providers', family, `${family}Catalogue.js`].join('/')
-  const readerName = family === 'zai' ? 'fetchZaiLiveModels' : 'fetchMoonshotLiveModels'
-  const module = (await import(specifier).catch(() => undefined)) as Record<string, unknown> | undefined
-  const reader = module?.[readerName]
-  if (typeof reader === 'function') {
-    const result = (await (reader as (opts: { baseUrl: string; key: string }) => Promise<{ models: Array<{ id: string }> }>)({ baseUrl, key }))
-    return { ids: result.models.map(model => model.id) }
+async function moonshotList(baseUrl: string, key: string): Promise<ListResult> {
+  const { fetchMoonshotLiveModels } = await import('../../src/services/providers/moonshot/moonshotCatalogue.js')
+  const result = await fetchMoonshotLiveModels({ baseUrl, key })
+  return { ids: result.models.map(model => model.id) }
+}
+
+async function probeByCompletion(ids: readonly string[], probe: (id: string) => Promise<ProbeVerdict>): Promise<ListResult> {
+  const probed: ProbeVerdict[] = []
+  for (const id of ids) probed.push(await probe(id))
+  return { probed }
+}
+
+async function zaiCompletionVerdict(opts: { apiKey: string; requestUrl: string; id: string }): Promise<ProbeVerdict> {
+  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.js')
+  const events = streamZaiChat({ apiKey: opts.apiKey, baseUrl: opts.requestUrl, request: { model: opts.id, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 } })
+  for await (const event of events) {
+    if (event.type !== 'stream-fault') return { id: opts.id, served: true }
+    const fault = event.fault
+    if (fault.kind === 'api-error' && fault.code === 'zai-1211') return { id: opts.id, served: false, reason: `${fault.code}: ${fault.message}` }
+    if (fault.kind === 'api-error' || fault.kind === 'http-error') return { id: opts.id, unreachable: `${fault.code}: ${fault.message}` }
+    if (fault.kind === 'transport-error' && fault.code === 'fetch-failed') return { id: opts.id, unreachable: fault.message }
+    if ((fault.kind === 'timeout' && fault.code === 'first-byte-timeout') || fault.kind === 'cancelled') return { id: opts.id, unreachable: fault.message }
+    return { id: opts.id, served: true }
   }
-  const { status, body } = await getJson(family, `${baseUrl}/models`, { authorization: `Bearer ${key}` })
-  if (status < 200 || status >= 300) return { unreachable: `the models endpoint answered HTTP ${status}` }
-  const data = (body as { data?: unknown } | undefined)?.data
-  if (!Array.isArray(data)) return { unreachable: 'the models endpoint answered no data array' }
-  return { ids: data.map(row => (row as { id?: unknown } | null)?.id).filter((id): id is string => typeof id === 'string') }
+  return { id: opts.id, unreachable: 'the completion ended without an answer' }
 }
 
 const families: FamilyCheck[] = []
@@ -238,16 +252,20 @@ const skipped: string[] = []
 
 {
   const { resolveZaiDispatch } = await import('../../src/utils/router/providerDiscovery.js')
-  const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.js')
-  const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.js')
-  const typed = GLM_STATIC_CATALOGUE.map(entry => entry.id)
+  const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
+  const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
+  const table = keyLanePins('zai')
+  const typed = table.map(pin => pin.id)
+  const datedAt = table[0]?.observedAt ?? 'unknown'
   const dispatch = resolveZaiDispatch(env)
   if (dispatch) {
     families.push({
       family: 'zai',
       source: dispatch.plan === 'coding' ? `GLM Coding Plan key (${dispatch.source})` : `Z.AI API key (${dispatch.source})`,
       typed,
-      list: () => keyLaneList('zai', zaiApiBase(env, dispatch.plan), dispatch.key),
+      list: PROBE_BY_COMPLETION
+        ? () => probeByCompletion(typed, id => zaiCompletionVerdict({ apiKey: dispatch.key, requestUrl: zaiChatCompletionsUrl(env, dispatch.plan), id }))
+        : () => Promise.resolve({ typedTable: datedAt }),
     })
   } else skipped.push(`zai · no credential · ${typed.length} typed ids not judged`)
 }
@@ -262,7 +280,7 @@ const skipped: string[] = []
       family: 'moonshot',
       source: key.source === 'env' ? 'MOONSHOT_API_KEY (env)' : 'Moonshot API key (stored)',
       typed,
-      list: () => keyLaneList('moonshot', accounts.moonshotApiBase(env), key.key),
+      list: () => moonshotList(accounts.moonshotApiBase(env), key.key),
     })
   }
   const kimi = accounts.moonshotStoredTokens()
@@ -274,7 +292,7 @@ const skipped: string[] = []
       list: () => {
         const stale = staleToken((kimi as { accessTokenExpiresAtMs?: number }).accessTokenExpiresAtMs, 'the stored Kimi access token has expired or is about to — open Mercury so it is refreshed, then run this check again')
         if (stale) return Promise.resolve({ unreachable: stale })
-        return keyLaneList('moonshot', accounts.kimiCodingBase(accounts.moonshotLoginRegion(), env), kimi.accessToken)
+        return moonshotList(accounts.kimiCodingBase(accounts.moonshotLoginRegion(), env), kimi.accessToken)
       },
     })
   }
@@ -283,11 +301,29 @@ const skipped: string[] = []
 
 let notServed = 0
 let judged = 0
+let fetchable = 0
 for (const check of families) {
   const gate = GATED_FAMILIES.has(check.family) ? catalogueTrafficVerdict(check.family as never, env) : { allowed: true, reason: '' }
   const verdict: ListResult = gate.allowed
     ? await check.list().catch((error: unknown) => ({ unreachable: error instanceof Error ? error.message : String(error) }))
     : { unreachable: gate.reason }
+  if ('typedTable' in verdict) {
+    for (const id of check.typed) console.log(`${check.family} · ${check.source} · ${id} · no live list — typed table dated ${verdict.typedTable}`)
+    continue
+  }
+  fetchable++
+  if ('probed' in verdict) {
+    if (verdict.probed.every(row => !('unreachable' in row))) judged++
+    for (const row of verdict.probed) {
+      if ('unreachable' in row) console.log(`${check.family} · ${check.source} · ${row.id} · unreachable (${row.unreachable})`)
+      else if (row.served) console.log(`${check.family} · ${check.source} · ${row.id} · served`)
+      else {
+        notServed++
+        console.log(`${check.family} · ${check.source} · ${row.id} · not served (${row.reason})`)
+      }
+    }
+    continue
+  }
   if ('unreachable' in verdict) {
     if (check.typed.length === 0) console.log(`${check.family} · ${check.source} · (no typed ids) · unreachable (${verdict.unreachable})`)
     for (const id of check.typed) console.log(`${check.family} · ${check.source} · ${id} · unreachable (${verdict.unreachable})`)
@@ -304,7 +340,7 @@ for (const check of families) {
 for (const line of skipped) console.log(line)
 console.log(
   notServed === 0
-    ? `typed model ids: every typed id a fetched list could judge is served (${judged} of ${families.length} lists fetched)`
-    : `typed model ids: ${notServed} typed id(s) not served by a fetched list (${judged} of ${families.length} lists fetched)`,
+    ? `typed model ids: every typed id a fetched list could judge is served (${judged} of ${fetchable} lists fetched)`
+    : `typed model ids: ${notServed} typed id(s) not served by a fetched list (${judged} of ${fetchable} lists fetched)`,
 )
 process.exit(notServed === 0 ? 0 : 1)

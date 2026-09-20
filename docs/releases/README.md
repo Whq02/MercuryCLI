@@ -38,4 +38,8 @@ in the release owner's own shell: it reads the signed-in credentials through
 Mercury's own resolvers (never printing one), fetches every model list they
 can reach and prints one line per typed model id — served, not served, or the
 family's list unreachable — exiting non-zero on any typed id a fetched list
-does not serve; it writes nothing under the config home.
+does not serve; it writes nothing under the config home. A family that
+publishes no model list (Z.AI) is judged only with `--probe-by-completion`,
+which sends one minimal completion per typed id — a few tokens billed each —
+and is passed by hand, never by default; without it those ids read the dated
+typed table.
