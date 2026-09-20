@@ -91,6 +91,13 @@ export type AssistantMessage = {
   isVirtual?: true
   research?: unknown
   refusedToolCalls?: RefusedToolCall[]
+  geminiProviderTurn?: {
+    model: string
+    parts: unknown[]
+    calls: Array<{ id: string; name: string; nativeId?: string }>
+    projection: string
+    refused?: Array<{ id: string; reason: string }>
+  }
   apexProviderTurn?: {
     provider: 'openai'
     responseId?: string
