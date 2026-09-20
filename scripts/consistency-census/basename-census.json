@@ -10,7 +10,7 @@
   ],
   "counts": {
     "owner-internal": 9,
-    "compat-boundary": 27,
+    "compat-boundary": 26,
     "baked-mirror": 3
   },
   "sites": [
@@ -143,14 +143,7 @@
     {
       "file": "src/utils/accounts/scopeScan.ts",
       "needle": ".claude",
-      "excerpt": "return base === '.claude' || base.startsWith('.claude-')",
-      "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
-    },
-    {
-      "file": "src/utils/accounts/scopeScan.ts",
-      "needle": ".claude.json",
-      "excerpt": "const retired = readScopeIdentity(join(dir, '.claude.json'))",
+      "excerpt": "const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi'",
       "cls": "compat-boundary",
       "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
     },
