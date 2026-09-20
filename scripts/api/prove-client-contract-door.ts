@@ -11,6 +11,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'client-contract-door-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_PROVIDER_HEADERS

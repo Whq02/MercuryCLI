@@ -80,6 +80,7 @@ function bootDaemon(consent: boolean): void {
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
     MERCURY_UPDATE_NOTICE: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',

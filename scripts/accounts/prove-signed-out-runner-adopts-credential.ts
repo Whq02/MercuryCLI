@@ -10,6 +10,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 mkdirSync(HOME, { recursive: true })
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN

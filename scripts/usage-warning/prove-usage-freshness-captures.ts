@@ -135,6 +135,7 @@ function baseEnv(home: string, apiUrl: string): Record<string, string> {
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
     ANTHROPIC_BASE_URL: apiUrl,
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:9',
     BROWSER: 'true',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
