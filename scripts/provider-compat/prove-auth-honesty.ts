@@ -53,7 +53,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const bodyText = Buffer.concat(chunks).toString('utf8')
     if (req.method === 'GET' && path.endsWith('/models')) {
       res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(JSON.stringify(path.startsWith('/openai/') ? OPENAI_MODELS_BODY : { object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
+      res.end(JSON.stringify(path.startsWith('/openai/') ? OPENAI_MODELS_BODY : path.startsWith('/moonshot/') ? { object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot', created: 1 }] } : { object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
       return
     }
     if (req.method === 'POST' && path.endsWith('/oauth/token')) {
