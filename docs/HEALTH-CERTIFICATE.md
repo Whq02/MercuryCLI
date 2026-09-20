@@ -158,7 +158,9 @@ a survivor of the kill signal reads `cannot end — needs a reboot`. Headless,
 ends the stale ones it lists; `mercury health --fix --yes` applies this
 destructive remedy like any other. A process table that cannot be read whole
 is an incomplete census: nothing is listed, nothing is pruned, nothing is
-ended. Windows reads the list and ends nothing.
+ended. On Windows the sweep is not built yet: the row reads `Windows process
+reading is not built on this platform yet; nothing is listed and nothing is
+ended`, and nothing is pruned either.
 
 ## Fixes
 
