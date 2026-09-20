@@ -9,6 +9,8 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { appendFileSync } from 'node:fs'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import type { DOMElement } from '../../ink/dom.js'
@@ -324,6 +326,14 @@ export const __stripControlsForTest = stripControls
 const subscribeFocusedComposerModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().modelFacts().main
 const getFocusedComposerEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
+
+function traceCapHandoff(ev: string, fields: Record<string, unknown>): void {
+  const path = flagEnv('MERCURY_CONNECTOR_TRACE')
+  if (!path) return
+  try {
+    appendFileSync(path, `${JSON.stringify({ t: Date.now(), ev, ...fields })}\n`)
+  } catch {}
+}
 
 function PromptInputInner(props: PromptInputProps): React.ReactNode {
   fluxMark('render:composer')
@@ -642,6 +652,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const intent = capHandoffIntentRef.current
     capHandoffIntentRef.current = null
     if (intent !== null && landed) noteCapHandoff(intent.homeModel, intent.homeFamily)
+    if (intent !== null && landed) traceCapHandoff('cap-handoff-noted', { ...intent })
   }
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
@@ -843,6 +854,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const liveRoute = declaredRouteOf(effective)
     const noted = capHandoffState()
     if (noted !== null && liveRoute === noted.homeFamily && modelFactsNow.pendingSwitch === null && appStateStore.getState().pendingModelSwitch === null) {
+      traceCapHandoff('cap-handoff-self-heal', { ...noted, effective, pendingSwitch: modelFactsNow.pendingSwitch })
       noteCapReturn()
       return
     }
