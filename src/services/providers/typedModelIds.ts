@@ -221,17 +221,17 @@ function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
-function keyLaneTable(provider: 'zai' | 'moonshot'): { ids: string[]; datedAt: string } {
+function zaiTable(): { ids: string[]; datedAt: string } {
   const { keyLanePins } = require('../../utils/model/modelOptions.js') as typeof import('../../utils/model/modelOptions.js')
-  const pins = keyLanePins(provider)
+  const pins = keyLanePins('zai')
   return { ids: pins.map(pin => pin.id), datedAt: pins[0]?.observedAt ?? 'unknown' }
 }
 
 function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => keyLaneTable('zai').ids
+  const typed = (): string[] => zaiTable().ids
   return guarded('zai', name, typed, () => {
     const { resolveZaiDispatch } = require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
-    const table = keyLaneTable('zai')
+    const table = zaiTable()
     const dispatch = resolveZaiDispatch(env)
     return {
       family: 'zai',
@@ -244,18 +244,13 @@ function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
 }
 
 function moonshotFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => keyLaneTable('moonshot').ids
+  const typed = (): string[] => (require('./moonshot/kimiPins.js') as typeof import('./moonshot/kimiPins.js')).KIMI_DISPLAY_PINS.map(pin => pin.id)
   return guarded('moonshot', name, typed, () => {
     const { resolveMoonshotAccount } = require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
-    const table = keyLaneTable('moonshot')
+    const { getCachedMoonshotCatalogue } = require('./moonshot/moonshotCatalogue.js') as typeof import('./moonshot/moonshotCatalogue.js')
     const account = resolveMoonshotAccount(env)
-    return {
-      family: 'moonshot',
-      name,
-      ...(account ? { source: account.label } : {}),
-      typed: table.ids,
-      list: { kind: 'no-endpoint', datedAt: table.datedAt },
-    }
+    if (!account) return { family: 'moonshot', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'moonshot', name, source: account.label, typed: typed(), list: cachedListSource(getCachedMoonshotCatalogue(env)) }
   })
 }
 
