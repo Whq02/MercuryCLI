@@ -36,7 +36,7 @@ export type SdkEvent =
       subtype: 'task_notification'
       task_id: string
       tool_use_id?: string
-      status: 'completed' | 'failed' | 'stopped'
+      status?: 'completed' | 'failed' | 'stopped'
       output_file: string
       summary: string
       usage?: SdkEventUsage

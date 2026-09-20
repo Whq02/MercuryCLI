@@ -1,5 +1,6 @@
 import type { NoticeKind, NoticeRowV1, NoticeState } from '../engine-connector/types.js'
 import { createSignal } from '../../utils/signal.js'
+import { isAgentMessageNotice } from '../../constants/agentMessage.js'
 
 
 export const MAIN_THREAD_AGENT = 'main'
@@ -72,7 +73,8 @@ type QueuedLike = {
 
 export function noticeOfQueued(command: QueuedLike): { agentId: string; kind: NoticeKind; words: string } | null {
   if (command.mode === 'task-notification') {
-    return { agentId: command.agentId ?? MAIN_THREAD_AGENT, kind: 'completion', words: noticeWordsOf(command.value) }
+    const kind: NoticeKind = isAgentMessageNotice(textOf(command.value)) ? 'message' : 'completion'
+    return { agentId: command.agentId ?? MAIN_THREAD_AGENT, kind, words: noticeWordsOf(command.value) }
   }
   if (command.mode === 'prompt' && command.workload === 'cron') {
     return { agentId: command.agentId ?? MAIN_THREAD_AGENT, kind: 'wake', words: `scheduled wake: ${noticeWordsOf(command.value)}` }
