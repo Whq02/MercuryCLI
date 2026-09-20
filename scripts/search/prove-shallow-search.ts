@@ -1,11 +1,11 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-shallow-search')
-const scratch = mkdtempSync(join(tmpdir(), 'shallow-search-'))
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'shallow-search-')))
 const work = join(scratch, 'work')
 mkdirSync(work)
 writeFileSync(join(work, 'target.txt'), 'needle\n')

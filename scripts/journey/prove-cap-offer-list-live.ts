@@ -165,6 +165,8 @@ function baseEnv(home: string): NodeJS.ProcessEnv {
     ANTHROPIC_BASE_URL: base,
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`,
     MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
+    MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:9',
     ZAI_API_KEY: 'zai-fixture-key',
     MERCURY_ZAI_API_BASE: `${base}/zai/api/paas/v4`,
     DEEPSEEK_API_KEY: 'sk-deepseek-fixture-key',

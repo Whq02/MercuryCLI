@@ -147,6 +147,7 @@ const childEnv: NodeJS.ProcessEnv = {
   ANTHROPIC_BASE_URL: base,
   MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`,
   MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
+  MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_BOOT_PREFLIGHT: '0',
   MERCURY_LIVE_GLYPHS: '0',

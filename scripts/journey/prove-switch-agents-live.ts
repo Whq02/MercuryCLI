@@ -74,11 +74,14 @@ function answeredTool(items: Item[]): { name: string; resultText: string } | nul
   return null
 }
 
-const noticeCount = (items: Item[]): number =>
+const userTexts = (items: Item[]): string[] =>
   items
     .filter(item => item.role === 'user')
-    .flatMap(item => (typeof item.content === 'string' ? [item.content] : blocksOf(item.content).map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))))
-    .filter(text => /<task-notification>[\s\S]*<status>(killed|stopped)<\/status>/.test(text)).length
+    .flatMap(item => (typeof item.content === 'string' ? [item.content] : blocksOf(item.content).flatMap(b => (b.type === 'text' && typeof b.text === 'string' ? [b.text] : b.type === 'tool_result' ? [textOf(b.content)] : []))))
+const noticeCount = (items: Item[]): number =>
+  userTexts(items)
+    .flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [])
+    .filter(row => /<status>(killed|stopped)<\/status>/.test(row)).length
 
 function routeOf(body: unknown): { route: Route; seat: string | null; resultText: string; notices: number } {
   const items = itemsOf(body)

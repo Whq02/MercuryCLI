@@ -17,7 +17,7 @@ process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_CRITTER_IDLE = '0'
 process.env.BROWSER = '/usr/bin/true'
-for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
+for (const key of ['CI', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const React = await import('react')
