@@ -2,7 +2,9 @@
 # gate-class: pure
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "$0")" && pwd)"
+bun="${BUN:-$HOME/.bun/bin/bun}"
 fails=0
 say() { printf '%s\n' "$*"; }
 check() { # check <label> <expr-exit-code> (0 = pass)
@@ -109,6 +111,9 @@ rm -rf "$rhome"
 lib_chain="$(sed -n '/^mercury_resolve_home()/,/^}/p' "$here/lib/mercury-home.sh")"
 launcher_chain="$(sed -n '/^mercury_resolve_home()/,/^}/p' "$here/launcher-mercury.sh")"
 [ -n "$lib_chain" ] && [ "$lib_chain" = "$launcher_chain" ]; check 'launcher inline resolver is byte-identical to lib/mercury-home.sh' $?
+
+say '— the release-day typed-id check over recorded lists —'
+run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-model-ids.ts"; check 'typed model ids: the check reads recorded lists and judges every typed id' $?
 
 say '— workspace backup round-trip (hermetic fixture) —'
 fixrepo="$(mktemp -d /tmp/ops-proof-repo-XXXXXX)"
