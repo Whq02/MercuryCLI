@@ -49,7 +49,7 @@ export const laneAdapter: ResourceAdapter = {
           `goal: ${lane.goal}`,
           `status: ${lane.status}`,
           `parent session: ${lane.parentSessionId}`,
-          `child session: ${lane.childSessionId} (resume: claude -r ${lane.childSessionId})`,
+          `child session: ${lane.childSessionId} (resume: mercury --resume ${lane.childSessionId})`,
           `created: ${new Date(lane.createdAt).toISOString()}`,
           `excluded from the parent: ${lane.excludedState.join('; ')}`,
           ...(h

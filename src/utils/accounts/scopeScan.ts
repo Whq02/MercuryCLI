@@ -45,37 +45,15 @@ export interface ScopeAuthReads {
   storedLogin?: (dir: string) => boolean
 }
 
-export function scopeIdentityFile(dir: string, reads: ScopeAuthReads = {}): string {
-  const file = globalConfigFileIn(dir)
-  adoptRetiredIdentitySnapshot(dir, file, reads)
-  return file
-}
-
-const adoptionChecked = new Set<string>()
-
-function adoptRetiredIdentitySnapshot(dir: string, file: string, reads: ScopeAuthReads): void {
-  const key = resolve(dir)
-  if (adoptionChecked.has(key)) return
-  adoptionChecked.add(key)
-  if (isClaudeFamilyDir(dir)) return
-  if (readScopeIdentity(file).uuid !== undefined) return
-  const retired = readScopeIdentity(join(dir, '.claude.json'))
-  if (retired.uuid === undefined || retired.email === undefined) return
-  if (!(reads.storedLogin ?? storedLoginLive)(dir)) return
-  const { healScopeIdentitySnapshot } =
-    require('./accountIdentity.js') as typeof import('./accountIdentity.js')
-  healScopeIdentitySnapshot(dir, { email: retired.email, uuid: retired.uuid })
-}
-
-export function _resetIdentityAdoptionForTesting(): void {
-  adoptionChecked.clear()
+export function scopeIdentityFile(dir: string): string {
+  return globalConfigFileIn(dir)
 }
 
 export function probeScopeAuth(
   dir: string,
   reads: ScopeAuthReads = {},
 ): { authed: boolean; email?: string; uuid?: string } {
-  const id = readScopeIdentity(scopeIdentityFile(dir, reads))
+  const id = readScopeIdentity(scopeIdentityFile(dir))
   const authed = (reads.storedLogin ?? storedLoginLive)(dir)
   return {
     authed,
