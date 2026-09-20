@@ -10,3 +10,5 @@ prove-flow-neverstop-live.ts
 prove-concourse-roundtrip-transcript.ts
 prove-noping-stream-completes.ts
 prove-cap-handoff-facts.ts
+prove-model-picker-refresh.ts
+prove-model-picker-refresh-drive.ts
