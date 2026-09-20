@@ -110,6 +110,7 @@ import {
   currentVersion,
   daemonControlRpc,
   daemonDir,
+  markSupervisorStoppingSync,
   mintControlKey,
   readSupervisorState,
   reassertControlKey,
@@ -1101,6 +1102,7 @@ async function daemonRun(args: string[]): Promise<void> {
       stopPlaneHeal?.()
       stopArmedBeat?.()
       stopSaturnTicker?.()
+      if (controlEnabled) markSupervisorStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${signal} — shutting down`)

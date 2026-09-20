@@ -512,9 +512,9 @@ console.log('§31 pidlock + daemon stop — the reuse guard reaches every platfo
 console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
 {
   const ens = read('src/services/switchboard/ensureDaemon.ts')
-  check('poison gone: the ~10s claim is replaced by the true bound (the 40-try ladder)', !ens.includes('(bounded, ~10s)') && ens.includes('async function awaitUsable(hs: Handshake, tries = 40): Promise<boolean> {'))
-  check("the 'starting' ladder is single-flighted", ens.includes('waiting ??= awaitUsable(hs).finally(() => {'))
-  check('the ladder arithmetic stands (40 × 500ms + 250ms)', ens.includes('tries = 40') && ens.includes('timeoutMs: 500') && ens.includes('setTimeout(res, 250)'))
+  check('poison gone: the ~10s claim is replaced by the true bound (the 40-round ladder)', !ens.includes('(bounded, ~10s)') && ens.includes('async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {'))
+  check("the 'starting' ladder is single-flighted", ens.includes('waiting ??= awaitUsableOrGone(hs).finally(() => {'))
+  check('the ladder arithmetic stands (40 × 500ms + 250ms)', ens.includes('const LADDER_ROUNDS = 40') && ens.includes('timeoutMs: 500') && ens.includes('setTimeout(res, 250)'))
   const born = read('src/services/switchboard/bornSession.ts')
   check("poison gone: the refusal no longer promises '↵ again starts it'", !born.includes('↵ again starts it and retries'))
   check('the refusal names the retry and the wedge remedy', born.includes('`mercury daemon stop` clears a daemon that holds the pipe but never answers'))

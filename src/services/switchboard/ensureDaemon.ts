@@ -1,5 +1,8 @@
-import { daemonLastUnreachableAt } from '../../daemon/controlSocket.js'
+import { join } from 'node:path'
+import { daemonDir, daemonLastUnreachableAt, readSupervisorState } from '../../daemon/controlSocket.js'
 import type { DaemonHandshakeVerdict } from '../../daemon/handshake.js'
+import { isProcessAlive } from '../../daemon/ownerWatch.js'
+import { probePidLock } from '../../substrate/pidLock.js'
 import { getCwd } from '../../utils/cwd.js'
 import { daemonHaltStanddownActive } from '../../utils/daemonStanddown.js'
 import { runnerArgvFromBoot } from './runnerArgv.js'
@@ -37,7 +40,7 @@ function adoptIfOurs(v: DaemonHandshakeVerdict): void {
     .catch(() => {})
 }
 
-async function awaitUsable(hs: Handshake, tries = 40): Promise<boolean> {
+async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
     if (usable(v)) {
@@ -47,6 +50,55 @@ async function awaitUsable(hs: Handshake, tries = 40): Promise<boolean> {
     await new Promise(res => setTimeout(res, 250))
   }
   return false
+}
+
+const LADDER_ROUNDS = 40
+let ladderRoundsForProofs: number | null = null
+export function _setDaemonLadderRoundsForProofs(rounds: number | null): void {
+  ladderRoundsForProofs = rounds
+}
+function ladderRounds(): number {
+  return ladderRoundsForProofs ?? LADDER_ROUNDS
+}
+
+type PlaneHold = 'clear' | 'stopping' | 'held'
+
+async function planeHold(): Promise<PlaneHold> {
+  const record = await readSupervisorState()
+  if (record !== null && isProcessAlive(record.pid)) return record.state === 'stopping' ? 'stopping' : 'held'
+  const holder = await probePidLock(join(daemonDir(), 'supervisor.lock'), { liveness: 'assume-alive', cachedLiveness: true })
+  return holder === null ? 'clear' : 'held'
+}
+
+async function awaitUsableOrGone(hs: Handshake, tries = ladderRounds()): Promise<'usable' | 'gone' | 'timeout'> {
+  for (let i = 0; i < tries; i++) {
+    const v = await hs.handshakeDaemon({ timeoutMs: 500 })
+    if (usable(v)) {
+      adoptIfOurs(v)
+      rememberUsable()
+      return 'usable'
+    }
+    if (v.state === 'absent' && (await planeHold()) === 'clear') return 'gone'
+    await new Promise(res => setTimeout(res, 250))
+  }
+  return 'timeout'
+}
+
+async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'clear' | 'usable'> {
+  for (let i = 0; i < tries; i++) {
+    const hold = await planeHold()
+    if (hold === 'clear') return 'clear'
+    if (hold === 'held') {
+      const v = await hs.handshakeDaemon({ timeoutMs: 500 })
+      if (usable(v)) {
+        adoptIfOurs(v)
+        rememberUsable()
+        return 'usable'
+      }
+    }
+    await new Promise(res => setTimeout(res, 250))
+  }
+  return 'clear'
 }
 
 async function awaitSuccessor(hs: Handshake, oldPid: number | null, tries = 40): Promise<boolean> {
@@ -93,7 +145,7 @@ function bootCarriesRunnerOptions(): boolean {
   return bootRunnerOptionsMemo
 }
 
-let waiting: Promise<boolean> | null = null
+let waiting: Promise<'usable' | 'gone' | 'timeout'> | null = null
 
 export async function ensureOwnedDaemon(): Promise<boolean> {
   void import('../../daemon/ownedDaemon.js')
@@ -103,10 +155,13 @@ export async function ensureOwnedDaemon(): Promise<boolean> {
   const hs = await import('../../daemon/handshake.js')
   const first = await hs.handshakeDaemon({ timeoutMs: 500 })
   if (first.state === 'starting') {
-    waiting ??= awaitUsable(hs).finally(() => {
+    waiting ??= awaitUsableOrGone(hs).finally(() => {
       waiting = null
     })
-    return waiting
+    const outcome = await waiting
+    if (outcome === 'usable') return true
+    if (outcome === 'gone') return ensureOwnedDaemon()
+    return false
   }
   if (usable(first)) {
     adoptIfOurs(first)
@@ -119,6 +174,7 @@ export async function ensureOwnedDaemon(): Promise<boolean> {
   if (healing === null) {
     healing = (async () => {
       try {
+        if ((await awaitDeparture(hs)) === 'usable') return true
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
         const daemonExtraEnv: Record<string, string> = {}
         if (bootCarriesRunnerOptions()) {

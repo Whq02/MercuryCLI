@@ -118,7 +118,9 @@ whichever window started it. Close that window and the daemon passes to
 another that is still open, so the sessions your other windows hold keep
 their runners and lose nothing; it shuts down only when the last window
 closes, and parks every session on its way out so the next boot brings them
-back. A deploy that arrives while sessions are live waits for every one of
+back. A window opened while that daemon is still on its way out waits the
+beat it takes to leave, then starts its own; two daemons never share one
+config home. A deploy that arrives while sessions are live waits for every one of
 them — the ones open when it landed and any opened since — before it
 restarts, and never cuts a live runner short.
 
