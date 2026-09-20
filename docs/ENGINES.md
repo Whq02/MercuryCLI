@@ -203,7 +203,11 @@ existed, env-pinned keys included, order after every recorded sign-in — the
 config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in. With no sign-in anywhere there is no default: the face and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
-`MERCURY_MODEL` or a session override always outranks the default. A stored
+`MERCURY_MODEL` or a session override always outranks the default. A saved
+`/model` choice whose family has no usable row when a chat is born — no
+sign-in here, or a catalogue that refused the credential — falls back to the
+computed default for that chat, with one receipt naming why; the saved
+choice stays. A stored
 Gemini key with the test fixture's shape (`zz-SECRE…`) is named a test key
 on its `/logins` and `/accounts` rows, with the gesture that removes it.
 
