@@ -25,6 +25,11 @@ function functionOwner(node: ts.Node): ts.FunctionDeclaration | ts.VariableDecla
   }
   return undefined
 }
+function onlyReads(body: string, name: string, reads: readonly string[]): boolean {
+  let rest = body
+  for (const read of reads) rest = rest.split(read).join('')
+  return !new RegExp(`\\b${name}\\b`).test(rest)
+}
 function classification(file: string, table: string, owner: string, body: string): string | undefined {
   if (table === 'KIMI_DISPLAY_PINS') {
     if (file === 'src/services/providers/moonshot/kimiPins.ts' && owner === 'kimiDisplayPin' && /KIMI_DISPLAY_PINS\.find\(/.test(body)) return 'display/price metadata by id'
@@ -47,12 +52,20 @@ function classification(file: string, table: string, owner: string, body: string
   if (file === 'src/utils/swarm/engineDispatch.ts' && owner === 'engineDispatchModelsForSchema') return 'schema advertisement; dispatch revalidates live'
   if (file === 'src/utils/swarm/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
   if (file === 'src/utils/model/modelOptions.ts' && owner === 'getQualifiedGptOptions' && body.includes('getGptSeatAvailability') && body.includes('evaluateGptCandidate')) return 'unavailable display rows behind live qualification'
+  if (file === 'src/utils/model/providerFrontier.ts' && owner === 'openaiSmallFastChoice' && body.includes('for (const raw of served)') && body.includes('pins.find(candidate => candidate.id === identity.canonicalId)') && onlyReads(body, 'pins', ['pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS', 'pins.find(candidate => candidate.id === identity.canonicalId)'])) return 'price facts keyed by a served id; the live list supplies every id'
+  if (file === 'src/utils/model/modelOptions.ts' && owner === 'gptCatalogueRefusalWords' && body.includes('evaluateGptCandidate(modelId, availability.sourceKind)') && body.includes('if (evaluated.ok) return undefined') && onlyReads(body, 'GPT_DISPLAY_PINS', ['GPT_DISPLAY_PINS.find(pin => pin.id === canonical)'])) return 'display name for an id already refused against the landed list'
   if (file === 'src/services/concourse/coordinatorModels.ts' && owner === 'composeCoordinatorModelRegistry' && body.includes('getModelOptions(') && body.includes('seen.has(pin.id)')) return 'display baseline behind the live-backed picker rows and seen guard'
   return undefined
 }
 for (const table of tables) check(`${table}: a new unclassified chooser is refused`, classification('src/utils/model/newChooser.ts', table, 'choose', `return ${table}[0]`) === undefined)
 check('the known Moonshot fallback owner cannot drop its live check', classification('src/services/providers/moonshot/moonshotCatalogue.ts', 'KIMI_DISPLAY_PINS', 'moonshotCatalogueRows', 'return KIMI_DISPLAY_PINS') === undefined)
 check('the coordinator baseline cannot drop its picker deduplication guard', classification('src/services/concourse/coordinatorModels.ts', 'GPT_DISPLAY_PINS', 'composeCoordinatorModelRegistry', 'return GPT_DISPLAY_PINS') === undefined)
+const helperSignature = 'export function openaiSmallFastChoice(served: readonly string[], pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS): string | undefined {'
+check('the OpenAI helper chooser cannot walk the pins instead of the served list', classification('src/utils/model/providerFrontier.ts', 'GPT_DISPLAY_PINS', 'openaiSmallFastChoice', `${helperSignature} for (const pin of pins) { const identity = parseGptModelId(pin.id); if (identity) return pins.find(candidate => candidate.id === identity.canonicalId)?.id } }`) === undefined)
+check('the OpenAI helper chooser cannot add a second read of the pins beside its served walk', classification('src/utils/model/providerFrontier.ts', 'GPT_DISPLAY_PINS', 'openaiSmallFastChoice', `${helperSignature} for (const raw of served) { pins.find(candidate => candidate.id === identity.canonicalId) } return pins[0]?.id }`) === undefined)
+const refusalSignature = 'export function gptCatalogueRefusalWords(modelId: string): string | undefined {'
+check('the GPT refusal words cannot answer without the live qualification', classification('src/utils/model/modelOptions.ts', 'GPT_DISPLAY_PINS', 'gptCatalogueRefusalWords', `${refusalSignature} const canonical = modelId.trim().toLowerCase(); return gptDisqualificationCopy('not-in-live-catalogue', source, GPT_DISPLAY_PINS.find(pin => pin.id === canonical)) }`) === undefined)
+check('the GPT refusal words cannot enumerate the pins beside their keyed read', classification('src/utils/model/modelOptions.ts', 'GPT_DISPLAY_PINS', 'gptCatalogueRefusalWords', `${refusalSignature} const evaluated = evaluateGptCandidate(modelId, availability.sourceKind); if (evaluated.ok) return undefined; const canonical = modelId.trim().toLowerCase(); const offered = GPT_DISPLAY_PINS.map(pin => pin.id); return gptDisqualificationCopy(evaluated.why, source, GPT_DISPLAY_PINS.find(pin => pin.id === canonical)) }`) === undefined)
 for (const path of files(SRC)) {
   const source = readFileSync(path, 'utf8')
   if (!tables.some(table => source.includes(table))) continue
