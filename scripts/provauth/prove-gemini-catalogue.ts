@@ -138,6 +138,25 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   check('an unknown status leaves the parenthesis out', words({ kind: 'oauth' }, undefined) === "the Google account's token was refused · /logins re-connects")
 
   __resetGeminiCatalogueForTest()
+  const unreachable: typeof fetch = (async () => {
+    throw new TypeError('fetch failed: connect ECONNREFUSED 127.0.0.1:9')
+  }) as unknown as typeof fetch
+  await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unreachable })
+  const down = getGeminiAvailability()
+  check('a connection failure ⇒ disabled/catalogue-error', down.state === 'disabled' && down.why === 'catalogue-error', JSON.stringify(down))
+  check('the unreachable reason names the source it tried', down.state === 'disabled' && down.reason.startsWith('the Gemini API key from GEMINI_API_KEY could not reach the live catalogue ('), JSON.stringify(down))
+  check('the remedy rides its own segment after the failure', down.state === 'disabled' && down.reason.endsWith(') · retry from /model, or /model <id> names a model directly'), JSON.stringify(down))
+  const unreachableWords = catalogue.geminiCatalogueUnreachableReason
+  check('the OAuth unreachable template', unreachableWords({ kind: 'oauth' }, 'fetch failed') === 'the Google account could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly')
+  check('the stored-key unreachable template', unreachableWords({ kind: 'api-key', keySource: 'stored' }, 'fetch failed') === 'the stored Gemini API key could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly')
+  const cached = catalogue.getCachedGeminiCatalogue('api-key')
+  check('the snapshot keeps the failure and no status', cached?.lastError?.includes('ECONNREFUSED') === true && cached.lastStatus === undefined, JSON.stringify(cached))
+  const { readFileSync } = await import('node:fs')
+  const source = readFileSync(new URL('../../src/services/providers/gemini/geminiCatalogue.ts', import.meta.url), 'utf8')
+  const catchBlock = source.slice(source.indexOf('const answer = error instanceof GeminiCatalogueHttpError'), source.indexOf('const snapshot: GeminiCatalogueSnapshot = {', source.indexOf('const answer = error instanceof GeminiCatalogueHttpError')))
+  check('a refused read that carried no HTTP answer still leaves one masked debug line', /else \{\s*logForDebugging\(\s*`\[gemini\] catalogue unreachable · source=\$\{source \?\? sourceKind\} · \$\{maskGeminiSecrets\(/.test(catchBlock), catchBlock)
+
+  __resetGeminiCatalogueForTest()
   const noChat: typeof fetch = (async () =>
     new Response(
       JSON.stringify({ models: [{ name: 'models/embedding-only', supportedGenerationMethods: ['embedContent'] }] }),

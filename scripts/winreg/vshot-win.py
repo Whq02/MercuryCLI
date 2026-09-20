@@ -93,7 +93,7 @@ def _acquire_capture_slot():
 
 _capture_slot = _acquire_capture_slot()
 
-cfg = json.load(open(sys.argv[1]))
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
 cols, rows, total = int(cfg["cols"]), int(cfg["rows"]), int(cfg.get("total", 30))
 try:
     _scale = float(os.environ.get("MERCURY_VSHOT_BUDGET_SCALE", "1"))
