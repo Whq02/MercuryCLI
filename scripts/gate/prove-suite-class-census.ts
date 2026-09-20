@@ -2,7 +2,11 @@
 //  drives set (pty) from each suite's `# gate-class:` header, so a header that
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, join as nativeJoin, relative as nativeRelative, resolve as nativeResolve } from 'node:path'
+
+const join: typeof nativeJoin = process.platform === 'win32' ? (...parts) => nativeJoin(...parts).replace(/\\/g, '/') : nativeJoin
+const relative: typeof nativeRelative = process.platform === 'win32' ? (from, to) => nativeRelative(from, to).replace(/\\/g, '/') : nativeRelative
+const resolve: typeof nativeResolve = process.platform === 'win32' ? (...parts) => nativeResolve(...parts).replace(/\\/g, '/') : nativeResolve
 
 const REPORT = process.argv.includes('--report')
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
@@ -124,8 +128,11 @@ function shellTargets(root: string, file: string): Set<string> {
       .replace(/"\$\(dirname "\$0"\)"/g, dir)
       .replace(/"?\$\{?(?:here|HERE|DIR|dir|SUITE_DIR)\}?"?(?=\/)/g, dir)
       .replace(/"?\$\{?(?:root|ROOT|REPO|repo|repo_root|REPO_ROOT)\}?"?(?=\/)/g, root)
-    for (const tok of line.match(/[A-Za-z0-9_./*-]+\.(?:ts|tsx|mjs|js|py|sh)\b/g) ?? []) {
-      let p = tok.startsWith('/') ? tok : tok.startsWith('scripts/') ? join(root, tok) : join(dir, tok)
+    const tokens = process.platform === 'win32'
+      ? line.match(/(?:[A-Za-z]:)?[A-Za-z0-9_./*-]+\.(?:ts|tsx|mjs|js|py|sh)\b/g)
+      : line.match(/[A-Za-z0-9_./*-]+\.(?:ts|tsx|mjs|js|py|sh)\b/g)
+    for (const tok of tokens ?? []) {
+      let p = tok.startsWith('/') || (process.platform === 'win32' && /^[A-Za-z]:\//.test(tok)) ? tok : tok.startsWith('scripts/') ? join(root, tok) : join(dir, tok)
       p = resolve(p)
       if (!p.startsWith(`${scriptsDir}/`)) continue
       if (p.includes('*')) for (const g of globDir(dirname(p), basename(p))) out.add(g)
