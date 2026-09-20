@@ -133,6 +133,21 @@ if (!catalogue) {
   check('a 503 names the status', down.includes('returned HTTP 503'), down)
   const foreign = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: pageFetch({ object: 'list', data: [{ id: 'gpt-4', object: 'model' }] }) }).then(() => '', (e: Error) => e.message)
   check('a page whose ids do not ride the DeepSeek lane is refused as a non-catalogue view', foreign.includes('non-catalogue view'), foreign)
+  const htmlFetch = (async () => new Response('<html>not a list</html>', { status: 200, headers: { 'content-type': 'text/html' } })) as typeof fetch
+  const notJson = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: htmlFetch }).then(() => '', (e: Error) => e.message)
+  check("a 200 with a body that is not JSON reads the reader's own sentence, never the runtime's parse words", notJson === 'the models endpoint answered a body that is not JSON', notJson)
+  const refusedConnection = (async () => { throw Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:1'), { code: 'ECONNREFUSED', syscall: 'connect' }) }) }) as typeof fetch
+  const connectionRefused = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: refusedConnection }).then(() => '', (e: Error) => e.message)
+  check("a refused connection names the cause's code, never a bare 'fetch failed'", connectionRefused === 'the models endpoint could not be reached (ECONNREFUSED)', connectionRefused)
+  const nxdomain = (async () => { throw Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error('getaddrinfo ENOTFOUND deepseek.fixture.invalid'), { code: 'ENOTFOUND', syscall: 'getaddrinfo', hostname: 'deepseek.fixture.invalid' }) }) }) as typeof fetch
+  const unknownHost = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: nxdomain }).then(() => '', (e: Error) => e.message)
+  check('an unknown host the same way, with its code', unknownHost === 'the models endpoint could not be reached (ENOTFOUND)', unknownHost)
+  const live = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'http://127.0.0.1:1', key: 'sk-fixture' }).then(() => '', (e: Error) => e.message)
+  check("a dead loopback base through this runtime's own fetch reads the same sentence with a code inside, never the runtime's words", /^the models endpoint could not be reached \([^()]+\)$/.test(live) && !/fetch failed|Unable to connect/.test(live), live)
+  const hanging = ((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true }) })) as typeof fetch
+  const slowStart = Date.now()
+  const slow = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: hanging }).then(() => '', (e: Error) => e.message)
+  check("a list that never answers ends at the provider deadline with the honest line, never the runtime's abort spelling", slow === 'timed out after 15s — deepseek did not answer' && Date.now() - slowStart < 20_000, JSON.stringify({ slow, ms: Date.now() - slowStart }))
 }
 
 section('3 · the door and the cache')

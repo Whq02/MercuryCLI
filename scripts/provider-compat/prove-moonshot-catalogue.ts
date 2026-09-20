@@ -153,6 +153,7 @@ if (catalogue) {
     { name: 'a 429', fetchImpl: pageFetch({ error: { message: 'slow down' } }, 429), error: 'Moonshot models endpoint returned HTTP 429' },
     { name: 'a 5xx', fetchImpl: pageFetch({ error: { message: 'down' } }, 502), error: 'Moonshot models endpoint returned HTTP 502' },
     { name: 'a 200 with a body that is not JSON', fetchImpl: (async () => new Response('<html>not a list</html>', { status: 200, headers: { 'content-type': 'text/html' } })) as typeof fetch, error: 'the models endpoint answered a body that is not JSON' },
+    { name: 'a refused connection', fetchImpl: (async () => { throw Object.assign(new TypeError('fetch failed'), { cause: Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:1'), { code: 'ECONNREFUSED', syscall: 'connect' }) }) }) as typeof fetch, error: 'the models endpoint could not be reached (ECONNREFUSED)' },
   ]
   for (const shape of shapes) {
     c.__resetMoonshotCatalogueForTest()
