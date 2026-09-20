@@ -28,8 +28,27 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_SMALL_FAST_MODEL
   delete process.env.MERCURY_MODEL
 
-  const { providerSmallFastFact, smallFastModelFor, sessionLightModel, sessionSmallFastModel } =
+  const { openaiLightChoice, openaiSmallFastChoice, providerSmallFastFact, smallFastModelFor, sessionLightModel, sessionSmallFastModel } =
     await import('../../src/utils/model/providerFrontier.js')
+  const { __resetOpenaiCatalogueForTest, refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
+  const { parseGptModelId } = await import('../../src/services/providers/openai/gptPins.js')
+  for (const key of ['OPENAI_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
+  process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
+  process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
+  process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
+  const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
+  const fixtureFetch = (ids: readonly string[]): typeof fetch =>
+    (async () => new Response(JSON.stringify({ object: 'list', data: ids.map(id => ({ id, object: 'model' })) }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  const serveList = async (ids: readonly string[] | null): Promise<void> => {
+    __resetOpenaiCatalogueForTest()
+    if (ids === null) {
+      delete process.env.OPENAI_API_KEY
+      return
+    }
+    process.env.OPENAI_API_KEY = 'fixture-openai-key'
+    const snapshot = await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch(ids) })
+    if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
+  }
   const { getCanonicalName } = await import('../../src/utils/model/model.js')
   const { NEVER_HAIKU_FALLBACK } = await import('../../src/utils/model/modelFloor.js')
   const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
@@ -49,15 +68,47 @@ async function main(): Promise<void> {
       providerSmallFastFact('anthropic')?.modelId === 'claude-pin-test',
     )
     delete process.env.MERCURY_SMALL_FAST_MODEL
+    await serveList(null)
+    check('openai with no account and no live list: silence — never a row of the typed table', providerSmallFastFact('openai') === undefined, JSON.stringify(providerSmallFastFact('openai')))
+    await serveList(OWNER_LIST)
     const openai = providerSmallFastFact('openai')
     check(
-      'openai: the recorded mini/nano tier, grammar-derived and dated',
-      openai !== undefined && /-(mini|nano)$/.test(openai.modelId) && typeof openai.observedAt === 'string',
+      "openai on the list the owner's account serves: the cheapest served row by the pins' prices (gpt-5.6-luna), never the typed gpt-5.4-mini",
+      openai?.modelId === 'gpt-5.6-luna' && openai.displayName === 'GPT-5.6 Luna',
       JSON.stringify(openai),
     )
+    await serveList([...OWNER_LIST, 'gpt-6-mini'])
+    check('openai on a list that serves a mini row: that row (the provider names its small tier)', providerSmallFastFact('openai')?.modelId === 'gpt-6-mini', JSON.stringify(providerSmallFastFact('openai')))
+    await serveList(['gpt-5.5'])
+    check('openai on a list with no priced row and no mini: silence, so the session model rides', providerSmallFastFact('openai') === undefined, JSON.stringify(providerSmallFastFact('openai')))
+    await serveList(['gpt-5.4-mini', 'gpt-5.6-luna'])
+    check('openai on a list that still serves gpt-5.4-mini: that row (served, and named small by the provider)', providerSmallFastFact('openai')?.modelId === 'gpt-5.4-mini', JSON.stringify(providerSmallFastFact('openai')))
+    await serveList(null)
     for (const route of ['zai', 'moonshot', 'deepseek', 'gemini', 'openrouter', 'openai-compat', 'huggingface', 'local'] as const) {
       check(`${route}: silence (no owner records a small tier)`, providerSmallFastFact(route) === undefined)
     }
+  }
+
+  section('§1b the openai choosers are pure over the served ids and the pins')
+  check('the two pure choosers exist', typeof openaiSmallFastChoice === 'function' && typeof openaiLightChoice === 'function')
+  if (typeof openaiSmallFastChoice === 'function' && typeof openaiLightChoice === 'function') {
+    const pins = [
+      { id: 'gpt-5.6-luna', displayName: 'L', observedAt: '2026-09-05', costInPerMtok: 0.2, costOutPerMtok: 1.2 },
+      { id: 'gpt-5.6-sol', displayName: 'S', observedAt: '2026-09-05', costInPerMtok: 4, costOutPerMtok: 20 },
+      { id: 'gpt-5.4-mini', displayName: 'M', observedAt: '2026-07-17' },
+      { id: 'gpt-5.5-mini', displayName: 'M2', observedAt: '2026-07-17', costInPerMtok: 0.5, costOutPerMtok: 2 },
+    ]
+    check('the cheapest priced served row wins', openaiSmallFastChoice(['gpt-5.6-sol', 'gpt-5.6-luna'], pins) === 'gpt-5.6-luna')
+    check('a typed id the list lacks is never chosen', openaiSmallFastChoice(['gpt-5.6-sol'], pins) === 'gpt-5.6-sol' && openaiSmallFastChoice([], pins) === undefined)
+    check('an unpriced served mini row outranks a priced row (the provider names it small)', openaiSmallFastChoice(['gpt-5.6-luna', 'gpt-5.4-mini'], pins) === 'gpt-5.4-mini')
+    check('a priced mini row dearer than a served row loses to it', openaiSmallFastChoice(['gpt-5.6-luna', 'gpt-5.5-mini'], pins) === 'gpt-5.6-luna')
+    check('an unpriced served row that is not mini or nano is never chosen', openaiSmallFastChoice(['gpt-5.5', 'gpt-5.4'], pins) === undefined)
+    check('two unpriced small rows: the newest by the grammar', openaiSmallFastChoice(['gpt-5.4-mini', 'gpt-6-nano', 'gpt-5.9-mini'], pins) === 'gpt-6-nano')
+    check('the served spelling is read through the grammar (a window annotation, upper case)', openaiSmallFastChoice(['GPT-5.6-Luna[served]'], pins) === 'gpt-5.6-luna')
+    const ceiling = parseGptModelId('gpt-6-astra')
+    check('the light tier: the newest served plain row below the frontier', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4'], ceiling) === 'gpt-5.5')
+    check('the light tier falls to the next served plain row when gpt-5.5 is not served', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4'], ceiling) === 'gpt-5.4')
+    check('the light tier answers nothing with no served plain row below the frontier', openaiLightChoice(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-6'], ceiling) === undefined && openaiLightChoice(['gpt-5.5'], undefined) === undefined)
   }
 
   section('§2 smallFastModelFor — all ten routing-law families')
@@ -70,8 +121,11 @@ async function main(): Promise<void> {
       viaDefault.toLowerCase().includes('haiku'),
       viaDefault,
     )
+    await serveList(null)
+    check("openai session with no live list → follows the session's own model (never the typed table)", smallFastModelFor('gpt-5.6-sol') === 'gpt-5.6-sol', smallFastModelFor('gpt-5.6-sol'))
+    await serveList(OWNER_LIST)
     const gpt = smallFastModelFor('gpt-5.6-sol')
-    check('openai session → the recorded mini tier', /-(mini|nano)$/.test(gpt), gpt)
+    check('openai session on the served list → the cheapest served row (gpt-5.6-luna)', gpt === 'gpt-5.6-luna', gpt)
     process.env.MERCURY_SMALL_FAST_MODEL = 'claude-pin-test'
     check(
       'the MERCURY_SMALL_FAST_MODEL pin does NOT leak onto an openai session',
@@ -101,6 +155,7 @@ async function main(): Promise<void> {
     )
   }
 
+  await serveList(null)
   section('§3 sessionLightModel — the hook-agent tier')
   {
     delete process.env.MERCURY_MODEL
@@ -111,12 +166,16 @@ async function main(): Promise<void> {
       `${anthropicLight} vs ${NEVER_HAIKU_FALLBACK}`,
     )
     process.env.MERCURY_MODEL = 'gpt-5.6-sol'
+    await serveList(null)
+    check('openai session with no live list: follows the session model (no typed row)', sessionLightModel() === 'gpt-5.6-sol', sessionLightModel())
+    await serveList(OWNER_LIST)
     const gptLight = sessionLightModel()
-    check(
-      'openai session: the recorded light fact (sub-frontier base row)',
-      /^gpt-\d/.test(gptLight) && !/-(sol|terra|luna)$/.test(gptLight),
-      gptLight,
-    )
+    check('openai session on the served list: the newest served plain row below the frontier (gpt-5.5)', gptLight === 'gpt-5.5', gptLight)
+    await serveList(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4'])
+    check('openai session on a list without gpt-5.5: the next served plain row (gpt-5.4)', sessionLightModel() === 'gpt-5.4', sessionLightModel())
+    await serveList(['gpt-6-astra', 'gpt-5.6-sol'])
+    check('openai session on a list with no plain row: the session model', sessionLightModel() === 'gpt-5.6-sol', sessionLightModel())
+    await serveList(null)
     process.env.MERCURY_MODEL = 'glm-5.3'
     check('zai session: follows the session model (no light fact recorded)', sessionLightModel() === 'glm-5.3')
     delete process.env.MERCURY_MODEL

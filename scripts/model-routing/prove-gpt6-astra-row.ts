@@ -172,7 +172,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   const frontier = providerFrontierFact('openai')
   check(`the openai frontier fact is the row (the newest by the grammar): ${NAME}`, frontier?.modelId === ID && frontier.displayName === NAME, JSON.stringify(frontier))
   const light = providerLightFact('openai')
-  check('the openai light fact is unchanged (the newest variant-less row below the frontier)', light?.modelId === 'gpt-5.5', JSON.stringify(light))
+  check('uncredentialed, the openai light fact is silence: a live list names the tier, never the typed table', light === undefined, JSON.stringify(light))
 }
 
 section('§2 THE LIVE LIST DECIDES PRESENCE — served ⇒ the row; unserved ⇒ no selectable row')
@@ -206,7 +206,11 @@ const fetchOf = (models: LiveRow[]): typeof fetch =>
 process.env.OPENAI_API_KEY = 'prover-key'
 {
   catalogue.__resetOpenaiCatalogueForTest()
+  await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fetchOf([LIVE_ASTRA, LIVE_SOL, liveRow('gpt-5.5', 'GPT-5.5', 3, ['low', 'high'], 272_000)]) })
+  check('with the list serving a plain row below the frontier, the openai light fact is that row (gpt-5.5)', providerLightFact('openai')?.modelId === 'gpt-5.5', JSON.stringify(providerLightFact('openai')))
+  catalogue.__resetOpenaiCatalogueForTest()
   await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fetchOf([LIVE_ASTRA, LIVE_SOL]) })
+  check('with the list serving no plain row below the frontier, the light fact is silence (the session model rides)', providerLightFact('openai') === undefined, JSON.stringify(providerLightFact('openai')))
 
   const evaluated = catalogue.evaluateGptCandidate(ID, 'api-key')
   check(
