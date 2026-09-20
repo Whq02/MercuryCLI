@@ -113,7 +113,7 @@ launcher_chain="$(sed -n '/^mercury_resolve_home()/,/^}/p' "$here/launcher-mercu
 [ -n "$lib_chain" ] && [ "$lib_chain" = "$launcher_chain" ]; check 'launcher inline resolver is byte-identical to lib/mercury-home.sh' $?
 
 say '— the release-day typed-id check over recorded lists —'
-run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-model-ids.ts"; check 'typed model ids: the check reads recorded lists and judges every typed id' $?
+run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-model-ids.ts"; check 'typed model ids: the check reads recorded lists, probes a family without one only behind its flag, and judges every typed id' $?
 
 say '— workspace backup round-trip (hermetic fixture) —'
 fixrepo="$(mktemp -d /tmp/ops-proof-repo-XXXXXX)"
