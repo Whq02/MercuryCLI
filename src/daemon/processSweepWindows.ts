@@ -125,11 +125,12 @@ async function resolvedObservation(raw: WindowsRawRow): Promise<ProcessSweepObse
   return windowsObservation({ ...raw, exe })
 }
 
-export async function collectWindowsProcesses(): Promise<ProcessSweepTable> {
+export async function collectWindowsProcesses(recordedPids: readonly number[] = []): Promise<ProcessSweepTable> {
   let host: ReturnType<typeof openHost> | undefined
   try {
     host = openHost()
-    const rows = decodeWindowsProcessRows(await host.ask({ op: 'table' }, 60_000))
+    const pids = [...new Set([process.pid, ...recordedPids])].filter(pid => Number.isInteger(pid) && pid > 0)
+    const rows = decodeWindowsProcessRows(await host.ask({ op: 'table', pids }, 60_000))
     return { observations: await Promise.all(rows.map(resolvedObservation)), complete: true }
   } catch (error) {
     return { observations: [], complete: false, error: String(error) }

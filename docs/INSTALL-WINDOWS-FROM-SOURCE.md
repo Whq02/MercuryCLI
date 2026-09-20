@@ -320,12 +320,25 @@ environmental and the verdict is unaffected. To run a single check, name it:
 `node dist\mercury.mjs doctor --only <check-id>` (the ids are the `id` fields
 in the JSON).
 
-On Windows the process sweep is not built yet: the doctor's Mercury processes
-row reads `Windows process reading is not built on this platform yet; nothing
-is listed and nothing is ended`, `mercury doctor processes` prints the same,
-and nothing is listed, pruned or ended. The reader for Windows is switched on
-once a Windows box proves that a daemon with a live owner reads as running and
-that a stale process on a disconnected session is ended and nothing else is.
+On Windows the process sweep reads every process through the system's own
+management interface (no third-party module): the real executable path, the
+arguments, the birth time and token, and the session; for the rows that name
+Mercury or that Mercury's own records name, it also reads the owning account
+and the terminal facts (whether a console window is attached, and whether that
+logon session is still connected). A process whose console host is alive reads
+as having a live terminal; one with no console does not, whatever its session;
+when the console cannot be read, a connected interactive session counts as
+live and a disconnected one leaves the read unknown. An unknown read is never
+permission to end anything, and a failed table is reported as incomplete
+rather than as an empty success. Ending a process re-checks its pid, birth,
+executable and account against what was reviewed, refuses a process that is
+not the current user's or whose terminal is live or unknown, re-reads all of
+that once more immediately before acting, and then ends that one process,
+never a tree and never by a parent relation, forcibly only when the polite
+stop is impossible: Windows lets a polite stop reach only a process with a
+window, so a console-less one is reported as needing the forced stop, and a
+stop whose receipt is lost is reported as unknown. Nothing here ends a process
+on its own; the doctor's action decides, on request.
 
 Start Mercury (needs the 100-column window from step 1):
 

@@ -225,7 +225,7 @@ export interface ProcessSweepDeps {
 
 function platformCollector(waitMs: number, nowMs: number): (recordedPids: readonly number[]) => Promise<ProcessSweepTable> {
   if (process.platform === 'win32') {
-    return async () => ({ observations: [], complete: false, error: 'Windows process reading is not built on this platform yet; nothing is listed and nothing is ended' })
+    return async recordedPids => (await import('./processSweepWindows.js')).collectWindowsProcesses(recordedPids)
   }
   return recordedPids => collectPosixProcessTable({ waitMs, recordedPids, nowMs })
 }
@@ -254,7 +254,9 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
     nowMs,
     platform: process.platform,
     selfPid: process.pid,
-    user: typeof process.getuid === 'function' ? String(process.getuid()) : '',
+    user: process.platform === 'win32'
+      ? table.observations.find(row => row.process.pid === process.pid)?.process.user ?? ''
+      : typeof process.getuid === 'function' ? String(process.getuid()) : '',
     configHome: home,
     drainMs: sessionParkDrainMs(),
     heartbeatAllowanceMs: COCKPIT_HEARTBEAT_ALLOWANCE_MS,
@@ -338,8 +340,68 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
     }
   }
   if (process.platform === 'win32') {
-    for (const entry of reviewed) record(entry, 'refused', 'none', 'Windows ending is not built yet; the process is listed only')
-    return { ...(await readMercuryProcesses(deps)), endings }
+    const { signalWindowsProcess } = await import('./processSweepWindows.js')
+    windowsEntries: for (const entry of reviewed) {
+      if (entry.classification !== 'stale') {
+        record(entry, 'refused', 'none', `not a stale process (${entry.classification})`)
+        continue
+      }
+      const first = await stillPresent(entry)
+      if (!first.present) {
+        record(entry, 'ended', 'none', 'already gone before anything was sent')
+        continue
+      }
+      if (first.fresh === null || !sameSweepIdentity(entry, first.fresh) || first.fresh.classification !== 'stale') {
+        record(entry, 'refused', 'none', first.fresh === null ? 'the process could not be re-read' : `no longer the reviewed stale process: ${first.fresh.reason}`)
+        continue
+      }
+      const plane = first.records.planes.find(candidate => candidate.daemonDir === own)
+      if (plane?.supervisor !== null && plane?.supervisor !== undefined && (
+        (entry.kind === 'daemon' && plane.supervisor.pid === entry.process.pid) ||
+        (entry.kind === 'runner' && (plane.answer?.runners ?? plane.runners ?? []).some(runner => runner.pid === entry.process.pid))
+      )) {
+        let reply: DaemonReply | null = null
+        try { reply = await rpc({ op: 'processSweep', proto: 0, action: 'end', expected: first.fresh }) } catch {}
+        if (reply === null || !reply.ok || reply.op !== 'processSweep' || reply.action !== 'end' || !reply.ended) {
+          record(entry, 'refused', 'daemon', 'the daemon did not confirm the end request; nothing was sent')
+          continue
+        }
+        if (await waitGone(entry)) {
+          record(entry, 'ended', 'daemon', reply.reason ?? 'ended through its daemon')
+          continue
+        }
+        if (entry.kind === 'daemon') {
+          record(entry, 'survived', 'daemon', 'the daemon confirmed shutdown but had not left within the wait; nothing else was sent')
+          continue
+        }
+      }
+      for (const force of [false, true]) {
+        const current = await stillPresent(entry)
+        if (!current.present) {
+          record(entry, 'ended', 'signal', 'the process has ended')
+          continue windowsEntries
+        }
+        if (current.fresh === null || !sameSweepIdentity(entry, current.fresh) || current.fresh.classification !== 'stale') {
+          record(entry, 'refused', 'none', 'the reviewed identity or liveness changed before the Windows stop')
+          continue windowsEntries
+        }
+        const result = await signalWindowsProcess(current.fresh, force)
+        if (!result.sent) {
+          if (!force && /forcefully|\/F/.test(result.reason ?? '')) continue
+          record(entry, 'refused', 'signal', result.reason ?? 'the Windows stop could not be sent')
+          continue windowsEntries
+        }
+        if (await waitGone(entry)) {
+          record(entry, 'ended', 'signal', result.reason ?? (force ? 'ended on the forced Windows stop' : 'ended on the polite Windows stop'))
+          if (entry.kind === 'window' && entry.registrationId !== null) await clearRegistrationById(home, entry.registrationId)
+          continue windowsEntries
+        }
+      }
+      record(entry, 'survived', 'signal', PROCESS_SWEEP_WORDS.unkillable)
+    }
+    const census = { ...(await readMercuryProcesses({ ...deps, record: false })), endings }
+    if (deps.record !== false) await recordCensus(home, census)
+    return census
   }
   for (const entry of reviewed) {
     if (entry.classification !== 'stale') {
