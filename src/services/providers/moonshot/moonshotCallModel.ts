@@ -17,6 +17,10 @@ import {
   refreshMoonshotTokens,
   resolveMoonshotDispatchCredential,
 } from './moonshotAccounts.js'
+import { qualifyMoonshotModel } from './moonshotCatalogue.js'
+import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { createAssistantAPIErrorMessage, createAssistantMessage } from '../../../utils/messages.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { refreshKimiManagedUsage } from './moonshotUsageState.js'
 
 export const moonshotLaneProfile: CompatLaneProfile = {
@@ -51,5 +55,25 @@ export function moonshotLiveProofState(): { at: number; model: string } | null {
 export async function* moonshotCallModel(
   params: CompatCallModelParams,
 ): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+  if (params.signal.aborted) return
+  if (moonshotDispatchSource() !== undefined) {
+    let onAbort: () => void = () => {}
+    const cancelled = new Promise<null>(resolve => {
+      onAbort = () => resolve(null)
+      params.signal.addEventListener('abort', onAbort, { once: true })
+    })
+    let qualification: Awaited<ReturnType<typeof qualifyMoonshotModel>> | null
+    try {
+      qualification = await Promise.race([qualifyMoonshotModel(normalizeModelStringForAPI(params.options.model)), cancelled])
+    } finally {
+      params.signal.removeEventListener('abort', onAbort)
+    }
+    if (qualification === null || params.signal.aborted) return
+    if (qualification.kind === 'refused') {
+      yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${qualification.message}` })
+      return
+    }
+    if (qualification.kind === 'degraded') yield createAssistantMessage({ content: qualification.note })
+  }
   yield* compatChatCallModel(moonshotLaneProfile, params)
 }

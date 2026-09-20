@@ -8,6 +8,7 @@ import {
   getSmallFastModel,
 } from './model.js'
 import { keyLanePins } from './modelOptions.js'
+import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
 
 export interface ProviderFrontierFact {
@@ -50,7 +51,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'deepseek': {
         const pin = keyLanePins(route)[0]
         if (!pin) return undefined
-        const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : undefined
+        const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : route === 'moonshot' ? moonshotCatalogueSourceWords() : undefined
         if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName, source: liveWords }
         return { modelId: pin.id, displayName: pin.displayName, observedAt: pin.observedAt }
       }
