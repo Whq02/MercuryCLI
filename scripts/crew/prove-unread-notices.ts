@@ -109,6 +109,10 @@ if (ledger === null) {
   queue.enqueuePendingNotification({ value: '<monitor task="m1" name="build watch">\nBUILD OK\n</monitor>', mode: 'task-notification', priority: 'next', agentId: 'ag-2' })
   const tick = L.openNotices().find(r => r.agentId === 'ag-2')
   check('N1 a monitor\'s tick names its monitor', tick?.kind === 'completion' && tick.words === 'monitor "build watch" reported', JSON.stringify(tick))
+  queue.enqueuePendingNotification({ value: '<task-notification>\n<task-id>ag-2</task-id>\n<status>message</status>\n<summary>Agent "counts the files" sent a message</summary>\n<message>the count is nine</message>\n</task-notification>', mode: 'task-notification', priority: 'next' })
+  const spoken = L.openNotices().find(r => r.words.includes('sent a message'))
+  check('N1 a sub-agent\'s message to the main thread is an unread row of kind message, its summary as the line', spoken?.kind === 'message' && spoken.agentId === L.MAIN_THREAD_AGENT && spoken.words === 'Agent "counts the files" sent a message', JSON.stringify(spoken))
+  queue.remove(queue.getDrainableCommands(false).filter(c => typeof c.value === 'string' && c.value.includes('<status>message</status>')))
   check('N1 the facts rows list the open rows first, oldest first, then the settled', L.noticeRows()[0]?.kind === 'wake' && L.noticeRows()[1]?.words === 'monitor "build watch" reported' && L.noticeRows().slice(2).every(r => r.state === 'consumed' || r.state === 'retired'), JSON.stringify(L.noticeRows().map(r => [r.kind, r.state])))
 }
 
