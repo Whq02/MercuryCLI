@@ -91,6 +91,30 @@ export function createStreamCutMessage(input: {
   }
 }
 
+export function createBusyRecoveryMessage(input: {
+  provider: string
+  retries: number
+  elapsedMs: number
+  content: string
+  status?: number
+  code?: string
+}): import('../../types/message.js').SystemBusyRecoveryMessage {
+  return {
+    type: 'system',
+    subtype: 'busy_recovery',
+    content: input.content,
+    provider: input.provider,
+    retries: input.retries,
+    elapsedMs: input.elapsedMs,
+    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(input.code !== undefined ? { code: input.code } : {}),
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 export function createThinkingNoteMessage(
   content: string,
   level: SystemMessageLevel = 'info',

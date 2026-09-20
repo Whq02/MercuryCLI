@@ -403,6 +403,10 @@ add('createStreamCutMessage', 'basic', () =>
   M.createStreamCutMessage({ count: 1, content: 'OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)', road: 'OpenAI', sent: 'terminated', code: 'read-failed' }),
 );
 add('createStreamCutMessage', 'no-facts', () => M.createStreamCutMessage({ count: 1, content: 'The provider stream dropped after partial content — asked the model to continue from where it stopped (continuation 1 of 1)' }));
+add('createBusyRecoveryMessage', 'basic', () =>
+  M.createBusyRecoveryMessage({ provider: 'Gemini', retries: 2, elapsedMs: 7000, content: 'Gemini answered HTTP 503 (api-UNAVAILABLE): busy words — retried after 1 s and 2 s, and the third request was answered.', status: 503, code: 'api-UNAVAILABLE' }),
+);
+add('createBusyRecoveryMessage', 'no-facts', () => M.createBusyRecoveryMessage({ provider: 'Gemini', retries: 1, elapsedMs: 1200, content: 'Gemini answered (api-UNAVAILABLE) — retried after 1 s, and the second request was answered.' }));
 add('createSeatReceiptMessage', 'basic', () =>
   M.createSeatReceiptMessage('⇄ reslot applied — worker → claude-fable-5 @max', 'info'),
 );
