@@ -41,6 +41,10 @@ function makeRig(): Rig {
   }
   rig.ports = {
     dequeue: () => rig.queue.shift(),
+    dequeueCommand: command => {
+      const at = rig.queue.indexOf(command)
+      return at < 0 ? undefined : rig.queue.splice(at, 1)[0]
+    },
     peek: () => rig.queue[0],
     notifyLifecycle: () => {},
     enqueueOutput: () => {},

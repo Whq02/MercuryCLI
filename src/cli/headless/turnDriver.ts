@@ -47,6 +47,7 @@ export type DriverPhase =
 
 export type TurnDriverPorts = {
   dequeue(): QueuedCommand | undefined
+  dequeueCommand(command: QueuedCommand): QueuedCommand | undefined
   peek(): QueuedCommand | undefined
   notifyLifecycle(uuid: string, event: 'started' | 'completed'): void
 
@@ -110,10 +111,35 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     return taken
   }
 
+  const yieldedOnce = new Set<string>()
+  const isOperatorWords = (command: QueuedCommand): boolean =>
+    (command.mode === 'prompt' || command.mode === 'bash') && command.isMeta !== true
+  const bandOf = (command: QueuedCommand): string => command.priority ?? 'next'
+
+  const wordsBefore = (head: QueuedCommand): QueuedCommand | undefined => {
+    if (!isTaskNotification(head)) return undefined
+    const queued = queuedMainThread()
+    for (const id of yieldedOnce) {
+      if (!queued.some(c => c.queueId === id)) yieldedOnce.delete(id)
+    }
+    if (head.queueId !== undefined && yieldedOnce.has(head.queueId)) return undefined
+    const words = queued.find(c => isOperatorWords(c) && bandOf(c) === bandOf(head))
+    if (words === undefined) return undefined
+    const taken = ports.dequeueCommand(words)
+    if (taken === undefined) return undefined
+    for (const c of queued) {
+      if (isTaskNotification(c) && c.queueId !== undefined) yieldedOnce.add(c.queueId)
+    }
+    if (taken.queueId !== undefined) settledAt.delete(taken.queueId)
+    return taken
+  }
+
   const nextDue = (): QueuedCommand | undefined => {
     holding = false
     const head = ports.peek()
     if (head === undefined) return undefined
+    const words = wordsBefore(head)
+    if (words !== undefined) return words
     const window = ports.settleWindowMs ?? 0
     if (isTaskNotification(head) && head.queueId !== undefined && window > 0) {
       const queued = queuedMainThread()

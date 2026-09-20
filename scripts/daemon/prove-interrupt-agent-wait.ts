@@ -45,6 +45,10 @@ console.log('\nA1 the driver announces the agent wait and its end')
   let running = 3
   const ports: TurnDriverPorts = {
     dequeue: () => queue.shift(),
+    dequeueCommand: command => {
+      const at = queue.indexOf(command)
+      return at < 0 ? undefined : queue.splice(at, 1)[0]
+    },
     peek: () => queue[0],
     notifyLifecycle: () => {},
     enqueueOutput: () => {},

@@ -99,6 +99,10 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
   let driver!: ReturnType<typeof createTurnDriver>
   driver = createTurnDriver({
     dequeue: () => queue.shift() as never,
+    dequeueCommand: command => {
+      const at = queue.indexOf(command as never)
+      return at < 0 ? undefined : (queue.splice(at, 1)[0] as never)
+    },
     peek: () => queue[0] as never,
     notifyLifecycle: () => {},
     enqueueOutput: m => out.push((m as { type: string }).type),
