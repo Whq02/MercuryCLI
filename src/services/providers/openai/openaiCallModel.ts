@@ -1,3 +1,4 @@
+import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash } from 'node:crypto'
@@ -431,11 +432,12 @@ async function qualifyRequestedModel(
   const qualified = qualifiedGptCandidates('specialist', sourceKind)
     .map(c => c.identity.canonicalId)
     .join(', ')
+  if (why.reason === 'not-in-live-catalogue') {
+    return { kind: 'refused', message: modelNotOfferedByCatalogue(requestedId, auth.account.label, qualified ? qualified.split(', ') : []) }
+  }
   const catalogueHint = qualified ? ` The catalogue offers: ${qualified}.` : ''
   const reasonText =
-    why.reason === 'not-in-live-catalogue'
-      ? `is not offered by the ${auth.account.label} live catalogue`
-      : why.reason === 'hidden-or-retired'
+    why.reason === 'hidden-or-retired'
         ? `is hidden/retired in the live catalogue (${why.detail})`
         : why.reason === 'unparseable-id'
           ? `is not a parseable GPT model id`

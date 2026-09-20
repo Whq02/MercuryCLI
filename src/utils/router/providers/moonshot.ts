@@ -1,6 +1,5 @@
 import { getCachedProviderDiscovery, primeMoonshotDiscovery } from '../providerDiscovery.js'
 import {
-  KIMI_DISPLAY_PINS,
   KIMI_EFFORTS,
   KIMI_EFFORT_MODELS,
 } from '../../../services/providers/moonshot/kimiPins.js'
@@ -16,23 +15,25 @@ import type {
   SpecialistRole,
 } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
+import { moonshotCatalogueRows } from '../../../services/providers/moonshot/moonshotCatalogue.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 
-export const KIMI_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = KIMI_DISPLAY_PINS.map(
-  pin => ({
-    id: pin.id,
-    displayLabel: pin.displayName,
+export function moonshotCatalogueEntries(): ProviderCatalogueEntry[] {
+  return moonshotCatalogueRows().rows.map(row => ({
+    id: row.id,
+    displayLabel: row.displayName,
     modelClass: 'kimi' as const,
-    ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
-    efforts: KIMI_EFFORT_MODELS.has(pin.id) ? [...KIMI_EFFORTS] : [],
+    ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+    efforts: KIMI_EFFORT_MODELS.has(row.id) ? [...KIMI_EFFORTS] : [],
     roles: ALL_ROLES,
-  }),
-)
+  }))
+}
 
 export function describeMoonshotProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('moonshot')
   const record = discovery?.provider === 'moonshot' ? discovery : undefined
+  const { source } = moonshotCatalogueRows()
   return {
     transport: 'openai-compat-chat-completions',
     capabilities: [
@@ -49,8 +50,10 @@ export function describeMoonshotProvider(): ProviderDescription {
         ? { kind: 'provider-oauth', label: record.account.label }
         : { kind: 'api-key', label: record.account.label }
       : { kind: 'none', label: 'no Kimi sign-in or Moonshot API key detected' },
-    catalogue: KIMI_STATIC_CATALOGUE,
-    catalogueSource: 'static-pin',
+    catalogue: moonshotCatalogueEntries(),
+    ...(source.kind === 'live'
+      ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: source.fetchedAtMs }
+      : { catalogueSource: 'static-pin' as const }),
   }
 }
 
@@ -63,7 +66,7 @@ export function moonshotStatus(): RouterProviderStatus {
 
 export function listMoonshotModels(): RouterProviderModel[] {
   if (!moonshotStatus().available) return []
-  return KIMI_STATIC_CATALOGUE.map(entry => ({
+  return moonshotCatalogueEntries().map(entry => ({
     ref: {
       provider: 'moonshot' as const,
       model: entry.id,
