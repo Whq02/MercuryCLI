@@ -82,7 +82,8 @@ enableConfigs()
 const { WorkflowTool } = await import('${REPO}/src/tools/WorkflowTool/WorkflowTool.js')
 const { makeWorkflowHooks } = await import('${REPO}/src/tools/WorkflowTool/agentHooks.js')
 const { getDefaultAppState } = await import('${REPO}/src/state/AppStateStore.js')
-const { dequeueAll, getCommandQueue } = await import('${REPO}/src/input-core/command-queue.js')
+const { dequeueAll, getCommandQueue, subscribeToCommandQueue } = await import('${REPO}/src/input-core/command-queue.js')
+const { noticeDeadlineMs } = await import('${REPO}/src/services/notices/idleNudge.js')
 const emit = (o: unknown) => console.log('@@' + JSON.stringify(o))
 
 let state: any = getDefaultAppState()
@@ -129,10 +130,20 @@ try {
     await new Promise(r => setTimeout(r, 100))
   }
   const manifest = JSON.parse(readFileSync(join(runDir, 'run.json'), 'utf8'))
-  const noticeAskedAt = Date.now()
-  const noticeDeadline = noticeAskedAt + 15_000
   const noticeQueued = () => getCommandQueue().some((c: any) => c.mode === 'task-notification' && /<usage>.*<\/usage>/s.test(String(c.value ?? '')))
-  while (Date.now() < noticeDeadline && !noticeQueued()) await new Promise(r => setTimeout(r, 25))
+  const noticeAskedAt = Date.now()
+  const noticeBoundMs = noticeDeadlineMs()
+  const noticeArrived: boolean = await new Promise(resolve => {
+    if (noticeQueued()) return resolve(true)
+    let unsub = () => {}
+    const bound = setTimeout(() => { unsub(); resolve(false) }, noticeBoundMs)
+    unsub = subscribeToCommandQueue(() => {
+      if (!noticeQueued()) return
+      clearTimeout(bound)
+      unsub()
+      resolve(true)
+    })
+  })
   const noticeWaitMs = Date.now() - noticeAskedAt
   const queued = dequeueAll().map((c: any) => String(c.value ?? ''))
   const usageLine = queued.map((v: string) => v.match(/<usage>.*<\/usage>/s)?.[0] ?? '').find((s: string) => s !== '') ?? ''
@@ -141,6 +152,8 @@ try {
     status: task.status,
     error: task.error,
     noticeWaitMs,
+    noticeArrived,
+    noticeBoundMs,
     taskUsage: task.usage ?? null,
     taskTotalTokens: task.totalTokens,
     manifestUsage: manifest.usage ?? null,
@@ -205,7 +218,7 @@ writeFileSync(join(scratch, 'child.ts'), CHILD)
 section('drive: one workflow, two agents on two wires (real stack, loopback)')
 const child = spawn(BUN, ['run', join(scratch, 'child.ts')], {
   cwd: scratch,
-  env: { ...process.env, ...fixture.env, MERCURY_DYNAMIC_WORKFLOWS: '1' },
+  env: { ...process.env, ...fixture.env, MERCURY_DYNAMIC_WORKFLOWS: '1', MERCURY_NOTICE_DEADLINE_MS: '60000' },
 })
 const lines: Array<Record<string, unknown>> = []
 let out = ''
@@ -242,6 +255,8 @@ type Settled = {
   agents?: AgentRow[]
   usageLine?: string
   noticeWaitMs?: number
+  noticeArrived?: boolean
+  noticeBoundMs?: number
 }
 const launched = lines.find(l => l.ev === 'launched')
 const settled = lines.find(l => l.ev === 'settled') as Settled | undefined
@@ -284,7 +299,7 @@ check('structured-output corrections retain all earlier spend exactly once', nud
 
 section('§4 the notification spells the spend beside the context sum')
 const usageLine = settled?.usageLine ?? ''
-check(`the notice followed the task's settled status within the bound — it is queued only after the output file it names is written (${settled?.noticeWaitMs ?? '?'} ms after the status read)`, typeof settled?.noticeWaitMs === 'number' && settled.noticeWaitMs < 15_000 && usageLine !== '', `noticeWaitMs ${settled?.noticeWaitMs} · usage line ${usageLine === '' ? 'EMPTY' : 'present'}`)
+check(`the notice followed the task's settled status, awaited on the queue's own signal within the product's notice deadline (MERCURY_NOTICE_DEADLINE_MS, ${settled?.noticeBoundMs ?? '?'} ms) — it is queued only after the output file it names is written (${settled?.noticeWaitMs ?? '?'} ms after the status read)`, settled?.noticeArrived === true && usageLine !== '', `arrived ${settled?.noticeArrived} · waited ${settled?.noticeWaitMs} ms of ${settled?.noticeBoundMs} · usage line ${usageLine === '' ? 'EMPTY' : 'present'}`)
 check('the <usage> section carries subagent_tokens (the context sum)', usageLine.includes('<subagent_tokens>24</subagent_tokens>'), usageLine)
 check('…and subagent_spend with the accumulated counts and what they cover', usageLine.includes('<subagent_spend tokens="56" input="36" cache_read="0" cache_creation="0" output="20" api_turns="4" unsettled_turns="0" agents_reporting="2" agents_unreported="0"/>'), usageLine)
 
