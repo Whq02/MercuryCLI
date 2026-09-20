@@ -169,9 +169,10 @@ async function validateNonAnthropicModel(
       error: 'No OpenAI account — /logins signs in a ChatGPT subscription, or set OPENAI_API_KEY.',
     }
   }
-  const { evaluateGptCandidate, refreshOpenaiCatalogue } = await import(
+  const { evaluateGptCandidate, qualifiedGptCandidates, refreshOpenaiCatalogue } = await import(
     '../../services/providers/openai/openaiCatalogue.js'
   )
+  const { modelNotOfferedByCatalogue } = await import('../../services/providers/catalogueAdmission.js')
   await refreshOpenaiCatalogue(account.kind).catch(() => null)
   const evaluated = evaluateGptCandidate(trimmed.toLowerCase(), account.kind)
   if (evaluated.ok) return { valid: true }
@@ -181,7 +182,7 @@ async function validateNonAnthropicModel(
     case 'not-in-live-catalogue':
       return {
         valid: false,
-        error: `Model "${trimmed}" is not offered by the ${account.label} live catalogue.`,
+        error: modelNotOfferedByCatalogue(trimmed, account.label, qualifiedGptCandidates('specialist', account.kind).map(candidate => candidate.identity.canonicalId)),
       }
     case 'hidden-or-retired':
       return {
