@@ -83,7 +83,8 @@ a resumed one alike. Without the flag, a new session starts on your saved
 choice — `/model` and `/effort` both save the pick as your default, and say
 so — and, with nothing saved, on the family default. A saved choice whose
 family cannot serve it — no sign-in for that family here, or a sign-in whose
-catalogue refused it — does not stop the birth: the chat starts on the
+catalogue refused it (a catalogue merely not fetched yet is not a refusal:
+the chat starts on the saved choice) — does not stop the birth: the chat starts on the
 computed default (the most recent sign-in's newest usable row) and its first
 row says so, naming the family, the reason and the doors (`/logins <family>`
 connects it, `/model` changes the default); the saved choice is left as it

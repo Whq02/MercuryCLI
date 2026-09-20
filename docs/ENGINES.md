@@ -205,10 +205,13 @@ config's older `defaultProvider` record first, so a home keeps its lane until
 its next sign-in. With no sign-in anywhere there is no default: the face and
 `/model` say so and point at `/logins`. An explicit `/model` choice,
 `MERCURY_MODEL` or a session override always outranks the default. A saved
-`/model` choice whose family has no usable row when a chat is born — no
-sign-in here, or a catalogue that refused the credential — falls back to the
-computed default for that chat, with one receipt naming why; the saved
-choice stays. A stored
+`/model` choice whose family cannot run when a chat is born — no sign-in for
+it here, or a credential its catalogue refused (a Google, OpenRouter or
+Hugging Face refusal with its status; an OpenAI sign-in the authorisation
+server killed) — falls back to the computed default for that chat, with one
+receipt naming why; the saved choice stays. A catalogue still being fetched,
+unreachable, switched off or otherwise unsettled is not a refusal: the chat
+starts on the saved choice and the runner reads the catalogue itself. A stored
 Gemini key with the test fixture's shape (`zz-SECRE…`) is named a test key
 on its `/logins` and `/accounts` rows, with the gesture that removes it.
 
