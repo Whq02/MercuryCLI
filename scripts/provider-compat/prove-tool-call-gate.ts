@@ -174,7 +174,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (path.startsWith('/openai/')) {
         res.end(JSON.stringify(OPENAI_MODELS_BODY))
       } else {
-        res.end(JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
+        res.end(JSON.stringify(path.startsWith('/moonshot/') ? { object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot', created: 1 }] } : { object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
       }
       return
     }

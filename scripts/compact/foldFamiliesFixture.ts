@@ -11,6 +11,8 @@ export interface FoldFamilyHit {
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
+export const MOONSHOT_SERVED = ['kimi-k2-0905-preview', 'moonshot-v1-8k'] as const
+
 function chatFinal(text: string): string {
   return [
     sse({ id: 'chat_ff', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: text } }] }),
@@ -62,6 +64,10 @@ export async function startFoldFamiliesFixture(opts: { port: number }): Promise<
           return
         }
         res.writeHead(200, { 'content-type': 'application/json' })
+        if (lane === 'moonshot' && path.endsWith('/models')) {
+          res.end(JSON.stringify({ object: 'list', data: MOONSHOT_SERVED.map((id, i) => ({ id, object: 'model', owned_by: 'moonshot', created: i + 1 })) }))
+          return
+        }
         res.end(JSON.stringify({ object: 'list', data: [], models: [] }))
         return
       }
