@@ -43,6 +43,10 @@ function makeRig(withWindow: boolean): Rig {
   const rig: Rig = { queue: [], turns: [], now: 0, running: 0, waits: [], duringTurn: null, ports: null as never }
   rig.ports = {
     dequeue: () => rig.queue.shift(),
+    dequeueCommand: command => {
+      const at = rig.queue.indexOf(command)
+      return at < 0 ? undefined : rig.queue.splice(at, 1)[0]
+    },
     peek: () => rig.queue[0],
     notifyLifecycle: () => {},
     enqueueOutput: () => {},
@@ -88,6 +92,9 @@ function makeRig(withWindow: boolean): Rig {
 let seq = 0
 const notice = (id: string): QueuedCommand => ({ value: `<task-notification><task-id>${id}</task-id><status>completed</status><summary>Background command "${id}" completed</summary></task-notification>`, mode: 'task-notification', priority: 'later', queueId: `q${++seq}` }) as QueuedCommand
 const prompt = (text: string): QueuedCommand => ({ value: text, mode: 'prompt', priority: 'next', queueId: `q${++seq}` }) as QueuedCommand
+const noticeNext = (id: string): QueuedCommand => ({ ...notice(id), priority: 'next' }) as QueuedCommand
+const nudge = (text: string): QueuedCommand => ({ value: text, mode: 'prompt', priority: 'later', isMeta: true, queueId: `q${++seq}` }) as QueuedCommand
+const orderOf = (rig: Rig): string => rig.turns.map(t => (t.mode === 'task-notification' ? `notice:${idsOf(t).join('+')}` : `${t.mode}:${t.blocks.join('')}`)).join(' → ')
 const idsOf = (turn: Turn): string[] => turn.blocks.map(b => /<task-id>(.*?)<\/task-id>/.exec(b)?.[1] ?? b)
 const untilIdle = async (driver: ReturnType<typeof createTurnDriver>, rig: Rig, budgetMs: number): Promise<void> => {
   const until = rig.now + budgetMs
@@ -175,6 +182,49 @@ section('N6 — a driver wired without the window ports runs a completion at onc
   driver.kick()
   await untilIdle(driver, rig, 5 * WINDOW)
   check('no hold: the turn ran at time 0, and the two consecutive completions still folded', rig.turns.length === 1 && rig.turns[0]!.at === 0 && idsOf(rig.turns[0]!).join(',') === 'f1,f2', JSON.stringify(rig.turns.map(t => [idsOf(t), t.at])))
+}
+
+section("N7 — typed words queued behind a completion at a turn's end go first; the completion is read at the end of their turn, and yields only once")
+{
+  const rig = makeRig(true)
+  const driver = createTurnDriver(rig.ports)
+  rig.queue.push(noticeNext('g1'), prompt('the operator, later'), prompt('and again'))
+  driver.kick()
+  await untilIdle(driver, rig, 5 * WINDOW)
+  check('the words ran first, then the completion, then the later words', orderOf(rig) === 'prompt:the operator, later → notice:g1 → prompt:and again', orderOf(rig))
+  check('nothing waited a window: the words at once, the completion right after their turn', rig.turns.length === 3 && rig.turns.every(t => t.at < WINDOW), JSON.stringify(rig.turns.map(t => [t.mode, t.at])))
+  check('the queue is empty afterwards', rig.queue.length === 0)
+}
+
+section('N8 — a completion that landed during the words\' turn is read at its end before words typed later, once')
+{
+  const rig = makeRig(true)
+  const driver = createTurnDriver(rig.ports)
+  rig.duringTurn = () => {
+    rig.queue.push(noticeNext('h1'), prompt('typed after it'))
+  }
+  rig.queue.push(prompt('the first words'))
+  driver.kick()
+  await untilIdle(driver, rig, 5 * WINDOW)
+  check('the first words, then the words typed after the completion, then the completion — it yields to the typed words once and never to a second turn', orderOf(rig) === 'prompt:the first words → prompt:typed after it → notice:h1', orderOf(rig))
+}
+
+section("N9 — the runner's own idle nudge (a later-band system prompt) does not go before a completion; a completion alone still waits its window")
+{
+  const rig = makeRig(true)
+  const driver = createTurnDriver(rig.ports)
+  rig.queue.push(noticeNext('i1'), nudge('unread notices wait'))
+  driver.kick()
+  await untilIdle(driver, rig, 5 * WINDOW)
+  check('the completion ran first, the nudge after it', orderOf(rig) === 'notice:i1 → prompt:unread notices wait', orderOf(rig))
+  const alone = makeRig(true)
+  const aloneDriver = createTurnDriver(alone.ports)
+  alone.queue.push(noticeNext('j1'))
+  aloneDriver.kick()
+  await settleTicks(6)
+  check('a completion alone is still held for the window', alone.turns.length === 0 && aloneDriver.phase() === 'waiting_for_agents', `turns=${alone.turns.length} phase=${aloneDriver.phase()}`)
+  await untilIdle(aloneDriver, alone, 5 * WINDOW)
+  check('and runs once it passed', alone.turns.length === 1 && idsOf(alone.turns[0]!).join(',') === 'j1' && alone.turns[0]!.at >= WINDOW, JSON.stringify(alone.turns))
 }
 
 clearTimeout(watchdog)
