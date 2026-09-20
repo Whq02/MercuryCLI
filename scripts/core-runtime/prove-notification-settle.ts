@@ -188,7 +188,10 @@ section("N7 — typed words queued behind a completion at a turn's end go first;
 {
   const rig = makeRig(true)
   const driver = createTurnDriver(rig.ports)
-  rig.queue.push(noticeNext('g1'), prompt('the operator, later'), prompt('and again'))
+  rig.duringTurn = () => {
+    rig.queue.push(prompt('and again'))
+  }
+  rig.queue.push(noticeNext('g1'), prompt('the operator, later'))
   driver.kick()
   await untilIdle(driver, rig, 5 * WINDOW)
   check('the words ran first, then the completion, then the later words', orderOf(rig) === 'prompt:the operator, later → notice:g1 → prompt:and again', orderOf(rig))
@@ -225,6 +228,43 @@ section("N9 — the runner's own idle nudge (a later-band system prompt) does no
   check('a completion alone is still held for the window', alone.turns.length === 0 && aloneDriver.phase() === 'waiting_for_agents', `turns=${alone.turns.length} phase=${aloneDriver.phase()}`)
   await untilIdle(aloneDriver, alone, 5 * WINDOW)
   check('and runs once it passed', alone.turns.length === 1 && idsOf(alone.turns[0]!).join(',') === 'j1' && alone.turns[0]!.at >= WINDOW, JSON.stringify(alone.turns))
+}
+
+section("N10 — two lines typed in a row behind a completion drain into ONE turn; the completion stays queued for that turn's first tool boundary, else is read at its end, before a line typed during it")
+{
+  const rig = makeRig(true)
+  const driver = createTurnDriver(rig.ports)
+  let queuedWhenTheTurnBegan: string[] = []
+  rig.duringTurn = () => {
+    queuedWhenTheTurnBegan = rig.queue.map(c => (c.mode === 'task-notification' ? `notice:${/<task-id>(.*?)<\/task-id>/.exec(String(c.value))?.[1] ?? '?'}` : `${c.mode}:${String(c.value)}`))
+    rig.queue.push(prompt('typed during the turn'))
+  }
+  rig.queue.push(noticeNext('k1'), prompt('the first line'), prompt('the second line'))
+  driver.kick()
+  await untilIdle(driver, rig, 5 * WINDOW)
+  check('the two lines ran as one turn, the completion right after it, the line typed during that turn last', orderOf(rig) === 'prompt:the first line\nthe second line → notice:k1 → prompt:typed during the turn', orderOf(rig))
+  check("the completion was still queued when the lines' turn began — the first tool boundary's drain finds it there", queuedWhenTheTurnBegan.includes('notice:k1'), JSON.stringify(queuedWhenTheTurnBegan))
+  check('nothing waited a window', rig.turns.length === 3 && rig.turns.every(t => t.at < WINDOW), JSON.stringify(rig.turns.map(t => [t.mode, t.at])))
+  check('the queue is empty afterwards', rig.queue.length === 0)
+  const between = makeRig(true)
+  const betweenDriver = createTurnDriver(between.ports)
+  between.duringTurn = () => {
+    between.queue.push(prompt('typed during the turn'))
+  }
+  between.queue.push(prompt('the first line'), noticeNext('k2'), prompt('the second line'))
+  betweenDriver.kick()
+  await untilIdle(betweenDriver, between, 5 * WINDOW)
+  check('a completion that landed between the two lines splits them no more: one turn, the completion read at its end before the line typed during it', orderOf(between) === 'prompt:the first line\nthe second line → notice:k2 → prompt:typed during the turn', orderOf(between))
+  const drained = makeRig(true)
+  const drainedDriver = createTurnDriver(drained.ports)
+  drained.duringTurn = () => {
+    const at = drained.queue.findIndex(c => c.mode === 'task-notification')
+    if (at >= 0) drained.queue.splice(at, 1)
+  }
+  drained.queue.push(noticeNext('k3'), prompt('the first line'), prompt('the second line'))
+  drainedDriver.kick()
+  await untilIdle(drainedDriver, drained, 5 * WINDOW)
+  check("read at the turn's first tool boundary (the rig drains it there, as the boundary's drain does), the completion starts no turn of its own afterwards", orderOf(drained) === 'prompt:the first line\nthe second line' && drained.queue.length === 0, `${orderOf(drained)} · queue ${drained.queue.length}`)
 }
 
 clearTimeout(watchdog)
