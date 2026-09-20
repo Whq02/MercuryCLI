@@ -106,6 +106,35 @@ and SDKs it knows), reported as unrecognized otherwise. An older Mercury's
 records are Mercury's own; version variance is never foreignness. The check's remedy archives the foreign records into a
 dated directory inside the home — reversible, nothing deleted.
 
+CREW & DAEMONS also carries `Mercury processes`, the process sweep: it lists
+Mercury's own processes on this box and classes each one by Mercury's own
+facts — running · stale · cannot end · not ours — never by a parent pid. A
+window is read by its own registration (`<config home>/processes/`, a pid, a
+birth token and a heartbeat the cockpit writes and clears at exit) and by
+whether a live shell still owns its terminal; a daemon by its supervisor
+record, its owner, its live sessions, schedules and persistence; a runner by
+the daemon's roster and its session's seat. Any live fact keeps a process
+running; an explicit or persistent daemon is never stale; a process whose
+facts cannot be read cannot be ended and says why. The row's evidence is the
+four counts; its trail lists each stale and cannot-end process as
+`pid <pid> · <terminal or no terminal> · <age> · <reason>`. The sweep runs
+read-only at every daemon boot and window boot (a census under
+`<config home>/processes/census.json`); nothing is ever ended on its own. The
+row's destructive remedy shows exactly that list and asks `End these <N>
+stale processes?`; it ends them through Mercury's own roads first (the daemon
+re-checks identity and staleness inside itself before its shutdown or kill),
+then a termination signal, a bounded wait (`MERCURY_PROCESS_SWEEP_WAIT_MS`;
+the closure allowance before a window, runner or daemon may read stale is
+the park drain, `MERCURY_SESSION_PARK_DRAIN_MINUTES`),
+then a kill signal, re-reading identity and staleness before each step (a daemon that does not answer the end request for its own plane refuses it: nothing is sent), and
+reports `Ended <N> stale processes; <N> could not be ended; <N> left running`;
+a survivor of the kill signal reads `cannot end — needs a reboot`. Headless,
+`mercury doctor processes` prints the same listing as JSON and `--end-stale`
+ends the stale ones it lists; `mercury health --fix --yes` applies this
+destructive remedy like any other. A process table that cannot be read whole
+is an incomplete census: nothing is listed, nothing is pruned, nothing is
+ended. Windows reads the list and ends nothing.
+
 ## Fixes
 
 Checks can carry an executable remedy — `{plan, apply, verify}` — and a remedy

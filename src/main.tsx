@@ -934,14 +934,25 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
-  program.command('health').alias('doctor')
-    .description('Check the installation health: configured MCP servers are validated WITHOUT starting them')
+  program.command('health [topic]').alias('doctor')
+    .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `doctor processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'JSON certificate output')
     .option('--deep', 'Deep inventory')
     .option('--fix', 'Run the guided fix flow')
     .option('--only <id>', 'Limit to one check')
     .option('--yes', 'Assume yes at fix prompts')
-    .action(async options => {
+    .option('--end-stale', 'With `doctor processes`: end the stale processes the listing names, through Mercury\'s own roads first')
+    .action(async (topic, options) => {
+      if (typeof topic === 'string' && topic !== '') {
+        if (topic !== 'processes') {
+          process.stderr.write(`unknown doctor topic: ${topic} (the one topic is "processes")\n`)
+          await gracefulShutdown(2)
+          return
+        }
+        const { runDoctorProcessesCli } = await import('./cli/doctorProcesses.js')
+        await gracefulShutdown(await runDoctorProcessesCli({ endStale: options.endStale === true }))
+        return
+      }
       await healthAction({
         json: Boolean(options.json),
         deep: Boolean(options.deep),
@@ -1791,6 +1802,22 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('deferred-prefetches', () => {
     startDeferredPrefetches()
     startBackgroundHousekeeping()
+  })
+  registerBackgroundNode('process-registry', async () => {
+    const { registerCockpit, readMercuryProcesses, COCKPIT_HEARTBEAT_MS } = await import('./daemon/processSweepRun.js')
+    if (process.stdin.isTTY) {
+      const registration = await registerCockpit({ terminal: null })
+      if (registration !== null) {
+        const beat = setInterval(() => void registration.heartbeat(), COCKPIT_HEARTBEAT_MS)
+        beat.unref()
+        registerCleanup(async () => {
+          clearInterval(beat)
+          await registration.clear()
+        })
+      }
+    }
+    const census = await readMercuryProcesses()
+    logForDebugging(`process census at boot: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`)
   })
 
   const settingsErrors = getSettingsWithErrors().errors.filter(

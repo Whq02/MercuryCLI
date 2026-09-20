@@ -1,8 +1,9 @@
 
+import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 9
+export const MERCURY_DAEMON_PROTO = 10
 
 export const MIN_PROTO = 1
 
@@ -22,6 +23,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/stop-agent': 8,
   'sessionControl/resume-agent': 8,
   'sessionControl/withdraw-send': 9,
+  processSweep: 10,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -32,7 +34,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:b4ab411a28f6732bab245bb3468c3eb39913624d60755445bb85e8561bc99b6e'
+export const DAEMON_PROTO_SHAPE = 'sha256:d992774f5a1d9c6f77055fdc32aa8e87578114c22e3b336ae1ec97ed5e89c226'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -81,6 +83,7 @@ export type DaemonOp =
   | 'sessionControl'
   | 'sessionRewind'
   | 'signIns'
+  | 'processSweep'
 
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 
@@ -304,6 +307,13 @@ export type DaemonRequest =
       auth?: string
       refresh?: true
     }
+  | {
+      op: 'processSweep'
+      proto: number
+      auth?: string
+      action: 'facts' | 'end'
+      expected?: ProcessSweepEntry
+    }
 
 export interface SignInFamilyViewV1 {
   family: string
@@ -427,6 +437,8 @@ export type DaemonReply =
   | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
   | { ok: true; op: 'restart-when-idle'; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   | { ok: true; op: 'signIns'; view: DaemonSignInViewV1 }
+  | { ok: true; op: 'processSweep'; action: 'facts'; facts: ProcessSweepDaemonAnswer }
+  | { ok: true; op: 'processSweep'; action: 'end'; ended: boolean; road: 'daemon' | 'none'; reason: string }
   | {
       ok: false
       code: DaemonErrorCode

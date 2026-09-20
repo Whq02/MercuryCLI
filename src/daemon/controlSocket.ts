@@ -70,6 +70,7 @@ export interface SupervisorState {
   ownerPid?: number | null
   foreground?: boolean
   startToken?: string | null
+  persist?: boolean
   state?: 'stopping'
   stoppingAt?: number
 }
@@ -262,6 +263,7 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'concourseWarm',
   'restart-when-idle',
   'signIns',
+  'processSweep',
 ])
 
 
