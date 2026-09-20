@@ -7,7 +7,7 @@ import { logForDebugging } from '../debug.js'
 import { globalConfigFileIn } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 import { readAccountOAuthCreds } from './scopedCredentialRead.js'
-import { isClaudeFamilyDir, readScopeIdentity, scopeIdentityFile } from './scopeScan.js'
+import { isForeignHarnessDir, readScopeIdentity, scopeIdentityFile } from './scopeScan.js'
 import { signInLedgerEpoch } from './signInLedger.js'
 
 export type ScopeIdentityState =
@@ -124,8 +124,8 @@ export function healScopeIdentitySnapshot(
   dir: string,
   identity: { email: string; uuid?: string },
 ): void {
-  if (isClaudeFamilyDir(dir)) {
-    logForDebugging(`[accounts] identity heal skipped for ${dir}: a Claude-family home is never written`)
+  if (isForeignHarnessDir(dir)) {
+    logForDebugging(`[accounts] identity heal skipped for ${dir}: another harness's home is never written`)
     return
   }
   if (isSessionHome(dir)) {
@@ -181,7 +181,7 @@ export function healScopeIdentitySnapshot(
 }
 
 export function clearScopeIdentitySnapshot(dir: string): void {
-  if (isClaudeFamilyDir(dir)) return
+  if (isForeignHarnessDir(dir)) return
   if (isSessionHome(dir)) {
     try {
       const { getGlobalConfig, saveGlobalConfig } = configWriter()

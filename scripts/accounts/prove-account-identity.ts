@@ -18,9 +18,7 @@ const {
   healScopeIdentitySnapshot,
   _resetIdentityCacheForTesting,
 } = await import('../../src/utils/accounts/accountIdentity.ts')
-const { scopeIdentityFile, _resetIdentityAdoptionForTesting } = await import(
-  '../../src/utils/accounts/scopeScan.ts'
-)
+const { scopeIdentityFile } = await import('../../src/utils/accounts/scopeScan.ts')
 
 const dir = mkdtempSync(join(tmpdir(), 'acct-identity-'))
 writeFileSync(
@@ -96,28 +94,26 @@ try {
     merged.keepMe === true && oa.organizationName === 'Org' && oa.emailAddress === 'new@x' && oa.accountUuid === 'u2',
   )
 
-  console.log('── an identity snapshot left in an external .claude.json file is adopted once, only with a stored login ──')
+  console.log('── a snapshot left under another tool\'s basename in a scope dir is never adopted ──')
   const adoptDir = mkdtempSync(join(tmpdir(), 'acct-adopt-'))
   const snapshotBytes = JSON.stringify({ oauthAccount: { accountUuid: 'adopt-uuid', emailAddress: 'adopt@x' } })
   writeFileSync(join(adoptDir, '.claude.json'), snapshotBytes)
-  const target = scopeIdentityFile(adoptDir, { storedLogin: () => false })
+  const target = scopeIdentityFile(adoptDir)
   check('the identity file is the scope config file', target === join(adoptDir, '.mercury.json'))
-  check('no stored login ⇒ nothing adopted (a snapshot that outlived its credential is never resurrected)', !existsSync(target))
-  _resetIdentityAdoptionForTesting()
-  scopeIdentityFile(adoptDir, { storedLogin: () => true })
-  const adopted = JSON.parse(readFileSync(target, 'utf8')) as { oauthAccount?: { accountUuid?: string; emailAddress?: string } }
-  check('a stored login ⇒ the identity is adopted into the scope config file', adopted.oauthAccount?.accountUuid === 'adopt-uuid' && adopted.oauthAccount?.emailAddress === 'adopt@x', JSON.stringify(adopted))
-  check('the external file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === snapshotBytes)
-  const before = readFileSync(target, 'utf8')
-  _resetIdentityAdoptionForTesting()
-  scopeIdentityFile(adoptDir, { storedLogin: () => true })
-  check('a second read is a no-op (the adopted file is the truth)', readFileSync(target, 'utf8') === before)
+  check('the other tool\'s snapshot is never adopted: no identity file appears', !existsSync(target))
+  check('the other tool\'s file is left as it is', readFileSync(join(adoptDir, '.claude.json'), 'utf8') === snapshotBytes)
   const foreign = join(adoptDir, '.claude-other')
   mkdirSync(foreign)
   writeFileSync(join(foreign, '.claude.json'), snapshotBytes)
-  scopeIdentityFile(foreign, { storedLogin: () => true })
-  check('a Claude-family home is never written', !existsSync(join(foreign, '.mercury.json')))
+  scopeIdentityFile(foreign)
+  check('another harness\'s home is never written', !existsSync(join(foreign, '.mercury.json')))
   rmSync(adoptDir, { recursive: true, force: true })
+  console.log('── every mainstream harness home reads as another tool\'s, never Mercury\'s ──')
+  const { isForeignHarnessDir } = await import('../../src/utils/accounts/scopeScan.ts')
+  const foreignHomes = ['.claude', '.claude-work', '.claude/projects', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.pi/agent', '.omp', '.omp/agent', '.config/opencode', '.config/amp', '.config/goose']
+  check('the harness homes read foreign', foreignHomes.every(h => isForeignHarnessDir(join('/proof-home', h))))
+  check('a trailing slash changes nothing', isForeignHarnessDir('/proof-home/.codex/'))
+  check('Mercury\'s own homes and other folders read as Mercury\'s', ['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].every(h => !isForeignHarnessDir(join('/proof-home', h))))
 } finally {
   rmSync(dir, { recursive: true, force: true })
   _resetIdentityCacheForTesting()
