@@ -281,6 +281,63 @@ if (catalogue) {
   const two = await turnTwo.then(result => ({ done: result.done === true, text: JSON.stringify(result.value ?? null) }), error => ({ done: true, text: `threw ${String(error)}` }))
   check('the cancelled chat ends at once while the other keeps waiting on the shared read', oneEnded && twoWaits)
   check('the shared refresh outlives the cancelled chat: it lands, and the second chat proceeds past the admission to its wire', (c.getCachedMoonshotCatalogue()?.fetchedAtMs ?? 0) > 0 && !two.done && !two.text.includes('is not offered by the') && !two.text.includes('catalogue is unavailable'), two.text.slice(0, 300))
+  console.log('the degraded note rides the settled message')
+  const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
+  let chatStatus = 200
+  const chatFixture = createServer((req, res) => {
+    const path = (req.url ?? '').split('?')[0] ?? ''
+    req.on('data', () => {})
+    req.on('end', () => {
+      if (req.method === 'GET' && path.endsWith('/models')) {
+        res.writeHead(502, { 'content-type': 'application/json' })
+        res.end('{}')
+        return
+      }
+      if (req.method === 'POST' && path.endsWith('/chat/completions')) {
+        if (chatStatus !== 200) {
+          res.writeHead(chatStatus, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ error: { message: 'Invalid Authentication', type: 'invalid_authentication_error' } }))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(sse({ id: 'chat_fx', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: 'fixture answer' } }] }) + sse({ id: 'chat_fx', object: 'chat.completion.chunk', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 9, completion_tokens: 3 } }) + 'data: [DONE]\n\n')
+        return
+      }
+      res.writeHead(404)
+      res.end('{}')
+    })
+  })
+  await new Promise<void>(resolve => chatFixture.listen(0, '127.0.0.1', resolve))
+  const chatPort = (chatFixture.address() as { port: number }).port
+  process.env.MERCURY_MOONSHOT_API_BASE = `http://127.0.0.1:${chatPort}/platform/v1`
+  c.__resetMoonshotCatalogueForTest()
+  type SettledItem = { id: string; api: boolean; text: string }
+  const collect = async (items: AsyncGenerator<unknown>): Promise<SettledItem[]> => {
+    const out: SettledItem[] = []
+    for await (const item of items) {
+      if ((item as { type?: string }).type !== 'assistant') continue
+      const message = item as { isApiErrorMessage?: boolean; message: { id: string; content: Array<{ type: string; text?: string }> } }
+      out.push({ id: message.message.id, api: message.isApiErrorMessage === true, text: message.message.content.map(block => block.text ?? '').join('') })
+    }
+    return out
+  }
+  const degradedTurn = await collect(moonshotCallModel(chatParams(new AbortController().signal)))
+  const degradedNote = "[moonshot] the live model catalogue is unavailable (Moonshot models endpoint returned HTTP 502) — proceeding with 'kimi-fixture-next'; the provider validates it at dispatch."
+  check('a degraded chat settles once: the note is the first block of the one settled message and the answer follows it', degradedTurn.length >= 2 && new Set(degradedTurn.map(item => item.id)).size === 1 && degradedTurn[0]?.text === degradedNote && degradedTurn.some(item => item.text === 'fixture answer') && degradedTurn.every(item => !item.api), JSON.stringify(degradedTurn))
+  chatStatus = 401
+  c.__resetMoonshotCatalogueForTest()
+  const refusedTurn = await collect(moonshotCallModel(chatParams(new AbortController().signal)))
+  check('a refusal after a degraded admission is one message, the refusal, with no note before it', refusedTurn.length === 1 && refusedTurn[0]?.api === true && !refusedTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(refusedTurn))
+  chatStatus = 200
+  const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+  const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+  const plainTurn = await collect(compatChatCallModel(moonshotLaneProfile, chatParams(new AbortController().signal)))
+  check('a profile without the seam is the road as it was: the answer is the first settled block and no note rides', plainTurn[0]?.text === 'fixture answer' && !plainTurn.some(item => item.text.includes('catalogue is unavailable')), JSON.stringify(plainTurn))
+  const runtimeSource = readFileSync(join(import.meta.dir, '../../src/services/providers/openaicompat/compatChatCallModel.ts'), 'utf8')
+  check('the seam is read through one default of nothing, so an absent field is the road as it was', runtimeSource.includes('ctx.leadingNotes ?? []') && !readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCallModel.ts'), 'utf8').includes('createAssistantMessage'))
+  chatFixture.closeAllConnections()
+  await new Promise<void>(resolve => chatFixture.close(() => resolve()))
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
   c.__resetMoonshotCatalogueForTest()
 }
 console.log(`${checks} checks, ${failures} failures`)
