@@ -62,7 +62,7 @@ export async function composeCoordinatorModelRegistry(
   const entries: CoordinatorModelEntryV1[] = []
   const seen = new Set<string>()
 
-  const [{ getModelOptions }, { declaredRouteOf }] = await Promise.all([
+  const [{ getModelOptions, gptCatalogueRefusalWords }, { declaredRouteOf }] = await Promise.all([
     import('../../utils/model/modelOptions.js'),
     import('../providers/callModelRouter.js'),
   ])
@@ -105,6 +105,11 @@ export async function composeCoordinatorModelRegistry(
     }
     return { ...base, availability: 'ready' }
   }
+  const storedGptEntry = (modelId: string, displayName: string): CoordinatorModelEntryV1 => {
+    const entry = gptEntry(modelId, displayName)
+    const words = entry.availability === 'ready' ? gptCatalogueRefusalWords(modelId) : undefined
+    return words === undefined ? entry : { ...entry, availability: 'not-in-catalogue', detail: words }
+  }
 
   for (const o of getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })) {
     const v = o.value
@@ -128,7 +133,7 @@ export async function composeCoordinatorModelRegistry(
   for (const [modelId, rec] of coordinatorReceipts) {
     if (seen.has(modelId)) continue
     seen.add(modelId)
-    entries.push(gptEntry(modelId, rec.displayName ?? modelId))
+    entries.push(storedGptEntry(modelId, rec.displayName ?? modelId))
   }
   const { GPT_DISPLAY_PINS } = await import('../providers/openai/gptPins.js')
   for (const pin of GPT_DISPLAY_PINS) {
@@ -143,7 +148,7 @@ export async function composeCoordinatorModelRegistry(
     seen.add(configured)
     const route = declaredRouteOf(configured) ?? 'unrecognised'
     if (route === 'openai') {
-      entries.push(gptEntry(configured, (await import('../providers/openai/gptPins.js')).gptDisplayName(configured) ?? configured))
+      entries.push(storedGptEntry(configured, (await import('../providers/openai/gptPins.js')).gptDisplayName(configured) ?? configured))
     } else {
       entries.push({
         modelId: configured,
