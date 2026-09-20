@@ -22,7 +22,7 @@ _mercury_completions() {
       return 0
       ;;
     doctor)
-      COMPREPLY=( $(compgen -W "--deep --fix --help --json --only --yes" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--deep --end-stale --fix --help --json --only --yes" -- "$cur") )
       return 0
       ;;
     editor)
@@ -38,7 +38,7 @@ _mercury_completions() {
       return 0
       ;;
     health)
-      COMPREPLY=( $(compgen -W "--deep --fix --help --json --only --yes" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--deep --end-stale --fix --help --json --only --yes" -- "$cur") )
       return 0
       ;;
     install)
