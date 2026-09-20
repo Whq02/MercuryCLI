@@ -24,7 +24,7 @@ const NOTED = 'burst: noted'
 
 type Frame = Record<string, unknown> & { atMs: number }
 type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
-type World = { holdSeconds?: number; finalAnswerDelayMs?: number }
+type World = { holdSeconds?: number; secondHoldSeconds?: number; finalAnswerDelayMs?: number }
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   const argv = [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--model', MODEL, '--permission-mode', 'bypassPermissions', '--allowed-tools', 'Bash']
@@ -88,10 +88,11 @@ const noticesIn = (texts: readonly string[]): number => texts.reduce((n, t) => n
 
 async function scenario(label: string, count: number, sleepsSeconds: number[], world: World = {}): Promise<void> {
   const holdSeconds = world.holdSeconds ?? 0
+  const secondHoldSeconds = world.secondHoldSeconds ?? 0
   const finalDelayMs = world.finalAnswerDelayMs ?? 0
   const shape =
     holdSeconds > 0
-      ? `while the launch turn runs a ${holdSeconds} s foreground command`
+      ? `while the launch turn runs a ${holdSeconds} s foreground command${secondHoldSeconds > 0 ? ` and then a ${secondHoldSeconds} s one` : ''}`
       : finalDelayMs > 0
         ? `while the launch turn's last model answer is still ${finalDelayMs / 1000} s away`
         : 'on an idle main thread'
@@ -107,6 +108,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
         return sleepsSeconds.slice(0, count).map((s, i): WireBlock => ({ type: 'tool_use', name: 'Bash', input: { command: `sleep ${s}; echo burst-done-${i + 1}; touch ${stamps}/done-${i + 1}`, run_in_background: true, description: `burst command ${i + 1}` } }))
       }
       if (req.step === 1 && holdSeconds > 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${holdSeconds}`, description: 'hold the turn' } }]
+      if (req.step === 2 && secondHoldSeconds > 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `sleep ${secondHoldSeconds}`, description: 'hold the turn again' } }]
       return [{ type: 'text', text: LAUNCHED }]
     },
     { answerDelayMs: req => (req.ask.trim() === LAUNCH_ASK && req.step === 1 && holdSeconds === 0 ? finalDelayMs : 0) },
@@ -135,7 +137,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const launchResultAt = runner.frames.find(f => f.type === 'result')?.atMs ?? Number.NaN
   const foldStartAt = runner.frames.filter(f => f.type === 'system' && f.subtype === 'turn_started')[1]?.atMs ?? Number.NaN
   const carriedAt = carrying[0]?.atMs ?? Number.NaN
-  console.log(`  clock: launch result +${((launchResultAt - t0) / 1000).toFixed(2)}s · first completion +${((firstCompletion - t0) / 1000).toFixed(2)}s · the carrying request +${((carriedAt - t0) / 1000).toFixed(2)}s · the completions' turn +${((foldStartAt - t0) / 1000).toFixed(2)}s · window ${POLL_INTERVAL_MS} ms`)
+  console.log(`  clock: launch result +${((launchResultAt - t0) / 1000).toFixed(2)}s · first completion +${((firstCompletion - t0) / 1000).toFixed(2)}s · the carrying request +${((carriedAt - t0) / 1000).toFixed(2)}s (${Math.round(carriedAt - firstCompletion)} ms after the first completion) · the completions' turn +${((foldStartAt - t0) / 1000).toFixed(2)}s · window ${POLL_INTERVAL_MS} ms`)
   console.log(`  requests: ${fixture.requests.length} total · ${carrying.length} carrying a notification · blocks per carrying request ${JSON.stringify(blocksPer)} · turn_started ${turnsStarted} · results ${results} · sdk task_notification frames ${sdkNotifications.length}`)
   tally.check(`${label} L1 the launch turn started ${count} background command${count === 1 ? '' : 's'} and ended with words`, launched && fixture.requests.some(r => r.step === 1), `${JSON.stringify(fixture.requests.map(r => [r.n, r.step, r.results.map(x => x.text.slice(0, 40))]))}`)
   tally.check(`${label} L2 every completion reached the model: ${count} notification block${count === 1 ? '' : 's'} in all`, blocksPer.reduce((a, b) => a + b, 0) === count, `blocks per carrying request ${JSON.stringify(blocksPer)}`)
@@ -151,6 +153,9 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
     const frameIndexes = sdkNotifications.map(f => runner.frames.indexOf(f))
     tally.check(`${label} L5 the runner speaks one task_notification frame per completion (${count}), each on the wire before the turn's closing words`, sdkNotifications.length === count && distinctTasks === count && lastWordsAt >= 0 && frameIndexes.every(i => i < lastWordsAt), `${sdkNotifications.length} frames at wire positions ${JSON.stringify(frameIndexes)} · the closing words at ${lastWordsAt} · task ids ${JSON.stringify(sdkNotifications.map(f => (f as { task_id?: unknown }).task_id))}`)
     tally.check(`${label} L6 completions that landed during the live turn were read inside it: the request carrying them is a request of the launch turn, sent after the first completion`, carrying.length === 1 && carrying[0]!.ask.trim() === LAUNCH_ASK && Number.isFinite(carriedAt) && carriedAt > firstCompletion, `carrying ask ${JSON.stringify(carrying[0]?.ask.slice(0, 60))} · carried at +${((carriedAt - t0) / 1000).toFixed(2)}s · first completion +${((firstCompletion - t0) / 1000).toFixed(2)}s`)
+    if (secondHoldSeconds > 0) {
+      tally.check(`${label} L7 the completions were read at the FIRST tool boundary after they landed — before the second command ran, not after the whole turn`, carrying.length === 1 && carrying[0]!.step === 2 && Number.isFinite(carriedAt) && carriedAt - firstCompletion < secondHoldSeconds * 1000, `carrying request step ${carrying[0]?.step} · read ${Math.round(carriedAt - firstCompletion)} ms after the first completion · the second command alone takes ${secondHoldSeconds * 1000} ms`)
+    }
   } else {
     tally.check(`${label} L5 the runner still speaks one task_notification frame per completion (${count})`, sdkNotifications.length === count && distinctTasks === count, `${sdkNotifications.length} frames: ${JSON.stringify(sdkNotifications.map(f => (f as { task_id?: unknown }).task_id))}`)
     if (finalDelayMs > 0) {
@@ -166,5 +171,6 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
 await scenario('burst', 3, [3, 3.3, 3.6])
 await scenario('single', 1, [3])
 await scenario('during', 2, [1, 1.3], { holdSeconds: 4 })
+await scenario('long', 2, [1, 1.3], { holdSeconds: 3, secondHoldSeconds: 4 })
 await scenario('late', 2, [1.5, 1.8], { finalAnswerDelayMs: 3500 })
 tally.finish()
