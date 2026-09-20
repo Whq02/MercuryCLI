@@ -69,23 +69,22 @@ export interface BirthFallbackInput {
   family: string | null
   familyWord: string
   hasCredential: boolean
-  familyUsable: boolean
-  familyReason: string | null
+  refusal: string | null
   fallback: { setting: string; family: string; row: string } | null
   providerName: (family: string) => string
 }
 
 export function birthFallbackModel(resolved: string, input: BirthFallbackInput): { setting: string; receipt: string } | undefined {
-  if (input.familyUsable) return undefined
   if (input.fallback === null) return undefined
   if (input.family !== null && input.family === input.fallback.family) return undefined
+  if (input.hasCredential && (input.refusal === null || input.refusal.trim() === '')) return undefined
   const word = input.familyWord
   const row = input.fallback.row
   const provider = input.providerName(input.fallback.family)
-  if (input.hasCredential && input.familyReason !== null && input.familyReason.trim() !== '') {
+  if (input.hasCredential && input.refusal !== null) {
     return {
       setting: input.fallback.setting,
-      receipt: `▲ the saved default ${word} has no usable row: ${input.familyReason}. This chat runs on ${row} (${provider}, the most recent sign-in); /model changes the default`,
+      receipt: `▲ the saved default ${word} has no usable row: ${input.refusal}. This chat runs on ${row} (${provider}, the most recent sign-in); /model changes the default`,
     }
   }
   return {
