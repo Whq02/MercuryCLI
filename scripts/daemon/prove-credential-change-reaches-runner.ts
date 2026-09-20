@@ -200,6 +200,7 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: base,
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
     MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
     OPENAI_API_KEY: 'fixture-openai-key',
     MERCURY_CACHE_CLOCK: '0',

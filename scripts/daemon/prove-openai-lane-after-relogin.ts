@@ -229,6 +229,7 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     ANTHROPIC_BASE_URL: base,
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`,
     MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
+    MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:1',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

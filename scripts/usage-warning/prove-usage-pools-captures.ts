@@ -127,6 +127,7 @@ function baseEnv(home: string): Record<string, string> {
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_OPERATOR: 'sam',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:9',
     BROWSER: 'true',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',

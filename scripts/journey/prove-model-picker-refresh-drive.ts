@@ -69,6 +69,7 @@ for (const [cols, rows] of SIZES) {
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
+      MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
       MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
       MERCURY_TABULA_DIR: join(home, 'tabula'), MERCURY_HOME: join(home, 'proof-home'),
       MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'), MERCURY_LOCAL_PROBE_TARGETS: 'none',

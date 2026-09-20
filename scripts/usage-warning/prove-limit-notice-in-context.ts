@@ -211,6 +211,7 @@ function runPrint(home: string, args: string[], extraEnv: Record<string, string>
       MERCURY_CONFIG_DIR: home,
       MERCURY_CREDENTIAL_STORE: 'file',
       ANTHROPIC_BASE_URL: base,
+      MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
       MERCURY_MODEL: MODEL_WORD,
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_CACHE_CLOCK: '0',

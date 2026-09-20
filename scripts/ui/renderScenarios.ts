@@ -1324,6 +1324,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
   if (name === 'cockpit-wide-gpt') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     writeSyntheticSession('long')
     writeFileSync(join(CONFIG_HOME, '.openai-auth.json'), JSON.stringify({
       version: 1,
@@ -1339,6 +1340,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
   if (name === 'usage-truth-signedout' || name === 'usage-truth-gpt-signedin') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     writeSyntheticSession('short')
     if (name === 'usage-truth-gpt-signedin') {
       writeFileSync(join(CONFIG_HOME, '.openai-auth.json'), JSON.stringify({
@@ -2291,6 +2293,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'context-gpt') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     writeSyntheticSession('short')
     writeFileSync(join(CONFIG_HOME, '.openai-auth.json'), JSON.stringify({
       version: 1,
@@ -2315,6 +2318,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'context-claude') {
+    process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:9'
     process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
     writeSyntheticSession('short')
     stageAccountsBoardFile(
@@ -2593,6 +2597,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'accounts-board-multi') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     stageAccountsBoardFile(
       '.openai-auth.json',
       JSON.stringify({
@@ -2622,6 +2627,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'accounts-board-signed-out') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     const scratchHome = mkdtempSync(join(tmpdir(), 'mercury-render-accounts-home-'))
     accountsBoardEnvStash = {
       prevHome: process.env.HOME,
@@ -2675,6 +2681,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'gate-openai-only') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     const scratch = mkdtempSync(join(tmpdir(), 'mercury-render-gate-'))
     seedFirstRun(scratch, [RUNTIME_CWD])
     applyRenderTheme(scratch)
@@ -3448,6 +3455,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'settings-usage-engines') {
+    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
     writeSyntheticSession('short')
     writeFileSync(join(CONFIG_HOME, '.openai-auth.json'), JSON.stringify({
       version: 1,
