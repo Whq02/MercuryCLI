@@ -30,6 +30,7 @@ function bearerFromAuthHeaders(headers: Record<string, string>): string | undefi
 export const geminiLaneProfile: CompatLaneProfile = {
   lane: 'gemini',
   providerLabel: 'Gemini',
+  busyRetry: true,
   resolveCredential: async () => {
     const auth = await resolveGeminiRequestAuth({ sourceKind: 'api-key' })
     if (!auth) return undefined

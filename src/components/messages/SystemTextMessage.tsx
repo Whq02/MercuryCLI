@@ -330,6 +330,22 @@ export function SystemTextMessage({
         </Box>
       )
 
+    case 'busy_recovery':
+      return (
+        <Box flexDirection="column">
+          <Text color="subtle">
+            {message.provider} was busy · answered after <Text bold>{message.retries}</Text> {message.retries === 1 ? 'retry' : 'retries'} ({Math.max(1, Math.round(message.elapsedMs / 1000))} s)
+            {verbose ? null : (
+              <>
+                {' '}
+                <CtrlOToExpand />
+              </>
+            )}
+          </Text>
+          {verbose ? <Text dimColor>{message.content}</Text> : null}
+        </Box>
+      )
+
     case 'thinking_note':
       return null
 

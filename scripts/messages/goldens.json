@@ -23515,6 +23515,32 @@
   "type": "system",
   "uuid": "«u1»"
  },
+ "createBusyRecoveryMessage/basic": {
+  "code": "api-UNAVAILABLE",
+  "content": "Gemini answered HTTP 503 (api-UNAVAILABLE): busy words — retried after 1 s and 2 s, and the third request was answered.",
+  "elapsedMs": 7000,
+  "isMeta": false,
+  "level": "info",
+  "provider": "Gemini",
+  "retries": 2,
+  "status": 503,
+  "subtype": "busy_recovery",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
+ },
+ "createBusyRecoveryMessage/no-facts": {
+  "content": "Gemini answered (api-UNAVAILABLE) — retried after 1 s, and the second request was answered.",
+  "elapsedMs": 1200,
+  "isMeta": false,
+  "level": "info",
+  "provider": "Gemini",
+  "retries": 1,
+  "subtype": "busy_recovery",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
+ },
  "createSeatReceiptMessage/basic": {
   "content": "⇄ reslot applied — worker → claude-fable-5 @max",
   "isMeta": false,
