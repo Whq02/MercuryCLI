@@ -73,7 +73,7 @@ section('one probe serves schema, /health and doctor (source pins)')
 const health = src('src', 'utils', 'healthReport.ts')
 check("health carries the 'eval-kernels' check", health.includes("id: 'eval-kernels'"))
 check('the health check reads the SAME availability probe (the settled table)', /eval-kernels'[\s\S]{0,900}primeEvalAvailability/.test(health))
-check("doctor is health's alias (one row serves both)", /command\('health'\)\.alias\('doctor'\)/.test(src('src', 'main.tsx')))
+check("doctor is health's alias (one row serves both, with the topic positional)", /command\('health \[topic\]'\)\.alias\('doctor'\)/.test(src('src', 'main.tsx')))
 
 section('registry + census rows')
 const flagNames = new Set((FLAG_REGISTRY as ReadonlyArray<{ env: string }>).map(row => row.env))
