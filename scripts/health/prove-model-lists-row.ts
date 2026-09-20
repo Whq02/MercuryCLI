@@ -123,7 +123,9 @@ const openaiCatalogue = await import('../../src/services/providers/openai/openai
 const deepseekCatalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
 const geminiCatalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const huggingfaceCatalogue = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
-const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
+const GPT_TYPED = GPT_DISPLAY_PINS.map(p => p.id)
+check('the GPT typed table holds at least three ids (two are withheld below)', GPT_TYPED.length >= 3, String(GPT_TYPED.length))
+const OWNER_LIST = GPT_TYPED.slice(0, -2)
 const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f => f.family === family)!
 {
   const facts = readModelListFacts(process.env)
@@ -147,7 +149,7 @@ const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f =
   const openai = byFamily(facts, 'openai')
   check('the reader returns the cached list with its stamp', openai.list.kind === 'list' && openai.list.ids.join(',') === OWNER_LIST.join(','))
   const row = composeModelListsRow(facts, Date.now())
-  const retired = GPT_DISPLAY_PINS.map(p => p.id).filter(id => !OWNER_LIST.includes(id))
+  const retired = GPT_TYPED.slice(-2)
   check(`the row warns naming the typed ids the list lacks (${retired.join(', ')})`, row.status === 'warn' && row.detail.includes(`OpenAI not served: ${retired.join(' · ')}`), row.detail)
   check('the evidence counts them', row.evidence.startsWith(`served ${OWNER_LIST.length} · not served ${retired.length} (OpenAI)`), row.evidence)
   openaiCatalogue.__resetOpenaiCatalogueForTest()
