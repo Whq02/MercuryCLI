@@ -321,6 +321,16 @@ function unavailableGptRow(
   }
 }
 
+export function gptCatalogueRefusalWords(modelId: string): string | undefined {
+  const availability = getGptSeatAvailability()
+  if (availability.state !== 'ready') return undefined
+  const evaluated = evaluateGptCandidate(modelId, availability.sourceKind)
+  if (evaluated.ok) return undefined
+  const source = availability.sourceKind === 'chatgpt-subscription' ? 'ChatGPT subscription' : 'OpenAI API key'
+  const canonical = modelId.trim().toLowerCase()
+  return gptDisqualificationCopy(evaluated.why, source, GPT_DISPLAY_PINS.find(pin => pin.id === canonical))
+}
+
 function getQualifiedGptOptions(): ModelOption[] {
   const availability = getGptSeatAvailability()
   if (availability.state !== 'ready') {

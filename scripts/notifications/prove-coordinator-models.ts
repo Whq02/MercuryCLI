@@ -324,11 +324,21 @@ console.log('§11 a typed pin the LANDED live list does not serve is never a rea
     JSON.stringify(gptRows.map(e => [e.modelId, e.availability, e.detail])),
   )
   check('no GPT id rows twice', new Set(gptRows.map(e => e.modelId)).size === gptRows.length, JSON.stringify(gptRows.map(e => e.modelId)))
+  const { saveGlobalConfig } = await import('../../src/utils/config.ts')
+  q.recordLiveQualification({ modelId: 'gpt-5.2', role: 'coordinator', sourceKind: 'subscription' as never })
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...(c.concourseCoordinator ?? { mode: 'agent-assisted' }), assistModel: 'gpt-5.3' } }))
+  const remembered = await composeCoordinatorModelRegistry()
+  const receiptRow = remembered.entries.find(e => e.modelId === 'gpt-5.2')
+  const configuredRow = remembered.entries.find(e => e.modelId === 'gpt-5.3')
+  check("a coordinator receipt's remembered id the landed list lacks reads not-in-catalogue with the catalogue's words, never ready", receiptRow?.availability === 'not-in-catalogue' && (receiptRow.detail ?? '').includes('not served by the connected ChatGPT subscription'), JSON.stringify(receiptRow))
+  check("the configured assist model the landed list lacks reads not-in-catalogue with the catalogue's words, never ready", configuredRow?.availability === 'not-in-catalogue' && (configuredRow.detail ?? '').includes('not served by the connected ChatGPT subscription'), JSON.stringify(configuredRow))
+  check('a remembered or configured id the list SERVES stays ready', remembered.entries.some(e => e.modelId === 'gpt-5.6-sol' && e.availability === 'ready'))
   __resetOpenaiCatalogueForTest()
   resetRouterModelSnapshotMemo()
   const pending = await composeCoordinatorModelRegistry()
   const baseline = pending.entries.filter(e => e.source === 'openai')
   check('with no list fetched, every typed pin stands as a ready baseline row', GPT_DISPLAY_PINS.every(pin => baseline.some(e => e.modelId === pin.id && e.availability === 'ready')), JSON.stringify(baseline.map(e => [e.modelId, e.availability])))
+  check("with no list fetched, the remembered and configured ids read ready as today (a transient fetch failure never paints a model as refused)", ['gpt-5.2', 'gpt-5.3'].every(id => baseline.some(e => e.modelId === id && e.availability === 'ready')), JSON.stringify(baseline.map(e => [e.modelId, e.availability])))
 }
 
 check('scratch really was the only home touched', existsSync(join(authHome, '.openai-auth.json')))
