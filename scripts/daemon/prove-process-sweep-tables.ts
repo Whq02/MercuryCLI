@@ -466,11 +466,14 @@ const home = join(SCRATCH, 'home')
 const daemonDir = join(home, 'daemon')
 mkdirSync(join(home, 'processes'), { recursive: true })
 mkdirSync(daemonDir, { recursive: true })
+const OWN_USER = typeof process.getuid === 'function' ? String(process.getuid()) : ''
+assert.ok(OWN_USER !== '', 'the ladder runs as a POSIX user the collector can name')
 const ladderTable = (): ProcessSweepTable => {
   const table = parsePosixProcessTable(darwinTable)
   for (const row of table.observations) {
     row.process.args = row.process.pid === 4001 ? ['/opt/mercury/vendor/node/bin/node', '/opt/mercury/dist/mercury.mjs', 'daemon', 'run', '/work'] : row.process.pid === 4003 ? ['mercury'] : ['/usr/libexec/other']
     row.process.exe = row.process.pid === 4001 || row.process.pid === 4003 ? 'node' : 'other'
+    if (row.process.pid === 4001 || row.process.pid === 4003) row.process.user = OWN_USER
   }
   return table
 }
