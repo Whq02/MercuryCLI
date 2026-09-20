@@ -69,7 +69,9 @@ export function SystemAPIErrorMessage({
   const statusLine =
     retryInMs === 0 && recoveryTimeoutMs
       ? `Retrying now without streaming (may take up to ${Math.round(recoveryTimeoutMs / 1000)}s)… (attempt ${retryAttempt}/${maxRetries})`
-      : `Retrying in ${retryInSecondsLive} ${retryInSecondsLive === 1 ? 'second' : 'seconds'}… (attempt ${retryAttempt}/${maxRetries})`
+      : retryInSecondsLive === 0
+        ? `Retrying now… (attempt ${retryAttempt}/${maxRetries})`
+        : `Retrying in ${retryInSecondsLive} ${retryInSecondsLive === 1 ? 'second' : 'seconds'}… (attempt ${retryAttempt}/${maxRetries})`
 
   return (
     <MessageResponse>

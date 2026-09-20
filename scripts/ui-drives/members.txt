@@ -6,3 +6,4 @@ prove-crew-stop-drive.ts
 prove-key-catalogue-drive.ts
 prove-stream-cut-drive.ts
 prove-gemini-guided-signin-drive.ts
+prove-gemini-busy-retry-drive.ts
