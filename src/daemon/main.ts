@@ -78,7 +78,7 @@ import {
   warmRunnerShorts,
 } from './warmRunner.js'
 import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseSupervisor.js'
-import { readSessionWorkersSnapshot, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { readSessionWorkersSnapshot } from './concourseSupervisor.js'
 import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
@@ -101,7 +101,7 @@ import {
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
-import { recordProcessCensusAtBoot } from './processSweepRun.js'
+import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import {
   acquireSupervisorLock,
@@ -885,25 +885,13 @@ async function daemonRun(args: string[]): Promise<void> {
           const warm = new Set(warmRunnerShorts())
           const runners: ProcessSweepRunnerRecord[] = []
           const seen = new Set<string>()
-          const fromRecord = (record: ConcourseWorkerRecordV1 | undefined, pid: number | undefined, isWarm: boolean): ProcessSweepRunnerRecord => ({
-            pid,
-            procStart: record?.procStart,
-            endedAt: record?.endedAt,
-            stoppedAt: record?.stoppedAt,
-            parkedAt: record?.parkedAt,
-            attachedBy: record?.attachedBy,
-            focusedBy: record?.focusedBy,
-            schedules: Array.isArray(record?.schedules) ? record.schedules.length : 0,
-            activity: record?.activity?.state,
-            warm: isWarm,
-          })
           for (const worker of live) {
             const record = known?.[worker.short]
             if (record !== undefined) seen.add(worker.short)
-            runners.push(fromRecord(record, worker.pid ?? record?.pid, warm.has(worker.short)))
+            runners.push(sweepRunnerRecord(record, worker.pid ?? record?.pid, warm.has(worker.short)))
           }
           for (const [short, record] of Object.entries(known ?? {})) {
-            if (!seen.has(short)) runners.push(fromRecord(record, record.pid, false))
+            if (!seen.has(short)) runners.push(sweepRunnerRecord(record, record.pid, false))
           }
           const facts: ProcessSweepDaemonAnswer = { pid: process.pid, ownerPid: currentOwnerPid, ...liveWorkers(), persist, runners }
           if (request.action === 'facts') return { ok: true, op: 'processSweep', action: 'facts', facts }
