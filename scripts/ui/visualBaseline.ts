@@ -61,6 +61,7 @@ export const DEFAULT_MASKS = [
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
+  'FILES · [^│]*',
   '(?:⌥|alt\\+)←→ flip · /sessions *',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
