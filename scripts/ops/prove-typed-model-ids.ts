@@ -24,11 +24,13 @@ const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/
 const model = await import('../../src/utils/model/model.js')
 const { geminiGuidePages } = await import('../../src/components/geminiConnectGuide.js')
 const pages = geminiGuidePages()
-const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
+const { GLM_PRICE_PINS } = await import('../../src/services/providers/zai/glmPins.js')
+const { judgeTypedIds } = await import('../../src/services/providers/typedModelIds.js')
 
 const gptIds = GPT_DISPLAY_PINS.map(p => p.id)
 const glmIds = GLM_STATIC_CATALOGUE.map(e => e.id)
-const glmDated = keyLanePins('zai')[0]?.observedAt ?? ''
+const glmTable = GLM_PRICE_PINS.map(p => p.id)
+const glmDated = GLM_PRICE_PINS.map(p => p.observedAt).sort().at(-1) ?? ''
 const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
 const anthropicIds = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel(), model.getSmallFastModel()].map(id => model.normalizeModelStringForAPI(id)))]
 const KEYS = { anthropic: 'proof-key-ci-gate-not-a-real-key', openai: 'fixture-openai-key-0001', gemini: 'fixture-gemini-key-0001', deepseek: 'fixture-deepseek-key-0001', openrouter: 'fixture-openrouter-key-0001', hf: 'fixture-hf-token-0001', zai: 'fixture-zai-key-0001', moonshot: 'fixture-moonshot-key-0001', chatgpt: 'fixture-chatgpt-access-token-0001' }
@@ -175,9 +177,10 @@ check('no typed id reads not served or unreachable', !all.lines.some(l => / · (
 check('the two OpenAI sources are judged apart (the subscription list and the key list)', rows(all, 'openai', 'served').some(l => l.includes('ChatGPT pro subscription')) && rows(all, 'openai', 'served').some(l => l.includes('OpenAI API key (env)')))
 check('the OpenRouter list, with no typed ids, prints its count', all.lines.some(l => l.startsWith('openrouter · ') && / · 2 served$/.test(l)), all.lines.filter(l => l.startsWith('openrouter')).join('\n'))
 check('every fixture list was fetched once', ['/openai/chatgpt/models', '/openai/v1/models', '/anthropic/v1/models', '/gemini/v1beta/models', '/deepseek/models', '/openrouter/api/v1/models', '/hf/v1/models', '/moonshot/v1/models'].every(p => hits.some(h => h.endsWith(p))), hits.join(', '))
-check('Z.AI, with no model list, reads its dated typed table without the flag: one line per typed id, the table\'s own date', /^\d{4}-\d{2}-\d{2}$/.test(glmDated) && glmIds.length > 0 && glmIds.every(id => all.lines.includes(`zai · Z.AI API key (env) · ${id} · no live list — typed table dated ${glmDated}`)), all.lines.filter(l => l.startsWith('zai')).join('\n'))
+check('Z.AI, with no model list, is judged against its dated typed table without the flag: one line per typed id, served, the table\'s newest date', /^\d{4}-\d{2}-\d{2}$/.test(glmDated) && glmIds.length > 0 && glmIds.every(id => all.lines.includes(`zai · Z.AI API key (env) · ${id} · served (typed table dated ${glmDated}, no live list)`)), all.lines.filter(l => l.startsWith('zai')).join('\n'))
+check('the dated table carries every typed Z.AI id under the one comparison the check runs (a typed id the table lacks would read not served and fail the check)', glmTable.length > glmIds.length && judgeTypedIds(glmIds, glmTable).notServed.length === 0, judgeTypedIds(glmIds, glmTable).notServed.join(', '))
 check('no Z.AI request of any kind without the flag (no models GET, no completion)', !hits.some(h => h.includes('/zai/')) && zaiProbes.length === 0, hits.filter(h => h.includes('/zai/')).join(', '))
-check('the summary line says every judged id is served and counts the eight lists, the dated family left out', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served') && / \(8 of 8 lists fetched\)$/.test(l)), all.lines.at(-1))
+check('the summary line says every judged id is served and counts the eight lists, the dated family left out of the count', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list or a dated table could judge is served') && / \(8 of 8 lists fetched\)$/.test(l)), all.lines.at(-1))
 check('no credential value appears in the output', secretLeak(all) === undefined, secretLeak(all))
 const pageLines = all.lines.filter(l => l.startsWith('sign-in page · '))
 check(`one line per sign-in page from the one address owner (${pages.length}), each dated and answering the fixture's redirect`, pageLines.length === pages.length && pages.every(p => pageLines.some(l => l.includes(` · ${p.address} · observed ${p.observedAt} · answers HTTP 302`))), pageLines.join('\n'))
@@ -189,7 +192,7 @@ lists.subscription = [...OWNER_LIST]
 const ownerServed = await run()
 check("exit 0 (no typed id is lacking on the owner's account)", ownerServed.status === 0, `status ${ownerServed.status}; ${ownerServed.lines.filter(l => l.includes('not served')).join('\n')}`)
 check('every typed id reads served under the subscription', gptIds.every(id => ownerServed.lines.includes(`openai · ChatGPT pro subscription · ${id} · served`)), ownerServed.lines.filter(l => l.includes('subscription')).join('\n'))
-check('the summary line says every judged id is served', ownerServed.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')), ownerServed.lines.at(-1))
+check('the summary line says every judged id is served', ownerServed.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list or a dated table could judge is served')), ownerServed.lines.at(-1))
 
 section('§2b the subscription list lacks one typed id: it reads not served under that source, exit 1')
 const lacking = 'gpt-5.5'
@@ -265,7 +268,7 @@ section('§5c the traffic switch stops the probe: with MERCURY_DISABLE_NONESSENT
 const dark = await run({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, ['--probe-by-completion'])
 check('no completion reached the fixture and no Z.AI request of any kind was made', zaiProbes.length === 0 && !hits.some(h => h.includes('/zai/')), JSON.stringify(zaiProbes.map(p => p.model)))
 check('the script says so once, in its own words', dark.lines.filter(l => l === '--probe-by-completion sends nothing: MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set; the Z.AI ids read the dated table').length === 1, dark.lines.filter(l => l.startsWith('--probe')).join('\n'))
-check('the Z.AI ids read their dated-table lines exactly as without the flag', glmIds.every(id => dark.lines.includes(`zai · Z.AI API key (env) · ${id} · no live list — typed table dated ${glmDated}`)) && !dark.lines.some(l => l.startsWith('zai') && / · (served|not served|unreachable)/.test(l)), dark.lines.filter(l => l.startsWith('zai')).join('\n'))
+check('the Z.AI ids read their dated-table lines exactly as without the flag', glmIds.every(id => dark.lines.includes(`zai · Z.AI API key (env) · ${id} · served (typed table dated ${glmDated}, no live list)`)) && !dark.lines.some(l => l.startsWith('zai') && / · (unreachable|served$|not served$)/.test(l)), dark.lines.filter(l => l.startsWith('zai')).join('\n'))
 check('Z.AI stays out of the fetched count', dark.lines.some(l => / of 8 lists fetched\)$/.test(l)), dark.lines.at(-1))
 check('exit 0 and no credential value in the output', dark.status === 0 && secretLeak(dark) === undefined, `status ${dark.status}`)
 
@@ -276,7 +279,7 @@ check('exit 1', deadPageRun.status === 1, `status ${deadPageRun.status}`)
 check('the clients page reads dead with the status', deadPageRun.lines.some(l => l.startsWith('sign-in page · https://console.developers.google.com/auth/clients · ') && l.endsWith(' · dead (HTTP 404)')), deadPageRun.lines.filter(l => l.startsWith('sign-in page')).join('\n'))
 check('the other pages still answer', deadPageRun.lines.filter(l => l.startsWith('sign-in page · ') && l.endsWith(' · answers HTTP 302')).length === pages.length - 1)
 check(`the pages summary counts the one dead page of ${pages.length}`, deadPageRun.lines.some(l => l.startsWith(`sign-in pages: 1 of ${pages.length} dead`)), deadPageRun.lines.filter(l => l.startsWith('sign-in pages')).join('\n'))
-check('every typed id still reads served (the model-id judgement is untouched)', deadPageRun.lines.filter(l => l.endsWith(' · served')).length === typedTotal && deadPageRun.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list could judge is served')))
+check('every typed id still reads served (the model-id judgement is untouched)', deadPageRun.lines.filter(l => l.endsWith(' · served')).length === typedTotal && deadPageRun.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list or a dated table could judge is served')))
 deadPage = undefined
 
 section('§6 the check writes nothing under the config home across every run')
