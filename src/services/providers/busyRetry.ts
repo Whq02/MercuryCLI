@@ -10,11 +10,22 @@ export function busyRetryScale(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 }
 
+const BUSY_STATUSES: ReadonlySet<number> = new Set([503, 529])
+const BUSY_CODES: ReadonlySet<string> = new Set(['api-UNAVAILABLE', 'openai-service_unavailable', 'openai-overloaded', 'zai-1305'])
+const BUSY_WORD = /overload|unavailable/i
+
 export function isBusyRefusal(fault: { code: string; status?: number; retryable: boolean }): boolean {
   if (!fault.retryable) return false
-  if (fault.status === 503 || fault.status === 529) return true
-  const word = fault.code.startsWith('api-') ? fault.code.slice('api-'.length) : ''
-  return word === 'UNAVAILABLE' || /overload/i.test(word)
+  if (fault.status !== undefined && BUSY_STATUSES.has(fault.status)) return true
+  if (BUSY_CODES.has(fault.code)) return true
+  const word = fault.code.replace(/^(api|openai)-/, '')
+  return word !== fault.code && BUSY_WORD.test(word)
+}
+
+export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; retryAfterMs?: number }, typed: string): boolean {
+  if (!fault.retryable) return false
+  if (isBusyRefusal(fault)) return true
+  return typed === 'rate_limit' && fault.retryAfterMs !== undefined && Number.isFinite(fault.retryAfterMs) && fault.retryAfterMs > 0
 }
 
 export interface BusyRetryLadder {
