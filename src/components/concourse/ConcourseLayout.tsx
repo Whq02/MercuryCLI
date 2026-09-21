@@ -11,6 +11,9 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { fitGroupedWindow, paneWindow, scrolledWindow, shedToFit } from '../mercury-ui/geometry.js'
 import { controlNoteOf, type ConcourseRowV1, type ConcourseSnapshotV1, type ControlNoteState } from './contracts.js'
 import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, newSessionTabLabel, regionKeysFor, withSplitViewTruth } from './controlManifest.js'
+import { effortLevelToSymbol } from '../EffortIndicator.js'
+import { EFFORT_HIGH } from '../../constants/figures.js'
+import { isEffortLevel } from '../../utils/effort.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
 import { useSyncExternalStore } from 'react'
@@ -328,6 +331,7 @@ export function ConcourseLayout({
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const cols = frameCols ?? termCols
   const sessionRows: ConcourseRowV1[] = boardGroups.flatMap(g => g.rows)
+  const door = wiring.newSession !== undefined && sessionRows.length === 0 && filterText.trim().length === 0 ? snapshot.newSession.door : undefined
   const geo = switchboardGeometry(
     cols,
     termRows,
@@ -547,6 +551,9 @@ export function ConcourseLayout({
                       <Text wrap="truncate-end">
                         <Text color={hover ? t.textPrimary : t.info}>{'▸ '}</Text>
                         <Text color={hover ? t.textPrimary : t.info}>n starts a blank session in this project</Text>
+                        {door !== undefined ? (
+                          <Text color={hover ? t.textPrimary : t.info}>{` · ${door.modelLabel} · ${isEffortLevel(door.effortLevel) ? effortLevelToSymbol(door.effortLevel) : EFFORT_HIGH} ${door.effortLevel}`}</Text>
+                        ) : null}
                       </Text>
                     )}
                   </InteractiveRow>
@@ -849,7 +856,7 @@ export function ConcourseLayout({
                         newSession: wiring.newSession !== undefined,
                         olderBrowse,
                         ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged }
+                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged, modelDefault: door !== undefined }
                           : {}),
                         ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
                         }),

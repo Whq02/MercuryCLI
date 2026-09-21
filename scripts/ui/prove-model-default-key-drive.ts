@@ -1,0 +1,270 @@
+#!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
+
+const REPO = join(import.meta.dir, '..', '..')
+const BIN = join(REPO, 'dist', 'mercury.mjs')
+const VSHOT = join(import.meta.dir, 'vshot.py')
+const KEY = 'proof-key-ci-gate-not-a-real-key'
+const DEAD = 'http://127.0.0.1:9'
+const ESC = '\x1b'
+const UP = `${ESC}[A`
+const RIGHT = `${ESC}[C`
+const SHIFT_RIGHT = `${ESC}[1;2C`
+const TAB = '\t'
+const PHRASE = 'm to select model-default'
+const CHAT_HINT = '>_ ready  ·  ↵ start  ·  ↑↓ choose'
+const FULL_HINT = '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose'
+const DOOR = '▸ n starts a blank session in this project'
+const FOOTER_AS_SHIPPED = '↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face'
+const FOOTER_WITH_KEY = `↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`
+const PICKER_LEFT = 58
+const PICKER_TOP = 3
+const PICKER_BOTTOM = 46
+const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+}
+function section(title: string): void {
+  console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
+}
+
+process.env.ANTHROPIC_API_KEY = KEY
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+const ROOT = realpathSync(mkdtempSync(join(tmpdir(), 'model-default-key-')))
+const CWD = join(ROOT, 'fixture-cwd')
+mkdirSync(join(CWD, '.mercury'), { recursive: true })
+writeFileSync(join(CWD, 'README.md'), 'a fixture folder\n')
+const NODE = existsSync(join(dirname(BIN), 'vendor', 'node', 'bin', 'node')) ? join(dirname(BIN), 'vendor', 'node', 'bin', 'node') : 'node'
+
+function childEnv(home: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ANTHROPIC_API_KEY: KEY,
+    MERCURY_CRITTER: 'clam',
+    MERCURY_CONFIG_DIR: home,
+    MERCURY_CREDENTIAL_STORE: 'file',
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    BROWSER: 'true',
+    TERM_PROGRAM: 'vscode',
+    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
+    MERCURY_BOOT_PREFLIGHT: '0',
+    MERCURY_LIVE_GLYPHS: '0',
+    MERCURY_LIVE_CLOCK: '0',
+    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_IDLE: '0',
+    MERCURY_CRITTER_SLEEP: '0',
+    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
+    MERCURY_DAEMON_DIR: join(home, 'daemon'),
+    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_TABULA_DIR: join(home, 'tabula'),
+    MERCURY_HOME: join(home, 'proof-home'),
+    ANTHROPIC_BASE_URL: DEAD,
+    MERCURY_OPENAI_API_BASE: DEAD,
+    MERCURY_OPENAI_CHATGPT_BASE: DEAD,
+    MERCURY_OPENAI_AUTH_BASE: DEAD,
+    MERCURY_OPENROUTER_API_BASE: DEAD,
+    MERCURY_OPENROUTER_AUTH_BASE: DEAD,
+    MERCURY_GEMINI_API_BASE: DEAD,
+    MERCURY_GEMINI_OAUTH_AUTH_BASE: DEAD,
+    MERCURY_GEMINI_OAUTH_TOKEN_BASE: DEAD,
+    MERCURY_HUGGINGFACE_API_BASE: `${DEAD}/v1`,
+    MERCURY_HUGGINGFACE_HUB_BASE: DEAD,
+    MERCURY_MOONSHOT_API_BASE: `${DEAD}/v1`,
+    MERCURY_MOONSHOT_OAUTH_BASE: DEAD,
+    MERCURY_MOONSHOT_CODING_BASE: `${DEAD}/v1`,
+    MERCURY_ZAI_API_BASE: `${DEAD}/v4`,
+    MERCURY_DEEPSEEK_API_BASE: DEAD,
+    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+  }
+  for (const k of [
+    'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
+    'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'NODE_ENV', 'MERCURY_DEMO', 'TERMINAL_EMULATOR',
+    '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL',
+  ]) {
+    delete env[k]
+  }
+  return env
+}
+
+function seededHome(tag: string, settingsExtra: Record<string, unknown> = {}): string {
+  const home = join(ROOT, `home-${tag}`)
+  seedFirstRun(home, [CWD])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false, ...settingsExtra }))
+  writeFileSync(
+    join(home, 'critter-profile.json'),
+    JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),
+  )
+  return home
+}
+
+type Send = Record<string, unknown>
+type Grid = Array<Array<{ c: string }>>
+type Capture = { status: number | null; stderr: string; stdout: string; lines: string[]; text: string; marks: Map<string, string[]> }
+
+const driver = resolveCaptureDriver()
+const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c).join(''))
+
+function capture(id: string, home: string, argv: string[], sends: Send[], opts: { total: number; ready: string[] }): Capture {
+  if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
+  const out = join(ROOT, `${id}.json`)
+  const cfgPath = join(ROOT, `${id}.cfg.json`)
+  writeFileSync(
+    cfgPath,
+    JSON.stringify({ argv: [NODE, BIN, ...argv], cwd: CWD, cols: 178, rows: 51, total: opts.total, readySettleTicks: 4, stableTicks: 3, sends, readyText: opts.ready, out }),
+  )
+  const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env: childEnv(home), timeout: vshotBudgetMs(opts.total * 200 + 90_000) })
+  const marks = new Map<string, string[]>()
+  let lines: string[] = []
+  if (existsSync(out)) {
+    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid?: Grid; marks?: Array<{ label: string; grid: Grid }> }
+    if (payload.grid) lines = textOf(payload.grid)
+    for (const m of payload.marks ?? []) marks.set(m.label, textOf(m.grid))
+  }
+  if (res.status !== 0) {
+    console.log(`  ── ${id}: vshot exit ${res.status} ──`)
+    for (const row of lines) console.log('  │' + row.replace(/\s+$/, ''))
+    console.log((res.stderr ?? '').trim().split('\n').slice(-8).join('\n'))
+  }
+  return { status: res.status, stderr: res.stderr ?? '', stdout: res.stdout ?? '', lines, text: lines.join('\n'), marks }
+}
+
+const rowWith = (lines: string[], needle: string): string => lines.find(l => l.includes(needle)) ?? ''
+const trimmedRow = (lines: string[], needle: string): string => rowWith(lines, needle).trim()
+const pickerFrames = (lines: string[]): boolean =>
+  (lines[PICKER_TOP] ?? '')[PICKER_LEFT] === '╭' && (lines[PICKER_BOTTOM] ?? '')[PICKER_LEFT] === '╰' && (lines[PICKER_TOP + 1] ?? '')[PICKER_LEFT] === '│'
+const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
+
+console.log('============================================================')
+console.log(' the default model and effort a new session starts on, chosen with m')
+console.log(`   bundle: ${BIN}`)
+console.log('============================================================')
+if (!existsSync(BIN)) {
+  console.error('  dist/mercury.mjs missing — bun run build.ts first')
+  process.exit(1)
+}
+
+const boardSends: Send[] = [
+  { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
+  { afterPrevTicks: 15, data: TAB },
+  { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, mark: 'board', data: 'm' },
+]
+
+section('§1 the concourse: the door row names the pair, the bottom row names m, m opens the picker, a pick writes the default')
+{
+  const home = seededHome('board')
+  const c = capture('board', home, [], [
+    ...boardSends,
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: UP },
+    { afterPrevTicks: 3, data: RIGHT },
+    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'Sonnet 5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
+    { afterPrevTicks: 3, data: TAB },
+    { afterPrevTicks: 3, data: 'm' },
+    { afterPrevTicks: 4, data: '', mark: 'typed' },
+  ], { total: 360, ready: ['esc boot face'] })
+  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const board = c.marks.get('board') ?? []
+  const picker = c.marks.get('picker') ?? []
+  const picked = c.marks.get('picked') ?? []
+  const typed = c.marks.get('typed') ?? []
+  check('the door row reads the pair it starts on (Opus 5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5 · ● high`), trimmedRow(board, DOOR))
+  check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
+  check('m opens the picker over the concourse (the title row)', rowWith(picker, 'Mercury — model') !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(3, 8).join(' | '))
+  check('the picker spans the main band, centred (rows 3–46, left column 58)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
+  check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
+  check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
+  const saved = settingsOf(home)
+  check("a pick writes the saved default (settings.json model names the picked row, effortLevel the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effortLevel === 'xhigh', JSON.stringify(saved))
+  check('the door row follows at once (Sonnet 5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5 · ◉ xhigh`) && !picked.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(picked, DOOR))
+  check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('CHOOSE A MODEL')), typed.filter(l => l.includes('❯')).join(' | '))
+}
+
+section('§2 --chat: the hint row without m menu, the bottom row names m, m opens the picker over the face, esc closes it')
+{
+  const home = seededHome('chat')
+  const c = capture('chat', home, ['--chat'], [
+    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: ESC },
+    { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, mark: 'closed', data: '' },
+  ], { total: 260, ready: ['↑↓ choose'] })
+  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const face = c.marks.get('face') ?? []
+  const picker = c.marks.get('picker') ?? []
+  const closed = c.marks.get('closed') ?? []
+  check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
+  check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
+  check('m opens the picker over the face, centred (rows 3–46, left column 58), the card still beside it', rowWith(picker, 'Mercury — model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), picker.slice(3, 8).join(' | '))
+  check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
+  check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(closed, '>_ ready'))
+}
+
+section('§3 the face outside --chat: m menu stays and m opens the Boot Menu, as shipped')
+{
+  const home = seededHome('face')
+  const c = capture('face', home, [], [
+    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitStableTicks: 3, mark: 'menu', data: '' },
+  ], { total: 200, ready: ['CONTROL PLANE'] })
+  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const face = c.marks.get('face') ?? []
+  check('the hint row keeps m menu', trimmedRow(face, '>_ ready') === FULL_HINT, trimmedRow(face, '>_ ready'))
+  check('the bottom row names the concourse alone', trimmedRow(face, '⇧→') === '⇧→ concourse', trimmedRow(face, '⇧→'))
+  check('m opens the Boot Menu', (c.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+}
+
+section("§4 the chat's /model: the picker without its frontier rows")
+{
+  const home = seededHome('model')
+  const c = capture('model', home, [], [
+    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 999, requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
+    { afterPrevTicks: 1, data: '/model' },
+    { afterPrevTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: '' },
+  ], { total: 360, ready: ['esc close'] })
+  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const picker = c.marks.get('picker') ?? []
+  const at = picker.findIndex(l => l.includes('Z.AI MODELS'))
+  check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
+  check('the credential line stays under the group title (Anthropic API key · credential present)', picker.some(l => l.includes('Anthropic API key · credential present')), picker.filter(l => l.includes('credential')).join(' | '))
+  check('the Z.AI group title is followed by its credential line', at >= 0 && (picker[at + 1] ?? '').includes('no Z.AI API key'), (picker[at + 1] ?? '').trim())
+}
+
+section('§5 the setting off (sessionDefaultsKey false in settings.json): every row as shipped, m does what it did')
+{
+  const off = { sessionDefaultsKey: false }
+  const homeBoard = seededHome('off-board', off)
+  const a = capture('off-board', homeBoard, [], [
+    ...boardSends,
+    { afterPrevTicks: 6, data: '', mark: 'after-m' },
+  ], { total: 220, ready: ['esc boot face'] })
+  check('the drive delivered every send (exit 0)', a.status === 0, `exit ${a.status}`)
+  const board = a.marks.get('board') ?? []
+  const afterM = a.marks.get('after-m') ?? []
+  check('the door row reads as shipped (no pair)', rowWith(board, DOOR) !== '' && !rowWith(board, DOOR).includes(`${DOOR} · `), trimmedRow(board, DOOR))
+  check('the bottom row reads as shipped', trimmedRow(board, 'esc boot face') === FOOTER_AS_SHIPPED, trimmedRow(board, 'esc boot face'))
+  check('m opens no picker', !afterM.some(l => l.includes('CHOOSE A MODEL')))
+  const homeChat = seededHome('off-chat', off)
+  const b = capture('off-chat', homeChat, ['--chat'], [
+    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitStableTicks: 3, mark: 'menu', data: '' },
+  ], { total: 200, ready: ['CONTROL PLANE'] })
+  check('the drive delivered every send (exit 0)', b.status === 0, `exit ${b.status}`)
+  const face = b.marks.get('face') ?? []
+  check('--chat: the hint row keeps m menu', trimmedRow(face, '>_ ready') === FULL_HINT, trimmedRow(face, '>_ ready'))
+  check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, '⇧→') === '⇧→ no chat open', trimmedRow(face, '⇧→'))
+  check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+}
+
+if (!KEEP) rmSync(ROOT, { recursive: true, force: true })
+else console.log(`\n  kept: ${ROOT}`)
+console.log(failures === 0 ? '\n✅ the default model and effort a new session starts on: chosen with m, saved, shown on the door' : `\n❌ ${failures} check(s) failed`)
+process.exit(failures === 0 ? 0 : 1)
