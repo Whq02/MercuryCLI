@@ -57,9 +57,9 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       card.includes('...(onSkip !== undefined ? [SIGN_IN_LATER_ROW] : [])'),
   )
   check(
-    'the later row carries its honest caveat: running turns needs a sign-in',
+    'the later row carries its honest caveat: sign-in is required to run the agent',
     /sign in later/i.test(SIGN_IN_LATER_ROW.label) &&
-      /running turns needs a sign-in/.test(SIGN_IN_LATER_ROW.label),
+      /Sign-in is required to run the agent/.test(SIGN_IN_LATER_ROW.label),
     SIGN_IN_LATER_ROW.label,
   )
   check(

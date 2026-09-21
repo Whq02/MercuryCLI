@@ -76,6 +76,6 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
 }
 
 export const SIGN_IN_LATER_ROW = {
-  label: 'Sign in later — look around first (running turns needs a sign-in)',
+  label: 'Sign in later to look around. Sign-in is required to run the agent.',
   value: 'later',
 } as const

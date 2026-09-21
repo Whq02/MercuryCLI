@@ -105,7 +105,7 @@ const AMBER_FG = 'dba13d'
 const BROWN_FG = 'c8a882'
 
 const WALK: Send[] = [
-  { requireAwait: true, awaitText: 'welcome — pick our colors', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'theme', data: '\r' },
+  { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'theme', data: '\r' },
   { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'provider', data: '\x1b[B' },
   ...Array.from({ length: 8 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
   { afterPrevTicks: 3, data: '\r' },
