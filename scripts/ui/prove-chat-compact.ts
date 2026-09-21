@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   ADMITTED, check, childEnv, DIST, drive, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
@@ -9,7 +10,7 @@ import {
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { CRITTERS, cellColor, squareDockArtFor, type CritterDef } from '../../src/utils/cockpit/critterData.ts'
 import { composeCritterFrame } from '../../src/components/mercury-ui/CritterArt.tsx'
-import { compactBandForm, compactBandRows } from '../../src/components/mercury-ui/geometry.ts'
+import { LAYOUT_BREAKPOINTS } from '../../src/hooks/useLayoutTier.ts'
 import { compactModeChip, compactSummaryHint } from '../../src/components/mercury-ui/compactModeChip.ts'
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
@@ -31,6 +32,28 @@ const CONTRACT_OFFER = 'contract?'
 const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+|S:\d+ · M:\d+ …|S:\d+ …|…)\s+(⇧← (?:boot face|concourse)|shift\+← (?:boot face|concourse))$/
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
+
+type CritterSize = 'mini' | 'full'
+type Rung = { form: 'none' | 'line' | 'dock' | 'square'; bandRows: number }
+const LADDER_SIZES: ReadonlyArray<readonly [number, number]> = [[90, 31], [80, 26], [80, 25], [80, 24], [80, 21], [80, 20], [80, 14], [82, 19], [82, 17], [82, 14], [40, 13], [40, 10], [20, 31], [120, 40]]
+
+function ladderFor(size: CritterSize): (cols: number, rows: number) => Rung {
+  const home = join(scratch, `ladder-home-${size}`)
+  mkdirSync(home, { recursive: true })
+  if (size === 'full') writeFileSync(join(home, 'settings.json'), JSON.stringify({ critterSize: 'full' }))
+  const geometry = pathToFileURL(join(ROOT, 'src', 'components', 'mercury-ui', 'geometry.ts')).href
+  const code = `import { compactBandForm, compactBandRows } from ${JSON.stringify(geometry)}\nconsole.log(JSON.stringify(${JSON.stringify(LADDER_SIZES)}.map(([c, r]) => [c, r, compactBandForm(c, r), compactBandRows(c, r)])))`
+  const read = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file' } })
+  const table = new Map<string, Rung>()
+  for (const [c, r, form, bandRows] of JSON.parse(read.stdout.trim().split('\n').pop() || '[]') as Array<[number, number, Rung['form'], number]>) table.set(`${c}x${r}`, { form, bandRows })
+  check(`the band ladder with the ${size === 'mini' ? 'small' : 'large'} critter is read in its own home, ${size === 'mini' ? 'no settings file (absent = the small critter)' : 'a settings file carrying critterSize full'}`, read.status === 0 && table.size === LADDER_SIZES.length && existsSync(join(home, 'settings.json')) === (size === 'full'), `exit=${read.status}; ${read.stderr.slice(-400)}`)
+  return (cols, rows) => {
+    const rung = table.get(`${cols}x${rows}`)
+    if (rung === undefined) throw new Error(`no ladder rung for ${cols}x${rows}`)
+    return rung
+  }
+}
+const ladder = { mini: ladderFor('mini'), full: ladderFor('full') }
 
 function glyphRows(def: CritterDef, art: string[]): string[] {
   const lines: string[] = []
@@ -70,10 +93,9 @@ function spriteMatch(rows: string[], form: 'square' | 'dock'): string {
   return ''
 }
 
-function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: 'sovereign' | null): void {
+function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: 'sovereign' | null, rung: Rung): void {
   const text = textRows(grid)
-  const form = compactBandForm(cols, rows)
-  const bandRows = compactBandRows(cols, rows)
+  const { form, bandRows } = rung
   const all = joined(text)
   check(`${tag}: the grid has the exact physical dimensions`, grid.length === rows && grid.every(row => row.length === cols))
   check(`${tag}: no shortcut hint text anywhere`, !HINT_TEXTS.some(hint => all.includes(hint)), HINT_TEXTS.filter(hint => all.includes(hint)).join(' | '))
@@ -132,7 +154,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
 const idleSends = (cols: number, rows: number): unknown[] => [
   { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
   { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-  { atTick: 999, awaitText: compactBandForm(cols, rows) === 'square' && cols >= 100 ? ADMITTED : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
+  { atTick: 999, awaitText: cols >= LAYOUT_BREAKPOINTS.cockpitMin && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows ? ADMITTED : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
 ]
 
 async function capture(tag: string, cols: number, rows: number, sends: unknown[], opts: { turns?: Parameters<typeof startLeg>[1]; argv?: string[]; resizes?: unknown[]; total?: number; settings?: Record<string, unknown>; world?: 'chat' | 'strip' }): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Awaited<ReturnType<typeof startLeg>> }> {
@@ -162,15 +184,15 @@ async function capture(tag: string, cols: number, rows: number, sends: unknown[]
 
 console.log(`chat compact artifacts: ${scratch} (build: ${label}, dist: ${dist})`)
 
-for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
-  const tag = `chat-idle-${cols}x${rows}`
-  const run = await capture(tag, cols, rows, idleSends(cols, rows), {})
+for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, 'mini'], [82, 17, 'mini'], [40, 10, 'mini']] as const) {
+  const tag = size === 'full' ? `chat-idle-${cols}x${rows}-large-critter` : `chat-idle-${cols}x${rows}`
+  const run = await capture(tag, cols, rows, idleSends(cols, rows), size === 'full' ? { settings: { critterSize: 'full' } } : {})
   try {
     check(`${tag}: the boot and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('idle'), `exit=${run.status}; ${run.log}`)
     const idle = run.marks.get('idle')
     if (idle === undefined) continue
     printFrame(`${tag} idle`, textRows(idle.grid))
-    bandChecks(tag, cols, rows, idle.grid, null)
+    bandChecks(tag, cols, rows, idle.grid, null, ladder[size](cols, rows))
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {
     await endLeg(run.leg)
@@ -213,7 +235,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     const idle = run.marks.get('idle')
     if (idle !== undefined) {
       printFrame(`${tag} idle`, textRows(idle.grid))
-      bandChecks(`${tag} idle`, 80, 24, idle.grid, 'sovereign')
+      bandChecks(`${tag} idle`, 80, 24, idle.grid, 'sovereign', ladder.mini(80, 24))
       const text = textRows(idle.grid)
       const chipAt = text.findIndex(l => l.startsWith(compactModeChip('sovereign')!.text))
       const cell = cellsAt(idle.grid, chipAt).find(c => c.c === '⊠')
@@ -272,7 +294,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const mark = at(l)
       if (mark === undefined) continue
       check(`${tag} ${l}: the mark was taken at ${cols}x${rows}`, mark.cols === cols && mark.rows === rows, `${mark.cols}x${mark.rows}`)
-      if (mark.cols === cols && mark.rows === rows) bandChecks(`${tag} ${l}`, cols, rows, mark.grid, null)
+      if (mark.cols === cols && mark.rows === rows) bandChecks(`${tag} ${l}`, cols, rows, mark.grid, null, ladder.mini(cols, rows))
     }
     const first = at('full-1')
     const second = at('full-2')
@@ -282,7 +304,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
       check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))
-      check(`${tag}: the full cockpit keeps its own chrome (SESSIONS card, the shortcut hint, no band rule)`, fullText.includes('SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
+      check(`${tag}: the full cockpit keeps its own chrome (the session header, the shortcut hint, no band rule) and paints no SESSIONS card with the small critter`, fullText.includes('✶ SESSION') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {
@@ -290,15 +312,15 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
   }
 }
 
-function chipRowAt(text: string[], cols: number, rows: number): number {
+function chipRowAt(text: string[], rows: number, rung: Rung): number {
   const promptAt = text.findIndex(l => /^(?:│)?❯ /.test(l))
   if (promptAt < 0) return -1
-  return rows - compactBandRows(cols, rows) >= 14 ? promptAt - 2 : promptAt - 1
+  return rows - rung.bandRows >= 14 ? promptAt - 2 : promptAt - 1
 }
 
 function firstFrameChecks(tag: string, cols: number, rows: number, grid: Grid): void {
   const text = textRows(grid)
-  const chipAt = chipRowAt(text, cols, rows)
+  const chipAt = chipRowAt(text, rows, ladder.mini(cols, rows))
   const expected = compactModeChip('sovereign')!.text
   check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)'))
   check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
@@ -346,8 +368,13 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
   check('the chip owner paints nothing for the default mode', compactModeChip('default') === null)
   check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null)
   check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '')
-  check('the band form ladder is the approved one', compactBandForm(90, 31) === 'square' && compactBandForm(80, 26) === 'square' && compactBandForm(80, 25) === 'dock' && compactBandForm(80, 20) === 'dock' && compactBandForm(82, 19) === 'line' && compactBandForm(82, 14) === 'line' && compactBandForm(40, 13) === 'none' && compactBandForm(20, 31) === 'line')
-  check('the band rows follow the forms', compactBandRows(90, 31) === 7 && compactBandRows(80, 24) === 4 && compactBandRows(82, 17) === 2 && compactBandRows(40, 10) === 0)
+  const mini = ladder.mini
+  const full = ladder.full
+  check('the band form ladder with the small critter (the default): one dock sprite at every size that paints one', mini(90, 31).form === 'dock' && mini(80, 26).form === 'dock' && mini(80, 25).form === 'dock' && mini(80, 20).form === 'dock' && mini(82, 19).form === 'line' && mini(82, 14).form === 'line' && mini(40, 13).form === 'none' && mini(20, 31).form === 'line')
+  check('the band rows follow the forms with the small critter', mini(90, 31).bandRows === 4 && mini(80, 24).bandRows === 4 && mini(82, 17).bandRows === 2 && mini(40, 10).bandRows === 0)
+  check('the band form ladder with the large critter is the shipped one', full(90, 31).form === 'square' && full(80, 26).form === 'square' && full(80, 25).form === 'dock' && full(80, 20).form === 'dock' && full(82, 19).form === 'line' && full(82, 14).form === 'line' && full(40, 13).form === 'none' && full(20, 31).form === 'line')
+  check('the band rows follow the forms with the large critter', full(90, 31).bandRows === 7 && full(80, 24).bandRows === 4 && full(82, 17).bandRows === 2 && full(40, 10).bandRows === 0)
+  check('the wide compact window is the one place the two ladders part: 90x31 and 80x26 alone', LADDER_SIZES.every(([c, r]) => (mini(c, r).form === full(c, r).form) === !((c === 90 && r === 31) || (c === 80 && r === 26) || (c === 120 && r === 40))))
 }
 
 finish('chat-compact')
