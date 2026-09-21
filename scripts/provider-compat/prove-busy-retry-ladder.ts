@@ -33,6 +33,9 @@ writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, pref
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const busy = await import('../../src/services/providers/busyRetry.ts')
+const budgetModule = await import('../../src/services/api/recoveryBudget.ts')
+const agentModule = (await import('../../src/tools/AgentTool/runAgent.ts')) as { makeRecoveryAccountant?: (args: { budget: unknown; cut: (cutting: { declaredMs: number; honoredMs: number }) => void; words?: (line: string | null) => void }) => { wait: (facts: unknown, loud: boolean) => { honoredMs: number; spent: boolean }; spoke: () => void; end: () => void; standing: () => boolean } }
+const heldNoticeOf = (busy as { heldBusyRetryNotice?: (wait: unknown) => { retryInMs?: number; retryAttempt?: number; maxRetries?: number; subtype?: string } | null }).heldBusyRetryNotice ?? ((): null => null)
 const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
@@ -96,10 +99,10 @@ const model = 'gemini-3.5-flash'
 const overloadReason = 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.'
 const ANSWER = 'road answer'
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content } }) as Message
-function params(signal: AbortSignal = new AbortController().signal, modelId = model): CompatCallModelParams {
+function params(signal: AbortSignal = new AbortController().signal, modelId = model, door?: { agentId?: string; onWait: (wait: unknown) => void }): CompatCallModelParams {
   return {
     messages: [user('Say hello.')], systemPrompt: asSystemPrompt(['Only answer the request.']), thinkingConfig: { type: 'disabled' }, tools: [], signal,
-    options: { model: modelId, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
+    options: { model: modelId, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, ...(door === undefined ? {} : { onWait: door.onWait, ...(door.agentId !== undefined ? { agentId: door.agentId } : {}) }) } as never,
   }
 }
 type Stamp = { provider: string; retries: number; elapsedMs: number; status?: number; code?: string; detail: string }
@@ -248,6 +251,16 @@ try {
     const roadStoppedAfterMs = Date.now() - roadStopAt
     check(`${road.name}: the operator's stop ends the first wait at once: one request, no red line, the road silent, well inside the 1 s rung`, hits.length === 1 && redLines(roadStopped).length === 0 && notices(roadStopped).length === 0 && roadStoppedAfterMs < 1000, `${hits.length} requests, ${roadStoppedAfterMs} ms`)
 
+    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    const agentDoor: unknown[] = []
+    const heldRun = await drain(road.call(params(undefined, road.model, { agentId: 'agent-held', onWait: wait => agentDoor.push(wait) })))
+    const held = agentDoor.map(heldNoticeOf).filter(notice => notice !== null)
+    check(`${road.name}: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing`, held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === [10, 20, 40, 80, 160][i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldRun).length === 1 && hits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldRun).length} notices, ${hits.length} requests`)
+    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    const mainDoor: unknown[] = []
+    await drain(road.call(params(undefined, road.model, { onWait: wait => mainDoor.push(wait) })))
+    check(`${road.name}: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel`, mainDoor.every(wait => heldNoticeOf(wait) === null) && hits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
+
     reset('0.01', { status: road.rate.status, body: road.rate.body })
     const roadRate = await drain(road.call(params(undefined, road.model)))
     check(`${road.name}: a rate limit without a wait keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1, the rate-limit line`, hits.length === 2 && notices(roadRate).length === 1 && notices(roadRate)[0]?.retryInMs === 400 && notices(roadRate)[0]?.retryAttempt === 1 && notices(roadRate)[0]?.maxRetries === 1 && roadRate.some(item => item.type === 'assistant' && item.error === 'rate_limit') && redLines(roadRate).length === 1 && !/stayed busy/.test(redLines(roadRate)[0] ?? ''), `${hits.length} requests, ${JSON.stringify(notices(roadRate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}, ${redLines(roadRate)[0] ?? ''}`)
@@ -256,6 +269,29 @@ try {
     const roadRateAsked = await drain(road.call(params(undefined, road.model)))
     const roadRateAskedWait = hits.length === 2 ? hits[1]!.atMs - hits[0]!.atMs : -1
     check(`${road.name}: a rate limit with a wait rides the ladder: the ask slept whole and quietly, the second request answered, one stamp naming 1 retry`, hits.length === 2 && roadRateAskedWait >= 990 && notices(roadRateAsked).length === 0 && redLines(roadRateAsked).length === 0 && answered(roadRateAsked, ANSWER) && stamped(roadRateAsked)[0]?.busyRecovery?.retries === 1, `${hits.length} requests, ${roadRateAskedWait} ms, ${notices(roadRateAsked).length} notices, ${redLines(roadRateAsked)[0] ?? ''}`)
+  }
+
+  console.log("── the agent's budget bounds the quiet ladder: a six-second budget ends it in about six seconds on every road with the quiet branch")
+  check('runAgent exports the recovery accountant the door and the loop share', typeof agentModule.makeRecoveryAccountant === 'function')
+  for (const road of roads.filter(r => r.name === 'openai' || r.name === 'zai' || r.name === 'deepseek')) {
+    reset('1', { status: road.busy.status, body: road.busy.body })
+    const controller = new AbortController()
+    const budget = budgetModule.makeRecoveryBudget(6_000)
+    const words: Array<string | null> = []
+    let cut: unknown = null
+    const accountant = agentModule.makeRecoveryAccountant?.({ budget, cut: cutting => { cut = new budgetModule.RecoveryBudgetSpentError(budget, cutting); controller.abort(cut) }, words: line => words.push(line) })
+    const door = (wait: unknown): void => {
+      const heldNotice = heldNoticeOf(wait)
+      if (heldNotice === null || accountant === undefined) return
+      const facts = budgetModule.recoveryNoticeFacts(heldNotice)
+      if (facts !== null) accountant.wait(facts, false)
+    }
+    const startedAt = Date.now()
+    const bounded = await drain(road.call(params(controller.signal, road.model, { agentId: 'agent-bound', onWait: door })))
+    const elapsedMs = Date.now() - startedAt
+    check(`${road.name}: a 1 s, a 2 s and a 4 s quiet wait, the third cut at the budget — three requests and the ladder over after about six seconds, not sixty-one`, hits.length === 3 && elapsedMs >= 5_800 && elapsedMs < 9_000 && cut instanceof budgetModule.RecoveryBudgetSpentError, `${hits.length} requests, ${elapsedMs} ms, cut=${cut === null ? 'none' : String((cut as Error).message).slice(0, 80)}`)
+    const spent = cut as { waits?: number; message?: string } | null
+    check(`${road.name}: the cut counts the three quiet waits against the six-second budget, and nothing was painted — no notice, no words`, spent !== null && spent.waits === 3 && /6s retry budget is spent/.test(spent.message ?? '') && words.length === 0 && notices(bounded).length === 0, `waits=${spent?.waits} words=${words.length} notices=${notices(bounded).length} ${spent?.message ?? ''}`)
   }
 } finally {
   globalThis.fetch = realFetch
@@ -273,5 +309,11 @@ for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallMod
   check(`${name} opens the one ladder and sleeps every retry wait through the abortable sleep`, text.includes('openBusyRetryLadder(') && text.includes('takesBusyLadder(') && text.includes('await sleep(step.waitMs, signal)') && text.includes('await sleep(delayMs, signal)') && !text.includes('setTimeout(resolve, delayMs)'))
 }
 check('no profile seam decides the ladder: every lane rides it', !source('openaicompat/compatChatCallModel.ts').includes('busyRetry?:') && !source('openaicompat/compatChatCallModel.ts').includes('profile.busyRetry'))
+for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
+  const text = source(name)
+  check(`${name} hands a quiet step's held notice through the wait door only on an agent's road`, text.includes("else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))"))
+}
+const agentSource = readFileSync(new URL('../../src/tools/AgentTool/runAgent.ts', import.meta.url), 'utf8')
+check("runAgent's door charges a held notice through the accountant and forwards it to no row", agentSource.includes('const heldNotice = heldBusyRetryNotice(wait)') && agentSource.includes('accountant.wait(facts, false)') && agentSource.includes('accountant.wait(notice, true)'))
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)
