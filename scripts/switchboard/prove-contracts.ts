@@ -107,7 +107,7 @@ console.log('C — boot-menu births never ask (T2: "from the boot menu, it start
   check('C2 the boot face carries neither the card nor the arm', !face.includes('ContractOfferCard') && !face.includes('armContractAsk'))
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const armWrites = screen.split('armContractAsk()').length - 1
-  check('C3 the ask arms from exactly FOUR gestures — the n key, the New Session tab, the split pane’s ↵ birth and the compact frame’s new-session row (all concourse-side)', armWrites === 4)
+  check('C3 the ask arms from exactly FIVE gestures — the n key, the New Session tab, the split pane’s ↵ birth, the compact frame’s new-session row and the board’s new-session line (all concourse-side)', armWrites === 5)
 }
 
 console.log('D — concourse births ask (the live-view card composes the one consent frame; No/esc births plain; Yes opens the card\'s own field — L25)')

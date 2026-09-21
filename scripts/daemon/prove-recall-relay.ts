@@ -128,7 +128,7 @@ section('§5 the wire: the reply keys, the router, the age, the runner\'s switch
   const keys = /const CONTROL_WIRE_KEYS = \[([^\]]+)\]/.exec(server)?.[1] ?? ''
   check("the daemon's sessionControl reply carries withdrawn, text and reason (the whole-reply guard admits them)", keys.includes("'withdrawn'") && keys.includes("'text'") && keys.includes("'reason'"), keys)
   check('the router admits the withdraw-send action and forwards clientMessageId', server.includes("raw.action === 'withdraw-send'") && server.includes('clientMessageId: raw.clientMessageId.slice(0, 128)'))
-  check('the grammar\'s raw list names the action (a same-proto daemon never reads it as a version gap)', /requires \{ action: [^']*\|withdraw-send, sessionId, by \}/.test(server))
+  check('the grammar\'s raw list names the action (a same-proto daemon never reads it as a version gap)', /requires \{ action: [^']*\|withdraw-send(\|[a-z-]+)*, sessionId, by \}/.test(server))
   check('the age table names the verb\'s birth at proto 9, never re-aged by a later verb', protocol.verbBornAt('sessionControl', 'withdraw-send') === 9 && protocol.MERCURY_DAEMON_PROTO >= 9, `${protocol.verbBornAt('sessionControl', 'withdraw-send')} vs ${protocol.MERCURY_DAEMON_PROTO}`)
   const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
   check("the daemon's action arm relays through the seat's one relay and requires the identity", main.includes("if (action === 'withdraw-send')") && main.includes('withdrawSessionSend(sessionId, clientMessageId, roster)') && main.includes("'withdraw-send requires clientMessageId'"))

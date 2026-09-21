@@ -66,8 +66,10 @@ async function main(): Promise<void> {
       'getAnthropicClient',
       'MERCURY_MODEL',
     ]
-    const hits = FORBIDDEN.filter(f => gatesSrc.includes(f))
-    check('autopilotGates.ts references no model seam', hits.length === 0, hits.join(', '))
+    const availability = gatesSrc.slice(gatesSrc.indexOf('export function isAutopilotEnabled'), gatesSrc.indexOf('const SESSION_WORDS'))
+    check('the availability read exists before the tier vocabulary', availability.length > 0)
+    const hits = FORBIDDEN.filter(f => availability.includes(f))
+    check('the autopilot availability read references no model seam (the tier vocabulary keys on the routing law, ruled 2026-09-21)', hits.length === 0, hits.join(', '))
   }
 
   section('§2 boot arming is env+argv only — the main.tsx bypass expression')
