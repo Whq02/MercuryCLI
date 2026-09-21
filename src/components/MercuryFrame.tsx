@@ -59,7 +59,7 @@ import {
   permissionModeSymbol,
   permissionModeTitle,
 } from '../utils/permissions/PermissionMode.js'
-import { useSessionAccent } from './mercury-ui/sessionAccent.js'
+import { useCritterSize, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
@@ -135,6 +135,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
+  const critterMini = useCritterSize() === 'mini'
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
@@ -524,6 +525,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       {helmActive ? (
         <>
           {modeBand}
+          {critterMini ? null : (
           <Box
             width="100%"
             flexDirection="column"
@@ -534,6 +536,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
             {routeSurface ? null : <SessionTabs cols={cols} framed />}
             {statusRow}
           </Box>
+          )}
         </>
       ) : (
         <>
