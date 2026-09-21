@@ -304,7 +304,7 @@ for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, '
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
       check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))
-      check(`${tag}: the full cockpit keeps its own chrome (the session header, the shortcut hint, no band rule) and paints no SESSIONS card with the small critter`, fullText.includes('✶ SESSION') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
+      check(`${tag}: the full cockpit keeps its own chrome (the session header, the shortcut hint, no band rule) and paints no SESSIONS card with the small critter`, fullText.includes('✶ VIEW') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
     }
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {

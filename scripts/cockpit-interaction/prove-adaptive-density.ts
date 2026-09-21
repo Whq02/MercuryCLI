@@ -255,7 +255,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       const lines = stage.grid.map(row => row.map(c => c.c).join(''))
       const text = lines.join('\n')
       const label = `${stage.cols}x${stage.rows}`
-      const compactTier = !lines.some(l => l.includes('✶ SESSION'))
+      const compactTier = !lines.some(l => l.includes('✶ VIEW'))
       t.check(
         `${label}: not a blank or half-painted frame`,
         lines.filter(l => l.trim().length > 0).length >= 8,

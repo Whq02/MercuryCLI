@@ -95,7 +95,7 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
       total: 220,
       sends: [
         { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 999, requireAwait: true, awaitText: '✶ SESSION', minTick: 5, awaitSettleTicks: 1, data: '' },
+        { atTick: 999, requireAwait: true, awaitText: '✶ VIEW', minTick: 5, awaitSettleTicks: 1, data: '' },
         { atTick: 999, requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'idle' },
         { afterPrevTicks: 1, data: 'parity drive prompt' },
         { afterPrevTicks: 2, data: '\r' },

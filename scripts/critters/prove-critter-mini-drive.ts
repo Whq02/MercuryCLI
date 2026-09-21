@@ -27,7 +27,7 @@ if (!existsSync(DIST)) {
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
-type Send = { data: string; awaitText?: string; awaitSettleTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
+type Send = { data: string; awaitText?: string; awaitSettleTicks?: number; afterPrevTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
 type Capture = { grid: Grid; marks: Record<string, Grid>; endReason: string }
 
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'critter-mini-'))
@@ -129,7 +129,7 @@ function cellDiff(a: Grid, b: Grid): number {
 }
 function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   const t = text(g)
-  const header = rowWith(g, '✶ SESSION')
+  const header = rowWith(g, '✶ VIEW')
   let top = -1
   let bottom = -1
   for (let r = header + 1; r < t.length && r < header + 3; r++) if (t[r]![left] === '╭') { top = r; break }
@@ -175,10 +175,17 @@ try {
   const tall = await capture('tall', homeFor('tall'), 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter\r', mark: 'boot' }], '1 session on')
   const tallBoot = tall.marks['boot']!
   const tallFull = tall.grid
+  const CLICK_VIEW = '\x1b[<0;35;2M\x1b[<0;35;2m'
+  const clickWorld = homeFor('click')
+  const clicked = await capture('click', clickWorld, 178, 51, [
+    onReady(CLICK_VIEW, 'boot'),
+    { requireAwait: true, awaitText: '▄▄▀▀▀▀▀▀▄▄', awaitSettleTicks: 4, data: CLICK_VIEW, mark: 'click-full' },
+    { afterPrevTicks: 10, data: '', mark: 'click-mini' },
+  ], '· ready')
 
   console.log('§1 the slim box at 178×51 with the design on (absent setting)')
   const bx = boxRows(boot, 31)
-  check('the header row ✶ SESSION stays at row 1', rowWith(boot, '✶ SESSION') === 1, `row ${rowWith(boot, '✶ SESSION')}`)
+  check('the header row ✶ VIEW stays at row 1', rowWith(boot, '✶ VIEW') === 1, `row ${rowWith(boot, '✶ VIEW')}`)
   check('the session box is five rows: border at row 2, border at row 6', bx.top === 2 && bx.bottom === 6, `top ${bx.top} bottom ${bx.bottom}`)
   let spriteDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![34 + col]!, band.grid[r]![2 + col]!)) spriteDiff++
@@ -223,7 +230,7 @@ try {
   check('/critter on the second boot repaints the design cell for cell', cellDiff(miniAfterSecondBoot, boot) === 0, `${cellDiff(miniAfterSecondBoot, boot)} cells differ`)
 
   console.log('§6 the same slim box at 120×40')
-  const midHeader = rowWith(midBoot, '✶ SESSION')
+  const midHeader = rowWith(midBoot, '✶ VIEW')
   const midLeft = text(midBoot)[midHeader + 1]!.indexOf('╭')
   const mx = boxRows(midBoot, midLeft)
   check('the box is five rows under the header', mx.top === midHeader + 1 && mx.bottom === midHeader + 5, `top ${mx.top} bottom ${mx.bottom}`)
@@ -257,6 +264,20 @@ try {
   console.log('§9 the 80×21 band is untouched')
   check('the 80×21 band paints the dock sprite at rows 0–2, columns 2–10', band.grid.slice(0, 3).every(row => row.slice(2, 11).every(cell => cell.c === '▀')))
   check('the band’s status row reads 1 session on', rowWith(band.grid, '1 session on') === 20, `row ${rowWith(band.grid, '1 session on')}`)
+
+  console.log('§10 the title reads ✶ VIEW, and a click on it flips the critter between small and full and saves the choice')
+  const clickBoot = clicked.marks['boot']!
+  const clickFull = clicked.marks['click-full']!
+  const clickMini = clicked.marks['click-mini']!
+  check('every frame of the drive reads ✶ VIEW on row 1 and none reads ✶ SESSION', [boot, full, midBoot, clickBoot, clickFull, clickMini].every(g => rowWith(g, '✶ VIEW') >= 0 && rowWith(g, '✶ SESSION') === -1) && rowWith(clickBoot, '✶ VIEW') === 1, `row ${rowWith(clickBoot, '✶ VIEW')}`)
+  check('a click on VIEW flips the box to the eleven-row full form (border at 2, border at 12) with the crown row', boxRows(clickFull, 31).top === 2 && boxRows(clickFull, 31).bottom === 12 && text(clickFull)[5]!.includes('▄▄▀▀▀▀▀▀▄▄'), `top ${boxRows(clickFull, 31).top} bottom ${boxRows(clickFull, 31).bottom}`)
+  check('with full, the SESSIONS bar is back at row 42', rowWith(clickFull, '⊞ SESSIONS') === 42, `row ${rowWith(clickFull, '⊞ SESSIONS')}`)
+  check('a second click flips back to the slim five-row box (border at 2, border at 6) and the bar is gone', boxRows(clickMini, 31).top === 2 && boxRows(clickMini, 31).bottom === 6 && rowWith(clickMini, '⊞ SESSIONS') === -1, `top ${boxRows(clickMini, 31).top} bottom ${boxRows(clickMini, 31).bottom}`)
+  let clickSprite = 0
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickMini[3 + r]![34 + col]!, band.grid[r]![2 + col]!)) clickSprite++
+  check('the slim box carries the band’s sprite cells again (27 cells)', clickSprite === 0, `${clickSprite} cells differ`)
+  const savedSize = (JSON.parse(readFileSync(join(clickWorld.configHome, 'settings.json'), 'utf8')) as { critterSize?: string }).critterSize
+  check('the click saved the size to the settings store (critterSize mini after the second click)', savedSize === 'mini', `critterSize ${String(savedSize)}`)
 } catch (error) {
   failures++
   console.log(`  [FAIL] drive — ${error instanceof Error ? error.message : String(error)}`)

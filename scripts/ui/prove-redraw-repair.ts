@@ -34,9 +34,9 @@ const run = (sends: Array<{ atTick: number; data: string }>, out: string) => {
 try {
   const base = run([], `/tmp/redraw-base-${process.pid}.json`)
   const healed = run([{ atTick: 20, data: String.fromCharCode(12) }], `/tmp/redraw-healed-${process.pid}.json`)
-  t('baseline transcript paints (session header + turns)', base.rows >= 8 && base.text.includes('✶ SESSION') && base.text.includes('first task') && base.text.includes('second task'))
+  t('baseline transcript paints (session header + turns)', base.rows >= 8 && base.text.includes('✶ VIEW') && base.text.includes('first task') && base.text.includes('second task'))
   t('ctrl+l keeps row parity', Math.abs(healed.rows - base.rows) <= 1, `healed=${healed.rows} base=${base.rows}`)
-  for (const [name, marker] of [['session header', '✶ SESSION'], ['first task', 'first task'], ['second task', 'second task'], ['this session', 'this session']] as const) {
+  for (const [name, marker] of [['session header', '✶ VIEW'], ['first task', 'first task'], ['second task', 'second task'], ['this session', 'this session']] as const) {
     t(`ctrl+l keeps '${name}'`, healed.text.includes(marker) === base.text.includes(marker))
   }
 } finally {

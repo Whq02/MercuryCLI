@@ -165,7 +165,7 @@ for (const variant of wanted) {
         samples.set(key, (samples.get(key) ?? 0) + 1)
       }
     }
-    const chatOpen = cap.text.includes('✶ SESSION')
+    const chatOpen = cap.text.includes('✶ VIEW')
     results.push({ variant, writes, bytes, secondsWithWrites: seconds.size, endReason: cap.endReason })
     console.log(`\n── ${variant} ──`)
     console.log(`  window: ${new Date(start).toISOString()} → +${WINDOW_MS / 1000}s · capture ended: ${cap.endReason} · cockpit header on screen: ${chatOpen ? 'yes' : 'NO'}`)

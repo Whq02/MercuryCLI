@@ -209,7 +209,7 @@ figure. Should a provider still refuse an attached file's image, that image
 leaves every later request of the session, a resumed one included, on the
 OpenAI route as on the Anthropic one.
 
-The session box under the `✶ SESSION` header holds the critter and, while
+The session box under the `✶ VIEW` header holds the critter and, while
 a turn runs, the working row in its own capsule beside it. By default the
 small critter sits in a slim box of five rows and the SESSIONS bar is off
 the bottom of the chat, so a tall window gives the chat ten rows more; the
@@ -218,6 +218,7 @@ painted. `/critter on` paints the large critter with the roll-up and the
 bar as before, `/critter off` the small one, and `/critter` alone toggles;
 `/critter pick` chooses the creature. The choice is kept in the settings
 store (`critterSize`) across boots.
+a click on `✶ VIEW` toggles it the same way.
 
 The status row under the composer carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —

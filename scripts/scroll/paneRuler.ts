@@ -10,7 +10,7 @@ const rowText = (cells: Array<{ c: string }>): string =>
 
 export function paneRows(grid: Grid): PaneRow[] {
   const rows = grid.map(rowText)
-  const head = rows.findIndex(r => r.includes('✶ SESSION'))
+  const head = rows.findIndex(r => r.includes('✶ VIEW'))
   if (head >= 0) {
     const line = rows[head]!
     const x0 = line.indexOf('│')

@@ -89,7 +89,7 @@ const env: Record<string, string> = {
   MERCURY_LIVE_GLYPHS: '0',
 }
 
-const headerRow = (frame: string | undefined): string => (frame ?? '').split('\n').find(r => r.includes('✶ SESSION')) ?? ''
+const headerRow = (frame: string | undefined): string => (frame ?? '').split('\n').find(r => r.includes('✶ VIEW')) ?? ''
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 console.log('============================================================')
