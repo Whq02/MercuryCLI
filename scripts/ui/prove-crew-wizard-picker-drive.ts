@@ -25,6 +25,8 @@ const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
 const vendoredNode = join(dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : join('bin', 'node'))
 const NODE = existsSync(vendoredNode) ? vendoredNode : 'node'
+process.env.ANTHROPIC_API_KEY = KEY
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-wizard-picker-')))
 if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 
