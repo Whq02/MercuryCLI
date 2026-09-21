@@ -50,9 +50,12 @@ section('§1 source — the notice leaves the column for the hint row')
       /const idleHintShows =\s*\n\s*parts\.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge && !noticeStands/.test(footer),
   )
   check(
-    "the compact layout's count line hands the whole row to a text notice: the counts and the way-back hint step aside while it stands and return when it clears",
+    "the compact layout's count line keeps the way back beside a text notice: the counts step aside while it stands and return when it clears, the notice is cut to the columns before the hint with two blank columns between, and the setting off hands the notice the whole row",
     summary.includes('const noticeText = noticeRowText(currentNotice)') &&
-      summary.includes("const hint = noticeText !== null ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })") &&
+      summary.includes('const wayBackStays = noticeText !== null && getGlobalConfig().compactNoticeWayBack !== false') &&
+      summary.includes("const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })") &&
+      summary.includes("const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null") &&
+      summary.includes('marginLeft={wayBackStays ? 2 : 1}') &&
       summary.includes('{noticeText !== null ? noticeText : compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}') &&
       !summary.includes('noticeWidth'),
   )
@@ -224,25 +227,33 @@ globalThis.fetch = (input, init) => {
   const COMPACT_HINT = compactHint(HOST)
   const compactSummary = (cols: number, platform: 'macos' | 'linux' = HOST): string =>
     compactWorkSummaryText(COMPACT_COUNTS, Math.max(0, cols - (stringWidth(compactHint(platform)) + 1)))
-  const COUNT_ANCHOR = /\d sessions? on|S:\d/
+  const compactNoticeRow = (notice: string, cols: number, platform: 'macos' | 'linux' = HOST): string => {
+    const hint = compactHint(platform)
+    const keep = cols - 2 - stringWidth(hint)
+    const line = footerNoticeLine(notice)
+    const cut = stringWidth(line) <= keep ? line : `${line.slice(0, keep - 1)}…`
+    return cut.padEnd(cols - stringWidth(hint)) + hint
+  }
   const noticeRowHolds = (line: string, notice: string, platform: 'macos' | 'linux' = HOST): boolean =>
-    line.startsWith(footerNoticeLine(notice).slice(0, 40)) && !COUNT_ANCHOR.test(line) && !line.trimEnd().endsWith(compactHint(platform)) && !line.includes(' · ' + footerNoticeLine(notice).slice(0, 12))
+    line === compactNoticeRow(notice, stringWidth(line), platform)
   {
     check(
       'the idle 82-column count row keeps its whole count line beside the way back on both platforms (nothing of it changes while no notice stands)',
       compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 agents here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 agents here',
       `macOS ${JSON.stringify(compactSummary(82, 'macos'))} · Linux ${JSON.stringify(compactSummary(82, 'linux'))}`,
     )
-    const macRow = receiptWhole('macos')
-    const linuxRow = `${receiptWhole('linux').slice(0, 81)}…`
+    const macRow = compactNoticeRow(receiptWhole('macos'), 82, 'macos')
+    const linuxRow = compactNoticeRow(receiptWhole('linux'), 82, 'linux')
     check(
-      "the 82-column receipt row is the receipt alone on both platforms — the counts and the way back step aside, no leading separator, the escape transfer's long receipt keeping its head (Linux) and the native clipboard's short one whole (macOS)",
-      noticeRowHolds(macRow, receiptWhole('macos'), 'macos') && noticeRowHolds(linuxRow, receiptWhole('linux'), 'linux') && stringWidth(linuxRow) === 82 && !linuxRow.startsWith(' · '),
+      "the 82-column receipt row keeps the way back at its right end on both platforms — the counts step aside, no leading separator, the native clipboard's short receipt whole (macOS) and the escape transfer's long one cut to the columns before the hint with an ellipsis and two blank columns (Linux)",
+      macRow.startsWith(receiptWhole('macos')) && macRow.endsWith(compactHint('macos')) && stringWidth(macRow) === 82 && !macRow.includes('…') &&
+        linuxRow.startsWith(receiptWhole('linux').slice(0, 62)) && linuxRow.endsWith(`…  ${compactHint('linux')}`) && stringWidth(linuxRow) === 82 && !linuxRow.startsWith(' · ') &&
+        noticeRowHolds(macRow, receiptWhole('macos'), 'macos') && noticeRowHolds(linuxRow, receiptWhole('linux'), 'linux'),
       `macOS ${JSON.stringify(macRow)} · Linux ${JSON.stringify(linuxRow)}`,
     )
     check(
-      'the old shape — the counts, a separator, then the receipt cut before the way back — no longer satisfies the row',
-      !noticeRowHolds(`${compactSummary(82, 'macos')} · ${receiptWhole('macos')}  ${compactHint('macos')}`, receiptWhole('macos'), 'macos') && !noticeRowHolds(` · ${receiptWhole('linux').slice(0, 58)}… ${compactHint('linux')}`, receiptWhole('linux'), 'linux'),
+      'the shipped shape — the notice alone across the row, cut at the width, the way back gone — no longer satisfies the row',
+      !noticeRowHolds(receiptWhole('macos').padEnd(82), receiptWhole('macos'), 'macos') && !noticeRowHolds(`${receiptWhole('linux').slice(0, 81)}…`, receiptWhole('linux'), 'linux'),
     )
   }
   const PRESS = '\x1b[<0;{X};{Y}M'
@@ -347,7 +358,7 @@ globalThis.fetch = (input, init) => {
       )
     } else {
       check(
-        `${at} ${tag}: the notice takes the count row whole — it leads the row, the counts and the way back step aside`,
+        `${at} ${tag}: the notice leads the count row cut to what fits, the counts step aside and the way back keeps the row's right end`,
         row !== -1 && noticeRowHolds(line, notice),
         JSON.stringify(line.trimEnd()),
       )
@@ -359,7 +370,7 @@ globalThis.fetch = (input, init) => {
     )
     const underComposer = (m: Mark): string => rowText(m.grid, frameOf(m.grid).bottom + 1)
     check(
-      `${at} ${tag}: the hint row sits right under the composer before, during and after — the hints (the counts as far as they have settled, the way back) before and after, the notice in their place while it stands`,
+      `${at} ${tag}: the hint row sits right under the composer before, during and after — the hints (the counts as far as they have settled, the way back) before and after, the notice in the counts' place while it stands`,
       anchor instanceof RegExp
         ? anchor.test(underComposer(before)) && anchor.test(underComposer(after)) && underComposer(showing).startsWith(notice)
         : /^\d+ sessions? on · /.test(underComposer(before)) && underComposer(before).trimEnd().endsWith(COMPACT_HINT) && underComposer(after).startsWith(anchor.idle) && underComposer(after).trimEnd().endsWith(COMPACT_HINT) && noticeRowHolds(underComposer(showing), notice),
@@ -405,4 +416,4 @@ if (failures > 0) {
   console.log(` ❌ prove-composer-notice-row: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log(' ✅ composer-notice-row — a notice takes the hint row whole for its moment, the hints return after it · the composer never moves for a notice')
+console.log(' ✅ composer-notice-row — a notice takes the hint row for its moment and the compact row keeps its way back, the hints return after it · the composer never moves for a notice')

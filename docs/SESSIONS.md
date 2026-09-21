@@ -590,12 +590,14 @@ again" and removes it. A row that stands for a line no runner holds is never
 left on the screen.
 
 The hint row under the composer is where every such receipt or notice
-paints, for its seconds. While one stands it takes the whole row: the standing
-hints (`? for shortcuts · ctrl+x p for commands + files`, and on a narrow
-window the session counts and the way-back hint) step aside and return in the
-same place when it clears, so a receipt's fact — the model id a
-`/defaultprovider` switch resolved, say — is readable at 80 columns. The
-composer never moves for a notice.
+paints, for its seconds. While one stands it takes the row: the standing
+hints (`? for shortcuts · ctrl+x p for commands + files`) step aside and
+return in the same place when it clears, so a receipt's fact — the model id a
+`/defaultprovider` switch resolved, say — is readable at 80 columns. On a
+narrow window the session counts step aside the same way, the notice is cut
+to what fits with an ellipsis, and the way back (`⇧← concourse`) keeps the
+row's right end; `compactNoticeWayBack: false` in the global config gives the
+notice the whole row instead. The composer never moves for a notice.
 
 ## A notice an agent has not read
 
