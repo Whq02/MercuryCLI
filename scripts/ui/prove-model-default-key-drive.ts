@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -300,6 +300,53 @@ section('§6 a fresh home with no sign-in: the bottom row stands at the height w
   const at51 = wide.marks.get('face') ?? []
   check('178×51: the bottom row names the concourse and m', (at51[50] ?? '').trim() === `⇧→ concourse · ${PHRASE}`, JSON.stringify((at51[50] ?? '').trim()))
   check('178×51: the block stands where it stood — two blank rows above the art, eight dividers on the card, the strip\'s bottom border on row 50', (at51[0] ?? '').trim() === '' && (at51[1] ?? '').trim() === '' && (at51[2] ?? '').includes('▀') && dividers(at51) === 8 && (at51[49] ?? '').trim().startsWith('╰'), `dividers ${dividers(at51)} · row 49 ${(at51[49] ?? '').trim().slice(0, 4)}`)
+}
+
+section('§7 the Boot face picker asks OpenAI for the live list when it opens: the GPT rows land before any session exists')
+{
+  const home = seededHome('gpt-face')
+  writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })
+  const wireFile = join(home, 'wire.jsonl')
+  const catalogueFile = join(home, 'models.json')
+  writeFileSync(wireFile, '')
+  const gpt = (id: string, display_name: string, priority: number) => ({ id, display_name, priority, visibility: 'public', supported_in_api: true, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium', context_window: 400_000, input_modalities: ['text', 'image'] })
+  writeFileSync(catalogueFile, JSON.stringify({ models: [gpt('gpt-5.6-sol', 'GPT-5.6 Sol', 1), gpt('gpt-5.6-terra', 'GPT-5.6 Terra', 2)], afterTurn: [], delayMs: 0 }))
+  const fixture = spawn(NODE, [join(REPO, 'scripts/journey/cap-offer-fixture-server.ts'), wireFile, catalogueFile], { stdio: ['ignore', 'pipe', 'pipe'] })
+  try {
+    const port = await new Promise<number>((resolvePort, reject) => {
+      const timer = setTimeout(() => reject(new Error('the catalogue fixture did not print PORT')), vshotBudgetMs(15_000))
+      let output = ''
+      fixture.stdout!.on('data', chunk => {
+        output += String(chunk)
+        const match = /PORT (\d+)/.exec(output)
+        if (match) {
+          clearTimeout(timer)
+          resolvePort(Number(match[1]))
+        }
+      })
+      fixture.on('exit', code => {
+        clearTimeout(timer)
+        reject(new Error(`the catalogue fixture exited ${code}`))
+      })
+    })
+    const base = `http://127.0.0.1:${port}`
+    const c = capture('gpt-face', home, [], [
+      { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+      { requireAwait: true, awaitText: 'GPT-5.6 Terra', awaitStableTicks: 3, mark: 'picker', data: ESC },
+      { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, mark: 'closed', data: '' },
+    ], { total: 260, ready: ['↑↓ choose'], env: e => ({ ...e, MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` }) })
+    check('the drive delivered every send (exit 0): the fetched GPT rows painted on the Boot face picker', c.status === 0, `exit ${c.status}`)
+    const picker = c.marks.get('picker') ?? []
+    const gptRows = picker.filter(l => l.includes('GPT')).map(l => l.trim()).join(' | ')
+    check('the picker lists the fetched GPT rows as switchable', /GPT-5\.6 Sol[^\n]*switch/.test(picker.join('\n')) && /GPT-5\.6 Terra[^\n]*switch/.test(picker.join('\n')), gptRows)
+    check('no row reads connecting or not fetched yet', picker.length > 0 && !picker.some(l => l.includes('GPT — connecting') || l.includes('not fetched yet')), gptRows)
+    check('the first list arrives without a changed-list notice', picker.length > 0 && !picker.some(l => l.includes('the live list changed')))
+    const wire = readFileSync(wireFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { kind: string })
+    check('exactly one models request reached the fixture, and no session was born for it', wire.filter(e => e.kind === 'models').length === 1 && !wire.some(e => e.kind === 'openai'), wire.map(e => e.kind).join(','))
+    check('esc closes the picker back to the face', (c.marks.get('closed') ?? []).some(l => l.includes('↑↓ choose')) && !(c.marks.get('closed') ?? []).some(l => l.includes('CHOOSE A MODEL')))
+  } finally {
+    fixture.kill('SIGTERM')
+  }
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })
