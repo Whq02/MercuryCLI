@@ -153,7 +153,7 @@ if (!existsSync(BIN)) {
 
 const boardSends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
-  { afterPrevTicks: 15, data: TAB },
+  { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, mark: 'coord', data: TAB },
   { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, mark: 'board', data: 'm' },
 ]
 
@@ -171,10 +171,12 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
     { afterPrevTicks: 4, data: '', mark: 'typed' },
   ], { total: 360, ready: ['esc boot face'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const coord = c.marks.get('coord') ?? []
   const board = c.marks.get('board') ?? []
   const picker = c.marks.get('picker') ?? []
   const picked = c.marks.get('picked') ?? []
   const typed = c.marks.get('typed') ?? []
+  check('with the coordinator panel focused, the door row reads as shipped and the bottom row carries no m phrase', rowWith(coord, DOOR) !== '' && !rowWith(coord, DOOR).includes(`${DOOR} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, DOOR)} / ${trimmedRow(coord, 'esc boot face')}`)
   check('the door row reads the pair it starts on (Opus 5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the title row)', rowWith(picker, 'Mercury — model') !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(3, 8).join(' | '))

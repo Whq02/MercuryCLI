@@ -331,7 +331,7 @@ export function ConcourseLayout({
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const cols = frameCols ?? termCols
   const sessionRows: ConcourseRowV1[] = boardGroups.flatMap(g => g.rows)
-  const door = wiring.newSession !== undefined && sessionRows.length === 0 && filterText.trim().length === 0 ? snapshot.newSession.door : undefined
+  const door = region === 'list' && wiring.newSession !== undefined && sessionRows.length === 0 && filterText.trim().length === 0 ? snapshot.newSession.door : undefined
   const geo = switchboardGeometry(
     cols,
     termRows,
