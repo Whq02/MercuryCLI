@@ -11,7 +11,6 @@ import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import type { EffortLevel } from '../utils/effort.js'
-import { providerFrontierLine } from '../utils/model/providerFrontier.js'
 import { getMainLoopModel, renderModelName } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import {
@@ -291,7 +290,6 @@ function ContainerList({
       {visible.map(([row, index]) => {
         const props = list.rowProps(row, index)
         if (row.kind === 'header') {
-          const frontier = providerFrontierLine(row.family.source as never)
           const signedIn = row.family.credentialed
             ? (row.family.credentialLabel ?? 'signed in')
             : 'not signed in'
@@ -303,7 +301,6 @@ function ContainerList({
                     {row.family.label}
                   </Text>
                   <Text color={row.family.credentialed ? t.textMuted : t.warning}>{`  ${signedIn}`}</Text>
-                  {frontier !== undefined ? <Text color={t.textMuted}>{`  ${frontier}`}</Text> : null}
                 </Text>
               )}
             </InteractiveRow>
