@@ -42,6 +42,11 @@ function runnerRunningShell(pids: readonly number[]): number | null {
   return null
 }
 
+const BUDGET_SCALE = Math.max(1, Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1') || 1)
+function wallTicks(ticks: number): number {
+  return Math.max(1, Math.round(ticks / BUDGET_SCALE))
+}
+
 async function holdRunnerOnceItsShellRuns(leg: Leg, giveUpMs = 90_000): Promise<Hold> {
   const started = Date.now()
   let pid: number | null = null
@@ -58,7 +63,7 @@ async function holdRunnerOnceItsShellRuns(leg: Leg, giveUpMs = 90_000): Promise<
   }
   try { process.kill(pid, 'SIGSTOP') } catch { return { pid, heldAtMs: null, heldAtTick: null, release } }
   const heldAtMs = Date.now()
-  setTimeout(release, 30_000).unref?.()
+  setTimeout(release, vshotBudgetMs(30_000)).unref?.()
   return { pid, heldAtMs, heldAtTick: null, release }
 }
 
@@ -197,8 +202,8 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
     { atTick: 999, awaitText: 'background the command', minTick: 2, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'running' },
     { afterPrevTicks: 45, data: 'B' },
     { afterPrevTicks: 5, data: '', mark: 'pressed' },
-    { afterPrevTicks: 60, data: '', mark: 'refused' },
-    { afterPrevTicks: 15, data: '', mark: 'later' },
+    { atTick: 999, awaitText: REFUSAL, minTick: 2, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'refused' },
+    { afterPrevTicks: wallTicks(15), data: '', mark: 'later' },
   ], holdRunnerOnceItsShellRuns)
   try {
     check('refused: the boot, the plain call, the running shell, the press and the answer all painted (engine exit 0)', run.status === 0 && ['running', 'pressed', 'refused', 'later'].every(l => run.marks.has(l)), `exit=${run.status}; ${run.log}`)
