@@ -32,6 +32,10 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
+import { useFocusedShellRunning } from '../../services/engine-connector/shellRunning.js'
+import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snapshot.js'
 import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
@@ -78,6 +82,8 @@ export function PromptInputFooterLeftSide({
     (state: AppState) => state.expandedView === 'teammates',
   )
   const cockpitActive = useContext(CockpitActiveContext)
+  const shellRunning = useFocusedShellRunning()
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const teamContext = useAppState((state: AppState) => state.teamContext)
   const permissionMode = useAppState(
     (state: AppState) => state.toolPermissionContext.mode,
@@ -225,6 +231,11 @@ export function PromptInputFooterLeftSide({
       parts.push(
         <KeyboardShortcutHint key="interrupt" shortcut={cancelChord} action="interrupt" />,
       )
+      if (shellRunning && getSettingsSnapshot().settings.backgroundKey !== false) {
+        parts.push(
+          <KeyboardShortcutHint key="background" shortcut={keyHintLabel('⇧b')} action="background the command" />,
+        )
+      }
     } else if (runningAgents.length > 0 && !killConfirmShowing) {
       parts.push(
         <KeyboardShortcutHint key="stop-agents" shortcut={killChord} action="stop agents" />,

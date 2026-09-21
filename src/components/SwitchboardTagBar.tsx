@@ -21,6 +21,9 @@ import { GLYPH, branchChip, branchChipWidth } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedWorkRows } from './tasks/useFocusedWork.js'
+import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
+import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
 import { useCoordinatorAttribution } from './concourse/workerTranscriptFold.js'
 
@@ -105,9 +108,11 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
   return live.inFlight ? '' : 'ready'
 }
 
-export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>): string {
-  const hint = escRungHint(escRungOf({ inFlight: live.inFlight, interrupting: s.interrupting, hardStopping: s.hardStopping }))
-  return `${hint !== '' ? `${hint} · ` : ''}${keyHintLabel('⇧← back')}`
+export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>, shellRunning = false): string {
+  const rung = escRungOf({ inFlight: live.inFlight, interrupting: s.interrupting, hardStopping: s.hardStopping })
+  const hint = escRungHint(rung)
+  const background = shellRunning && rung === 'in-flight' ? keyHintLabel('⇧b backgrounds') : ''
+  return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
@@ -155,6 +160,8 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
   const workRows = useFocusedWorkRows()
+  const shellRunning = useFocusedShellRunning()
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
   const now = useNowTick(crewActive ? 1000 : null)
   const crew = useMemo(() => crewClockOf(workRows, now), [workRows, now])
@@ -163,7 +170,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const status: SeatStatusV1 = c.status()
   const line = statusLine(live, status, crew)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
-  const backHint = escBackHint(live, status)
+  const backHint = escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
   const fixedWidth =
     1 +
     stringWidth(status.projectLabel) +

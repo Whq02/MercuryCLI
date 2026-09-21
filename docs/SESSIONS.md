@@ -212,7 +212,15 @@ once, by the transcript's thinking row and the card under the critter, and
 never repeated here; a session with no crew reads "ready" when idle and
 paints no clock while its main agent works. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
-the row's clock keeps counting for the crew that runs on. The row's
+the row's clock keeps counting for the crew that runs on. While a shell
+command runs for the main agent, ⇧b moves it to the runner's background
+tasks and the turn goes on without waiting: the hint row under the composer
+reads `esc interrupt · ⇧b background the command` and the row's tail
+`esc interrupts · ⇧b backgrounds · ⇧← back` for as long as the command
+runs, and the agent is told the command was moved to the background as a
+task whose output arrives as a notification; with a draft in the composer
+the key types its letter. `backgroundKey: false` in settings.json turns the
+key and both hints off, and esc keeps its meaning either way. The row's
 warnings stay its own: a request wait names what the runner waits on and the budget that
 fires ("waiting for the first byte from Opus 5 — within 2m"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt

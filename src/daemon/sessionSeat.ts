@@ -1016,6 +1016,7 @@ export type SessionAgentVerb = 'stop-agent' | 'resume-agent'
 interface AgentVerbWaiter {
   short: string
   settle: (outcome: SeatVerbOutcome) => void
+  verb?: string
 }
 
 const agentVerbWaiters = new Map<string, AgentVerbWaiter>()
@@ -1042,6 +1043,7 @@ export function controlSessionAgent(
     timer.unref?.()
     agentVerbWaiters.set(requestId, {
       short: rec.runnerId,
+      verb,
       settle: outcome => {
         clearTimeout(timer)
         agentVerbWaiters.delete(requestId)
@@ -1079,9 +1081,50 @@ function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: st
   const older = /unsupported control request subtype/i.test(error)
   waiter.settle({
     outcome: 'refused',
-    detail: older ? "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session" : error,
+    detail: older
+      ? waiter.verb === 'background-shell'
+        ? "the session's runner predates the shell background verb — /daemon restart when ready, then reopen the session"
+        : "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session"
+      : error,
   })
   return true
+}
+
+export function backgroundSessionShell(
+  sessionId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  const requestId = `${SEAT_AGENT_REQUEST_PREFIX}background-shell-${rec.runnerId}-${Date.now().toString(36)}-${(++agentVerbSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!agentVerbWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the background-shell within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    agentVerbWaiters.set(requestId, {
+      short: rec.runnerId,
+      verb: 'background-shell',
+      settle: outcome => {
+        clearTimeout(timer)
+        agentVerbWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(rec.runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'background_shell' } }))
+    if (!delivered) {
+      clearTimeout(timer)
+      agentVerbWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat background-shell sent: ${rec.runnerId}`)
+  })
 }
 
 export const QUIESCE_ANSWER_DEADLINE_MS = 10_000
