@@ -25,6 +25,7 @@ import {
   LEAD_ASK_MATE,
   LEAD_ASK_SLEEPER,
   MATE_NAME,
+  MATE_TEAM,
   SEAT_NAME,
   SEAT_SLEEP_SECONDS,
   startCrewStopFixture,
