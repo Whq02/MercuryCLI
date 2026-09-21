@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getApiFetch } from '../../../utils/proxy.js'
@@ -406,9 +407,12 @@ export function refreshLocalDiscovery(opts?: LocalDiscoveryIo & { force?: boolea
   const { force: _force, ...io } = opts ?? {}
   inFlight = (async (): Promise<LocalDiscoverySnapshot> => {
     try {
+      const before = cached
       const snapshot = await discoverLocalServers(io)
       cached = snapshot
-      bumpCatalogueEpoch()
+      if (before === null || before.targetCount !== snapshot.targetCount || !isDeepStrictEqual(before.servers, snapshot.servers)) {
+        bumpCatalogueEpoch()
+      }
       return snapshot
     } finally {
       inFlight = null

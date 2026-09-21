@@ -25,26 +25,40 @@ import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
   OPENROUTER_MODEL_GROUP,
+  getCachedOpenrouterCatalogue,
   getOpenrouterAvailability,
   getOpenrouterFullModelOptions,
+  refreshOpenrouterCatalogue,
+  type OpenrouterCatalogueSnapshot,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
+import { resolveOpenrouterRequestAuth } from '../../services/providers/openrouter/openrouterAccounts.js'
+import { credentialFingerprint } from '../../services/providers/credentialIdentity.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import {
   GEMINI_CONNECT_OPTION_VALUE,
   GEMINI_MODEL_GROUP,
+  getCachedGeminiCatalogue,
   getGeminiAvailability,
+  refreshGeminiCatalogue,
+  type GeminiCatalogueSnapshot,
 } from '../../services/providers/gemini/geminiCatalogue.js'
+import { geminiSourceIdentity, resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
   HUGGINGFACE_CONNECT_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
+  getCachedHuggingfaceCatalogue,
   getHuggingfaceAvailability,
   getHuggingfaceFullModelOptions,
+  refreshHuggingfaceCatalogue,
+  type HuggingfaceCatalogueSnapshot,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
+import { resolveHuggingfaceApiKey } from '../../services/providers/huggingface/huggingfaceAccounts.js'
 import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
+import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { parseGptModelId, withGptServedWindowSuffix } from '../../services/providers/openai/gptPins.js'
-import { getCachedOpenaiCatalogue, liveGptContextCeiling, refreshOpenaiCatalogue } from '../../services/providers/openai/openaiCatalogue.js'
+import { getCachedOpenaiCatalogue, liveGptContextCeiling, refreshOpenaiCatalogue, type OpenaiCatalogueSnapshot } from '../../services/providers/openai/openaiCatalogue.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
 import { anthropicCredentialPresence } from '../../services/providers/providerUsage.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
@@ -105,6 +119,125 @@ const subscribeFocusedModelFeed = subscribeThroughFocused((connector, listener) 
 function getFocusedModelKey(): string {
   const facts = getFocusedSessionConnector().modelFacts()
   return `${facts.effective}|${facts.setting ?? ''}|${facts.pendingSwitch ? (facts.pendingSwitch.setting ?? 'default') : ''}`
+}
+
+type CatalogueRoad<S> = {
+  family: string
+  identity: () => string | undefined
+  cached: () => S | null
+  refresh: () => Promise<S | null>
+  populated: (snapshot: S) => boolean
+  failed: (snapshot: S) => boolean
+  changed: (before: S, after: S) => boolean
+}
+
+const byPriority = (models: OpenaiCatalogueSnapshot['models']): OpenaiCatalogueSnapshot['models'] =>
+  models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity))
+
+const GPT_ROAD: CatalogueRoad<OpenaiCatalogueSnapshot> = {
+  family: 'GPT',
+  identity: () => {
+    const account = resolveOpenaiAccount()
+    return account ? `${account.kind}:${openaiSourceIdentity(account.kind)}` : undefined
+  },
+  cached: () => {
+    const account = resolveOpenaiAccount()
+    return account ? getCachedOpenaiCatalogue(account.kind) : null
+  },
+  refresh: () => {
+    const account = resolveOpenaiAccount()
+    return account ? refreshOpenaiCatalogue(account.kind, { force: true }) : Promise.resolve(null)
+  },
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(byPriority(before.models), byPriority(after.models)),
+}
+
+const OPENROUTER_ROAD: CatalogueRoad<OpenrouterCatalogueSnapshot> = {
+  family: 'OpenRouter',
+  identity: () => {
+    const auth = resolveOpenrouterRequestAuth()
+    return auth ? `${auth.account.keySource}:${credentialFingerprint(auth.headers.authorization)}:${auth.baseUrl}` : undefined
+  },
+  cached: () => {
+    const auth = resolveOpenrouterRequestAuth()
+    return auth ? getCachedOpenrouterCatalogue(auth.account.keySource) : null
+  },
+  refresh: () => {
+    const auth = resolveOpenrouterRequestAuth()
+    return auth ? refreshOpenrouterCatalogue(auth.account.keySource, { force: true }) : Promise.resolve(null)
+  },
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
+const geminiSourceKind = (): 'oauth' | 'api-key' | undefined => {
+  const account = resolveGeminiAccount()
+  return account ? (account.kind === 'oauth' ? 'oauth' : 'api-key') : undefined
+}
+
+const GEMINI_ROAD: CatalogueRoad<GeminiCatalogueSnapshot> = {
+  family: 'Gemini',
+  identity: () => {
+    const sourceKind = geminiSourceKind()
+    return sourceKind ? `${sourceKind}:${geminiSourceIdentity(sourceKind)}` : undefined
+  },
+  cached: () => {
+    const sourceKind = geminiSourceKind()
+    return sourceKind ? getCachedGeminiCatalogue(sourceKind) : null
+  },
+  refresh: () => {
+    const sourceKind = geminiSourceKind()
+    return sourceKind ? refreshGeminiCatalogue(sourceKind, { force: true }) : Promise.resolve(null)
+  },
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
+const HUGGINGFACE_ROAD: CatalogueRoad<HuggingfaceCatalogueSnapshot> = {
+  family: 'Hugging Face',
+  identity: () => {
+    const credential = resolveHuggingfaceApiKey()
+    return credential ? `${credential.source}:${credentialFingerprint(credential.key)}` : undefined
+  },
+  cached: () => (resolveHuggingfaceApiKey() ? getCachedHuggingfaceCatalogue() : null),
+  refresh: () => (resolveHuggingfaceApiKey() ? refreshHuggingfaceCatalogue({ force: true }) : Promise.resolve(null)),
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
+const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
+  family: 'Local',
+  identity: () => {
+    const targets = localProbeTargets()
+    return targets.length === 0 ? undefined : targets.map(target => `${target.kind}=${target.root}`).join(',')
+  },
+  cached: () => getCachedLocalDiscovery(),
+  refresh: () => refreshLocalDiscovery({ force: true }),
+  populated: snapshot => snapshot.servers.some(server => server.models.length > 0),
+  failed: () => false,
+  changed: (before, after) => !isDeepStrictEqual(before.servers, after.servers),
+}
+
+function useCatalogueRefreshOnOpen<S>(road: CatalogueRoad<S>, setNotice: (notice: string) => void): void {
+  const identity = road.identity()
+  React.useEffect(() => {
+    if (identity === undefined) return
+    const before = road.cached()
+    let open = true
+    void road.refresh().then(snapshot => {
+      if (
+        open && before !== null && road.populated(before) && snapshot !== null && !road.failed(snapshot) &&
+        road.identity() === identity && road.cached() === snapshot && road.changed(before, snapshot)
+      ) {
+        setNotice(`${road.family} — the live list changed; rows updated`)
+      }
+    }, () => {})
+    return () => { open = false }
+  }, [road, identity, setNotice])
 }
 
 function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoice {
@@ -367,28 +500,11 @@ function MercuryModelWrapper({
   } | null>(null)
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
-  const gptSource = resolveOpenaiAccount()?.kind
-  const gptIdentity = gptSource === undefined ? undefined : `${gptSource}:${openaiSourceIdentity(gptSource)}`
-  React.useEffect(() => {
-    const account = resolveOpenaiAccount()
-    if (!account) return
-    const before = getCachedOpenaiCatalogue(account.kind)
-    let open = true
-    void refreshOpenaiCatalogue(account.kind, { force: true }).then(snapshot => {
-      if (
-        open && before && before.models.length > 0 && snapshot && !snapshot.lastError &&
-        resolveOpenaiAccount()?.kind === account.kind &&
-        getCachedOpenaiCatalogue(account.kind) === snapshot &&
-        !isDeepStrictEqual(
-          before.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
-          snapshot.models.toSorted((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity)),
-        )
-      ) {
-        setNotice('GPT — the live catalogue changed; the rows are updated')
-      }
-    })
-    return () => { open = false }
-  }, [gptIdentity])
+  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   const seatDetail = seatDetailOf
   const handleSlotSwitch = (group: string): string | null => slotSwitchOf(group, () => setSlotVersion(v => v + 1))
   const groupDetails: Record<string, string> = groupDetailsOf(seatDetail)

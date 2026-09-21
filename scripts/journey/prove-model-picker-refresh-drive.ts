@@ -123,7 +123,7 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: opening makes exactly one background models request within the cache span`, refreshes.length === 1 && refreshes[0]!.at >= openAt && refreshes[0]!.at - turn!.at < 300_000, `refresh requests ${refreshes.length}`)
     check(`${tag}: the new rows replace the old live rows in place`, liveAstra(after) && !liveTerra(after), after)
     check(`${tag}: focus stays on Sol after its row moves`, after.includes('gpt-5.6-sol · model IDs') || /❯\s+GPT-5\.6 Sol/.test(after))
-    if (after.includes('CHOOSE A MODEL')) check(`${tag}: the existing notice names the changed list`, after.includes('GPT — the live catalogue changed'))
+    if (after.includes('CHOOSE A MODEL')) check(`${tag}: the existing notice names the changed list`, after.includes('GPT — the live list changed'))
   } finally {
     fixture.kill('SIGTERM')
   }

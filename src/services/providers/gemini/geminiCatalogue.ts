@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import type { ModelOption } from '../../../utils/model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -225,7 +226,10 @@ export function refreshGeminiCatalogue(
       return snapshot
     } finally {
       catalogueInFlight.delete(identity)
-      bumpCatalogueEpoch()
+      const settled = catalogueCache.get(identity)
+      if (settled?.lastError !== cached?.lastError || !isDeepStrictEqual(settled?.models, cached?.models)) {
+        bumpCatalogueEpoch()
+      }
     }
   })()
   catalogueInFlight.set(identity, work)
