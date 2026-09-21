@@ -167,9 +167,9 @@ for (const [cols, rows] of SIZES) {
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'I trust this folder', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'trust', data: '\r' },
       { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'face', data: '\r' },
-      { requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'chat', data: '' },
+      { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'chat', data: '' },
     ]
-    writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 600, readySettleTicks: 3, stableTicks: 3, sends, readyText: ['· ready'], out }))
+    writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 600, readySettleTicks: 3, stableTicks: 3, sends, readyText: ['← back'], out }))
     const status = await new Promise<number>((resolveCapture, reject) => {
       execFile(driver.python, [captureEngineEntry(driver, ROOT), cfg], { env, cwd, timeout: vshotBudgetMs(240_000) }, (error, _stdout, stderr) => {
         if (error && !existsSync(out)) reject(new Error(`${error}\n${stderr}`))
