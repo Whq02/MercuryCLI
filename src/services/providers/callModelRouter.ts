@@ -14,6 +14,7 @@ import { geminiCallModel } from './gemini/geminiCallModel.js'
 import { huggingfaceCallModel } from './huggingface/huggingfaceCallModel.js'
 import { localCallModel } from './local/localCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
+import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 
 export {
   classifyModelRoute,
@@ -83,40 +84,41 @@ export const routedCallModel: typeof queryModelWithStreaming = async function* (
     })
     return
   }
+  const request = { ...params, messages: await readStoredImageRefsForRequest(params.messages) }
   if (verdict.kind === 'unrecognised') {
-    yield* homeLaneCall(params)
+    yield* homeLaneCall(request)
     return
   }
   switch (verdict.route) {
     case 'zai':
-      yield* zaiCallModel(params)
+      yield* zaiCallModel(request)
       return
     case 'openai':
-      yield* openaiCallModel(params)
+      yield* openaiCallModel(request)
       return
     case 'moonshot':
-      yield* moonshotCallModel(params)
+      yield* moonshotCallModel(request)
       return
     case 'deepseek':
-      yield* deepseekCallModel(params)
+      yield* deepseekCallModel(request)
       return
     case 'openai-compat':
-      yield* compatCallModel(params)
+      yield* compatCallModel(request)
       return
     case 'openrouter':
-      yield* openrouterCallModel(params)
+      yield* openrouterCallModel(request)
       return
     case 'gemini':
-      yield* geminiCallModel(params)
+      yield* geminiCallModel(request)
       return
     case 'huggingface':
-      yield* huggingfaceCallModel(params)
+      yield* huggingfaceCallModel(request)
       return
     case 'local':
-      yield* localCallModel(params)
+      yield* localCallModel(request)
       return
     case 'anthropic':
-      yield* homeLaneCall(params)
+      yield* homeLaneCall(request)
       return
   }
 }

@@ -4,6 +4,8 @@ import { open, mkdir, readdir, readFile, rm, rmdir, stat } from 'node:fs/promise
 import { join, resolve, sep } from 'node:path'
 
 import { getSessionId } from '../bootstrap/state.js'
+import type { Message } from '../types/message.js'
+import type { ContentBlockParam } from '../types/wire.js'
 import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
@@ -162,6 +164,49 @@ export async function readStoredImageRef(
   } catch {
     return { kind: 'missing', words: missingStoredImageWords(block.source.imageId, path) }
   }
+}
+
+const READ_BACK_MEMO_CAP = 16
+const readBackMemo = new Map<string, { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>()
+
+export async function readStoredImageRefBlock(block: StoredImageRefBlock): Promise<ContentBlockParam> {
+  const key = `${block.source.path}\n${block.source.sha256}`
+  const known = readBackMemo.get(key)
+  if (known !== undefined) return known as ContentBlockParam
+  const read = await readStoredImageRef(block)
+  if (read.kind === 'missing') return { type: 'text', text: read.words } as ContentBlockParam
+  while (readBackMemo.size >= READ_BACK_MEMO_CAP) {
+    const oldest = readBackMemo.keys().next()
+    if (oldest.done) break
+    readBackMemo.delete(oldest.value)
+  }
+  readBackMemo.set(key, read.block)
+  return read.block as ContentBlockParam
+}
+
+async function readStoredImageRefsInBlocks(blocks: readonly ContentBlockParam[]): Promise<ContentBlockParam[] | null> {
+  if (!blocks.some(isStoredImageRef)) return null
+  const out: ContentBlockParam[] = []
+  for (const block of blocks) out.push(isStoredImageRef(block) ? await readStoredImageRefBlock(block) : block)
+  return out
+}
+
+export async function readStoredImageRefsForRequest(messages: readonly Message[]): Promise<Message[]> {
+  const out: Message[] = []
+  for (const message of messages) {
+    if (message.type === 'user' && Array.isArray(message.message.content)) {
+      const content = await readStoredImageRefsInBlocks(message.message.content)
+      out.push(content === null ? message : { ...message, message: { ...message.message, content } })
+      continue
+    }
+    if (message.type === 'attachment' && message.attachment.type === 'queued_command' && Array.isArray(message.attachment.prompt)) {
+      const prompt = await readStoredImageRefsInBlocks(message.attachment.prompt)
+      out.push(prompt === null ? message : { ...message, attachment: { ...message.attachment, prompt } })
+      continue
+    }
+    out.push(message)
+  }
+  return out
 }
 
 
