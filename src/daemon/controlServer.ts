@@ -167,6 +167,7 @@ export interface ControlServerDeps {
       | 'stop-agent'
       | 'resume-agent'
       | 'withdraw-send'
+      | 'background-shell'
     sessionId: string
     by: string
     reason?: string
@@ -891,13 +892,14 @@ async function routeControlRequest(
         raw.action === 'set-spawn-switch' ||
         raw.action === 'stop-agent' ||
         raw.action === 'resume-agent' ||
-        raw.action === 'withdraw-send'
+        raw.action === 'withdraw-send' ||
+        raw.action === 'background-shell'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell, sessionId, by }' })
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {

@@ -27,6 +27,7 @@ export function focusedEffortLabelOf(
   sentEffort: string | null | undefined,
   effortValue: ReturnType<typeof parseEffortValue> | undefined,
   bornEffort: string | null = null,
+  askedMark = true,
 ): string {
   const born = bornEffortValueOf(seatEffort, bornEffort)
   if (born !== undefined) return String(born)
@@ -36,7 +37,7 @@ export function focusedEffortLabelOf(
   return typeof sentEffort === 'string'
     ? sentEffort
     : askedOnly
-      ? `${String(stamped)} (asked)`
+      ? askedMark ? `${String(stamped)} (asked)` : String(stamped)
       : seatResolution !== null
         ? seatResolution.label
         : getDisplayedEffortLabel(model, effortValue)
@@ -68,7 +69,7 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
             ? convertEffortValueToLevel(seatResolution.appliedValue)
             : getDisplayedEffortLevel(model, undefined)
           : getDisplayedEffortLevel(model, effortValue)
-  const label = focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue, bornEffort)
+  const label = focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue, bornEffort, false)
   if (plain) {
     const text = ` · effort ${label}`
     return stringWidth(text) <= maxWidth ? <Text color={SECOND}>{text}</Text> : null

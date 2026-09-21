@@ -3,10 +3,12 @@ import { OAuthService } from '../../../services/oauth/index.js'
 import {
   accountInfoFromTokens,
   createAndStoreApiKey,
+  fetchAndStoreUserRoles,
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo,
 } from '../../../services/oauth/client.js'
 import type { OAuthTokens } from '../../../services/oauth/types.js'
+import { CLAUDE_AI_PROFILE_SCOPE } from '../../../constants/oauth.js'
 import {
   loginShadowWarning,
   saveOAuthTokensIfNeeded,
@@ -104,6 +106,7 @@ export interface AnthropicLoginDeps {
   mintApiKey: (accessToken: string) => Promise<unknown>
   validateOrg: () => Promise<unknown>
   storeAccount: (account: AccountInfo) => void
+  fetchRoles?: (accessToken: string) => Promise<unknown>
   shadowWarning: () => string | null
   recordSignIn: (kind: SignInKind) => void
   settings: () => { forceLoginMethod?: 'claudeai' | 'console' | null; forceLoginOrgUUID?: string | null }
@@ -123,6 +126,7 @@ function liveDeps(): AnthropicLoginDeps {
     mintApiKey: accessToken => createAndStoreApiKey(accessToken),
     validateOrg: () => validateForceLoginOrg(),
     storeAccount: account => storeOAuthAccountInfo(account),
+    fetchRoles: accessToken => fetchAndStoreUserRoles(accessToken),
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),
     settings: () => getInitialSettings(),
@@ -224,6 +228,12 @@ export function createAnthropicLoginMachine(
       const saveWarning = saved.warning
       const landed = accountInfoFromTokens(tokens)
       if (landed !== undefined) deps.storeAccount(landed)
+      const fetchRoles = deps.fetchRoles
+      if (landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)) {
+        void Promise.resolve()
+          .then(() => fetchRoles(tokens.accessToken))
+          .catch(error => deps.log(error))
+      }
       if (!deps.usesClaudeAiAuth(tokens.scopes)) {
         setFlow({ name: 'creating-key' })
         const minted = await deps.mintApiKey(tokens.accessToken)

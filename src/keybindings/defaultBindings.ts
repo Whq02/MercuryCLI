@@ -44,6 +44,7 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
     bindings: {
       escape: 'chat:cancel',
       'ctrl+x ctrl+k': 'chat:killAgents',
+      'shift+b': 'chat:backgroundShell',
       [MODE_CYCLE_KEY]: 'chat:cycleMode',
       'meta+p': 'chat:modelPicker',
       'meta+t': 'chat:thinkingToggle',

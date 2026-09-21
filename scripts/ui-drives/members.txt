@@ -10,3 +10,7 @@ prove-gemini-busy-retry-drive.ts
 prove-model-default-key-drive.ts
 prove-trust-worktree-first-frames-drive.ts
 prove-files-menu-drive.ts
+prove-compact-notice-way-back-drive.ts
+prove-shell-background-key-drive.ts
+prove-contract-card-fits-drive.ts
+prove-failover-compact-rows-drive.ts

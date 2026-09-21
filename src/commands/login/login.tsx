@@ -9,7 +9,8 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { loginShadowWarning } from '../../utils/auth.js'
+import { getOauthAccountInfo, loginShadowWarning } from '../../utils/auth.js'
+import { loginSuccessReceipt } from '../../utils/accounts/loginReceipt.js'
 import { logError } from '../../utils/log.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
@@ -126,7 +127,8 @@ export async function call(
       if (success) {
         runPostLoginRefresh(context)
         const shadow = loginShadowWarning()
-        onDone(shadow ? `Login successful\n${shadow}` : 'Login successful', chain)
+        const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
+        onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
       } else {
         onDone('Login closed — no credential changed', chain)
       }

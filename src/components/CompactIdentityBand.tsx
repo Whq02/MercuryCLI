@@ -30,6 +30,9 @@ import {
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
 import {
   getFocusedSessionConnector,
+  hasFocusedSession,
+  landingInFlight,
+  subscribeFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
@@ -43,8 +46,13 @@ const getFocusedInFlight = (): boolean => {
   const connector = getFocusedSessionConnector()
   return hasSeatLive(connector) ? connector.live().inFlight : false
 }
+const getFocusedLanding = (): boolean => landingInFlight() && !hasFocusedSession()
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
+
+export function compactBandIdle(inFlight: boolean, landing: boolean): boolean {
+  return !inFlight && !landing
+}
 
 export function treeStateWord(git: Snapshot<{ data: GitData }> | null): string | null {
   if (git === null || git.data.git === null) return null
@@ -72,6 +80,8 @@ export function CompactIdentityBand(): React.ReactNode {
   const ctx = getLiveContextUsage()
   const turns = useSyncExternalStore(subscribeFocusedRecords, getFocusedTurnCount, getFocusedTurnCount)
   const inFlight = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedInFlight, getFocusedInFlight)
+  const landing = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedLanding, getFocusedLanding)
+  const idle = compactBandIdle(inFlight, landing)
   const cwd = useFocusedWorkspaceCwd()
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   useEffect(() => {
@@ -115,13 +125,13 @@ export function CompactIdentityBand(): React.ReactNode {
         <Text>
           <Text color={sa.accent}>{GLYPH.spark} </Text>
           <Wordmark greeting={false} />
-          {inFlight ? null : <Text color={tok.textMuted}> · </Text>}
+          {idle ? <Text color={tok.textMuted}> · </Text> : null}
         </Text>
       </Box>
-      {inFlight ? null : <Box flexShrink={0}><BreathingDot /></Box>}
+      {idle ? <Box flexShrink={0}><BreathingDot /></Box> : null}
       <Box flexShrink={1} minWidth={0}>
         <Text wrap="truncate-end">
-          {inFlight ? null : <Text color={tok.success}> ready</Text>}
+          {idle ? <Text color={tok.success}> ready</Text> : null}
           {tail}
         </Text>
       </Box>

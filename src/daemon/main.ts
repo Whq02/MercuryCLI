@@ -66,6 +66,7 @@ import {
   setSessionSpawnSwitch,
   withdrawSessionSend,
   relayCredentialChange,
+  backgroundSessionShell,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
@@ -721,6 +722,10 @@ async function daemonRun(args: string[]): Promise<void> {
             if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: 'withdraw-send requires clientMessageId' }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return withdrawSessionSend(sessionId, clientMessageId, roster)
+          }
+          if (action === 'background-shell') {
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return backgroundSessionShell(sessionId, roster)
           }
           if (action === 'stop') {
             if (roster !== null) {

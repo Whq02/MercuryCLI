@@ -129,6 +129,13 @@ async function signIn(tokens: Tokens, over: Partial<NonNullable<Parameters<typeo
 const storedOnFile = (): { emailAddress?: string; accountUuid?: string } | undefined =>
   (JSON.parse(readFileSync(join(HOME, '.mercury.json'), 'utf8')) as { oauthAccount?: { emailAddress?: string; accountUuid?: string } }).oauthAccount
 
+section('§0 the receipt words and the roles read')
+{
+  const { loginSuccessReceipt } = await import('../../src/utils/accounts/loginReceipt.js')
+  check('the transcript receipt names the account that signed in', loginSuccessReceipt(SECOND_EMAIL) === `Login successful — signed in as ${SECOND_EMAIL}`, loginSuccessReceipt(SECOND_EMAIL))
+  check('with no account on file the receipt is the bare line', loginSuccessReceipt(null) === 'Login successful' && loginSuccessReceipt('') === 'Login successful')
+}
+
 section('§1 the estate before the switch: the first account is stored and signed in')
 check('the stored account is the first one', getOauthAccountInfo()?.emailAddress === FIRST_EMAIL && getOauthAccountInfo()?.accountUuid === FIRST_UUID)
 check('the presence names the first account', anthropicCredentialPresence().identity === FIRST_EMAIL, JSON.stringify(anthropicCredentialPresence()))
@@ -152,6 +159,19 @@ check('the config file on disk carries the account that signed in', storedOnFile
 check('the sign-in epoch moved exactly once for the landed credential', signInLedgerEpoch() === epochBefore + 1, `${epochBefore} → ${signInLedgerEpoch()}`)
 check('a surface woken by the sign-in epoch already reads the account that signed in', seenAtWake.length === 1 && seenAtWake[0] === SECOND_EMAIL, JSON.stringify(seenAtWake))
 check('the usage store saw the credential switch before the receipt was composed', getUsageCredentialEpoch() > usageEpochBefore, `${usageEpochBefore} → ${getUsageCredentialEpoch()}`)
+
+section('§2b the in-app sign-in reads the account\'s roles with the landed token, so /status keeps the organisation after a switch')
+{
+  const rolesSeen: string[] = []
+  const roles = await signIn(tokensOf({ accessToken: 'fixture-roles-access-token-0004', profile: secondProfile, tokenAccount: { uuid: SECOND_UUID, emailAddress: SECOND_EMAIL, organizationUuid: 'org-second' } } as Partial<Tokens>), { fetchRoles: async (token: string) => { rolesSeen.push(token) } } as never)
+  check('the sign-in settled on success', roles.flow === 'success', JSON.stringify(roles))
+  check('the roles were read once, with the token that landed', rolesSeen.length === 1 && rolesSeen[0] === 'fixture-roles-access-token-0004', JSON.stringify(rolesSeen))
+  const logged: unknown[] = []
+  const refused = await signIn(tokensOf({ accessToken: 'fixture-roles-access-token-0005', profile: secondProfile, tokenAccount: { uuid: SECOND_UUID, emailAddress: SECOND_EMAIL, organizationUuid: 'org-second' } } as Partial<Tokens>), { fetchRoles: async () => { throw new Error('roles are not this token\'s to read') }, log: (error: unknown) => { logged.push(error) } } as never)
+  check('a roles read the token is not entitled to is logged and the sign-in still lands', refused.flow === 'success' && refused.label === SECOND_EMAIL && logged.length === 1, JSON.stringify({ refused, logged: logged.map(String) }))
+  const modelSource = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/screens/anthropicLoginModel.ts'), 'utf8')
+  check('the live deps read the roles through the one oauth owner, after the account is stored, only for a token with the profile scope, without holding the success', modelSource.includes('fetchRoles: accessToken => fetchAndStoreUserRoles(accessToken),') && modelSource.includes('if (landed !== undefined) deps.storeAccount(landed)') && modelSource.includes('.then(() => fetchRoles(tokens.accessToken))') && modelSource.indexOf('if (landed !== undefined) deps.storeAccount(landed)') < modelSource.indexOf('.then(() => fetchRoles(tokens.accessToken))') && modelSource.includes('tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)'))
+}
 
 section('§3 every surface that names the account reads the sign-in, with no /accounts in between')
 check('the presence owner names the account that signed in', anthropicCredentialPresence().identity === SECOND_EMAIL, JSON.stringify(anthropicCredentialPresence()))
