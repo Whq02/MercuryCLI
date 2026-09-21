@@ -96,7 +96,8 @@ async function drive(cols: number, rows: number): Promise<void> {
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
+    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: full ? '/critter full\r' : '', mark: 'design' },
+    { atTick: 999, awaitText: full ? '⊞ SESSIONS' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
     { afterPrevTicks: 3, data: 'show me a pricing table\r' },
     { atTick: 999, awaitText: 'Here it is.', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
     { atTick: 999, awaitText: full ? 'pricing table · v1' : '1 sample', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'sample' },
@@ -137,10 +138,11 @@ async function drive(cols: number, rows: number): Promise<void> {
     const mark = marks.get(label)
     return mark === undefined ? null : textRows(mark.grid)
   }
-  for (const label of ['idle', 'sample', 'marks', 'list', 'open', 'back']) {
+  for (const label of ['design', 'idle', 'sample', 'marks', 'list', 'open', 'back']) {
     const text = at(label)
     if (text !== null) printFrame(`${tag} ${label}`, text)
   }
+  const design = at('design') ?? []
   const idle = at('idle') ?? []
   const sample = at('sample') ?? []
   const marksText = at('marks') ?? []
@@ -148,6 +150,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   const back = at('back') ?? []
   const last = (text: string[]): string => text[text.length - 1] ?? ''
   if (full) {
+    check(`${tag}: with the small critter (the default) the SESSIONS bar is not painted`, design.length > 0 && !design.some(row => row.includes('⊞ SESSIONS')), JSON.stringify(design.find(row => row.includes('SESSIONS')) ?? ''))
     check(`${tag}: with no sample the SESSIONS bar is the bar of today`, idle.some(row => BAR_TODAY.test(row)), JSON.stringify(idle.find(row => row.includes('SESSIONS')) ?? ''))
     check(`${tag}: the sample takes a berth beside this session: its glyph, its name, its version`, sample.some(row => BAR_WITH_SAMPLE.test(row)), JSON.stringify(sample.find(row => row.includes('SESSIONS')) ?? ''))
     check(`${tag}: the bar keeps one row and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('SESSIONS')).length === 1)
