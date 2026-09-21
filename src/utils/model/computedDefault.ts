@@ -407,7 +407,7 @@ export async function readComputedDefaultCatalogue(): Promise<void> {
   if (family === undefined) return
   const { isKeyedCatalogueFamily, readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
   if (!isKeyedCatalogueFamily(family)) return
-  if (await readCatalogueIfPending(family)) resetComputedDefaultMemo()
+  if (await readCatalogueIfPending(family, { force: true })) resetComputedDefaultMemo()
 }
 
 export function resetComputedDefaultMemo(): void {
