@@ -158,12 +158,11 @@ for (const { road, model, label } of ROADS) {
   section(`${label} — (a) a burst 429 with a short Retry-After is waited out and the reply lands`)
   mode = 'burst'
   const burst = await drive(model)
-  const notice = notices(burst)[0]
   check(`${road}: two requests — the refusal, then the reply`, requestsOf(road, 'burst') === 2, `requests=${requestsOf(road, 'burst')} thrown=${burst.thrown}`)
   check(`${road}: the reply landed after the wait`, streamedText(burst).includes('the reply after busy') && apiErrorText(burst) === null, `${streamedText(burst).slice(0, 60)} | ${apiErrorText(burst)}`)
-  check(`${road}: ONE retry notice, carrying the provider's ask as the wait`, notices(burst).length === 1 && typeof notice?.retryInMs === 'number' && (notice.retryInMs as number) >= 1_000 && (notice.retryInMs as number) < 5_000, JSON.stringify(notices(burst).map(n => n.retryInMs)))
-  const facts = notice === undefined ? null : budget.recoveryNoticeFacts(notice)
-  check(`${road}: the notice reads as a refusal the provider asked for — what a dispatched agent's budget charges`, facts !== null && facts.kind === 'throttle' && facts.status === 429 && facts.providerDeclared === true && facts.cause === 'provider busy (HTTP 429)', JSON.stringify(facts))
+  check(`${road}: no retry notice — a wait the provider names rides the busy ladder, quiet inside its first thirty seconds`, notices(burst).length === 0, JSON.stringify(notices(burst).map(n => n.retryInMs)))
+  const stamp = burst.yielded.find(e => e.type === 'assistant' && (e as { busyRecovery?: unknown }).busyRecovery !== undefined) as { busyRecovery?: { retries?: number; status?: number; detail?: string } } | undefined
+  check(`${road}: the settled reply carries the recovery stamp — one retry, the provider's 429, its ask as the wait`, stamp?.busyRecovery?.retries === 1 && stamp.busyRecovery.status === 429 && /retried after 1 s, and the second request was answered\.$/.test(stamp.busyRecovery.detail ?? ''), JSON.stringify(stamp?.busyRecovery))
   check(`${road}: the ask was slept (a second or more between the refusal and the reply)`, burst.elapsedMs >= 1_000, String(burst.elapsedMs))
 
   section(`${label} — (b) a 429 asking for three hours is the provider's window: one request, the row names the wait`)

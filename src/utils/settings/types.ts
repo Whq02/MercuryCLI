@@ -221,6 +221,7 @@ export const SettingsSchema = lazySchema(() => {
     prefersReducedMotion: z.boolean().optional(),
     compactWayBack: z.boolean().optional(),
     backgroundKey: z.boolean().optional(),
+    critterSize: z.enum(['mini', 'full']).optional().catch(undefined),
     showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),
