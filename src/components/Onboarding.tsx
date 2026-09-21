@@ -57,6 +57,10 @@ const TERMINAL_WORDS = {
   later: 'not now; use /terminal-setup later',
 }
 
+const SIGN_IN_WORDS = {
+  intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM or DeepSeek. To add an API key from the terminal, run /router key <provider>.',
+}
+
 const FITTING_PATCH = {
   oldStart: 1,
   newStart: 1,
@@ -201,6 +205,7 @@ function ProviderStation({
     <Box flexDirection="column">
       <ConsoleOAuthFlow
         key={epoch}
+        startingMessage={SIGN_IN_WORDS.intro}
         onDone={onSignedIn}
         onCancel={onBack}
         onAbandonLeg={() => setEpoch(current => current + 1)}

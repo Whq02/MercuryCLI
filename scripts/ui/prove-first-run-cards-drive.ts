@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { firstRunCardsCentred } from '../../src/components/MercurySetupFrame.tsx'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -15,7 +16,13 @@ const arg = (name: string): string | undefined => {
 const ROOT = resolve(import.meta.dir, '../..')
 const DIST = resolve(arg('--dist') ?? join(ROOT, 'dist/mercury.mjs'))
 const FRAMES = arg('--frames')
-const SIZES = (arg('--sizes') ?? '178x51,120x40').split(',').map(size => size.split('x').map(Number) as [number, number])
+const sizesOf = (name: string, fallback: string): [number, number][] => {
+  const raw = arg(name) ?? fallback
+  return raw === 'none' ? [] : raw.split(',').map(size => size.split('x').map(Number) as [number, number])
+}
+const SIZES = sizesOf('--sizes', '178x51,120x40')
+const CLIPPED_SIZES = sizesOf('--clipped-sizes', '80x21,80x14,82x17')
+const LOGINS = (arg('--logins') ?? 'on') !== 'off'
 const STATES = (arg('--states') ?? 'centred,top-left').split(',')
 if (!existsSync(DIST)) {
   console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first, or name a bundle with --dist`)
@@ -172,27 +179,53 @@ function sameCard(on: Grid, onBox: Box, off: Grid, offBox: Box): { same: boolean
   return { same: true, mapped, first: '' }
 }
 
-async function walk(state: string, cols: number, rows: number): Promise<Record<Station, Grid> | null> {
-  const tag = `${state}-${cols}x${rows}`
+type Shot = { refusal: string | null; grid: Grid; marks: Array<{ label: string; grid: Grid }> }
+
+function homeFor(tag: string, state: string): string {
   const home = join(SCRATCH, `home-${tag}`)
   mkdirSync(home, { recursive: true })
   if (state !== 'centred') writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ firstRunCards: state })}\n`)
+  return home
+}
+
+async function capture(tag: string, home: string, cols: number, rows: number, sends: Send[], readyText: string[], total: number, extraEnv: NodeJS.ProcessEnv = {}): Promise<Shot> {
   const dir = join(SCRATCH, `capture-${tag}`)
   mkdirSync(dir, { recursive: true })
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: [node, DIST], cwd: work, cols, rows, total: 400, sends: WALK, readyText: ['trust · 5/5'], readySettleTicks: 3, stableTicks: 4, out: outPath }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [node, DIST], cwd: work, cols, rows, total, sends, readyText, readySettleTicks: 3, stableTicks: 4, out: outPath }))
   const refusal = await new Promise<string | null>((resolveRun, rejectRun) => {
-    execFile(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: childEnv(home), cwd: work, timeout: vshotBudgetMs(200_000), maxBuffer: 1 << 26 }, (error, _stdout, stderr) => {
+    execFile(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { env: { ...childEnv(home), ...extraEnv }, cwd: work, timeout: vshotBudgetMs(200_000), maxBuffer: 1 << 26 }, (error, _stdout, stderr) => {
       if (error && !existsSync(outPath)) rejectRun(new Error(`${String(error)}\n${stderr}`))
       else resolveRun(error ? String(stderr).split('\n').find(line => line.includes('[vshot]')) ?? String(error) : null)
     })
   })
-  if (refusal !== null) {
-    check(`${tag}: the walk reached every station`, false, refusal.slice(0, 200))
+  if (refusal !== null) return { refusal, grid: [], marks: [] }
+  const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> }
+  return { refusal: null, grid: payload.grid, marks: payload.marks ?? [] }
+}
+
+function sameGrid(a: Grid, b: Grid): string | null {
+  if (a.length !== b.length) return `${a.length} rows vs ${b.length}`
+  for (let y = 0; y < a.length; y++) {
+    for (let x = 0; x < a[y]!.length; x++) {
+      const p = a[y]![x]!
+      const q = b[y]?.[x]
+      if (!q || p.c !== q.c || p.fg !== q.fg || p.bg !== q.bg || p.bold !== q.bold || p.rev !== q.rev) return `row ${y} col ${x}: ${JSON.stringify(p)} vs ${JSON.stringify(q)}`
+    }
+  }
+  return null
+}
+
+async function walk(state: string, cols: number, rows: number): Promise<Record<Station, Grid> | null> {
+  const tag = `${state}-${cols}x${rows}`
+  const home = homeFor(tag, state)
+  const shot = await capture(tag, home, cols, rows, WALK, ['trust · 5/5'], 400)
+  if (shot.refusal !== null) {
+    check(`${tag}: the walk reached every station`, false, shot.refusal.slice(0, 200))
     return null
   }
-  const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> }
+  const payload = { grid: shot.grid, marks: shot.marks }
   const grids: Partial<Record<Station, Grid>> = { trust: payload.grid }
   for (const m of payload.marks ?? []) grids[m.label as Station] = m.grid
   const missing = STATIONS.filter(s => grids[s] === undefined)
@@ -263,6 +296,10 @@ try {
         if (station === 'theme' || station === 'provider' || station === 'terminal') {
           check(`${label}: the accent border is untouched`, grid[box.top]![box.left]!.fg !== AMBER_FG && grid[box.top]![box.left]!.fg !== BROWN_FG, grid[box.top]![box.left]!.fg)
         }
+        if (station === 'provider') {
+          const text = gridText(grid)
+          check(`${label}: the sign-in intro is the walk's own`, text.includes('Use a Claude or OpenAI subscription') && !text.includes('Mercury can run on a Claude'), text.split('\n').find(row => row.includes('subscription')) ?? 'no intro row')
+        }
       }
     }
     const on = shots.centred
@@ -277,6 +314,78 @@ try {
         check(`${size} ${station}: every cell inside the card is the shipped cell moved by (${onBox.top}, ${onBox.left})`, verdict.same && onBox.height === offBox.height, verdict.first)
         const wantMapped = station === 'guardrails' || station === 'trust'
         check(`${size} ${station}: ${wantMapped ? 'the amber cells took the brown' : 'no cell changed colour'}`, wantMapped ? verdict.mapped > 0 : verdict.mapped === 0, `${verdict.mapped} recoloured`)
+      }
+    }
+  }
+  for (const [cols, rows] of CLIPPED_SIZES) {
+    const size = `${cols}x${rows}`
+    console.log(`\n── ${size} · the theme card does not fit the rows: the shipped anchoring in both states`)
+    const shots: Partial<Record<string, Grid>> = {}
+    for (const state of STATES) {
+      const tag = `${state}-${size}-theme`
+      let shot: Shot
+      try {
+        shot = await capture(tag, homeFor(tag, state), cols, rows, [], ['Choose your theme'], 160)
+      } catch (err) {
+        check(`${tag}: the capture ran`, false, err instanceof Error ? err.message.slice(0, 400) : String(err))
+        continue
+      }
+      if (shot.refusal !== null) {
+        check(`${tag}: the theme card paints`, false, shot.refusal.slice(0, 200))
+        continue
+      }
+      const grid = shot.grid
+      shots[state] = grid
+      if (FRAMES !== undefined) {
+        writeFileSync(join(FRAMES, `${tag}.txt`), `${gridText(grid)}\n`)
+        writeFileSync(join(FRAMES, `${tag}.json`), JSON.stringify({ cols, rows, grid }))
+      }
+      const box = cardBox(grid)
+      check(`${tag}: one card box on the screen`, box !== null)
+      if (box === null) continue
+      check(`${tag}: the card is taller than the frame's cap and fills the ${rows - 1} usable rows`, box.height === rows - 1, `height ${box.height}`)
+      check(`${tag}: the card keeps the shipped anchoring (row 0, column 0)`, box.top === 0 && box.left === 0, `row ${box.top}, column ${box.left}`)
+    }
+    const on = shots.centred
+    const off = shots['top-left']
+    if (on && off) {
+      const first = sameGrid(on, off)
+      check(`${size} theme: where the card does not fit the rows, the centred frame is the shipped frame cell for cell`, first === null, first ?? '')
+    }
+  }
+  if (LOGINS) {
+    console.log(`\n── 178x51 · the cockpit's /logins card keeps the shipped intro; the walk's intro is the walk's own`)
+    const home = join(SCRATCH, 'home-logins')
+    mkdirSync(home, { recursive: true })
+    seedFirstRun(home, [work])
+    const sends: Send[] = [
+      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
+      { afterPrevTicks: 1, data: '/logins' },
+      { afterPrevTicks: 2, data: '\r' },
+    ]
+    let shot: Shot | null = null
+    try {
+      shot = await capture('logins-178x51', home, 178, 51, sends, ['Provider readiness'], 320, { ANTHROPIC_API_KEY: FIXTURE_API_KEY })
+    } catch (err) {
+      check('logins-178x51: the capture ran', false, err instanceof Error ? err.message.slice(0, 400) : String(err))
+    }
+    await new Promise<void>(done => {
+      execFile(node, [DIST, 'daemon', 'stop'], { env: { ...childEnv(home), ANTHROPIC_API_KEY: FIXTURE_API_KEY }, cwd: work, timeout: 30_000 }, () => done())
+    })
+    if (shot !== null) {
+      if (shot.refusal !== null) {
+        check('logins-178x51: the /logins card paints in the cockpit', false, shot.refusal.slice(0, 200))
+      } else {
+        const text = gridText(shot.grid)
+        if (FRAMES !== undefined) {
+          writeFileSync(join(FRAMES, 'logins-178x51.txt'), `${text}\n`)
+          writeFileSync(join(FRAMES, 'logins-178x51.json'), JSON.stringify({ cols: 178, rows: 51, grid: shot.grid }))
+        }
+        const introRow = text.split('\n').find(row => row.includes('subscription')) ?? 'no intro row'
+        check('logins-178x51: the /logins card opens in the cockpit', text.includes('Sign in') && text.includes('Provider readiness'))
+        check('logins-178x51: the /logins intro reads as shipped', text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
+        check(`logins-178x51: the walk's intro does not reach /logins`, !text.includes('Use a Claude or OpenAI subscription'), introRow)
       }
     }
   }

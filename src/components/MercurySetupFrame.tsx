@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { useState } from 'react'
-import { Box, Text } from '../ink.js'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { Box, Text, measureElement } from '../ink.js'
+import type { DOMElement } from '../ink.js'
 import { useSettingsMaybe } from '../hooks/useSettings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Crab, Wordmark } from './mercury-ui/assets.js'
@@ -54,6 +55,17 @@ export function MercurySetupFrame({
   const [notesOpen, setNotesOpen] = useState(false)
   const frameCap = Math.max(8, rows - 1)
   const gap = rows >= 28 ? 1 : 0
+  const bodyViewportRef = useRef<DOMElement | null>(null)
+  const bodyRef = useRef<DOMElement | null>(null)
+  const [clipped, setClipped] = useState(false)
+  useLayoutEffect(() => {
+    if (!centred) return
+    const viewport = bodyViewportRef.current
+    const body = bodyRef.current
+    if (!viewport || !body) return
+    const next = measureElement(body).height > measureElement(viewport).height - gap
+    if (next !== clipped) setClipped(next)
+  })
 
   const railGlyph = (s: SetupRailStep): React.ReactNode => {
     if (s.state === 'done') return <Text color={tokens.success}>{GLYPH.done}</Text>
@@ -113,8 +125,8 @@ export function MercurySetupFrame({
       </Box>
       {
 }
-      <Box flexDirection="column" paddingTop={gap} overflowY="hidden">
-        <Box flexDirection="column" flexShrink={0}>
+      <Box ref={bodyViewportRef} flexDirection="column" paddingTop={gap} overflowY="hidden">
+        <Box ref={bodyRef} flexDirection="column" flexShrink={0}>
           {children}
         </Box>
       </Box>
@@ -160,7 +172,7 @@ export function MercurySetupFrame({
       width="100%"
       height={frameCap}
       justifyContent="center"
-      alignItems={width <= columns ? 'center' : 'flex-start'}
+      alignItems={width <= columns && !clipped ? 'center' : 'flex-start'}
     >
       {stationCard}
     </Box>
