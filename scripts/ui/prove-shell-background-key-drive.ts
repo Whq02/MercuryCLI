@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ADMITTED, check, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback, printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg } from '../computer/computerDriveKit.ts'
@@ -10,6 +10,57 @@ type Cell = { c: string }
 type Grid = Cell[][]
 type Mark = { label: string; atTick: number; cols: number; rows: number; grid: Grid }
 type Leg = Awaited<ReturnType<typeof startLeg>>
+type Hold = { pid: number | null; heldAtMs: number | null; heldAtTick: number | null; release: () => void }
+
+function liveRunnerPids(home: string): number[] {
+  try {
+    const raw = JSON.parse(readFileSync(join(home, 'daemon', 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { pid?: number; endedAt?: number }> }
+    return Object.values(raw.workers ?? {}).filter(rec => rec.endedAt === undefined && typeof rec.pid === 'number').map(rec => rec.pid as number)
+  } catch {
+    return []
+  }
+}
+
+function runnerRunningShell(pids: readonly number[]): number | null {
+  const table = spawnSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' }).stdout ?? ''
+  const parent = new Map<number, number>()
+  const shells: number[] = []
+  for (const line of table.split('\n')) {
+    const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)
+    if (m === null) continue
+    parent.set(Number(m[1]), Number(m[2]))
+    if (m[3]!.startsWith('sleep 40')) shells.push(Number(m[1]))
+  }
+  for (const shell of shells) {
+    for (let cur = shell, hops = 0; hops < 8 && cur > 1; hops++) {
+      const up = parent.get(cur)
+      if (up === undefined) break
+      if (pids.includes(up)) return up
+      cur = up
+    }
+  }
+  return null
+}
+
+async function holdRunnerOnceItsShellRuns(leg: Leg, giveUpMs = 90_000): Promise<Hold> {
+  const started = Date.now()
+  let pid: number | null = null
+  while (pid === null && Date.now() - started < giveUpMs) {
+    pid = runnerRunningShell(liveRunnerPids(leg.home))
+    if (pid === null) await new Promise(resolve => setTimeout(resolve, 200))
+  }
+  if (pid === null) return { pid: null, heldAtMs: null, heldAtTick: null, release: () => {} }
+  let released = false
+  const release = (): void => {
+    if (released) return
+    released = true
+    try { process.kill(pid as number, 'SIGCONT') } catch {}
+  }
+  try { process.kill(pid, 'SIGSTOP') } catch { return { pid, heldAtMs: null, heldAtTick: null, release } }
+  const heldAtMs = Date.now()
+  setTimeout(release, 30_000).unref?.()
+  return { pid, heldAtMs, heldAtTick: null, release }
+}
 
 const driver = requireCaptureDriver('shell-background-key')
 const COLS = 178
@@ -29,7 +80,7 @@ const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).joi
 const tailRow = (rows: string[]): string => rows.find(r => r.includes(keyHintLabel('⇧← back'))) ?? ''
 const composerRow = (rows: string[]): string => rows.find(r => /^│❯ /.test(r)) ?? ''
 
-async function capture(tag: string, keyOn: boolean, sends: unknown[]): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg }> {
+async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (leg: Leg) => Promise<Hold>): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg; hold: Hold | null }> {
   const leg = await startLeg(tag, [
     { kind: 'paced_tool_use', preDeltas: ['Running ', 'the long ', 'command ', 'now, ', LAST_WORDS], gapMs: 1500, tools: [{ name: 'Bash', input: { command: COMMAND, description: 'a long command' } }] },
     { kind: 'text', text: `${FINISHED}.` },
@@ -40,6 +91,8 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[]): Promise<{
   const log = join(scratch, `${tag}-engine.log`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, ...SOVEREIGN_ARGV], cwd: ROOT, cols: COLS, rows: ROWS, sends, resizes: [], total: 360, out }))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const startedAtMs = Date.now()
+  const holding = aside === undefined ? null : aside(leg)
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })
@@ -49,12 +102,15 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[]): Promise<{
     child.once('close', code => { clearTimeout(wall); resolve(code) })
   })
   writeFileSync(log, output)
+  const hold = holding === null ? null : await holding
+  hold?.release()
+  if (hold !== null) hold.heldAtTick = hold.heldAtMs === null ? null : Math.round((hold.heldAtMs - startedAtMs) / 200)
   const marks = new Map<string, Mark>()
   if (existsSync(out)) {
     const payload = JSON.parse(readFileSync(out, 'utf8')) as { marks?: Mark[] }
     for (const mark of payload.marks ?? []) marks.set(mark.label, mark)
   }
-  return { marks, status, log, leg }
+  return { marks, status, log, leg, hold }
 }
 
 const opening = [
@@ -129,6 +185,45 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
     }
     check('off: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {
+    await endLeg(run.leg)
+  }
+}
+
+{
+  const REFUSAL = "the session's runner did not answer the background-shell within 10s"
+  const run = await capture('shell-background-refused', true, [
+    ...opening,
+    { atTick: 999, awaitText: 'background the command', minTick: 2, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'running' },
+    { afterPrevTicks: 45, data: 'B' },
+    { afterPrevTicks: 5, data: '', mark: 'pressed' },
+    { afterPrevTicks: 60, data: '', mark: 'refused' },
+    { afterPrevTicks: 15, data: '', mark: 'later' },
+  ], holdRunnerOnceItsShellRuns)
+  try {
+    check('refused: the boot, the plain call, the running shell, the press and the answer all painted (engine exit 0)', run.status === 0 && ['running', 'pressed', 'refused', 'later'].every(l => run.marks.has(l)), `exit=${run.status}; ${run.log}`)
+    const pressed = run.marks.get('pressed')
+    const refused = run.marks.get('refused')
+    const later = run.marks.get('later')
+    check('refused: the runner was held while its shell command ran, before ⇧b was pressed', run.hold !== null && run.hold.pid !== null && run.hold.heldAtTick !== null && pressed !== undefined && run.hold.heldAtTick < pressed.atTick - 5, JSON.stringify({ pid: run.hold?.pid, heldAtTick: run.hold?.heldAtTick, pressedAtTick: pressed?.atTick }))
+    if (pressed !== undefined) {
+      const rows = textRows(pressed.grid)
+      printFrame('refused · a second after ⇧b, the seat still waiting on the held runner', rows)
+      check('refused · after the press: the command still runs and no answer has come yet', rows.indexOf(HINT_ROW) > 0 && !rows.some(r => r.includes(REFUSAL)) && !joined(rows).includes(FINISHED), JSON.stringify(rows.filter(r => r.includes('runner'))))
+    }
+    if (refused !== undefined) {
+      const rows = textRows(refused.grid)
+      printFrame('refused · the seat\'s answer on the notice row', rows)
+      const at = rows.findIndex(r => r.includes(REFUSAL))
+      check('refused: the seat\'s own sentence reaches the operator on the row under the composer', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2)))
+      check('refused: the command was not moved — the turn is still open and the ready line still names ⇧b', !joined(rows).includes(FINISHED) && tailRow(rows).endsWith(TAIL_RUNNING), JSON.stringify(tailRow(rows)))
+    }
+    if (later !== undefined) {
+      const rows = textRows(later.grid)
+      check('refused · three seconds on: the sentence still stands (the channel\'s own clock, no clock of the chord\'s)', rows.some(r => r.includes(REFUSAL)), JSON.stringify(rows.filter(r => r.includes('runner'))))
+    }
+    check('refused: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0)
+  } finally {
+    run.hold?.release()
     await endLeg(run.leg)
   }
 }

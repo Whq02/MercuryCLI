@@ -94,5 +94,21 @@ check('the chord rides the Chat context, armed only while a shell runs and the k
 const settings = read('src/utils/settings/types.ts')
 check('the setting is declared in the settings store', settings.includes('backgroundKey: z.boolean().optional()'))
 
+section('§7 the receipt — an applied verb paints nothing; a refusal paints the connector\'s own sentence on the notice row')
+const hook = (await import('../../src/hooks/useCancelRequest.ts')) as { backgroundShellNotice?: (receipt: { outcome: 'applied' | 'refused'; detail?: string }) => { key: string; text?: string; priority: string; timeoutMs?: number } | null }
+const notice = hook.backgroundShellNotice
+check('the chord\'s receipt reader is exported from the hook', typeof notice === 'function')
+if (typeof notice === 'function') {
+  check('applied (the runner took the command): nothing is painted — the canvas shows the move', notice({ outcome: 'applied', detail: '{"taken":1}' }) === null && notice({ outcome: 'applied' }) === null)
+  const older = "this session's runner predates shift+B · /daemon restart, then reopen the session"
+  const painted = notice({ outcome: 'refused', detail: older })
+  check('refused by an older runner: the seat\'s sentence itself, immediate, on the notice row, on the channel\'s own clock', painted !== null && painted.text === older && painted.priority === 'immediate' && painted.key === 'background-shell' && painted.timeoutMs === undefined, JSON.stringify(painted))
+  for (const detail of ['no shell command is running in the main conversation', "the session's runner did not answer the background-shell within 10s", 'the session has no live control channel', 'the daemon is not answering — connect ECONNREFUSED', 'no chat is open — ↵ New Session on the boot menu starts one']) {
+    const row = notice({ outcome: 'refused', detail })
+    check(`refused: "${detail.slice(0, 44)}" reaches the row verbatim`, row !== null && row.text === detail, JSON.stringify(row))
+  }
+}
+check('the chord reads the receipt through the reader into the notification road; no discarded promise', cancel.includes('void focused.backgroundShell().then(receipt => {') && cancel.includes('const notice = backgroundShellNotice(receipt)') && cancel.includes('if (notice !== null) addNotification(notice)') && !cancel.includes('void focused.backgroundShell()\n'))
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} shell-background-words — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)
