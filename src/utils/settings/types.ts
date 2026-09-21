@@ -218,6 +218,7 @@ export const SettingsSchema = lazySchema(() => {
       .optional(),
     syntaxHighlightingDisabled: z.boolean().optional(),
     prefersReducedMotion: z.boolean().optional(),
+    firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
     showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),
