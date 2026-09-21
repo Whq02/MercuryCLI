@@ -22,6 +22,7 @@ export function isModelAlias(value: string): value is ModelAlias {
 export const AGENT_DISPATCH_MODELS = [
   'sonnet',
   'opus',
+  'haiku',
   'fable',
   'fable51',
   'sonnet[1m]',
@@ -30,9 +31,3 @@ export const AGENT_DISPATCH_MODELS = [
 ] as const
 
 export type AgentDispatchModel = (typeof AGENT_DISPATCH_MODELS)[number]
-
-export const MODEL_FAMILY_ALIASES = ['sonnet', 'opus', 'haiku'] as const
-
-export function isModelFamilyAlias(value: string): boolean {
-  return (MODEL_FAMILY_ALIASES as readonly string[]).includes(value)
-}

@@ -3,7 +3,6 @@ import { findTeammateTaskByAgentId } from '../../../tasks/InProcessTeammateTask/
 import { requestTeammateShutdown } from '../../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { formatAgentId, parseAgentId } from '../../agentId.js'
 import { logForDebugging } from '../../debug.js'
-import { enforceSubagentModelFloor } from '../../model/modelFloor.js'
 import { createShutdownRequestMessage, writeToMailbox } from '../../teammateMailbox.js'
 import { TEAM_LEAD_NAME } from '../constants.js'
 import { startInProcessTeammate } from '../inProcessRunner.js'
@@ -73,7 +72,7 @@ export class InProcessBackend implements TeammateExecutor {
         toolUseContext: { ...this.context, messages: [] },
         abortController: spawnResult.abortController,
         ...(config.model !== undefined
-          ? { model: enforceSubagentModelFloor(config.model, 'inProcessTeammateSpawn') }
+          ? { model: config.model }
           : {}),
         ...(config.systemPrompt !== undefined ? { systemPrompt: config.systemPrompt } : {}),
         ...(config.systemPromptMode !== undefined

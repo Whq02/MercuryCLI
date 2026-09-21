@@ -424,7 +424,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check("openai: model is the exact resolved id", gptPlan.model === 'gpt-5.6-sol')
   check("openai: real definition resolved", gptPlan.definition === (GENERAL as never))
   check("openai: engine backend recorded", gptPlan.engineBackend === 'openai')
-  check('openai: no floor note fired', gptPlan.flooredFrom === undefined)
+  check('openai: the note names the engine', (gptPlan.modelNote ?? '').startsWith('engine:'), gptPlan.modelNote ?? 'undefined')
   check(
     'openai: no specialist tool denials on the plan (spawn surfaces kept)',
     !('engineToolDenials' in gptPlan),

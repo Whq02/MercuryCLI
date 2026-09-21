@@ -6,7 +6,6 @@ import { registerCleanup } from '../../cleanupRegistry.js'
 import { logForDebugging } from '../../debug.js'
 import { errorMessage } from '../../errors.js'
 import { logError } from '../../log.js'
-import { enforceSubagentModelFloor } from '../../model/modelFloor.js'
 import { createShutdownRequestMessage, writeToMailbox } from '../../teammateMailbox.js'
 import { TEAM_LEAD_NAME } from '../constants.js'
 import { buildInheritedCliFlags, buildInheritedEnvVars, getTeammateCommand } from '../spawnUtils.js'
@@ -83,8 +82,7 @@ export class PaneBackendExecutor implements TeammateExecutor {
         const tokens = inheritedFlags.split(' ')
         const modelIndex = tokens.indexOf('--model')
         if (modelIndex !== -1) tokens.splice(modelIndex, 2)
-        const floored = enforceSubagentModelFloor(config.model, 'paneTeammateSpawn')
-        inheritedFlags = `${tokens.join(' ')} --model ${quote([floored])}`.trim()
+        inheritedFlags = `${tokens.join(' ')} --model ${quote([config.model])}`.trim()
       }
 
       const command = `cd ${quote([config.cwd])} && env ${buildInheritedEnvVars()} ${quote([getTeammateCommand()])} ${identityFlags.join(' ')}${inheritedFlags.length > 0 ? ` ${inheritedFlags}` : ''}`

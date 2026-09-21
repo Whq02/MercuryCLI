@@ -17,8 +17,6 @@ import { ALL_MODEL_CONFIGS, newestGenerationKey } from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
-import { enforceSubagentModelFloor } from './modelFloor.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export type ModelShortName = string
 export type ModelName = string
@@ -185,11 +183,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
 export function getMainLoopModel(): string {
   const setting = getUserSpecifiedModelSetting()
   const fromDefault = setting === null
-  const resolved = fromDefault ? getDefaultMainLoopModel() : parseUserSpecifiedModel(setting)
-  if (fromDefault && flagEnv('MERCURY_WORKER_PARENT_PID')) {
-    return enforceSubagentModelFloor(resolved, 'daemon:worker-loop')
-  }
-  return resolved
+  return fromDefault ? getDefaultMainLoopModel() : parseUserSpecifiedModel(setting)
 }
 
 

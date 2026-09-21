@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
 import type { AgentDefinition, CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
-import { isHaikuTier } from '../../src/utils/model/modelFloor.js'
 import { anthropicProviderAdapter } from '../../src/utils/router/providers/anthropic.js'
 import { openaiProviderAdapter } from '../../src/utils/router/providers/openai.js'
 import { zaiProviderAdapter } from '../../src/utils/router/providers/zai.js'
@@ -137,13 +136,8 @@ section('2 · buildAgentLaunchPlan — decision laws')
   check("definition permissionMode wins ('strategy')", modeDef.workerPermissionMode === 'strategy')
 
   const haikuPlan = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
-  check('haiku definition pin is floored (result is not Haiku-tier)', !isHaikuTier(haikuPlan.model), haikuPlan.model)
-  check('flooredFrom records the pre-floor resolution', typeof haikuPlan.flooredFrom === 'string' && haikuPlan.flooredFrom.length > 0, haikuPlan.flooredFrom ?? '')
-  check(
-    "modelNote surfaces the never-Haiku floor (never silent)",
-    (haikuPlan.modelNote ?? '').includes("never-Haiku floor"),
-    haikuPlan.modelNote ?? 'undefined',
-  )
+  check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)
+  check('no note rides a plain resolution', haikuPlan.modelNote === undefined, haikuPlan.modelNote ?? 'undefined')
 
   const forkPlan = buildAgentLaunchPlan(base({ requestedType: undefined, forkGateOn: true }))
   check('fork path resolves the injected fork definition', forkPlan.isForkPath && forkPlan.agentType === 'orbit-fork')

@@ -1,6 +1,5 @@
 import { getContextWindowForModel } from '../context.js'
 import { getCanonicalName, parseUserSpecifiedModel } from '../model/model.js'
-import { isHaikuTier } from '../model/modelFloor.js'
 import { SEAT_ALLOWED_FAMILIES } from '../model/seatSlots.js'
 import { anthropicProviderAdapter } from './providers/anthropic.js'
 import { geminiProviderAdapter } from './providers/gemini.js'
@@ -120,11 +119,9 @@ function composeRouterModelSnapshot(): RouterModelSnapshot {
   function resolveExact(pin: string): RouteModelRef | null {
     const trimmed = pin?.trim()
     if (!trimmed) return null
-    if (isHaikuTier(trimmed)) return null
     const lowered = trimmed.toLowerCase()
     if (lowered === 'sonnet' || lowered === 'sonnet[1m]') return null
     const resolved = parseUserSpecifiedModel(trimmed)
-    if (isHaikuTier(resolved)) return null
     const canonical = getCanonicalName(resolved)
     if (!SEAT_ALLOWED_FAMILIES.includes(canonical)) return null
     const modelClass = classForCanonical(canonical)

@@ -11,7 +11,6 @@ import { agentStateClassifierEnabled } from '../../services/agentStateHeuristic.
 import { isInvocationTraceEnabled } from '../observability/invocationTrace.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
-import { NEVER_HAIKU_FALLBACK, recentFloorEvents } from '../model/modelFloor.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
 import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
@@ -71,21 +70,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
           !isEnvDefinedFalsy(flagEnv('MERCURY_SKILL_SELF_AUTH'))
             ? 'skill-declared allowlists merge (opt out =0)'
             : 'MERCURY_SKILL_SELF_AUTH off — skills prompt like any tool',
-      },
-      {
-        name: 'Delegated-model floor',
-        on: true,
-        hint: (() => {
-          const fired = recentFloorEvents()
-          const last = fired[fired.length - 1]
-          return last
-            ? truncateToWidth(
-                `fired ×${fired.length} · last: ${last.origin} '${last.blocked}' → ${last.fallback}`,
-                46,
-              )
-            :
-              `agents: never Haiku → ${NEVER_HAIKU_FALLBACK.replace(/^claude-/, '')}`
-        })(),
       },
     ],
   }

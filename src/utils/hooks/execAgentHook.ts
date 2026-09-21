@@ -13,7 +13,6 @@ import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { createUserMessage, handleMessageFromStream } from '../messages.js'
 import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import { sessionLightModel } from '../model/providerFrontier.js'
-import { enforceSubagentModelFloor } from '../model/modelFloor.js'
 import { logForDebugging } from '../debug.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { getAgentTranscriptPath, getTranscriptPathForSession } from '../sessionStorage.js'
@@ -73,7 +72,7 @@ export async function execAgentHook(
       createStructuredOutputTool(),
     ]
 
-    const model = enforceSubagentModelFloor(hook.model ?? sessionLightModel(), 'hook-agent')
+    const model = hook.model ?? sessionLightModel()
 
     const prompt = addArgumentsToPrompt(hook.prompt, jsonInput)
     const systemPrompt = asSystemPrompt([

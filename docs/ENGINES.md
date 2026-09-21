@@ -174,16 +174,16 @@ silently fall through to another provider — each runtime owns honest, typed re
   port;
 - sub-model containers surface the owning catalogue's refusal reasons verbatim.
 
-Two vocabularies decide what may run where, and what a picker shows is what
+One vocabulary decides what may run where, and what a picker shows is what
 dispatch allows. The
 **session** arm is pure product capability: a session dispatches on every family
-the account holds a credential for, the economy tier included; a family with no
+the account holds a credential for, every tier included; a family with no
 credential refuses typed (`no-credential:<family>`) with the one action that fixes
 it riding the refusal — except the account-less local family, whose miss is a gone
 server, not a missing credential: it refuses `unreachable:local` with the probe
-route. The **crew** arm is the bounded crew's narrower vocabulary:
-economy-tier rows refuse typed (`worker-policy:frontier-only`), and engine rows
-refuse typed until the crew runtimes take them. Every refusal names its class and
+route. The **crew** arm carries the same verdict row for row: a crew teammate is
+the same product child a session runs, so every row a session may run, a crew
+seat may run. Every refusal names its class and
 carries one machine-readable action line — a coordinator or operator relays the
 real fix, never an invented reason.
 

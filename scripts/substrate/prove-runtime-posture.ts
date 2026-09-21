@@ -64,7 +64,7 @@ section('interactive posture (the default)')
   check('kills labeled "at boot" + live surface named', /at boot/.test(text) && /\/substrate/.test(text))
   check('no kills armed ⇒ says none', /kills armed at boot: none/.test(text))
   check('MCP posture stated (permissive without a cap)', /MCP tool-risk policy: permissive/.test(text))
-  check('model floor stated with the fallback tier', /claude-sonnet-5/.test(text))
+  check('no agent-model floor is stated (nothing substitutes a chosen model)', !/floor/i.test(text) && !/Haiku/.test(text))
   check('MEMOIZED — second call returns the identical string', getRuntimePostureSection() === s)
 }
 

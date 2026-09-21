@@ -486,7 +486,6 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
 {
   const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
   const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
-  const { isHaikuTier } = await import('../../src/utils/model/modelFloor.js')
   const fixture: import('../../src/utils/model/modelOptions.ts').ModelOption[] = [
     { value: '__mercury_anthropic_connect__', label: 'Claude — sign in', description: '↵ runs /logins anthropic' },
     { value: 'fable', label: 'Fable', description: '' },
@@ -502,7 +501,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   ]
   const rows = getAgentModelPickerRows(fixture)
   t.check('inherit leads — the agent grammar\'s own default row', rows[0]?.kind === 'inherit' && rows[0]?.value === 'inherit')
-  const expected = fixture.filter(opt => !isHaikuTier(opt.value))
+  const expected = fixture
   t.check(
     'picker rows contain every eligible catalogue row in order',
     JSON.stringify(rows.slice(1).map(r => r.value)) === JSON.stringify(expected.map(o => o.value)),
@@ -538,8 +537,8 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
         { value: 'claude-opus-5', label: 'Opus 5', description: 'large' },
       ])
       t.check(
-        'a row valued as the haiku-slot PIN is excluded (the alias resolves to that string at dispatch)',
-        JSON.stringify(pinned.slice(1).map(r => r.value)) === JSON.stringify(['claude-opus-5']),
+        'a row valued as the haiku-slot PIN is offered like any other row',
+        JSON.stringify(pinned.slice(1).map(r => r.value)) === JSON.stringify(['fastcheap-gw-v1', 'claude-opus-5']),
         pinned.map(r => r.value).join(' · '),
       )
     } finally {
@@ -553,28 +552,21 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('picking a connect row routes to sign-in', agentModelPickOutcome(rows.find(r => r.value === '__mercury_connect__:zai')!).kind === 'needs-sign-in')
 
   {
-    const { getAgentModelWithFloorNote } = await import('../../src/utils/model/agent.js')
+    const { getAgentModel } = await import('../../src/utils/model/agent.js')
     const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.js')
     const PARENT = 'claude-opus-5'
     t.check(
-      'every offered model row dispatches UN-floored and deterministically',
-      rows
-        .filter(r => r.kind === 'model')
-        .every(r => {
-          const note = getAgentModelWithFloorNote(r.value, PARENT)
-          return note.flooredFrom === undefined && note.model.length > 0
-        }),
+      'every offered model row dispatches deterministically',
+      rows.filter(r => r.kind === 'model').every(r => getAgentModel(r.value, PARENT).length > 0),
     )
     t.check(
-      'the excluded haiku spellings are exactly the floored class',
-      ['haiku', 'claude-haiku-4-5-20251001'].every(
-        v => isHaikuTier(v) && getAgentModelWithFloorNote(v, PARENT).flooredFrom !== undefined,
-      ),
+      'the haiku spellings resolve to the haiku row',
+      ['haiku', 'claude-haiku-4-5-20251001'].every(v => /haiku/.test(getAgentModel(v, PARENT))),
     )
     t.check(
       'a hand-saved sentinel never lands a family silently (unrecognised, refused at admission)',
       ['__mercury_test_sentinel__', '__mercury_connect__:zai'].every(
-        v => classifyModelRoute(getAgentModelWithFloorNote(v, PARENT).model).kind === 'unrecognised',
+        v => classifyModelRoute(getAgentModel(v, PARENT)).kind === 'unrecognised',
       ),
     )
   }
@@ -644,10 +636,9 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
   t.check('the chat inspector wears it', studioSrc2.includes('agentModelAvailabilityNote(agent.operatorOverride?.model ?? agent.model)'))
   t.check('the face dossier and form wear it', faceSrc3.includes('availabilityNote: string | null = null') && faceSrc3.includes('agentModelAvailabilityNote(snap.doc.fields.model)'))
   t.check(
-    "the face FORM's runs: line rides the resolved runtime with the floor named",
+    "the face FORM's runs: line rides the resolved runtime",
     faceSrc3.includes('effectiveStudioRuntime({') &&
-      faceSrc3.includes('${effRun.modelIntent} → ${effRun.model}') &&
-      faceSrc3.includes('floored from ${effRun.flooredFrom}'),
+      faceSrc3.includes('${effRun.modelIntent} → ${effRun.model}'),
   )
   t.check("availability never joins the save gate (the machine's validation is availability-blind)", !modelSrc.includes('agentModelAvailabilityNote'))
   {

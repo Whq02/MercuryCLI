@@ -1,5 +1,7 @@
 import { getSettings_DEPRECATED } from '../settings/settings.js'
-import { isModelAlias, isModelFamilyAlias, MODEL_FAMILY_ALIASES } from './aliases.js'
+import { classifyModelRoute } from '../../services/providers/idSpaces.js'
+import { isModelAlias } from './aliases.js'
+import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
 import { parseUserSpecifiedModel } from './model.js'
 import { resolveOverriddenModel } from './modelStrings.js'
 
@@ -10,12 +12,24 @@ function normalize(value: string): string {
   return value.trim().toLowerCase().replace(CONTEXT_SUFFIX_RE, '')
 }
 
-function hasMoreSpecificEntry(family: string, entries: string[]): boolean {
-  return entries.some(
-    entry =>
-      !isModelFamilyAlias(entry) &&
-      (entry.includes(`${family}-`) || entry.endsWith(family)),
-  )
+function resolvedOf(value: string): string {
+  return isModelAlias(value) ? normalize(parseUserSpecifiedModel(value)) : value
+}
+
+function inFamily(word: string, resolved: string): boolean {
+  const route = routeOfFamilyWord(word)
+  const verdict = classifyModelRoute(resolved)
+  if (route !== null) return verdict.kind === 'route' && verdict.route === route
+  if (!FIRST_PARTY_FAMILY_WORDS.has(word)) return false
+  return verdict.kind === 'route' && verdict.route === 'anthropic' && resolved.includes(word)
+}
+
+function hasMoreSpecificEntry(word: string, entries: string[]): boolean {
+  return entries.some(entry => {
+    if (isModelFamilyWord(entry)) return false
+    if (inFamily(word, resolvedOf(entry))) return true
+    return FIRST_PARTY_FAMILY_WORDS.has(word) && (entry.includes(`${word}-`) || entry.endsWith(word))
+  })
 }
 
 export function isModelAllowed(model: string): boolean {
@@ -25,35 +39,31 @@ export function isModelAllowed(model: string): boolean {
 
   const entries = raw.map(entry => normalize(String(entry)))
   const candidate = normalize(resolveOverriddenModel(model))
-  const candidateResolved = isModelAlias(candidate)
-    ? normalize(parseUserSpecifiedModel(candidate))
-    : candidate
+  const candidateResolved = resolvedOf(candidate)
 
   for (const entry of entries) {
     if (entry !== candidate) continue
-    if (isModelFamilyAlias(candidate) && hasMoreSpecificEntry(candidate, entries)) break
+    if (isModelFamilyWord(candidate) && hasMoreSpecificEntry(candidate, entries)) break
     return true
   }
 
-  for (const family of MODEL_FAMILY_ALIASES) {
-    if (!entries.includes(family)) continue
-    if (hasMoreSpecificEntry(family, entries)) continue
-    const target = isModelAlias(candidate) ? candidateResolved : candidate
-    if (target.includes(family)) return true
+  for (const entry of entries) {
+    if (!isModelFamilyWord(entry)) continue
+    if (hasMoreSpecificEntry(entry, entries)) continue
+    if (inFamily(entry, candidateResolved)) return true
   }
 
   for (const entry of entries) {
     if (isModelAlias(candidate) && candidateResolved === entry) return true
-    if (isModelAlias(entry) && !isModelFamilyAlias(entry)) {
+    if (isModelAlias(entry) && !isModelFamilyWord(entry)) {
       if (normalize(parseUserSpecifiedModel(entry)) === candidate) return true
     }
   }
 
-  const target = isModelAlias(candidate) ? candidateResolved : candidate
   const prefixMatches = (prefix: string): boolean =>
-    target === prefix || target.startsWith(`${prefix}-`)
+    candidateResolved === prefix || candidateResolved.startsWith(`${prefix}-`)
   for (const entry of entries) {
-    if (isModelFamilyAlias(entry) || isModelAlias(entry)) continue
+    if (isModelFamilyWord(entry) || isModelAlias(entry)) continue
     if (prefixMatches(entry)) return true
     if (!entry.startsWith(VENDOR_PREFIX) && prefixMatches(`${VENDOR_PREFIX}${entry}`)) return true
   }

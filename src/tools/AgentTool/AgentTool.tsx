@@ -151,7 +151,7 @@ function modelEnumValues(): [string, ...string[]] {
 function modelParamDescription(): string {
   const engines = engineDispatchModelsForSchema()
   const base =
-    'Model override for this launch. Aliases select the family tier (their [1m] forms select the 1M-context variant) and a served Anthropic id names its model exactly; an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
+    'Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent\'s own family keeps the parent\'s exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
   const exactIds = engines.filter(id => id.includes('-') || id.includes('/'))
   return `${base} Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router); exact catalogue-validated engine ids (gemini-*/openrouter/* included): ${exactIds.join(', ')}.`
 }
@@ -257,7 +257,7 @@ export const outputSchema = lazySchema(() => {
         .boolean()
         .optional()
         .describe('Whether the caller can read the output file'),
-      modelNote: z.string().optional().describe('The model-floor note'),
+      modelNote: z.string().optional().describe('The engine note'),
       agentName: z.string().optional().describe('The name the launch gave the agent — an address beside the id'),
       backgroundReason: z
         .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended'])
