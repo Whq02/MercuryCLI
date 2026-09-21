@@ -243,7 +243,9 @@ if (worlds.has('plain') || worlds.has('off')) {
     after('/model', 2),
     after('\r', 3),
     gated(CLICK_BESIDE_PICKER, 'Mercury — model', { awaitSettleTicks: 6, mark: 'picker' }),
-    after('\x1b', 8, { mark: 'picker-clicked' }),
+    after('/model', 8, { mark: 'picker-clicked' }),
+    after('\r', 3),
+    gated('\x1b', 'Mercury — model', { awaitSettleTicks: 6, mark: 'picker-again' }),
     after('', 6, { mark: 'picker-esc' }),
   ]), driveEnv(home))
   frames.plain = cap
@@ -289,8 +291,8 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P13 a click on the FILES box opens the menu', menuRegion(m['click-open']) !== null)
   tally.check('P14 a click on the chat outside the menu closes it and nothing else moves', !(m['click-closed'] ?? '').includes(TITLE) && m['click-closed'] === m['esc-closed'], m['click-closed'] === m['esc-closed'] ? '' : 'the frame after the click differs from the frame after esc')
   tally.check('P15 the model picker opened over the chat', (m.picker ?? '').includes('Mercury — model'))
-  tally.check('P16 a click beside the picker leaves it open: the modal slot is the registered surface and no cell of the chat lies outside it', (m['picker-clicked'] ?? '').includes('Mercury — model'), rowsOf(m['picker-clicked']).slice(0, 8).join('\n'))
-  tally.check('P17 esc closes the picker and the chat returns', !(m['picker-esc'] ?? '').includes('Mercury — model') && (m['picker-esc'] ?? '').includes('no prompts sent yet'), rowsOf(m['picker-esc']).slice(0, 8).join('\n'))
+  tally.check('P16 a click on the dimmed chat beside the picker closes it and the chat returns', !(m['picker-clicked'] ?? '').includes('Mercury — model') && (m['picker-clicked'] ?? '').includes('no prompts sent yet'), rowsOf(m['picker-clicked']).slice(0, 8).join('\n'))
+  tally.check('P17 the picker opens again and esc closes it', (m['picker-again'] ?? '').includes('Mercury — model') && !(m['picker-esc'] ?? '').includes('Mercury — model') && (m['picker-esc'] ?? '').includes('no prompts sent yet'), rowsOf(m['picker-esc']).slice(0, 8).join('\n'))
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }
 
