@@ -14,7 +14,7 @@ const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small
 const CONCOURSE_HINT = '⇧→ concourse'
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const CONCOURSE_HINT_HOST = keyHintLabel(CONCOURSE_HINT)
-const HINT_ROW = '↵ start · ↑↓ choose · m menu'
+const HINT_ROW = '↵ start · ↑↓ choose'
 const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
   { key: '↵ ', label: 'start', tone: 'ivory' as const },
@@ -24,7 +24,7 @@ const HINT_SEGMENTS = [
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const bottomRight = (frame: string[], cols: number, rows: number, hint: string = CONCOURSE_HINT_HOST): boolean =>
   frame[rows - 1] === ' '.repeat(cols - hint.length - 2) + hint
-const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose · m menu\s*│$/.test(line)
+const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose\s*│$/.test(line)
 const topBorder = (cols: number, at: number): string => ' '.repeat(at) + '╭' + '─'.repeat(cols - 2) + '╮'
 
 const APPROVED_80x21 = [
@@ -45,7 +45,7 @@ const APPROVED_80x21 = [
   "        │   Logins · 8 of 10 signed in                                 │",
   "        │   Session Concourse · the live board · 1 live                │",
   "        │   Sessions · Projects · 5 repos · pick a session             │",
-  "        │ ↵ start · ↑↓ choose · m menu                                 │",
+  "        │ ↵ start · ↑↓ choose                                          │",
   "        ╰──────────────────────────────────────────────────────────────╯",
   "",
   "                                                                  ⇧→ concourse",
@@ -62,7 +62,7 @@ const APPROVED_80x14 = [
   "        │   Logins · 8 of 10 signed in                                 │",
   "        │   Session Concourse · the live board · 1 live                │",
   "        │   Sessions · Projects · 5 repos · pick a session             │",
-  "        │ ↵ start · ↑↓ choose · m menu                                 │",
+  "        │ ↵ start · ↑↓ choose                                          │",
   "        ╰──────────────────────────────────────────────────────────────╯",
   "                                                                  ⇧→ concourse",
 ]

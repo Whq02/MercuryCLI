@@ -56,7 +56,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(CFG, [FOLDER])
 const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: 'Spare.' })))
 
-const READY = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const sends = [
   { awaitText: READY, atTick: 600, data: '', mark: 'face-ready' },
