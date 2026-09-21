@@ -45,6 +45,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const MANAGER_FOOTER = 'n new ·'
 const WARM_TICKS = 25
@@ -191,15 +192,16 @@ const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const hintRows = (text: string): string => text.split('\n').filter(l => /Concourse|⇧|shift\+|live view/i.test(l)).join(' | ')
 const isFace = (text: string): boolean => text.includes('New Session') && text.includes(READY_LINE)
 const isChat = (text: string): boolean => text.includes(COMPOSER) && !text.includes(READY_LINE)
-const isChatFace = (text: string): boolean => isFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
+const isChatWorldFace = (text: string): boolean => text.includes('New Session') && text.includes(CHAT_READY_LINE) && !text.includes('m menu')
+const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
-async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
+async function feltEnter(id: string, argv: string[], readyLine = READY_LINE): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
   const home = freshHome(id)
   const c = await capture({
     id,
     home,
     argv,
-    sends: [g(READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
+    sends: [g(readyLine, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
     ready: COMPOSER,
     total: 200,
   })
@@ -213,12 +215,12 @@ async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face
 console.log('F1 — mercury --chat: the boot menu lands with no session and no concourse row; ↵ New Session is warm')
 let chatMs: number | null = null
 {
-  const r = await feltEnter('f1-felt-chat', ['--chat'])
+  const r = await feltEnter('f1-felt-chat', ['--chat'], CHAT_READY_LINE)
   const home = (r as { home?: string }).home!
   printFrame('f1 (--chat: the chat after ↵)', r.c.lines)
   chatMs = r.ms
   console.log(`  [FELT] --chat ↵ → composer ready: ${r.ms === null ? '∅' : `${r.ms} ms`} (budget ${ENTER_BUDGET_TICKS * 200} ms; the rig's tick is 200 ms)`)
-  check('F1 the first paint is the boot menu (the face), not a chat — no boot into a chat', isFace(r.face) && !r.face.includes(COMPOSER), firstRows(r.face))
+  check('F1 the first paint is the boot menu (the face), not a chat — no boot into a chat', isChatWorldFace(r.face) && !r.face.includes(COMPOSER), firstRows(r.face))
   check('F1 the --chat face carries NO Session Concourse row (New Session is the door) and its key-map row says "⇧→ no chat open"', isChatFace(r.face), r.face.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
   check(`F1 ↵ reached the composer within the budget (${r.ms ?? '∅'} ms ≤ ${ENTER_BUDGET_TICKS * 200})`, r.ms !== null && r.ms <= ENTER_BUDGET_TICKS * 200, r.c.tail.slice(-200))
   check('F1 the composer is live after ↵', r.c.text.includes(COMPOSER))
@@ -255,7 +257,7 @@ for (const size of [
     cols: size.cols,
     rows: size.rows,
     sends: [
-      g(READY_LINE, '', { mark: 'landing', awaitSettleTicks: 4 }),
+      g(CHAT_READY_LINE, '', { mark: 'landing', awaitSettleTicks: 4 }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: '', mark: 'face-again' },
@@ -266,10 +268,10 @@ for (const size of [
   const landing = markText(c, 'landing')
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
-  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor / Health Check · Sessions · Projects`, isFace(landing) && landing.includes('Doctor / Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
+  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor / Health Check · Sessions · Projects`, isChatWorldFace(landing) && landing.includes('Doctor / Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
   check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
-  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
+  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
   reapHome(home)
 }
 
@@ -302,7 +304,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
     home,
     argv: ['--chat'],
     sends: [
-      g(READY_LINE, ''),
+      g(CHAT_READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, '/fleet', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },

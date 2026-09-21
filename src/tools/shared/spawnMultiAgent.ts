@@ -42,7 +42,7 @@ import {
 import { It2SetupPrompt } from '../../utils/swarm/It2SetupPrompt.js'
 import { startInProcessTeammate, type FirstDispatchOutcome } from '../../utils/swarm/inProcessRunner.js'
 import { resolveTeammateRole, type ResolvedTeammateRole } from '../../utils/swarm/roleResolver.js'
-import { spawnInProcessTeammate } from '../../utils/swarm/spawnInProcess.js'
+import { spawnInProcessTeammate, unwindTeammateSpawn } from '../../utils/swarm/spawnInProcess.js'
 import { buildInheritedEnvVars, getTeammateCommand } from '../../utils/swarm/spawnUtils.js'
 import { parseTeamCharter } from '../../utils/swarm/teamCharter.js'
 import { appendTeamMember, readTeamFileAsync, removeTeammateFromTeamFile, type TeamFile } from '../../utils/swarm/teamHelpers.js'
@@ -609,20 +609,25 @@ async function spawnInProcessStrategy(
     throw new Error(spawnResult.error ?? 'In-process teammate spawn failed')
   }
 
-  await appendTeamMember(teamName, {
-    agentId: teammateId,
-    name: teammateName,
-    agentType: canonicalAgentType ?? teammateName,
-    model: prepared.model,
-    prompt: prepared.prompt,
-    color: prepared.color,
-    planModeRequired: prepared.planModeRequired,
-    joinedAt: Date.now(),
-    tmuxPaneId: 'in-process',
-    cwd: getCwd(),
-    subscriptions: [],
-    backendType: 'in-process',
-  } as never)
+  try {
+    await appendTeamMember(teamName, {
+      agentId: teammateId,
+      name: teammateName,
+      agentType: canonicalAgentType ?? teammateName,
+      model: prepared.model,
+      prompt: prepared.prompt,
+      color: prepared.color,
+      planModeRequired: prepared.planModeRequired,
+      joinedAt: Date.now(),
+      tmuxPaneId: 'in-process',
+      cwd: getCwd(),
+      subscriptions: [],
+      backendType: 'in-process',
+    } as never)
+  } catch (error) {
+    if (spawnResult.taskId !== undefined) unwindTeammateSpawn(spawnResult.taskId, context.setAppStateForTasks ?? context.setAppState, errorMessage(error))
+    throw error
+  }
 
   if (spawnResult.taskId && spawnResult.teammateContext && spawnResult.abortController) {
     let settleFirstDispatch: (outcome: FirstDispatchOutcome) => void = () => {}

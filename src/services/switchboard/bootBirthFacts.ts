@@ -102,6 +102,11 @@ export function screenBirthModel(): string | undefined {
   return getMainLoopModel()
 }
 
+export function nextBirthModel(): string | undefined {
+  const screen = screenBirthModel()
+  return screen === undefined ? undefined : birthModelOf(bootBirthFacts(), null, screen)
+}
+
 export function carriedKitOf(record: Pick<BootBirthFacts, 'kit'>): { kit: SessionKitV1 } | Record<string, never> {
   return record.kit !== null ? { kit: record.kit } : {}
 }
