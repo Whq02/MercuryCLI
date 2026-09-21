@@ -12,9 +12,11 @@ export interface BoardModalFactsV1 {
   managerCardArmed: boolean
   coordinatorFocused: boolean
   helpOpen?: boolean
+  modelDefault?: boolean
 }
 
 export type BoardModalOwnerV1 =
+  | 'model-default'
   | 'capacity-ask'
   | 'trust-ask'
   | 'settings'
@@ -28,6 +30,7 @@ export type BoardModalOwnerV1 =
   | 'help'
 
 export function boardModalOwner(facts: BoardModalFactsV1): BoardModalOwnerV1 | null {
+  if (facts.modelDefault === true) return 'model-default'
   if (facts.rowPick) return 'row-pick'
   if (facts.trustAsk) return 'trust-ask'
   if (facts.groundPickerOpen) return 'ground-picker'
