@@ -3,13 +3,13 @@
  "note": "contract journey 4 — markdown/code preview comparison; focus moves between previewed options",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-21T11:56:05.712Z",
+ "capturedAt": "2026-09-21T17:08:08.461Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
-    "SEAT · 0 peers          │ ✶ SESSION                                                                        new session │",
+    "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
     "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
     "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
@@ -24,9 +24,12 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "TELEMETRY               │    dir     flux-arena-cwd-YIhwKn · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-qsxl46 · no git                                                    │",
+    "  ↵ or click · browse   │                                                                                              │",
+    "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
+    "TELEMETRY               │                                                                                              │",
     "  · spend —             │                                                                                              │",
-    "  · ctx — · 1000k       │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
+    "  · ctx — · 1000k       │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -42,11 +45,8 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-YIhwKn · ready                                                                                  ⇧← back",
+    " flux-arena-cwd-qsxl46 · ready                                                                                  ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -58,7 +58,7 @@
    "atMs": 13400,
    "rows": [
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
-    "SEAT · 0 peers          │ ✶ SESSION                                                                        new session │",
+    "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
     "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
     "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
@@ -73,13 +73,13 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "TELEMETRY               │    dir     flux-arena-cwd-YIhwKn · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-qsxl46 · no git                                                    │",
+    "  ↵ or click · browse   │                                                                                              │",
+    "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
+    "TELEMETRY               │                                                                                              │",
     "  · spend —             │                                                                                              │",
-    "  · ctx — · 1000k       │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
+    "  · ctx — · 1000k       │                                                                                              │",
     "  · health — run /health│                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -95,7 +95,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-YIhwKn · ready                                                                                  ⇧← back",
+    " flux-arena-cwd-qsxl46 · ready                                                                                  ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -107,20 +107,20 @@
    "atMs": -1,
    "rows": [
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
-    "SEAT · 0 peers          │ ✶ SESSION                                                             design the cache layer │",
+    "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
     "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
     "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
-    "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│                                                                                              │",
-    "                        │ 12:55:43 [sam] ❯ design the cache layer                                                      │",
+    "FILES · flux-arena-cwd-…│                                                                                              │",
+    "  ↵ or click · browse   │                                                                                              │",
+    "                        │ 18:07:46 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 12:55:44 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 18:07:46 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
-    "  more: /workbench      │                                                                                              │",
+    "  more: /workbench · /h…│                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "",
@@ -149,22 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-YIhwKn                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-qsxl46                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 17793,
+   "patches": 18225,
    "frame-recommit": 30
   },
   "frames": {
-   "total": 51,
-   "window": 51,
-   "p50": 2.113666999999623,
-   "p95": 12.509667000000263,
-   "p99": 37.12062499999956,
-   "maxMs": 37.12062499999956
+   "total": 50,
+   "window": 50,
+   "p50": 1.4397500000000036,
+   "p95": 9.740624999999909,
+   "p99": 27.316958999999883,
+   "maxMs": 27.316958999999883
   }
  },
  "requests": [
@@ -199,19 +199,19 @@
  ],
  "sends": [
   {
-   "atMs": 10862.00499534607,
+   "atMs": 10929.96883392334,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12462.00499534607,
+   "atMs": 12529.96883392334,
    "b64": "DQ=="
   },
   {
-   "atMs": 20862.00499534607,
+   "atMs": 20929.96883392334,
    "b64": "G1tC"
   },
   {
-   "atMs": 22462.00499534607,
+   "atMs": 22529.96883392334,
    "b64": "G1tB"
   }
  ]
