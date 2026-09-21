@@ -16,7 +16,7 @@ import { isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { isCrewDaemon } from './daemonFeatureGates.js'
-import { installStampedDaemonLog } from './daemonLogStamp.js'
+import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
 import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
 import {
@@ -231,7 +231,7 @@ async function daemonRun(args: string[]): Promise<void> {
   const foreground = process.stdout.isTTY === true || process.stderr.isTTY === true
 
   process.stderr.write(
-    `[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir} at ${new Date().toISOString()}\n`,
+    `${stampDaemonLogLine(`[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir}`)}\n`,
   )
   if (!foreground) installStampedDaemonLog()
 

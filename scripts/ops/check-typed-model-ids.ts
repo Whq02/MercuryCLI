@@ -14,7 +14,7 @@ const ANTHROPIC_DEFAULT_BASE = 'https://api.anthropic.com'
 const PROBE_BY_COMPLETION = process.argv.includes('--probe-by-completion')
 
 type ProbeVerdict = { id: string; served: true } | { id: string; served: false; reason: string } | { id: string; unreachable: string }
-type ListResult = { ids: string[] } | { unreachable: string } | { typedTable: string } | { probed: ProbeVerdict[] }
+type ListResult = { ids: string[] } | { unreachable: string } | { typedTable: string; ids: string[] } | { probed: ProbeVerdict[] }
 type FamilyCheck = { family: string; source: string; typed: string[]; list: () => Promise<ListResult>; current?: (id: string) => string }
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -257,9 +257,9 @@ const skipped: string[] = []
   const { resolveZaiDispatch } = await import('../../src/utils/router/providerDiscovery.js')
   const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
   const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
-  const table = keyLanePins('zai')
-  const typed = table.map(pin => pin.id)
-  const datedAt = table[0]?.observedAt ?? 'unknown'
+  const { GLM_PRICE_PINS } = await import('../../src/services/providers/zai/glmPins.js')
+  const typed = keyLanePins('zai').map(pin => pin.id)
+  const table: ListResult = { typedTable: GLM_PRICE_PINS.map(pin => pin.observedAt).sort().at(-1) ?? 'unknown', ids: GLM_PRICE_PINS.map(pin => pin.id) }
   const dispatch = resolveZaiDispatch(env)
   const trafficOff = getEssentialTrafficOnlyReason(env)
   if (dispatch && PROBE_BY_COMPLETION && trafficOff) console.log(`--probe-by-completion sends nothing: ${trafficOff} is set; the Z.AI ids read the dated table`)
@@ -270,7 +270,7 @@ const skipped: string[] = []
       typed,
       list: PROBE_BY_COMPLETION && !trafficOff
         ? () => probeByCompletion(typed, id => zaiCompletionVerdict({ apiKey: dispatch.key, requestUrl: zaiChatCompletionsUrl(env, dispatch.plan), id }))
-        : () => Promise.resolve({ typedTable: datedAt }),
+        : () => Promise.resolve(table),
     })
   } else skipped.push(`zai · no credential · ${typed.length} typed ids not judged`)
 }
@@ -313,7 +313,10 @@ for (const check of families) {
     ? await check.list().catch((error: unknown) => ({ unreachable: error instanceof Error ? error.message : String(error) }))
     : { unreachable: gate.reason }
   if ('typedTable' in verdict) {
-    for (const id of check.typed) console.log(`${check.family} · ${check.source} · ${id} · no live list — typed table dated ${verdict.typedTable}`)
+    for (const row of judgeTypedIds(check.typed, verdict.ids, check.current).rows) {
+      if (!row.served) notServed++
+      console.log(`${check.family} · ${check.source} · ${row.id} · ${row.served ? 'served' : 'not served'} (typed table dated ${verdict.typedTable}, no live list)`)
+    }
     continue
   }
   fetchable++
@@ -376,7 +379,7 @@ console.log(
 )
 console.log(
   notServed === 0
-    ? `typed model ids: every typed id a fetched list could judge is served (${judged} of ${fetchable} lists fetched)`
-    : `typed model ids: ${notServed} typed id(s) not served by a fetched list (${judged} of ${fetchable} lists fetched)`,
+    ? `typed model ids: every typed id a fetched list or a dated table could judge is served (${judged} of ${fetchable} lists fetched)`
+    : `typed model ids: ${notServed} typed id(s) not served by a fetched list or a dated table (${judged} of ${fetchable} lists fetched)`,
 )
 process.exit(notServed === 0 && deadPages === 0 ? 0 : 1)

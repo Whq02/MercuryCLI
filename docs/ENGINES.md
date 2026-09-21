@@ -92,9 +92,24 @@ tool calls stream as they arrive; the final usage and stop reason are
 recorded; a provider fault never crashes the turn — a terminal fault lands
 as an API-error message in the chat, cancellation returns quietly, and a
 retryable fault before any content is retried once; every request's usage
-joins the one session cost ledger. A stream the provider cuts after some of
-the reply has arrived is continued once: Mercury asks the model to pick up
-where it stopped, the reply so far stands, and the chat shows one quiet line,
+joins the one session cost ledger. A refusal that says the provider is busy
+(an HTTP 503, Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
+overloaded server, OpenRouter's no available provider, Z.AI's code 1305, or a
+vendor's own overloaded or unavailable word) is retried quietly on a growing
+wait on every road — 1 s, 2 s, 4 s, 8 s, 16 s and 30 s, about a minute in
+all — before the chat gives up: nothing is painted for the first thirty
+seconds, then the retry line shows the true wait and the true count, and the
+red error line comes only once the whole ladder is spent, saying how many
+retries it took and how long. A rate limit that names its own wait
+(Retry-After) rides the same ladder with that wait in place of the rung; a
+rate limit without one keeps the single retry. A reply that arrives inside
+the ladder shows one calm grey line above it, naming the provider —
+`OpenAI was busy · answered after 2 retries (7 s)` — whose ctrl+o expansion
+carries the provider's words and every wait; the debug log carries every
+retry either way. Escape ends a wait at once. A stream the provider cuts
+after some of the reply has arrived is continued once: Mercury asks the model
+to pick up where it stopped, the reply so far stands, and the chat shows one
+quiet line,
 `Continued after 1 stream cut · context sent again`, whose expansion names
 the road, what the provider sent and the code. The cost is in those last
 three words: the continuation sends the turn's context again — on a
@@ -213,19 +228,19 @@ come from its owning account resolvers:
   cannot be changed from here and points at a Gemini API key on a project of
   the operator's own.
   A refusal that says try again later (Google's HTTP 503, its own words about
-  high demand) is retried quietly on a growing wait — 1 s, 2 s, 4 s, 8 s, 16 s
-  and 30 s, about a minute in all — before the chat gives up: nothing is
-  painted for the first thirty seconds, then the retry line shows the true
-  wait and the true count, and the red error line comes only once the whole
-  ladder is spent, saying how many retries it took and how long. A reply that
-  arrives inside the ladder shows one calm grey line above it, `Gemini was
-  busy · answered after 2 retries (7 s)`, whose ctrl+o expansion carries
-  Google's words and every wait; the debug log carries every retry either
-  way. Escape ends a wait at once. A wait Google itself asks for (Retry-After)
-  is honoured in place of the ladder's own when it fits the retry budget, as
-  on every road. On a chat without a screen (a print run, a dispatched agent)
-  the same ladder runs, and its retry frames reach the caller only past the
-  quiet window.
+  high demand) is retried quietly on the growing wait every road takes — 1 s,
+  2 s, 4 s, 8 s, 16 s and 30 s, about a minute in all — before the chat gives
+  up: nothing is painted for the first thirty seconds, then the retry line
+  shows the true wait and the true count, and the red error line comes only
+  once the whole ladder is spent, saying how many retries it took and how
+  long. A reply that arrives inside the ladder shows one calm grey line above
+  it, `Gemini was busy · answered after 2 retries (7 s)`, whose ctrl+o
+  expansion carries Google's words and every wait; the debug log carries every
+  retry either way. Escape ends a wait at once. A wait Google itself asks for
+  (Retry-After) is honoured in place of the ladder's own when it fits the
+  retry budget, as on every road. On a chat without a screen (a print run, a
+  dispatched agent) the same ladder runs, and its retry frames reach the
+  caller only past the quiet window.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present

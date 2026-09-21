@@ -21,7 +21,7 @@ import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
-import { busyRecoveryDetail, isBusyRefusal, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { busyRecoveryDetail, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -108,7 +108,6 @@ export interface CompatLaneProfile {
     settle?(messages: readonly AssistantMessage[]): void
   }
   leadingNotes?: readonly string[]
-  busyRetry?: true
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
   credentialHint: string
@@ -476,7 +475,7 @@ export async function* compatChatCallModel(
     }
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    if (profile.busyRetry === true && outcome.retryEligible && isBusyRefusal(outcome.fault) && !providerWaitIsWindow(askedMs)) {
+    if (outcome.retryEligible && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -544,7 +543,7 @@ export async function* compatChatCallModel(
     }
     const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined)
     const stayedBusy =
-      busy !== undefined && isBusyRefusal(outcome.fault)
+      busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : terminalText
     yield stampProviderWait(

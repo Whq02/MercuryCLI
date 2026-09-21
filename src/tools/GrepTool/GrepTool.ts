@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 
 import { z } from 'zod/v4'
@@ -204,6 +205,20 @@ export function quoteTolerantPattern(pattern: string): string {
   return out
 }
 
+function realSearchRoot(root: string): string {
+  try {
+    return realpathSync(root).normalize('NFC')
+  } catch {
+    return root
+  }
+}
+
+function respellRoot(line: string, real: string, given: string): string {
+  if (!line.startsWith(real)) return line
+  const next = line.charAt(real.length)
+  return next === '' || next === '/' || next === '\\' || next === ':' ? `${given}${line.slice(real.length)}` : line
+}
+
 async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string): Promise<string[]> {
   const mode = input.output_mode ?? 'files_with_matches'
   const args: string[] = ['--hidden']
@@ -316,12 +331,13 @@ export const GrepTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext) {
     const mode = input.output_mode ?? 'files_with_matches'
-    const searchRoot = input.path !== undefined ? expandPath(input.path) : getCwd()
+    const givenRoot = input.path !== undefined ? expandPath(input.path) : getCwd()
+    const searchRoot = realSearchRoot(givenRoot)
     const args = await buildArgs(input, context, searchRoot)
     const offset = input.offset ?? 0
 
     const answer = await ripGrepAnswer(args, searchRoot, context.abortController.signal)
-    const lines = answer.lines
+    const lines = searchRoot === givenRoot ? answer.lines : answer.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
     if (mode === 'content') {
