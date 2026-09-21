@@ -382,7 +382,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
     { afterPrevTicks: 3, data: RIGHT },
     { afterPrevTicks: 3, data: '\r' },
     { afterPrevTicks: 8, data: '', mark: 'session-picked' },
-  ], { total: 900, ready: ['esc boot face'] })
+  ], { total: 900, ready: ['esc focused chat'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const board = c.marks.get('board') ?? []
   const line = c.marks.get('line') ?? []
@@ -394,7 +394,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
   check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
   check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
-  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5 · ● high`) && trimmedRow(line, 'esc boot face').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc boot face')}`)
+  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
   check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
   check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
