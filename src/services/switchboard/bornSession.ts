@@ -118,6 +118,16 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   }
 }
 
+export async function admitWithDaemonRecheck<T extends { ok?: unknown; code?: unknown }>(
+  send: () => Promise<T>,
+  recheckDaemon: () => Promise<boolean>,
+): Promise<T> {
+  const first = await send()
+  if (first.ok === true || first.code !== 'ENOCONN') return first
+  if (!(await recheckDaemon())) return first
+  return send()
+}
+
 async function admitAndEnter(
   req: BirthRequest,
   birth: { model: string | undefined; title: string | null; effort: string | null; worn: { name: string; kit: SessionKitV1 } | null; facts: BootBirthFacts; fallbackNote: string | null },
@@ -126,7 +136,8 @@ async function admitAndEnter(
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    reply = (await daemonControlRpc(
+    const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
+    const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(
       {
         op: 'sessionAdmit',
         workspaceDir: req.workspaceDir,
@@ -142,7 +153,8 @@ async function admitAndEnter(
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
       } as never,
       { timeoutMs: 60_000 },
-    )) as Record<string, unknown>
+    ) as Promise<Record<string, unknown>>
+    reply = await admitWithDaemonRecheck(admit, ensureOwnedDaemon)
   } catch (e) {
     return { ok: false, reason: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
   }

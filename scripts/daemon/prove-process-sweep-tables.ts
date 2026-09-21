@@ -144,6 +144,84 @@ await check('the collector tolerates a ps that exits non-zero on a vanished pid 
   assert.deepEqual(table.observations.find(row => row.process.pid === 4001)!.process.args, ['mercury'])
 })
 
+const linuxTable = [
+  '    1     0     0 ?        Ss   Sun Sep 20 09:00:00 2026',
+  ' 2001     1  1000 pts/3    Ss   Sun Sep 20 09:00:05 2026',
+  ' 2002     1  1000 ?        Ssl  Sun Sep 20 09:00:10 2026',
+  ' 2003  2002  1000 ?        Sl   Sun Sep 20 09:00:20 2026',
+  ' 2004  2001  1000 pts/3    Sl+  Sun Sep 20 09:00:30 2026',
+  ' 2005  2001  1000 pts/4    S+   Sun Sep 20 09:00:40 2026',
+  ' 2006     1  1000 ?        Sl   Sun Sep 20 09:00:50 2026',
+].join('\n')
+const linuxArgs = [
+  ' 2001 -bash',
+  ' 2002 node /opt/mercury/dist/mercury.mjs daemon run /work',
+  ' 2003 /opt/hostedtoolcache/node/24.20.0/x64/bin/node /opt/mercury/dist/mercury.mjs -p --output-format stream-json',
+  ' 2004 node -e setInterval(() => {}, 1000000)',
+  ' 2005 /usr/bin/vim /opt/mercury/dist/mercury.mjs',
+  ' 2006 nodejs /opt/mercury/dist/mercury.mjs',
+].join('\n')
+const linuxPs = (comm: Record<number, string>) => async (args: readonly string[]): Promise<string> => {
+  if (args.includes('pid=,ppid=,uid=,tty=,stat=,lstart=')) return linuxTable
+  if (args.includes('pid=,args=')) return `${linuxArgs}\n`
+  if (args.includes('pid=,ucomm=')) return `${Object.entries(comm).map(([pid, name]) => ` ${pid} ${name}`).join('\n')}\n`
+  throw new Error('unexpected ps call')
+}
+const MAIN_THREAD_COMM = { 2002: 'MainThread', 2003: 'MainThread', 2004: 'MainThread', 2005: 'vim', 2006: 'MainThread' }
+const linuxLinks = (pid: number): string | null => (pid === 2006 ? '/opt/mercury/vendor/node/bin/node (deleted)' : null)
+
+await check('on linux the executable is read from the command line, then the kernel link, never from the main thread name the process table reports as the command name', async () => {
+  const followed: number[] = []
+  const table = await collectPosixProcessTable({
+    waitMs: 500,
+    recordedPids: [2004],
+    platform: 'linux',
+    ps: linuxPs(MAIN_THREAD_COMM),
+    probeTerminal: () => false,
+    executableOf: pid => {
+      followed.push(pid)
+      return linuxLinks(pid)
+    },
+  })
+  assert.equal(table.complete, true)
+  const exe = (pid: number): string => table.observations.find(row => row.process.pid === pid)!.process.exe
+  assert.equal(exe(2002), 'node')
+  assert.equal(exe(2003), 'node')
+  assert.equal(exe(2004), 'node')
+  assert.equal(exe(2005), 'vim')
+  assert.equal(exe(2006), 'node')
+  assert.deepEqual(followed, [2005, 2006])
+  assert.equal(exe(2001), '')
+})
+
+await check('the darwin read stands: the command name column is the executable, and no kernel link is followed', async () => {
+  let followed = 0
+  const table = await collectPosixProcessTable({
+    waitMs: 500,
+    recordedPids: [2004],
+    platform: 'darwin',
+    ps: linuxPs({ 2002: 'node', 2003: 'node', 2004: 'node', 2005: 'vim', 2006: 'MainThread' }),
+    probeTerminal: () => false,
+    executableOf: () => {
+      followed++
+      return '/never/read'
+    },
+  })
+  const exe = (pid: number): string => table.observations.find(row => row.process.pid === pid)!.process.exe
+  assert.equal(exe(2002), 'node')
+  assert.equal(exe(2005), 'vim')
+  assert.equal(exe(2006), 'MainThread')
+  assert.equal(followed, 0)
+})
+
+await check('the kernel link is read from the process table\'s own platform when none is named, and a pid with no link answers null', async () => {
+  const { linuxExecutableLink }: typeof import('../../src/daemon/processSweepPosix.ts') = await import(posix)
+  const link = linuxExecutableLink(process.pid)
+  if (process.platform === 'linux') assert.ok(typeof link === 'string' && link !== '', 'a linux reader names its own binary')
+  else assert.equal(link, null)
+  assert.equal(linuxExecutableLink(2 ** 31 - 7), null)
+})
+
 await check('a ps that cannot run yields an incomplete table naming the failure', async () => {
   const table = await collectPosixProcessTable({ waitMs: 500, recordedPids: [], ps: async () => { throw Object.assign(new Error('spawn ps ENOENT'), { code: 'ENOENT' }) } })
   assert.equal(table.complete, false)
@@ -230,6 +308,45 @@ await check('the recorded darwin world classifies the live window, daemon and ru
   assert.match(got.get(4002)!.reason, /session/)
   assert.equal(got.get(9001)!.classification, 'running')
   assert.match(got.get(9001)!.reason, /persistence/)
+})
+
+await check('a linux world whose process table names every Mercury process MainThread still reads the daemon, its runner and a registered stand-in as Mercury\'s own', async () => {
+  const table = await collectPosixProcessTable({ waitMs: 500, recordedPids: [2004], platform: 'linux', ps: linuxPs(MAIN_THREAD_COMM), probeTerminal: () => false, executableOf: linuxLinks })
+  const tokenFor = (pid: number): string => table.observations.find(row => row.process.pid === pid)!.startToken!
+  const records: ProcessSweepRecords = {
+    nowMs: NOW,
+    platform: 'linux',
+    selfPid: 9999,
+    user: '1000',
+    configHome: '/home/one',
+    drainMs: 600_000,
+    heartbeatAllowanceMs: 90_000,
+    planes: [{
+      daemonDir: '/home/one/daemon',
+      supervisor: { pid: 2002, startToken: tokenFor(2002), ownerPid: 2001, persist: false, startedAt: born('2026-09-20T09:00:10+01:00') },
+      supervisorReadable: true,
+      answer: { pid: 2002, ownerPid: 2001, live: 1, liveSessions: 1, persist: false, runners: [
+        { pid: 2003, procStart: tokenFor(2003), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:2001', terminalPid: 2001 }], schedules: 0, activity: 'idle', warm: false },
+      ] },
+      runners: null,
+    }],
+    registrations: [
+      { id: 'reg-standin', pid: 2004, startToken: tokenFor(2004), configHome: '/home/one', daemonDir: '/home/one/daemon', terminal: 'pts/3', bornAt: NOW - 7_200_000, heartbeatAt: NOW - 3_600_000 },
+    ],
+    memory: null,
+  }
+  const got = classes(table, records)
+  assert.equal(got.get(2002)!.classification, 'running')
+  assert.equal(got.get(2002)!.kind, 'daemon')
+  assert.equal(got.get(2003)!.classification, 'running')
+  assert.equal(got.get(2003)!.kind, 'runner')
+  assert.equal(got.get(2004)!.classification, 'stale')
+  assert.equal(got.get(2004)!.kind, 'window')
+  assert.match(got.get(2004)!.reason, /heartbeat expired/)
+  assert.equal(got.has(2005), false)
+  assert.equal(got.get(2006)!.classification, 'cannot-end')
+  assert.match(got.get(2006)!.reason, /config home/)
+  assert.equal(got.has(2001), false)
 })
 
 await check('the released runner and the dead-heartbeat window read stale; the shell and the other program are never listed', () => {

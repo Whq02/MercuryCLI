@@ -96,6 +96,38 @@ function walk(root: string): string[] {
   const admitAt = body.indexOf("op: 'sessionAdmit'")
   check('P3 the door arms the landing words it resolved (the model, the effort, the posture) before the admit and settles them when it closes', armAt !== -1 && admitAt !== -1 && armAt < admitAt && body.includes('settleLandingWords()'))
   check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
+  const door = await import('../../src/services/switchboard/bornSession.ts')
+  const recheck = (door as { admitWithDaemonRecheck?: typeof door.admitWithDaemonRecheck }).admitWithDaemonRecheck
+  check('P3 the birth door exports its daemon re-check', typeof recheck === 'function')
+  if (typeof recheck === 'function') {
+    const gone = { ok: false, code: 'ENOCONN', error: 'daemon closed without a reply (ENOCONN)' }
+    const landed = { ok: true, sessionId: 's-1' }
+    const refused = { ok: false, code: 'EUNKNOWN', error: 'the session could not start' }
+    const drive = async (replies: Array<Record<string, unknown>>, daemonBack: boolean): Promise<{ answer: unknown; sends: number; rechecks: number }> => {
+      let sends = 0
+      let rechecks = 0
+      const answer = await recheck(
+        async () => replies[Math.min(sends++, replies.length - 1)]!,
+        async () => {
+          rechecks++
+          return daemonBack
+        },
+      )
+      return { answer, sends, rechecks }
+    }
+    const back = await drive([gone, landed], true)
+    check('P3 a transport ENOCONN on the admit re-runs the daemon check once and re-sends once: the birth lands without a second Enter', back.answer === landed && back.sends === 2 && back.rechecks === 1, JSON.stringify(back))
+    const still = await drive([gone, landed], false)
+    check('P3 a daemon check that fails leaves the first refusal standing after one send', still.answer === gone && still.sends === 1 && still.rechecks === 1, JSON.stringify(still))
+    const twice = await drive([gone, gone, landed], true)
+    check('P3 a second ENOCONN after the re-check stands: one re-send, never a third', twice.answer === gone && twice.sends === 2 && twice.rechecks === 1, JSON.stringify(twice))
+    const other = await drive([refused, landed], true)
+    check('P3 a refusal that is not a transport loss is never re-sent and re-runs no check', other.answer === refused && other.sends === 1 && other.rechecks === 0, JSON.stringify(other))
+    const first = await drive([landed], true)
+    check('P3 an admitted birth sends once and re-runs no check', first.answer === landed && first.sends === 1 && first.rechecks === 0, JSON.stringify(first))
+  }
+  const admitDoorAt = body.indexOf('async function admitAndEnter(')
+  check('P3 the admit is sent through the re-check with the one daemon heal as the check', admitDoorAt !== -1 && body.indexOf('admitWithDaemonRecheck(admit, ensureOwnedDaemon)') > admitDoorAt && body.indexOf("const { ensureOwnedDaemon } = await import('./ensureDaemon.js')", admitDoorAt) !== -1)
 }
 
 {
