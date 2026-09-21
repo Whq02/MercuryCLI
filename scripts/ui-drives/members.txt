@@ -10,3 +10,4 @@ prove-gemini-busy-retry-drive.ts
 prove-compact-notice-way-back-drive.ts
 prove-shell-background-key-drive.ts
 prove-contract-card-fits-drive.ts
+prove-failover-compact-rows-drive.ts

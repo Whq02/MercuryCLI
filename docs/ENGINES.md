@@ -440,7 +440,9 @@ served model, the lane, the home window's stated reset changing or passing,
 the way home opening. Then it clears, and the strip's model segment carries a
 short amber mark beside the served model (`Opus 5 · failover`) for as long as
 the session runs on the lane; the mark leaves when the session is back on its
-home family. `/model` returns home in one keystroke throughout.
+home family. On a window too narrow for the whole sentence it is cut to what
+fits, an ellipsis closing the cut, and keeps its `/model to return` tail.
+`/model` returns home in one keystroke throughout.
 `MERCURY_FAILOVER_LINE_MS` sets the sentence's window in milliseconds
 (1000 or more; the default is two minutes).
 
