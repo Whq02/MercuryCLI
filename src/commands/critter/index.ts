@@ -4,7 +4,7 @@ const critter = {
   type: 'local-jsx',
   name: 'critter',
   isEnabled: () => true,
-  description: 'Session theme — pick the critter accent (crab/octopus/jellyfish/clam)',
+  description: 'Toggle the critter · on = the full critter, off = the small one · pick chooses the creature',
   load: () => import('./critter.js'),
 } satisfies Command
 

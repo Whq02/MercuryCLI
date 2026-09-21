@@ -206,13 +206,14 @@ leaves every later request of the session, a resumed one included, on the
 OpenAI route as on the Anthropic one.
 
 The session box under the `✶ SESSION` header holds the critter and, while
-a turn runs, the working row in its own capsule beside it. `/critter mini`
-(the default) paints the small critter in a slim box of five rows and takes
-the SESSIONS bar off the bottom of the chat, so a tall window gives the chat
-ten rows more; the working row keeps its capsule, and the session roll-up
-and the bar are not painted. `/critter full` paints the large critter, the
-roll-up and the bar as before. The choice is kept in the settings store
-(`critterSize`) across boots.
+a turn runs, the working row in its own capsule beside it. By default the
+small critter sits in a slim box of five rows and the SESSIONS bar is off
+the bottom of the chat, so a tall window gives the chat ten rows more; the
+working row keeps its capsule, and the session roll-up and the bar are not
+painted. `/critter on` paints the large critter with the roll-up and the
+bar as before, `/critter off` the small one, and `/critter` alone toggles;
+`/critter pick` chooses the creature. The choice is kept in the settings
+store (`critterSize`) across boots.
 
 The status row under the composer carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —
