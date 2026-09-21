@@ -1,6 +1,45 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.16
+- Fixed the Anthropic sign-in showing the previous account after a switch: every screen shows the new account the moment its credential is saved
+- Fixed the Edit tool restyling quotes in a file of no known language: only prose gets typographic quotes; everything else lands byte for byte
+- Changed an edit of unread lines in a file the session has read to land in one call, its result carrying the edited lines with fresh anchors; a file not read at all still asks for one read first
+- Fixed a pasted text chip losing its bytes when its send crashed: the bytes are stored at the paste and found again by their hash, and a chip whose bytes are gone says so
+- Fixed a usage cap on the session's own turn not raising the failover offer card: the card appears and marks that provider's row
+- Fixed the rail's context figure staying stale until the model picker opened: it follows the live model list as soon as the runner has fetched it
+- Fixed the mode chip and the mode band painting nothing for a new chat's first second: a chat shows its model, effort and mode from its first frame
+- Fixed a new Gemini chat refusing with "no credential" while the account or key was present: the refusal names the source it tried, the status it got and how to recover
+- Fixed pressing x twice on a running sub-agent's row not stopping a named teammate while reporting success: the stop reaches every kind of row, and the receipt says applied only once the row has ended
+- Changed the shell result's note about scrubbed session variables to appear once per session, then only as a short line when a command names one
+- Fixed the THEMIS blocklist refusing a read-only git config query for the hooks path: the rule matches a write of the key alone
+- Added an ISO timestamp to every line of the daemon's log
+- Fixed the cache-clock record landing under a mirrored copy of the config home's path: it lands beside the session's transcript
+- Fixed WebFetch refusing when its summariser model is not signed in: it summarises with the session's own model, or returns the page with a note
+- Fixed /status exiting Mercury when CI is set with no API key: it reads the refusal as no key and paints the stored account
+- Fixed a background command's completion reaching the agent only at the end of its turn: it is offered at the next tool boundary
+- Fixed a new chat refusing to start when the saved default model's family had no credential: the chat starts on the newest signed-in family with one warning naming the way back, and /model in that chat saves a new default
+- Changed the Gemini model picker's refusal to name the source it tried and the HTTP status, with the remedy on its own line
+- Fixed a test fixture key reaching a real credential store: a login write is refused when the config home is the operator's, and a stored key of the fixture's shape is named as a test key with the command to remove it
+- Fixed a Mercury window opened during the previous daemon's shutdown waiting thirty seconds and then refusing to start a chat: the new window starts its own daemon as soon as the old one has left
+- Changed a typed message and a background completion waiting together at the end of a turn: the message starts the next turn and the completion is read inside it
+- Fixed a confirmed failover losing its note when the model landed: the landing publishes the switched model, so the note and the strip's mark stay
+- Changed the model picker to open at once on the GPT rows it has and refresh the live list in the background, replacing changed rows in place with a one-line notice
+- Added messages between agents: a background sub-agent can message its main agent and the main agent can reach a sub-agent, each read at the receiver's next tool boundary or turn end, with a receipt when it is read
+- Fixed a Google account's Gemini chat refused with HTTP 401 while its model list worked: the chat uses Google's native generation call with tool calls and thought signatures preserved, a Gemini API key keeps the compatibility call, and a refusal carries Google's own reason
+- Changed the Gemini sign-in card to walk you through it: the API key first (the AI Studio key page opens, one paste), or a Google account as six numbered steps that each open their Console page; a refused sign-in returns to the step that answers it
+- Changed a Gemini busy refusal to be retried quietly for about a minute before the red error, with one calm line above a recovered answer and Escape ending a wait at once; other providers keep today's single retry, and "Retrying in 0 seconds" reads "Retrying now"
+- Fixed every side job of a GPT session (the chat's title, the away summary, the tool summaries, the web fetch summary and the rest) asking for a helper model OpenAI had retired: the helper comes from the account's live model list, or the session's own model when the list has none
+- Fixed the web fetch tool returning its summariser's error as the page summary: an error counts as a failed attempt and the session's own model is asked; a release-day check compares every typed model id with the live lists
+- Added a Mercury processes row to the doctor: it lists stale Mercury processes with their pid, terminal, age and reason and ends them only after showing the list and asking; nothing is ended at boot; mercury doctor processes with --end-stale does the same headless; on Windows the row reads processes through the system's management interface
+- Fixed a Moonshot sign-in's default model and picker rows coming from a typed table instead of the live model list, so a retired model became a refused chat: the default and the rows follow the fetched list, and a model the list lacks is refused before the call with the catalogue's own words; three retired GPT ids left the typed table
+- Added a Model lists row to the doctor that checks every typed model id against the live list its family served: a typed id the list lacks is a warning; Z.AI publishes no list and keeps its dated table, and the release-day check can probe its ids by one minimal completion each behind --probe-by-completion
+- Changed the DeepSeek and Moonshot model-list readers to say in one sentence when a body is not JSON or an endpoint could not be reached, with the cause's code
+- Fixed the test census on Windows reading Windows paths as POSIX, so it missed every driver
+- Fixed four things the Windows walk found: the capture config read as UTF-8, a read-only git config query cleared by the write block, the Gemini catalogue's unreachable state naming the source and the remedy, and the rail's context row read after the picker closes
+- Changed a stream cut the model continued from to paint one calm line, Continued after 1 stream cut, in place of the red error card; the red card stays only when the recovery fails; every cut writes its details to the debug log
+- Changed two lines typed in a row behind a finished background command to share one turn, with the command's notice read inside it; a shell line still ends the batch
+
 ## 1.0.0-beta.15
 - Added one update command for every install channel: mercury update inside a Homebrew or npm install asks once and runs that channel's own upgrade with its output streamed, then re-reads the installed version; --yes skips the question; --check, --status, --rollback and the doctor say the same in every channel; an npm-made install is named for what it is
 - Added a once-per-release line to the boot screen's bottom-right corner, "vX.Y.Z available · mercury update", from the update notice's cached answer; the chat's expiring line stays
