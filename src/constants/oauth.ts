@@ -128,6 +128,10 @@ export function getOauthConfig(): OauthConfig {
   return config
 }
 
+export function anthropicAccountApiBase(): string {
+  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
+}
+
 export function fileSuffixForOauthConfig(): string {
   const custom = trimmedCustomUrl()
   if (custom === undefined) return ''

@@ -11,7 +11,7 @@ import { getAuthScope, setAuthScope, clearAuthScope } from '../envUtils.js'
 import { recordSignIn } from './signInLedger.js'
 import { logForDebugging } from '../debug.js'
 import { healScopeIdentitySnapshot, forgetScopeIdentity } from './accountIdentity.js'
-import { getOauthConfig } from '../../constants/oauth.js'
+import { anthropicAccountApiBase } from '../../constants/oauth.js'
 
 export interface PendingReauth {
   dir: string
@@ -105,7 +105,7 @@ export async function completeScopedReauth(
   let email: string | undefined
   try {
     const fetchImpl = deps.fetchImpl ?? fetch
-    const response = await fetchImpl(`${getOauthConfig().BASE_API_URL}/api/oauth/profile`, {
+    const response = await fetchImpl(`${anthropicAccountApiBase()}/api/oauth/profile`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
       signal: AbortSignal.timeout(5_000),
     })
