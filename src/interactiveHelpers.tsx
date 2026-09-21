@@ -29,6 +29,7 @@ import {
   getCustomApiKeyStatus,
 } from './utils/config/derived.js'
 import {
+  checkHasTrustDialogAccepted,
   isPathTrusted,
   recordPermissionPosture,
   setPathTrusted,
@@ -235,7 +236,9 @@ export async function showSetupScreens(
 
   {
     const cwd = getCwd()
-    if (!isPathTrusted(cwd)) {
+    const trustedThroughTheProject = !isPathTrusted(cwd) && checkHasTrustDialogAccepted()
+    if (trustedThroughTheProject) setPathTrusted(cwd)
+    if (!trustedThroughTheProject && !isPathTrusted(cwd)) {
       const steps: SetupRailStep[] =
         onboardingShown && onboardingRail !== null
           ? [...onboardingRail, { key: 'trust', label: 'trust', state: 'current' }]
