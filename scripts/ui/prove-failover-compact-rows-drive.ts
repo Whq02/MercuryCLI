@@ -160,7 +160,8 @@ check('the world booted, the line was typed at the landing, the offer stood and 
 
 for (const label of ['landing-1', 'landing-send', 'landing-2', 'landing-3']) printFrame(label)
 const landingFrames = ['landing-1', 'landing-send', 'landing-2', 'landing-3'].map(frame)
-const held = landingFrames.filter(rows => rows.some(row => row.includes(LANDING_NOTICE)))
+const heldNotice = (row: string): boolean => row.includes(LANDING_NOTICE) || (row.includes('the session is landing') && row.includes('…'))
+const held = landingFrames.filter(rows => rows.some(heldNotice))
 const underReady = held.filter(rows => (rows[0] ?? '').includes('● ready'))
 check('a line typed right after ↵ on New Session is held for the landing: the notice stands on at least one of the frames that follow', held.length > 0, landingFrames.map(rows => rows[rows.length - 1] ?? '').join(' | '))
 check('the landing window is on the frames: the band names the wordmark and no ● ready while no session holds the slot', landingFrames.some(rows => (rows[0] ?? '').includes('✶ Mercury') && !(rows[0] ?? '').includes('● ready')), landingFrames.map(rows => rows[0] ?? '').join(' | '))
