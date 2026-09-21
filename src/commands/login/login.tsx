@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useRef } from 'react'
 import { Box } from '../../ink.js'
 import { ConsoleOAuthFlow, type LoginFamilyFocus } from '../../components/ConsoleOAuthFlow.js'
+import { SIGN_IN_WORDS } from '../../components/Onboarding.js'
 import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { resetCostState } from '../../bootstrap/state.js'
 import { useAppState } from '../../state/AppState.js'
@@ -143,6 +144,7 @@ export async function call(
     <Login
       onDone={complete}
       onOpenaiDone={completeOpenai}
+      startingMessage={SIGN_IN_WORDS.intro}
       {...(initialFocus !== undefined ? { initialFocus } : {})}
     />
   )

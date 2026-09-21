@@ -77,7 +77,7 @@ for (const size of SIZES) {
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('fixture did not bind a loopback port')
   try {
-    const landed = size.cols >= 100 ? '· ready' : '1 session on'
+    const landed = size.cols >= 100 ? '← back' : '1 session on'
     const resLocal = await drive(driver, local, size, [...OPENING('').slice(0, 1), { requireAwait: true, awaitText: landed, minTick: 5, awaitSettleTicks: 3, data: `/model ${model}` }, { afterPrevTicks: 3, data: '\r' }, { requireAwait: true, awaitText: `Model set to ${model}`, awaitSettleTicks: 3, mark: 'local-model', data: 'take a screenshot with the text-only model' }, { afterPrevTicks: 3, data: '\r' }, { requireAwait: true, awaitText: 'Text-only check finished.', awaitStableTicks: 3, mark: 'done', data: '' }], 190, {
       MERCURY_LOCAL_PROBE_TARGETS: `lmstudio=http://127.0.0.1:${address.port}`,
       MERCURY_LOCAL_BASE_URL: undefined,

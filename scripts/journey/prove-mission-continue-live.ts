@@ -246,7 +246,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      { atTick: 140, minTick: 15, awaitText: '· ready', awaitSettleTicks: 3, data: '/mission\r' },
+      { atTick: 140, minTick: 15, awaitText: '← back', awaitSettleTicks: 3, data: '/mission\r' },
       { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
     ['Standing mission'],
     240,

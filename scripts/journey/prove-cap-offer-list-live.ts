@@ -404,7 +404,7 @@ const wire = wireWorld !== null && ONLY.has('wire')
       wireEnv(wireWorld.home),
       FABLE_51,
       [
-        ...wireSends('· ready'),
+        ...wireSends('← back'),
         { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
         { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
         { afterPrevTicks: 45, awaitText: 'Model switch preview', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'switch' },
@@ -477,7 +477,7 @@ if (FRAMES !== undefined && wireWorld !== null) {
       wireEnv(wireWorld.home),
       FABLE_51,
       [
-        ...wireSends(cockpit ? '· ready' : 'Type a prompt'),
+        ...wireSends(cockpit ? '← back' : 'Type a prompt'),
         { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '', mark: 'home-offer' },
       ],
       260,

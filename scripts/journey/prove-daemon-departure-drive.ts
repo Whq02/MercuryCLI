@@ -191,7 +191,7 @@ process.kill(oldPid, 'SIGSTOP')
 const paused = await hello()
 check('paused, the old daemon reads as a slow one (a 500ms hello times out)', !paused.ok && paused.code === 'ETIMEOUT', JSON.stringify(paused))
 
-const landed = FULL ? `${basename(WORK)} · ready` : '1 session on'
+const landed = FULL ? '← back' : '1 session on'
 const out = join(WORLD, 'grid.json')
 const cfg = {
   argv: [NODE, DIST],

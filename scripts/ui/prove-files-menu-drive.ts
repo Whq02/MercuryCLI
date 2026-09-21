@@ -173,7 +173,7 @@ const after = (data: string, ticks: number, extra: Record<string, unknown> = {})
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
-  gated('', '· ready', { minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
+  gated('', '← back', { minTick: 2, awaitSettleTicks: 6, mark: 'land' }),
 ]
 const railRoad = (): Array<Record<string, unknown>> => [
   after('\t', 2),

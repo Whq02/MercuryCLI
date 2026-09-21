@@ -117,13 +117,55 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       !screen.includes('function RowPickModal('),
   )
   check(
-    "B4 the model rows are the SESSION-dispatchable set from the one snapshot owner; the effort rows are the shared ladder",
-    screen.includes('(snapshot.newSession.modelOptions ?? []).map(o => ({ id: o.modelId, label: o.displayName }))') &&
+    "B4 m on a live row mounts the session model picker, the one picker every model choice uses, with its effort row wired to the seat; the effort rows of the e pick are the shared ladder",
+    screen.includes('<MercurySessionModelPicker') &&
+      screen.includes("onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}") &&
       screen.includes('EFFORT_LEVELS.map(l => ({ id: l, label: l }))'),
   )
   check(
     'B4 e fires only in the list region with the door wired, through the same live-row guard as i/p/m',
     screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())"),
+  )
+  const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  const layoutSrc = read('src/components/concourse/ConcourseLayout.tsx')
+  check(
+    'B9 the new-session line stands on the board exactly when the door is wired, sessions exist and no filter is typed (one resolver for the screen and the layout)',
+    layout.newSessionLineShown({ newSession: true, sessionRows: 2, filterText: '' }) &&
+      !layout.newSessionLineShown({ newSession: true, sessionRows: 0, filterText: '' }) &&
+      !layout.newSessionLineShown({ newSession: false, sessionRows: 2, filterText: '' }) &&
+      !layout.newSessionLineShown({ newSession: true, sessionRows: 2, filterText: 'x' }) &&
+      layoutSrc.includes('const lineShown = newSessionLineShown({ newSession: wiring.newSession !== undefined, sessionRows: sessionRows.length, filterText })') &&
+      screen.includes('newSessionLineShown({ newSession: !compact && !reducedStage && callbacks.newSession !== undefined, sessionRows: sessionRows.length, filterText: filter.text })'),
+  )
+  check(
+    'B9 the line paints first under the column header with the empty entry\'s words and door tail, its cursor mark following the selection',
+    layoutSrc.includes('const out: React.ReactNode[] = [columnHeaderRow]\n        if (lineShown) {') &&
+      layoutSrc.includes('<Text color={t.info}>{NEW_SESSION_DOOR_WORDS}</Text>') &&
+      layoutSrc.includes("{lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}") &&
+      layout.NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project' &&
+      layout.newSessionDoorTail({ modelLabel: 'Opus 5', effortLevel: 'high' }) === ' · Opus 5 · ● high',
+  )
+  check(
+    'B9 the line takes one content row of the list band on both geometry readers and the window fits the rows beneath it',
+    layoutSrc.includes('sessionRows.length + (lineShown ? 1 : 0),') &&
+      layoutSrc.includes('const contentRows = Math.max(1, geo.listContentRows - (lineShown ? 1 : 0))') &&
+      screen.includes('sessionRows.length + (newSessionLine ? 1 : 0),') &&
+      screen.includes('sessionRows.length + (newSessionLineNow() ? 1 : 0),'),
+  )
+  check(
+    'B9 the line is a selection the arrows reach (↑ from the first row, ↓ back), ↵ on it takes the n road, → does nothing on it, and m on it opens the model-default picker while a session row keeps its own m',
+    screen.includes("if (lineShown && at === 0 && dir === -1) {\n      selectSession(NEW_SESSION_ROW_ID)") &&
+      screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) {\n          armContractAsk()') &&
+      screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) return\n        const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)') &&
+      screen.includes('(sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()') &&
+      screen.includes('stableSelectionFallback(newSessionLine ? [NEW_SESSION_ROW_ID, ...ids] : ids, boardSel, lastIdxRef.current)') &&
+      screen.includes('if (sessionId !== NEW_SESSION_ROW_ID) callbacks.peekSession(sessionId)'),
+  )
+  check(
+    "B9 the legend reads the line as the empty board's selection (no row under the cursor ⇒ n and the m phrase), never a session row's verbs",
+    manifest.boardSelectionClassOf(undefined) === 'none' &&
+      manifest.regionKeysFor('list', { newSession: true, selection: 'none', modelDefault: true }).some(k => k.keys === 'm' && k.label === 'to select model-default') &&
+      manifest.regionKeysFor('list', { newSession: true, selection: 'none', modelDefault: true }).every(k => k.keys !== 'i' && k.keys !== 'p' && k.keys !== 'e'),
   )
   const manifest2 = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
   check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'))
