@@ -100,10 +100,6 @@ export function isLoopbackOauthOrigin(url: string): boolean {
   }
 }
 
-export function anthropicAccountApiBase(): string {
-  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
-}
-
 export function getOauthConfig(): OauthConfig {
   const config: OauthConfig = { ...PRODUCTION_CONFIG }
   const custom = trimmedCustomUrl()
@@ -130,6 +126,10 @@ export function getOauthConfig(): OauthConfig {
     config.CLIENT_ID = clientIdOverride
   }
   return config
+}
+
+export function anthropicAccountApiBase(): string {
+  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
 }
 
 export function fileSuffixForOauthConfig(): string {
