@@ -45,6 +45,10 @@ import { BootResumeScreen } from './BootResumeScreen.js';
 import { BootSaturnScreen, fireDeltaWords } from './BootSaturnScreen.js';
 import { BootSettingsScreen } from './BootSettingsScreen.js';
 import { KitMenuScreen } from './KitMenuScreen.js';
+import { MercuryModelDefaultPicker } from '../commands/model/mercuryModel.js';
+import { ModalContext } from '../context/modalContext.js';
+import { panelWidth } from './mercury-ui/geometry.js';
+import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
@@ -139,6 +143,7 @@ export function BootSplashScreen(): React.ReactNode {
   const [saturnOpen, setSaturnOpen] = useState(faceDoor === 'saturn');
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
+  const [modelDefaultOpen, setModelDefaultOpen] = useState(false);
   const [presenceEpoch, setPresenceEpoch] = useState(0);
   const signInEpoch = useSignInEpoch();
 
@@ -148,8 +153,10 @@ export function BootSplashScreen(): React.ReactNode {
   const concourseLive = routeSurfaceRegistered('concourse');
   const plainWhy = plainWorldWhy();
   const chatBoot = stripFacts().chatBoot;
+  const modelDefaultDoor = chatBoot && sessionDefaultsKeyOn();
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
-  const keyMapHint = stripKeyMapHint();
+  const stripHint = stripKeyMapHint();
+  const keyMapHint = modelDefaultDoor && stripHint !== '' ? `${stripHint} · m ${SESSION_DEFAULTS_KEY_HINT}` : stripHint;
 
   const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
   useEffect(
@@ -385,7 +392,7 @@ export function BootSplashScreen(): React.ReactNode {
     rows: composedRows,
     rowId: r => r.key,
     idNamespace: 'boot-splash',
-    active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen,
+    active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,
     onClose: () => {
       if (!selClearedRef.current) {
         setSelCleared(true);
@@ -405,8 +412,8 @@ export function BootSplashScreen(): React.ReactNode {
       },
       {
         key: 'm',
-        hint: 'menu',
-        run: () => (setSettingsOpen(true), null),
+        hint: modelDefaultDoor ? SESSION_DEFAULTS_KEY_HINT : 'menu',
+        run: () => ((modelDefaultDoor ? setModelDefaultOpen(true) : setSettingsOpen(true)), null),
       },
       { key: 's', hint: 'menu', run: (): null => (setSettingsOpen(true), null) },
       ...(chatBoot ? [] : [{ key: 'o', hint: 'concourse', run: (): null => (enterConcourse(), null) }]),
@@ -482,7 +489,7 @@ export function BootSplashScreen(): React.ReactNode {
         hintSegments: [
           { key: '↵ ', label: verb, tone: 'ivory' as const },
           { key: '↑↓', label: ' choose', tone: 'faint' as const },
-          { key: 'm', label: ' menu', tone: 'faint' as const },
+          ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
         ],
         keyMap: keyMapHint,
         pointer: figures.pointer,
@@ -519,7 +526,7 @@ export function BootSplashScreen(): React.ReactNode {
               : 'start',
           tone: 'ivory' as const,
         },
-        { key: 'm', label: ' menu', tone: 'faint' as const },
+        ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
       ],
       tinyHint: '↵ start',
       stripLines: (w: number) => core.composeStrip(chips, w) as string[],
@@ -533,7 +540,7 @@ export function BootSplashScreen(): React.ReactNode {
       lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   if (settingsOpen) {
@@ -668,6 +675,26 @@ export function BootSplashScreen(): React.ReactNode {
           </Box>
         );
       })}
+      {modelDefaultOpen ? (
+        <Box
+          position="absolute"
+          top={Math.max(0, Math.floor((rows - Math.max(10, rows - 7)) / 2))}
+          left={Math.max(0, Math.floor((columns - panelWidth(columns, { cap: 62, reserve: 2, min: 20 })) / 2))}
+          width={Math.min(columns, panelWidth(columns, { cap: 62, reserve: 2, min: 20 }))}
+          flexDirection="column"
+          opaque
+        >
+          <ModalContext.Provider value={{ rows: Math.max(10, rows - 7), columns, scrollRef: null }}>
+            <MercuryModelDefaultPicker
+              onDone={() => setModelDefaultOpen(false)}
+              onSignIn={() => {
+                setModelDefaultOpen(false);
+                setLoginsOpen(true);
+              }}
+            />
+          </ModalContext.Provider>
+        </Box>
+      ) : null}
     </Box>
   );
 }

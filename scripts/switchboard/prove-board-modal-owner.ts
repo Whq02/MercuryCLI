@@ -26,6 +26,7 @@ const facts = (over: Partial<Facts>): Facts => ({ ...none, ...over })
 console.log('§1 — one owner at a time, in the paint order (topmost first)')
 {
   const order: Array<[keyof Facts, string]> = [
+    ['modelDefault', 'model-default'],
     ['rowPick', 'row-pick'],
     ['trustAsk', 'trust-ask'],
     ['groundPickerOpen', 'ground-picker'],
@@ -46,7 +47,8 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
       if (boardModalOwner(both) === order[a]![1]) pairsHeld++
     }
   }
-  check('every armed PAIR resolves to the earlier owner (36 of 36 — one stream, one owner)', pairsHeld === 36, String(pairsHeld))
+  const pairs = (order.length * (order.length - 1)) / 2
+  check(`every armed PAIR resolves to the earlier owner (${pairs} of ${pairs} — one stream, one owner)`, pairsHeld === pairs, String(pairsHeld))
   check(
     'the whole lattice armed at once still answers the first owner',
     boardModalOwner(
