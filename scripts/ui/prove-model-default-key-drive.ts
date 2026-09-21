@@ -238,12 +238,14 @@ section("§4 the chat's /model: the picker without its frontier rows")
   const home = seededHome('model')
   const c = capture('model', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 999, requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
+    { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'chat', data: '' },
     { afterPrevTicks: 1, data: '/model' },
     { afterPrevTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: '' },
   ], { total: 360, ready: ['esc close'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const chat = c.marks.get('chat') ?? []
+  check('the row above the composer reads ready · Opus 5 · high, the way back at its right, the project name gone from it', /^ready · Opus 5 · high {2,}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')) && !trimmedRow(chat, '← back').includes('fixture-cwd'), trimmedRow(chat, '← back'))
   const picker = c.marks.get('picker') ?? []
   const at = picker.findIndex(l => l.includes('Z.AI MODELS'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
@@ -348,6 +350,58 @@ section('§7 the Boot face picker asks OpenAI for the live list when it opens: t
   } finally {
     fixture.kill('SIGTERM')
   }
+}
+
+section('§8 the board with sessions keeps the new-session line as its first row: m on it opens the model-default picker, m on a session row the session picker')
+{
+  const SHIFT_LEFT = `${ESC}[1;2D`
+  const DOWN = `${ESC}[B`
+  const LINE = 'n starts a blank session in this project'
+  const home = seededHome('board-with-sessions')
+  const birth: Send[] = [
+    { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, data: 'n' },
+    { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
+    { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: SHIFT_LEFT },
+  ]
+  const c = capture('board-with-sessions', home, [], [
+    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
+    { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, data: TAB },
+    ...birth,
+    { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, data: '' },
+    ...birth,
+    { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, mark: 'board', data: UP },
+    { afterPrevTicks: 3, data: UP },
+    { afterPrevTicks: 3, data: UP },
+    { afterPrevTicks: 4, data: '', mark: 'line' },
+    { afterPrevTicks: 2, data: 'm' },
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'default-picker', data: ESC },
+    { requireAwait: true, awaitText: LINE, awaitSettleTicks: 3, data: DOWN },
+    { afterPrevTicks: 4, data: '', mark: 'row' },
+    { afterPrevTicks: 2, data: 'm' },
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'session-picker', data: UP },
+    { afterPrevTicks: 3, data: RIGHT },
+    { afterPrevTicks: 3, data: '\r' },
+    { afterPrevTicks: 8, data: '', mark: 'session-picked' },
+  ], { total: 900, ready: ['esc focused chat'] })
+  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
+  const board = c.marks.get('board') ?? []
+  const line = c.marks.get('line') ?? []
+  const defaultPicker = c.marks.get('default-picker') ?? []
+  const row = c.marks.get('row') ?? []
+  const sessionPicker = c.marks.get('session-picker') ?? []
+  const sessionPicked = c.marks.get('session-picked') ?? []
+  const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('STATUS & TITLE'))
+  const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
+  check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
+  check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
+  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
+  check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
+  check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
+  check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
+  check('m on a session row opens a picker over the board', sessionPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(sessionPicker), sessionPicker.slice(3, 8).join(' | '))
+  const afterPick = settingsOf(home)
+  check("the session row's pick is the session's own: the default door still reads Opus 5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('CHOOSE A MODEL')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
+  console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })

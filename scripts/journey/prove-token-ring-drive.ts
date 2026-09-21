@@ -504,7 +504,7 @@ if (cap !== null) {
     `unanswered=${census.unanswered.length}`,
   )
   const restRows = rowsWith(m['after-interrupt'], keyHintLabel('⇧← back'))
-  const atRest = (r: string): boolean => (/ · ready\b/.test(r) || /\b(?:agents?|workflows?) thought for \d+[smh]\b/.test(r)) && !/interrupting|stopping|thinking|replying|running a tool|waiting on/.test(r)
+  const atRest = (r: string): boolean => (/ ready · /.test(r) || /\b(?:agents?|workflows?) thought for \d+[smh]\b/.test(r)) && !/interrupting|stopping|thinking|replying|running a tool|waiting on/.test(r)
   check("R3 the face is at rest after the interrupt (the status row reads ready, or the crew's settled clock in the past tense)", restRows.length > 0 && restRows.every(atRest), restRows.map(flat).join(' | ').slice(0, 200) || 'no status row')
 }
 

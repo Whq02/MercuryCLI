@@ -103,7 +103,7 @@ if (sentAt === undefined) {
   process.exit(1)
 }
 const [atMission, atCard, atEnd] = screensAt(run, 120, 40, [sentAt - 40, sentAt + CARD_LOOK_AFTER_MS, -1])
-const readyRow = (rows: string[]): number[] => findRows(rows, ' · ready')
+const readyRow = (rows: string[]): number[] => findRows(rows, '← back')
 const cards = missionCards(configDir)
 const armedOrMet = cards.filter(c => c.state === 'armed' || c.state === 'met')
 const continued = cards.filter(c => c.state === 'continued')

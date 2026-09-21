@@ -81,10 +81,11 @@ for (const [cols, rows] of SIZES) {
     }
     const out = join(home, 'grid.json')
     const cfg = join(home, 'cfg.json')
-    const ready = cols >= 100 && rows >= 26 ? '· ready' : '1 session on'
+    const landed = cols >= 100 && rows >= 26 ? '← back' : '1 session on'
+    const ready = cols >= 100 && rows >= 26 ? 'ready · ' : '1 session on'
     const sends = [
       { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: ready, minTick: 15, awaitSettleTicks: 3, data: 'hello sol\r' },
+      { requireAwait: true, awaitText: landed, minTick: 15, awaitSettleTicks: 3, data: 'hello sol\r' },
       { requireAwait: true, awaitText: 'sol answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
       { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', minTick: 1, awaitSettleTicks: 1, data: '', mark: 'cached' },

@@ -26,6 +26,12 @@ const SOVEREIGN_ARGV = ['--dangerously-bypass-permissions']
 const SOVEREIGN_SETTINGS = { skipSovereignConsentPrompt: true }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
+const RESTING_STATUS_ROW = /^ ready · Opus 5 · high {2,}(?:⇧|shift\+)← back$/
+const restingRowCheck = (tag: string, text: string[]): void => {
+  const row = text.find(l => l.includes(STATUS_ROW)) ?? ''
+  check(`${tag}: the row above the composer reads ready · Opus 5 · high with the way back at the right`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
+  check(`${tag}: the project name left the resting row`, !row.includes(tree), JSON.stringify(row))
+}
 const SHIFT_RIGHT = '\x1b[1;2C'
 const BOARD_NEW_DOOR = 'new session'
 const CONTRACT_OFFER = 'contract?'
@@ -208,6 +214,7 @@ for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, '
     if (idle !== undefined) {
       const text = textRows(idle.grid)
       printFrame('chat-sovereign-120x40 idle', text)
+      restingRowCheck('sovereign 120x40', text)
       const bandAt = text.findIndex(l => l.includes('sovereign mode on'))
       check('sovereign 120x40: the full cockpit paints its mode band', bandAt >= 0)
       const cell = cellsAt(idle.grid, bandAt).find(c => c.c === '⊠')
@@ -301,6 +308,8 @@ for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, '
     if (first !== undefined && second !== undefined) {
       check(`${tag}: both full marks are 120x40`, first.cols === 120 && first.rows === 40 && second.cols === 120 && second.rows === 40)
       check(`${tag}: both full marks carry the focused session's status row (the seat's facts had landed before each mark)`, joined(textRows(first.grid)).includes(STATUS_ROW) && joined(textRows(second.grid)).includes(STATUS_ROW))
+      restingRowCheck(`${tag} full-1`, textRows(first.grid))
+      restingRowCheck(`${tag} full-2`, textRows(second.grid))
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
       check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))

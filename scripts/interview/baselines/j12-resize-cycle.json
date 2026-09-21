@@ -3,7 +3,7 @@
  "note": "contract journey 12 — 120→80→44→120 with a preview card up; semantic state (focused option) must be inspectable at each width",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-21T17:12:49.978Z",
+ "capturedAt": "2026-09-21T19:30:00.059Z",
  "screens": [
   {
    "atMs": 13000,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-5vwsw8 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-t0PRMB · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -46,7 +46,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-5vwsw8 · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-5vwsw8 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-t0PRMB · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -95,7 +95,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-5vwsw8 · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -122,7 +122,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-5vwsw8 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-t0PRMB · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -144,7 +144,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-5vwsw8 · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ design the cache layer                                                                                              │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -164,7 +164,7 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 18:12:24 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:29:34 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
     "  · /health — health ce…│                                                                                              │",
@@ -193,7 +193,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-5vwsw8 · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -207,15 +207,15 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││  ▄▀▀▀▀▀▀▀▄     ╭──────────────────────────────────────╮                                    ││",
-    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀    ─│ The turn is holding for your answer. │                                    ││",
-    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀     ╰──────────────────────────────────────╯                                    ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄     ╭──────────────────────────────────────────╮                                ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀    ─│ Nothing moves until you answer this one. │                                ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀     ╰──────────────────────────────────────────╯                                ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 18:12:24 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:29:34 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 18:12:24 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 20:29:34 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -247,22 +247,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-5vwsw8                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-t0PRMB                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 23458,
-   "frame-recommit": 35
+   "patches": 23685,
+   "frame-recommit": 39
   },
   "frames": {
-   "total": 57,
-   "window": 57,
-   "p50": 1.9306660000002012,
-   "p95": 10.665625000001455,
-   "p99": 29.650749999999903,
-   "maxMs": 29.650749999999903
+   "total": 63,
+   "window": 63,
+   "p50": 1.8628749999998035,
+   "p95": 15.488291000001482,
+   "p99": 27.66583300000002,
+   "maxMs": 27.66583300000002
   }
  },
  "requests": [
@@ -297,15 +297,15 @@
  ],
  "sends": [
   {
-   "atMs": 10909.101247787476,
+   "atMs": 10852.743864059448,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12509.101247787476,
+   "atMs": 12452.743864059448,
    "b64": "DQ=="
   },
   {
-   "atMs": 19909.101247787476,
+   "atMs": 19852.74386405945,
    "b64": "G1tC"
   }
  ]

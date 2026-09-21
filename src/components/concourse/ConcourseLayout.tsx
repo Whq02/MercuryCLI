@@ -28,6 +28,17 @@ export type ConcourseProfile = 'stacked' | 'wide'
 
 export const ROW_PEEK_DESIRED_ROWS = 8
 
+export const NEW_SESSION_ROW_ID = 'new-session'
+export const NEW_SESSION_DOOR_WORDS = 'n starts a blank session in this project'
+
+export function newSessionDoorTail(door: { modelLabel: string; effortLevel: string }): string {
+  return ` · ${door.modelLabel} · ${isEffortLevel(door.effortLevel) ? effortLevelToSymbol(door.effortLevel) : EFFORT_HIGH} ${door.effortLevel}`
+}
+
+export function newSessionLineShown(facts: { newSession: boolean; sessionRows: number; filterText: string }): boolean {
+  return facts.newSession && facts.sessionRows > 0 && facts.filterText.trim().length === 0
+}
+
 export function resolveConcourseProfile(cols: number, rows: number): ConcourseProfile {
   if (cols >= 120 && rows >= 24) return 'wide'
   return 'stacked'
@@ -331,12 +342,14 @@ export function ConcourseLayout({
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const cols = frameCols ?? termCols
   const sessionRows: ConcourseRowV1[] = boardGroups.flatMap(g => g.rows)
-  const door = region === 'list' && wiring.newSession !== undefined && sessionRows.length === 0 && filterText.trim().length === 0 ? snapshot.newSession.door : undefined
+  const lineShown = newSessionLineShown({ newSession: wiring.newSession !== undefined, sessionRows: sessionRows.length, filterText })
+  const lineSelected = lineShown && boardSelectedId === NEW_SESSION_ROW_ID
+  const door = region === 'list' && wiring.newSession !== undefined && filterText.trim().length === 0 ? snapshot.newSession.door : undefined
   const geo = switchboardGeometry(
     cols,
     termRows,
     snapshot.needsYou.length,
-    sessionRows.length,
+    sessionRows.length + (lineShown ? 1 : 0),
     boardGroups.filter(g => g.rows.length > 0).length,
     liveDraftRows,
     focusTall,
@@ -368,9 +381,10 @@ export function ConcourseLayout({
     boardScrollStart !== undefined
       ? scrolledWindow(sessionRows.length, boardScrollStart, Math.max(0, span))
       : paneWindow(sessionRows.length, selectedIdx, Math.max(0, span))
+  const contentRows = Math.max(1, geo.listContentRows - (lineShown ? 1 : 0))
   let win = fitGroupedWindow(
     sessionRows.length,
-    geo.listContentRows,
+    contentRows,
     windowFor,
     i => groupOfRow.get(sessionRows[i]!.sessionId) ?? '',
   )
@@ -380,11 +394,11 @@ export function ConcourseLayout({
     for (let i = win.start; i < win.end; i++) groupsInWin.add(groupOfRow.get(sessionRows[i]!.sessionId) ?? '')
     const moreRow = win.above > 0 || win.below > 0 ? 1 : 0
     const groupedRows = win.end - win.start
-    const overflow = groupedRows + groupsInWin.size + moreRow > geo.listContentRows
+    const overflow = groupedRows + groupsInWin.size + moreRow > contentRows
     const headinglessSpan =
-      sessionRows.length <= geo.listContentRows
+      sessionRows.length <= contentRows
         ? sessionRows.length
-        : Math.max(1, geo.listContentRows - 1)
+        : Math.max(1, contentRows - 1)
     if (overflow || (groupedRows < 2 && sessionRows.length > 1 && headinglessSpan > groupedRows)) {
       showHeadings = false
       win = windowFor(headinglessSpan)
@@ -550,9 +564,9 @@ export function ConcourseLayout({
                     {hover => (
                       <Text wrap="truncate-end">
                         <Text color={hover ? t.textPrimary : t.info}>{'▸ '}</Text>
-                        <Text color={hover ? t.textPrimary : t.info}>n starts a blank session in this project</Text>
+                        <Text color={hover ? t.textPrimary : t.info}>{NEW_SESSION_DOOR_WORDS}</Text>
                         {door !== undefined ? (
-                          <Text color={hover ? t.textPrimary : t.info}>{` · ${door.modelLabel} · ${isEffortLevel(door.effortLevel) ? effortLevelToSymbol(door.effortLevel) : EFFORT_HIGH} ${door.effortLevel}`}</Text>
+                          <Text color={hover ? t.textPrimary : t.info}>{newSessionDoorTail(door)}</Text>
                         ) : null}
                       </Text>
                     )}
@@ -579,6 +593,28 @@ export function ConcourseLayout({
         }
         const visible = new Set(sessionRows.slice(win.start, win.end).map(r => r.sessionId))
         const out: React.ReactNode[] = [columnHeaderRow]
+        if (lineShown) {
+          out.push(
+            <Box key={NEW_SESSION_ROW_ID} flexShrink={0} paddingX={1}>
+              <InteractiveRow
+                id="concourse:board:empty-new"
+                selected={lineSelected}
+                focused={region === 'list'}
+                onSelect={() => wiring.selectSession(NEW_SESSION_ROW_ID)}
+                onActivate={() => wiring.newSession?.()}
+                flexGrow={1}
+              >
+                <Box flexGrow={1} overflow="hidden">
+                  <Text wrap="truncate-end">
+                    {lineSelected ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}
+                    <Text color={t.info}>{NEW_SESSION_DOOR_WORDS}</Text>
+                    {door !== undefined ? <Text color={t.info}>{newSessionDoorTail(door)}</Text> : null}
+                  </Text>
+                </Box>
+              </InteractiveRow>
+            </Box>,
+          )
+        }
         for (const g of boardGroups) {
           const inWindow = g.rows.filter(r => visible.has(r.sessionId))
           if (inWindow.length === 0) continue
