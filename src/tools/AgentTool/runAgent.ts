@@ -61,8 +61,11 @@ import {
   refillRecoveryBudget,
   retryWaitWords,
   settleRecoveryWait,
+  type RecoveryBudget,
+  type RecoveryNoticeFacts,
   type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
+import { heldBusyRetryNotice } from '../../services/providers/busyRetry.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
@@ -420,6 +423,65 @@ export function agentIdleLimitMs(): number {
   return minutesKnobToMs(flagEnv('MERCURY_AGENT_IDLE_MINUTES'), DEFAULT_AGENT_IDLE_MINUTES)
 }
 
+export interface RecoveryAccountant {
+  wait(facts: RecoveryNoticeFacts, loud: boolean, nowMs?: number): { honoredMs: number; spent: boolean }
+  spoke(nowMs?: number): void
+  end(nowMs?: number): void
+  standing(): boolean
+}
+
+export function makeRecoveryAccountant(args: {
+  budget: RecoveryBudget
+  cut: (cutting: { declaredMs: number; honoredMs: number }) => void
+  words?: (line: string | null) => void
+}): RecoveryAccountant {
+  let budgetCut: ReturnType<typeof setTimeout> | null = null
+  let reservation: RecoveryReservation | null = null
+  let wordsStanding = false
+  let heldStanding = false
+  const clearCut = (): void => {
+    if (budgetCut !== null) clearTimeout(budgetCut)
+    budgetCut = null
+  }
+  return {
+    wait(facts, loud, nowMs = Date.now()) {
+      settleRecoveryWait(args.budget, reservation, nowMs)
+      const honoured = honourRecoveryWait(args.budget, facts, nowMs)
+      reservation = honoured.reservation
+      const cutting = { declaredMs: facts.declaredMs, honoredMs: honoured.honoredMs }
+      if (loud) {
+        wordsStanding = true
+        args.words?.(retryWaitWords({ facts, honoredMs: honoured.honoredMs, budget: args.budget }))
+      } else {
+        heldStanding = true
+      }
+      clearCut()
+      if (honoured.spent && honoured.honoredMs <= 0) args.cut(cutting)
+      else if (honoured.spent) {
+        budgetCut = setTimeout(() => args.cut(cutting), honoured.honoredMs)
+        budgetCut.unref?.()
+      }
+      return { honoredMs: honoured.honoredMs, spent: honoured.spent }
+    },
+    spoke(nowMs = Date.now()) {
+      settleRecoveryWait(args.budget, reservation, nowMs)
+      reservation = null
+      clearCut()
+      if (wordsStanding) args.words?.(null)
+      wordsStanding = false
+      heldStanding = false
+    },
+    end(nowMs = Date.now()) {
+      clearCut()
+      settleRecoveryWait(args.budget, reservation, nowMs)
+      if (wordsStanding) args.words?.(null)
+      wordsStanding = false
+      heldStanding = false
+    },
+    standing: () => wordsStanding || heldStanding,
+  }
+}
+
 const DECLARED_RECOVERY_CAP_MS = 10 * 60_000
 export function declaredRecoveryWaitMs(message: unknown): number {
   const m = message as { type?: string; subtype?: string; retryInMs?: unknown; recoveryTimeoutMs?: unknown } | null
@@ -573,13 +635,22 @@ export async function* runAgent(
     })
   const recovery = makeRecoveryBudget()
   let throttled: Error | null = null
-  let budgetCut: ReturnType<typeof setTimeout> | null = null
-  let retryWordsStanding = false
-  let standingWait: RecoveryReservation | null = null
   let cuttingWait = { declaredMs: 0, honoredMs: 0 }
-  const cutAtBudget = (): void => {
+  const cutAtBudget = (cutting: { declaredMs: number; honoredMs: number }): void => {
+    cuttingWait = cutting
     throttled = new RecoveryBudgetSpentError(recovery, cuttingWait)
     abortController.abort(throttled)
+  }
+  const accountant = makeRecoveryAccountant({ budget: recovery, cut: cutAtBudget, words: line => onWait?.(line) })
+  const touchThrough = (declaredMs: number): void => {
+    watchdog.touch()
+    if (declaredMs <= 0) return
+    if (deferredTouch !== null) clearTimeout(deferredTouch)
+    deferredTouch = setTimeout(() => {
+      deferredTouch = null
+      watchdog.touch()
+    }, declaredMs)
+    deferredTouch.unref?.()
   }
 
   const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
@@ -869,7 +940,17 @@ export async function* runAgent(
     }
     childContext.setSDKStatus = (status: unknown) => {
       if (status !== null && typeof status === 'object' && 'wait' in status) {
-        onQueryProgress?.({ type: 'request_wait', wait: (status as { wait?: unknown }).wait ?? null } as never)
+        const wait = (status as { wait?: unknown }).wait ?? null
+        const heldNotice = heldBusyRetryNotice(wait)
+        if (heldNotice !== null) {
+          const facts = recoveryNoticeFacts(heldNotice)
+          if (facts !== null) {
+            accountant.wait(facts, false)
+            touchThrough(facts.declaredMs)
+          }
+          return
+        }
+        onQueryProgress?.({ type: 'request_wait', wait } as never)
       }
     }
 
@@ -962,38 +1043,12 @@ export async function* runAgent(
 
     for await (const message of pausableQuery()) {
       eventsSeen++
-      watchdog.touch()
-      const declaredWaitMs = declaredRecoveryWaitMs(message)
-      if (declaredWaitMs > 0) {
-        if (deferredTouch !== null) clearTimeout(deferredTouch)
-        deferredTouch = setTimeout(() => {
-          deferredTouch = null
-          watchdog.touch()
-        }, declaredWaitMs)
-        deferredTouch.unref?.()
-      }
+      touchThrough(declaredRecoveryWaitMs(message))
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
-        settleRecoveryWait(recovery, standingWait)
-        const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
-        standingWait = reservation
-        cuttingWait = { declaredMs: notice.declaredMs, honoredMs }
-        retryWordsStanding = true
-        onWait?.(retryWaitWords({ facts: notice, honoredMs, budget: recovery }))
-        if (budgetCut !== null) clearTimeout(budgetCut)
-        budgetCut = null
-        if (spent && honoredMs <= 0) cutAtBudget()
-        else if (spent) {
-          budgetCut = setTimeout(cutAtBudget, honoredMs)
-          budgetCut.unref?.()
-        }
-      } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
-        settleRecoveryWait(recovery, standingWait)
-        standingWait = null
-        retryWordsStanding = false
-        if (budgetCut !== null) clearTimeout(budgetCut)
-        budgetCut = null
-        onWait?.(null)
+        accountant.wait(notice, true)
+      } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
+        accountant.spoke()
       }
       if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
       if ((message as { type?: string }).type === 'assistant') {
@@ -1067,9 +1122,7 @@ export async function* runAgent(
     throw error
   } finally {
     watchdog.cancel()
-    if (budgetCut !== null) clearTimeout(budgetCut)
-    settleRecoveryWait(recovery, standingWait)
-    if (retryWordsStanding) onWait?.(null)
+    accountant.end()
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)
       askHeartbeat = null

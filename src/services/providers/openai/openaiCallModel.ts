@@ -86,7 +86,7 @@ import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { sleep } from '../../../utils/sleep.js'
-import { busyRecoveryDetail, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { busyRecoveryDetail, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -669,17 +669,17 @@ export async function* openaiCallModel(
       const step = nextBusyRetry(ladder, askedMs, Date.now())
       if (step !== null) {
         logForDebugging(`[openai] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
-        if (!step.quiet) {
-          yield createSystemAPIErrorMessage(
-            Object.assign(new Error(outcome.fault.message), {
-              ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-              ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-            }),
-            step.waitMs,
-            step.attempt,
-            step.of,
-          )
-        }
+        const notice = createSystemAPIErrorMessage(
+          Object.assign(new Error(outcome.fault.message), {
+            ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+            ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+          }),
+          step.waitMs,
+          step.attempt,
+          step.of,
+        )
+        if (!step.quiet) yield notice
+        else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
         await sleep(step.waitMs, signal)
         if (signal.aborted) return
         continue
