@@ -468,7 +468,7 @@ t.section('§10 — ROUTE SILENCE around the real layer (no transition, no settl
   t.check('§10 the form closes to the board (and clears its note)', screenSrc.includes('active: form !== null && formPrompt === null && formPick === null') && screenSrc.includes('setForm(null)'))
   t.check('§10 the board closes through the mount contract alone', screenSrc.includes('active: form === null') && screenSrc.includes('onClose: () => onClose?.()'))
   const faceSrc = readFileSync(join(process.cwd(), 'src/components/BootSplashScreen.tsx'), 'utf8')
-  t.check('§10 the face list parks behind the saturn layer', faceSrc.includes('!saturnOpen && !agentsOpen && !loginsOpen,'))
+  t.check('§10 the face list parks behind the saturn layer', faceSrc.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 
 t.finish('prove-saturn-screen')
