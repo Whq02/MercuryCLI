@@ -3,7 +3,7 @@ import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 10
+export const MERCURY_DAEMON_PROTO = 11
 
 export const MIN_PROTO = 1
 
@@ -24,6 +24,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   'sessionControl/resume-agent': 8,
   'sessionControl/withdraw-send': 9,
   processSweep: 10,
+  'sessionControl/background-shell': 11,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -34,7 +35,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:d992774f5a1d9c6f77055fdc32aa8e87578114c22e3b336ae1ec97ed5e89c226'
+export const DAEMON_PROTO_SHAPE = 'sha256:e9d570b98728958b4711fbb99935512826981878b1f7a4407ac3c12727fd1529'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -231,6 +232,7 @@ export type DaemonRequest =
         | 'stop-agent'
         | 'resume-agent'
         | 'withdraw-send'
+        | 'background-shell'
       sessionId: string
       by: string
       reason?: string

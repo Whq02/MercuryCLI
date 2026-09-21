@@ -1,5 +1,5 @@
 
-import { useRef } from 'react'
+import { useRef, useSyncExternalStore } from 'react'
 import { useNotifications } from '../context/notifications.js'
 import { useIsOverlayActive } from '../context/overlayContext.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
@@ -12,7 +12,12 @@ import {
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { pressInterrupt } from '../input-core/interruptArity.js'
+import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
+import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
+import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
+import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import { crewStillRunningLine } from '../services/engine-connector/crewFacts.js'
 import { workCounts } from '../services/engine-connector/workCounts.js'
 import type { Message } from '../types/message.js'
@@ -155,6 +160,23 @@ export function CancelRequestHandler({
       settleAsksAndCancel()
     },
     { context: 'Chat', isActive: isEscapeActive },
+  )
+
+  const shellRunning = useFocusedShellRunning()
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  useKeybinding(
+    'chat:backgroundShell',
+    () => {
+      if (compactWork !== undefined && compactWork.read() !== 'composer') return false
+      if (pendingInput.text() !== '') return false
+      const focused = getFocusedSessionConnector()
+      if (hasSeatLive(focused)) {
+        void focused.backgroundShell()
+        return
+      }
+      if (requestShellBackground() === 0) return false
+    },
+    { context: 'Chat', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.backgroundKey !== false },
   )
 
   const interruptActive =

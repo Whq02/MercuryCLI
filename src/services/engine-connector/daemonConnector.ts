@@ -925,7 +925,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveTurnOutputTokens = null
-    if (!inFlight) this.clearLiveStateWord()
+    if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
     if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
       const gone = this.liveFoldStatus
       this.liveFoldStatus = null
@@ -1757,6 +1757,18 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
     return this.agentVerb('resume-agent', agentId, note)
+  }
+
+  async backgroundShell(): Promise<AgentControlReceiptV1> {
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'background-shell', sessionId: this.record.sessionId, by: 'operator' })
+      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
   }
 
   private async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {

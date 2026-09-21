@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
@@ -104,12 +105,25 @@ export interface CapLaneLineFacts {
   resetText: string | undefined
 }
 
-export function capLaneLineWords(facts: CapLaneLineFacts): string {
+export const CAP_LANE_LINE_TAIL = ' · /model to return'
+
+export function capLaneLineBody(facts: CapLaneLineFacts): string {
   const reset =
     facts.homeWindow !== null && (facts.homeWindow.state === 'rejected' || facts.homeWindow.state === 'warning') && facts.resetText !== undefined
       ? ` · ${facts.homeName} window resets ${facts.resetText}`
       : ''
-  return `on the ${facts.lane} failover lane · ${facts.modelName}${reset} · /model to return`
+  return `on the ${facts.lane} failover lane · ${facts.modelName}${reset}`
+}
+
+export function capLaneLineWords(facts: CapLaneLineFacts): string {
+  return `${capLaneLineBody(facts)}${CAP_LANE_LINE_TAIL}`
+}
+
+export type CapLaneLineCutV1 = { body: string; bodyColumns: number; tail: string }
+
+export function capLaneLineCut(words: string, columns: number): CapLaneLineCutV1 | null {
+  if (!words.endsWith(CAP_LANE_LINE_TAIL) || stringWidth(words) <= columns) return null
+  return { body: words.slice(0, words.length - CAP_LANE_LINE_TAIL.length), bodyColumns: Math.max(1, columns - stringWidth(CAP_LANE_LINE_TAIL)), tail: CAP_LANE_LINE_TAIL }
 }
 
 export function capLaneLineKey(facts: CapLaneLineFacts): string {

@@ -22,6 +22,7 @@ import {
   unregisterForeground,
   type ShellLaunchFacts,
 } from '../../tasks/LocalShellTask/LocalShellTask.js'
+import { registerShellRun } from './backgroundRequest.js'
 import { ShellError, isAbortError } from '../../utils/errors.js'
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js'
 import { formatDuration } from '../../utils/format.js'
@@ -440,6 +441,21 @@ async function* runBash(
     return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
   }
 
+  let backgroundAsked = false
+  let backgroundAskHandled = false
+  let backgroundAskResolve: (() => void) | null = null
+  const backgroundAsk = new Promise<'background'>(resolve => {
+    backgroundAskResolve = () => resolve('background')
+  })
+  const unregisterRun = registerShellRun({
+    agentId,
+    request: () => {
+      backgroundAsked = true
+      backgroundAskResolve?.()
+      progressResolve?.()
+    },
+  })
+  try {
   const completed = shellCommand.result.then(() => 'done' as const)
 
   let quietTimerHandle: ReturnType<typeof setTimeout> | undefined
@@ -447,12 +463,30 @@ async function* runBash(
     quietTimerHandle = setTimeout(() => resolve('timer'), QUIET_WINDOW_MS)
     if (typeof quietTimerHandle === 'object' && 'unref' in quietTimerHandle) quietTimerHandle.unref()
   })
-  const settledEarly = await Promise.race([completed, quietTimer])
+  const settledEarly = await Promise.race([completed, quietTimer, backgroundAsk])
   if (settledEarly === 'done') {
     if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
     const result = await shellCommand.result
     shellCommand.cleanup()
     return await postProcess(result)
+  }
+  if (settledEarly === 'background') {
+    if (quietTimerHandle !== undefined) clearTimeout(quietTimerHandle)
+    backgroundAskHandled = true
+    await startBackgrounding()
+    if (backgroundId === undefined) {
+      const result = await shellCommand.result
+      shellCommand.cleanup()
+      return await postProcess(result)
+    }
+    return {
+      stdout: latest.all,
+      stderr: '',
+      interrupted: false,
+      backgroundTaskId: backgroundId,
+      scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
+      backgroundedByUser: true,
+    }
   }
   if (backgroundId !== undefined) {
     return {
@@ -499,16 +533,22 @@ async function* runBash(
         }
       }
 
+      if (backgroundAsked && !backgroundAskHandled && !interruptBackgroundingStarted && backgroundId === undefined) {
+        backgroundAskHandled = true
+        await startBackgrounding()
+      }
+
       if (backgroundId !== undefined) {
         const fullOutput = latest.all
         return {
-          stdout: interruptBackgroundingStarted ? fullOutput : '',
+          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : '',
           stderr: '',
           interrupted: false,
           backgroundTaskId: backgroundId,
           scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
           assistantAutoBackgrounded,
           timeoutAutoBackgroundedAfterMs,
+          ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
         }
       }
 
@@ -556,6 +596,9 @@ async function* runBash(
     }
   } finally {
     TaskOutput.stopPolling(shellCommand.taskOutput.taskId)
+  }
+  } finally {
+    unregisterRun()
   }
 
 
@@ -697,7 +740,7 @@ function backgroundNoticeFor(output: Out): string {
     return `Command exceeded the assistant-mode blocking budget (${ASSISTANT_BLOCKING_BUDGET_MS / 1000}s) and was moved to the background with ID: ${id}. It is still running — you will be notified when it completes. Output: ${outputPath}. Delegate long-running work to a sub-agent, or pass run_in_background, to keep the conversation responsive.`
   }
   if (output.backgroundedByUser) {
-    return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
+    return `The operator moved this command to the background as task ${id}; it is still running, and its output arrives as a notification when it completes. Output: ${outputPath}.`
   }
   if (output.timeoutAutoBackgroundedAfterMs) {
     return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}. It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout, after which it will be killed. Output: ${outputPath}. Pass a larger timeout for work that legitimately needs it, or run_in_background for service-style commands.`

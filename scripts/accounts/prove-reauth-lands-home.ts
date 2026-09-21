@@ -48,7 +48,7 @@ const loginSrc = readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8'
 section('§2 the settle contract (structural)')
 {
   check('one settle guard (settledRef) fences double settles', loginSrc.includes('if (settledRef.current) return') && loginSrc.includes('settledRef.current = true'))
-  check('success and deliberate close BOTH reach onDone with the chain', loginSrc.includes("onDone(shadow ? `Login successful\\n${shadow}` : 'Login successful', chain)") && loginSrc.includes("onDone('Login closed — no credential changed', chain)"))
+  check('success and deliberate close BOTH reach onDone with the chain', loginSrc.includes("onDone(shadow ? `${receipt}\\n${shadow}` : receipt, chain)") && loginSrc.includes('const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)') && loginSrc.includes("onDone('Login closed — no credential changed', chain)"))
   check('the engine receipt settles with the SAME chain', loginSrc.includes('onDone(result.receipt, chain)'))
   check('--return accepts slash commands only (no arbitrary exec road)', loginSrc.includes("returnCommand.startsWith('/')"))
 }
