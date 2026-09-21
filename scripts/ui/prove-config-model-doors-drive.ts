@@ -182,7 +182,7 @@ for (const [cols, rows] of SIZES) {
   check('the picker lists more than one family group', cols < 100 || picker.filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.filter(l => /MODELS/.test(l)).join(' | '))
   check('no picker row walks an alias list (no sonnet/opus/fable alias words as rows)', !picker.some(l => /^\s*[│❯]?\s*(sonnet|opus|fable|fable51)\s+/.test(l)), picker.filter(l => /\b(sonnet|opus|fable51)\b/.test(l)).join(' | '))
   const saved = configOf(home)
-  check("a pick writes agents.defaultModel as the picked row's own value", typeof saved.agents?.defaultModel === 'string' && saved.agents.defaultModel.length > 0 && saved.agents.defaultModel !== 'inherit', JSON.stringify(saved.agents))
+  check("a pick writes agents.defaultModel as the picked row's exact id, never a family word", typeof saved.agents?.defaultModel === 'string' && /[-/]/.test(saved.agents.defaultModel) && !['inherit', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.agents.defaultModel), JSON.stringify(saved.agents))
   const label = valueOf(after, AGENT_ROW)
   const focused = c.marks.get('focused') ?? []
   check("the row's value words are the picker's own row name for the pick (the row focused when ↵ was pressed)", label.length > 0 && !label.startsWith('Inherit') && !/^claude-/.test(label) && focused.some(l => l.includes(label)), label)
@@ -216,7 +216,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   check("the door opens the model picker with Default and Leader's model leading", rowWith(picker, 'Default') !== '' && rowWith(picker, "Leader's model") !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(0, 12).join(' | '))
   check('the picker lists more than one family group', picker.filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.filter(l => /MODELS/.test(l)).join(' | '))
   const saved = configOf(home)
-  check("a pick writes teammateDefaultModel as the picked row's own value", typeof saved.teammateDefaultModel === 'string' && saved.teammateDefaultModel.length > 0 && !['default', 'leader'].includes(saved.teammateDefaultModel), JSON.stringify(saved.teammateDefaultModel))
+  check("a pick writes teammateDefaultModel as the picked row's exact id, never a family word", typeof saved.teammateDefaultModel === 'string' && /[-/]/.test(saved.teammateDefaultModel) && !['default', 'leader', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.teammateDefaultModel), JSON.stringify(saved.teammateDefaultModel))
   const label = valueOf(after, TEAMMATE_ROW)
   const focused = c.marks.get('focused') ?? []
   check("the row's value words are the picker's own row name for the pick (the row focused when ↵ was pressed)", label.length > 0 && !label.startsWith('Default') && !label.startsWith("Leader") && !/^claude-/.test(label) && focused.some(l => l.includes(label)), label)

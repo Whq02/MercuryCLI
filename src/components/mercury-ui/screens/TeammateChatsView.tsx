@@ -15,10 +15,11 @@ import { useStableSelection } from '../useStableSelection.js'
 import { getCwd } from '../../../utils/cwd.js'
 import {
   crewEnabled,
-  crewModelChoices,
+  crewSeatDefault,
   isValidCrewName,
-  type CrewModelChoice,
 } from '../../../daemon/crewSpawn.js'
+import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../../commands/model/mercuryModel.js'
+import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
 import {
   crewRosterStatus,
   crewUnreadCounts,
@@ -65,14 +66,9 @@ export function TeammateChatsView({
   const [mode, setMode] = useState<Mode>(initialSpawn ? 'spawn-name' : 'browse')
   const [draft, setDraft] = useState('')
   const [nameDraft, setNameDraft] = useState('')
-  const [modelSel, setModelSel] = useState(0)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
-  const [choices, setChoices] = useState<CrewModelChoice[]>([])
-  useEffect(() => {
-    setChoices(crewModelChoices())
-  }, [tick])
   const { columns, rows: termRows } = useTerminalSize()
   const W = Math.max(48, Math.min((columns || 80) - 6, 120))
   const [chatSel, setChatSel] = useState<number | null>(null)
@@ -185,24 +181,13 @@ export function TeammateChatsView({
     if (mode === 'spawn-name') {
       if (key.escape) { setMode('browse'); setNameDraft(''); setNote('') }
       else if (key.return) {
-        if (isValidCrewName(nameDraft.trim())) { setMode('spawn-model'); setModelSel(0) }
+        if (isValidCrewName(nameDraft.trim())) setMode('spawn-model')
         else setNote('name must be [a-z][a-z0-9-]{1,15} (letter-first, not reserved)')
       } else if (key.backspace || key.delete) setNameDraft(d => d.slice(0, -1))
       else if (input && !key.ctrl && !key.meta) setNameDraft(d => (d + input).toLowerCase())
       return
     }
-    if (mode === 'spawn-model') {
-      const a = decodeNavKey(input, key, { orientation: 'horizontal' })
-      if (a === 'cancel') { setMode('spawn-name'); setNote('') }
-      else if (a === 'moveLeft') setModelSel(s => Math.max(0, s - 1))
-      else if (a === 'moveRight') setModelSel(s => Math.min(Math.max(0, choices.length - 1), s + 1))
-      else if (a === 'activate') {
-        const choice = choices[modelSel]
-        if (choice === undefined) { setNote('no provider is signed in — /logins signs one in, and its newest row becomes a choice'); return }
-        const nm = nameDraft.trim(); setMode('browse'); void doSpawn(nm, choice.key, choice.model)
-      }
-      return
-    }
+    if (mode === 'spawn-model') return
     if (mode === 'kill-confirm') {
       if (key.escape || input === 'n') { setMode('browse'); setNote('') }
       else if (input === 'y' || key.return) { setMode('browse'); void doKill() }
@@ -233,7 +218,7 @@ export function TeammateChatsView({
     else if (input === 'i' && cur) { setMode('compose'); setNote('') }
     else if (key.return && cur) { setMode('compose'); setNote('') }
     else if (input === 'r' && cur && !cur.online) {
-      const again = cur.member.model !== undefined && cur.member.model !== '' ? cur.member.model : choices[0]?.key
+      const again = cur.member.model !== undefined && cur.member.model !== '' ? cur.member.model : crewSeatDefault()
       if (again === undefined) setNote('no provider is signed in — /logins signs one in before a respawn')
       else void doSpawn(cur.member.name, again, again)
     }
@@ -252,7 +237,7 @@ export function TeammateChatsView({
     busy ? 'working… · esc close (the spawn/stop finishes in the daemon)'
     : mode === 'compose' ? 'type · ↵ send · esc back'
     : mode === 'spawn-name' ? 'type a name · ↵ next · esc cancel'
-    : mode === 'spawn-model' ? '←→ model · ↵ spawn · esc back'
+    : mode === 'spawn-model' ? '↑↓ move · ↵ spawn · esc back'
     : mode === 'kill-confirm' ? 'y stop · n keep · esc cancel'
     : browseVerbs
 
@@ -375,23 +360,18 @@ export function TeammateChatsView({
         </Box>
       ) : null}
       {mode === 'spawn-model' ? (
-        <Box marginTop={1} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} flexDirection="column">
+        <Box marginTop={1} flexDirection="column">
           <Text bold color={accent}>@{nameDraft.trim()} · pick a model</Text>
-          <Box flexDirection="row" marginTop={1}>
-            {choices.length === 0 ? (
-              <Text color={FAINT}>no provider is signed in — /logins signs one in, and its newest row becomes a choice</Text>
-            ) : null}
-            {choices.map((c, i) => {
-              const on = i === modelSel
-              return (
-                <Box key={c.key} borderStyle="round" borderColor={on ? accent : DUNE} paddingX={1} marginRight={1}>
-                  <Text bold={on} color={on ? IVORY : FAINT}>{c.key}</Text>
-                  <Text color={FAINT}> {c.label.replace('[1m]', '')}</Text>
-                </Box>
-              )
-            })}
-          </Box>
-          <Text color={FAINT}>you pick the model per agent — never defaulted silently</Text>
+          <MercuryModelChoicePicker
+            current={modelChoiceRow(crewSeatDefault() ?? '')}
+            onSelect={id => {
+              const exact = parseUserSpecifiedModel(id)
+              const nm = nameDraft.trim()
+              setMode('browse')
+              void doSpawn(nm, exact, modelChoiceLabel(exact))
+            }}
+            onClose={() => { setMode('spawn-name'); setNote('') }}
+          />
         </Box>
       ) : null}
 

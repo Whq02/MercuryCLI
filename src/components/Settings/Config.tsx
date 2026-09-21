@@ -80,7 +80,8 @@ import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, not
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
-import { MercuryModelChoicePicker, modelChoiceLabel } from '../../commands/model/mercuryModel.js'
+import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../commands/model/mercuryModel.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 
@@ -890,8 +891,8 @@ export function Config({
         <Text>
           {(() => {
             const value = config.teammateDefaultModel
-            if (value === undefined) return TEAMMATE_DEFAULT_ROW.name
-            if (value === null) return TEAMMATE_LEADER_ROW.name
+            if (value === undefined || value === TEAMMATE_DEFAULT_ROW.id) return TEAMMATE_DEFAULT_ROW.name
+            if (value === null || value === TEAMMATE_LEADER_ROW.id) return TEAMMATE_LEADER_ROW.name
             return modelChoiceLabel(value)
           })()}
         </Text>
@@ -973,7 +974,7 @@ export function Config({
     kind: 'managed-enum',
     value: (
       <Text>
-        {agentDefaults.model === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
+        {agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
       </Text>
     ),
     warning: 'the model a spawned agent runs on when neither the call nor its definition names one · ←/→ opens the picker, every family live; Inherit follows the parent',
@@ -1244,13 +1245,13 @@ export function Config({
     return (
       <MercuryModelChoicePicker
         leading={[TEAMMATE_DEFAULT_ROW, TEAMMATE_LEADER_ROW]}
-        current={current === undefined ? TEAMMATE_DEFAULT_ROW.id : current === null ? TEAMMATE_LEADER_ROW.id : current}
+        current={current === undefined || current === TEAMMATE_DEFAULT_ROW.id ? TEAMMATE_DEFAULT_ROW.id : current === null || current === TEAMMATE_LEADER_ROW.id ? TEAMMATE_LEADER_ROW.id : modelChoiceRow(current)}
         onSelect={id => {
           if (id === TEAMMATE_DEFAULT_ROW.id && current === undefined) {
             setSubMenu(null)
             return
           }
-          const next = id === TEAMMATE_LEADER_ROW.id ? null : id === TEAMMATE_DEFAULT_ROW.id ? undefined : id
+          const next = id === TEAMMATE_LEADER_ROW.id ? null : id === TEAMMATE_DEFAULT_ROW.id ? undefined : parseUserSpecifiedModel(id)
           writeGlobal(c => ({ ...c, teammateDefaultModel: next }))
           recordSet(
             'teammateDefaultModel',
@@ -1267,9 +1268,9 @@ export function Config({
     return (
       <MercuryModelChoicePicker
         leading={[AGENT_INHERIT_ROW]}
-        current={agentDefaults.model ?? AGENT_INHERIT_ROW.id}
+        current={agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.id : modelChoiceRow(agentDefaults.model)}
         onSelect={id => {
-          const next = id === AGENT_INHERIT_ROW.id ? undefined : id
+          const next = id === AGENT_INHERIT_ROW.id ? undefined : parseUserSpecifiedModel(id)
           writeAgents({ defaultModel: next })
           recordSet('agentsDefaultModel', `set the sub-agent default model to ${next === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(next)}`)
           setSubMenu(null)
