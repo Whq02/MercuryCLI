@@ -27,6 +27,8 @@ const park = stampDaemonLogLine('[daemon] seat idle edge: concourse-w1')
 check('a park line is stamped too', ISO.test(park) && park.includes('[daemon] seat idle edge: concourse-w1'))
 const already = '2026-09-19T10:00:00.000Z [INFO] [daemon] control socket up'
 check('a line that already leads with an ISO is not stamped twice', stampDaemonLogLine(already) === already)
+const engage = stampDaemonLogLine('[mercury-daemon] engaged v1.0.0 pid 4242 dir /work')
+check('the engage line leads with the stamp and keeps its whole text after it', ISO.test(engage) && engage.endsWith('[mercury-daemon] engaged v1.0.0 pid 4242 dir /work'), engage)
 
 section('§2 the wrapper: console.error the daemon writes is stamped once installed')
 const captured: string[] = []
@@ -43,7 +45,7 @@ check('…and the daemon text survives the stamp', (captured[0] ?? '').includes(
 section('§3 the wiring: the detached daemon installs the stamp, a foreground daemon is left alone')
 const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
 check('main installs the stamp only for the detached daemon', main.includes('if (!foreground) installStampedDaemonLog()'))
-check('the engage line keeps its own ISO through process.stderr.write (never the wrapper)', main.includes('[mercury-daemon] engaged v') && main.includes('at ${new Date().toISOString()}'))
+check('the engage line leads with the stamp through the one stamper, written before the wrapper is installed', main.includes('stampDaemonLogLine(`[mercury-daemon] engaged v') && !main.includes('dir ${dir} at ${new Date().toISOString()}'))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

@@ -11,6 +11,8 @@ import { isDeferredToolsDeltaEnabled } from '../../utils/toolSearchFlags.js'
 
 export { TOOL_SEARCH_TOOL_NAME }
 
+export const STRIPPED_ADMISSION_RECORD_TEXT = "[Tool references removed — every tool's full schema is in this request's tool list; call the tools directly]"
+
 function isMcpToolLike(tool: Tool): boolean {
   return 'isMcp' in tool && tool.isMcp === true
 }
