@@ -36,15 +36,31 @@ export function setRecessTarget(t: RecessTransform | null): void {
   }
 }
 
+type Rect = { x: number; y: number; width: number; height: number }
+
+function rectContains(rect: Rect, col: number, row: number): boolean {
+  return col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height
+}
+
+function rectHosts(host: Rect, guest: Rect): boolean {
+  if (host === guest) return false
+  const within = guest.x >= host.x && guest.y >= host.y && guest.x + guest.width <= host.x + host.width && guest.y + guest.height <= host.y + host.height
+  const same = guest.x === host.x && guest.y === host.y && guest.width === host.width && guest.height === host.height
+  return within && !same
+}
+
 export function elevatedSurfaceContains(col: number, row: number): boolean | null {
-  let committed = false
+  const rects: Rect[] = []
   for (const el of registrants) {
     const rect = nodeCache.get(el)
-    if (!rect) continue
-    committed = true
-    if (col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height) return true
+    if (rect) rects.push(rect)
   }
-  return committed ? false : null
+  if (rects.length === 0) return null
+  for (const rect of rects) {
+    if (rects.some(other => rectHosts(rect, other))) continue
+    if (rectContains(rect, col, row)) return true
+  }
+  return false
 }
 
 export function recessActive(): boolean {
