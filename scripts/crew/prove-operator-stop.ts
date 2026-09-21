@@ -52,6 +52,10 @@ section('a named teammate: the operator\'s stop kills it and answers applied; a 
   const receipt = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
   check('the stop is applied as a teammate kill', receipt.outcome === 'applied' && receipt.kind === 'teammate' && receipt.status === 'killed', JSON.stringify(receipt))
   check('the record reads killed and its controller is aborted', statusOf(store, id) === 'killed' && spawned.abortController?.signal.aborted === true)
+  const { getCommandQueueSnapshot } = await import('../../src/input-core/command-queue.js')
+  const stopWords = (await import('../../src/services/agents/operatorStop.js') as { teammateStopWords?: (name: string) => string }).teammateStopWords
+  const notice = getCommandQueueSnapshot().find(c => c.mode === 'task-notification' && typeof c.value === 'string' && c.value.includes(`<task-id>${id}</task-id>`))
+  check('the main agent is told: the stop queues one task notification naming the teammate and the door that stopped it, at the next priority', stopWords !== undefined && notice !== undefined && typeof notice.value === 'string' && notice.value.includes('<status>killed</status>') && notice.value.includes(`<summary>${stopWords('sonnet-ping')}</summary>`) && notice.priority === 'next', JSON.stringify(notice ?? null))
   const again = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
   check('a second stop is refused with the row\'s status, never applied', again.outcome === 'refused' && again.reason === notRunningWords('sonnet-ping: reply ping', 'killed'), JSON.stringify(again))
 }
