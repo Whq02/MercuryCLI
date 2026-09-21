@@ -392,13 +392,13 @@ try {
     }
   }
   if (LOGINS) {
-    console.log(`\n── 178x51 · the cockpit's /logins card keeps the shipped intro; the walk's intro is the walk's own`)
+    console.log(`\n── 178x51 · the cockpit's /logins card opens on the walk's own intro, one source`)
     const home = join(SCRATCH, 'home-logins')
     mkdirSync(home, { recursive: true })
     seedFirstRun(home, [work])
     const sends: Send[] = [
       { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
+      { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
       { afterPrevTicks: 1, data: '/logins' },
       { afterPrevTicks: 2, data: '\r' },
     ]
@@ -422,8 +422,9 @@ try {
         }
         const introRow = text.split('\n').find(row => row.includes('subscription')) ?? 'no intro row'
         check('logins-178x51: the /logins card opens in the cockpit', text.includes('Sign in') && text.includes('Provider readiness'))
-        check('logins-178x51: the /logins intro reads as shipped', text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
-        check(`logins-178x51: the walk's intro does not reach /logins`, !text.includes('Use a Claude or OpenAI subscription'), introRow)
+        check(`logins-178x51: the /logins intro is the walk's own sentence`, text.includes('Use a Claude or OpenAI subscription'), introRow)
+        check('logins-178x51: the shipped default sentence is gone from /logins', !text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
+        check(`logins-178x51: the chat's card and the walk read one exported source`, readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8').includes('startingMessage={SIGN_IN_WORDS.intro}') && readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes('export const SIGN_IN_WORDS = {'))
       }
     }
   }
