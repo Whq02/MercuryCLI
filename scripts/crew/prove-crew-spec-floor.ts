@@ -47,20 +47,20 @@ setStamp(false)
 check('bare stamp ⇒ STILL ON (stamp-independence)', cs.crewEnabled() === true)
 setStamp(true)
 
-section('CREW_MODEL_CHOICES — the CLOSED Anthropic generation-key table')
-const keys = Object.keys(cs.CREW_MODEL_CHOICES).sort()
-check('exactly {fable, fable51, opus, sonnet}', JSON.stringify(keys) === JSON.stringify(['fable', 'fable51', 'opus', 'sonnet']))
+section('the spawn roster — the signed-in families; the legacy generation keys fold through the seat')
+check('no closed generation-key table is exported', !('CREW_MODEL_CHOICES' in cs) && !('isCrewModelKey' in cs))
+const roster = cs.crewModelChoices()
+check('the roster offers one key per signed-in family (anthropic here) and no generation key', roster.length === 1 && roster[0]?.key === 'anthropic' && !roster.some(c => ['opus', 'sonnet', 'fable', 'fable51'].includes(c.key)), JSON.stringify(roster))
+check("the neutral seat default is the roster's first row", cs.crewSeatDefault() === roster[0]?.model, String(cs.crewSeatDefault()))
 const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } = await import('../../src/utils/model/configs.ts')
 const head = (family: keyof typeof FAMILY_GENERATIONS): string => ALL_MODEL_CONFIGS[FAMILY_GENERATIONS[family][0]].firstParty
-check('opus = the large family\'s newest row @ high (natively 1M on the bare id)', cs.CREW_MODEL_CHOICES.opus.model === head('opus') && cs.CREW_MODEL_CHOICES.opus.model === 'claude-opus-5' && cs.CREW_MODEL_CHOICES.opus.effort === 'high')
-check('sonnet = the mid family\'s newest row @ high', cs.CREW_MODEL_CHOICES.sonnet.model === head('sonnet') && cs.CREW_MODEL_CHOICES.sonnet.model === 'claude-sonnet-5' && cs.CREW_MODEL_CHOICES.sonnet.effort === 'high')
-check('fable = the frontier family\'s newest row @ high', cs.CREW_MODEL_CHOICES.fable.model === head('fable') && cs.CREW_MODEL_CHOICES.fable.model === 'claude-fable-5-1' && cs.CREW_MODEL_CHOICES.fable.effort === 'high')
-check('fable51 = claude-fable-5-1 @ high (the exact-generation key — the family word\'s synonym while newest)', cs.CREW_MODEL_CHOICES.fable51.model === 'claude-fable-5-1' && cs.CREW_MODEL_CHOICES.fable51.model === cs.CREW_MODEL_CHOICES.fable.model && cs.CREW_MODEL_CHOICES.fable51.effort === 'high')
-check('no table value mentions haiku', !JSON.stringify(cs.CREW_MODEL_CHOICES).toLowerCase().includes('haiku'))
-for (const good of ['opus', 'sonnet', 'fable', 'fable51']) check(`isCrewModelKey('${good}')`, cs.isCrewModelKey(good) === true)
-for (const bad of ['haiku', 'claude-haiku-4-5', 'claude-sonnet-5', '', 'OPUS', 'opus ', '__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
-  check(`isCrewModelKey(${JSON.stringify(bad)}) refused`, cs.isCrewModelKey(bad) === false)
-}
+const wm = await import('../../src/services/concourse/workerModels.js')
+check("a record's 'opus' folds to the large family's newest row", wm.foldLegacyWorkerModelKey('opus') === head('opus') && head('opus') === 'claude-opus-5')
+check("a record's 'sonnet' folds to the mid family's newest row", wm.foldLegacyWorkerModelKey('sonnet') === head('sonnet') && head('sonnet') === 'claude-sonnet-5')
+check("a record's 'fable' folds to the frontier family's newest row", wm.foldLegacyWorkerModelKey('fable') === head('fable') && head('fable') === 'claude-fable-5-1')
+check("a record's 'fable51' folds to the same row while it is the newest", wm.foldLegacyWorkerModelKey('fable51') === wm.foldLegacyWorkerModelKey('fable'))
+const haikuSeat = await cs.resolveCrewSeatModel('haiku')
+check("'haiku' seats as its own row (no key table refuses a tier)", haikuSeat.ok && /haiku/.test(haikuSeat.ok ? haikuSeat.model : ''), JSON.stringify(haikuSeat))
 
 section('isValidCrewName — the input space, enumerated')
 for (const good of ['atlas', 'a2', 'x-ray-7', 'ab', 'a'.repeat(16)]) {

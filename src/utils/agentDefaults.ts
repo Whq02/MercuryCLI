@@ -26,7 +26,7 @@ function isPositiveInteger(value: unknown): value is number {
 export function subagentDefaultsOf(record: SubagentDefaultsRecord | undefined): SubagentDefaults {
   const effort = isLadderWord(record?.defaultEffort) ? record.defaultEffort : undefined
   const model =
-    typeof record?.defaultModel === 'string' && record.defaultModel.trim() !== ''
+    typeof record?.defaultModel === 'string' && record.defaultModel.trim() !== '' && record.defaultModel.trim().toLowerCase() !== 'inherit'
       ? record.defaultModel.trim()
       : undefined
   const cap = isPositiveInteger(record?.maxConcurrent) ? record.maxConcurrent : undefined

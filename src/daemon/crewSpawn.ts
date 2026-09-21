@@ -1,5 +1,4 @@
 import { logForDebugging } from '../utils/debug.js'
-import { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } from '../utils/model/configs.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
   appendTeamMember,
@@ -26,18 +25,6 @@ export function crewEnabled(): boolean {
   return true
 }
 
-export const CREW_MODEL_CHOICES = {
-  opus: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.opus[0]].firstParty, effort: 'high' },
-  sonnet: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.sonnet[0]].firstParty, effort: 'high' },
-  fable: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty, effort: 'high' },
-  fable51: { model: ALL_MODEL_CONFIGS.fable51.firstParty, effort: 'high' },
-} as const
-export type CrewModelKey = keyof typeof CREW_MODEL_CHOICES
-
-export function isCrewModelKey(k: string): k is CrewModelKey {
-  return Object.prototype.hasOwnProperty.call(CREW_MODEL_CHOICES, k)
-}
-
 export interface CrewModelChoice {
   key: string
   model: string
@@ -47,14 +34,12 @@ export interface CrewModelChoice {
 
 export function crewModelChoices(): CrewModelChoice[] {
   ;(require('./signInView.js') as typeof import('./signInView.js')).refreshSignInReads(true)
-  const families = seatOwner().seatFamilyChoices()
-  const out: CrewModelChoice[] = families.map(f => ({ key: f.family, model: f.setting, effort: 'high', label: f.row }))
-  if (families.some(f => f.family === 'anthropic')) {
-    for (const [key, choice] of Object.entries(CREW_MODEL_CHOICES)) {
-      out.push({ key, model: choice.model, effort: choice.effort, label: choice.model.replace('claude-', '') })
-    }
-  }
-  return out
+  return seatOwner().seatFamilyChoices().map(f => ({ key: f.family, model: f.setting, effort: 'high', label: f.row }))
+}
+
+export function crewSeatDefault(): string | undefined {
+  ;(require('./signInView.js') as typeof import('./signInView.js')).refreshSignInReads(true)
+  return seatOwner().neutralSeatDefault()?.setting
 }
 
 export async function resolveCrewSeatModel(

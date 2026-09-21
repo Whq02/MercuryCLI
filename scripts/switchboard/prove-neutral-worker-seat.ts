@@ -199,8 +199,8 @@ try {
   check('the neutral default is now the Anthropic family (the most recent sign-in)', later !== null && later.family === 'anthropic', text(later))
   const both = crew.crewModelChoices()
   check(
-    'the roster offers both families, the most recent first, plus the Anthropic generation keys',
-    both[0]?.key === 'anthropic' && both.some(c => c.key === 'openai') && both.some(c => c.key === 'opus'),
+    'the roster offers both families, the most recent first, and no generation key',
+    both[0]?.key === 'anthropic' && both.some(c => c.key === 'openai') && !both.some(c => ['opus', 'sonnet', 'fable', 'fable51'].includes(c.key)),
     text(both.map(c => c.key)),
   )
   const stillWord = await wm.validateWorkerModelChoice('openai', 'crew')

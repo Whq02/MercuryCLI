@@ -91,8 +91,9 @@ export type SpawnOutput = {
 
 function defaultTeammateModel(leaderModel: string | null): string {
   const configured = getGlobalConfig().teammateDefaultModel
-  if (typeof configured === 'string') return parseUserSpecifiedModel(configured)
-  if (configured === null) return leaderModel ?? getHardcodedTeammateModelFallback()
+  const word = typeof configured === 'string' ? configured.trim().toLowerCase() : configured
+  if (word === null || word === 'leader') return leaderModel ?? getHardcodedTeammateModelFallback()
+  if (typeof word === 'string' && word !== '' && word !== 'default') return parseUserSpecifiedModel(configured as string)
   return getHardcodedTeammateModelFallback()
 }
 
