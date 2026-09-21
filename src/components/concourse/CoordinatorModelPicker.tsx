@@ -15,7 +15,6 @@ import {
 } from '../../services/concourse/coordinatorModels.js';
 import { providerDisplayName, type CallModelRoute } from '../../services/providers/routeLaw.js';
 import { NO_EFFORT_CONTROL_LABEL, resolveEffortTruth } from '../../utils/effort.js';
-import { providerFrontierLine } from '../../utils/model/providerFrontier.js';
 import type { ConcourseCallbacks } from './contracts.js';
 import { RowPickModal } from './RowPickModal.js';
 
@@ -351,7 +350,6 @@ export function CoordinatorModelPicker({
               );
             }
             if (r.kind === 'header') {
-              const frontier = r.source === 'unrecognised' ? undefined : providerFrontierLine(r.source);
               return (
                 <InteractiveRow key={props.id} {...props} width="100%" height={1}>
                   {() => (
@@ -359,7 +357,6 @@ export function CoordinatorModelPicker({
                       <Text bold color={t.textMuted}>
                         {r.label}
                       </Text>
-                      {frontier ? <Text color={t.textMuted}>{`  ${frontier}`}</Text> : null}
                     </Text>
                   )}
                 </InteractiveRow>

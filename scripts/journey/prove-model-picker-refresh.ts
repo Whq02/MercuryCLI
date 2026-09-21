@@ -83,7 +83,7 @@ try {
   await flush()
   check('the changed rows replace the cached list', /GPT-6 Astra[^\n]*switch/.test(first.seen()) && !/GPT-5\.6 Terra[^\n]*switch/.test(first.seen()), first.seen())
   check('the highlight follows the same id when the row moves', first.seen().includes('gpt-5.6-sol · model IDs'))
-  check('the changed list uses the existing notice', first.seen().includes('GPT — the live catalogue changed'))
+  check('the changed list uses the existing notice', first.seen().includes('GPT — the live list changed'))
   first.unmount()
 
   const second = await mount()
@@ -106,7 +106,7 @@ try {
   await failed
   await flush()
   check('a failed background read retains the last usable rows', catalogue.getCachedOpenaiCatalogue('api-key')?.models.some(model => model.id === 'gpt-6-astra') === true)
-  check('a failed read does not claim a changed list', !third.seen().includes('GPT — the live catalogue changed'))
+  check('a failed read does not claim a changed list', !third.seen().includes('GPT — the live list changed'))
   third.unmount()
 
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
@@ -124,7 +124,7 @@ try {
   answer!(response(newPage))
   await firstArrival
   await flush()
-  check('the first catalogue arrives without a changed-list notice', cold.seen().includes('GPT-6 Astra') && !cold.seen().includes('GPT — the live catalogue changed'))
+  check('the first catalogue arrives without a changed-list notice', cold.seen().includes('GPT-6 Astra') && !cold.seen().includes('GPT — the live list changed'))
   cold.unmount()
 
   const reordered = await mount()
@@ -179,7 +179,7 @@ try {
   await flush()
   openai.send('\x1b[B')
   await flush()
-  check('a cold slot arrival stays silent about catalogue changes', !openai.seen().includes('GPT — the live catalogue changed'))
+  check('a cold slot arrival stays silent about catalogue changes', !openai.seen().includes('GPT — the live list changed'))
   openai.unmount()
 } finally {
   globalThis.fetch = realFetch
