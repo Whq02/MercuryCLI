@@ -230,10 +230,10 @@ console.log('============================================================')
   const { home, workspace } = seedHome()
   const CLICK_ABOVE = '\x1b[<0;80;5M\x1b[<0;80;5m'
   const { marks, sends, receipts } = await capture(
-    'click-160',
+    'click-178',
     {
-      cols: 160,
-      rows: 45,
+      cols: 178,
+      rows: 51,
       total: 260,
       argv: ['node', DIST],
       cwd: workspace,
@@ -248,7 +248,7 @@ console.log('============================================================')
     },
     baseEnv(home),
   )
-  console.log('\nthe click above the panel · 160 cols')
+  console.log('\nthe click above the panel · 178 cols')
   check('every send became due (the panel closed on the click)', sends > 0 && receipts === sends, `${receipts}/${sends}`)
   const open = marks.open ?? ''
   const closed = marks.closed ?? ''
