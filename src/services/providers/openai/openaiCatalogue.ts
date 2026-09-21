@@ -146,14 +146,14 @@ export function refreshOpenaiCatalogue(
   return work
 }
 
-export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number }): Promise<boolean> {
+export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number; force?: boolean }): Promise<boolean> {
   const account = resolveOpenaiAccount()
   if (!account || !catalogueTrafficVerdict('openai').allowed) return false
   const cached = getCachedOpenaiCatalogue(account.kind)
   if (cached && (cached.models.length > 0 || !cached.lastError)) return false
   let timer: ReturnType<typeof setTimeout> | undefined
   await Promise.race([
-    refreshOpenaiCatalogue(account.kind).catch(() => null),
+    refreshOpenaiCatalogue(account.kind, { force: opts?.force === true }).catch(() => null),
     new Promise<void>(resolve => {
       timer = setTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
       timer.unref?.()

@@ -20,6 +20,7 @@ import {
 } from '../../../daemon/crewSpawn.js'
 import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../../commands/model/mercuryModel.js'
 import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
+import { ModalContext } from '../../../context/modalContext.js'
 import {
   crewRosterStatus,
   crewUnreadCounts,
@@ -362,16 +363,18 @@ export function TeammateChatsView({
       {mode === 'spawn-model' ? (
         <Box marginTop={1} flexDirection="column">
           <Text bold color={accent}>@{nameDraft.trim()} · pick a model</Text>
-          <MercuryModelChoicePicker
-            current={modelChoiceRow(crewSeatDefault() ?? '')}
-            onSelect={id => {
-              const exact = parseUserSpecifiedModel(id)
-              const nm = nameDraft.trim()
-              setMode('browse')
-              void doSpawn(nm, exact, modelChoiceLabel(exact))
-            }}
-            onClose={() => { setMode('spawn-name'); setNote('') }}
-          />
+          <ModalContext.Provider value={{ rows: Math.max(12, (termRows || 24) - 8), columns: W, scrollRef: null }}>
+            <MercuryModelChoicePicker
+              current={modelChoiceRow(crewSeatDefault() ?? '')}
+              onSelect={id => {
+                const exact = parseUserSpecifiedModel(id)
+                const nm = nameDraft.trim()
+                setMode('browse')
+                void doSpawn(nm, exact, modelChoiceLabel(exact))
+              }}
+              onClose={() => { setMode('spawn-name'); setNote('') }}
+            />
+          </ModalContext.Provider>
         </Box>
       ) : null}
 

@@ -154,10 +154,11 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: 'n new', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'crew', data: 'n' },
       { requireAwait: true, awaitText: 'new named agent', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'name', data: NAME },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'pick a model', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'picker', data: '\x1b[B' },
+      { requireAwait: true, awaitText: 'pick a model', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'picker', data: '\x1b[A' },
       { afterPrevTicks: 3, data: '', mark: 'focused' },
       { afterPrevTicks: 1, data: '\r' },
-      { requireAwait: true, awaitText: 'spawn', awaitSettleTicks: 6, awaitStableTicks: 4, mark: 'after', data: '' },
+      { requireAwait: true, awaitText: '@atlas', awaitSettleTicks: 3, mark: 'after', data: '' },
+      { afterPrevTicks: 20, data: '', mark: 'settled' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 420, readySettleTicks: 4, stableTicks: 3, sends, readyText: ['esc close'], out }))
     const status = await new Promise<number>((resolveCapture, reject) => {
@@ -175,7 +176,7 @@ for (const [cols, rows] of SIZES) {
       return mark ? text(mark.grid) : ''
     }
     if (FRAMES !== undefined) {
-      for (const label of ['crew', 'name', 'picker', 'focused', 'after']) {
+      for (const label of ['crew', 'name', 'picker', 'focused', 'after', 'settled']) {
         const frame = frameOf(label)
         if (frame !== '') writeFileSync(join(FRAMES, `${tag}-${label}.txt`), `${frame}\n`)
       }
@@ -183,7 +184,7 @@ for (const [cols, rows] of SIZES) {
     }
     const picker = frameOf('picker')
     const focused = frameOf('focused')
-    const after = frameOf('after')
+    const after = `${frameOf('after')}\n${frameOf('settled')}`
     check(`${tag}: the drive delivered every send (exit 0)`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}; exit ${status}`)
     check(`${tag}: the model step names the agent and opens the model picker`, picker.includes(`@${NAME} · pick a model`) && (cols < 100 || picker.includes('CHOOSE A MODEL')), picker.split('\n').filter(l => /pick a model|CHOOSE/.test(l)).join(' | '))
     check(`${tag}: the picker lists the live rows by family group (more than one family heading)`, cols < 100 || picker.split('\n').filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.split('\n').filter(l => /MODELS/.test(l)).join(' | '))
@@ -191,7 +192,7 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: the footer names the picker's keys`, picker.includes('↑↓ move · ↵ spawn · esc back'), rowWith(picker, 'esc back'))
     const models = crewTeamModels(home)
     check(`${tag}: the pick spawns the row's exact id (the team file records it, never a family word)`, models.length > 0 && models.every(m => /[-/]/.test(m) && !['fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(m)), models.join(','))
-    check(`${tag}: the board reports the spawn with the row's own words`, /spawning @atlas|@atlas spawned|spawn refused/.test(after), rowWith(after, '@atlas'))
+    check(`${tag}: the board reports the spawn with the row's own words and the picker is gone`, /spawning @atlas|@atlas spawned|spawn refused/.test(after) && !frameOf('settled').includes('pick a model'), rowWith(after, '@atlas'))
     void focused
   } finally {
     await new Promise<void>(done => {
