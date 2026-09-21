@@ -19,7 +19,6 @@ const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
   { key: '↵ ', label: 'start', tone: 'ivory' as const },
   { key: '↑↓', label: ' choose', tone: 'faint' as const },
-  { key: 'm', label: ' menu', tone: 'faint' as const },
 ]
 const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const bottomRight = (frame: string[], cols: number, rows: number, hint: string = CONCOURSE_HINT_HOST): boolean =>
