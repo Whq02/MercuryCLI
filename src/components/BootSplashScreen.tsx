@@ -456,7 +456,7 @@ export function BootSplashScreen(): React.ReactNode {
     let pending = false;
     try {
       const decision = computedDefault();
-      pending = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' && decision.considered.length > 0;
+      pending = getUserSpecifiedModelSetting() === null && decision.considered.length > 0 && decision.considered[0]?.verdict.usable !== true;
     } catch {
       pending = false;
     }
