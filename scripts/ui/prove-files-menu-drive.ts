@@ -232,7 +232,8 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\x1b', '@src/components/Alpha.tsx', { awaitSettleTicks: 4, mark: 'picked' }),
     after('\x1b', 2),
     gated('/files', 'Type a prompt', { mark: 'draft-cleared' }),
-    after('\r', 3),
+    after('', 4, { mark: 'typed' }),
+    after('\r', 2),
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
     after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
@@ -281,6 +282,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   tally.check('P9 the cursor reaches a file two folders deep', onFile !== null && onFile.rows.some(r => r.startsWith('│     ❯ Alpha.tsx')), onFile === null ? 'no menu' : onFile.rows.join('\n'))
   tally.check('P10 ↵ on the file puts @path in the composer and closes the menu', !(m.picked ?? '').includes(TITLE) && rowsOf(m.picked).some(r => r.includes('│❯ @src/components/Alpha.tsx')), rowWith(m.picked, '@src') ?? '(no composer row)')
   tally.check('P11 /files opens the same menu from the composer', menuRegion(m.command) !== null && (menuRegion(m.command)?.top ?? -1) === 5)
+  tally.check('P11b the typed /files offers its row with the word browse and no other words', rowsOf(m.typed).some(r => /\/files\s+browse\s*$/.test(r.trimEnd())) && rowsOf(m.typed).filter(r => r.includes('/files')).every(r => r.includes('❯ /files') || /\/files\s+browse\s*$/.test(r.trimEnd())), rowsOf(m.typed).filter(r => r.includes('/files')).join(' | '))
   tally.check('P12 esc closes the menu', !(m['esc-closed'] ?? '').includes(TITLE))
   tally.check('P13 a click on the FILES box opens the menu', menuRegion(m['click-open']) !== null)
   tally.check('P14 a click on the chat outside the menu closes it and nothing else moves', !(m['click-closed'] ?? '').includes(TITLE) && m['click-closed'] === m['esc-closed'], m['click-closed'] === m['esc-closed'] ? '' : 'the frame after the click differs from the frame after esc')
