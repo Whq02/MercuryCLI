@@ -293,8 +293,12 @@ export function ConcourseScreen({
   }, [compactParkNoteExpiresAt, parkNoteEpoch])
   const lastIdxRef = useRef(0)
   useEffect(() => {
+    if (newSessionLine && boardSel === NEW_SESSION_ROW_ID) {
+      lastIdxRef.current = 0
+      return
+    }
     const ids = sessionRows.map(r => r.sessionId)
-    const fb = stableSelectionFallback(newSessionLine ? [NEW_SESSION_ROW_ID, ...ids] : ids, boardSel, lastIdxRef.current)
+    const fb = stableSelectionFallback(ids, boardSel, lastIdxRef.current)
     lastIdxRef.current = fb.index
     if (fb.sessionId !== boardSel) setBoardSel(fb.sessionId)
   }, [sessionRows, boardSel, newSessionLine])

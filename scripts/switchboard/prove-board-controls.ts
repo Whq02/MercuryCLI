@@ -158,7 +158,8 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) {\n          armContractAsk()') &&
       screen.includes('if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) return\n        const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)') &&
       screen.includes('(sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()') &&
-      screen.includes('stableSelectionFallback(newSessionLine ? [NEW_SESSION_ROW_ID, ...ids] : ids, boardSel, lastIdxRef.current)') &&
+      screen.includes('if (newSessionLine && boardSel === NEW_SESSION_ROW_ID) {\n      lastIdxRef.current = 0\n      return\n    }') &&
+      screen.includes('stableSelectionFallback(ids, boardSel, lastIdxRef.current)') &&
       screen.includes('if (sessionId !== NEW_SESSION_ROW_ID) callbacks.peekSession(sessionId)'),
   )
   check(
