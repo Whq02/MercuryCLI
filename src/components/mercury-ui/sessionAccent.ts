@@ -13,6 +13,8 @@ import {
   LEGACY_CRITTER_KEYS,
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
+import { getCritterSize, subscribeCritterSize, type CritterSize } from '../../utils/cockpit/critterSize.js'
 
 
 export type Critter = {
@@ -202,4 +204,17 @@ export function useSessionAccent(): Critter {
     getSessionAccentSnapshotKey,
   )
   return getSessionAccent()
+}
+
+function subscribeCritterSizeLive(onChange: () => void): () => void {
+  const offOwn = subscribeCritterSize(onChange)
+  const offSettings = settingsChangeDetector.subscribe(onChange)
+  return () => {
+    offOwn()
+    offSettings()
+  }
+}
+
+export function useCritterSize(): CritterSize {
+  return useSyncExternalStore(subscribeCritterSizeLive, getCritterSize, getCritterSize)
 }
