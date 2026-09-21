@@ -34,6 +34,29 @@ const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
   { value: 'true-black', label: 'True Black · the same palette on pure black' },
 ]
 
+const THEME_WORDS = {
+  bubble: 'welcome — pick our colors',
+  tagline: 'the whole harness wears your pick — status colors stay fixed',
+  fileName: 'helm.tsx',
+}
+
+const GUARDRAILS_WORDS = {
+  title: 'Guardrails',
+  mistakes: 'Mercury can make mistakes',
+  mistakesTail: ' — review what it does, especially before running code.',
+  injection: 'Prompt injection is real',
+  injectionTail: ' — point Mercury only at code you trust.',
+  row: ' ▸ continue',
+}
+
+const TERMINAL_WORDS = {
+  title: 'Terminal keys',
+  appleTweak: 'Option+Enter for newlines and the visual bell need one terminal tweak.',
+  tweak: 'Shift+Enter for newlines needs one terminal tweak.',
+  install: 'yes — apply the recommended settings',
+  later: 'not now — /terminal-setup does it later',
+}
+
 const FITTING_PATCH = {
   oldStart: 1,
   newStart: 1,
@@ -126,13 +149,13 @@ function ThemeFitting({
             <Text color={FAINT}>─</Text>
             <Box borderStyle="round" borderColor={FAINT} paddingX={1} flexShrink={0}>
               <Text italic color={SECOND}>
-                welcome — pick our colors
+                {THEME_WORDS.bubble}
               </Text>
             </Box>
           </Box>
         </Box>
       </Box>
-      <Text color={SECOND}>the whole harness wears your pick — status colors stay fixed</Text>
+      <Text color={SECOND}>{THEME_WORDS.tagline}</Text>
       <Box flexDirection="column" marginTop={1}>
         {THEME_ROWS.map((r, i) => (
           <InteractiveRow key={r.value} {...rowProps(r, i)}>
@@ -155,8 +178,8 @@ function ThemeFitting({
         borderStyle="dashed"
         borderColor="subtle"
       >
-        <Text color={SECOND}>helm.tsx</Text>
-        <StructuredDiff patch={FITTING_PATCH} dim={false} filePath="helm.tsx" firstLine={null} width={Math.min(columns - 8, 92)} />
+        <Text color={SECOND}>{THEME_WORDS.fileName}</Text>
+        <StructuredDiff patch={FITTING_PATCH} dim={false} filePath={THEME_WORDS.fileName} firstLine={null} width={Math.min(columns - 8, 92)} />
       </Box>
       <Text color={FAINT}>{syntaxLine}</Text>
     </Box>
@@ -224,24 +247,24 @@ function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: ()
   return (
     <Box flexDirection="column">
       <Text bold color={IVORY}>
-        Guardrails
+        {GUARDRAILS_WORDS.title}
       </Text>
       <Box flexDirection="column" marginTop={1}>
         <Text wrap="wrap">
           <Text color={mark}>{`${GLYPH.warn} `}</Text>
-          <Text color={IVORY}>Mercury can make mistakes</Text>
-          <Text color={SECOND}> — review what it does, especially before running code.</Text>
+          <Text color={IVORY}>{GUARDRAILS_WORDS.mistakes}</Text>
+          <Text color={SECOND}>{GUARDRAILS_WORDS.mistakesTail}</Text>
         </Text>
         <Text wrap="wrap">
           <Text color={mark}>{`${GLYPH.warn} `}</Text>
-          <Text color={IVORY}>Prompt injection is real</Text>
-          <Text color={SECOND}> — point Mercury only at code you trust.</Text>
+          <Text color={IVORY}>{GUARDRAILS_WORDS.injection}</Text>
+          <Text color={SECOND}>{GUARDRAILS_WORDS.injectionTail}</Text>
         </Text>
       </Box>
       <Box marginTop={1}>
         <InteractiveRow {...rowProps(rows[0]!, 0)}>
           <Text>
-            <Text color={selectedIndex === 0 ? IVORY : SECOND}>{' ▸ continue'}</Text>
+            <Text color={selectedIndex === 0 ? IVORY : SECOND}>{GUARDRAILS_WORDS.row}</Text>
           </Text>
         </InteractiveRow>
       </Box>
@@ -260,8 +283,8 @@ function TerminalKeys({
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const rows = [
-    { id: 'install', label: 'yes — apply the recommended settings' },
-    { id: 'no', label: 'not now — /terminal-setup does it later' },
+    { id: 'install', label: TERMINAL_WORDS.install },
+    { id: 'no', label: TERMINAL_WORDS.later },
   ]
   const { selectedIndex, rowProps } = useInteractiveList({
     rows,
@@ -285,14 +308,11 @@ function TerminalKeys({
       },
     ],
   })
-  const tweak =
-    env.terminal === 'Apple_Terminal'
-      ? 'Option+Enter for newlines and the visual bell need one terminal tweak.'
-      : 'Shift+Enter for newlines needs one terminal tweak.'
+  const tweak = env.terminal === 'Apple_Terminal' ? TERMINAL_WORDS.appleTweak : TERMINAL_WORDS.tweak
   return (
     <Box flexDirection="column">
       <Text bold color={IVORY}>
-        Terminal keys
+        {TERMINAL_WORDS.title}
       </Text>
       <Text color={SECOND}>{tweak}</Text>
       <Box flexDirection="column" marginTop={1}>

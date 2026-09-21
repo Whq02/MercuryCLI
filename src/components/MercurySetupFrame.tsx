@@ -62,7 +62,7 @@ export function MercurySetupFrame({
   }
   const railLabels = inner >= 74 - 4
 
-  const card = (
+  const stationCard = (
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -154,7 +154,7 @@ export function MercurySetupFrame({
       </Box>
     </Box>
   )
-  if (!centred) return card
+  if (!centred) return stationCard
   return (
     <Box
       width="100%"
@@ -162,7 +162,7 @@ export function MercurySetupFrame({
       justifyContent="center"
       alignItems={width <= columns ? 'center' : 'flex-start'}
     >
-      {card}
+      {stationCard}
     </Box>
   )
 }
