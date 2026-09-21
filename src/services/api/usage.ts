@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import { getOauthConfig } from '../../constants/oauth.js'
+import { anthropicAccountApiBase } from '../../constants/oauth.js'
 import { getClaudeAIOAuthTokens, hasProfileScope, isClaudeAISubscriber } from '../../utils/auth.js'
 import { getAuthHeaders } from '../../utils/http.js'
 import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
@@ -24,7 +24,7 @@ export type Utilization = {
 const USAGE_TIMEOUT_MS = 5000
 
 export function usageEndpointBase(): string {
-  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
+  return anthropicAccountApiBase()
 }
 
 export async function fetchUtilization(): Promise<Utilization | null> {
