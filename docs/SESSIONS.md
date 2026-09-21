@@ -66,6 +66,10 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
+While the board is empty, its door row also names the model and the effort
+the next session starts on, and the bottom row offers `m to select
+model-default`: `m` opens the model picker over the board, and the pick is
+saved as your default — the door row follows at once.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
@@ -445,7 +449,12 @@ Concourse row on the face either (New Session is the door). A `--chat` boot
 lands on the Boot face like a bare boot; ↵ on New Session starts the chat.
 From the chat, shift+← is the Boot face directly and shift+→ moves nothing;
 the face's key-map row reads "⇧→ chat" while a session is focused and "⇧→
-no chat open" otherwise. `/concourse` still opens the plain
+no chat open" otherwise, and in a `--chat` boot it also offers `m to select
+model-default`: `m` opens the model picker over the face and the pick is
+saved as the default a new session starts on, while the Boot Menu stays on
+its own card row. The setting `sessionDefaultsKey` in `settings.json` (absent
+reads as on) switches this off: with it `false`, the face and the board read
+as they did before, `m menu` included. `/concourse` still opens the plain
 live view of your sessions there.
 
 ## `mercury --concourse-off`
