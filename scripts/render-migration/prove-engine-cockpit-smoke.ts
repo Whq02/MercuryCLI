@@ -168,7 +168,7 @@ for (const leg of ['off', 'on'] as const) {
   check(`${leg}: C1 both prompts landed in the transcript`, flat.includes('first smoke prompt') && flat.includes('second smoke prompt'), flat.slice(0, 600))
   const settledCount = countOnGrid(r.final, 'Scripted stream settled')
   check(`${leg}: C2 the settled reply text appears EXACTLY twice on screen (two turns, one copy each)`, settledCount === 2, `count=${settledCount}`)
-  const paneOnly = r.final.filter(l => !l.includes('✶ SESSION')).map(l => l.slice(24))
+  const paneOnly = r.final.filter(l => !l.includes('✶ VIEW')).map(l => l.slice(24))
   check(`${leg}: C2 each prompt appears exactly once INSIDE the transcript pane (the rail's prompt rows are its own lawful estate)`, countOnGrid(paneOnly, 'first smoke prompt') === 1 && countOnGrid(paneOnly, 'second smoke prompt') === 1, `pane first=${countOnGrid(paneOnly, 'first smoke prompt')} second=${countOnGrid(paneOnly, 'second smoke prompt')}`)
   const torn = tornSequences(r.raw)
   check(`${leg}: C3 the raw byte stream has zero torn escape sequences (${r.raw.length} bytes)`, r.raw.length > 0 && torn === 0, `torn=${torn}`)

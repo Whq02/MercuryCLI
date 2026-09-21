@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-HEADER = '✶ SESSION'
+HEADER = '✶ VIEW'
 SPAN = 60
 failures = 0
 

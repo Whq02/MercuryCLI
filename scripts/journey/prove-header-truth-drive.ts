@@ -411,7 +411,7 @@ const GLYPHS = /[◐◓◑◒]/
 const CLOCK = /\b\d\d:\d\d:\d\d\b/
 const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
 const CREW_CLOCK = /\b(agents?|workflows?) thought for \d+[sm]\b/
-const headerIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ SESSION'))
+const headerIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
 const headerRow = (frame: string | undefined): string => rows(frame)[headerIndex(frame)] ?? ''
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
@@ -423,8 +423,8 @@ const statusGlyph = (frame: string | undefined): string => (GLYPHS.exec(statusRo
 const berth = (frame: string | undefined): string => rows(frame).slice(2, 13).join('\n')
 function headerRight(frame: string | undefined): string {
   const row = headerRow(frame).replace(/│/g, ' ')
-  const at = row.indexOf('✶ SESSION')
-  return at < 0 ? '' : row.slice(at + '✶ SESSION'.length).trim()
+  const at = row.indexOf('✶ VIEW')
+  return at < 0 ? '' : row.slice(at + '✶ VIEW'.length).trim()
 }
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
@@ -518,7 +518,7 @@ if (cap !== null) {
 
   console.log('\n— H1 the title row —')
   const chatFrames = scenes.filter(s => m[s] !== undefined && headerIndex(m[s]) >= 0)
-  check(`the title row (✶ SESSION) stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
+  check(`the title row (✶ VIEW) stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
   const clocked = chatFrames.filter(s => CLOCK.test(headerRow(m[s])))
   check('H1 no chat frame carries a clock-shaped string on the title row', clocked.length === 0, `clock on: ${clocked.join(',')} — ${flat(headerRight(m[clocked[0] ?? '']))}`)
   const EXPECTED_NAME: Record<string, string> = { idle: 'new session', thinking: 'hdr: launch', 'after-esc': 'hdr: launch', 'first-byte': 'hdr: launch', stuck: 'hdr: launch' }

@@ -39,7 +39,7 @@ check('RailPanel header is a function child (no static slab)', /const headerText
 check('RailPanel header hover brightens info → infoShimmer', /hover \? 'infoShimmer' : headerHue/.test(rp))
 check('CommandCenter footer child keeps the spacer Box and inks on hover', /\{hover => \(\s*\n\s*<Box marginTop=\{1\}>/.test(cc))
 const hch = read('src/components/HelmCenterHeader.tsx')
-check('SESSION chrome hovers through ink (muted → info; white ink retired from chrome)', /hover \? t\.info : t\.textMuted\}>\{SESSION_LABEL\}/.test(hch) && hch.includes("export const SESSION_LABEL = 'SESSION'"))
+check('SESSION chrome hovers through ink (muted → info; white ink retired from chrome)', /hover \? t\.info : t\.textMuted\}>\{SESSION_LABEL\}/.test(hch) && hch.includes("export const SESSION_LABEL = 'VIEW'"))
 
 const ls = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
 check('`? for shortcuts` is a Box sibling dispatching /help', /onClick=\{\(\) => \{[\s\S]{0,240}requestCommandDispatch\('\/help'\)/.test(ls))

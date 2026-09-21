@@ -368,9 +368,9 @@ const j5d = capture('j5-close', [
   { atTick: 60, data: ']' },
   { atTick: 66, data: '\x1b' },
   { atTick: 72, data: '\x1b' },
-], 92, { ready: '✶ SESSION' })
+], 92, { ready: '✶ VIEW' })
 if (j5d && j1) {
-  check('diff close: home restored (the session header back)', rowOf(j5d, '✶ SESSION') >= 0)
+  check('diff close: home restored (the session header back)', rowOf(j5d, '✶ VIEW') >= 0)
   check('diff close: no workspace residue', rowOf(j5d, 'hunk ') === -1)
   check('diff close: prompt row back at its baseline position', promptRow(j5d) === promptY0, `row ${promptRow(j5d)} vs ${promptY0}`)
 }
@@ -392,9 +392,9 @@ if (j6a) {
   const j6b = capture('j6-close', [
     ...SATURN_OPEN,
     { atTick: 52, data: '\x1b' },
-  ], 76, { cols: 140, ready: '✶ SESSION' })
+  ], 76, { cols: 140, ready: '✶ VIEW' })
   if (j6b) {
-    check('board close: home restored after esc', rowOf(j6b, '✶ SESSION') >= 0)
+    check('board close: home restored after esc', rowOf(j6b, '✶ VIEW') >= 0)
   }
 }
 
