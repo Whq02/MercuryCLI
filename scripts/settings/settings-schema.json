@@ -661,6 +661,13 @@
     "prefersReducedMotion": {
       "type": "boolean"
     },
+    "critterSize": {
+      "type": "string",
+      "enum": [
+        "mini",
+        "full"
+      ]
+    },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },

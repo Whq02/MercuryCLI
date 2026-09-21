@@ -25,7 +25,7 @@ t('berth card is a rounded strong-bordered pin (token role)', card.includes('bor
 t('berth carries the pinned living critter', card.includes('<PinnedCritterBerth />'))
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8')
 t('PinnedCritterBerth renders the HERO art (flat only below the named floors)', /export function PinnedCritterBerth[\s\S]{0,4000}<AnimatedCritterArt def=\{hover \? hoverDef : def\} hero=\{heroFits\} square=\{!heroFits\} \/>/.test(home))
-t('berth art rides a fixed bottom-aligned slot (a morph swaps pixels, never rows)', /PinnedCritterBerth[\s\S]{0,3000}height=\{heroFits \? HERO_ART_LINES : SQUARE_ART_LINES\}/.test(home))
+t('berth art rides a fixed bottom-aligned slot per form (a morph swaps pixels, never rows; the small critter has its own three-row slot)', /PinnedCritterBerth[\s\S]{0,4000}height=\{SQUARE_DOCK_ART_LINES\} flexDirection="column" justifyContent="flex-end"[\s\S]{0,800}height=\{heroFits \? HERO_ART_LINES : SQUARE_ART_LINES\}/.test(home))
 t('berth hero gate rides the ONE form decision', /PinnedCritterBerth[\s\S]{0,2000}decideCritterForm\(\{ columns, rows \}/.test(home))
 t('berth critter is click-cyclable like the hero', /PinnedCritterBerth[\s\S]{0,3000}cycleSessionCritter/.test(home))
 
