@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { Box, Text } from '../ink.js'
+import { useSettingsMaybe } from '../hooks/useSettings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Crab, Wordmark } from './mercury-ui/assets.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -15,11 +16,20 @@ export interface SetupRailStep {
   state: 'done' | 'current' | 'pending'
 }
 
+export function firstRunCardsCentred(settings: { firstRunCards?: string } | undefined): boolean {
+  return settings?.firstRunCards !== 'top-left'
+}
+
+export function useFirstRunCardsCentred(): boolean {
+  return firstRunCardsCentred(useSettingsMaybe())
+}
+
 export function MercurySetupFrame({
   title,
   stepTag,
   steps,
   tone = 'brand',
+  firstRunCard = false,
   footer,
   bootNotes = [],
   children,
@@ -28,13 +38,17 @@ export function MercurySetupFrame({
   stepTag?: string
   steps: SetupRailStep[]
   tone?: 'brand' | 'trust'
+  firstRunCard?: boolean
   footer: string
   bootNotes?: readonly BootNote[]
   children: React.ReactNode
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
-  const border = tone === 'trust' ? tokens.warning : tokens.accent
+  const designOn = useFirstRunCardsCentred()
+  const centred = firstRunCard && designOn
+  const trustTone = centred ? tokens.cardBrown : tokens.warning
+  const border = tone === 'trust' ? trustTone : tokens.accent
   const width = Math.max(Math.min(columns - 2, 100), 40)
   const inner = width - 4
   const [notesOpen, setNotesOpen] = useState(false)
@@ -48,7 +62,7 @@ export function MercurySetupFrame({
   }
   const railLabels = inner >= 74 - 4
 
-  return (
+  const card = (
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -121,7 +135,7 @@ export function MercurySetupFrame({
                 {bootNotes.map((n, i) => (
                   <Text key={i} wrap="truncate-end">
                     {n.kind === 'warn' ? (
-                      <Text color={tokens.warning}>{`${GLYPH.warn} `}</Text>
+                      <Text color={trustTone}>{`${GLYPH.warn} `}</Text>
                     ) : (
                       <Text color={tokens.textMuted}>{'· '}</Text>
                     )}
@@ -138,6 +152,17 @@ export function MercurySetupFrame({
           {footer}
         </Text>
       </Box>
+    </Box>
+  )
+  if (!centred) return card
+  return (
+    <Box
+      width="100%"
+      height={frameCap}
+      justifyContent="center"
+      alignItems={width <= columns ? 'center' : 'flex-start'}
+    >
+      {card}
     </Box>
   )
 }

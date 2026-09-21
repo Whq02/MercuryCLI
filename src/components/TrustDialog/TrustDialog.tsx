@@ -17,6 +17,7 @@ import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js';
 import { normalizePathForConfigKey } from '../../utils/path.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
+import { useFirstRunCardsCentred } from '../MercurySetupFrame.js';
 import { getApiKeyHelperSources, getAutoMemoryDirectorySources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources, getProxyAuthHelperSources } from './utils.js';
 type Props = {
   onDone(): void;
@@ -44,6 +45,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
   const hasAnyBashExecution = bashSettingSources.length > 0 || hasSkillsBash;
 
   const { rows } = useTerminalSize();
+  const boxTone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();
 
   function onChange(value: 'enable_all' | 'exit'): void {
@@ -75,7 +77,7 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
 
   const shortFrame = rows < 18;
   return (
-    <PermissionDialog color="warning" titleColor="warning" title="Accessing workspace:">
+    <PermissionDialog color={boxTone} titleColor={boxTone} title="Accessing workspace:">
       <Box flexDirection="column" gap={1} paddingTop={1}>
         <Text bold={true}>{getFsImplementation().cwd()}</Text>
         {shortFrame ? (

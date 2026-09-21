@@ -16,7 +16,7 @@ import { bootNotes } from '../substrate/bootNotes.js'
 import { ApproveApiKey } from './ApproveApiKey.js'
 import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
 import { AMBER, FAINT, IVORY, SECOND } from './mercuryPalette.js'
-import { MercurySetupFrame, type SetupRailStep } from './MercurySetupFrame.js'
+import { MercurySetupFrame, useFirstRunCardsCentred, type SetupRailStep } from './MercurySetupFrame.js'
 import { getSyntaxTheme } from './StructuredDiff/colorDiff.js'
 import { StructuredDiff } from './StructuredDiff.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
@@ -24,6 +24,7 @@ import { GLYPH } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
+import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
@@ -201,6 +202,8 @@ function ProviderStation({
 }
 
 function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: () => void }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const mark = useFirstRunCardsCentred() ? tokens.cardBrown : AMBER
   const rows = [{ id: 'continue', label: 'continue' }]
   const { rowProps, selectedIndex } = useInteractiveList({
     rows,
@@ -225,12 +228,12 @@ function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: ()
       </Text>
       <Box flexDirection="column" marginTop={1}>
         <Text wrap="wrap">
-          <Text color={AMBER}>{`${GLYPH.warn} `}</Text>
+          <Text color={mark}>{`${GLYPH.warn} `}</Text>
           <Text color={IVORY}>Mercury can make mistakes</Text>
           <Text color={SECOND}> — review what it does, especially before running code.</Text>
         </Text>
         <Text wrap="wrap">
-          <Text color={AMBER}>{`${GLYPH.warn} `}</Text>
+          <Text color={mark}>{`${GLYPH.warn} `}</Text>
           <Text color={IVORY}>Prompt injection is real</Text>
           <Text color={SECOND}> — point Mercury only at code you trust.</Text>
         </Text>
@@ -420,6 +423,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
       title="first run"
       stepTag={stepTag}
       steps={railSteps}
+      firstRunCard
       footer={footer}
       bootNotes={notes}
     >
