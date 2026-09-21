@@ -223,7 +223,7 @@ const leg1 = await capture(
   ['node', BIN, '--model', 'claude-sonnet-5'],
   [
     { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
-    { requireAwait: true, awaitText: '· ready', awaitSettleTicks: 5, data: `${FIRST}\r`, mark: 'typed' },
+    { requireAwait: true, awaitText: 'ready · type a prompt', awaitSettleTicks: 5, data: `${FIRST}\r`, mark: 'typed' },
     { requireAwait: true, awaitText: 'holding the turn open', awaitSettleTicks: 2, data: `${ESC}[200~${png}${ESC}[201~`, mark: 'hold' },
     { requireAwait: true, awaitText: '[Image #1]', awaitSettleTicks: 2, data: QUEUED, mark: 'chip' },
     { afterPrevTicks: 3, data: '\r', mark: 'sent' },
@@ -266,7 +266,7 @@ const leg2 = await capture(
   'leg2',
   ['node', BIN, '--continue', '--model', 'claude-sonnet-5'],
   [
-    { requireAwait: true, awaitText: '· ready', awaitSettleTicks: 5, data: `${RESUMED}\r`, mark: 'typed2' },
+    { requireAwait: true, awaitText: 'ready · type a prompt', awaitSettleTicks: 5, data: `${RESUMED}\r`, mark: 'typed2' },
     { requireAwait: true, awaitText: 'Seen it again.', data: '', mark: 'reply2' },
   ],
   'Seen it again.',
