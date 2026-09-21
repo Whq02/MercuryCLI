@@ -1083,7 +1083,7 @@ function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: st
     outcome: 'refused',
     detail: older
       ? waiter.verb === 'background-shell'
-        ? "the session's runner predates the shell background verb — /daemon restart when ready, then reopen the session"
+        ? "this session's runner predates shift+B · /daemon restart, then reopen the session"
         : "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session"
       : error,
   })

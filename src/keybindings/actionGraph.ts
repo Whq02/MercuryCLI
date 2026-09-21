@@ -29,7 +29,7 @@ export const ACTION_GRAPH = {
   'history:search': { description: 'Search command history', contexts: ['Global'] },
   'chat:cancel': { description: 'Cancel the current input or close the transient surface', contexts: ['Chat'] },
   'chat:killAgents': { description: 'Stop all running agents', contexts: ['Chat'] },
-  'chat:backgroundShell': { description: 'Move the running shell command to the background', contexts: ['Chat'] },
+  'chat:backgroundShell': { description: 'background the command', contexts: ['Chat'] },
   'chat:cycleMode': { description: 'Cycle the permission mode', contexts: ['Chat'] },
   'chat:modelPicker': { description: 'Open the model picker', contexts: ['Chat'] },
   'chat:thinkingToggle': { description: 'Toggle extended thinking', contexts: ['Chat'] },
