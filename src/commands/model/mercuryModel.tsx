@@ -811,6 +811,12 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   )
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
+  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
@@ -852,6 +858,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
+      notice={notice}
       groupDetails={groupDetailsOf(seatDetailOf)}
       onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
@@ -885,6 +892,12 @@ export function MercurySessionModelPicker({
   const [effort, setEffort] = React.useState<string>(() => currentEffort ?? getDisplayedEffortLabel(model, getInitialEffortSetting()))
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
+  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
@@ -908,6 +921,7 @@ export function MercurySessionModelPicker({
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
+      notice={notice}
       groupDetails={groupDetailsOf(seatDetailOf)}
       onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
