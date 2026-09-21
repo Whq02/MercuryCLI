@@ -209,7 +209,7 @@ const a = drive(
   [],
   [
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 120, minTick: 20, awaitText: '· ready', awaitSettleTicks: 6, data: `/model ${CHOSEN}\r` },
+    { atTick: 120, minTick: 20, awaitText: '← back', awaitSettleTicks: 6, data: `/model ${CHOSEN}\r` },
     { atTick: 220, minTick: 30, awaitText: 'Model set to', awaitSettleTicks: 6, data: '', mark: 'chosen' },
     { afterPrevTicks: 2, data: '/exit\r' },
   ],

@@ -158,7 +158,8 @@ for (const legName of LEGS) {
       if (leg.dark) env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
       const out = join(home, 'grid.json')
       const cfg = join(home, 'cfg.json')
-      const ready = cols >= 100 && rows >= 26 ? '· ready' : '1 session on'
+      const landed = cols >= 100 && rows >= 26 ? '← back' : '1 session on'
+      const ready = cols >= 100 && rows >= 26 ? 'ready · ' : '1 session on'
       const family = leg.family
       const walk = family?.name === 'local'
       const tight = !leg.dark && cols < 100 && rows >= 20
@@ -167,16 +168,16 @@ for (const legName of LEGS) {
       const sends = leg.dark
         ? [
             { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-            { requireAwait: true, awaitText: ready, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
+            { requireAwait: true, awaitText: landed, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
             { requireAwait: true, awaitText: 'catalogue off', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'cached' },
             { afterPrevTicks: 30, data: '', mark: 'refreshed' },
           ]
         : [
             { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-            { requireAwait: true, awaitText: ready, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'prime' },
+            { requireAwait: true, awaitText: landed, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'prime' },
             { requireAwait: true, awaitText: walk ? 'CHOOSE A MODEL' : family!.keepName, minTick: 1, awaitSettleTicks: 3, data: '\x1b', mark: 'primed' },
             { requireAwait: true, awaitText: 'Kept model as', minTick: 1, awaitSettleTicks: 2, data: '' },
-            { requireAwait: true, awaitText: ready, minTick: 2, awaitSettleTicks: 3, data: 'hello\r' },
+            { requireAwait: true, awaitText: landed, minTick: 2, awaitSettleTicks: 3, data: 'hello\r' },
             { requireAwait: true, awaitText: 'alpha answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
             { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
             ...(walk ? [{ requireAwait: true, awaitText: 'CHOOSE A MODEL', minTick: 1, awaitSettleTicks: 2, data: DOWN.repeat(60) }] : []),

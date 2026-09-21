@@ -20,7 +20,7 @@ console.log(`chat first-seconds frames → ${frames} (dist: ${dist})`)
 
 for (const [cols, rows] of sizes) {
   const tag = `first-seconds-${cols}x${rows}`
-  const settledText = cols >= 100 && rows >= 26 ? '· ready' : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0'
+  const settledText = cols >= 100 && rows >= 26 ? '← back' : cols >= 60 ? '1 session on · 0 monitors here · 0 agents here' : 'S:1 · M:0 · A:0'
   const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)

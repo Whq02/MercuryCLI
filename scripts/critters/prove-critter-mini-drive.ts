@@ -44,7 +44,7 @@ function homeFor(name: string): { configHome: string; cwd: string } {
 }
 
 const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
-const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: '· ready', awaitSettleTicks: 6, data, mark })
+const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: '← back', awaitSettleTicks: 6, data, mark })
 
 type Resize = { atTick: number; cols: number; rows: number }
 async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = []): Promise<Capture> {
@@ -155,20 +155,20 @@ console.log('============================================================')
 
 try {
   const wide = homeFor('wide')
-  const a = await capture('wide-a', wide, 178, 51, [onReady('/critter on\r', 'boot'), onReady('/critter off\r', 'full'), onReady('/critter\r', 'mini-again')], '· ready')
+  const a = await capture('wide-a', wide, 178, 51, [onReady('/critter on\r', 'boot'), onReady('/critter off\r', 'full'), onReady('/critter\r', 'mini-again')], '← back')
   const boot = a.marks['boot']!
   const full = a.marks['full']!
   const miniAgain = a.marks['mini-again']!
   const fullAgain = a.grid
-  const b = await capture('wide-b', wide, 178, 51, [onReady('/critter\r', 'second-boot')], '· ready')
+  const b = await capture('wide-b', wide, 178, 51, [onReady('/critter\r', 'second-boot')], '← back')
   const secondBoot = b.marks['second-boot']!
   const miniAfterSecondBoot = b.grid
   const band = await capture('band', homeFor('band'), 80, 21, [], '1 session on')
   const mid = homeFor('mid')
-  const c = await capture('mid', mid, 120, 40, [onReady('/critter\r', 'boot')], '· ready')
+  const c = await capture('mid', mid, 120, 40, [onReady('/critter\r', 'boot')], '← back')
   const midBoot = c.marks['boot']!
   const midFull = c.grid
-  const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '· ready', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
+  const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '← back', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
   const tripWide = trip.marks['wide']!
   const tripNarrow = trip.marks['stage1:80x21']!
   const tripBack = trip.grid
@@ -181,7 +181,7 @@ try {
     onReady(CLICK_VIEW, 'boot'),
     { requireAwait: true, awaitText: '▄▄▀▀▀▀▀▀▄▄', awaitSettleTicks: 4, data: CLICK_VIEW, mark: 'click-full' },
     { afterPrevTicks: 10, data: '', mark: 'click-mini' },
-  ], '· ready')
+  ], '← back')
 
   console.log('§1 the slim box at 178×51 with the design on (absent setting)')
   const bx = boxRows(boot, 31)

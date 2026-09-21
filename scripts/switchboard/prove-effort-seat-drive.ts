@@ -164,6 +164,16 @@ try {
 
   check(`E1 the /effort ${SERVED} receipt is the seat's ("Effort set to ${SERVED} for this session — its next request runs it")`, anyFrame(`Effort set to ${SERVED} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort')).map(t => t.slice(0, 200)).join(' | ').slice(0, 600))
   check(`E1 the screen never claims the old road's sentence ("Effort set to ${SERVED} — saved as your default")`, !anyFrame(`Effort set to ${SERVED} — saved`))
+  const wayBack = /(?:⇧|shift\+)← back/
+  const receiptRows = distinct.flatMap(f => f.text.split('\n').filter(r => r.includes('Effort set to ')))
+  check('E1 the receipt rides the status row above the composer: every row that carries it carries the way back at its right, in one grey row, and no chat row repeats it', receiptRows.length > 0 && receiptRows.every(r => wayBack.test(r)), receiptRows.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 500))
+  const hintRowsWithReceipt = distinct.flatMap(f => {
+    const rows = f.text.split('\n')
+    return rows.filter((r, i) => i > 0 && (rows[i - 1] ?? '').trimStart().startsWith('╰') && r.includes('Effort set to '))
+  })
+  check('E1 the hint row under the composer never carries the receipt (the notice below the composer is retired for the seat receipt)', hintRowsWithReceipt.length === 0, hintRowsWithReceipt.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 300))
+  const restingRows = distinct.filter(f => f.atMs >= S(24000)).flatMap(f => f.text.split('\n').filter(r => wayBack.test(r) && / ready · /.test(r)))
+  check(`E1 once the receipt has stood, the status row rests on ready · ${SEAT_MODEL_LABEL} · ${SERVED} (the sent word)`, restingRows.some(r => r.includes(`ready · ${SEAT_MODEL_LABEL} · ${SERVED}`)), restingRows.slice(-2).map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 300))
 
   check(`E2 the /effort ${ASKED} receipt is the seat's (applied)`, anyFrame(`Effort set to ${ASKED} for this session`))
   const seatHits = fixture.captured.filter(h => h.lane === 'openai-seat')
@@ -175,6 +185,7 @@ try {
   const receiptLine = `effort ${ASKED} is not served on ${SEAT_MODEL_LABEL} today — sent ${SERVED}`
   const rows = existsSync(transcript) ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
   check('E2 the transcript carries the typed receipt row (a notice row in the seat\'s own record)', rows.some(l => l.includes('"kind":"notice"') && l.includes(receiptLine)), rows.filter(l => l.includes('"kind":"notice"')).map(l => l.slice(0, 200)).join(' | ').slice(0, 500))
+  check('E1 the /effort receipt never reaches the transcript (no result line on the record)', !rows.some(l => l.includes('Effort set to ')), rows.filter(l => l.includes('Effort set to ')).map(l => l.slice(0, 160)).join(' | ').slice(0, 300))
   check('E2 the receipt row painted on screen', anyFrame(receiptLine) || anyFrame(`is not served on ${SEAT_MODEL_LABEL} today`), distinct.map(f => flat(f.text)).filter(t => t.includes('not served')).map(t => t.slice(0, 200)).join(' | ').slice(0, 400))
   check("E2 no note is folded into the reply text (the old road's sentence is gone)", !rows.some(l => l.includes('live effort catalogue')) && !anyFrame('live effort catalogue'))
   const facts = projections.readSessionFacts(seatId)

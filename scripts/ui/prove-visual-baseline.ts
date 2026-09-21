@@ -81,6 +81,17 @@ let fail = 0
   const backDiverged = rowOf(tagMac, withoutBackMask) !== rowOf(tagLinux, withoutBackMask)
   console.log(`  [${backDiverged ? 'PASS' : 'FAIL'}] without the back hint's mask the two hosts diverge on that row (the one-spelling mask left the Linux row raw) — the reason the old vocabulary was false`)
   if (!backDiverged) fail = 1
+  const restingMac = ' ready · Opus 5 · high' + ' '.repeat(90) + '⇧← back '
+  const restingLinux = ' ready · Opus 5 · high' + ' '.repeat(86) + 'shift+← back '
+  const restingSame = rowOf(restingMac, DEFAULT_MASKS) === rowOf(restingLinux, DEFAULT_MASKS) && rowOf(restingMac, DEFAULT_MASKS) === '⟪row⟫'
+  console.log(`  [${restingSame ? 'PASS' : 'FAIL'}] the resting status row (ready · the model · the effort) canonicalizes across the back hint's host spellings as one row — ${JSON.stringify(rowOf(restingLinux, DEFAULT_MASKS))}`)
+  if (!restingSame) fail = 1
+  const restingDiverged = rowOf(restingMac, withoutBackMask) !== rowOf(restingLinux, withoutBackMask)
+  console.log(`  [${restingDiverged ? 'PASS' : 'FAIL'}] without the back hint's masks the two hosts diverge on the resting row — the reason the resting row has a mask of its own`)
+  if (!restingDiverged) fail = 1
+  const restingNamed = canonicalizeCheckoutRows(oneRow(restingMac), { basename: 'some-worktree', branch: 'x' }).text[0] === restingMac
+  console.log(`  [${restingNamed ? 'PASS' : 'FAIL'}] the resting row names no checkout, so the canonical spelling leaves it as captured`)
+  if (!restingNamed) fail = 1
 
   const hintMac = 'shift + ↵ for a new line · ⇧← concourse'.padEnd(120)
   const hintLinux = 'shift + ↵ for a new line · shift+← concourse'.padEnd(120)

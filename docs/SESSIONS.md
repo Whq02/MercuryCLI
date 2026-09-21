@@ -225,14 +225,19 @@ a click on `✶ VIEW` toggles it the same way.
 `/critter pick` chooses the creature. The choice is kept in the settings
 store (`critterSize`) across boots.
 
-The status row under the composer carries the project and the CREW's
+The status row above the composer rests on `ready · <model> · <effort>` —
+the session's model and the effort word its chip paints — while the session
+is idle with no crew. Otherwise it carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —
 past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
 both when both stand (the larger first). The row wears no glyph, and the
 session's name paints on the title row alone. The main agent is narrated
 once, by the transcript's thinking row and the card under the critter, and
-never repeated here; a session with no crew reads "ready" when idle and
-paints no clock while its main agent works. That is what makes esc read
+never repeated here; a session with no crew paints no clock while its main
+agent works. A `/effort` pick's receipt — the daemon's own sentence — stands
+on that row for eight seconds in place of its words, then the resting words
+return with the new effort; where the row is not painted (the compact
+layout) the receipt stays a notice under the composer. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
 the row's clock keeps counting for the crew that runs on. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background

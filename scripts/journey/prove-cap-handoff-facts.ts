@@ -66,13 +66,13 @@ const env: NodeJS.ProcessEnv = {
 }
 const sends = [
   { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'boot' },
-  { requireAwait: true, awaitText: 'fixture-repo · ready', awaitSettleTicks: 4, data: 'hello sol\r', mark: 'home' },
+  { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: 'hello sol\r', mark: 'home' },
   { requireAwait: true, awaitText: 'OpenAI usage window', awaitSettleTicks: 4, data: '\r', mark: 'offer' },
   { requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'confirm' },
-  { requireAwait: true, awaitText: 'fixture-repo · ready', awaitSettleTicks: 4, data: 'pick up from gpt pls\r', mark: 'pickup-send' },
+  { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: 'pick up from gpt pls\r', mark: 'pickup-send' },
   { requireAwait: true, awaitText: 'fable picked up the handoff', awaitSettleTicks: 4, data: '', mark: 'pickup' },
   { requireAwait: true, awaitText: 'Fable 5.1 ·', awaitSettleTicks: 4, data: '', mark: 'settled' },
-  { requireAwait: true, awaitText: 'fixture-repo · ready', awaitSettleTicks: 4, data: '/model sonnet\r', mark: 'model-send' },
+  { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: '/model sonnet\r', mark: 'model-send' },
   { requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'sonnet-confirm' },
   { requireAwait: true, awaitText: 'Sonnet 5 ·', awaitSettleTicks: 4, data: '', mark: 'sonnet' },
 ]
