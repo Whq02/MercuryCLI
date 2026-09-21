@@ -153,15 +153,7 @@ export function servesPerMessageEffort(model: string): boolean {
 }
 
 export function modelSupportsAutoMode(model: string): boolean {
-  if (declaredRouteOf(model) !== 'anthropic') return true
-  {
-    const m = getCanonicalName(model)
-    return (
-      /^claude-(opus|sonnet)-4-6/.test(m) ||
-      m === 'claude-fable-5' ||
-      m === 'claude-fable-5-1'
-    )
-  }
+  return classifyModelRoute(model).kind === 'route'
 }
 
 

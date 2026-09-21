@@ -166,11 +166,10 @@ section('4 · THE SKIP-PERMS NEUTRALITY LAW (capabilities.ts modelSupportsAutoMo
 for (const id of ['gpt-5.6-sol', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'deepseek-v4-pro', 'compat/qwen3-32b']) {
   check(`auto mode is provider-neutral for ${id}`, modelSupportsAutoMode(id) === true)
 }
-check('home-lane allowlist unchanged: fable-5 keeps auto mode', modelSupportsAutoMode('claude-fable-5') === true)
-check(
-  'home-lane allowlist unchanged: haiku still refused',
-  modelSupportsAutoMode('claude-haiku-4-5-20251001') === false,
-)
+check('the home lane keeps auto mode: fable-5', modelSupportsAutoMode('claude-fable-5') === true)
+check('the home lane keys on the route, never a tier: haiku takes auto mode', modelSupportsAutoMode('claude-haiku-4-5-20251001') === true)
+check('the home lane keys on the route, never a tier: opus 5 and sonnet 5 take auto mode', modelSupportsAutoMode('claude-opus-5') === true && modelSupportsAutoMode('claude-sonnet-5') === true)
+check('an id no family declares takes no auto mode', modelSupportsAutoMode('banana-9000') === false)
 
 section('5 · the Hugging Face and local namespaces (qualified rows)')
 check(
