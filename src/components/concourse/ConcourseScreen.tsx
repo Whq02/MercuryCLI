@@ -42,7 +42,7 @@ import {
   type OlderChatFact,
 } from '../../services/concourse/concourseSnapshot.js';
 import { PARKED_CAP } from '../../utils/bootCardFacts.js';
-import { paneWindow } from '../mercury-ui/geometry.js';
+import { paneWindow, panelWidth } from '../mercury-ui/geometry.js';
 import { CoordinatorPane } from './CoordinatorPane.js';
 import { deriveGitOffer, GitOfferCard, gitOfferDescription, gitOfferFolderHeld, type GitOfferV1 } from './GitOfferCard.js';
 import { needsSeatOverloadAsk, SeatOverloadCard } from './SeatOverloadCard.js';
@@ -50,6 +50,8 @@ import { ManagerAskCard, ManagerPlanCard, ManagerSeatAskCard } from './ManagerCa
 import { ContractOfferCard } from './ContractOfferCard.js';
 import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { RowPickModal } from './RowPickModal.js';
+import { MercuryModelDefaultPicker } from '../../commands/model/mercuryModel.js';
+import { ModalContext } from '../../context/modalContext.js';
 import { SessionMirror } from './SessionMirror.js'
 import { askTileCopy, useLiveTile, useWorkChip } from './liveTiles.js';
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js';
@@ -387,6 +389,9 @@ export function ConcourseScreen({
   }, [snapshot.context.projectLabel])
   const [rowPick, setRowPick] = useState<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(null)
   const rowPickRef = useRef<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(null)
+  const [modelDefaultOpen, setModelDefaultOpen] = useState(false)
+  const modelDefaultOpenRef = useRef(false)
+  modelDefaultOpenRef.current = modelDefaultOpen
   rowPickRef.current = rowPick
   const selectSession = (sessionId: string): void => {
     if (sessionId === boardSelRef.current) return
@@ -705,6 +710,7 @@ export function ConcourseScreen({
       settingsOpen: settingsOpenRef.current,
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
+      modelDefault: modelDefaultOpenRef.current,
       seatAsk: seatAskRef.current !== null,
       gitOffer: gitOfferRef.current !== undefined,
       contractAsk: contractAskRef.current,
@@ -1201,6 +1207,7 @@ export function ConcourseScreen({
         settingsOpen,
         groundPickerOpen,
         rowPick: rowPick !== null,
+        modelDefault: modelDefaultOpen,
         seatAsk: seatAsk !== null,
         gitOffer: gitOffer !== undefined,
         contractAsk,
@@ -1309,6 +1316,7 @@ export function ConcourseScreen({
       settingsOpen: settingsOpenRef.current,
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
+      modelDefault: modelDefaultOpenRef.current,
       seatAsk: seatAskRef.current !== null,
       gitOffer: gitOfferRef.current !== undefined,
       contractAsk: contractAskRef.current,
@@ -1572,6 +1580,11 @@ export function ConcourseScreen({
       if (compact && input === 'x' && !key.ctrl && !key.meta && pastGate()) {
         event.stopImmediatePropagation()
         rowStop()
+        return
+      }
+      if (input === 'm' && !key.ctrl && !key.meta && !compact && !reducedStage && callbacks.newSession !== undefined && sessionRows.length === 0 && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()) {
+        event.stopImmediatePropagation()
+        setModelDefaultOpen(true)
         return
       }
       if (input === 'm' && !key.ctrl && !key.meta && pastGate()) {
@@ -2245,6 +2258,7 @@ export function ConcourseScreen({
                 settingsOpen,
                 groundPickerOpen,
                 rowPick: rowPick !== null,
+                modelDefault: modelDefaultOpen,
                 seatAsk: seatAsk !== null,
                 gitOffer: gitOffer !== undefined,
                 contractAsk,
@@ -2544,6 +2558,7 @@ export function ConcourseScreen({
         settingsOpen,
         groundPickerOpen,
         rowPick: rowPick !== null,
+        modelDefault: modelDefaultOpen,
         seatAsk: seatAsk !== null,
         gitOffer: true,
         contractAsk,
@@ -2564,6 +2579,29 @@ export function ConcourseScreen({
             offer={gitOffer}
             onAnswer={(requestId, allow, obligationId) => callbacks.answerPermission?.(requestId, allow, obligationId)}
           />
+        </Box>
+      ) : null}
+      {modelDefaultOpen ? (
+        <Box
+          position="absolute"
+          top={Math.max(0, geo.mainBand[0] - 1)}
+          left={Math.max(0, Math.floor((cols - panelWidth(cols, { cap: 62, reserve: 2, min: 20 })) / 2))}
+          width={Math.min(cols, panelWidth(cols, { cap: 62, reserve: 2, min: 20 }))}
+          flexDirection="column"
+          opaque
+        >
+          <ModalContext.Provider value={{ rows: geo.mainRows, columns: cols, scrollRef: null }}>
+            <MercuryModelDefaultPicker
+              onDone={() => {
+                setModelDefaultOpen(false)
+                callbacks.retrySnapshot?.()
+              }}
+              onSignIn={() => {
+                setModelDefaultOpen(false)
+                callbacks.enterBootSettings()
+              }}
+            />
+          </ModalContext.Provider>
         </Box>
       ) : null}
     </>

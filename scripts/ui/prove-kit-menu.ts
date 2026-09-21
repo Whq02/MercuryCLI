@@ -103,7 +103,7 @@ t.section('§2 — THE HANDOVER: `kit` admits here, unknown still boots plain, t
   const handover = read('src/substrate/splashHandover.ts')
   t.check("the closed vocabulary names `kit`", /const ACTIONS = new Set\(\[[^\]]*'kit'[^\]]*\]\)/.test(handover))
   t.check('the face consumes the deep-link at mount (the CB-09 one-shot grammar)', faceSrc.includes('useState(() => consumeKitManagerDeepLink())') && faceSrc.includes("import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink } from '../substrate/splashHandover.js'"))
-  t.check('the manager layer replaces the composition like the settings layer and esc closes it to the face', faceSrc.includes('if (kitOpen) {') && faceSrc.includes('onClose={() => setKitOpen(false)}') && faceSrc.includes('active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen,'))
+  t.check('the manager layer replaces the composition like the settings layer and esc closes it to the face', faceSrc.includes('if (kitOpen) {') && faceSrc.includes('onClose={() => setKitOpen(false)}') && faceSrc.includes('active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 
 t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are optional and absent ⇒ the boot menu's exact bytes")
