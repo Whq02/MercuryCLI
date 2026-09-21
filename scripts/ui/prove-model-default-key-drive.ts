@@ -138,6 +138,14 @@ function capture(id: string, home: string, argv: string[], sends: Send[], opts: 
 
 const rowWith = (lines: string[], needle: string): string => lines.find(l => l.includes(needle)) ?? ''
 const trimmedRow = (lines: string[], needle: string): string => rowWith(lines, needle).trim()
+const ANTHROPIC_TITLE = 'MERCURY — ANTHROPIC MODELS'
+const lineUnder = (lines: string[], title: string): string => {
+  const at = lines.findIndex(l => l.includes(title))
+  if (at < 0) return ''
+  const col = lines[at]!.indexOf(title)
+  const right = lines[at]!.indexOf('│', col)
+  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
+}
 const pickerFrames = (lines: string[]): boolean =>
   (lines[PICKER_TOP] ?? '')[PICKER_LEFT] === '╭' && (lines[PICKER_BOTTOM] ?? '')[PICKER_LEFT] === '╰' && (lines[PICKER_TOP + 1] ?? '')[PICKER_LEFT] === '│'
 const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
@@ -183,6 +191,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('the picker spans the main band, centred (rows 3–46, left column 58)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
   check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
+  check('the line under the Anthropic title reads credential present alone', lineUnder(picker, ANTHROPIC_TITLE) === 'credential present', lineUnder(picker, ANTHROPIC_TITLE))
   const saved = settingsOf(home)
   check("a pick writes the saved default (settings.json model names the picked row, effortLevel the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effortLevel === 'xhigh', JSON.stringify(saved))
   check('the door row follows at once (Sonnet 5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5 · ◉ xhigh`) && !picked.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(picked, DOOR))
@@ -205,6 +214,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
   check('m opens the picker over the face, centred (rows 3–46, left column 58), the card still beside it', rowWith(picker, 'Mercury — model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), picker.slice(3, 8).join(' | '))
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
+  check('the line under the Anthropic title reads credential present alone', lineUnder(picker, ANTHROPIC_TITLE) === 'credential present', lineUnder(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(closed, '>_ ready'))
 }
 
@@ -236,7 +246,7 @@ section("§4 the chat's /model: the picker without its frontier rows")
   const picker = c.marks.get('picker') ?? []
   const at = picker.findIndex(l => l.includes('Z.AI MODELS'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
-  check('the credential line stays under the group title (Anthropic API key · credential present)', picker.some(l => l.includes('Anthropic API key · credential present')), picker.filter(l => l.includes('credential')).join(' | '))
+  check('the credential line stays under the Anthropic title and reads credential present alone', lineUnder(picker, ANTHROPIC_TITLE) === 'credential present', lineUnder(picker, ANTHROPIC_TITLE))
   check('the Z.AI group title is followed by its credential line', at >= 0 && (picker[at + 1] ?? '').includes('no Z.AI API key'), (picker[at + 1] ?? '').trim())
 }
 
