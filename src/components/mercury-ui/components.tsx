@@ -29,15 +29,17 @@ export const CockpitEmbeddedContext = React.createContext(false)
 export function ProductLockup({
   view,
   subtitle,
+  separator = ' — ',
 }: {
   view: string
   subtitle?: string
+  separator?: string
 }): React.ReactNode {
   const t = useMercuryTokens()
   const { accent } = useSessionAccent()
   const [theme] = useTheme()
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
-  const title = `Mercury — ${view}`
+  const title = `Mercury${separator}${view}`
   const { isCompact } = useLayoutChrome()
   const shimmer = useGreetingShimmer(isCompact ? [t.accent] : ramp, displayWidth(title))
   if (isCompact) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
@@ -56,7 +58,7 @@ export function ProductLockup({
       ) : (
         <Text>
           <Wordmark />
-          <Text color={t.textMuted}> — {view}</Text>
+          <Text color={t.textMuted}>{separator}{view}</Text>
         </Text>
       )}
       {subtitle ? (

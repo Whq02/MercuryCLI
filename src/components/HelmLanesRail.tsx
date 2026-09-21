@@ -595,6 +595,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const workbenchRows: string[] | null = lastSentPrompt
     ? wrapRailRows(lastSentPrompt.text.replace(/\s+/g, ' ').trim(), Math.max(6, rowW - 2), 2)
     : null
+  const filesOff = useAppState(s => s.settings.filesBox === false)
+  const filesFolder = basename(getOriginalCwd())
 
   const solo =
     peers.length === 0 &&
@@ -710,6 +712,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     tabula: intentTabula,
     workbench: workbenchRows ? workbenchRows.length : 1,
     next: solo ? Math.min(5 + (mission ? 0 : 1), hintCap) : 0,
+    files: filesOff ? 0 : 1,
     saturn: 0,
   }
   const sectionCost = (key: string): number => (intents[key] ?? 0) > 0 ? (intents[key] ?? 0) + SECTION_CHROME : 0
@@ -720,6 +723,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     : cursorLabel.startsWith('recent') ? 'recent'
     : cursorLabel.startsWith('workbench') ? 'workbench'
     : cursorLabel.startsWith('hint') ? 'next'
+    : cursorLabel.startsWith('files') ? 'files'
     : null
   const shedSet = new Set<string>()
   {
@@ -727,7 +731,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 +
-      (['seat', 'crew', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next'] as const)
+      (['seat', 'crew', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next', 'files'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
       (seatGlanceRows + SECTION_CHROME) +
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
@@ -1067,6 +1071,21 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     }
   }
 
+  const filesNodes: React.ReactNode[] = []
+  if (!filesOff) {
+    filesNodes.push(
+      <RailRow
+        key="files:browse"
+        width={rowW}
+        glyph="↵"
+        glyphColor={tok.textMuted}
+        name="or click · browse"
+        nameColor={tok.textMuted}
+        {...railRowProps(isOn, sel, { kind: 'command', command: '/files', label: 'files:browse' })}
+      />,
+    )
+  }
+
 
   const wakeBody = wakeGlance ? (
     <RailRow
@@ -1262,6 +1281,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
           {}
           {hintNodes.length > 0 ? section('next', GLYPH.cursor, 'NEXT', undefined, hintNodes, { open: '/help' }) : null}
+
+          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: '/files' }) : null}
         </>
       ) : (
         <>
@@ -1326,6 +1347,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
             : null}
 
+          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: '/files' }) : null}
         </>
       )}
 

@@ -41,7 +41,8 @@ import {
 import { DECRPM_STATUS } from '../input/interpreter.js'
 import instances from '../instances.js'
 import reconciler from '../reconciler.js'
-import { hasElevatedSurface } from '../recessLayer.js'
+import { elevatedSurfaceContains, hasElevatedSurface } from '../recessLayer.js'
+import { anyModalOverlayActive } from '../../context/overlayStack.js'
 import {
   extendedKeysReenable,
   rawModeArmBytes,
@@ -139,6 +140,24 @@ function isActingNamedKey(atom: ParsedInput): boolean {
 
 const MOTION_BIT = 0x20
 const ALT_MODIFIER_BIT = 0x08
+
+function clickOutsideElevatedSurface(col: number, row: number): boolean {
+  return anyModalOverlayActive() && elevatedSurfaceContains(col, row) === false
+}
+
+const ESCAPE_ATOM: ParsedKey = {
+  kind: 'key',
+  fn: false,
+  name: 'escape',
+  ctrl: false,
+  meta: false,
+  shift: false,
+  option: false,
+  super: false,
+  sequence: '\x1b',
+  raw: '\x1b',
+  isPasted: false,
+}
 
 export default class App extends PureComponent<Props, State> {
   static displayName = 'InternalApp'
@@ -431,6 +450,11 @@ export default class App extends PureComponent<Props, State> {
     )
   }
 
+  pressEscape(): void {
+    this.dispatchDiscrete([ESCAPE_ATOM])
+    reconciler.flushSyncWork()
+  }
+
   private handleIncompleteFlush = (): void => {
     this.incompleteEscapeTimer = null
     const state = this.keyParseState
@@ -686,16 +710,20 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
 
   const isClick = slop || (!hasSelection(selection) && selection.anchor !== null)
   if (isClick) {
-    const consumed = props.dispatchClick(col, row)
-    if (!consumed) {
-      const url = props.getHyperlinkAt(col, row)
-      const embeddedWebTerminal = process.env.TERM_PROGRAM === 'vscode' || isXtermJs()
-      if (url && !embeddedWebTerminal) {
-        if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
-        m.pendingHyperlinkTimer = setTimeout(() => {
-          m.pendingHyperlinkTimer = null
-          props.openHyperlink(url)
-        }, MULTI_CLICK_WINDOW_MS)
+    if (clickOutsideElevatedSurface(col, row)) {
+      app.pressEscape()
+    } else {
+      const consumed = props.dispatchClick(col, row)
+      if (!consumed) {
+        const url = props.getHyperlinkAt(col, row)
+        const embeddedWebTerminal = process.env.TERM_PROGRAM === 'vscode' || isXtermJs()
+        if (url && !embeddedWebTerminal) {
+          if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
+          m.pendingHyperlinkTimer = setTimeout(() => {
+            m.pendingHyperlinkTimer = null
+            props.openHyperlink(url)
+          }, MULTI_CLICK_WINDOW_MS)
+        }
       }
     }
   }

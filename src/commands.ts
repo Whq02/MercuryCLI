@@ -100,6 +100,7 @@ import harness from './commands/harness/index.js'
 import cards from './commands/cards/index.js'
 import { noteCommand } from './commands/tabula/index.js'
 import workbench from './commands/workbench/index.js'
+import files from './commands/files/index.js'
 import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
 import saturn from './commands/saturn/index.js'
@@ -135,6 +136,7 @@ import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
 import { anyProviderCredentialed } from './services/providers/providerUsage.js'
 import { clearExtensionCommandCaches, getExtensionCommands, getExtensionSkills } from './extensions/load/commands.js'
 import { getSourceDisplayName } from './utils/settings/constants.js'
+import { getInitialSettings } from './utils/settings/settings.js'
 
 export type {
   Command,
@@ -291,6 +293,7 @@ const COMMANDS = memoize((): Command[] => [
   caching,
   noteCommand,
   workbench,
+  ...(getInitialSettings().filesBox === false ? [] : [files]),
   router,
   daemon,
   saturn,

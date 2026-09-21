@@ -611,6 +611,9 @@
     "spinnerTipsEnabled": {
       "type": "boolean"
     },
+    "filesBox": {
+      "type": "boolean"
+    },
     "spinnerVerbs": {
       "type": "object",
       "properties": {

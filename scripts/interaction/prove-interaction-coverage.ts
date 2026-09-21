@@ -172,6 +172,7 @@ reg(
     'src/components/MercuryContentSearch.tsx',
     'src/components/MercuryExitConfirm.tsx',
     'src/components/MercuryFileOpen.tsx',
+    'src/components/MercuryFilesMenu.tsx',
     'src/components/MercuryFleetChat.tsx',
  'src/components/MercuryInputAtlas.tsx',
     'src/components/MercuryLanguagePicker.tsx',
