@@ -351,13 +351,14 @@ try {
     const CALM_LINE = `${road.provider} was busy · answered after`
     for (const [cols, rows] of sizesFor(road)) {
       const cockpit = cols >= 100 && rows >= 26
-      const settled = cockpit ? '· ready' : '1 session on'
+      const settled = cockpit ? '← back' : '1 session on'
+      const idle = cockpit ? 'ready · ' : '1 session on'
       const boot: Send[] = [
         FACE,
         { data: '', atTick: 999, awaitText: settled, requireAwait: true, minTick: 4, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'boot' },
         { data: `${WARM_PROMPT}\r`, atTick: 999, awaitText: settled, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: '', atTick: 999, awaitText: WARM_ANSWER, requireAwait: true, minTick: 2, awaitSettleTicks: 6, awaitStableTicks: 4, mark: 'warm' },
-        { data: `${PROMPT}\r`, atTick: 999, awaitText: settled, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+        { data: `${PROMPT}\r`, atTick: 999, awaitText: idle, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
       ]
       for (const world of WORLDS) {
         const tag = `${road.name}-${cols}x${rows}-${world}`

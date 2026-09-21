@@ -273,7 +273,7 @@ try {
     const home = seedHome(`home-${tag}`)
     const cockpit = cols >= 100 && rows >= 26
     console.log(`\n── ${tag}${cockpit ? '' : ' (the compact layout)'}`)
-    const settled = cockpit ? '· ready' : '1 session on'
+    const settled = cockpit ? '← back' : '1 session on'
     const sends: Send[] = [
       FACE,
       { data: '', atTick: 999, awaitText: settled, requireAwait: true, minTick: 4, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'boot' },

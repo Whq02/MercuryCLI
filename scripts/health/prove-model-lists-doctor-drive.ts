@@ -197,7 +197,7 @@ try {
     hits.length = 0
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
     const walk = rowIndex === 0 ? [] : [{ afterPrevTicks: 45, data: '\x1b[B' }, ...downs.slice(1)]
-    const readyNeedle = cols >= 100 && termRows >= 26 ? '· ready' : '1 session on'
+    const readyNeedle = cols >= 100 && termRows >= 26 ? '← back' : '1 session on'
     const lines = await capture(`row-${size}`, cols, termRows, [
       { atTick: 999, awaitText: readyNeedle, requireAwait: true, minTick: 5, awaitSettleTicks: 4, data: '/model' },
       { afterPrevTicks: 6, data: '\r' },

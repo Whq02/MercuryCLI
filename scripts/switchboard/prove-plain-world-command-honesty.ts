@@ -149,8 +149,8 @@ check(
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
 const titleRows = joined.split('\n').filter(r => /✶ VIEW/.test(r))
-const statusRows = joined.split('\n').filter(r => /· ready|· thinking|· running a tool|· replying|esc interrupts/.test(r))
-check('§3c after the first words the title row names them (stage 2), never "new session"; the status row leads with the project and its state', titleRows.length > 0 && titleRows.every(r => /hello plain world/.test(r)) && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith(`${basename(cwd)} · `)) && statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
+const statusRows = joined.split('\n').filter(r => /^ ?ready · |· thinking|· running a tool|· replying|esc interrupts/.test(r))
+check('§3c after the first words the title row names them (stage 2), never "new session"; the status row leads with the project while a turn runs and rests on ready · the model · the effort', titleRows.length > 0 && titleRows.every(r => /hello plain world/.test(r)) && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith(`${basename(cwd)} · `) || r.trimStart().startsWith('ready · ')) && statusRows.some(r => /^ ?ready · Opus 5 · \S+ {2,}/.test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
 const typedNeedle = /(?<![:/\w])\/fleet\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
 check('§4 the wire never saw /fleet', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)

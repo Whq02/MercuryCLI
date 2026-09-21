@@ -51,7 +51,7 @@ function drive(tag: string, keyed: boolean): string[] | null {
       argv: cfg.argv,
       cwd: cfg.cwd,
       sends: [
-        { atTick: 999, awaitText: '· ready', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
+        { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
         { afterPrevTicks: 4, data: '\r' },
       ],
       total: 220,
@@ -86,7 +86,7 @@ try {
       t('keyed: the cleared THINKING text is off the glass', !paneHas('The manifest'))
       t('keyed: the cleared REPLY text is off the glass', !paneHas('The pin keeps'))
       t('keyed: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
-      t('keyed: the BORN chat is the focused one (the new-session status row)', has('new session') && has('· ready'))
+      t('keyed: the BORN chat is the focused one (the new-session status row)', has('new session') && has('← back'))
       t('keyed: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
@@ -101,7 +101,7 @@ try {
       console.log(`  [frame] keyless after /clear: ${rows.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 100)).join(' | ')}`)
       t('keyless: the cleared USER prompt is off the glass (the old conversation parked, never kept on the glass)', !paneHas('why does the manifest pin zod?'))
       t('keyless: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
-      t('keyless: the BORN chat is the focused one (the new-session status row)', has('new session') && has('· ready'))
+      t('keyless: the BORN chat is the focused one (the new-session status row)', has('new session') && has('← back'))
       t('keyless: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
@@ -133,7 +133,7 @@ try {
           argv: cfg.argv,
           cwd: cfg.cwd,
           sends: [
-            { atTick: 999, awaitText: '· ready', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
+            { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
             { afterPrevTicks: 4, data: '\r' },
             { data: 'after the clear: run it\r', awaitText: 'new session', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
             { data: '', atTick: 999, awaitText: '▰ Bash', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },

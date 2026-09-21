@@ -181,7 +181,7 @@ async function driveScene(route: 'openai' | 'anthropic', arm: 'plain' | 'note'):
   const last = frames[frames.length - 1]?.text ?? gridText(fin)
   check(`${label}: both replies stand once each with their timestamps`, linesWith(last, FIRST_FULL).length === 1 && linesWith(last, SECOND_FULL).length === 1 && linesWith(last, FIRST_FULL).every(l => TIMESTAMPED.test(l)) && linesWith(last, SECOND_FULL).every(l => TIMESTAMPED.test(l)), tail(last))
   check(`${label}: the drained words wear a sent clock and no queued row survives`, new RegExp(`\\d\\d:\\d\\d:\\d\\d \\[sam\\] ❯ ${QUEUED}`).test(last) && !/queued\s+\[sam\]/.test(last), tail(last))
-  check(`${label}: the strip is back at ready`, /· ready/.test(last), tail(last))
+  check(`${label}: the strip is back at ready`, /ready · [^\n]*← back/.test(last), tail(last))
 
   section(`${label} — G5: the wire`)
   const slow = wire.filter(c => c.kind === route && (c.arm === 'slow' || c.arm === 'slow-note'))
