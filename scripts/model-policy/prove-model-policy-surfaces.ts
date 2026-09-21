@@ -126,13 +126,13 @@ console.log('\n§6 role-boundary repairs (recon findings)')
   )
   const caps = src('src/utils/model/capabilities.ts')
   check(
-    'auto-mode gate deliberately admits the fable canonical (frontier default keeps auto mode)',
-    caps.includes("m === 'claude-fable-5'"),
+    'the auto-mode gate keys on the routing law (a declared route), never a tier name',
+    caps.includes("classifyModelRoute(model).kind === 'route'") && !caps.includes("m === 'claude-fable-5'"),
   )
   const autopilot = src('src/utils/autopilot/autopilotGates.ts')
   check(
-    'the autopilot default allowlist includes the frontier tier with no metering rationale',
-    autopilot.includes("['opus', 'sonnet', 'fable', 'fable51']") && !autopilot.includes('usage-credit-metered'),
+    "the autopilot keys derive from the live list and the routing law's family words; no hand list, no metering rationale",
+    autopilot.includes('getModelOptions()') && autopilot.includes('modelFamilyWords()') && !autopilot.includes("['opus', 'sonnet', 'fable', 'fable51']") && !autopilot.includes('usage-credit-metered'),
   )
 }
 

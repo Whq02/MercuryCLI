@@ -9,7 +9,6 @@ import {
   renderDefaultModelSetting,
 } from '../../src/utils/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
-import { SEAT_ALLOWED_FAMILIES } from '../../src/utils/model/seatSlots.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
 import { classOfModel } from '../../src/utils/router/modelRegistry.js'
 
@@ -82,9 +81,9 @@ section('5. prompt currency copy (prompts.ts) — no hardcoded vendor list; the 
   )
 }
 
-section('6. router class mirrors — every seat family classifies to a router class')
+section('6. router class mirrors — every first-party generation classifies to a router class')
 {
-  for (const fam of SEAT_ALLOWED_FAMILIES) {
+  for (const fam of ['claude-opus-4-6', 'claude-opus-5', 'claude-sonnet-5', 'claude-fable-5', 'claude-fable-5-1']) {
     check(
       `classOfModel('${fam}') is defined`,
       classOfModel(fam) !== undefined,
@@ -127,10 +126,10 @@ section('7. code-side model default census — literals resolve live, tiers trac
       routing.includes('neutralSeatDefault()?.setting') &&
       !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
   )
-  const { CREW_MODEL_CHOICES } = await import('../../src/daemon/crewSpawn.ts')
-  const crewOpus = CREW_MODEL_CHOICES.opus.model
+  const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
+  const crewOpus = foldLegacyWorkerModelKey('opus')
   check(
-    `CREW_MODEL_CHOICES.opus (${crewOpus}) = getDefaultOpusModel()`,
+    `a crew record's 'opus' (${crewOpus}) folds to getDefaultOpusModel()`,
     crewOpus === getDefaultOpusModel(),
   )
 }

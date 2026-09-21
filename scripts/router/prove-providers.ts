@@ -8,8 +8,7 @@ import {
   __resetProviderDiscoveryForTest,
   refreshProviderDiscovery,
 } from '../../src/utils/router/providerDiscovery.js'
-import { SEAT_ALLOWED_FAMILIES } from '../../src/utils/model/seatSlots.js'
-import { getCanonicalName } from '../../src/utils/model/model.js'
+import { classOfModel } from '../../src/utils/router/modelRegistry.js'
 import type { RouterModelClass, RouterPosture } from '../../src/utils/router/providers/types.js'
 
 let failures = 0
@@ -115,9 +114,9 @@ section('1 · anthropic — available, resolves all three of ITS classes')
       check(`  provider is 'anthropic'`, ref.provider === 'anthropic')
       check(`  modelClass echoes '${modelClass}'`, ref.modelClass === modelClass)
       check(
-        `  allowed seat family`,
-        SEAT_ALLOWED_FAMILIES.includes(getCanonicalName(ref.model)),
-        getCanonicalName(ref.model),
+        `  a first-party generation the kernel classes`,
+        classOfModel(ref.model) !== undefined,
+        ref.model,
       )
       check(`  positive contextWindow`, ref.contextWindow > 0, String(ref.contextWindow))
       const patch = anthropicProviderAdapter.buildLaunchPatch(ref)
@@ -133,8 +132,8 @@ section('1 · anthropic — available, resolves all three of ITS classes')
   const listed = anthropicProviderAdapter.listModels()
   check('listModels() returns exactly 3 (opus/sonnet/fable)', listed.length === 3)
   check(
-    'every listed model is an allowed seat family',
-    listed.every(m => SEAT_ALLOWED_FAMILIES.includes(getCanonicalName(m.ref.model))),
+    'every listed model is a first-party generation the kernel classes',
+    listed.every(m => classOfModel(m.ref.model) !== undefined),
   )
 }
 
@@ -266,12 +265,14 @@ section('3 · credentialed — live status; THE SEAT LAW HOLDS')
 
   const snapshot = buildRouterModelSnapshot()
   check(
-    "resolveExact('glm-5.2') is null (exact SEAT pins stay Anthropic-family)",
-    snapshot.resolveExact('glm-5.2') === null,
+    "resolveExact('glm-5.2') resolves on the credentialed Z.AI provider that lists it",
+    snapshot.resolveExact('glm-5.2')?.provider === 'zai' && snapshot.resolveExact('glm-5.2')?.modelClass === 'glm',
+    JSON.stringify(snapshot.resolveExact('glm-5.2')),
   )
   check(
-    "resolveExact('gpt-5.5') is null (exact SEAT pins stay Anthropic-family)",
-    snapshot.resolveExact('gpt-5.5') === null,
+    "resolveExact('gpt-5.5') resolves on the credentialed OpenAI provider that lists it",
+    snapshot.resolveExact('gpt-5.5')?.provider === 'openai' && snapshot.resolveExact('gpt-5.5')?.model === 'gpt-5.5',
+    JSON.stringify(snapshot.resolveExact('gpt-5.5')),
   )
   check(
     'listAvailable() now includes the engine catalogues (display truth: 3 anthropic + 3 qualified gpt + 2 glm)',
@@ -300,8 +301,9 @@ section('4 · registry — resolveExact + never-throws matrix (credentialed + no
       `[${mode}] resolveExact('claude-opus-4-8[1m]') resolves as opus, 1M context`,
       opusExact !== null && opusExact.modelClass === 'opus' && opusExact.contextWindow === 1_000_000,
     )
-    check(`[${mode}] resolveExact('claude-haiku-4-5') is null (not a seat family)`, snapshot.resolveExact('claude-haiku-4-5') === null)
-    check(`[${mode}] resolveExact('sonnet') is null (bare alias is not a seat family)`, snapshot.resolveExact('sonnet') === null)
+    check(`[${mode}] resolveExact('claude-haiku-4-5') is null (the route kernel has no small-tier class and no provider lists it)`, snapshot.resolveExact('claude-haiku-4-5') === null)
+    check(`[${mode}] resolveExact('sonnet') resolves the family default as the sonnet class`, snapshot.resolveExact('sonnet')?.modelClass === 'sonnet')
+    if (mode === 'uncredentialed') check(`[${mode}] resolveExact('glm-5.2') is null (no available provider lists it)`, snapshot.resolveExact('glm-5.2') === null)
     check(`[${mode}] resolveExact('') is null`, snapshot.resolveExact('') === null)
 
     let matrixThrew = false

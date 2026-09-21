@@ -1,7 +1,6 @@
 import { getContextWindowForModel } from '../../context.js'
 import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../model/capabilities.js'
-import { getCanonicalName, getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../model/model.js'
-import { SEAT_ALLOWED_FAMILIES, validateSeatModel } from '../../model/seatSlots.js'
+import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../model/model.js'
 import type {
   ProviderDescription,
   RouteEffortLevel,
@@ -58,12 +57,7 @@ export function resolveAnthropicModel(
   posture: RouterPosture,
 ): RouteModelRef | null {
   if (!isAnthropicModelClass(modelClass)) return null
-  const fallback = classDefaultModel(modelClass)
-  const validated = validateSeatModel(fallback, fallback)
-  if (validated.note) return null
-  const model = validated.model
-  const canonical = getCanonicalName(model)
-  if (!SEAT_ALLOWED_FAMILIES.includes(canonical)) return null
+  const model = classDefaultModel(modelClass)
   const effort = defaultEffortFor(modelClass, posture)
   const contextWindow = getContextWindowForModel(model)
   return { provider: 'anthropic', model, modelClass, effort, contextWindow }

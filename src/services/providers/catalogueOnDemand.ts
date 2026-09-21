@@ -25,13 +25,14 @@ function nothingUsable(snapshot: { models: readonly unknown[]; lastError?: strin
   return snapshot === null || (snapshot.models.length === 0 && snapshot.lastError !== undefined)
 }
 
-export async function readCatalogueIfPending(family: string, opts?: { boundMs?: number }): Promise<boolean> {
+export async function readCatalogueIfPending(family: string, opts?: { boundMs?: number; force?: boolean }): Promise<boolean> {
   const boundMs = opts?.boundMs ?? CATALOGUE_READ_BOUND_MS
+  const force = opts?.force === true
   try {
     switch (family) {
       case 'openai': {
         const { readOpenaiCatalogueIfPending } = await import('./openai/openaiCatalogue.js')
-        return await readOpenaiCatalogueIfPending({ boundMs })
+        return await readOpenaiCatalogueIfPending({ boundMs, force })
       }
       case 'openrouter': {
         const [{ getCachedOpenrouterCatalogue, refreshOpenrouterCatalogue }, { resolveOpenrouterRequestAuth }] =
@@ -39,7 +40,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         const auth = resolveOpenrouterRequestAuth(process.env)
         if (!auth || !catalogueTrafficVerdict('openrouter').allowed) return false
         if (!nothingUsable(getCachedOpenrouterCatalogue(auth.account.keySource))) return false
-        await bounded(refreshOpenrouterCatalogue(auth.account.keySource), boundMs)
+        await bounded(refreshOpenrouterCatalogue(auth.account.keySource, { force }), boundMs)
         return true
       }
       case 'gemini': {
@@ -49,14 +50,14 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!account || !catalogueTrafficVerdict('gemini').allowed) return false
         const sourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
         if (!nothingUsable(getCachedGeminiCatalogue(sourceKind))) return false
-        await bounded(refreshGeminiCatalogue(sourceKind), boundMs)
+        await bounded(refreshGeminiCatalogue(sourceKind, { force }), boundMs)
         return true
       }
       case 'moonshot': {
         const { getCachedMoonshotCatalogue, refreshMoonshotCatalogue } = await import('./moonshot/moonshotCatalogue.js')
         if (!catalogueTrafficVerdict('moonshot').allowed) return false
         if (!nothingUsable(getCachedMoonshotCatalogue())) return false
-        await bounded(refreshMoonshotCatalogue(), boundMs)
+        await bounded(refreshMoonshotCatalogue({ force }), boundMs)
         return true
       }
       case 'huggingface': {
@@ -64,7 +65,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
           await Promise.all([import('./huggingface/huggingfaceCatalogue.js'), import('./huggingface/huggingfaceAccounts.js')])
         if (!resolveHuggingfaceAccount(process.env) || !catalogueTrafficVerdict('huggingface').allowed) return false
         if (!nothingUsable(getCachedHuggingfaceCatalogue())) return false
-        await bounded(refreshHuggingfaceCatalogue(), boundMs)
+        await bounded(refreshHuggingfaceCatalogue({ force }), boundMs)
         return true
       }
       default:

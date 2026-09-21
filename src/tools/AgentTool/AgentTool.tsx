@@ -42,8 +42,6 @@ import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
-import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
-import { SEAT_ALLOWED_FAMILIES } from '../../utils/model/seatSlots.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
 import { subagentConcurrencyCap, subagentDefaultEffort } from '../../utils/agentDefaults.js'
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
@@ -57,8 +55,8 @@ import {
   buildAgentLaunchPlan,
 } from '../../utils/swarm/agentLaunchPlan.js'
 import {
-  engineDispatchModelsForSchema,
   resolveEngineDispatch,
+  unrecognisedModelWordRefusal,
 } from '../../utils/swarm/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../services/providers/primaryBackend.js'
 import { decodeAgentType } from '../../utils/swarm/roleResolver.js'
@@ -140,21 +138,8 @@ export type AgentToolInput = {
   cwd?: string
 }
 
-function modelEnumValues(): [string, ...string[]] {
-  return [
-    ...AGENT_DISPATCH_MODELS,
-    ...SEAT_ALLOWED_FAMILIES,
-    ...engineDispatchModelsForSchema(),
-  ] as [string, ...string[]]
-}
-
-function modelParamDescription(): string {
-  const engines = engineDispatchModelsForSchema()
-  const base =
-    'Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent\'s own family keeps the parent\'s exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
-  const exactIds = engines.filter(id => id.includes('-') || id.includes('/'))
-  return `${base} Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router); exact catalogue-validated engine ids (gemini-*/openrouter/* included): ${exactIds.join(', ')}.`
-}
+const MODEL_PARAM_DESCRIPTION =
+  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router). An exact engine id (gpt-*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*) is validated against its live catalogue at dispatch, and a word no family declares is refused naming it."
 
 function effortParamDescription(): string {
   return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never your own level, so a supercode session does not multiply every agent to max. A level the agent's model does not serve runs the nearest level it does and the transcript says so; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
@@ -172,9 +157,9 @@ export const inputSchema = lazySchema(() => {
       .optional()
       .describe(`Which agent type to run. Omitted ⇒ the ${DEFAULT_AGENT_TYPE} agent.`),
     model: z
-      .enum(modelEnumValues())
+      .string()
       .optional()
-      .describe(modelParamDescription()),
+      .describe(MODEL_PARAM_DESCRIPTION),
     effort: z
       .enum(EFFORT_LEVELS)
       .optional()
@@ -467,6 +452,10 @@ export const AgentTool = buildTool({
     }
 
     const engineDispatch = await resolveEngineDispatch(input.model)
+    if (engineDispatch === null) {
+      const unrecognised = unrecognisedModelWordRefusal(input.model)
+      if (unrecognised !== null) throw new Error(unrecognised)
+    }
 
     if (teamName && input.name) {
       const requestedType = decodeAgentType(input.subagent_type)

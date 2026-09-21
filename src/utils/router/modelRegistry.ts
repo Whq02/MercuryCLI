@@ -1,6 +1,5 @@
 import { getContextWindowForModel } from '../context.js'
-import { getCanonicalName, parseUserSpecifiedModel } from '../model/model.js'
-import { SEAT_ALLOWED_FAMILIES } from '../model/seatSlots.js'
+import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../model/model.js'
 import { anthropicProviderAdapter } from './providers/anthropic.js'
 import { geminiProviderAdapter } from './providers/gemini.js'
 import { openaiProviderAdapter } from './providers/openai.js'
@@ -119,12 +118,13 @@ function composeRouterModelSnapshot(): RouterModelSnapshot {
   function resolveExact(pin: string): RouteModelRef | null {
     const trimmed = pin?.trim()
     if (!trimmed) return null
-    const lowered = trimmed.toLowerCase()
-    if (lowered === 'sonnet' || lowered === 'sonnet[1m]') return null
     const resolved = parseUserSpecifiedModel(trimmed)
-    const canonical = getCanonicalName(resolved)
-    if (!SEAT_ALLOWED_FAMILIES.includes(canonical)) return null
-    const modelClass = classForCanonical(canonical)
+    const wanted = normalizeModelStringForAPI(resolved).toLowerCase()
+    for (const listed of listAvailable()) {
+      if (normalizeModelStringForAPI(listed.ref.model).toLowerCase() === wanted) return listed.ref
+    }
+    if (!statuses[PROVIDER_ADAPTERS.indexOf(anthropicProviderAdapter)]!.available) return null
+    const modelClass = classForCanonical(getCanonicalName(resolved))
     if (!modelClass) return null
     const contextWindow = getContextWindowForModel(resolved)
     const effort = defaultExactEffort(modelClass)

@@ -2,6 +2,9 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { mkdtempSync as mkScratch } from 'node:fs'
+import { tmpdir as osTmp } from 'node:os'
+import { join as pathJoin } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,6 +16,14 @@ function section(t: string): void {
 }
 const MACRO_KEY = 'MACRO' as const
 ;(globalThis as Record<string, unknown>)[MACRO_KEY] = { VERSION: '1.0.0' }
+const proofHome = mkScratch(pathJoin(osTmp(), 'carousel-proof-'))
+for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = proofHome
+for (const key of ['MERCURY_MODEL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']) delete process.env[key]
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+;(await import('../../src/utils/config.js')).enableConfigs()
 const src = (...p: string[]) =>
   readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
@@ -26,6 +37,9 @@ delete process.env.MERCURY_AUTOPILOT_MODELS
 const { isAutopilotEnabled, autopilotAllowedModels } = await import(
   '../../src/utils/autopilot/autopilotGates.js'
 )
+const { getDefaultOpusModel: opusRow } = await import('../../src/utils/model/model.js')
+const SESSION = opusRow()
+const allowedSorted = (): string => [...autopilotAllowedModels(SESSION)].sort().join(',')
 const { getNextPermissionMode } = await import(
   '../../src/utils/permissions/getNextPermissionMode.js'
 )
@@ -47,19 +61,23 @@ check("'1' arms (live re-read)", isAutopilotEnabled() === true)
 process.env.MERCURY_AUTOPILOT = '0'
 check("'0' disarms (live re-read)", isAutopilotEnabled() === false)
 process.env.MERCURY_AUTOPILOT = '1'
-check('default allowlist = opus,sonnet,fable,fable51 (the frontier default tier, both spellings)', autopilotAllowedModels().join(',') === 'opus,sonnet,fable,fable51')
+const unset = autopilotAllowedModels(SESSION)
+check("the default allowlist is every key of the session's family: its family words, haiku among them, and its live rows' ids", ['opus', 'sonnet', 'fable', 'fable51', 'haiku'].every(k => unset.includes(k)) && unset.some(k => k.startsWith('claude-')), unset.join(','))
+check("the keys of another family are not the session's", !unset.includes('gpt') && !unset.includes('openai'), unset.join(','))
 process.env.MERCURY_AUTOPILOT_MODELS = 'opus,sonnet,fable'
-check('operator CSV admits fable', autopilotAllowedModels().includes('fable'))
+check('operator CSV admits fable', autopilotAllowedModels(SESSION).includes('fable'))
 process.env.MERCURY_AUTOPILOT_MODELS = 'haiku,gpt5,,junk'
-check('all-unknown keys ⇒ the EMPTY allowlist (a garbled narrowing narrows)', autopilotAllowedModels().length === 0)
+check('unknown words drop and haiku stands as a key', allowedSorted() === 'haiku')
+process.env.MERCURY_AUTOPILOT_MODELS = 'gpt5,,junk'
+check('all-unknown keys ⇒ the EMPTY allowlist (a garbled narrowing narrows)', autopilotAllowedModels(SESSION).length === 0)
 process.env.MERCURY_AUTOPILOT_MODELS = 'opus;sonnet'
-check("FC-155: the sibling ';' separator is forgiven — the intent lands", autopilotAllowedModels().join(',') === 'opus,sonnet')
+check("FC-155: the sibling ';' separator is forgiven — the intent lands", allowedSorted() === 'opus,sonnet')
 process.env.MERCURY_AUTOPILOT_MODELS = 'opus sonnet'
-check('FC-155: the space separator is forgiven too', autopilotAllowedModels().join(',') === 'opus,sonnet')
+check('FC-155: the space separator is forgiven too', allowedSorted() === 'opus,sonnet')
 process.env.MERCURY_AUTOPILOT_MODELS = '"opus"'
-check('FC-155: stray surrounding quotes are stripped', autopilotAllowedModels().join(',') === 'opus')
+check('FC-155: stray surrounding quotes are stripped', allowedSorted() === 'opus')
 process.env.MERCURY_AUTOPILOT_MODELS = 'SONNET'
-check('case-normalized single key honored', autopilotAllowedModels().join(',') === 'sonnet')
+check('case-normalized single key honored', allowedSorted() === 'sonnet')
 delete process.env.MERCURY_AUTOPILOT_MODELS
 
 section('§2 carousel — bypass → autopilot(flag ∧ available) → default')
