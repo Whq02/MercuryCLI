@@ -722,7 +722,7 @@ function InspectorPane({
       {line('description', agent.whenToUse.replace(/\n/g, ' '))}
       {line(
         'model',
-        `${eff.modelIntent} → ${eff.model}${eff.flooredFrom ? ` (floored from ${eff.flooredFrom})` : ''}${agent.operatorOverride?.model ? ` · override(${agent.operatorOverride.from})` : ''}`,
+        `${eff.modelIntent} → ${eff.model}${agent.operatorOverride?.model ? ` · override(${agent.operatorOverride.from})` : ''}`,
         TEAL,
       )}
       {(() => {

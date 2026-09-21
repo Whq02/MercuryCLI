@@ -17,7 +17,6 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 const model = await import('../../src/utils/model/model.ts')
-const floor = await import('../../src/utils/model/modelFloor.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 const router = await import('../../src/services/providers/callModelRouter.ts')
@@ -36,7 +35,6 @@ section('§A forward fence — model owners reference no instruction facet')
 {
   const OWNERS = [
     'src/utils/model/model.ts',
-    'src/utils/model/modelFloor.ts',
     'src/utils/model/capabilities.ts',
     'src/utils/model/modelTransition.ts',
     'src/utils/effort.ts',
@@ -59,7 +57,7 @@ section('§A forward fence — model owners reference no instruction facet')
 section('§B reverse fence — profile resolution reads no model facet')
 {
   const src = readFileSync(join(ROOT, 'src/services/instructions/profile.ts'), 'utf8')
-  const hits = ['utils/model', 'callModelRouter', 'modelFloor', 'getMainLoopModel'].filter(f =>
+  const hits = ['utils/model', 'callModelRouter', 'getMainLoopModel'].filter(f =>
     src.includes(f),
   )
   check('profile.ts (the resolution owner) is model-free', hits.length === 0, hits.join(', '))
@@ -103,10 +101,6 @@ section('§C behavioral — model truth is byte-identical across every profile s
     userSetting: model.getUserSpecifiedModelSetting() ?? null,
     routes: ROUTE_MODELS.map(m => [m ?? '(undefined)', JSON.stringify(router.classifyModelRoute(m))]),
     effort: EFFORT_PROBES.map(([m, e]) => [m, e, effort.resolveEffortTruth(m, e as never)]),
-    floor: [
-      floor.enforceSubagentModelFloor('claude-haiku-4-5-20251001', 'a08-probe'),
-      floor.enforceSubagentModelFloor('claude-opus-5', 'a08-probe'),
-    ],
     caps: CAP_MODELS.map(m => ({
       m,
       thinking: caps.modelSupportsThinking(m),

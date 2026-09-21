@@ -159,14 +159,9 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     connector.includes('createModelTransitionMessage({') && connector.includes("boundary: 'turn-boundary'"),
   )
   const workerModels = read('src/services/concourse/workerModels.ts')
-  const economyAt = workerModels.indexOf('if (ECONOMY_FAMILY.test(modelId)) {')
-  const economyArm = economyAt === -1 ? '' : workerModels.slice(economyAt, workerModels.indexOf('return { session, crew: session }', economyAt))
   check(
-    'B8 haiku rides the SESSION arm wherever its family is credentialed — the never-Haiku law binds the crew arm only',
-    economyAt !== -1 &&
-      /return \{\s*session,\s*crew: \{/.test(economyArm) &&
-      economyArm.includes("refusal: 'worker-policy:frontier-only'") &&
-      !economyArm.includes('session: {'),
+    'B8 every row rides both arms wherever its family is credentialed (no tier is refused on either arm)',
+    !workerModels.includes('ECONOMY_FAMILY') && !workerModels.includes('frontier-only') && workerModels.includes('return { session, crew: session }'),
   )
 }
 

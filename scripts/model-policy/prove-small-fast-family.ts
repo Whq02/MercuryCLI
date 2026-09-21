@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     if (!snapshot || snapshot.models.length !== ids.length) throw new Error(`the fixture list did not seed: ${JSON.stringify(snapshot)}`)
   }
   const { getCanonicalName } = await import('../../src/utils/model/model.js')
-  const { NEVER_HAIKU_FALLBACK } = await import('../../src/utils/model/modelFloor.js')
+  const { getDefaultSonnetModel } = await import('../../src/utils/model/model.js')
   const { settleAssistantTurn } = await import('../../src/services/providers/callModelRouter.js')
   const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.js')
 
@@ -161,9 +161,9 @@ async function main(): Promise<void> {
     delete process.env.MERCURY_MODEL
     const anthropicLight = sessionLightModel()
     check(
-      'anthropic session: the SAME canonical the never-Haiku floor names (execAgentHook default unchanged)',
-      getCanonicalName(anthropicLight) === getCanonicalName(NEVER_HAIKU_FALLBACK),
-      `${anthropicLight} vs ${NEVER_HAIKU_FALLBACK}`,
+      'anthropic session: the mid-class owner (execAgentHook default unchanged)',
+      getCanonicalName(anthropicLight) === getCanonicalName(getDefaultSonnetModel()),
+      `${anthropicLight} vs ${getDefaultSonnetModel()}`,
     )
     process.env.MERCURY_MODEL = 'gpt-5.6-sol'
     await serveList(null)
@@ -197,8 +197,8 @@ async function main(): Promise<void> {
     check('Feedback carries no getSmallFastModel / sideQuery residue', !feedback.includes('getSmallFastModel') && !feedback.includes('sideQuery'))
     const agentHook = srcText('utils', 'hooks', 'execAgentHook.ts')
     check(
-      'execAgentHook defaults to sessionLightModel UNDER the floor',
-      /enforceSubagentModelFloor\(hook\.model \?\? sessionLightModel\(\), 'hook-agent'\)/.test(agentHook),
+      'execAgentHook defaults to sessionLightModel, the hook\'s own model first',
+      /const model = hook\.model \?\? sessionLightModel\(\)/.test(agentHook),
     )
     const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
     check(

@@ -80,15 +80,22 @@ import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, not
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
-import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
+import { MercuryModelChoicePicker, modelChoiceLabel } from '../../commands/model/mercuryModel.js'
+import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import type { ModelChoice } from '../MercuryModelPicker.js'
 
 const LABEL_CELLS = 44
 
 type SubMenu =
   | 'theme'
   | 'teammate-model'
+  | 'agent-model'
   | 'external-includes'
   | 'language'
+
+const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
+const TEAMMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Teammate', choice: 'a choice, not a model — a teammate runs the session default model' }
+const TEAMMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Teammate', choice: "a choice, not a model — a teammate runs the leader's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -883,9 +890,9 @@ export function Config({
         <Text>
           {(() => {
             const value = config.teammateDefaultModel
-            if (value === undefined) return 'default'
-            if (value === null) return "leader's model"
-            return modelDisplayString(value)
+            if (value === undefined) return TEAMMATE_DEFAULT_ROW.name
+            if (value === null) return TEAMMATE_LEADER_ROW.name
+            return modelChoiceLabel(value)
           })()}
         </Text>
       ),
@@ -959,24 +966,18 @@ export function Config({
       recordSet('agentsDefaultEffort', `set the sub-agent default effort to ${next}`)
     },
   })
-  const agentModelChoices: readonly string[] = ['inherit', ...AGENT_DISPATCH_MODELS]
-  const agentModelChoice = agentDefaults.model ?? 'inherit'
   items.push({
     id: 'agentsDefaultModel',
     label: 'Sub-agent default model',
     searchText: 'sub-agent subagent agent default model inherit parent',
-    kind: 'enum',
+    kind: 'managed-enum',
     value: (
       <Text>
-        {agentDefaults.model === undefined ? "inherit (the parent's model)" : modelDisplayString(agentDefaults.model)}
+        {agentDefaults.model === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
       </Text>
     ),
-    warning: 'the model a spawned agent runs on when neither the call nor its definition names one · ←/→ walk the aliases; inherit follows the parent',
-    change: direction => {
-      const next = cycleIn(agentModelChoices, agentModelChoice, direction)
-      writeAgents({ defaultModel: next === 'inherit' ? undefined : next })
-      recordSet('agentsDefaultModel', `set the sub-agent default model to ${next === 'inherit' ? "inherit (the parent's model)" : next}`)
-    },
+    warning: 'the model a spawned agent runs on when neither the call nor its definition names one · ←/→ opens the picker, every family live; Inherit follows the parent',
+    open: 'agent-model',
   })
   const envFanoutCap = agentFanoutCap()
   items.push({
@@ -1061,6 +1062,12 @@ export function Config({
   const saveAndClose = (): void => {
     const summary = composeSummary()
     onClose(summary)
+  }
+
+  const signInFromDoor = (): void => {
+    setSubMenu(null)
+    requestCommandDispatch('/logins')
+    onClose([composeSummary(), 'Sign in first — /logins opens; the door lists that family once a credential connects'].filter(Boolean).join('\n'))
   }
 
   const revertAndClose = (): void => {
@@ -1235,28 +1242,40 @@ export function Config({
   if (subMenu === 'teammate-model') {
     const current = config.teammateDefaultModel
     return (
-      <Select
-        options={[
-          { label: 'Default', value: '__default__' },
-          { label: "Leader's model", value: '__leader__' },
-        ]}
-        defaultValue={current === null ? '__leader__' : '__default__'}
-        onChange={value => {
-          if (value === '__default__' && current === undefined) {
+      <MercuryModelChoicePicker
+        leading={[TEAMMATE_DEFAULT_ROW, TEAMMATE_LEADER_ROW]}
+        current={current === undefined ? TEAMMATE_DEFAULT_ROW.id : current === null ? TEAMMATE_LEADER_ROW.id : current}
+        onSelect={id => {
+          if (id === TEAMMATE_DEFAULT_ROW.id && current === undefined) {
             setSubMenu(null)
             return
           }
-          writeGlobal(c => ({
-            ...c,
-            teammateDefaultModel: value === '__leader__' ? null : undefined,
-          }))
+          const next = id === TEAMMATE_LEADER_ROW.id ? null : id === TEAMMATE_DEFAULT_ROW.id ? undefined : id
+          writeGlobal(c => ({ ...c, teammateDefaultModel: next }))
           recordSet(
             'teammateDefaultModel',
-            `set default teammate model to ${value === '__leader__' ? "leader's model" : 'default'}`,
+            `set default teammate model to ${next === null ? TEAMMATE_LEADER_ROW.name : next === undefined ? TEAMMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
           )
           setSubMenu(null)
         }}
-        onCancel={() => setSubMenu(null)}
+        onSignIn={signInFromDoor}
+        onClose={() => setSubMenu(null)}
+      />
+    )
+  }
+  if (subMenu === 'agent-model') {
+    return (
+      <MercuryModelChoicePicker
+        leading={[AGENT_INHERIT_ROW]}
+        current={agentDefaults.model ?? AGENT_INHERIT_ROW.id}
+        onSelect={id => {
+          const next = id === AGENT_INHERIT_ROW.id ? undefined : id
+          writeAgents({ defaultModel: next })
+          recordSet('agentsDefaultModel', `set the sub-agent default model to ${next === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(next)}`)
+          setSubMenu(null)
+        }}
+        onSignIn={signInFromDoor}
+        onClose={() => setSubMenu(null)}
       />
     )
   }

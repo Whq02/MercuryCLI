@@ -68,7 +68,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const architect = byType.get('mercury-architect')
   check('§6 mercury-scout registered LIVE', Boolean(scout))
   check('§6 mercury-architect registered LIVE', Boolean(architect))
-  check("§6 scout inherits the session model (never-lightweight floor guards the resolved tier; a Claude-tier pin stranded a non-Anthropic session)", scout?.model === 'inherit', String(scout?.model))
+  check("§6 scout inherits the session model (a Claude-tier pin stranded a non-Anthropic session)", scout?.model === 'inherit', String(scout?.model))
   check("§6 architect inherits the session model", architect?.model === 'inherit', String(architect?.model))
   const edits = ['Edit', 'Write', 'NotebookEdit']
   const readOnly = (list?: string[]) => Array.isArray(list) && edits.every(t => list.some(d => d.includes(t)))

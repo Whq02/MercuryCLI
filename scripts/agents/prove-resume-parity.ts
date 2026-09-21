@@ -41,7 +41,7 @@ section('§1 the metadata carrier (round-trip, hermetic home)')
   check('agentType/description intact', back?.agentType === 'mercury-general' && back?.description === 'proof')
 }
 
-section('§2 the restore chain (getAgentModel is id-stable; the floor holds)')
+section('§2 the restore chain (getAgentModel is id-stable)')
 {
   const parent = 'claude-opus-4-8[1m]'
   check(
@@ -54,8 +54,8 @@ section('§2 the restore chain (getAgentModel is id-stable; the floor holds)')
     agent.getAgentModel('inherit', parent, 'glm-5.2' as never) === 'glm-5.2',
     agent.getAgentModel('inherit', parent, 'glm-5.2' as never),
   )
-  const flooredRestore = agent.getAgentModel('inherit', parent, 'haiku' as never)
-  check('a restored haiku alias is FLOORED, never dispatched', !/haiku/i.test(flooredRestore), flooredRestore)
+  const haikuRestore = agent.getAgentModel('inherit', parent, 'haiku' as never)
+  check('a restored haiku alias dispatches as the haiku row', /haiku/i.test(haikuRestore), haikuRestore)
   check(
     'absent persisted model ⇒ legacy re-resolution (inherit → parent)',
     agent.getAgentModel('inherit', parent, undefined) === parent,

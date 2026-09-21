@@ -45,7 +45,7 @@ function bar(pct: number, width = 10): string {
   return '█'.repeat(f) + '░'.repeat(width - f)
 }
 
-export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string;  action?: boolean; expand?: CatalogueDoorFacet }
+export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string;  action?: boolean; expand?: CatalogueDoorFacet; choice?: string }
 
 type Props = {
   models: ModelChoice[]
@@ -329,7 +329,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       <ProductLockup view="model" />
       {
 }
-      {compact ? null : <Text color={FAINT}>CHOOSE A MODEL · {models.filter(m => !m.gated && !m.action).length} AVAILABLE · {models.filter(m => m.gated).length} GATED</Text>}
+      {compact ? null : <Text color={FAINT}>CHOOSE A MODEL · {models.filter(m => !m.gated && !m.action && m.choice === undefined).length} AVAILABLE · {models.filter(m => m.gated).length} GATED</Text>}
       {pendingNext ? (
         <Text>
           <Text color={FAINT}>current </Text>
@@ -445,7 +445,9 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
               ? focusedModel!.gatedReason
                 ? `${focusedModel!.id} · ${focusedModel!.gatedReason} — not selectable`
                 : `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
-              : `${focusedModel!.id} · model IDs are real, never themed`}
+              : focusedModel!.choice !== undefined
+                ? focusedModel!.choice
+                : `${focusedModel!.id} · model IDs are real, never themed`}
         </Text>
       </Box>
       {

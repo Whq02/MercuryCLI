@@ -160,12 +160,8 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
   }
   const haikuSession = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'session')
   const haikuCrew = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
-  check('economy: a session runs what the account runs', haikuSession.ok === true, JSON.stringify(haikuSession))
-  check(
-    "economy: a crew seat refuses 'worker-policy:frontier-only' — the standing law, spoken",
-    !haikuCrew.ok && haikuCrew.reason === 'worker-policy:frontier-only',
-    JSON.stringify(haikuCrew),
-  )
+  check('small tier: a session runs what the account runs', haikuSession.ok === true, JSON.stringify(haikuSession))
+  check('small tier: a crew seat runs it too (no tier is refused)', haikuCrew.ok === true, JSON.stringify(haikuCrew))
 }
 
 section('§5 — the launch receipt is family-neutral: model + tier named for engine ids exactly as for home ids')

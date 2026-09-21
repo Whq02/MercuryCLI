@@ -47,9 +47,9 @@ else
   echo "  ✗ stamp-sim slug resolution: got '$slugres'"; fail=1
 fi
 
-res=$("$bun" -e "import('$root/src/utils/model/agent.js').then(m=>{const p='claude-opus-4-8[1m]';const inh=m.getAgentModel('inherit',p);const hk=m.getAgentModel('haiku',p);const ok=!/haiku/i.test(inh)&&hk==='claude-sonnet-5';console.log(ok?'OK':'BAD',inh,'|',hk);}).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
+res=$("$bun" -e "import('$root/src/utils/model/agent.js').then(m=>{const p='claude-opus-4-8[1m]';const inh=m.getAgentModel('inherit',p);const hk=m.getAgentModel('haiku',p);const ok=inh===p&&/haiku/i.test(hk);console.log(ok?'OK':'BAD',inh,'|',hk);}).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
 case "$res" in
-  OK*) echo "  ✓ resolver: inherit→non-Haiku, raw-haiku→FLOORED (stamp-independent)  [$res]" ;;
+  OK*) echo "  ✓ resolver: inherit→the parent, raw-haiku→the haiku row (stamp-independent)  [$res]" ;;
   *)   echo "  ✗ resolver invariant failed: $res"; fail=1 ;;
 esac
 

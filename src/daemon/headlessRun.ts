@@ -1,7 +1,6 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../utils/debug.js'
-import { enforceSubagentModelFloor } from '../utils/model/modelFloor.js'
 import { killProcessGroup } from '../utils/processGroup.js'
 import {
   assertSpawnCwd,
@@ -126,9 +125,6 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
     delete env[v]
   }
   stripCrewRolePair(env)
-  if (env.MERCURY_MODEL) {
-    env.MERCURY_MODEL = enforceSubagentModelFloor(env.MERCURY_MODEL, 'daemon:headless-loop')
-  }
   env.MERCURY_BRIEF ??= '1'
   return env
 }
@@ -196,10 +192,7 @@ export function buildStreamJsonInvocation(
   env: NodeJS.ProcessEnv
 } {
   const { node, script } = getSelfInvocation()
-  const model =
-    spec.role === 'MERCURY_CONCOURSE_WORKER'
-      ? spec.model
-      : enforceSubagentModelFloor(spec.model, `daemon:${spec.agentName}`)
+  const model = spec.model
   const teamName = spec.teamName ?? 'default'
   const argv = [
     script,
