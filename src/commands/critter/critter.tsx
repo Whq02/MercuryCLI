@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { CritterSelect } from '../../components/CritterSelect.js'
-import { setCritterSize } from '../../components/mercury-ui/sessionAccent.js'
+import { setCritterSize } from '../../utils/cockpit/critterSize.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
