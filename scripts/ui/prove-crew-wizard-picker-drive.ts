@@ -142,7 +142,7 @@ for (const [cols, rows] of SIZES) {
     JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),
   )
   const env = childEnv(home)
-  const ready = cols >= 100 && rows >= 26 ? '· ready' : '1 session on'
+  const ready = cols >= 100 && rows >= 26 ? '← back' : '1 session on'
   try {
     const out = join(home, 'grid.json')
     const cfg = join(home, 'cfg.json')
