@@ -1,5 +1,6 @@
 
 import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../../services/concourse/closeChordStage.js'
+import { SESSION_DEFAULTS_KEY_HINT } from '../../services/switchboard/sessionDefaultsKey.js'
 
 export type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirmation'
 
@@ -36,6 +37,7 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'board:focus', action: 'concourse:focus-list', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
   { id: 'coordinator:focus-title', action: 'concourse:focus-coordinator', region: 'coordinator', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
   { id: 'board:new-session', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: ['n'], pointer: 'activate', receipt: 'route-transition' },
+  { id: 'board:model-default', action: 'concourse:model-default', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'mode-transition' },
   { id: 'board:rename', action: 'concourse:rename-session', region: 'list', modes: ['browse'], keys: ['r'], pointer: 'none', receipt: 'mode-transition' },
   { id: 'board:interrupt', action: 'concourse:interrupt-session', region: 'list', modes: ['browse'], keys: ['i'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:pause-resume', action: 'concourse:pause-resume-session', region: 'list', modes: ['browse'], keys: ['p'], pointer: 'none', receipt: 'row-control' },
@@ -230,6 +232,7 @@ export function regionKeysFor(
     armed?: boolean
     liveDraftHeld?: boolean
     chordStaged?: boolean
+    modelDefault?: boolean
   },
 ): ReadonlyArray<{ keys: string; label: string }> {
   if (opts.olderBrowse === true) {
@@ -296,7 +299,7 @@ export function regionKeysFor(
       case 'door':
         return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
       case 'none':
-        return stageFilter([...keep('n', '/', 's')])
+        return stageFilter([...keep('n'), ...(opts.modelDefault === true ? [{ keys: 'm', label: SESSION_DEFAULTS_KEY_HINT }] : []), ...keep('/', 's')])
     }
   }
   return withEnterTruth(listRowsFor(opts.selection))

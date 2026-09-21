@@ -130,6 +130,11 @@ function drive(tag: string, home: string, port: number, sends: unknown[], total:
 }
 
 const lines = (screen: string, needle: string): string => screen.split('\n').filter(l => l.includes(needle)).join(' · ')
+const groupLine = (screen: string, heading: string): string => {
+  const ls = screen.split('\n')
+  const at = ls.findIndex(l => l.includes(heading))
+  return at >= 0 ? (ls[at + 1] ?? '') : ''
+}
 const ledgerHits = (ledger: string): number =>
   existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.includes('GET /models')).length : 0
 function dumpOnRed(tag: string, before: number, res: DriveResult): void {
@@ -191,7 +196,7 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   check('live: the unpinned live id paints with its mechanical name, after the pinned rows', live.indexOf('Deepseek Fixture Next') > live.indexOf('DeepSeek V4.1 Flash'), lines(live, 'Deepseek'))
   check("live: the unpinned row paints the conservative window Mercury budgets for an unrecorded id (200k), never a pin's", lines(live, 'Deepseek Fixture Next').includes('200k ctx') && !lines(live, 'Deepseek Fixture Next').includes('1M ctx'), lines(live, 'Deepseek Fixture Next'))
   check('live: the pinned rows keep their pinned window', lines(live, 'DeepSeek V4 Pro                ').includes('1M ctx') || lines(live, '│ DeepSeek V4 Pro').includes('1M ctx'), lines(live, 'DeepSeek V4 Pro'))
-  check("live: the group line names the live source ('3 models live') and the key", lines(live, 'frontier: DeepSeek V4 Pro').includes('3 models live') && lines(live, 'frontier: DeepSeek V4 Pro').includes('key present'), lines(live, 'frontier'))
+  check('live: the group line names the key and no frontier row stands under any heading', groupLine(live, 'DEEPSEEK MODELS').includes('key present') && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK MODELS'))
   check('live: the Flash row persists the current id (deepseek-flash on the id line)', flash.includes('deepseek-flash · model IDs'), lines(flash, 'model IDs'))
   check('live: the retired id is nowhere on the screen', !live.includes('deepseek-v4-flash') && !flash.includes('deepseek-v4-flash'))
   dumpOnRed('live', before, res)
@@ -217,7 +222,7 @@ console.log('\n[2] the pins stand in: the fixture refuses the list (HTTP 503)')
   check('refuse: the list was asked for (the ledger records the refused request)', ledgerHits(ledger) >= 1, `hits ${ledgerHits(ledger)}`)
   check('refuse: the two dated pins stand in', rows.includes('DeepSeek V4 Pro') && rows.includes('DeepSeek V4.1 Flash'), lines(rows, 'DeepSeek'))
   check('refuse: no fixture row is invented', !rows.includes('Deepseek Fixture Next'))
-  check(`refuse: the group line carries the pins' date (${PIN_DATE}) and the key, not a live count`, lines(rows, 'frontier: DeepSeek V4 Pro').includes(`· ${PIN_DATE} ·`) && lines(rows, 'frontier: DeepSeek V4 Pro').includes('key present') && !lines(rows, 'frontier: DeepSeek V4 Pro').includes('models live'), lines(rows, 'frontier'))
+  check(`refuse: the group line names the key alone — no frontier row, no date (${PIN_DATE}), no live count`, groupLine(rows, 'DEEPSEEK MODELS').includes('key present') && !rows.includes('frontier:') && !groupLine(rows, 'DEEPSEEK MODELS').includes(PIN_DATE) && !groupLine(rows, 'DEEPSEEK MODELS').includes('models live'), groupLine(rows, 'DEEPSEEK MODELS'))
   dumpOnRed('refuse', before, res)
 }
 
