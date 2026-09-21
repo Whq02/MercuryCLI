@@ -155,24 +155,24 @@ console.log('============================================================')
 
 try {
   const wide = homeFor('wide')
-  const a = await capture('wide-a', wide, 178, 51, [onReady('/critter full\r', 'boot'), onReady('/critter mini\r', 'full'), onReady('/critter full\r', 'mini-again')], '· ready')
+  const a = await capture('wide-a', wide, 178, 51, [onReady('/critter on\r', 'boot'), onReady('/critter off\r', 'full'), onReady('/critter\r', 'mini-again')], '· ready')
   const boot = a.marks['boot']!
   const full = a.marks['full']!
   const miniAgain = a.marks['mini-again']!
   const fullAgain = a.grid
-  const b = await capture('wide-b', wide, 178, 51, [onReady('/critter mini\r', 'second-boot')], '· ready')
+  const b = await capture('wide-b', wide, 178, 51, [onReady('/critter\r', 'second-boot')], '· ready')
   const secondBoot = b.marks['second-boot']!
   const miniAfterSecondBoot = b.grid
   const band = await capture('band', homeFor('band'), 80, 21, [], '1 session on')
   const mid = homeFor('mid')
-  const c = await capture('mid', mid, 120, 40, [onReady('/critter full\r', 'boot')], '· ready')
+  const c = await capture('mid', mid, 120, 40, [onReady('/critter\r', 'boot')], '· ready')
   const midBoot = c.marks['boot']!
   const midFull = c.grid
   const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '· ready', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
   const tripWide = trip.marks['wide']!
   const tripNarrow = trip.marks['stage1:80x21']!
   const tripBack = trip.grid
-  const tall = await capture('tall', homeFor('tall'), 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter full\r', mark: 'boot' }], '1 session on')
+  const tall = await capture('tall', homeFor('tall'), 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter\r', mark: 'boot' }], '1 session on')
   const tallBoot = tall.marks['boot']!
   const tallFull = tall.grid
 
@@ -209,18 +209,18 @@ try {
   check('the ↵ sends row at row 18', text(boot)[18]!.includes('❯ ↵ sends'))
   check('nothing is reworded: the landing rows read the same in both forms, six rows higher', text(boot).slice(9, 19).map(l => l.slice(30, 148)).join('\n') === text(full).slice(15, 25).map(l => l.slice(30, 148)).join('\n'))
 
-  console.log('§4 /critter full paints the shipped look, /critter mini the design — both ways')
+  console.log('§4 /critter on paints the shipped look, /critter off the design, and bare /critter toggles')
   const fx = boxRows(full, 31)
   check('with full the box is eleven rows (border at 2, border at 12)', fx.top === 2 && fx.bottom === 12, `top ${fx.top} bottom ${fx.bottom}`)
   check('with full the strip is back at row 42 and the pane’s bottom border at row 40', rowWith(full, '⊞ SESSIONS') === 42 && paneFull === 40, `strip ${rowWith(full, '⊞ SESSIONS')} pane ${paneFull}`)
   check('with full the wordmark starts at row 15 and the ↵ sends row sits at row 24', text(full)[15]!.includes('█▄▄▄█') && text(full)[24]!.includes('❯ ↵ sends'))
   check('with full the hero art paints in the box (a ▄▄ crown row above the sprite rows)', text(full)[5]!.includes('▄▄▀▀▀▀▀▀▄▄'))
-  check('/critter mini after /critter full repaints the design cell for cell', cellDiff(miniAgain, boot) === 0, `${cellDiff(miniAgain, boot)} cells differ`)
-  check('/critter full after that repaints the shipped look cell for cell', cellDiff(fullAgain, full) === 0, `${cellDiff(fullAgain, full)} cells differ`)
+  check('/critter off after /critter on repaints the design cell for cell', cellDiff(miniAgain, boot) === 0, `${cellDiff(miniAgain, boot)} cells differ`)
+  check('bare /critter after that toggles to the shipped look cell for cell', cellDiff(fullAgain, full) === 0, `${cellDiff(fullAgain, full)} cells differ`)
 
   console.log('§5 the choice is kept across boots')
   check('a second boot of the same home lands on the saved full look', cellDiff(secondBoot, full) === 0, `${cellDiff(secondBoot, full)} cells differ`)
-  check('/critter mini on the second boot repaints the design cell for cell', cellDiff(miniAfterSecondBoot, boot) === 0, `${cellDiff(miniAfterSecondBoot, boot)} cells differ`)
+  check('/critter on the second boot repaints the design cell for cell', cellDiff(miniAfterSecondBoot, boot) === 0, `${cellDiff(miniAfterSecondBoot, boot)} cells differ`)
 
   console.log('§6 the same slim box at 120×40')
   const midHeader = rowWith(midBoot, '✶ SESSION')
@@ -232,7 +232,7 @@ try {
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![midLeft + 3 + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
   const mfx = boxRows(midFull, midLeft)
-  check('/critter full at 120×40 paints the eleven-row box and the strip', mfx.bottom === midHeader + 11 && rowWith(midFull, '⊞ SESSIONS') >= 0, `bottom ${mfx.bottom} strip ${rowWith(midFull, '⊞ SESSIONS')}`)
+  check('/critter at 120×40 flips to the eleven-row box and the strip', mfx.bottom === midHeader + 11 && rowWith(midFull, '⊞ SESSIONS') >= 0, `bottom ${mfx.bottom} strip ${rowWith(midFull, '⊞ SESSIONS')}`)
   check('the strip’s bottom border row with full is the pane’s bottom border row with mini', stripBottom(midFull) === paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1), `${stripBottom(midFull)} vs ${paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1)}`)
 
   console.log('§7 a resize from wide to narrow and back keeps the one sprite')
