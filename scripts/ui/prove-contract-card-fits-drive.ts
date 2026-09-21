@@ -72,10 +72,11 @@ for (const [cols, rows] of [[80, 14], [82, 17], [80, 21]] as const) {
       const keys = rowOf(text, KEYS_HEAD)
       const composer = text.findIndex((r, i) => i > title && /^│.*╭/.test(r) && r.includes('╮ │'))
       check(`${tag} offer: the title, the question and the Yes/No rows are on the pane, in order`, title >= 0 && question > title && yes === question + 1 && no === yes + 1, JSON.stringify({ title, question, yes, no }))
-      check(`${tag} offer: the keys row stands under the Yes/No rows`, keys === no + 2, JSON.stringify({ no, keys }))
+      check(`${tag} offer: the keys row stands under the Yes/No rows`, keys > no, JSON.stringify({ no, keys }))
       const bottom = text.findIndex((r, i) => i > keys && r.includes('╰') && r.includes('╯') && !r.includes('╭'))
-      if (cols === 80 && rows === 14) console.log(`  [NOTE] ${tag} offer: the keys row wraps at this width and the card closes its frame only when the gap above the keys yields — ${JSON.stringify({ keys, bottom, composer })}`)
-      else check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), JSON.stringify({ keys, bottom, composer }))
+      check(`${tag} offer: the card closes with its own frame above the composer`, keys > 0 && bottom > keys && bottom <= keys + 2 && (composer < 0 || bottom < composer), JSON.stringify({ keys, bottom, composer }))
+      if (cols === 80 && rows === 14) check(`${tag} offer: the keys row stands right under the Yes/No rows — the gap yielded`, keys === no + 1, JSON.stringify({ no, keys }))
+      else check(`${tag} offer: the gap above the keys stands`, keys === no + 2, JSON.stringify({ no, keys }))
     }
     if (field !== undefined) {
       const text = textRows(field.grid)
