@@ -22,6 +22,7 @@ const sizesOf = (name: string, fallback: string): [number, number][] => {
 }
 const SIZES = sizesOf('--sizes', '178x51,120x40')
 const CLIPPED_SIZES = sizesOf('--clipped-sizes', '80x21,80x14,82x17')
+const BAND_SIZES = sizesOf('--band-sizes', '120x30')
 const LOGINS = (arg('--logins') ?? 'on') !== 'off'
 const STATES = (arg('--states') ?? 'centred,top-left').split(',')
 if (!existsSync(DIST)) {
@@ -351,6 +352,43 @@ try {
     if (on && off) {
       const first = sameGrid(on, off)
       check(`${size} theme: where the card does not fit the rows, the centred frame is the shipped frame cell for cell`, first === null, first ?? '')
+    }
+  }
+  for (const [cols, rows] of BAND_SIZES) {
+    const size = `${cols}x${rows}`
+    console.log(`\n── ${size} · the sign-in card is taller than the rows: the shipped anchoring in both states`)
+    const shots: Partial<Record<string, Grid>> = {}
+    for (const state of STATES) {
+      const tag = `${state}-${size}-provider`
+      let shot: Shot
+      try {
+        shot = await capture(tag, homeFor(tag, state), cols, rows, [WALK[0]!], ['Provider readiness'], 200)
+      } catch (err) {
+        check(`${tag}: the capture ran`, false, err instanceof Error ? err.message.slice(0, 400) : String(err))
+        continue
+      }
+      if (shot.refusal !== null) {
+        check(`${tag}: the sign-in card paints`, false, shot.refusal.slice(0, 200))
+        continue
+      }
+      const grid = shot.grid
+      shots[state] = grid
+      if (FRAMES !== undefined) {
+        writeFileSync(join(FRAMES, `${tag}.txt`), `${gridText(grid)}\n`)
+        writeFileSync(join(FRAMES, `${tag}.json`), JSON.stringify({ cols, rows, grid }))
+      }
+      const box = cardBox(grid)
+      check(`${tag}: one card box on the screen`, box !== null)
+      if (box === null) continue
+      const text = gridText(grid)
+      check(`${tag}: the card fills the ${rows - 1} usable rows and its readiness tail is cut`, box.height === rows - 1 && !text.includes('OpenAI-compatible'), `height ${box.height}`)
+      check(`${tag}: the card keeps the shipped anchoring (row 0, column 0)`, box.top === 0 && box.left === 0, `row ${box.top}, column ${box.left}`)
+    }
+    const on = shots.centred
+    const off = shots['top-left']
+    if (on && off) {
+      const first = sameGrid(on, off)
+      check(`${size} provider: where the card is taller than the rows, the centred frame is the shipped frame cell for cell`, first === null, first ?? '')
     }
   }
   if (LOGINS) {
