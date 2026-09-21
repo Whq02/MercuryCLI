@@ -351,6 +351,17 @@ found in the project folder from before is read once and migrated on its
 first touch; the folder keeps its copy, and the doctor's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 
+The cockpit's left rail carries a FILES box named for the folder. `↵` on it,
+a click on it, or `/files` in the composer opens the folder's tree as a menu
+over the chat: `→` unfolds a folder and `←` folds it, `/` filters the rows by
+name, `↵` on a file puts `@` and its path at the composer's caret and closes
+the menu, and `esc` or a click on the chat outside the menu closes it. Inside
+a git repository the menu's second line names the branch and the count of
+changed files, and a changed file carries its mark at the row's right edge.
+The same click outside closes every panel over the chat that `esc` closes.
+The `filesBox` setting set to false restores the rail as it was, the command
+with it.
+
 ## Closing chats
 
 Releasing the last row on the board closes the last chat: the slot rests on

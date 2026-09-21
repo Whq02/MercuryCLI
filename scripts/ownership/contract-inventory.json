@@ -786,6 +786,7 @@
   "env",
   "extensions",
   "fileSuggestion",
+  "filesBox",
   "forceLoginMethod",
   "forceLoginOrgUUID",
   "hooks",

@@ -124,6 +124,7 @@ import { TransitionPreviewCard } from '../TransitionPreviewCard.js'
 import { CapOfferCard } from '../CapOfferCard.js'
 import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
 import { MercuryFileOpen } from '../MercuryFileOpen.js'
+import { setComposerInsert } from './composerInsert.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { MercurySupercodeKeywordHint } from '../MercurySupercodeKeywordHint.js'
 import { TeamsDialog } from '../teams/TeamsDialog.js'
@@ -1259,9 +1260,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setCursorOffset(Math.max(0, Math.min(cursor, value.length)))
     },
   }
+  setComposerInsert(text => insertAtCursor(text, { atomic: true }))
   useEffect(() => {
     return () => {
       insertTextRef.current = null
+      setComposerInsert(null)
       void pendingInput.flushDrafts()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only flush
