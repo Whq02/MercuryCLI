@@ -221,6 +221,7 @@ export type MercuryThemeTokens = {
   infoText: string
   success: string
   warning: string
+  cardBrown: string
   failure: string
   failureText: string
   diffAddRow: string
@@ -328,6 +329,7 @@ export function resolveMercuryTokens(
       infoText: deriveTextFloorInk(OASIS, IVORY, spectraBottom),
       success: TEAL,
       warning: AMBER,
+      cardBrown: theme.cardBrown,
       failure: CRIMSON,
       failureText: deriveTextFloorInk(CRIMSON, IVORY, spectraBottom),
       diffAddRow: DIFF_ADD_BG,
@@ -369,6 +371,7 @@ export function resolveMercuryTokens(
       infoText: theme.info,
       success: theme.success,
       warning: theme.warning,
+      cardBrown: theme.cardBrown,
       failure: theme.error,
       failureText: theme.error,
       diffAddRow: theme.diffAdded,
