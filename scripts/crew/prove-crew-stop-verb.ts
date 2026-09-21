@@ -218,6 +218,37 @@ if (!existsSync(DIST)) {
     }
     await closeWorld(w)
   }
+
+  if (runs('resume')) {
+    section('S5 the operator resumes a stopped named teammate (the crew view\'s r on its row): the runner spawns it again under a new row and says so')
+    const w = await openWorld('resume')
+    w.runner.send(user(LEAD_ASK_MATE, U1))
+    const row = await waitRow(w, 'the teammate row', r => r.kind === 'teammate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
+    check('S5 the teammate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
+    if (row !== null) {
+      const until = Date.now() + bound(20_000)
+      while (hitsOf(w.fx, 'mate', 'mate-ack') === 0 && Date.now() < until) await sleep(200)
+      const asksAtStop = hitsOf(w.fx, 'mate', 'mate-ack')
+      const stopped = responseOf(await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000)))
+      check('S5 the stop is applied', stopped.subtype === 'success', j(stopped))
+      const before = w.runner.frames.length
+      const resumed = await control(w, { subtype: 'resume_task', task_id: row.id }, bound(30_000))
+      const rr = responseOf(resumed)
+      check('S5 the runner answers the resume applied, naming a new row under the same agent id', rr.subtype === 'success' && typeof rr.response?.task_id === 'string' && rr.response.task_id !== row.id && rr.response.agent_id === `${MATE_NAME}@${MATE_TEAM}`, j(rr))
+      const again = await waitRow(w, 'the respawned teammate row', x => x.kind === 'teammate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))
+      check('S5 a new teammate row runs under a new id', again !== null && again.id === rr.response?.task_id, j(again))
+      const untilAsk = Date.now() + bound(20_000)
+      while (hitsOf(w.fx, 'mate', 'mate-ack') <= asksAtStop && Date.now() < untilAsk) await sleep(200)
+      check('S5 the respawned teammate asks the model again from its prompt', hitsOf(w.fx, 'mate', 'mate-ack') > asksAtStop, j(w.fx.hits.map(h => h.route)))
+      const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('spawned again from the crew view'), bound(15_000), before)
+      check('S5 the main agent is told the teammate was spawned again from the crew view', told !== null, j(told))
+      const stopTold = w.runner.frames.slice(before).find(f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('stopped from the crew view'))
+      check('S5 the main agent was told of the stop too, with the door that stopped it', stopTold !== undefined, j(w.runner.frames.slice(before).filter(f => f.type === 'system' && f.subtype === 'task_notification').map(f => f.summary)))
+      const later = await facts(w)
+      check('S5 the stopped row never returns to running', !later.some(x => x.id === row.id && x.status === 'running'), j(later.map(x => `${x.kind}:${x.name}:${x.status}`)))
+    }
+    await closeWorld(w)
+  }
 }
 
 finish()
