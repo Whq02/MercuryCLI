@@ -1,6 +1,6 @@
 
 import { useRef, useSyncExternalStore } from 'react'
-import { useNotifications } from '../context/notifications.js'
+import { useNotifications, type Notification } from '../context/notifications.js'
 import { useIsOverlayActive } from '../context/overlayContext.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
@@ -18,6 +18,7 @@ import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
+import type { AgentControlReceiptV1 } from '../services/engine-connector/types.js'
 import { crewStillRunningLine } from '../services/engine-connector/crewFacts.js'
 import { workCounts } from '../services/engine-connector/workCounts.js'
 import type { Message } from '../types/message.js'
@@ -34,6 +35,11 @@ import {
 
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
+
+export function backgroundShellNotice(receipt: AgentControlReceiptV1): Notification | null {
+  if (receipt.outcome === 'applied') return null
+  return { key: 'background-shell', text: receipt.detail ?? 'no reason given', priority: 'immediate' }
+}
 
 export function interruptFocusedTurn(): boolean {
   const focused = getFocusedSessionConnector()
@@ -171,7 +177,10 @@ export function CancelRequestHandler({
       if (pendingInput.text() !== '') return false
       const focused = getFocusedSessionConnector()
       if (hasSeatLive(focused)) {
-        void focused.backgroundShell()
+        void focused.backgroundShell().then(receipt => {
+          const notice = backgroundShellNotice(receipt)
+          if (notice !== null) addNotification(notice)
+        })
         return
       }
       if (requestShellBackground() === 0) return false
