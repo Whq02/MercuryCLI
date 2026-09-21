@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Box, Text, measureElement } from '../ink.js'
+import { Box, Text, elementScreenTop, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
 import { useSettingsMaybe } from '../hooks/useSettings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -55,15 +55,16 @@ export function MercurySetupFrame({
   const [notesOpen, setNotesOpen] = useState(false)
   const frameCap = Math.max(8, rows - 1)
   const gap = rows >= 28 ? 1 : 0
-  const bodyViewportRef = useRef<DOMElement | null>(null)
-  const bodyRef = useRef<DOMElement | null>(null)
+  const cardRef = useRef<DOMElement | null>(null)
+  const footerRef = useRef<DOMElement | null>(null)
   const [clipped, setClipped] = useState(false)
   useLayoutEffect(() => {
     if (!centred) return
-    const viewport = bodyViewportRef.current
-    const body = bodyRef.current
-    if (!viewport || !body) return
-    const next = measureElement(body).height > measureElement(viewport).height - gap
+    const card = cardRef.current
+    const footer = footerRef.current
+    if (!card || !footer) return
+    const footerBottom = elementScreenTop(footer) - elementScreenTop(card) + measureElement(footer).height + 1
+    const next = footerBottom > measureElement(card).height
     if (next !== clipped) setClipped(next)
   })
 
@@ -76,6 +77,7 @@ export function MercurySetupFrame({
 
   const stationCard = (
     <Box
+      ref={cardRef}
       flexDirection="column"
       borderStyle="round"
       borderColor={border}
@@ -125,8 +127,8 @@ export function MercurySetupFrame({
       </Box>
       {
 }
-      <Box ref={bodyViewportRef} flexDirection="column" paddingTop={gap} overflowY="hidden">
-        <Box ref={bodyRef} flexDirection="column" flexShrink={0}>
+      <Box flexDirection="column" paddingTop={gap} overflowY="hidden">
+        <Box flexDirection="column" flexShrink={0}>
           {children}
         </Box>
       </Box>
@@ -159,7 +161,7 @@ export function MercurySetupFrame({
           </InteractiveDisclosure>
         </Box>
       ) : null}
-      <Box flexShrink={0} paddingTop={gap}>
+      <Box ref={footerRef} flexShrink={0} paddingTop={gap}>
         <Text color={tokens.textMuted} wrap="truncate-end">
           {footer}
         </Text>
