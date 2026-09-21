@@ -30,8 +30,8 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
 
 const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
-  { value: 'dark', label: 'Oasis dark · the oasis ground' },
-  { value: 'true-black', label: 'True Black · the same palette on pure black' },
+  { value: 'dark', label: 'Oasis dark · Oasis background' },
+  { value: 'true-black', label: 'True Black · the same palette on a pure black background' },
 ]
 
 const THEME_WORDS = {
