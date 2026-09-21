@@ -50,6 +50,7 @@ section('§1 the sighting: a capacity ask pending BEHIND the open repo selector'
 section('§2 the whole paint-order law, pairwise')
 {
   const paintOrder: Array<[keyof Facts, string]> = [
+    ['modelDefault', 'model-default'],
     ['rowPick', 'row-pick'],
     ['trustAsk', 'trust-ask'],
     ['groundPickerOpen', 'ground-picker'],

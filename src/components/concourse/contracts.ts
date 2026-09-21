@@ -149,6 +149,7 @@ export interface ConcourseSnapshotV1 {
     advancedAvailable?: boolean
     titleSeed?: string
     preflight?: { ok: boolean; refusals: string[] }
+    door?: { modelLabel: string; effortLevel: string }
   }
 }
 
