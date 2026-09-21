@@ -84,7 +84,9 @@ import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../util
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
-import { providerWaitIsWindow, stampProviderWait } from '../../api/recoveryBudget.js'
+import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { sleep } from '../../../utils/sleep.js'
+import { busyRecoveryDetail, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -585,7 +587,12 @@ export async function* openaiCallModel(
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
   let recovery: 'retried' | 'no-new-credential' | undefined
-  for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS; attempt++) {
+  let busy: { ladder: BusyRetryLadder; fault: OpenaiFault } | undefined
+  const busyPrefix = (line: string, fault: OpenaiFault, typed: string): string =>
+    busy !== undefined && takesBusyLadder(fault, typed)
+      ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+      : line
+  for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     notePrintPhase('dispatch')
     const outcome = yield* streamOneOpenaiAttempt({
@@ -601,6 +608,7 @@ export async function* openaiCallModel(
       ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       contractDigest: contract.digest,
       deferredUnadmitted: plan.isDeferredUnadmitted,
+      ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
       try {
@@ -654,9 +662,33 @@ export async function* openaiCallModel(
       request = buildRequest(profile.wireEffort)
     }
     const askedMs = outcome.fault.retryAfterMs
+    const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
+    if (outcome.retryEligible && !reissueAtServedWord && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
+      const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
+      busy = { ladder, fault: outcome.fault }
+      const step = nextBusyRetry(ladder, askedMs, Date.now())
+      if (step !== null) {
+        logForDebugging(`[openai] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
+        if (!step.quiet) {
+          yield createSystemAPIErrorMessage(
+            Object.assign(new Error(outcome.fault.message), {
+              ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+              ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+            }),
+            step.waitMs,
+            step.attempt,
+            step.of,
+          )
+        }
+        await sleep(step.waitMs, signal)
+        if (signal.aborted) return
+        continue
+      }
+      logForDebugging(`[openai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
+    }
     const retryable =
       !providerWaitIsWindow(askedMs) &&
-      (reissueAtServedWord || (outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
+      (reissueAtServedWord || (busy === undefined && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {
       const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
       yield createSystemAPIErrorMessage(
@@ -668,10 +700,7 @@ export async function* openaiCallModel(
         attempt,
         OPENAI_MAX_ATTEMPTS - 1,
       )
-      await new Promise(resolve => {
-        const t = setTimeout(resolve, delayMs)
-        ;(t as any).unref?.()
-      })
+      await sleep(delayMs, signal)
       if (signal.aborted) return
       continue
     }
@@ -700,7 +729,7 @@ export async function* openaiCallModel(
       })()
       yield stampProviderWait(
         apiErrorMessage(
-          `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`,
+          busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`, outcome.fault, typed),
           openaiFaultToTypedError(outcome.fault),
           `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
         ),
@@ -737,7 +766,7 @@ export async function* openaiCallModel(
       { status: outcome.fault.status, message: outcome.fault.message },
       requestCarriesInputImage(request),
     )
-    yield apiErrorMessage(text, typed, outcome.fault.code, overflowOf(outcome.fault), refusedMedia)
+    yield apiErrorMessage(busyPrefix(text, outcome.fault, typed), typed, outcome.fault.code, overflowOf(outcome.fault), refusedMedia)
     return
   }
 }
@@ -756,6 +785,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   contractDigest: string
   deferredUnadmitted?: (name: string) => boolean
   attempt?: number
+  busy?: { ladder: BusyRetryLadder; fault: OpenaiFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, auth, signal, tools, options, modelId } = ctx
 
@@ -775,16 +805,32 @@ export async function* streamOneOpenaiAttempt(ctx: {
     type: 'stream_event',
     event,
   })
-  const mintBlock = (block: ContentBlock): AssistantMessage => ({
-    message: {
-      ...partial,
-      content: normalizeContentFromAPI([block], tools, options.agentId),
-    } as AssistantMessage['message'],
-    requestId: undefined,
-    type: 'assistant',
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
-  })
+  const busyRecoveryStamp = (): AssistantMessage['busyRecovery'] => {
+    if (ctx.busy === undefined || minted.length > 0) return undefined
+    const { ladder, fault } = ctx.busy
+    return {
+      provider: 'OpenAI',
+      retries: ladder.waitsMs.length,
+      elapsedMs: Date.now() - ladder.startedAtMs,
+      ...(fault.status !== undefined ? { status: fault.status } : {}),
+      code: fault.code,
+      detail: busyRecoveryDetail({ provider: 'OpenAI', status: fault.status, code: fault.code, message: fault.message, waitsMs: ladder.waitsMs }),
+    }
+  }
+  const mintBlock = (block: ContentBlock): AssistantMessage => {
+    const busyRecovery = busyRecoveryStamp()
+    return {
+      message: {
+        ...partial,
+        content: normalizeContentFromAPI([block], tools, options.agentId),
+      } as AssistantMessage['message'],
+      requestId: undefined,
+      type: 'assistant',
+      uuid: randomUUID(),
+      timestamp: new Date().toISOString(),
+      ...(busyRecovery !== undefined ? { busyRecovery } : {}),
+    }
+  }
 
   let messageStarted = false
   let firstEventSeen = false
