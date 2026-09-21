@@ -9,7 +9,7 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { contextFillView } from '../../utils/contextFill.js'
-import { getDefaultMainLoopModel, getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { getDefaultMainLoopModel, getMainLoopModel, normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import {
@@ -974,6 +974,27 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   )
 }
 
+function modelChoiceRowOf(options: ModelOption[], id: string): ModelOption | undefined {
+  const wanted = normalizeModelStringForAPI(parseUserSpecifiedModel(id)).toLowerCase()
+  return options.find(
+    option =>
+      typeof option.value === 'string' &&
+      !option.value.startsWith('__') &&
+      !isProviderActionRow(option.value) &&
+      normalizeModelStringForAPI(parseUserSpecifiedModel(option.value)).toLowerCase() === wanted,
+  )
+}
+
 export function modelChoiceLabel(id: string): string {
-  return pickLabelOf(getModelOptions(), id)
+  const options = getModelOptions()
+  const direct = pickLabelOf(options, id)
+  if (direct !== id) return direct
+  return modelChoiceRowOf(options, id)?.label ?? renderModelName(id)
+}
+
+export function modelChoiceRow(id: string): string {
+  if (id === '') return id
+  const options = getModelOptions()
+  if (options.some(option => option.value === id)) return id
+  return modelChoiceRowOf(options, id)?.value ?? id
 }

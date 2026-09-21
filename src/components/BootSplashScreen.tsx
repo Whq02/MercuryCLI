@@ -23,7 +23,7 @@ import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
-import { computedDefault } from '../utils/model/computedDefault.js';
+import { computedDefault, readComputedDefaultCatalogue } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { takeFaceUpdateNotice } from '../services/privateChannel/quietUpdateNotice.js';
 import { providerFamilyPresences } from '../services/providers/providerUsage.js';
@@ -452,6 +452,17 @@ export function BootSplashScreen(): React.ReactNode {
   const mainModel = useMainLoopModel();
 
   const catalogueEpoch = useCatalogueEpoch();
+  useEffect(() => {
+    let pending = false;
+    try {
+      const decision = computedDefault();
+      pending = getUserSpecifiedModelSetting() === null && decision.considered.length > 0 && decision.considered[0]?.verdict.usable !== true;
+    } catch {
+      pending = false;
+    }
+    if (!pending) return;
+    void readComputedDefaultCatalogue().catch(() => {});
+  }, [signInEpoch, catalogueEpoch]);
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {

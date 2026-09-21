@@ -268,8 +268,8 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
   }
   check("resolve('gpt') null uncredentialed (never a fallthrough)", snap.resolve('gpt', 'balanced') === null)
   check("resolve('glm') null (GLM never seats)", snap.resolve('glm', 'balanced') === null)
-  check("resolveExact('gpt-5.6-sol') refuses (SEAT pins stay Anthropic-family)", snap.resolveExact('gpt-5.6-sol') === null)
-  check("resolveExact('glm-5.2') refuses (SEAT pins stay Anthropic-family)", snap.resolveExact('glm-5.2') === null)
+  check("resolveExact('gpt-5.6-sol') refuses uncredentialed (no available provider lists it)", snap.resolveExact('gpt-5.6-sol') === null)
+  check("resolveExact('glm-5.2') refuses uncredentialed (no available provider lists it)", snap.resolveExact('glm-5.2') === null)
 }
 
 if (savedConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR

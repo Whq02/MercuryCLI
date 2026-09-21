@@ -1,25 +1,23 @@
 
 import type { EffortLevel } from '../effort.js'
 import { EFFORT_LEVELS, getMaxSupportedEffortLevel } from '../effort.js'
-import {
-  getDefaultFableModel,
-  getDefaultOpusModel,
-  getDefaultSonnetModel,
-  parseUserSpecifiedModel,
-} from '../model/model.js'
+import { parseUserSpecifiedModel } from '../model/model.js'
+import { modelSupports1M } from '../model/capabilities.js'
 import { withContext1m } from '../model/modelOptions.js'
 import { has1mContext } from '../context.js'
+import { routeOfFamilyWord, isModelFamilyWord } from '../model/modelFamilies.js'
 import {
   autopilotAllowedModels,
-  AUTOPILOT_TIER_KEYS,
-  type AutopilotTierKey,
+  autopilotSessionFamily,
+  autopilotTierKeyOf,
+  autopilotTierKeys,
 } from './autopilotGates.js'
 
 export const MAX_SWITCHES_PER_SESSION = 8
 export const TURNS_BETWEEN_SWITCHES = 3
 
 export interface TierChangeRequest {
-  model?: AutopilotTierKey
+  model?: string
   effort?: EffortLevel
   scope: 'turn' | 'session'
   reason: string
@@ -41,15 +39,18 @@ const turnOverrides = new Map<string, TierOverride>()
 
 const threadKey = (agentId: string | undefined): string => agentId ?? 'main'
 
-export function resolveTierKey(key: AutopilotTierKey, currentModel: string): string {
-  if (key === 'fable51') return parseUserSpecifiedModel('fable51')
-  const base =
-    key === 'opus'
-      ? getDefaultOpusModel()
-      : key === 'sonnet'
-        ? getDefaultSonnetModel()
-        : getDefaultFableModel()
-  return has1mContext(currentModel) ? withContext1m(base) : base
+const BARE_KEYS = new Set(['fable51'])
+
+export function resolveTierKey(key: string, currentModel: string): string {
+  const lowered = key.trim().toLowerCase()
+  const route = routeOfFamilyWord(lowered)
+  if (route !== null) {
+    const { familySeatSetting } = require('../../services/concourse/workerModels.js') as typeof import('../../services/concourse/workerModels.js')
+    return familySeatSetting(route) ?? currentModel
+  }
+  const base = parseUserSpecifiedModel(key.trim())
+  if (BARE_KEYS.has(lowered) || !isModelFamilyWord(lowered) && !/^[a-z0-9]+$/.test(lowered)) return base
+  return has1mContext(currentModel) && modelSupports1M(base) ? withContext1m(base) : base
 }
 
 export function validateTierChange(
@@ -78,20 +79,27 @@ export function validateTierChange(
   }
   const applied: TierOverride = {}
   if (req.model !== undefined) {
-    if (!(AUTOPILOT_TIER_KEYS as readonly string[]).includes(req.model)) {
-      return { ok: false, refused: `unknown model key '${String(req.model)}' — closed table: ${AUTOPILOT_TIER_KEYS.join('|')}` }
+    const family = autopilotSessionFamily(currentModel)
+    if (family === null) {
+      return { ok: false, refused: `the session's model '${currentModel}' is on no known family — no tier key applies` }
     }
-    const allowed = autopilotAllowedModels()
-    if (!allowed.includes(req.model)) {
+    const key = autopilotTierKeyOf(String(req.model), currentModel)
+    if (key === null) {
+      const keys = autopilotTierKeys(currentModel)
+      const { providerDisplayName } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
       return {
         ok: false,
-        refused:
-          req.model === 'fable'
-            ? `fable is not in the operator allowlist — MERCURY_AUTOPILOT_MODELS=opus,sonnet,fable opts it in`
-            : `'${req.model}' is not in the operator allowlist (${allowed.join(',')})`,
+        refused: `'${String(req.model)}' is not a tier key of the session's family (${providerDisplayName(family)}) — the keys: ${keys.join(' | ')}`,
       }
     }
-    applied.model = resolveTierKey(req.model, currentModel)
+    const allowed = autopilotAllowedModels(currentModel)
+    if (!allowed.includes(key)) {
+      return {
+        ok: false,
+        refused: `'${key}' is not in the operator allowlist (${allowed.join(',')}) — MERCURY_AUTOPILOT_MODELS names the keys autopilot may pick`,
+      }
+    }
+    applied.model = resolveTierKey(key, currentModel)
   }
   if (req.effort !== undefined) {
     if (!EFFORT_LEVELS.includes(req.effort)) {

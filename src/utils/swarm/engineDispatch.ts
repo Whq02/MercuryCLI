@@ -12,7 +12,7 @@ import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
 import { moonshotCatalogueEntries } from '../router/providers/moonshot.js'
 import { qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
-import { DEEPSEEK_STATIC_CATALOGUE, deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
+import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
@@ -27,8 +27,10 @@ import {
 import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
-import { getMainLoopModel } from '../model/model.js'
-import { canonicalWireModelId, declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { getMainLoopModel, parseUserSpecifiedModel } from '../model/model.js'
+import { isModelAlias } from '../model/aliases.js'
+import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
+import { canonicalWireModelId, classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
   geminiGenerateModels,
@@ -61,17 +63,18 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-export function engineDispatchModelsForSchema(): readonly string[] {
-  return [
-    ...ENGINE_DISPATCH_MODELS,
-    ...GPT_DISPLAY_PINS.map(pin => pin.id),
-    ...GLM_STATIC_CATALOGUE.map(entry => entry.id),
-    ...moonshotCatalogueEntries().map(entry => entry.id),
-    ...DEEPSEEK_STATIC_CATALOGUE.map(entry => entry.id),
-    ...compatSlotModelIds(),
-    ...HUGGINGFACE_STATIC_CATALOGUE.map(entry => entry.id),
-    ...localLiveCatalogue().map(entry => entry.id),
-  ]
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+
+export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
+  if (model === undefined) return null
+  const word = model.trim()
+  if (word === '') return null
+  const lowered = word.toLowerCase()
+  if (isEngineDispatchModel(lowered) || isExactEngineModelId(word)) return null
+  if (isModelFamilyWord(lowered) || isModelAlias(lowered)) return null
+  const parsed = parseUserSpecifiedModel(word)
+  if (classifyModelRoute(parsed).kind === 'route') return null
+  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}).`
 }
 
 type EngineProvider =

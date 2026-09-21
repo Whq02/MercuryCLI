@@ -706,8 +706,8 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   check('every routed family has an engine class alias (the totality law)',
     declaredRoutes.length > 0 && declaredRoutes.every(r => grammarRoutes.includes(r)),
     `declared=${declaredRoutes.join(',')} grammar=${grammarRoutes.join(',')}`)
-  check('the schema-visible engine list carries the gemini and openrouter classes',
-    engine.engineDispatchModelsForSchema().includes('gemini') && engine.engineDispatchModelsForSchema().includes('openrouter'))
+  check('the engine grammar carries the gemini and openrouter classes',
+    engine.ENGINE_DISPATCH_MODELS.includes('gemini') && engine.ENGINE_DISPATCH_MODELS.includes('openrouter'))
 
   const CLASS_EXPECT: Array<{ cls: string; backend: string; model?: string }> = [
     { cls: 'gpt', backend: 'openai', model: 'gpt-5.6-sol' },

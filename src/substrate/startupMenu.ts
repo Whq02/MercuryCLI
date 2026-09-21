@@ -132,7 +132,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'a bypass-family mode where the agent may retune its own model/effort under rails — shift+tab past bypass to enter',
     detail: {
       controls: "Adds the Autopilot station to the shift+tab mode cycle (after Sovereign Mode): the same bypassed-permissions posture, plus the agent may retune its own model and reasoning effort mid-run via the SetTier tool — under mechanical rails (opus/sonnet only by default; 3-turn cooldown; 8 switches per session; every switch shown in the transcript and the mode band). Requires the same launch consent as Sovereign Mode (pair it with the Sovereign mode row or the CLI flag).",
-      on: ["the mode cycle gains ⌖ Autopilot (only when bypass is available)", "the agent may downshift for mechanical work and upshift for hard work — always visibly", "opus, sonnet, fable and fable51 are the self-selectable tiers; MERCURY_AUTOPILOT_MODELS narrows them"],
+      on: ["the mode cycle gains ⌖ Autopilot (only when bypass is available)", "the agent may downshift for mechanical work and upshift for hard work — always visibly", "the live list's rows of the session's family are the self-selectable tiers; MERCURY_AUTOPILOT_MODELS narrows them"],
       off: ["no autopilot station, no SetTier tool — the plain cycle"],
     },
   },
