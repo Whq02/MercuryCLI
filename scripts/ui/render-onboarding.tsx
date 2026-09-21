@@ -161,7 +161,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
 
   for (const cols of [120, 100]) {
     console.log(`\n  ── the fitting @ ${cols} ──`)
-    const grid = capture('fitting', cols, [], ['welcome — pick our colors'])
+    const grid = capture('fitting', cols, [], ['Choose your theme'])
     check(`@${cols}: the wordmark header renders`, grid.includes('Mercury') && grid.includes('first run'))
     check(`@${cols}: the rail walks theme → sign in → guardrails → terminal → trust`,
       grid.includes('theme') && grid.includes('sign in') && grid.includes('guardrails') && grid.includes('terminal') && grid.includes('trust'))
@@ -169,7 +169,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
     check(`@${cols}: the step tag counts the shrunken walk (theme · 1/5)`, grid.includes('theme · 1/5'))
     check(`@${cols}: the critter speaks the welcome`, grid.includes('Choose your theme'))
     check(`@${cols}: the fitting byline`, grid.includes('Your theme applies throughout Mercury'))
-    check(`@${cols}: the two reachable theme rows`, grid.includes('Oasis dark · the oasis ground') && grid.includes('True Black · the same palette on pure black'))
+    check(`@${cols}: the two reachable theme rows`, grid.includes('Oasis dark · Oasis background') && grid.includes('True Black · the same palette on a pure black background'))
     check(`@${cols}: the Mercury-real syntax diff`, grid.includes('helm.tsx') && grid.includes('bootHelm'))
     check(`@${cols}: footer verbs are the fitting's`, grid.includes('↑↓ preview · ↵ keep'))
     check(`@${cols}: the boot note rides the disclosure, not raw stderr`, grid.includes('boot note'))
