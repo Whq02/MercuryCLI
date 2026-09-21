@@ -1,7 +1,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { getOauthConfig } from '../../constants/oauth.js'
+import { anthropicAccountApiBase } from '../../constants/oauth.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { globalConfigFileIn } from '../env.js'
@@ -74,7 +74,7 @@ async function resolveUncached(
   const fetchImpl = deps.fetchImpl ?? fetch
   const timeoutMs = deps.timeoutMs ?? 4_000
   try {
-    const response = await fetchImpl(`${getOauthConfig().BASE_API_URL}/api/oauth/profile`, {
+    const response = await fetchImpl(`${anthropicAccountApiBase()}/api/oauth/profile`, {
       headers: { Authorization: `Bearer ${creds.accessToken}` },
       signal: AbortSignal.timeout(timeoutMs),
     })
