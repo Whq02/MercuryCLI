@@ -807,6 +807,7 @@
   "proxyAuthHelper",
   "respectGitignore",
   "sandbox",
+  "sessionDefaultsKey",
   "shellEngine",
   "shellEngineSessions",
   "showClearContextOnStrategyAccept",
