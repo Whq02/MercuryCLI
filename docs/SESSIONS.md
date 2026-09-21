@@ -101,7 +101,9 @@ keeps the model and effort it ran on unless the command line says
 otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved
-word differ. `/model default` clears the saved choice.
+word differ. `/model default` clears the saved choice. In the chat the
+picker opens centred, as it does over the board; `modelPickerCentred: false`
+in settings.json puts it back at the left edge.
 `/model` or `/effort` sent while a turn runs answers "applies when this turn
 ends", and lands exactly there: at that turn's end, before any line waiting
 for the next turn. A line sent after that pick, while the same turn still
@@ -216,9 +218,9 @@ the bottom of the chat, so a tall window gives the chat ten rows more; the
 working row keeps its capsule, and the session roll-up and the bar are not
 painted. `/critter on` paints the large critter with the roll-up and the
 bar as before, `/critter off` the small one, and `/critter` alone toggles;
+a click on `✶ VIEW` toggles it the same way.
 `/critter pick` chooses the creature. The choice is kept in the settings
 store (`critterSize`) across boots.
-a click on `✶ VIEW` toggles it the same way.
 
 The status row under the composer carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —

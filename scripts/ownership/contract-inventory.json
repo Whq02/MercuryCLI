@@ -803,6 +803,7 @@
   "memoryUpkeepEnabled",
   "model",
   "modelOverrides",
+  "modelPickerCentred",
   "patience",
   "permissions",
   "plansDirectory",

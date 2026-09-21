@@ -212,6 +212,7 @@ export const SettingsSchema = lazySchema(() => {
     language: z.string().optional(),
     spinnerTipsEnabled: z.boolean().optional(),
     filesBox: z.boolean().optional(),
+    modelPickerCentred: z.boolean().optional().describe('Where the model picker opens over the chat: centred (the default), or false for the left edge'),
     spinnerVerbs: z
       .object({ mode: z.enum(['append', 'replace']), verbs: z.array(z.string()) })
       .optional(),
