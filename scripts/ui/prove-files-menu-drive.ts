@@ -27,9 +27,11 @@ const worldRoot = existsSync('/private/tmp') ? '/private/tmp/mw' : join(realpath
 mkdirSync(worldRoot, { recursive: true })
 const scratch = realpathSync(mkdtempSync(join(worldRoot, 'file-tree-')))
 
-type Cell = string | { c?: string } | null
+type Cell = string | { c?: string; fg?: string; bg?: string; bold?: boolean } | null
 type Grid = Cell[][]
-const gridText = (grid: Grid): string => grid.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c ?? ' '))).join('')).join('\n')
+const cellGlyph = (cell: Cell | undefined): string => (typeof cell === 'object' && cell !== null ? (cell.c ?? ' ') : String(cell ?? ' '))
+const cellKey = (cell: Cell | undefined): string => (typeof cell === 'object' && cell !== null ? `${cell.c ?? ' '}|${cell.fg ?? ''}|${cell.bg ?? ''}|${cell.bold === true ? 'b' : ''}` : `${String(cell ?? ' ')}|||`)
+const gridText = (grid: Grid): string => grid.map(row => row.map(c => cellGlyph(c)).join('')).join('\n')
 const rowsOf = (frame: string | undefined): string[] => (frame ?? '').split('\n')
 const rowWith = (frame: string | undefined, needle: string): string | undefined => rowsOf(frame).find(r => r.includes(needle))
 const rowIndexWith = (frame: string | undefined, needle: string): number => rowsOf(frame).findIndex(r => r.includes(needle))
@@ -132,7 +134,7 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
   return env
 }
 
-type Capture = { marks: Record<string, string>; sends: number; receipts: number; stderr: string; endReason: string; status: number | null }
+type Capture = { marks: Record<string, string>; grids: Record<string, Grid>; sends: number; receipts: number; stderr: string; endReason: string; status: number | null }
 async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.ProcessEnv): Promise<Capture> {
   const cfgPath = join(scratch, `${name}.cfg.json`)
   const outPath = join(scratch, `${name}.grid.json`)
@@ -151,13 +153,18 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
   if (!existsSync(outPath)) throw new Error(`the capture wrote no grid: ${stderr.join('').slice(0, 400)}`)
   const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }>; endReason?: string }
   const marks: Record<string, string> = {}
-  for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
+  const grids: Record<string, Grid> = {}
+  for (const m of payload.marks ?? []) {
+    marks[m.label] = gridText(m.grid)
+    grids[m.label] = m.grid
+  }
   marks.final = gridText(payload.grid)
+  grids.final = payload.grid
   if (FRAMES) {
     mkdirSync(FRAMES, { recursive: true })
     for (const [label, frame] of Object.entries(marks)) writeFileSync(join(FRAMES, `${name}-${label}.txt`), `${frame}\n`)
   }
-  return { marks, sends: (cfg.sends as unknown[]).length, receipts: payload.sendReceipts?.length ?? 0, stderr: stderr.join(''), endReason: payload.endReason ?? '', status }
+  return { marks, grids, sends: (cfg.sends as unknown[]).length, receipts: payload.sendReceipts?.length ?? 0, stderr: stderr.join(''), endReason: payload.endReason ?? '', status }
 }
 
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
@@ -324,6 +331,23 @@ if (worlds.has('off')) {
   const boxAt = plainLand.findIndex(r => r === FILES_BOX[1])
   const plainWithoutBox = boxAt > 0 ? plainLand.map((row, i) => (i >= boxAt - 1 && i <= boxAt + 2 ? '' : row)) : []
   tally.check('O3 the rail with the setting off is the rail with the setting on with the four FILES rows blank', frames.plain !== undefined && railRows(m.land).join('\n') === plainWithoutBox.join('\n'), frames.plain === undefined ? 'the plain world did not run' : `off:\n${railRows(m.land).join('\n')}\nexpected:\n${plainWithoutBox.join('\n')}`)
+  const plainGrid = frames.plain?.grids.land
+  const offGrid = cap.grids.land
+  const boxRows = new Set(boxAt > 0 ? [boxAt - 1, boxAt, boxAt + 1, boxAt + 2] : [])
+  let outsideDiffers = 0
+  let insideNotBlank = 0
+  if (plainGrid && offGrid) {
+    for (let r = 0; r < Math.max(plainGrid.length, offGrid.length); r++) {
+      const onRow = plainGrid[r] ?? []
+      const offRow = offGrid[r] ?? []
+      for (let c = 0; c < Math.max(onRow.length, offRow.length); c++) {
+        if (boxRows.has(r) && c < FILES_BOX[0].length) {
+          if (cellGlyph(offRow[c]) !== ' ') insideNotBlank++
+        } else if (cellKey(onRow[c]) !== cellKey(offRow[c])) outsideDiffers++
+      }
+    }
+  }
+  tally.check('O3b every cell outside the four FILES rows keeps its glyph and colours with the setting off, and those rows are blank', plainGrid !== undefined && offGrid !== undefined && outsideDiffers === 0 && insideNotBlank === 0, `${outsideDiffers} cells differ outside the box, ${insideNotBlank} cells inside it are not blank`)
   tally.check('O4 /files typed opens no menu with the setting off', !(m.typed ?? '').includes(TITLE))
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }
