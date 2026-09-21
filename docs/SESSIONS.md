@@ -66,10 +66,13 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
-While the board is empty, its door row also names the model and the effort
-the next session starts on, and the bottom row offers `m to select
-model-default`: `m` opens the model picker over the board, and the pick is
-saved as your default — the door row follows at once.
+The board's door row — the empty board's entry, and the first row above the
+sessions once there are any — names the model and the effort the next
+session starts on; with that row under the cursor the bottom row offers `m
+to select model-default`: `m` opens the model picker over the board, and the
+pick is saved as your default — the door row follows at once. ↵ on the row
+starts a session as `n` does, and `m` on a session row keeps that session's
+own picker.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
@@ -225,14 +228,19 @@ a click on `✶ VIEW` toggles it the same way.
 `/critter pick` chooses the creature. The choice is kept in the settings
 store (`critterSize`) across boots.
 
-The status row under the composer carries the project and the CREW's
+The status row above the composer rests on `ready · <model> · <effort>` —
+the session's model and the effort word its chip paints — while the session
+is idle with no crew. Otherwise it carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —
 past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
 both when both stand (the larger first). The row wears no glyph, and the
 session's name paints on the title row alone. The main agent is narrated
 once, by the transcript's thinking row and the card under the critter, and
-never repeated here; a session with no crew reads "ready" when idle and
-paints no clock while its main agent works. That is what makes esc read
+never repeated here; a session with no crew paints no clock while its main
+agent works. A `/effort` pick's receipt — the daemon's own sentence — stands
+on that row for eight seconds in place of its words, then the resting words
+return with the new effort; where the row is not painted (the compact
+layout) the receipt stays a notice under the composer. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
 the row's clock keeps counting for the crew that runs on. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background

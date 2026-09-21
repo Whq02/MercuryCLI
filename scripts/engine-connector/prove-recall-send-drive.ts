@@ -126,7 +126,7 @@ async function drive(scene: Scene): Promise<void> {
           { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 5, data: '', mark: 'answered' },
         ]
   const sends = [...boot, ...rest]
-  const readyText = scene === 'race' ? '· ready' : REPLY
+  const readyText = scene === 'race' ? 'ready · ' : REPLY
   const cfg = {
     argv: ['node', DIST, '--model', 'claude-opus-4-8', ...(scene === 'chat' ? ['--chat'] : [])],
     cwd: FIXTURE_CWD,
@@ -278,7 +278,7 @@ async function drive(scene: Scene): Promise<void> {
   }
 
   section(`${scene} — R5: the settle: ready, the child dead, the runner alive`)
-  check(`${scene}: the strip is back at ready`, /· ready/.test(at('settled')), tail(at('settled')))
+  check(`${scene}: the strip is back at ready`, /ready · [^\n]*← back/.test(at('settled')), tail(at('settled')))
   check(`${scene}: the sleeping child is dead`, sleepers() === '', `alive: ${sleepers()}`)
   if (scene !== 'race') check(`${scene}: the re-sent words were answered — the runner is alive`, at('answered').includes(REPLY) || fin.includes(REPLY), tail(at('answered') || fin))
 

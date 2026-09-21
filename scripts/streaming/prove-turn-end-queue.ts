@@ -225,7 +225,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the bounded retry re-parked at the owner's budget for the seat's own prompt`, retryGap >= seatBudget - 500 && retryGap <= seatBudget + 6_000, `retry gap=${retryGap}ms budget=${seatBudget}ms tokens=${seatTokens}`)
     const gap = heldHeaders.length > 0 && parent.length > 1 ? (parent[parent.length - 1]!.at - heldHeaders[0]!.at) : -1
     check(`${label}: the seat ended inside two budgets — never the fifty-minute ceiling`, gap > 0 && gap <= 2 * seatBudget + 15_000, `gap=${gap}ms budget=${seatBudget}ms`)
-    check(`${label}: the turn is freed — the strip is back at ready (or the crew's past-tense clock)`, (/· ready/.test(settled) || /agents? thought for \d/.test(settled)) && !/esc interrupt/.test(settled), tail(settled))
+    check(`${label}: the turn is freed — the strip is back at ready (or the crew's past-tense clock)`, (/ready · [^\n]*← back/.test(settled) || /agents? thought for \d/.test(settled)) && !/esc interrupt/.test(settled), tail(settled))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n'))
     check(`${label}: the typed line reached the record ("no first byte from … after N s")`, rows.some(l => /no first byte from/.test(l)), `rows=${rows.length}`)
@@ -298,11 +298,11 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — S1: a forced stop stops the tool, ends the turn typed, and the queue drains`)
     check(`${label}: vshot ran the stop journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
     check(`${label}: the Bash tool was running its long sleep when esc landed`, /the long sleep/.test(running) && /esc interrupt/.test(running), tail(running))
-    check(`${label}: after the second esc the strip is back at ready (the turn ended within the grace)`, /· ready/.test(secondEsc) || /· ready/.test(afterWords), tail(secondEsc))
+    check(`${label}: after the second esc the strip is back at ready (the turn ended within the grace)`, /ready · [^\n]*← back/.test(secondEsc) || /ready · [^\n]*← back/.test(afterWords), tail(secondEsc))
     check(`${label}: the turn's end is typed — the receipt names the ended tool`, /the interrupt ended Bash — the turn is over/.test(firstEsc) || /the interrupt ended Bash — the turn is over/.test(secondEsc), tail(secondEsc))
     check(`${label}: the sleeping child is dead after the stop`, sleepers() === '', `alive: ${sleepers()}`)
     check(`${label}: the words typed after the stop ran as their own turn (the queue drained on the end)`, /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/.test(afterWords) && afterWords.includes(REPLY), tail(afterWords))
-    check(`${label}: no background task re-opened the turn (the strip stays ready)`, /· ready/.test(settled) && !/esc interrupt/.test(settled), tail(settled))
+    check(`${label}: no background task re-opened the turn (the strip stays ready)`, /ready · [^\n]*← back/.test(settled) && !/esc interrupt/.test(settled), tail(settled))
     const stepCalls = calls.filter(c => c.arm === 'sleep-tool')
     check(`${label}: no call followed the stop until the operator's own words (the stopped tool's result fed nothing by itself)`, stepCalls.every(c => ((c as { step?: number }).step ?? 0) === 0 || ((c as { carries?: string[] }).carries ?? []).includes(FIRST)), JSON.stringify(stepCalls.map(c => [c.n, (c as { step?: number }).step, (c as { carries?: string[] }).carries])))
     check(`${label}: the roll lists the words typed after the stop as sent`, benchStop.includes('2 prompts since') && /\d\d:\d\d\s+plain\s+first queued words/.test(benchStop), benchStop.split('\n').slice(0, 8).join('\n'))
@@ -333,7 +333,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the drained words paint as a sent row with a clock`, /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/.test(afterTurn) || /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/.test(settled), tail(afterTurn))
     check(`${label}: no queued row survives the drain`, !/queued\s+\[sam\]/.test(settled), tail(settled))
     check(`${label}: the roll lists the drained prompt as sent (2 prompts, none queued)`, benchAfter.includes('2 prompts since') && !/\bqueued\s+plain\b/.test(benchAfter) && !benchAfter.includes(' queued\n') && /\d\d:\d\d\s+plain\s+first queued words/.test(benchAfter), benchAfter.split('\n').slice(0, 8).join('\n'))
-    check(`${label}: the reply settled and the strip is back at ready`, settled.includes(REPLY) && /· ready/.test(settled), tail(settled))
+    check(`${label}: the reply settled and the strip is back at ready`, settled.includes(REPLY) && /ready · [^\n]*← back/.test(settled), tail(settled))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const jsonl = files.filter(f => f.endsWith('.jsonl')).map(f => path.join(RUN_HOME, 'projects', f))
     const rows = jsonl.flatMap(f => readFileSync(f, 'utf8').split('\n').filter(l => l.trim() !== ''))
@@ -360,7 +360,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
 
   section(`${label} — Q3/Q4: the typed end at the budget, the queue drained on it`)
   check(`${label}: the receipt row names the silence and that the reply stands`, after.includes(`the ${label} stream went silent ${Math.round(BUDGET_MS / 1000)} s after its last item; the reply stands`), tail(after))
-  check(`${label}: the strip is back at ready — no "may be stuck", no interrupt hint`, /· ready/.test(after) && !/may be stuck/.test(after) && !/esc interrupt/.test(after), tail(after))
+  check(`${label}: the strip is back at ready — no "may be stuck", no interrupt hint`, /ready · [^\n]*← back/.test(after) && !/may be stuck/.test(after) && !/esc interrupt/.test(after), tail(after))
   check(`${label}: no fault row, no recovery notice`, !/stream fault|Stream dropped|failed/i.test(after), tail(after))
   check(`${label}: the drained words paint as a sent row with a clock`, /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/.test(after), tail(after))
   check(`${label}: no queued row survives the drain`, !/queued\s+\[sam\]/.test(after) && !/queued\s+\[sam\]/.test(fin), tail(fin))

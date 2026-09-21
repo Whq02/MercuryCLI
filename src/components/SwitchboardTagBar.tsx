@@ -1,4 +1,4 @@
-import React, { useMemo, useSyncExternalStore } from 'react'
+import React, { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
@@ -26,6 +26,10 @@ import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
 import { useCoordinatorAttribution } from './concourse/workerTranscriptFold.js'
+import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../hooks/useDisplayedSessionModel.js'
+import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
+import { modelSupportsEffort } from '../utils/effort.js'
+import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 
 
 const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
@@ -34,6 +38,55 @@ const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
 function getFocusedSeatLive(): SessionLiveV1 {
   const c = getFocusedSessionConnector()
   return hasSeatLive(c) ? c.live() : IDLE_LIVE
+}
+const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
+
+export const STATUS_ROW_RECEIPT_MS = 8000
+
+let receiptText: string | null = null
+let receiptTimer: ReturnType<typeof setTimeout> | null = null
+let rowsPainting = 0
+const receiptListeners = new Set<() => void>()
+
+function emitReceipt(): void {
+  for (const listener of receiptListeners) listener()
+}
+
+export function paintStatusRowReceipt(text: string): boolean {
+  if (rowsPainting === 0 || text.trim() === '') return false
+  if (receiptTimer !== null) clearTimeout(receiptTimer)
+  receiptText = text
+  receiptTimer = setTimeout(() => {
+    receiptTimer = null
+    receiptText = null
+    emitReceipt()
+  }, STATUS_ROW_RECEIPT_MS)
+  receiptTimer.unref?.()
+  emitReceipt()
+  return true
+}
+
+export function subscribeStatusRowReceipt(listener: () => void): () => void {
+  receiptListeners.add(listener)
+  return () => {
+    receiptListeners.delete(listener)
+  }
+}
+
+export function statusRowReceipt(): string {
+  return receiptText ?? ''
+}
+
+export function restingStatusWords(modelLabel: string, effortLabel: string | null): string {
+  const model = modelLabel.trim()
+  if (model === '') return 'ready'
+  const effort = effortLabel === null ? '' : effortLabel.trim()
+  return effort === '' ? `ready · ${model}` : `ready · ${model} · ${effort}`
+}
+
+export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping' | 'wait' | 'stuck'>): boolean {
+  return s.hardStopping || s.interrupting || (live.inFlight && (s.wait !== null || s.stuck))
 }
 export function statusDuration(ms: number): string {
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
@@ -165,32 +218,62 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const crewActive = crewActiveIn(workRows)
   const now = useNowTick(crewActive ? 1000 : null)
   const crew = useMemo(() => crewClockOf(workRows, now), [workRows, now])
+  const modelName = useDisplayedSessionModel().compact
+  const effectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel)
+  const seatEffort = useFocusedServedEffort()
+  const sentEffort = useFocusedSentEffort()
+  const bornEffort = useFocusedBornEffort()
+  const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
+  const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
   const c = getFocusedSessionConnector()
-  if (!hasSeatLive(c)) return null
+  const painting = hasSeatLive(c)
+  useEffect(() => {
+    if (!painting) return
+    rowsPainting += 1
+    return () => {
+      rowsPainting -= 1
+    }
+  }, [painting])
+  if (!painting) return null
   const status: SeatStatusV1 = c.status()
   const line = statusLine(live, status, crew)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
   const backHint = escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
+  const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
+  const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null
+  const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
+  const words = held ?? resting
   const fixedWidth =
-    1 +
-    stringWidth(status.projectLabel) +
-    (line !== '' ? 3 : 0) +
+    (words !== null ? 1 : 1 + stringWidth(status.projectLabel) + (line !== '' ? 3 : 0)) +
     (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
     2 +
     stringWidth(backHint)
-  const fitted = fitStatusLine(line, columns, fixedWidth)
+  const fitted = fitStatusLine(words ?? line, columns, fixedWidth)
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
 }
       <Text wrap="truncate-end">
-        <Text color={t.textMuted}> {status.projectLabel}</Text>
-        {fitted !== '' ? (
+        {words !== null ? (
+          held !== null ? (
+            <Text color={t.textMuted}> {fitted}</Text>
+          ) : (
+            <Text>
+              <Text color={t.textInstruction}> ready</Text>
+              <Text color={t.textMuted}>{fitted.slice('ready'.length)}</Text>
+            </Text>
+          )
+        ) : (
           <Text>
-            <Text color={t.textMuted}> · </Text>
-            <Text color={t.textInstruction}>{fitted}</Text>
+            <Text color={t.textMuted}> {status.projectLabel}</Text>
+            {fitted !== '' ? (
+              <Text>
+                <Text color={t.textMuted}> · </Text>
+                <Text color={t.textInstruction}>{fitted}</Text>
+              </Text>
+            ) : null}
           </Text>
-        ) : null}
+        )}
         {worktree !== null ? (
           <Text>
             <Text color={t.textMuted}> · </Text>

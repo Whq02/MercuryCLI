@@ -214,7 +214,7 @@ async function drive(scene: Scene): Promise<void> {
   }
   console.log(`── ${scene}: the wire ──`)
   for (const c of wire.filter(w => w.kind === 'anthropic')) console.log(`  #${c.n} ${c.arm} step=${c.step ?? '-'} ask=${JSON.stringify((c.ask ?? '').slice(0, 60))} shape=${c.shape ?? ''}`)
-  console.log(`  [record] one tick after the press: ${at('esc-landed').includes(INTERRUPTING) ? 'the interrupting rung' : /· ready/.test(at('esc-landed')) ? 'ready (the turn had ended)' : 'neither'}`)
+  console.log(`  [record] one tick after the press: ${at('esc-landed').includes(INTERRUPTING) ? 'the interrupting rung' : /ready · [^\n]*← back/.test(at('esc-landed')) ? 'ready (the turn had ended)' : 'neither'}`)
   const releases = trace.filter(e => e.ev === 'latch-release').map(e => String(e.road))
   console.log(`  [record] latch releases by road: ${releases.join(', ') || 'none'}`)
 
@@ -237,7 +237,7 @@ async function drive(scene: Scene): Promise<void> {
   }
 
   section(`${scene} — E3: the second esc is a plain interrupt of the new turn`)
-  console.log(`  [record] after the second esc: ${at('after-esc-2').includes(INTERRUPTING) ? 'the interrupting rung' : /· ready/.test(at('after-esc-2')) ? 'ready (the turn had ended)' : 'neither'}`)
+  console.log(`  [record] after the second esc: ${at('after-esc-2').includes(INTERRUPTING) ? 'the interrupting rung' : /ready · [^\n]*← back/.test(at('after-esc-2')) ? 'ready (the turn had ended)' : 'neither'}`)
   check(`${scene}: never the hard stop ("stopping — the runner is cut")`, !at('after-esc-2').includes(HARD_STOPPING) && !at('settled').includes(HARD_STOPPING), tail(at('after-esc-2')))
 
   section(`${scene} — E4: the wire: plain interrupts only, no runner cut`)
@@ -246,7 +246,7 @@ async function drive(scene: Scene): Promise<void> {
   check(`${scene}: the daemon never cut the runner (no hard-stop line in its log)`, !/hard stop:/.test(daemonLog), daemonLog.split('\n').filter(l => /hard stop/.test(l)).slice(-3).join(' | '))
 
   section(`${scene} — E5: the settle: ready, the child dead, the runner answers`)
-  check(`${scene}: the strip is back at ready with no esc clause`, /· ready/.test(at('settled')) && !/esc interrupts/.test(at('settled')) && !at('settled').includes(INTERRUPTING) && !at('settled').includes(AGAIN), tail(at('settled')))
+  check(`${scene}: the strip is back at ready with no esc clause`, /ready · [^\n]*← back/.test(at('settled')) && !/esc interrupts/.test(at('settled')) && !at('settled').includes(INTERRUPTING) && !at('settled').includes(AGAIN), tail(at('settled')))
   check(`${scene}: the sleeping child is dead`, sleepers() === '', `alive: ${sleepers()}`)
   check(`${scene}: the words typed after the settle were answered — the runner is alive`, at('answered').includes(REPLY) || fin.includes(REPLY), tail(at('answered') || fin))
 

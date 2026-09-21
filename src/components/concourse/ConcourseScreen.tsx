@@ -59,7 +59,9 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseComposer } from './ConcourseStrips.js';
 import {
   ConcourseLayout,
+  NEW_SESSION_ROW_ID,
   ROW_PEEK_DESIRED_ROWS,
+  newSessionLineShown,
   switchboardGeometry,
   type ConcourseRegion,
 } from './ConcourseLayout.js';
@@ -204,6 +206,9 @@ export function ConcourseScreen({
       .filter(g => g.rows.length > 0)
   }, [snapshot.groups, filter.text])
   const sessionRows: ConcourseRowV1[] = useMemo(() => boardGroups.flatMap(g => g.rows), [boardGroups])
+  const newSessionLine = newSessionLineShown({ newSession: !compact && !reducedStage && callbacks.newSession !== undefined, sessionRows: sessionRows.length, filterText: filter.text })
+  const newSessionLineNow = (): boolean =>
+    newSessionLineShown({ newSession: !compact && !reducedStage && callbacks.newSession !== undefined, sessionRows: sessionRows.length, filterText: filterRef.current.text })
 
   const [region, setRegion] = useState<ConcourseRegion>(() => {
     const carried = migrateCapsuleRegion(presentationCapsule?.region)
@@ -288,10 +293,11 @@ export function ConcourseScreen({
   }, [compactParkNoteExpiresAt, parkNoteEpoch])
   const lastIdxRef = useRef(0)
   useEffect(() => {
-    const fb = stableSelectionFallback(sessionRows.map(r => r.sessionId), boardSel, lastIdxRef.current)
+    const ids = sessionRows.map(r => r.sessionId)
+    const fb = stableSelectionFallback(newSessionLine ? [NEW_SESSION_ROW_ID, ...ids] : ids, boardSel, lastIdxRef.current)
     lastIdxRef.current = fb.index
     if (fb.sessionId !== boardSel) setBoardSel(fb.sessionId)
-  }, [sessionRows, boardSel])
+  }, [sessionRows, boardSel, newSessionLine])
   const [boardScroll, setBoardScroll] = useState<number | null>(presentationCapsule?.boardScroll ?? null)
   const [rowPeekOpen, setRowPeekOpen] = useState(false)
   const rowPeekOpenRef = useRef(false)
@@ -313,7 +319,7 @@ export function ConcourseScreen({
       cols,
       termRows,
       snapshot.needsYou.length,
-      sessionRows.length,
+      sessionRows.length + (newSessionLineNow() ? 1 : 0),
       boardGroupCount,
       liveDraftDesired,
       focusTall,
@@ -398,7 +404,24 @@ export function ConcourseScreen({
     boardSelRef.current = sessionId
     setBoardSel(sessionId)
     setBoardScroll(null)
-    callbacks.peekSession(sessionId)
+    if (sessionId !== NEW_SESSION_ROW_ID) callbacks.peekSession(sessionId)
+  }
+  const moveBoardSelection = (dir: 1 | -1): void => {
+    if (sessionRows.length === 0) return
+    const lineShown = newSessionLineNow()
+    const current = boardSelRef.current
+    if (lineShown && current === NEW_SESSION_ROW_ID) {
+      if (dir === 1) selectSession(sessionRows[0]!.sessionId)
+      return
+    }
+    const at = Math.max(0, sessionRows.findIndex(r => r.sessionId === current))
+    if (lineShown && at === 0 && dir === -1) {
+      selectSession(NEW_SESSION_ROW_ID)
+      return
+    }
+    const next = Math.min(sessionRows.length - 1, Math.max(0, at + dir))
+    const row = sessionRows[next]
+    if (row && row.sessionId !== current) selectSession(row.sessionId)
   }
 
   const [draft, setDraft] = useState<LineDraft>({ text: '', caret: 0 })
@@ -1232,14 +1255,14 @@ export function ConcourseScreen({
         cols,
         termRows,
         snapshot.needsYou.length,
-        sessionRows.length,
+        sessionRows.length + (newSessionLine ? 1 : 0),
         boardGroupCount,
         liveDraftDesired,
         focusTall,
         rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows,
         region,
       ),
-    [cols, termRows, snapshot.needsYou.length, sessionRows.length, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region],
+    [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region],
   )
   const compactGeo = useMemo(
     () =>
@@ -1541,17 +1564,17 @@ export function ConcourseScreen({
       if (key.upArrow || key.downArrow) {
         if (olderNavConsumed(key, event)) return
         event.stopImmediatePropagation()
-        if (sessionRows.length === 0) return
-        const at = Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelRef.current))
-        const next = Math.min(sessionRows.length - 1, Math.max(0, at + (key.downArrow ? 1 : -1)))
-        const row = sessionRows[next]
-        if (row && row.sessionId !== boardSelRef.current) selectSession(row.sessionId)
+        moveBoardSelection(key.downArrow ? 1 : -1)
         return
       }
       if (key.return && pastGate()) {
         event.stopImmediatePropagation()
         if (!reducedStage && liveDraftRef.current.text.trim().length > 0) {
           sendLive()
+          return
+        }
+        if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) {
+          armContractAsk()
           return
         }
         if (sessionRows.length === 0) {
@@ -1564,6 +1587,7 @@ export function ConcourseScreen({
       }
       if (key.rightArrow && !key.ctrl && !key.meta) {
         event.stopImmediatePropagation()
+        if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) return
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel !== undefined && sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
           if (olderListRef.current !== null) setOlderList(null)
@@ -1582,7 +1606,7 @@ export function ConcourseScreen({
         rowStop()
         return
       }
-      if (input === 'm' && !key.ctrl && !key.meta && !compact && !reducedStage && callbacks.newSession !== undefined && sessionRows.length === 0 && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()) {
+      if (input === 'm' && !key.ctrl && !key.meta && !compact && !reducedStage && callbacks.newSession !== undefined && (sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         setModelDefaultOpen(true)
         return
@@ -1685,11 +1709,7 @@ export function ConcourseScreen({
     ) {
       if (olderNavConsumed(key, event)) return
       event.stopImmediatePropagation()
-      if (sessionRows.length === 0) return
-      const at = Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelRef.current))
-      const next = Math.min(sessionRows.length - 1, Math.max(0, at + (key.downArrow ? 1 : -1)))
-      const row = sessionRows[next]
-      if (row && row.sessionId !== boardSelRef.current) selectSession(row.sessionId)
+      moveBoardSelection(key.downArrow ? 1 : -1)
       return
     }
     if (

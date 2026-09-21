@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { MercurySupercodeDivider } from '../../components/MercurySupercodeDivider.js'
+import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
 import type {
@@ -255,33 +256,47 @@ function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommand
   }
 }
 
-async function settleEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): Promise<string> {
+type EffortReceipt = { text: string; seat: boolean }
+
+async function settleEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): Promise<EffortReceipt> {
   const focused = getFocusedSessionConnector()
   if (focused.carrier !== 'daemon' || result.effortUpdate === undefined) {
     applyEffortResult(result, context)
-    return result.message
+    return { text: result.message, seat: false }
   }
   const model = context.options.mainLoopModel
   const level = toPersistableEffort(result.effortUpdate.value)
   if (level === undefined) {
     const word = focused.modelFacts().effort
-    return `Effort settings cleared for future sessions — this session keeps running ${word ?? 'its own word'}; pick a level to change it.`
+    return { text: `Effort settings cleared for future sessions — this session keeps running ${word ?? 'its own word'}; pick a level to change it.`, seat: true }
   }
   const receipt = await focused.setEffort(level)
   const saved = result.supercodeUpdate?.value === true ? '' : ' Saved as your default for future sessions.'
   if (receipt.state === 'refused') {
-    return `${level} was not applied to this session: ${receipt.detail}.${saved}`
+    return { text: `${level} was not applied to this session: ${receipt.detail}.${saved}`, seat: true }
   }
   applyEffortResult(result, context)
   const supercode = result.supercodeUpdate?.value === true ? ' SUPERCODE is on — the maximum tier plus proactive delegation where parallel agents help, persisted as your default.' : ''
-  if (receipt.state === 'no-op') return `Already on ${level} — nothing to change.${supercode}`
+  if (receipt.state === 'no-op') return { text: `Already on ${level} — nothing to change.${supercode}`, seat: true }
   if (receipt.state === 'queued') {
-    return `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`
+    return { text: `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`, seat: true }
   }
   if (!modelSupportsEffort(model)) {
-    return `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${supercode}${saved}`
+    return { text: `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${supercode}${saved}`, seat: true }
   }
-  return `Effort set to ${level} for this session — its next request runs it.${supercode}${saved}`
+  return { text: `Effort set to ${level} for this session — its next request runs it.${supercode}${saved}`, seat: true }
+}
+
+function receiptOnStatusRow(receipt: EffortReceipt): boolean {
+  return receipt.seat && paintStatusRowReceipt(receipt.text)
+}
+
+function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnDone): void {
+  if (receiptOnStatusRow(receipt)) {
+    onDone(undefined, { display: 'skip' })
+    return
+  }
+  onDone(receipt.text)
 }
 
 
@@ -300,10 +315,10 @@ function SessionSlider({
           value === 'supercode'
             ? executeEffort('supercode', model)
             : executeEffort(String(value), model)
-        return settleEffortResult(result, context)
+        return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) ? '' : receipt.text))
       }}
     >
-      <EffortSlider onDone={message => onDone(message)} />
+      <EffortSlider onDone={message => (message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message))} />
     </EffortApplyContext.Provider>
   )
 }
@@ -337,7 +352,7 @@ export async function call(
       return null
     }
     const result = executeEffort(trimmed, model)
-    onDone(await settleEffortResult(result, context))
+    deliverEffortReceipt(await settleEffortResult(result, context), onDone)
     return null
   }
 

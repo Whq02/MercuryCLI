@@ -212,7 +212,7 @@ const markGrid = (payload: Payload | null, label: string): string => {
   return mark ? gridText(mark.grid) : ''
 }
 const receiptTick = (payload: Payload | null, index: number): number => payload?.sendReceipts?.[index]?.atTick ?? -1
-const strip = (grid: string): string => grid.split('\n').filter(l => l.includes('▚▛▀▜▞') || l.includes('failover') || l.includes('Model switch') || l.includes('·  ready') || l.includes('· ready')).map(l => l.trim()).join(' ‖ ')
+const strip = (grid: string): string => grid.split('\n').filter(l => l.includes('▚▛▀▜▞') || l.includes('failover') || l.includes('Model switch') || l.includes('·  ready') || l.includes('ready · ')).map(l => l.trim()).join(' ‖ ')
 function forensics(leg: string, p: Payload | null, marks: string[]): void {
   console.log(`[forensics] ${leg} send receipts (ticks): ${(p?.sendReceipts ?? []).map((r, i) => `${i}:${r.atTick ?? -1}`).join(' ')} · endReason=${p?.endReason ?? '?'}`)
   for (const label of marks) {

@@ -166,11 +166,12 @@ for (const family of FAMILIES) {
       }
       const out = join(home, 'grid.json')
       const cfg = join(home, 'cfg.json')
-      const ready = cols >= 100 && rows >= 26 ? '· ready' : '1 session on'
+      const landed = cols >= 100 && rows >= 26 ? '← back' : '1 session on'
+      const ready = cols >= 100 && rows >= 26 ? 'ready · ' : '1 session on'
       const sends = [
         { requireAwait: true, awaitText: 'New Session', minTick: 5, awaitSettleTicks: 3, data: '', mark: 'birth' },
         { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { requireAwait: true, awaitText: ready, minTick: 10, awaitSettleTicks: 3, data: 'hello\r', mark: 'default' },
+        { requireAwait: true, awaitText: landed, minTick: 10, awaitSettleTicks: 3, data: 'hello\r', mark: 'default' },
         { requireAwait: true, awaitText: 'fixture ', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'chat' },
         { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r' },
         { requireAwait: true, awaitText: '↑↓', minTick: 5, awaitSettleTicks: 3, data: '', mark: 'picker' },

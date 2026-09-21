@@ -147,7 +147,7 @@ function leftoverPids(runHome: string): number[] {
 type Send = Record<string, unknown>
 
 function sends(fixtureCwd: string): Send[] {
-  const born = FULL_LAYOUT ? `${path.basename(fixtureCwd)} · ready` : '1 session on'
+  const born = FULL_LAYOUT ? '← back' : '1 session on'
   const down = (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })
   return [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r', mark: 'face' },

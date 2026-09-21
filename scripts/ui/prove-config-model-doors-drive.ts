@@ -150,7 +150,7 @@ const READY = ['esc revert']
 function openConfig(cols: number): Send[] {
   return [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 999, requireAwait: true, awaitText: cols < 100 ? '1 session on' : '· ready', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
+    { atTick: 999, requireAwait: true, awaitText: cols < 100 ? '1 session on' : '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
     { afterPrevTicks: 1, data: '/config' },
     { afterPrevTicks: 2, data: '\r' },
   ]

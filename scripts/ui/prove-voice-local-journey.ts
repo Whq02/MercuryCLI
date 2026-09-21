@@ -226,7 +226,7 @@ const seededHome = (name: string, withModel = true): string => {
   return home
 }
 
-const ADMITTED = ' · ready'
+const ADMITTED = '← back'
 const OPENING: unknown[] = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 110, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },

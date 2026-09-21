@@ -118,7 +118,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 999, requireAwait: true, awaitText: '· ready', minTick: 5, awaitSettleTicks: 4, data: '/critter full\r' },
+        { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, data: '/critter full\r' },
       ],
       readyText: ['❯', '? for shortcuts'], readySettleTicks: 3,
     }
