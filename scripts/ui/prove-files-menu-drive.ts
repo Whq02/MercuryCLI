@@ -1,19 +1,24 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
+import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-files-menu-drive')
 const KEEP = process.argv.includes('--keep')
-const WORLDS = (argAfter('--worlds') ?? 'plain,git,off,small').split(',')
+const WORLDS = (argAfter('--worlds') ?? 'plain,git,off,small,hop').split(',')
 const DEAD = 'http://127.0.0.1:9'
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 const CLICK_BESIDE_PICKER = '\x1b[<0;140;25M\x1b[<0;140;25m'
+const SHIFT_LEFT = '\x1b[1;2D'
+const CTRL_G = '\x07'
+const DOWN = '\x1b[B'
 const TITLE = 'Mercury · files'
 const HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
 const FILES_BOX = ['╭────────────────────────────╮', '│ ▤ FILES · fixture-cwd      │', '│   ↵ or click · browse      │', '╰────────────────────────────╯']
@@ -81,6 +86,48 @@ function seedWorld(name: string, opts: { git?: boolean; filesBox?: false }): { h
   if (opts.filesBox === false) settings.filesBox = false
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings, null, 2))
   return { home, cwd }
+}
+
+function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string } {
+  const home = join(scratch, `home-${name}`)
+  const cwdA = join(scratch, `cwd-${name}`, 'fixture-cwd')
+  const cwdB = join(scratch, `cwd-${name}`, 'other-cwd')
+  for (const dir of [home, cwdA, cwdB]) mkdirSync(dir, { recursive: true })
+  seedFixture(cwdA)
+  for (const [rel, body] of Object.entries({ 'lib/Gamma.ts': 'export const gamma = 3\n', 'NOTES.md': '# other\n', 'other.json': '{}\n' })) {
+    mkdirSync(join(cwdB, rel, '..'), { recursive: true })
+    writeFileSync(join(cwdB, rel), body)
+  }
+  seedFirstRun(home, [cwdA, cwdB])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true }, null, 2))
+  const sessionId = '00000000-dddd-4000-8000-000000000002'
+  const file = join(home, 'projects', projectSlug(cwdB), `${sessionId}.jsonl`)
+  mkdirSync(dirname(file), { recursive: true })
+  const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
+    isSidechain: false,
+    entrypoint: 'cli',
+    cwd: cwdB,
+    sessionId,
+    version: '1.0.0-beta.1',
+    gitBranch: 'main',
+    parentUuid: null,
+    uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
+    timestamp: new Date().toISOString(),
+    ...extra,
+  })
+  writeFileSync(
+    file,
+    encodeSeedTranscript(
+      [
+        row({ type: 'user', message: { role: 'user', content: 'an old chat in the other folder' } }),
+        row({ type: 'assistant', message: { id: 'msg_other', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'a reply.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
+      ] as never,
+      sessionId,
+    ),
+  )
+  const at = new Date(Date.now() - 60 * 60_000)
+  utimesSync(file, at, at)
+  return { home, cwdA, cwdB }
 }
 
 function driveEnv(home: string): NodeJS.ProcessEnv {
@@ -380,6 +427,44 @@ if (worlds.has('small')) {
     tally.check(`${label} S3 the menu fits inside the chat pane with its hint row and bottom border`, menu !== null && menu.rows[menu.rows.length - 1]?.startsWith('╰') === true && menu.rows.some(r => r.includes(HINT.slice(0, 20))) && menu.top + menu.rows.length < composerAt - 1, menu === null ? 'no menu' : `top ${menu.top} rows ${menu.rows.length} composer at ${composerAt}`)
     tally.check(`${label} S4 esc closes it`, !(m.closed ?? '').includes(TITLE))
     if (KEEP) console.log(`world kept: ${home} ${cwd}`)
+  }
+}
+
+if (worlds.has('hop')) {
+  for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
+    const label = `${cols}x${rows}`
+    const { home, cwdA } = seedHopWorld(`hop-${label}`)
+    const cap = await capture(`hop-${label}`, cfgFor(cols, rows, cwdA, [
+      ...boot(),
+      after(SHIFT_LEFT, 2),
+      gated('\t', 'SESSION CONCOURSE', { awaitSettleTicks: 4 }),
+      after(CTRL_G, 6),
+      after(DOWN, 6),
+      after('\r', 4),
+      gated('', 'other-cwd ⌄', { awaitSettleTicks: 8, mark: 'board-b' }),
+      after('\r', 4),
+      after('\r', 4),
+      gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
+      after('/files', 2),
+      after('\r', 3),
+      gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
+      after(DOWN, 2),
+      after(DOWN, 2),
+      after(DOWN, 2),
+      after(DOWN, 2),
+      after('\r', 3),
+      after('', 4, { mark: 'picked' }),
+    ]), driveEnv(home))
+    frames[`hop-${label}`] = cap
+    const m = cap.marks
+    tally.section(`hop · ${label} · the session of one project focused while the screen's ground is another: the FILES box and the tree follow the session`)
+    tally.check(`${label} H1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
+    tally.check(`${label} H2 the board of the other folder carries the focused session of fixture-cwd as its selected row`, rowsOf(m['board-b']).some(r => r.includes('▸') && r.includes('✦') && r.includes('fixture-')) && rowsOf(m['board-b']).some(r => r.includes('other-cwd ⌄')), rowsOf(m['board-b']).filter(r => r.includes('✦')).join(' | ') || '(no carried row)')
+    tally.check(`${label} H3 after the hop back into it, the FILES box names the session's folder, fixture-cwd, not the ground's`, /FILES · fixture-cwd/.test(m.hopped ?? '') && !/FILES · other-cwd/.test(m.hopped ?? ''), rowWith(m.hopped, 'FILES ·') ?? '(no FILES row)')
+    const menu = menuRegion(m['hop-menu'])
+    tally.check(`${label} H4 the tree opens on the session's folder: the folder line reads FIXTURE-CWD and the rows are its files`, menu !== null && menu.rows.some(r => r.startsWith('│ FIXTURE-CWD')) && menu.rows.some(r => r.includes('▸ src')) && menu.rows.some(r => r.includes('README.md')) && !menu.rows.some(r => r.includes('▸ lib') || r.includes('NOTES.md')), menu === null ? 'no menu' : menu.rows.slice(1, 8).join('\n'))
+    tally.check(`${label} H5 ↵ on README.md puts the session folder's path in the composer`, rowsOf(m.picked).some(r => r.includes('│❯ @README.md')) && !(m.picked ?? '').includes(TITLE), rowWith(m.picked, '❯ @') ?? '(no @ in the composer)')
+    if (KEEP) console.log(`world kept: ${home} ${cwdA}`)
   }
 }
 

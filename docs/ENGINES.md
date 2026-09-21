@@ -240,7 +240,9 @@ come from its owning account resolvers:
   (Retry-After) is honoured in place of the ladder's own when it fits the
   retry budget, as on every road. On a chat without a screen (a print run, a
   dispatched agent) the same ladder runs, and its retry frames reach the
-  caller only past the quiet window.
+  caller only past the quiet window; a dispatched agent's retry budget counts
+  every wait of the ladder, the quiet ones included, so a six-second budget
+  ends the ladder six seconds in whether or not a retry line has painted.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
   A launch naming `gemini` needs the live catalogue to choose a model. A present

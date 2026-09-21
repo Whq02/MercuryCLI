@@ -59,6 +59,7 @@ import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
+import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { GLYPH, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
 import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { RailPanel, railPanelInnerWidth } from './mercury-ui/RailPanel.js'
@@ -596,7 +597,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     ? wrapRailRows(lastSentPrompt.text.replace(/\s+/g, ' ').trim(), Math.max(6, rowW - 2), 2)
     : null
   const filesOff = useAppState(s => s.settings.filesBox === false)
-  const filesFolder = basename(getOriginalCwd())
+  const filesFolder = basename(useFocusedWorkspaceCwd())
 
   const solo =
     peers.length === 0 &&
