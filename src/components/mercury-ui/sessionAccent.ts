@@ -14,7 +14,7 @@ import {
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
-import { getInitialSettings, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { getCritterSize, subscribeCritterSize, type CritterSize } from '../../utils/cockpit/critterSize.js'
 
 
 export type Critter = {
@@ -206,31 +206,15 @@ export function useSessionAccent(): Critter {
   return getSessionAccent()
 }
 
-export type CritterSize = 'mini' | 'full'
-
-let sizeUnsaved: CritterSize | null = null
-const sizeListeners = new Set<() => void>()
-
-export function getCritterSize(): CritterSize {
-  if (sizeUnsaved !== null) return sizeUnsaved
-  return getInitialSettings().critterSize === 'full' ? 'full' : 'mini'
-}
-
-export function setCritterSize(size: CritterSize): void {
-  const { error } = updateSettingsForSource('userSettings', { critterSize: size })
-  sizeUnsaved = error === null ? null : size
-  for (const l of sizeListeners) l()
-}
-
-export function subscribeCritterSize(onChange: () => void): () => void {
-  sizeListeners.add(onChange)
-  const off = settingsChangeDetector.subscribe(onChange)
+function subscribeCritterSizeLive(onChange: () => void): () => void {
+  const offOwn = subscribeCritterSize(onChange)
+  const offSettings = settingsChangeDetector.subscribe(onChange)
   return () => {
-    sizeListeners.delete(onChange)
-    off()
+    offOwn()
+    offSettings()
   }
 }
 
 export function useCritterSize(): CritterSize {
-  return useSyncExternalStore(subscribeCritterSize, getCritterSize, getCritterSize)
+  return useSyncExternalStore(subscribeCritterSizeLive, getCritterSize, getCritterSize)
 }
