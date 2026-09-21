@@ -307,7 +307,7 @@ section('§D five rounds of growth fold to the same facts as one full parse; the
   check('with the reader on, an unmoved file hands back the same chain ARRAY (identity)', (await reader.readTranscriptChainSince(file, cursor)).rows === chainIncremental)
 }
 
-section('§E a torn tail is stated once: its completion folds whole, a writer\'s heal never restates it')
+section('§E a torn tail is left for the writer: the cold read states nothing, its completion folds whole, and a heal that leaves it malformed states it once')
 {
   resetAll()
   vnext.resetTranscriptFormatCacheForTesting()
@@ -326,10 +326,10 @@ section('§E a torn tail is stated once: its completion folds whole, a writer\'s
   loading._resetTranscriptLoadDegradationForTesting()
   const cold = await loading.loadTranscriptFile(file)
   const fact = loading.transcriptLoadDegradation()
-  check('the cold read states the torn line once (malformed 1) and folds the valid rows', fired === 1 && fact !== null && fact.malformed === 1 && fact.refusal === null && cold.messages.size === 10, JSON.stringify({ fired, fact, size: cold.messages.size }))
+  check('the cold read leaves the half-written line unstated and folds the valid rows', fired === 0 && fact === null && cold.messages.size === 10, JSON.stringify({ fired, fact, size: cold.messages.size }))
   appendFileSync(file, whole.slice(cut))
   const completed = await loading.loadTranscriptFile(file)
-  check('the append completing it folds the whole record, with no second statement', completed.messages.size === 11 && completed.messages.has(u as never) && fired === 1, JSON.stringify({ size: completed.messages.size, fired }))
+  check('the append completing it folds the whole record, and nothing is stated', completed.messages.size === 11 && completed.messages.has(u as never) && fired === 0, JSON.stringify({ size: completed.messages.size, fired }))
 
   resetAll()
   const file2 = join(SCRATCH, 'e2.jsonl')
@@ -340,11 +340,11 @@ section('§E a torn tail is stated once: its completion folds whole, a writer\'s
   loading._resetTranscriptLoadDegradationForTesting()
   fired = 0
   await loading.loadTranscriptFile(file2)
-  check('premise: the torn fragment is stated once', fired === 1 && loading.transcriptLoadDegradation()?.malformed === 1)
+  check('premise: the torn fragment is not stated on the load', fired === 0 && loading.transcriptLoadDegradation() === null)
   const healed = userLine(file2, uid(), leaf2, tick2.i++, 'after the heal')
   appendFileSync(file2, `\n${healed}`)
   const afterHeal = await loading.loadTranscriptFile(file2)
-  check('the heal folds the new record and does not restate the fragment', afterHeal.messages.size === 11 && fired === 1, JSON.stringify({ size: afterHeal.messages.size, fired }))
+  check('the heal folds the new record, and the fragment it terminated — malformed for good — is stated once by the growth read', afterHeal.messages.size === 11 && fired === 1 && loading.transcriptLoadDegradation()?.malformed === 1, JSON.stringify({ size: afterHeal.messages.size, fired, fact: loading.transcriptLoadDegradation() }))
   unsubscribe()
 }
 

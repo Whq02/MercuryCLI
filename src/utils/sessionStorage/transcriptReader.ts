@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
+import { decodeTranscriptBuffer, type MalformedLine } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
@@ -165,7 +165,6 @@ interface ReaderState {
   size: number
   ino: number
   window: Buffer
-  tornCounted: boolean
   fold: TranscriptFoldState
   pruned: boolean
   refusal: string | null
@@ -296,8 +295,7 @@ function growthRead(state: ReaderState): TranscriptRead | null {
   if (state.refusal === null) {
     const decoded = decodeTranscriptBuffer<Entry>(complete)
     if (decoded.refusal) return reset(state, 'a line outside the record format landed')
-    let malformed = decoded.malformed.length
-    if (state.tornCounted && decoded.malformed.some(m => m.line === 1)) malformed -= 1
+    const malformed = decoded.malformed.length
     let sawSystem = false
     for (const entry of decoded.entries) {
       if (
@@ -327,7 +325,6 @@ function growthRead(state: ReaderState): TranscriptRead | null {
       state.degradedSinceSnapshot = true
     }
   }
-  state.tornCounted = false
   state.offset += complete.length
   state.size = st.size
   state.window = tailWindow(state.window, complete)
@@ -342,6 +339,13 @@ function maybeRefreshSnapshot(state: ReaderState): void {
   if (state.degradedSinceSnapshot || !resumeSnapshotEnabled()) return
   writeResumeSnapshot(state.path, state.fold, state.offset)
   state.bytesSinceSnapshot = 0
+}
+
+function withoutTornTail(malformed: readonly MalformedLine[], fragment: Buffer | null): MalformedLine[] {
+  if (fragment === null || fragment.length === 0 || isCompleteJsonLine(fragment)) return [...malformed]
+  const last = malformed[malformed.length - 1]
+  if (last === undefined || last.snippet !== fragment.toString('utf8').trim().slice(0, 120)) return [...malformed]
+  return malformed.slice(0, -1)
 }
 
 function isCompleteJsonLine(line: Buffer): boolean {
@@ -377,7 +381,6 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
     size: 0,
     ino: 0,
     window: EMPTY,
-    tornCounted: false,
     fold: emptyFoldState(),
     pruned: false,
     refusal: null,
@@ -406,22 +409,23 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
         logError(new Error(`${decodedTail.refusal}: ${path} (snapshot tail — reloading the file whole)`))
       } else {
         state.fold = hit.fold
-        const degraded = decodedTail.malformed.length > 0 || decodedTail.invalid.length > 0
+        const nl = hit.tail.lastIndexOf(NEWLINE)
+        fragment = nl === hit.tail.length - 1 ? null : Buffer.from(hit.tail.subarray(nl + 1))
+        const malformedTail = withoutTornTail(decodedTail.malformed, fragment)
+        const degraded = malformedTail.length > 0 || decodedTail.invalid.length > 0
         if (degraded) {
           logError(
             new Error(
-              `transcript tail degraded on snapshot resume: ${decodedTail.malformed.length} malformed, ${decodedTail.invalid.length} invalid of ${decodedTail.totalLines}`,
+              `transcript tail degraded on snapshot resume: ${malformedTail.length} malformed, ${decodedTail.invalid.length} invalid of ${decodedTail.totalLines}`,
             ),
           )
-          noteLoadDegradation({ path, malformed: decodedTail.malformed.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines, refusal: null })
+          noteLoadDegradation({ path, malformed: malformedTail.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines, refusal: null })
         }
         for (const entry of decodedTail.entries) applyTranscriptEntry(state.fold, entry)
-        accounting = { malformed: decodedTail.malformed.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines }
+        accounting = { malformed: malformedTail.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines }
         snapshotCovered = true
         consumed = hit.fileSize
         transcriptReaderCensus.bytesRead += hit.tail.length
-        const nl = hit.tail.lastIndexOf(NEWLINE)
-        fragment = nl === hit.tail.length - 1 ? null : Buffer.from(hit.tail.subarray(nl + 1))
         state.degradedSinceSnapshot = degraded
         state.bytesSinceSnapshot = hit.tail.length
         if (!degraded && hit.tail.length > SNAPSHOT_REFRESH_BYTES) {
@@ -474,27 +478,25 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
       state.fold = emptyFoldState()
       accounting = { malformed: 0, invalid: 0, totalLines: decoded.totalLines }
     } else {
-      if (decoded.malformed.length > 0 || decoded.invalid.length > 0) {
+      const malformed = withoutTornTail(decoded.malformed, fragment)
+      if (malformed.length > 0 || decoded.invalid.length > 0) {
         logError(
           new Error(
-            `transcript degraded on load: ${decoded.malformed.length} malformed line(s), ` +
+            `transcript degraded on load: ${malformed.length} malformed line(s), ` +
               `${decoded.invalid.length} invalid-shape record(s) of ${decoded.totalLines} ` +
-              `(first: ${decoded.malformed[0] ? `line ${decoded.malformed[0].line}` : `#${decoded.invalid[0]?.index} ${decoded.invalid[0]?.reason}`})`,
+              `(first: ${malformed[0] ? `line ${malformed[0].line}` : `#${decoded.invalid[0]?.index} ${decoded.invalid[0]?.reason}`})`,
           ),
         )
-        noteLoadDegradation({ path, malformed: decoded.malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines, refusal: null })
+        noteLoadDegradation({ path, malformed: malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines, refusal: null })
         state.degradedSinceSnapshot = true
       }
       for (const entry of decoded.entries) applyTranscriptEntry(state.fold, entry)
-      accounting = { malformed: decoded.malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines }
+      accounting = { malformed: malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines }
     }
   }
 
   let offset = consumed
-  if (fragment !== null && fragment.length > 0 && !isCompleteJsonLine(fragment)) {
-    offset = consumed - fragment.length
-    state.tornCounted = state.refusal === null
-  }
+  if (fragment !== null && fragment.length > 0 && !isCompleteJsonLine(fragment)) offset = consumed - fragment.length
   state.offset = offset
   if (offset > 0) {
     const from = Math.max(0, offset - WINDOW_BYTES)
