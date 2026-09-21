@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { getOriginalCwd } from '../bootstrap/state.js'
 import { Box, measureElement, type DOMElement } from '../ink.js'
+import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { closeFilesMenu, filesMenuVersion, isFilesMenuOpen, subscribeFilesMenu } from '../utils/cockpit/filesMenu.js'
 import { insertAtComposerCaret } from './PromptInput/composerInsert.js'
@@ -24,6 +24,7 @@ export function filesMenuGeometry(cols: number, rows: number): FilesMenuGeometry
 export function FilesMenuSlot({ hostRef, framed }: { hostRef: React.RefObject<DOMElement | null>; framed: boolean }): React.ReactNode {
   useSyncExternalStore(subscribeFilesMenu, filesMenuVersion, filesMenuVersion)
   const open = isFilesMenuOpen()
+  const root = useFocusedWorkspaceCwd()
   const elevatedRef = useElevatedSurface()
   const [host, setHost] = useState<{ columns: number; rows: number } | null>(null)
   useLayoutEffect(() => {
@@ -42,7 +43,8 @@ export function FilesMenuSlot({ hostRef, framed }: { hostRef: React.RefObject<DO
   return (
     <Box ref={elevatedRef} position="absolute" top={geometry.top} left={geometry.left} width={geometry.width} flexDirection="column" flexShrink={0}>
       <MercuryFilesMenu
-        root={getOriginalCwd()}
+        key={root}
+        root={root}
         width={geometry.width}
         rowBudget={geometry.rowBudget}
         onClose={closeFilesMenu}

@@ -1,5 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { retrySeconds } from '../api/recoveryBudget.js'
+import type { SystemAPIErrorMessage } from '../../types/message.js'
+import type { RequestWaitV1 } from './streamIdleBudget.js'
 
 export const BUSY_RETRY_RUNGS_MS: readonly number[] = Object.freeze([1_000, 2_000, 4_000, 8_000, 16_000, 30_000])
 export const BUSY_RETRY_QUIET_MS = 30_000
@@ -86,4 +88,16 @@ export function busyRecoveryDetail(input: { provider: string; status: number | u
   const status = input.status !== undefined ? ` HTTP ${input.status}` : ''
   const words = input.message !== '' ? `: ${input.message}` : ''
   return `${input.provider} answered${status} (${input.code})${words} — retried after ${list}, and the ${ordinal} request was answered.`
+}
+
+export type HeldBusyRetryWait = Extract<RequestWaitV1, { kind: 'retry' }> & { held: SystemAPIErrorMessage }
+
+export function heldBusyRetryWait(step: BusyRetryStep, notice: SystemAPIErrorMessage, nowMs: number = Date.now()): HeldBusyRetryWait {
+  return { kind: 'retry', attempt: step.attempt, of: step.of, reason: notice.error.message, delayMs: step.waitMs, sinceMs: nowMs, held: notice }
+}
+
+export function heldBusyRetryNotice(wait: unknown): SystemAPIErrorMessage | null {
+  const w = wait as { kind?: unknown; held?: { type?: unknown; subtype?: unknown } | null } | null
+  if (w === null || typeof w !== 'object' || w.kind !== 'retry' || w.held === null || w.held === undefined || typeof w.held !== 'object') return null
+  return w.held.type === 'system' && w.held.subtype === 'api_error' ? (w.held as SystemAPIErrorMessage) : null
 }

@@ -21,7 +21,7 @@ import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
-import { busyRecoveryDetail, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { busyRecoveryDetail, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -481,17 +481,17 @@ export async function* compatChatCallModel(
       const step = nextBusyRetry(ladder, askedMs, Date.now())
       if (step !== null) {
         logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — retry ${step.attempt} of ${step.of} after ${retrySeconds(step.waitMs)}${step.quiet ? ' inside the quiet window' : ''}`)
-        if (!step.quiet) {
-          yield createSystemAPIErrorMessage(
-            Object.assign(new Error(outcome.fault.message), {
-              ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
-              ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
-            }),
-            step.waitMs,
-            step.attempt,
-            step.of,
-          )
-        }
+        const notice = createSystemAPIErrorMessage(
+          Object.assign(new Error(outcome.fault.message), {
+            ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
+            ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
+          }),
+          step.waitMs,
+          step.attempt,
+          step.of,
+        )
+        if (!step.quiet) yield notice
+        else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
         await sleep(step.waitMs, signal)
         if (signal.aborted) return
         continue
