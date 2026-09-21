@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import type { ModelOption } from '../../../utils/model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -216,7 +217,10 @@ export function refreshHuggingfaceCatalogue(opts?: {
       return snapshot
     } finally {
       catalogueInFlight.delete(key)
-      bumpCatalogueEpoch()
+      const settled = catalogueCache.get(key)
+      if (settled?.lastError !== cached?.lastError || !isDeepStrictEqual(settled?.models, cached?.models)) {
+        bumpCatalogueEpoch()
+      }
     }
   })()
   catalogueInFlight.set(key, work)
