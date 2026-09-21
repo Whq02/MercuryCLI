@@ -778,6 +778,7 @@
   "channelsEnabled",
   "cleanupPeriodDays",
   "compactWayBack",
+  "critterSize",
   "defaultShell",
   "deniedMcpServers",
   "disableAllHooks",

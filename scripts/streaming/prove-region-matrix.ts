@@ -50,7 +50,7 @@ const idleSec = (idleWin[1] - idleWin[0]) / 1000
 const idleRate: Record<string, number> = {}
 for (const r of REGIONS) idleRate[r] = inWindow(idle, r, idleWin) / idleSec
 
-const LANDED = { needle: '⊞ SESSIONS', atMs: 3000 }
+const LANDED = { needle: '✶ SESSION', atMs: 3000 }
 const typing = await runArtifactArena({
   turns: [],
   sends: GLYPHS.map((g, i) => `${4500 + i * 500}:${g}`),

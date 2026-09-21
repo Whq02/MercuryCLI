@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   ADMITTED, check, drive, endLeg, FACE_READY, finish, joined, nonLoopback, netlines,
-  printFrame, requireCaptureDriver, scratch, startLeg,
+  printFrame, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
-import { compactBandForm, compactBandRows } from '../../src/components/mercury-ui/geometry.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 import { compactWorkSummaryText } from '../../src/components/tasks/useFocusedWork.ts'
 import { stringWidth } from '../../src/ink/stringWidth.ts'
@@ -15,6 +16,13 @@ console.log(`compact frame artifacts: ${scratch}`)
 const sizes = process.argv.includes('--size')
   ? [process.argv[process.argv.indexOf('--size') + 1]!.split('x').map(Number)]
   : [[90, 31], [80, 24], [82, 17], [120, 24], [60, 16], [40, 10], [99, 26], [100, 25]]
+type Rung = { form: 'none' | 'line' | 'dock' | 'square'; bandRows: number }
+const ladderHome = join(scratch, 'ladder-home')
+mkdirSync(ladderHome, { recursive: true })
+const ladderRead = spawnSync(process.execPath, ['-e', `import { compactBandForm, compactBandRows } from ${JSON.stringify(pathToFileURL(join(ROOT, 'src', 'components', 'mercury-ui', 'geometry.ts')).href)}\nconsole.log(JSON.stringify(${JSON.stringify(sizes)}.map(([c, r]) => [c, r, compactBandForm(c, r), compactBandRows(c, r)])))`], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: ladderHome, MERCURY_CREDENTIAL_STORE: 'file' } })
+const ladder = new Map<string, Rung>()
+for (const [c, r, form, bandRows] of JSON.parse(ladderRead.stdout.trim().split('\n').pop() || '[]') as Array<[number, number, Rung['form'], number]>) ladder.set(`${c}x${r}`, { form, bandRows })
+check('the band ladder is read in a home of its own with no settings file (the default critter size), never the ambient home', ladderRead.status === 0 && ladder.size === sizes.length, `exit=${ladderRead.status}; ${ladderRead.stderr.slice(-400)}`)
 for (const [cols, rows] of sizes) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols! < 1 || rows! < 1) throw new Error('size must be positive columns x rows')
   const tag = `compact-frame-${cols}-${rows}`
@@ -45,8 +53,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: the way back sits at the right edge of the sessions line`, summaryRows.length === 1 && frame[summaryRows[0]!]!.length === cols && /(?:⇧← |shift\+← )(?:boot face|concourse)$/.test(frame[summaryRows[0]!]!), frame[summaryRows[0]!] ?? '')
     check(`${cols}x${rows}: the model row precedes the summary`, modelRows.length === 1 && summaryRows.length === 1 && modelRows[0]! < summaryRows[0]!)
     check(`${cols}x${rows}: no shortcut hint rows`, !/\? for shortcuts|for commands \+ files|ctrl\+t activity|for a new line/.test(joined(frame)))
-    const form = compactBandForm(cols!, rows!)
-    const bandRows = compactBandRows(cols!, rows!)
+    const { form, bandRows } = ladder.get(`${cols}x${rows}`) ?? { form: 'none', bandRows: 0 }
     const artRows = frame.slice(0, Math.max(0, bandRows - 1)).filter(line => /[▀▄]{3,}/.test(line)).length
     check(`${cols}x${rows}: the identity band carries the critter at its ${form} form and nothing else does`, (form === 'square' || form === 'dock' ? artRows >= 2 : artRows === 0) && frame.slice(bandRows).every(line => !/[▀▄]{3,}/.test(line)), `band=${form} artRows=${artRows}`)
     check(`${cols}x${rows}: the band closes with its rule exactly when a band is up`, bandRows === 0 ? !frame.some(line => /^─+$/.test(line)) : frame[bandRows - 1] === '─'.repeat(cols!), frame[bandRows - 1] ?? '')

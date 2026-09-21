@@ -9,9 +9,25 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_HOME = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_RECOVERY_BUDGET_MINUTES = '1'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_GEMINI_API_BASE = 'https://gemini.fixture.invalid/v1beta'
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://gemini.fixture.invalid/token'
-for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE']) delete process.env[name]
+process.env.OPENAI_API_KEY = 'fixture-openai-key'
+process.env.MERCURY_OPENAI_API_BASE = 'https://openai.fixture.invalid/v1'
+process.env.ZAI_API_KEY = 'fixture-zai-key'
+process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/v4'
+process.env.DEEPSEEK_API_KEY = 'fixture-deepseek-key'
+process.env.MERCURY_DEEPSEEK_API_BASE = 'https://deepseek.fixture.invalid'
+process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key'
+process.env.MERCURY_MOONSHOT_API_BASE = 'https://moonshot.fixture.invalid/v1'
+process.env.HF_TOKEN = 'fixture-hf-token'
+process.env.MERCURY_HUGGINGFACE_API_BASE = 'https://huggingface.fixture.invalid/v1'
+process.env.OPENROUTER_API_KEY = 'fixture-openrouter-key'
+process.env.MERCURY_OPENROUTER_API_BASE = 'https://openrouter.fixture.invalid/api/v1'
+process.env.MERCURY_COMPAT_BASE_URL = 'https://compat.fixture.invalid/v1'
+process.env.MERCURY_COMPAT_MODELS = 'fixture-model'
+process.env.MERCURY_COMPAT_LABEL = 'the fixture endpoint'
+for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY']) delete process.env[name]
 const access = 'ya29.fixture-busy-access'
 writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'oauth', client: { clientId: 'fixture-client' }, tokens: { accessToken: access, refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } }))
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -19,6 +35,14 @@ enableConfigs()
 const busy = await import('../../src/services/providers/busyRetry.ts')
 const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
+const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
+const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
+const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
+const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
+const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
+const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 import type { Message } from '../../src/types/message.ts'
@@ -62,11 +86,15 @@ check('unset, empty, zero and negative scales read as 1', busy.busyRetryScale() 
 delete process.env.MERCURY_BUSY_RETRY_SCALE
 check('a busy refusal is a 503, a 529, or the UNAVAILABLE or overloaded word, before content and retryable', busy.isBusyRefusal({ code: 'api-UNAVAILABLE', status: 503, retryable: true }) && busy.isBusyRefusal({ code: 'http-529', status: 529, retryable: true }) && busy.isBusyRefusal({ code: 'api-UNAVAILABLE', retryable: true }) && busy.isBusyRefusal({ code: 'api-overloaded_error', status: 500, retryable: true }))
 check('a 429, a 500, a 502 and a non-retryable 503 are not busy refusals', !busy.isBusyRefusal({ code: 'api-RESOURCE_EXHAUSTED', status: 429, retryable: true }) && !busy.isBusyRefusal({ code: 'http-500', status: 500, retryable: true }) && !busy.isBusyRefusal({ code: 'http-502', status: 502, retryable: true }) && !busy.isBusyRefusal({ code: 'api-UNAVAILABLE', status: 503, retryable: false }))
+check("every road's documented busy status is a busy refusal: OpenAI's 503, DeepSeek's 503, OpenRouter's 503, Google's 503 UNAVAILABLE, Z.AI's 1305, and a vendor's unavailable or overloaded word on any status", busy.isBusyRefusal({ code: 'openai-server_error', status: 503, retryable: true }) && busy.isBusyRefusal({ code: 'http-503', status: 503, retryable: true }) && busy.isBusyRefusal({ code: 'zai-1305', status: 429, retryable: true }) && busy.isBusyRefusal({ code: 'openai-service_unavailable', retryable: true }) && busy.isBusyRefusal({ code: 'api-unavailable_error', status: 503, retryable: true }) && busy.isBusyRefusal({ code: 'api-engine_overloaded_error', status: 429, retryable: true }))
+check("a rate limit (Z.AI's 1302, OpenAI's rate_limit_exceeded, a bare 429), Z.AI's network error and a first-byte timeout are not busy refusals", !busy.isBusyRefusal({ code: 'zai-1302', status: 429, retryable: true }) && !busy.isBusyRefusal({ code: 'openai-rate_limit_exceeded', status: 429, retryable: true }) && !busy.isBusyRefusal({ code: 'http-429', status: 429, retryable: true }) && !busy.isBusyRefusal({ code: 'zai-1234', status: 500, retryable: true }) && !busy.isBusyRefusal({ code: 'first-byte-timeout', retryable: true }))
+check('the ladder is taken by a busy refusal and by a rate limit that names a wait; a rate limit without one and a fault with one keep the single retry', busy.takesBusyLadder?.({ code: 'http-429', status: 429, retryable: true, retryAfterMs: 2000 }, 'rate_limit') === true && busy.takesBusyLadder?.({ code: 'http-429', status: 429, retryable: true }, 'rate_limit') === false && busy.takesBusyLadder?.({ code: 'http-503', status: 503, retryable: true }, 'server_error') === true && busy.takesBusyLadder?.({ code: 'http-500', status: 500, retryable: true, retryAfterMs: 2000 }, 'server_error') === false && busy.takesBusyLadder?.({ code: 'http-503', status: 503, retryable: false }, 'server_error') === false)
 check('the expansion names the status, the code, the words, every wait and which request was answered', busy.busyRecoveryDetail({ provider: 'Gemini', status: 503, code: 'api-UNAVAILABLE', message: 'busy words', waitsMs: [1000, 2000] }) === 'Gemini answered HTTP 503 (api-UNAVAILABLE): busy words — retried after 1 s and 2 s, and the third request was answered.')
 
 console.log('── the ladder on the Gemini road, against a recording fixture')
 const model = 'gemini-3.5-flash'
 const overloadReason = 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.'
+const ANSWER = 'road answer'
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content } }) as Message
 function params(signal: AbortSignal = new AbortController().signal, modelId = model): CompatCallModelParams {
   return {
@@ -84,7 +112,8 @@ async function drain(generator: AsyncGenerator<unknown>): Promise<Item[]> {
 const notices = (items: Item[]) => items.filter(item => item.type === 'system' && item.subtype === 'api_error')
 const stamped = (items: Item[]) => items.filter(item => item.type === 'assistant' && item.busyRecovery !== undefined)
 const redLines = (items: Item[]) => items.filter(item => item.type === 'assistant' && item.isApiErrorMessage === true).map(item => item.message?.content.map(block => block.text ?? '').join('') ?? '')
-const sse = (chunks: unknown[]): Response => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+const answered = (items: Item[], text: string) => items.some(item => item.type === 'assistant' && item.message?.content.some(block => block.text === text))
+const sse = (chunks: unknown[], done = false): Response => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + (done ? 'data: [DONE]\n\n' : ''), { headers: { 'content-type': 'text/event-stream' } })
 type Hit = { url: string; atMs: number }
 const hits: Hit[] = []
 let refusalsBeforeAnswer = Infinity
@@ -94,11 +123,21 @@ let body: unknown = { error: { code: 503, status: 'UNAVAILABLE', message: overlo
 const realFetch = globalThis.fetch
 globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
-  hits.push({ url, atMs: Date.now() })
+  const method = (init?.method ?? 'GET').toUpperCase()
   if (url.endsWith('/token')) return Response.json({ access_token: access, expires_in: 3600 })
+  const modelRoad = url.includes('/chat/completions') || url.endsWith('/responses') || url.includes(':streamGenerateContent')
+  if (method !== 'POST' || !modelRoad) return Response.json({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] })
+  hits.push({ url, atMs: Date.now() })
   if (hits.length <= refusalsBeforeAnswer) return Response.json(body, { status, headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter } })
-  if (url.includes('/chat/completions')) return sse([{ choices: [{ delta: { content: 'compat answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }])
-  void init
+  if (url.endsWith('/responses')) {
+    return sse([
+      { type: 'response.created', response: { id: 'resp_fixture' } },
+      { type: 'response.output_text.delta', delta: ANSWER },
+      { type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: ANSWER }] } },
+      { type: 'response.completed', response: { id: 'resp_fixture', usage: { input_tokens: 12, output_tokens: 8, input_tokens_details: { cached_tokens: 0 } } } },
+    ])
+  }
+  if (url.includes('/chat/completions')) return sse([{ choices: [{ delta: { content: ANSWER }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }], true)
   return sse([
     { candidates: [{ content: { role: 'model', parts: [{ text: 'native answer' }] } }] },
     { candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
@@ -111,6 +150,15 @@ function reset(scale: string, opts: { refusals?: number; retryAfter?: string; st
   retryAfter = opts.retryAfter
   status = opts.status ?? 503
   body = opts.body ?? { error: { code: 503, status: 'UNAVAILABLE', message: overloadReason } }
+}
+const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+type Road = {
+  name: string
+  provider: string
+  model: string
+  call: (p: CompatCallModelParams) => AsyncGenerator<unknown>
+  busy: { status: number; body: unknown; code: string; message: string; typed: string; tail: string }
+  rate: { status: number; body: unknown }
 }
 try {
   reset('0.01')
@@ -129,7 +177,7 @@ try {
   const marks = stamped(recovered)
   const stamp = marks[0]?.busyRecovery
   const firstAnswer = recovered.find(item => item.type === 'assistant')
-  check('a refusal that clears on the third request answers with no notice and no red line', hits.length === 3 && notices(recovered).length === 0 && redLines(recovered).length === 0 && recovered.some(item => item.type === 'assistant' && item.message?.content.some(block => block.text === 'native answer')), `${hits.length} requests, ${notices(recovered).length} notices, ${redLines(recovered).length} red lines`)
+  check('a refusal that clears on the third request answers with no notice and no red line', hits.length === 3 && notices(recovered).length === 0 && redLines(recovered).length === 0 && answered(recovered, 'native answer'), `${hits.length} requests, ${notices(recovered).length} notices, ${redLines(recovered).length} red lines`)
   check('the first settled answer carries one recovery stamp naming the provider, the retries and the seconds; later blocks carry none', marks.length === 1 && marks[0] === firstAnswer && stamp?.provider === 'Gemini' && stamp.retries === 2 && stamp.elapsedMs >= 1800 && stamp.status === 503 && stamp.code === 'api-UNAVAILABLE', JSON.stringify(stamp))
   check("the stamp's detail carries Google's words, both waits and the request that answered", /^Gemini answered HTTP 503 \(api-UNAVAILABLE\): This model is currently experiencing high demand\. .* — retried after 1 s and 1 s, and the third request was answered\.$/.test(stamp?.detail ?? ''), stamp?.detail ?? '')
 
@@ -152,33 +200,78 @@ try {
 
   reset('0.01', { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } } })
   const rate = await drain(geminiCallModel(params()))
-  check('a 429 keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1', hits.length === 2 && notices(rate).length === 1 && notices(rate)[0]?.retryInMs === 400 && notices(rate)[0]?.retryAttempt === 1 && notices(rate)[0]?.maxRetries === 1 && rate.some(item => item.type === 'assistant' && item.error === 'rate_limit'), `${hits.length} requests, ${JSON.stringify(notices(rate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}`)
+  check('a 429 without a wait keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1', hits.length === 2 && notices(rate).length === 1 && notices(rate)[0]?.retryInMs === 400 && notices(rate)[0]?.retryAttempt === 1 && notices(rate)[0]?.maxRetries === 1 && rate.some(item => item.type === 'assistant' && item.error === 'rate_limit'), `${hits.length} requests, ${JSON.stringify(notices(rate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}`)
 
-  const plain: CompatLaneProfile = {
-    lane: 'deepseek',
-    providerLabel: 'DeepSeek',
-    resolveCredential: () => ({ apiKey: 'fixture-deepseek-key' }),
-    credentialHint: 'no DeepSeek credential detected.',
-    requestUrl: () => 'https://gemini.fixture.invalid/deepseek/chat/completions',
-    wireModelId: id => id,
-    buildExtras: () => ({}),
+  reset('0.01', { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } }, refusals: 1, retryAfter: '1' })
+  const rateAsked = await drain(geminiCallModel(params()))
+  const rateAskedWait = hits.length === 2 ? hits[1]!.atMs - hits[0]!.atMs : -1
+  check("a 429 with a wait rides the ladder: the ask slept whole and quietly, the second request answered, one stamp naming 1 retry", hits.length === 2 && rateAskedWait >= 990 && notices(rateAsked).length === 0 && redLines(rateAsked).length === 0 && answered(rateAsked, 'native answer') && stamped(rateAsked)[0]?.busyRecovery?.retries === 1, `${hits.length} requests, ${rateAskedWait} ms, ${notices(rateAsked).length} notices, ${redLines(rateAsked)[0] ?? ''}`)
+
+  const localProfile: CompatLaneProfile = localLaneProfileFor({ id: 'llama-fixture', server: 'ollama', baseUrl: 'https://local.fixture.invalid/v1' })
+  const roads: Road[] = [
+    { name: 'openai', provider: 'OpenAI', model: 'gpt-5.6-sol', call: p => openaiCallModel(p as never) as AsyncGenerator<unknown>, busy: { status: 503, body: { error: { type: 'server_error', message: 'The requested model is temporarily overloaded.' } }, code: 'openai-server_error', message: 'The requested model is temporarily overloaded.', typed: 'server_error', tail: 'OpenAI stream failed (openai-server_error) — ' }, rate: { status: 429, body: { error: { type: 'rate_limit_exceeded', message: 'Rate limit reached for requests' } } } },
+    { name: 'zai', provider: 'Z.AI', model: 'glm-5.2', call: p => zaiCallModel(p as never) as AsyncGenerator<unknown>, busy: { status: 429, body: { error: { code: '1305', message: 'The service may be temporarily overloaded, please try again later' } }, code: 'zai-1305', message: 'The service may be temporarily overloaded, please try again later', typed: 'rate_limit', tail: 'Z.AI is rate-limiting this account (zai-1305: ' }, rate: { status: 429, body: { error: { code: '1302', message: 'Rate limit reached for requests' } } } },
+    { name: 'deepseek', provider: 'DeepSeek', model: 'deepseek-chat', call: p => compatChatCallModel(deepseekLaneProfile, p), busy: { status: 503, body: { error: { message: 'The server is overloaded due to high traffic. Please retry your request after a brief wait.' } }, code: 'http-503', message: 'The server is overloaded due to high traffic. Please retry your request after a brief wait.', typed: 'server_error', tail: 'DeepSeek stream failed (http-503) — ' }, rate: { status: 429, body: { error: { message: 'You are sending requests too quickly.', type: 'rate_limit_error', code: 'rate_limit_reached' } } } },
+    { name: 'moonshot', provider: 'Moonshot', model: 'kimi-k3', call: p => compatChatCallModel(moonshotLaneProfile, p), busy: { status: 503, body: { error: { type: 'server_error', message: 'the engine is busy' } }, code: 'api-server_error', message: 'the engine is busy', typed: 'server_error', tail: 'Moonshot stream failed (api-server_error) — ' }, rate: { status: 429, body: { error: { type: 'rate_limit_reached_error', message: 'Your request reached rate limit' } } } },
+    { name: 'huggingface', provider: 'Hugging Face', model: 'huggingface/org/model', call: p => compatChatCallModel(huggingfaceLaneProfile, p), busy: { status: 503, body: { error: 'Service Unavailable' }, code: 'http-503', message: 'Service Unavailable', typed: 'server_error', tail: 'Hugging Face stream failed (http-503) — ' }, rate: { status: 429, body: { error: 'Rate limit reached' } } },
+    { name: 'openrouter', provider: 'OpenRouter', model: 'openrouter/vendor/model', call: p => compatChatCallModel(openrouterLaneProfile, p), busy: { status: 503, body: { error: { code: 503, message: 'There is no available model provider that meets your routing requirements' } }, code: 'http-503', message: 'There is no available model provider that meets your routing requirements', typed: 'server_error', tail: 'OpenRouter stream failed (http-503) — ' }, rate: { status: 429, body: { error: { code: 429, message: 'You are being rate limited' } } } },
+    { name: 'local', provider: localProfile.providerLabel, model: 'local/llama-fixture', call: p => compatChatCallModel(localProfile, p), busy: { status: 503, body: { error: { message: 'Loading model', type: 'unavailable_error' } }, code: 'api-unavailable_error', message: 'Loading model', typed: 'server_error', tail: `${localProfile.providerLabel} stream failed (api-unavailable_error) — ` }, rate: { status: 429, body: { error: { message: 'too many requests', type: 'rate_limit_error' } } } },
+    { name: 'openai-compat', provider: 'the fixture endpoint', model: 'compat/fixture-model', call: p => compatCallModel(p), busy: { status: 503, body: { error: { type: 'server_error', message: 'the endpoint is overloaded' } }, code: 'api-server_error', message: 'the endpoint is overloaded', typed: 'server_error', tail: 'the fixture endpoint stream failed (api-server_error) — ' }, rate: { status: 429, body: { error: { type: 'rate_limit_error', code: 'rate_limit_exceeded', message: 'too many requests' } } } },
+  ]
+  for (const road of roads) {
+    console.log(`── the ladder on the ${road.provider} road`)
+    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    const roadSpent = await drain(road.call(params(undefined, road.model)))
+    const roadNotices = notices(roadSpent)
+    const roadRed = redLines(roadSpent)
+    check(`${road.name}: a busy refusal that never clears is retried six times on the scaled rungs: seven requests`, hits.length === 7, `${hits.length} requests`)
+    check(`${road.name}: the five retries inside the quiet window mint no notice; the sixth mints one with its true wait and place`, roadNotices.length === 1 && roadNotices[0]?.retryInMs === 300 && roadNotices[0].retryAttempt === 6 && roadNotices[0].maxRetries === 6, JSON.stringify(roadNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
+    check(`${road.name}: the spent ladder ends the turn with one red line naming ${road.provider} and how long it stayed busy, the wire's words as its tail`, roadRed.length === 1 && new RegExp(`^API Error: ${escape(road.provider)} stayed busy through 6 retries over \\d+ s — ${escape(road.busy.tail)}`).test(roadRed[0] ?? '') && (roadRed[0] ?? '').includes(road.busy.message) && roadSpent.some(item => item.type === 'assistant' && item.error === road.busy.typed), roadRed[0] ?? '(no red line)')
+    check(`${road.name}: no recovery stamp rides a spent ladder`, stamped(roadSpent).length === 0)
+    const roadWaits = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
+    check(`${road.name}: the waits between requests grow with the rungs`, roadWaits.length === 6 && roadWaits.every((wait, i) => wait >= [10, 20, 40, 80, 160, 300][i]! - 2) && roadWaits[5]! > roadWaits[0]!, JSON.stringify(roadWaits))
+
+    reset('0.6', { status: road.busy.status, body: road.busy.body, refusals: 2 })
+    const roadRecovered = await drain(road.call(params(undefined, road.model)))
+    const roadMarks = stamped(roadRecovered)
+    const roadStamp = roadMarks[0]?.busyRecovery
+    const roadFirstAnswer = roadRecovered.find(item => item.type === 'assistant')
+    check(`${road.name}: a refusal that clears on the third request answers with no notice and no red line`, hits.length === 3 && notices(roadRecovered).length === 0 && redLines(roadRecovered).length === 0 && answered(roadRecovered, ANSWER), `${hits.length} requests, ${notices(roadRecovered).length} notices, ${redLines(roadRecovered).length} red lines`)
+    check(`${road.name}: the first settled answer carries one recovery stamp naming ${road.provider}, 2 retries and the seconds`, roadMarks.length === 1 && roadMarks[0] === roadFirstAnswer && roadStamp?.provider === road.provider && roadStamp.retries === 2 && roadStamp.elapsedMs >= 1800 && roadStamp.status === road.busy.status && roadStamp.code === road.busy.code, JSON.stringify(roadStamp))
+    check(`${road.name}: the stamp's detail carries the wire's words, both waits and the request that answered`, new RegExp(`^${escape(road.provider)} answered HTTP ${road.busy.status} \\(${escape(road.busy.code)}\\): ${escape(road.busy.message)} — retried after 1 s and 1 s, and the third request was answered\\.$`).test(roadStamp?.detail ?? ''), roadStamp?.detail ?? '')
+
+    reset('1', { status: road.busy.status, body: road.busy.body })
+    const roadController = new AbortController()
+    const roadStopAt = Date.now()
+    setTimeout(() => roadController.abort(), 100)
+    const roadStopped = await drain(road.call(params(roadController.signal, road.model)))
+    const roadStoppedAfterMs = Date.now() - roadStopAt
+    check(`${road.name}: the operator's stop ends the first wait at once: one request, no red line, the road silent, well inside the 1 s rung`, hits.length === 1 && redLines(roadStopped).length === 0 && notices(roadStopped).length === 0 && roadStoppedAfterMs < 1000, `${hits.length} requests, ${roadStoppedAfterMs} ms`)
+
+    reset('0.01', { status: road.rate.status, body: road.rate.body })
+    const roadRate = await drain(road.call(params(undefined, road.model)))
+    check(`${road.name}: a rate limit without a wait keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1, the rate-limit line`, hits.length === 2 && notices(roadRate).length === 1 && notices(roadRate)[0]?.retryInMs === 400 && notices(roadRate)[0]?.retryAttempt === 1 && notices(roadRate)[0]?.maxRetries === 1 && roadRate.some(item => item.type === 'assistant' && item.error === 'rate_limit') && redLines(roadRate).length === 1 && !/stayed busy/.test(redLines(roadRate)[0] ?? ''), `${hits.length} requests, ${JSON.stringify(notices(roadRate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}, ${redLines(roadRate)[0] ?? ''}`)
+
+    reset('0.01', { status: road.rate.status, body: road.rate.body, refusals: 1, retryAfter: '1' })
+    const roadRateAsked = await drain(road.call(params(undefined, road.model)))
+    const roadRateAskedWait = hits.length === 2 ? hits[1]!.atMs - hits[0]!.atMs : -1
+    check(`${road.name}: a rate limit with a wait rides the ladder: the ask slept whole and quietly, the second request answered, one stamp naming 1 retry`, hits.length === 2 && roadRateAskedWait >= 990 && notices(roadRateAsked).length === 0 && redLines(roadRateAsked).length === 0 && answered(roadRateAsked, ANSWER) && stamped(roadRateAsked)[0]?.busyRecovery?.retries === 1, `${hits.length} requests, ${roadRateAskedWait} ms, ${notices(roadRateAsked).length} notices, ${redLines(roadRateAsked)[0] ?? ''}`)
   }
-  reset('0.01')
-  const other = await drain(compatChatCallModel(plain, params(undefined, 'deepseek-chat')))
-  check('a lane whose profile takes no ladder keeps the one-retry road byte for byte: two requests, one notice of 400 ms as attempt 1 of 1, the plain red line', hits.length === 2 && notices(other).length === 1 && notices(other)[0]?.retryInMs === 400 && notices(other)[0]?.retryAttempt === 1 && notices(other)[0]?.maxRetries === 1 && redLines(other).length === 1 && (redLines(other)[0] ?? '').startsWith('API Error: DeepSeek stream failed (api-UNAVAILABLE) — ') && stamped(other).length === 0, `${hits.length} requests, ${JSON.stringify(notices(other).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}, ${redLines(other)[0] ?? ''}`)
 } finally {
   globalThis.fetch = realFetch
   delete process.env.MERCURY_BUSY_RETRY_SCALE
 }
-console.log('── the other lanes and the router, untouched')
+console.log('── every road takes the one ladder; the lanes keep their yield union')
 const { readFileSync } = await import('node:fs')
-const untouched = ['deepseek/deepseekCallModel.ts', 'huggingface/huggingfaceCallModel.ts', 'local/localCallModel.ts', 'moonshot/moonshotCallModel.ts', 'openaicompat/compatCallModel.ts', 'openrouter/openrouterCallModel.ts', 'callModelRouter.ts', 'zai/zaiCallModel.ts', 'openai/openaiCallModel.ts']
-for (const name of untouched) {
-  const source = readFileSync(new URL(`../../src/services/providers/${name}`, import.meta.url), 'utf8')
-  const delegating = !name.startsWith('zai/') && !name.startsWith('openai/') && name !== 'callModelRouter.ts'
-  check(`${name} takes no ladder and keeps its yield union`, !source.includes('busyRetry') && !source.includes('BusyRecovery') && (!delegating || source.includes('): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {')))
+const source = (name: string): string => readFileSync(new URL(`../../src/services/providers/${name}`, import.meta.url), 'utf8')
+for (const name of ['deepseek/deepseekCallModel.ts', 'huggingface/huggingfaceCallModel.ts', 'local/localCallModel.ts', 'moonshot/moonshotCallModel.ts', 'openaicompat/compatCallModel.ts', 'openrouter/openrouterCallModel.ts', 'gemini/geminiCallModel.ts']) {
+  check(`${name} keeps its yield union and asks for no ladder of its own`, !source(name).includes('busyRetry') && source(name).includes('): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {'))
 }
-const profiles = readFileSync(new URL('../../src/services/providers/gemini/geminiCallModel.ts', import.meta.url), 'utf8')
-check('only the Gemini lane profile asks for the ladder', (profiles.match(/busyRetry: true/g) ?? []).length === 1 && readFileSync(new URL('../../src/services/providers/openaicompat/compatChatCallModel.ts', import.meta.url), 'utf8').includes("if (profile.busyRetry === true && outcome.retryEligible && isBusyRefusal(outcome.fault) && !providerWaitIsWindow(askedMs)) {"))
+check('callModelRouter.ts takes no ladder', !source('callModelRouter.ts').includes('busyRetry'))
+for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
+  const text = source(name)
+  check(`${name} opens the one ladder and sleeps every retry wait through the abortable sleep`, text.includes('openBusyRetryLadder(') && text.includes('takesBusyLadder(') && text.includes('await sleep(step.waitMs, signal)') && text.includes('await sleep(delayMs, signal)') && !text.includes('setTimeout(resolve, delayMs)'))
+}
+check('no profile seam decides the ladder: every lane rides it', !source('openaicompat/compatChatCallModel.ts').includes('busyRetry?:') && !source('openaicompat/compatChatCallModel.ts').includes('profile.busyRetry'))
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)
