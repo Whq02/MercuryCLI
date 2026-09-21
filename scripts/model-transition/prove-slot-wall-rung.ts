@@ -194,7 +194,7 @@ section('§H the switch receipt is durable (FN-016 R20)')
   check('both footers carry the transient, the whole receipt only without a door', (composer.match(/text: durable \? slotSwitchTransient\(outcome\.receipt\) : outcome\.receipt/g) ?? []).length === 2)
   check('no arm speaks the whole receipt as a bare footer line', !/text: outcome\.receipt,/.test(composer))
   const wrapper = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check("the picker's s-key arm receipts through the owner too", /const outcome = switchActiveSlot\(family\)\s*\n[\s\S]{0,300}?paintSlotSwitchReceipt\(outcome\)\s*\n\s*setSlotVersion/.test(wrapper))
+  check("the picker's s-key arm receipts through the owner too", /const outcome = switchActiveSlot\(family\)\s*\n[\s\S]{0,300}?paintSlotSwitchReceipt\(outcome\)\s*\n\s*(setSlotVersion|bump\(\))/.test(wrapper))
   const renderer = readFileSync(join(ROOT, 'src/components/messages/SystemTextMessage.tsx'), 'utf8')
   check('the seat_receipt row renders above the verbose gate (a receipt is never quiet)', /case 'seat_receipt':\s*\n\s*return \(/.test(renderer))
 }

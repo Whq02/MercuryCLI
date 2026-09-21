@@ -80,6 +80,7 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const TAG = keyHintLabel('⇧← back')
@@ -212,6 +213,7 @@ function reapHome(home: string): void {
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
 const isFace = (frame: string): boolean => frame.includes(READY_LINE)
+const isChatWorldFace = (frame: string): boolean => frame.includes(CHAT_READY_LINE) && !frame.includes('m menu')
 const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER) || frame.includes(TAG)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
@@ -315,7 +317,7 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
     home,
     argv: ['--chat'],
     sends: [
-      g(READY_LINE, '', { mark: 'landing' }),
+      g(CHAT_READY_LINE, '', { mark: 'landing' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: '', mark: 'face' },
@@ -326,7 +328,7 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
   printFrame('d4 (--chat, the face)', c.lines)
   const landing = markText(c, 'landing')
   const face = markText(c, 'face')
-  check('D4 the landing is the boot menu (L15: no session born at boot); ↵ New Session births the chat; ⇧← is the face directly', isFace(landing) && !landing.includes(COMPOSER) && isChat(markText(c, 'chat')) && isFace(face), firstRows(landing))
+  check('D4 the landing is the boot menu (L15: no session born at boot); ↵ New Session births the chat; ⇧← is the face directly', isChatWorldFace(landing) && !landing.includes(COMPOSER) && isChat(markText(c, 'chat')) && isChatWorldFace(face), firstRows(landing))
   check('D4 nothing of this lane paints in the plain world: no group, no door, no running suffix', !c.text.includes(GROUP) && !c.text.includes(DOOR) && !face.includes(' running') && !landing.includes(' running') && !markText(c, 'chat').includes(GROUP))
   reapHome(home)
 }

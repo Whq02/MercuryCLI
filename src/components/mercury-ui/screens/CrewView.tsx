@@ -141,7 +141,7 @@ export function CrewView({
         .then(receipt => {
           setDoorNote(
             receipt.outcome === 'applied'
-              ? { tone: 'muted', text: `${target.name} resumed from its transcript — it runs on under the same id` }
+              ? { tone: 'muted', text: target.kind === 'named' ? `${target.name} spawned again from its prompt — it starts over under a new row` : `${target.name} resumed from its transcript — it runs on under the same id` }
               : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
           )
         })

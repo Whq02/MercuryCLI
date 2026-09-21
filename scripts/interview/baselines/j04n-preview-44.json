@@ -3,32 +3,15 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-02T03:22:07.074Z",
+ "capturedAt": "2026-09-21T11:56:36.057Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "           (>_) MERCURY  ↵ start",
-    "",
-    "",
+    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · ● ready · Opus 5 …",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-6pxKn9",
+    "  ▀▀▀▀▀▀▀▀▀",
+    "────────────────────────────────────────────",
     "",
     "",
     "",
@@ -51,12 +34,38 @@
     "",
     "",
     "",
-    "  ⇧→ concourse"
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "╭──────────────────────────────────────────╮",
+    "│❯ Type a prompt, or start a slash command │",
+    "╰──────────────────────────────────────────╯",
+    "S:1 · M:0 · A:0                 ⇧← concourse"
    ]
   },
   {
    "atMs": -1,
    "rows": [
+    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5 · effort h…",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-6pxKn9 · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀",
+    "────────────────────────────────────────────",
+    "",
+    "12:56:18 [sam] ❯ design the cache layer",
+    "",
+    "12:56:18 [Mercury] Let me confirm the open",
+    "decisions before proceeding.",
     "",
     "",
     "",
@@ -65,65 +74,88 @@
     "",
     "",
     "",
+    "────────────────────────────────────────────",
+    " ☐ Config",
     "",
+    "⦿ Which config shape should ship?",
     "",
+    "❯ 1. Layered",
+    "  2. Flat",
     "",
+    "┌──────────────────────────────────────────┐",
+    "│ Option A — layered config                │",
+    "│                                          │",
+    "│                                          │",
+    "│ export function loadConfig(root: string) │",
+    "│   return merge(defaults, readFile(root)) │",
+    "│ }                                        │",
+    "│                                          │",
+    "│ | key | default |                        │",
+    "├─── ⋯ ─── 2 lines hidden ─────────────────┤",
+    "└──────────────────────────────────────────┘",
+    "Notes: press n to add notes",
     "",
+    "────────────────────────────────────────────",
+    "  Chat about this",
     "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "           (>_) MERCURY  ↵ start",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "  ⇧→ concourse"
+    "Enter to select · ↑/↓ to navigate · n to add",
+    "notes · Esc to cancel",
+    "⚑ 1 needs you · ctrl+x c board"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 3881
+   "patches": 6196,
+   "frame-recommit": 31
   },
   "frames": {
-   "total": 82,
-   "window": 82,
-   "p50": 11.621499999999287,
-   "p95": 14.90008300000045,
-   "p99": 20.86029099999996,
-   "maxMs": 20.86029099999996
+   "total": 47,
+   "window": 47,
+   "p50": 1.1118329999990237,
+   "p95": 4.852542000000085,
+   "p99": 12.264374999999973,
+   "maxMs": 12.264374999999973
   }
  },
  "requests": [
   {
-   "path": "/"
-  },
-  {
-   "path": "/"
+   "path": "/v1/messages?beta=true",
+   "model": "claude-opus-5",
+   "lastMessage": {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- aesthetic-direction: Use when designing or restyling a web interface's typography, colour, layout and motion. Not for terminal interfaces, print or brand-guideline documents.\n- app-proof: Use when proving web app journeys with Mercury's Browser tool or checking APIs. Not for unit tests.\n- drafting-partner: Use when co-writing a proposal, specification, report, policy or long memo through an agreed brief, outline and review. Not for code, short messages or file formatting.\n- extension-maker: Use when creating, packaging or debugging a Mercury extension or source catalogue. Not for installing or approving an extension on the operator's behalf.\n- mcp-smithy: Use when building or fixing an MCP server's tools, resources, prompts or transport. Not for configuring an existing third-party server.\n- pdf-documents: Use when reading, transforming, filling, redacting or generating PDFs. Not for editing Word, Excel or PowerPoint source files.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when authoring, packaging or debugging a Mercury skill and its discovery description. Not for session capture via /skillify, agent definitions, hooks or extension packaging.\n- slide-decks: Use when creating, reading or revising PowerPoint decks, layouts or speaker notes. Not for Word, spreadsheets, PDFs or web interfaces.\n- spreadsheets: Use when reading, creating or repairing Excel workbooks, formulas or CSV-to-Excel output. Not for Word, slides, PDFs or databases.\n- word-documents: Use when creating, reading, editing or reviewing Word documents, comments or tracked revisions. Not for plain-text drafting, spreadsheets, slides or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-21.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "design the cache layer",
+      "cache_control": {
+       "type": "ephemeral"
+      }
+     }
+    ]
+   }
   }
  ],
- "sends": []
+ "sends": [
+  {
+   "atMs": 10868.665933609009,
+   "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
+  },
+  {
+   "atMs": 12468.665933609009,
+   "b64": "DQ=="
+  }
+ ]
 }

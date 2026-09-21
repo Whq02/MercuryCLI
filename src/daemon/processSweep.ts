@@ -243,6 +243,10 @@ function executableName(exe: string): string {
   return (cut >= 0 ? trimmed.slice(cut + 1) : trimmed).toLowerCase()
 }
 
+export function isMercuryExecutableName(exe: string): boolean {
+  return MERCURY_EXECUTABLES.has(executableName(exe))
+}
+
 export function processNamesMercury(args: readonly string[]): boolean {
   return args.some(arg => /(^|[\\/])mercury(\.mjs|\.cmd|\.exe)?$/i.test(arg.trim()))
 }

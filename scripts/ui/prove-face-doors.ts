@@ -266,7 +266,7 @@ t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; t
   t.check("the Sessions · Projects row opens the face's picker layer and arms NOTHING", resumeCase.includes('setResumeOpen(true)') && !resumeCase.includes('armRootCommand') && !resumeCase.includes('enterRootRepl'), resumeCase.slice(0, 120))
   t.check('the health layer mounts with the esc-home wiring', face.includes('<BootHealthScreen') && face.includes('onClose={() => setHealthOpen(false)}'))
   t.check('the resume layer mounts with the esc-home wiring', face.includes('<BootResumeScreen') && face.includes('onClose={() => setResumeOpen(false)}'))
-  t.check('the face list parks while a layer owns the screen', face.includes('!settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen,'))
+  t.check('the face list parks while a layer owns the screen', face.includes('!settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
   t.check('the armed bridge entry is GONE from the face', !face.includes('armedRootCommand'))
   t.check('the arming helper is GONE from the face', !face.includes('armRootCommand') && !face.includes('initialMessage'))
   t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))

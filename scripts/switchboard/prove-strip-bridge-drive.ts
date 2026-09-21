@@ -46,6 +46,7 @@ seedFirstRun(TEMPLATE, [CWD])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const EMPTY_BOARD = 'no sessions yet'
@@ -179,6 +180,7 @@ function reapHome(home: string): void {
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
 const isFace = (frame: string): boolean => frame.includes(READY_LINE)
+const isChatWorldFace = (frame: string): boolean => frame.includes(CHAT_READY_LINE) && !frame.includes('m menu')
 const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER) || frame.includes(TAG)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
@@ -303,7 +305,7 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
     home,
     argv: ['--chat'],
     sends: [
-      g(READY_LINE, '', { mark: 'landing' }),
+      g(CHAT_READY_LINE, '', { mark: 'landing' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: SHIFT_LEFT, mark: 'menu' },
@@ -316,10 +318,10 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
   printFrame('s4 (--chat, back in the chat)', c.lines)
   const landing = markText(c, 'landing')
   const menu = markText(c, 'menu')
-  check('S4 the landing is the boot menu (L15) — no chat born at boot', isFace(landing) && !isChat(landing), firstRows(landing))
+  check('S4 the landing is the boot menu (L15) — no chat born at boot', isChatWorldFace(landing) && !isChat(landing), firstRows(landing))
   check('S4 the --chat face carries NO Session Concourse row and its row says "⇧→ no chat open"', !landing.includes('Session Concourse') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
   check('S4 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
-  check('S4 ⇧← from the chat is the BOOT MENU directly — no concourse between (the plain world)', isFace(menu) && !isBoard(menu), firstRows(menu))
+  check('S4 ⇧← from the chat is the BOOT MENU directly — no concourse between (the plain world)', isChatWorldFace(menu) && !isBoard(menu), firstRows(menu))
   check(`S4 the menu's row names the chat ("${FACE_TO_CHAT}") — the one stop to its right`, menu.includes(FACE_TO_CHAT) && !menu.includes(FACE_TO_CONCOURSE), hintRows(menu))
   check('S4 ⇧← from the menu is the strip\'s silent end (byte-still)', menu !== '' && markText(c, 'menu-again') === menu)
   check('S4 ⇧→ from the menu is the chat again', isChat(markText(c, 'chat-again')), firstRows(markText(c, 'chat-again')))

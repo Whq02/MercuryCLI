@@ -372,11 +372,11 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
     : { why: 'provider busy', words: `the provider asked ${who} to wait${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
 }
 
-export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string }): void {
+export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>resumed</${STATUS_TAG}>
+<${STATUS_TAG}>${args.status ?? 'resumed'}</${STATUS_TAG}>
 <${SUMMARY_TAG}>${args.summary}</${SUMMARY_TAG}>
 </${TASK_NOTIFICATION_TAG}>`
   enqueuePendingNotification({ value: message, mode: 'task-notification', priority: 'next' })

@@ -19,7 +19,7 @@ import {
   type Snapshot,
   type TraceData,
 } from '../utils/cockpit/index.js'
-import { HERO_ART_COLS, HERO_ART_LINES, SQUARE_ART_LINES, critterDefForKey, decideCritterForm, type CritterForm } from '../utils/cockpit/critterData.js'
+import { HERO_ART_COLS, HERO_ART_LINES, SQUARE_ART_LINES, SQUARE_DOCK_ART_LINES, critterDefForKey, decideCritterForm, squareDockArtFor, type CritterForm } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
@@ -28,7 +28,7 @@ import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.
 import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterArt.js'
 import { HeroCompanionBubble, MiniCritter } from './mercury-ui/MiniCritter.js'
 import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
-import { cycleSessionCritter, getSessionAccent, useSessionAccent } from './mercury-ui/sessionAccent.js'
+import { cycleSessionCritter, getSessionAccent, useCritterSize, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 
@@ -58,6 +58,15 @@ export function PinnedCritterBerth(): React.ReactNode {
     () => ({ ...def, hue: tok.accentSoft }),
     [def, tok.accentSoft],
   )
+  const mini = useCritterSize() === 'mini'
+  const dockDef = React.useMemo(
+    () => ({ ...def, square: squareDockArtFor(sa.key) }),
+    [def, sa.key],
+  )
+  const hoverDockDef = React.useMemo(
+    () => ({ ...dockDef, hue: tok.accentSoft }),
+    [dockDef, tok.accentSoft],
+  )
   const form = decideCritterForm({ columns, rows }, !!rawDef.heroArt?.length)
   const heroFits = form === 'hero' || form === 'premium-compact'
   return (
@@ -72,6 +81,11 @@ export function PinnedCritterBerth(): React.ReactNode {
         <Box flexDirection="column" flexShrink={0} justifyContent="center">
           {
 }
+          {mini ? (
+            <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
+              <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
+            </Box>
+          ) : (
           <Box
             height={heroFits ? HERO_ART_LINES : SQUARE_ART_LINES}
             flexDirection="column"
@@ -79,6 +93,7 @@ export function PinnedCritterBerth(): React.ReactNode {
           >
             <AnimatedCritterArt def={hover ? hoverDef : def} hero={heroFits} square={!heroFits} />
           </Box>
+          )}
         </Box>
       )}
     </InteractiveRow>

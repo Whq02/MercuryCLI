@@ -171,6 +171,7 @@ export const SettingsSchema = lazySchema(() => {
     modelOverrides: z.record(z.string(), z.string()).optional(),
     effortLevel: z.enum(EFFORT_LEVELS).optional().catch(undefined),
     supercodeEffort: z.boolean().optional(),
+    sessionDefaultsKey: z.boolean().optional(),
     alwaysThinkingEnabled: z.boolean().optional(),
 
     enableAllProjectMcpServers: z.boolean().optional(),
@@ -218,6 +219,7 @@ export const SettingsSchema = lazySchema(() => {
       .optional(),
     syntaxHighlightingDisabled: z.boolean().optional(),
     prefersReducedMotion: z.boolean().optional(),
+    critterSize: z.enum(['mini', 'full']).optional().catch(undefined),
     firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
     showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),

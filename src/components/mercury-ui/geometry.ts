@@ -2,6 +2,7 @@
 import { stringWidth } from '../../ink/stringWidth.js'
 import { COMPOSER_BORDER_SHED_ROWS } from './replFloor.js'
 import { CR_COLS, SQUARE_ART_LINES, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.js'
+import { getCritterSize } from '../../utils/cockpit/critterSize.js'
 
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'
 
@@ -122,7 +123,7 @@ export const COMPACT_BAND_CRITTER_MIN_COLUMNS = CR_COLS + 3 + 12
 export function compactBandForm(columns: number, rows: number): CompactBandForm {
   if (rows < COMPACT_BAND_LINE_MIN_ROWS) return 'none'
   if (rows < COMPACT_BAND_DOCK_MIN_ROWS || columns < COMPACT_BAND_CRITTER_MIN_COLUMNS) return 'line'
-  if (rows < COMPACT_BAND_SQUARE_MIN_ROWS) return 'dock'
+  if (rows < COMPACT_BAND_SQUARE_MIN_ROWS || getCritterSize() === 'mini') return 'dock'
   return 'square'
 }
 

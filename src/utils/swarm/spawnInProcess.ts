@@ -125,6 +125,30 @@ export async function spawnInProcessTeammate(
   }
 }
 
+export function unwindTeammateSpawn(taskId: string, setAppState: SpawnContext['setAppState'], cause: string): boolean {
+  let unwound = false
+  let capturedToolUseId: string | undefined
+  setAppState(prevState => {
+    const task = prevState.tasks[taskId]
+    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') return prevState
+    unwound = true
+    capturedToolUseId = task.toolUseId
+    task.abortController?.abort()
+    task.unregisterCleanup?.()
+    const tasks = { ...prevState.tasks }
+    delete tasks[taskId]
+    return { ...prevState, tasks }
+  })
+  if (unwound) {
+    void evictTaskOutput(taskId)
+    emitTaskTerminatedSdk(taskId, 'failed', {
+      ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
+      summary: cause,
+    })
+  }
+  return unwound
+}
+
 export function killInProcessTeammate(
   taskId: string,
   setAppState: SpawnContext['setAppState'],
