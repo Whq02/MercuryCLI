@@ -219,7 +219,7 @@ function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Recor
       (anthropicPresence.expired
         ? `${anthropicPresence.credentialLabel ?? 'Claude sign-in'} · sign-in expired — /logins reconnects`
         : anthropicPresence.credentialed
-          ? `${anthropicPresence.credentialLabel} · credential present`
+          ? 'credential present'
           : anthropicNotSignedInReason()) + seatDetail('anthropic'),
     [OPENAI_MODEL_GROUP]:
       (gptAvailability.state === 'ready' ? `${gptAvailability.source} · signed in` : gptAvailability.reason) + seatDetail('openai'),
