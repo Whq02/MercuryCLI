@@ -117,8 +117,9 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
       !screen.includes('function RowPickModal('),
   )
   check(
-    "B4 the model rows are the SESSION-dispatchable set from the one snapshot owner; the effort rows are the shared ladder",
-    screen.includes('(snapshot.newSession.modelOptions ?? []).map(o => ({ id: o.modelId, label: o.displayName }))') &&
+    "B4 m on a live row mounts the session model picker, the one picker every model choice uses, with its effort row wired to the seat; the effort rows of the e pick are the shared ladder",
+    screen.includes('<MercurySessionModelPicker') &&
+      screen.includes("onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}") &&
       screen.includes('EFFORT_LEVELS.map(l => ({ id: l, label: l }))'),
   )
   check(
