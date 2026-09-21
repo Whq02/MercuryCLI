@@ -83,11 +83,11 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
         {shortFrame ? (
           <Text>Trust this folder? Mercury will read, edit, and run the files here.</Text>
         ) : (
-        <Text>Is this a project you created, or one you trust — your own code, a well-known open-source project, your team{"'"}s work? If not, look through the folder before continuing.</Text>
+        <Text>Do you trust this folder? It could be your own code, your team{"'"}s work or a well-known open-source project. If you{"'"}re unsure, check the folder before continuing.</Text>
         )}
         {
 }
-        {shortFrame ? null : <Text>Mercury will read, edit, and run the files here.</Text>}
+        {shortFrame ? null : <Text>Mercury will read, edit and run files in this folder.</Text>}
         {
 }
         {(() => {

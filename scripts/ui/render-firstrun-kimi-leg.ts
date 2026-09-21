@@ -102,7 +102,7 @@ mkdirSync(configHome, { recursive: true })
 const out = join(home, 'grid.json')
 const cfgPath = join(home, 'cfg.json')
 const sends: Send[] = [
-  { requireAwait: true, awaitText: 'welcome — pick our colors', awaitSettleTicks: 4, data: '\r' },
+  { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 4, data: '\r' },
   { requireAwait: true, awaitText: 'Kimi (Moonshot) — device-code sign-in or API key', awaitSettleTicks: 3, data: '\x1b[B' },
   ...Array.from({ length: 5 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
   { afterPrevTicks: 3, data: '\r' },

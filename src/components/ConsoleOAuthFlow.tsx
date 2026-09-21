@@ -218,7 +218,7 @@ export function ConsoleOAuthFlow({
         <Box flexDirection="column" gap={1}>
           <Text>
             {startingMessage ??
-              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek). An API key also connects from the terminal: /router key <provider>.'}
+              'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM or DeepSeek. To add an API key from the terminal, run /router key <provider>.'}
           </Text>
           <Select
             visibleOptionCount={idleRows.length}

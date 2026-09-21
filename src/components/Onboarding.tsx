@@ -35,26 +35,26 @@ const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
 ]
 
 const THEME_WORDS = {
-  bubble: 'welcome — pick our colors',
-  tagline: 'the whole harness wears your pick — status colors stay fixed',
+  bubble: 'Choose your theme',
+  tagline: 'Your theme applies throughout Mercury. Status colors stay the same.',
   fileName: 'helm.tsx',
 }
 
 const GUARDRAILS_WORDS = {
   title: 'Guardrails',
-  mistakes: 'Mercury can make mistakes',
-  mistakesTail: ' — review what it does, especially before running code.',
-  injection: 'Prompt injection is real',
-  injectionTail: ' — point Mercury only at code you trust.',
+  mistakes: 'Mercury can make mistakes.',
+  mistakesTail: ' Review its work, especially before running code.',
+  injection: 'Prompt injection can mislead the agent.',
+  injectionTail: ' Only use Mercury with code you trust.',
   row: ' ▸ continue',
 }
 
 const TERMINAL_WORDS = {
   title: 'Terminal keys',
   appleTweak: 'Option+Enter for newlines and the visual bell need one terminal tweak.',
-  tweak: 'Shift+Enter for newlines needs one terminal tweak.',
-  install: 'yes — apply the recommended settings',
-  later: 'not now — /terminal-setup does it later',
+  tweak: 'Set up Shift+Enter to add a new line in your terminal.',
+  install: 'yes, apply the recommended settings',
+  later: 'not now; use /terminal-setup later',
 }
 
 const FITTING_PATCH = {
