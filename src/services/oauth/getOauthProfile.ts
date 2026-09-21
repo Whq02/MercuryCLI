@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-import { getOauthConfig } from '../../constants/oauth.js'
+import { anthropicAccountApiBase } from '../../constants/oauth.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { OAuthProfileResponse } from './types.js'
 
@@ -11,7 +11,7 @@ export async function getOauthProfileFromOauthToken(
 ): Promise<OAuthProfileResponse | null> {
   try {
     const response = await axios.get<OAuthProfileResponse>(
-      `${getOauthConfig().BASE_API_URL}/api/oauth/profile`,
+      `${anthropicAccountApiBase()}/api/oauth/profile`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,

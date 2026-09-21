@@ -35,7 +35,7 @@ try {
   const ours = makeHome('ours')
   writeFileSync(
     join(ours, 'daemon', 'daemon.log'),
-    `[mercury-daemon] engaged v${EXPECTED} pid 4242 dir /work at 2026-08-27T10:00:00.000Z\n[daemon] scheduler tick\n`,
+    `2026-08-27T10:00:00.000Z [mercury-daemon] engaged v${EXPECTED} pid 4242 dir /work\n[daemon] scheduler tick\n`,
   )
   writeFileSync(join(ours, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: EXPECTED } } }))
   writeFileSync(
