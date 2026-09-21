@@ -2,10 +2,7 @@
 import { z } from 'zod/v4'
 import { buildTool, type Tool, type ToolDef } from '../../Tool.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import {
-  AUTOPILOT_TIER_KEYS,
-  isAutopilotEnabled,
-} from '../../utils/autopilot/autopilotGates.js'
+import { isAutopilotEnabled } from '../../utils/autopilot/autopilotGates.js'
 import {
   autopilotRailsSnapshot,
   MAX_SWITCHES_PER_SESSION,
@@ -28,10 +25,10 @@ import {
 const inputSchema = lazySchema(() =>
   z.strictObject({
     model: z
-      .enum(AUTOPILOT_TIER_KEYS)
+      .string()
       .optional()
       .describe(
-        'Tier key — resolves to the family default model, preserving the session 1M-context posture. Subject to the operator allowlist.',
+        "Tier key — a family word of the session's own family, or the exact id of one of its live rows; a family word resolves to that family's default model, preserving the session 1M-context posture. Subject to the operator allowlist; a refusal lists the keys.",
       ),
     effort: z
       .enum(EFFORT_LEVELS)
@@ -68,7 +65,7 @@ export interface Output {
 export const SetTierTool: Tool<InputSchema, Output> = buildTool({
   name: SET_TIER_TOOL_NAME,
   searchHint:
-    'retune own model/effort tier (autopilot mode only): opus/sonnet, effort low..max, turn or session scope',
+    "retune own model/effort tier (autopilot mode only): a tier key of the session's family, effort low..max, turn or session scope",
   maxResultSizeChars: 20_000,
   async description() {
     return SET_TIER_TOOL_DESCRIPTION

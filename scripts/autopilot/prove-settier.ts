@@ -2,6 +2,9 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { mkdtempSync as mkScratch } from 'node:fs'
+import { tmpdir as osTmp } from 'node:os'
+import { join as pathJoin } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -12,6 +15,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const proofHome = mkScratch(pathJoin(osTmp(), 'autopilot-proof-'))
+for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = proofHome
+for (const key of ['MERCURY_MODEL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']) delete process.env[key]
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+;(await import('../../src/utils/config.js')).enableConfigs()
 const src = (...p: string[]) =>
   readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
@@ -36,7 +47,7 @@ const {
   TURNS_BETWEEN_SWITCHES,
 } = await import('../../src/utils/autopilot/tierState.js')
 const { getMaxSupportedEffortLevel } = await import('../../src/utils/effort.js')
-const { getDefaultOpusModel, getDefaultSonnetModel } = await import(
+const { getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel } = await import(
   '../../src/utils/model/model.js'
 )
 
@@ -50,8 +61,18 @@ let v = validateTierChange({ scope: 'turn', reason: REASON }, OPUS)
 check('nothing-to-change refused', !v.ok && v.refused.includes('nothing to change'))
 v = validateTierChange({ model: 'sonnet', scope: 'turn', reason: 'x' }, OPUS)
 check('reason floor (surfaced to the operator)', !v.ok && v.refused.includes('reason'))
-v = validateTierChange({ model: 'haiku' as never, scope: 'turn', reason: REASON }, OPUS)
-check('haiku unrepresentable (closed table)', !v.ok && v.refused.includes('closed table'))
+v = validateTierChange({ model: 'haiku', scope: 'turn', reason: REASON }, OPUS)
+check('haiku is a tier key of the first-party family (no closed table)', v.ok && v.applied.model === getDefaultHaikuModel(), JSON.stringify(v))
+resetTierStateForTests()
+v = validateTierChange({ model: 'gpt', scope: 'turn', reason: REASON }, OPUS)
+check("a key of another family is refused naming the session's family and its keys", !v.ok && v.refused.includes('not a tier key of the session') && v.refused.includes('Anthropic') && v.refused.includes('haiku'), JSON.stringify(v))
+resetTierStateForTests()
+v = validateTierChange({ model: 'banana', scope: 'turn', reason: REASON }, OPUS)
+check('an unknown word is refused with the keys listed', !v.ok && v.refused.includes("'banana'") && v.refused.includes('opus'), JSON.stringify(v))
+resetTierStateForTests()
+v = validateTierChange({ model: 'claude-sonnet-5', scope: 'turn', reason: REASON }, OPUS)
+check("an exact id of one of the family's live rows is a key", v.ok && v.applied.model === 'claude-sonnet-5', JSON.stringify(v))
+resetTierStateForTests()
 process.env.MERCURY_AUTOPILOT_MODELS = 'opus,sonnet'
 v = validateTierChange({ model: 'fable', scope: 'turn', reason: REASON }, OPUS)
 check('fable outside a narrowed allowlist refused (names the env)', !v.ok && v.refused.includes('MERCURY_AUTOPILOT_MODELS'))
@@ -91,6 +112,8 @@ v = validateTierChange({ effort: 'max', scope: 'turn', reason: REASON }, OPUS)
 check(`effort-only clamps against the CURRENT model (opus: ${opusCeiling})`, v.ok && v.applied.effort === opusCeiling)
 check('resolveTierKey preserves [1m] posture', resolveTierKey('sonnet', `${OPUS}[1m]`).endsWith('[1m]'))
 check('resolveTierKey plain stays plain', !resolveTierKey('sonnet', OPUS).endsWith('[1m]'))
+check('resolveTierKey carries no [1m] onto a row that serves none (haiku)', !resolveTierKey('haiku', `${OPUS}[1m]`).endsWith('[1m]'))
+check('resolveTierKey leaves an exact id exact', resolveTierKey('claude-sonnet-5', `${OPUS}[1m]`) === 'claude-sonnet-5')
 
 section('§3 the turn slot — thread-keyed apply + revert')
 resetTierStateForTests()
