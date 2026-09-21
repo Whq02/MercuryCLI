@@ -3,7 +3,7 @@
  "note": "contract journey 6 (internal leg) — notes opened with n, typed, exited with Esc (external editor lands at Wave B)",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-21T17:09:43.632Z",
+ "capturedAt": "2026-09-21T19:26:44.534Z",
  "screens": [
   {
    "atMs": 13800,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-4sLpVq · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-z52MSC · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -46,7 +46,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-4sLpVq · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-4sLpVq · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-z52MSC · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -95,7 +95,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-4sLpVq · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 18:09:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:26:22 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 18:09:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 20:26:23 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -149,22 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-4sLpVq                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-z52MSC                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 14765,
-   "frame-recommit": 31
+   "patches": 14939,
+   "frame-recommit": 33
   },
   "frames": {
-   "total": 53,
-   "window": 53,
-   "p50": 1.7366670000010345,
-   "p95": 8.146083999999973,
-   "p99": 27.062874999999963,
-   "maxMs": 27.062874999999963
+   "total": 57,
+   "window": 57,
+   "p50": 1.7649590000000899,
+   "p95": 10.27975000000015,
+   "p99": 29.02145799999994,
+   "maxMs": 29.02145799999994
   }
  },
  "requests": [
@@ -199,23 +199,23 @@
  ],
  "sends": [
   {
-   "atMs": 10892.3819065094,
+   "atMs": 10848.132133483887,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12492.3819065094,
+   "atMs": 12448.132133483887,
    "b64": "DQ=="
   },
   {
-   "atMs": 20492.3819065094,
+   "atMs": 20448.132133483887,
    "b64": "bg=="
   },
   {
-   "atMs": 21492.3819065094,
+   "atMs": 21448.132133483887,
    "b64": "cHJlZmVyIHRoZSBsYXllcmVkIHNoYXBl"
   },
   {
-   "atMs": 23292.3819065094,
+   "atMs": 23248.132133483887,
    "b64": "Gw=="
   }
  ]

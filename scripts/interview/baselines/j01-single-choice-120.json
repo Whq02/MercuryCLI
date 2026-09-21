@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-21T17:05:54.743Z",
+ "capturedAt": "2026-09-21T19:22:55.591Z",
  "screens": [
   {
    "atMs": 12000,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-6hKbYM · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-BXe6KK · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -42,7 +42,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " flux-arena-cwd-6hKbYM · ready                                                                                  ⇧← back",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 18:05:37 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:22:38 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 18:05:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 20:22:38 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
@@ -92,22 +92,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-6hKbYM                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-BXe6KK                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 13148,
-   "frame-recommit": 27
+   "patches": 13206,
+   "frame-recommit": 35
   },
   "frames": {
-   "total": 46,
-   "window": 46,
-   "p50": 0.8261669999992591,
-   "p95": 7.207499999999982,
-   "p99": 25.505750000000035,
-   "maxMs": 25.505750000000035
+   "total": 55,
+   "window": 55,
+   "p50": 1.6975419999998849,
+   "p95": 9.594708999999966,
+   "p99": 38.36004200000002,
+   "maxMs": 38.36004200000002
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 10839.408159255981,
+   "atMs": 11196.884870529175,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12439.408159255981,
+   "atMs": 12796.884870529175,
    "b64": "DQ=="
   }
  ]

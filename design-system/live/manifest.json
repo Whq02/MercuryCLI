@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-  "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
-  "generatedAt": "2026-09-21T16:57:41.508Z",
+  "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+  "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
+  "generatedAt": "2026-09-21T19:14:37.530Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -17,8 +17,8 @@
   "entries": [
     {
       "id": "cockpit-wide--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "cockpit-wide",
       "cols": 120,
       "rows": 40,
@@ -44,17 +44,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:43.520Z"
+      "generatedAt": "2026-09-21T19:11:40.683Z"
     },
     {
       "id": "frame--100x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 100,
       "rows": 30,
@@ -80,17 +81,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:54.538Z"
+      "generatedAt": "2026-09-21T19:10:54.985Z"
     },
     {
       "id": "frame--101x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 101,
       "rows": 30,
@@ -116,17 +118,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:01.560Z"
+      "generatedAt": "2026-09-21T19:11:01.328Z"
     },
     {
       "id": "frame--120x40--dark--256--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -152,17 +155,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:21.441Z"
+      "generatedAt": "2026-09-21T19:14:17.694Z"
     },
     {
       "id": "frame--120x40--dark--ansi--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -188,17 +192,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:28.266Z"
+      "generatedAt": "2026-09-21T19:14:24.046Z"
     },
     {
       "id": "frame--120x40--dark--none--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -224,17 +229,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:34.677Z"
+      "generatedAt": "2026-09-21T19:14:30.398Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -260,17 +266,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:08.415Z"
+      "generatedAt": "2026-09-21T19:11:07.898Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--reduced",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -296,17 +303,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:41.508Z"
+      "generatedAt": "2026-09-21T19:14:37.529Z"
     },
     {
       "id": "frame--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -332,17 +340,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:57.845Z"
+      "generatedAt": "2026-09-21T19:13:54.291Z"
     },
     {
       "id": "frame--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -368,17 +377,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:10.773Z"
+      "generatedAt": "2026-09-21T19:13:07.668Z"
     },
     {
       "id": "frame--120x40--light--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -404,17 +414,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:23.615Z"
+      "generatedAt": "2026-09-21T19:12:20.784Z"
     },
     {
       "id": "frame--120x40--light-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -440,17 +451,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:34.429Z"
+      "generatedAt": "2026-09-21T19:13:31.014Z"
     },
     {
       "id": "frame--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -476,17 +488,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:47.075Z"
+      "generatedAt": "2026-09-21T19:12:44.376Z"
     },
     {
       "id": "frame--149x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 149,
       "rows": 40,
@@ -512,17 +525,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:15.221Z"
+      "generatedAt": "2026-09-21T19:11:14.682Z"
     },
     {
       "id": "frame--150x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 150,
       "rows": 40,
@@ -548,17 +562,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:22.577Z"
+      "generatedAt": "2026-09-21T19:11:21.205Z"
     },
     {
       "id": "frame--151x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 151,
       "rows": 40,
@@ -584,17 +599,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:29.755Z"
+      "generatedAt": "2026-09-21T19:11:27.850Z"
     },
     {
       "id": "frame--160x50--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 160,
       "rows": 50,
@@ -620,17 +636,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:36.722Z"
+      "generatedAt": "2026-09-21T19:11:34.152Z"
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -656,17 +673,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:52:44.415Z"
+      "generatedAt": "2026-09-21T19:09:45.205Z"
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 80,
       "rows": 24,
@@ -692,17 +710,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:03.495Z"
+      "generatedAt": "2026-09-21T19:10:04.219Z"
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -728,17 +747,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:22.572Z"
+      "generatedAt": "2026-09-21T19:10:23.260Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -764,17 +784,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:41.575Z"
+      "generatedAt": "2026-09-21T19:10:42.278Z"
     },
     {
       "id": "help--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "help",
       "cols": 120,
       "rows": 40,
@@ -800,17 +821,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:14.784Z"
+      "generatedAt": "2026-09-21T19:12:12.100Z"
     },
     {
       "id": "resume-2turn--100x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 100,
       "rows": 30,
@@ -836,17 +858,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:58.155Z"
+      "generatedAt": "2026-09-21T19:10:58.163Z"
     },
     {
       "id": "resume-2turn--101x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 101,
       "rows": 30,
@@ -872,17 +895,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:04.984Z"
+      "generatedAt": "2026-09-21T19:11:04.486Z"
     },
     {
       "id": "resume-2turn--120x40--dark--256--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -908,17 +932,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:24.849Z"
+      "generatedAt": "2026-09-21T19:14:20.864Z"
     },
     {
       "id": "resume-2turn--120x40--dark--ansi--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -944,17 +969,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:31.477Z"
+      "generatedAt": "2026-09-21T19:14:27.227Z"
     },
     {
       "id": "resume-2turn--120x40--dark--none--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -980,17 +1006,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:37.880Z"
+      "generatedAt": "2026-09-21T19:14:33.826Z"
     },
     {
       "id": "resume-2turn--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1016,17 +1043,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:11.811Z"
+      "generatedAt": "2026-09-21T19:11:11.282Z"
     },
     {
       "id": "resume-2turn--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1052,17 +1080,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:01.073Z"
+      "generatedAt": "2026-09-21T19:13:57.498Z"
     },
     {
       "id": "resume-2turn--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1088,17 +1117,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:14.179Z"
+      "generatedAt": "2026-09-21T19:13:10.891Z"
     },
     {
       "id": "resume-2turn--120x40--light--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1124,17 +1154,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:26.829Z"
+      "generatedAt": "2026-09-21T19:12:24.002Z"
     },
     {
       "id": "resume-2turn--120x40--light-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1160,17 +1191,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:37.614Z"
+      "generatedAt": "2026-09-21T19:13:34.238Z"
     },
     {
       "id": "resume-2turn--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1196,17 +1228,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:50.487Z"
+      "generatedAt": "2026-09-21T19:12:47.609Z"
     },
     {
       "id": "resume-2turn--149x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 149,
       "rows": 40,
@@ -1232,17 +1265,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:18.668Z"
+      "generatedAt": "2026-09-21T19:11:18.089Z"
     },
     {
       "id": "resume-2turn--150x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 150,
       "rows": 40,
@@ -1268,17 +1302,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:26.272Z"
+      "generatedAt": "2026-09-21T19:11:24.549Z"
     },
     {
       "id": "resume-2turn--151x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 151,
       "rows": 40,
@@ -1304,17 +1339,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:33.314Z"
+      "generatedAt": "2026-09-21T19:11:30.978Z"
     },
     {
       "id": "resume-2turn--160x50--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 160,
       "rows": 50,
@@ -1340,17 +1376,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:54:40.131Z"
+      "generatedAt": "2026-09-21T19:11:37.287Z"
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1376,17 +1413,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:52:53.933Z"
+      "generatedAt": "2026-09-21T19:09:54.709Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 80,
       "rows": 24,
@@ -1412,17 +1450,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:13.019Z"
+      "generatedAt": "2026-09-21T19:10:13.731Z"
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1448,17 +1487,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:32.082Z"
+      "generatedAt": "2026-09-21T19:10:32.790Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "resume-2turn",
       "cols": 99,
       "rows": 30,
@@ -1484,17 +1524,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:53:51.081Z"
+      "generatedAt": "2026-09-21T19:10:51.778Z"
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1520,17 +1561,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:00.349Z"
+      "generatedAt": "2026-09-21T19:11:57.528Z"
     },
     {
       "id": "sessions--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1556,17 +1598,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:57:17.987Z"
+      "generatedAt": "2026-09-21T19:14:14.277Z"
     },
     {
       "id": "sessions--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1592,17 +1635,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:31.015Z"
+      "generatedAt": "2026-09-21T19:13:27.756Z"
     },
     {
       "id": "sessions--120x40--light--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1628,17 +1672,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:43.652Z"
+      "generatedAt": "2026-09-21T19:12:40.906Z"
     },
     {
       "id": "sessions--120x40--light-ansi--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1664,17 +1709,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:54.431Z"
+      "generatedAt": "2026-09-21T19:13:51.085Z"
     },
     {
       "id": "sessions--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1700,17 +1746,18 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:56:07.330Z"
+      "generatedAt": "2026-09-21T19:13:04.459Z"
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
-      "sourceSha": "33fc2993153bb939778f1673802253e3f33b96ab",
-      "buildDigest": "2a97da06de70c4f6c9cc337779fd53dc47f9cd85",
+      "sourceSha": "33554901938f6d3e57a8d97d14e60ae147a50eee",
+      "buildDigest": "b00d894f51bcfee0de1223a90f9cfb694c8f9436",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1736,12 +1783,13 @@
         "⌥ ?\\S+ *",
         "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
         "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-21T16:55:20.145Z"
+      "generatedAt": "2026-09-21T19:12:17.578Z"
     }
   ]
 }
