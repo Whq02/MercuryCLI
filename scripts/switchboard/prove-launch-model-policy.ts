@@ -52,7 +52,7 @@ section('§1 — the seed: the operator’s own row, or a visible one')
   const available = { session: { availability: 'available' }, crew: { availability: 'available' } } as const
   const refusedBothArms = {
     session: { availability: 'refused', refusal: 'no-credential:anthropic' },
-    crew: { availability: 'refused', refusal: 'worker-policy:frontier-only' },
+    crew: { availability: 'refused', refusal: 'no-credential:anthropic' },
   } as const
   const operatorRow: Entry = { modelId: 'claude-opus-5', displayName: 'Opus 5', ...available, effort: 'high', isOperatorDefault: true }
   const pricier: Entry = { modelId: 'claude-fable-5', displayName: 'Fable 5', ...available, effort: 'high' }

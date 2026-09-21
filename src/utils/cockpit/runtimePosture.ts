@@ -2,7 +2,6 @@
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
-import { NEVER_HAIKU_FALLBACK } from '../model/modelFloor.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks } from '../../bootstrap/state.js'
 
@@ -72,10 +71,6 @@ export function getRuntimePostureSection(): string | null {
       : '- Team tooling (swarms): off for this process.',
   )
 
-  lines.push(
-    `- Agent-model floor: an agent selected at the Haiku tier runs on ${NEVER_HAIKU_FALLBACK} instead; the launch result reports that adjustment.`,
-  )
-
   memo = lines.join('\n')
   return memo
 }
@@ -85,7 +80,7 @@ export function getRuntimePostureDoctrineLine(): string | null {
   const denyClause = nonInteractive
     ? 'this process is HEADLESS — an unanswerable permission ask is an automatic DENY; treat a denied tool as policy, not failure, and say so instead of retrying'
     : 'a denied tool call may be permission policy, not tool failure — say which it was'
-  return `Runtime posture: ${denyClause}; a file-lease denial means another agent holds those paths (coordinate, do not force); Haiku-tier spawns are floored to ${NEVER_HAIKU_FALLBACK}.`
+  return `Runtime posture: ${denyClause}; a file-lease denial means another agent holds those paths (coordinate, do not force).`
 }
 
 export function resetRuntimePostureForTest(): void {

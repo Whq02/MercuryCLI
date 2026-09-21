@@ -36,9 +36,6 @@ const DESC: Record<string, { effect: string; risk?: string }> = {
     effect: "A running skill's declared tool allowlist merges into the session.",
     risk: 'A skill can quietly widen what runs without a prompt.',
   },
-  'Model floor (never Haiku)': {
-    effect: 'Any agent spawn that resolves to Haiku is upgraded to Sonnet-5.',
-  },
   'relevant-recall': {
     effect: 'Surfaces only the memory notes relevant to your task, not all of them.',
     risk: 'May skip a note if it misjudges relevance.',

@@ -4,7 +4,6 @@ import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, resetComputedDefaultMemo,
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
-  | 'worker-policy:frontier-only'
   | `no-credential:${string}`
   | `unreachable:${string}`
   | 'withdrawn-at-provider'
@@ -32,9 +31,6 @@ export interface WorkerModelRegistryV1 {
 }
 
 const WORKER_MODEL_LEGACY_KEY_NAMES = new Set(['opus', 'sonnet', 'fable', 'fable51'])
-
-const FRONTIER_FAMILY = /^claude-(opus|sonnet|fable)-/
-const ECONOMY_FAMILY = /^claude-haiku|^claude-\d+-haiku|haiku/i
 
 const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'])
 export function loginsActionFor(family: string): string {
@@ -185,17 +181,6 @@ function composeArms(
           detail: `the ${route} family holds no credential on this account`,
           action: noCredentialAction(route),
         }
-  if (ECONOMY_FAMILY.test(modelId)) {
-    return {
-      session,
-      crew: {
-        availability: 'refused',
-        refusal: 'worker-policy:frontier-only',
-        detail: 'crew seats run the frontier rows',
-        action: "pick a frontier row for the crew seat — a family word ('anthropic', 'openai', …) picks that family's newest signed-in row",
-      },
-    }
-  }
   return { session, crew: session }
 }
 

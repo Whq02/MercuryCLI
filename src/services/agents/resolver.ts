@@ -13,7 +13,7 @@ import {
   resolveEffortTruth,
 } from '../../utils/effort.js'
 import {
-  getAgentModelWithFloorNote,
+  getAgentModel,
   getDefaultSubagentModel,
 } from '../../utils/model/agent.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
@@ -94,7 +94,6 @@ export function resolveAgentEstate(
 export type EffectiveAgentRuntime = {
   modelIntent: string
   model: string
-  flooredFrom?: string
   effortIntent?: EffortValue
   effort: EffortResolution
   tools?: ResolvedAgentTools
@@ -112,7 +111,7 @@ export function resolveEffectiveAgentRuntime(
   },
 ): EffectiveAgentRuntime {
   const modelIntent = agent.model ?? getDefaultSubagentModel()
-  const { model, flooredFrom } = getAgentModelWithFloorNote(
+  const model = getAgentModel(
     agent.model,
     ctx.parentModel,
     undefined,
@@ -125,7 +124,6 @@ export function resolveEffectiveAgentRuntime(
   return {
     modelIntent,
     model,
-    ...(flooredFrom !== undefined ? { flooredFrom } : {}),
     ...(agent.effort !== undefined ? { effortIntent: agent.effort } : {}),
     effort,
     ...(ctx.tools !== undefined

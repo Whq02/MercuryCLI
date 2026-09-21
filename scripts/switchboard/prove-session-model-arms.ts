@@ -91,7 +91,7 @@ section('§1 — the session arm: pure product capability')
   check('…with an actionable line', !junk.ok && typeof junk.action === 'string' && junk.action.length > 0, text(junk))
 }
 
-section('§2 — the crew arm: the bounded vocabulary (THE arm separator)')
+section('§2 — the crew arm: the same vocabulary, row for row')
 {
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'crew')
   check('an Anthropic frontier id validates ok for a crew seat', fable.ok, text(fable))
@@ -101,9 +101,8 @@ section('§2 — the crew arm: the bounded vocabulary (THE arm separator)')
     glm.ok, text(glm))
 
   const haiku = await wm.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
-  check('haiku refuses on the CREW arm — the never-Haiku law binds autonomous crew',
-    !haiku.ok && haiku.reason === 'worker-policy:frontier-only', text(haiku))
-  check('…with the crew action named', !haiku.ok && String(haiku.action ?? '').length > 0, text(haiku))
+  check('haiku validates ok on the CREW arm too — a crew seat runs every row a session runs', haiku.ok, text(haiku))
+  check('…and its row paints crew-available', row('claude-haiku-4-5-20251001')?.crew.availability === 'available', text(row('claude-haiku-4-5-20251001')))
 }
 
 section('§3 — display ≡ dispatch, row by row, per arm')
@@ -325,7 +324,7 @@ section("§8 — the refusal's action names the family's OWN /logins word")
   check('a credentialed default provider drifts nothing (the launch never fell through it)', wm.defaultProviderDriftNote('no-credential:anthropic', 'openrouter', f => f === 'openrouter') === undefined)
   check('no recorded default provider drifts nothing', wm.defaultProviderDriftNote('no-credential:anthropic', undefined, () => false) === undefined)
   check('the same family drifts nothing (the fall-through is the truth already)', wm.defaultProviderDriftNote('no-credential:openrouter', 'openrouter', () => false) === undefined)
-  check('a non-credential refusal drifts nothing', wm.defaultProviderDriftNote('worker-policy:frontier-only', 'openrouter', () => false) === undefined)
+  check('a non-credential refusal drifts nothing', wm.defaultProviderDriftNote('unknown-model', 'openrouter', () => false) === undefined)
 }
 
 try {

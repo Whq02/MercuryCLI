@@ -14,7 +14,7 @@ import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import { TEAM_CREATE_TOOL_NAME } from '../../tools/TeamCreateTool/constants.js'
 import { TEAM_DELETE_TOOL_NAME } from '../../tools/TeamDeleteTool/constants.js'
-import { getAgentModelWithFloorNote } from '../model/agent.js'
+import { getAgentModel } from '../model/agent.js'
 import type { ModelAlias } from '../model/aliases.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import {
@@ -50,7 +50,6 @@ export type AgentLaunchPlan = {
   definition: AgentDefinition
   isForkPath: boolean
   model: string
-  flooredFrom?: string
   modelNote?: string
   isolation?: string
   shouldRunAsync: boolean
@@ -118,23 +117,18 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     }
   }
 
-  const { model, flooredFrom } = getAgentModelWithFloorNote(
+  const model = getAgentModel(
     definition.model,
     i.mainLoopModel,
     isForkPath ? undefined : i.modelParam,
     i.permissionMode,
   )
-  const modelNote = flooredFrom
-    ? `note: the requested model resolved to '${flooredFrom}', below Mercury's never-Haiku floor — the agent is running on '${model}' (Mercury's agent-model rule).`
-    : undefined
 
   return {
     agentType: definition.agentType,
     definition,
     isForkPath,
     model,
-    flooredFrom,
-    modelNote,
     isolation: i.isolationParam ?? definition.isolation,
     shouldRunAsync:
       (i.runInBackground === true ||

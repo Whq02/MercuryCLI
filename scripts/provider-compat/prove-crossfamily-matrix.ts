@@ -694,7 +694,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
 {
   const engine = await import('../../src/utils/swarm/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
-  const { enforceSubagentModelFloor, isHaikuTier } = await import('../../src/utils/model/modelFloor.ts')
+  const { getAgentModel } = await import('../../src/utils/model/agent.ts')
 
   const CLASS_TO_ROUTE: Record<string, string> = {
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek',
@@ -750,10 +750,9 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const anthropicPass = await engine.resolveEngineDispatch('claude-sonnet-5')
   check('an anthropic id stays outside the engine grammar (null — the home lane untouched)', anthropicPass === null)
 
-  check('the floor still floors anthropic haiku spellings', enforceSubagentModelFloor('haiku', 'cf-test') === 'claude-sonnet-5' && isHaikuTier('claude-haiku-4-5-20251001'))
+  check('an anthropic haiku spelling resolves to the haiku row', /haiku/.test(getAgentModel('haiku', 'claude-opus-5')))
   for (const foreign of ['huggingface/TheDrummer/Haiku-RP-12B', 'local/haiku-13b', 'openrouter/thedrummer/haiku-writer']) {
-    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`,
-      !isHaikuTier(foreign) && enforceSubagentModelFloor(foreign, 'cf-test') === foreign)
+    check(`a foreign '${foreign.split('/')[0]}' id named haiku rides untouched`, getAgentModel(foreign, 'claude-opus-5') === foreign)
   }
 }
 

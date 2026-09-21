@@ -15,7 +15,6 @@ import { errorMessage } from '../../utils/errors.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { describeAgentRuntimeRef, type AgentRuntimeRef } from '../../services/providers/primaryBackend.js'
-import { enforceSubagentModelFloor } from '../../utils/model/modelFloor.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import { assertSpawnCwd, recordSpawn, SPAWNED_BY_ENV, spawnedByStamp } from '../../utils/spawnLedger.js'
 import {
@@ -101,15 +100,11 @@ export function resolveTeammateModel(
   inputModel: string | undefined,
   leaderModel: string | null,
 ): string {
-  let resolved: string
   if (inputModel === 'inherit') {
-    resolved = leaderModel ?? defaultTeammateModel(leaderModel)
-  } else if (inputModel === undefined) {
-    resolved = defaultTeammateModel(leaderModel)
-  } else {
-    resolved = inputModel
+    return leaderModel ?? defaultTeammateModel(leaderModel)
   }
-  return enforceSubagentModelFloor(resolved, 'spawnTeammate')
+  if (inputModel === undefined) return defaultTeammateModel(leaderModel)
+  return inputModel
 }
 
 

@@ -35,7 +35,7 @@ section('the ladder never throws — before configs are allowed, a NAMED key ans
   try { early = await cs.resolveCrewSeatModel('sonnet') } catch (e) { threw = String(e) }
   check('a named key with configs not yet allowed answers a typed value, never a throw up the control socket', threw === '' && early !== null && (early.ok ? /sonnet/.test(early.model) : /^model refused \(/.test(early.error)), threw || JSON.stringify(early))
   const earlyHaiku = await cs.resolveCrewSeatModel('haiku')
-  check('…and the never-Haiku floor answers pure ahead of the registry, configs or not', !earlyHaiku.ok && /worker-policy:frontier-only/.test(earlyHaiku.error ?? ''), earlyHaiku.ok ? 'ok' : earlyHaiku.error)
+  check("…and 'haiku' answers typed too (the registry's own verdict, never a pure refusal of its tier)", earlyHaiku.ok || (/^model refused \(/.test(earlyHaiku.error) && !/frontier-only/.test(earlyHaiku.error)), earlyHaiku.ok ? 'ok' : earlyHaiku.error)
 }
 ;(await import('../../src/utils/config.js')).enableConfigs()
 ;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
@@ -71,8 +71,8 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   })
 
   setStamp(false)
-  const bareStampProbe = await handler('atlas', 'haiku')
-  check('bare stamp ⇒ gate passes (the never-Haiku floor refuses pure, not the disabled refusal)', !bareStampProbe.ok && /worker-policy:frontier-only/.test(bareStampProbe.error ?? '') && /opus/.test(bareStampProbe.error ?? ''), bareStampProbe.error ?? '')
+  const bareStampProbe = await handler('atlas', 'no-such-model-zz')
+  check('bare stamp ⇒ gate passes (the registry refuses the unknown model, not the disabled refusal)', !bareStampProbe.ok && /model refused/.test(bareStampProbe.error ?? '') && !/MERCURY_CREW=0/.test(bareStampProbe.error ?? ''), bareStampProbe.error ?? '')
   setStamp(true)
   process.env.MERCURY_CREW = '0'
   const killed = await handler('atlas', 'sonnet')
@@ -83,8 +83,10 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   check('bad name ⇒ allowlist refusal', !badName.ok && /invalid agent name/.test(badName.error ?? ''))
   const reserved = await handler('tank', 'sonnet')
   check("reserved name 'tank' refused", !reserved.ok && /invalid agent name/.test(reserved.error ?? ''))
-  const badModel = await handler('atlas', 'haiku')
-  check("model 'haiku' ⇒ the never-Haiku floor refuses pure (no registry, no config), naming the frontier rows", !badModel.ok && /worker-policy:frontier-only/.test(badModel.error ?? '') && /opus/.test(badModel.error ?? ''), badModel.error ?? '')
+  const badModel = await handler('atlas', 'no-such-model-zz')
+  check('an unknown model ⇒ the registry refuses typed, naming the rows it has', !badModel.ok && /model refused/.test(badModel.error ?? '') && /opus/i.test(badModel.error ?? ''), badModel.error ?? '')
+  const haikuSeat = await cs.resolveCrewSeatModel('haiku')
+  check("model 'haiku' ⇒ seats the haiku row like any row the account runs (no tier is refused)", haikuSeat.ok === true && /haiku/.test(haikuSeat.ok ? haikuSeat.model : ''), JSON.stringify(haikuSeat))
   const noRoster = await cs.makeCrewSpawnHandler({ roster: () => undefined, dir: scratch, onSpawned: () => {} })('atlas', 'sonnet')
   check('roster not ready ⇒ honest refusal', !noRoster.ok && /not ready/.test(noRoster.error ?? ''))
 

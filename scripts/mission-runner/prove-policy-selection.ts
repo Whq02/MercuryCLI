@@ -36,7 +36,7 @@ check('at most six profiles', MISSION_PROFILES.length <= 6, String(MISSION_PROFI
 const digests = MISSION_PROFILES.map(missionProfileDigest)
 check('profile digests distinct + shaped', new Set(digests).size === digests.length && digests.every(d => /^mp1-[0-9a-f]{16}$/.test(d)))
 check('digest is stable', missionProfileDigest(MISSION_PROFILES[0]) === digests[0])
-check('nothing below the model floor', !JSON.stringify(MISSION_PROFILES).toLowerCase().includes('haiku'))
+check('no profile names the small tier', !JSON.stringify(MISSION_PROFILES).toLowerCase().includes('haiku'))
 
 const pinned = selectMissionPolicy({ ...base, fingerprint: fp(), pin: 'routed-wide' })
 check('pin wins and is recorded', pinned.profile.id === 'routed-wide' && pinned.source === 'operator-pin' && pinned.reasonCodes.includes('pin-wins'))

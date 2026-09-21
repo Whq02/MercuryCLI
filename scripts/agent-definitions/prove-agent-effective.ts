@@ -64,15 +64,14 @@ let result = await getAgentDefinitionsWithOverrides(project)
 const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
 
 {
-  console.log('E1: never-Haiku floor is visible truth')
+  console.log('E1: a haiku intent applies as the haiku row')
   const agent = byName('foundry-haiku-wants')!
   const eff = resolveEffectiveAgentRuntime(agent, {
     parentModel: PARENT,
     sessionEffort: undefined,
   })
   check('raw intent retained', eff.modelIntent === 'haiku')
-  check('applied model is not haiku', !eff.model.includes('haiku'), eff.model)
-  check('floor firing named', eff.flooredFrom !== undefined, String(eff.flooredFrom))
+  check('applied model is the haiku row', eff.model.includes('haiku'), eff.model)
 }
 
 {
@@ -211,8 +210,8 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   )
   const launchPlan = readFileSync('src/utils/swarm/agentLaunchPlan.ts', 'utf-8')
   check(
-    "the plan resolves the definition's model under the caller's parameter (the one floor-noted ladder)",
-    /getAgentModelWithFloorNote\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
+    "the plan resolves the definition's model under the caller's parameter (the one ladder)",
+    /getAgentModel\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
   )
 }
 

@@ -300,7 +300,7 @@ export function StudioEditor({
         <Text>
           <Text color={FAINT}>{'effective    '}</Text>
           <Text color={TEAL}>
-            {`${effective.model}${effective.flooredFrom ? ` (floored from ${effective.flooredFrom})` : ''} · ${effective.effort.supportsEffort ? `effort ${effective.effort.label}` : effective.effort.label}${effective.effort.adjustedFrom ? ` (requested ${effective.effort.adjustedFrom})` : ''}`}
+            {`${effective.model} · ${effective.effort.supportsEffort ? `effort ${effective.effort.label}` : effective.effort.label}${effective.effort.adjustedFrom ? ` (requested ${effective.effort.adjustedFrom})` : ''}`}
           </Text>
         </Text>
         {availability !== null ? (

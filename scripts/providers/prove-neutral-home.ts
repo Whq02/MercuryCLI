@@ -377,7 +377,7 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   check('…and no family word rides it', ruled !== undefined && !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(`${ruled.detail} ${ruled.action}`), JSON.stringify(ruled))
   check('a recorded default is the drift note\'s case, not this one', wm.noAccountRefusal('no-credential:anthropic', 'openrouter', false) === undefined)
   check('any credentialed family means the launch lands there — never this refusal', wm.noAccountRefusal('no-credential:anthropic', undefined, true) === undefined)
-  check('a non-credential refusal is untouched', wm.noAccountRefusal('worker-policy:frontier-only', undefined, false) === undefined)
+  check('a non-credential refusal is untouched', wm.noAccountRefusal('unknown-model', undefined, false) === undefined)
 
   rmSync(join(home, 'settings.json'), { force: true })
   resetSettingsCache()
