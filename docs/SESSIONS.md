@@ -201,7 +201,10 @@ ctrl+v there, and an image-only clipboard gives it nothing to paste); drag
 an image file onto the terminal; or paste its path. Each attaches as an
 `[Image #N]` chip, saved under its own name in the session's image store
 for the session's life, and the composer says what was attached — its size,
-and what it was shrunk to when the provider's limits asked for it. Copy an
+and what it was shrunk to when the provider's limits asked for it. An image
+sent while a turn is still running rides as a reference to that file, and
+every later request reads its bytes back from the store, a session brought
+back included. Copy an
 image and come back to Mercury and it tells you the key. An image is never
 refused for its size: it is shrunk to the provider's published limits
 (`/health` names the image processor on this machine); the one refusal
