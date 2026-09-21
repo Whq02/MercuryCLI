@@ -192,6 +192,7 @@ import { renderModelName } from '../../utils/model/model.js'
 import {
   capFailoverLaneOf,
   capHandoffState,
+  capLaneLineCut,
   capLaneLineKey,
   capLaneLineUntil,
   capLaneLineWords,
@@ -2470,6 +2471,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const capLaneStanding = capLaneUntil !== null && Date.now() < capLaneUntil
   useNowTick(capLaneStanding ? 1000 : null)
   const capLaneLine = capLaneStanding && capLaneFacts !== null ? capLaneLineWords(capLaneFacts) : null
+  const capLaneCut = capLaneLine !== null && isCompact ? capLaneLineCut(capLaneLine, columns - 1) : null
   if (externalEditorActive) {
     return (
       <Box
@@ -2895,9 +2897,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       <Box flexDirection="column" maxHeight={isCompact ? Math.ceil(compactTransientRows / 2) : undefined} overflow="hidden">
       <IssueFlagBanner />
       {capLaneLine !== null ? (
-        <Box paddingLeft={1}>
-          <Text color={AMBER}>{capLaneLine}</Text>
-        </Box>
+        capLaneCut !== null ? (
+          <Box paddingLeft={1}>
+            <Box width={capLaneCut.bodyColumns} flexShrink={0} minWidth={0}>
+              <Text color={AMBER} wrap="truncate-end">{capLaneCut.body}</Text>
+            </Box>
+            <Box flexShrink={0}>
+              <Text color={AMBER}>{capLaneCut.tail}</Text>
+            </Box>
+          </Box>
+        ) : (
+          <Box paddingLeft={1}>
+            <Text color={AMBER}>{capLaneLine}</Text>
+          </Box>
+        )
       ) : null}
       {hasSuppressedDialogs ? (
         <Box marginTop={isCompact ? 0 : 1} marginLeft={isCompact ? 0 : 2}>
