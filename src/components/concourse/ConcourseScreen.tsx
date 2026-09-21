@@ -50,7 +50,7 @@ import { ManagerAskCard, ManagerPlanCard, ManagerSeatAskCard } from './ManagerCa
 import { ContractOfferCard } from './ContractOfferCard.js';
 import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { RowPickModal } from './RowPickModal.js';
-import { MercuryModelDefaultPicker } from '../../commands/model/mercuryModel.js';
+import { MercuryModelDefaultPicker, MercurySessionModelPicker } from '../../commands/model/mercuryModel.js';
 import { ModalContext } from '../../context/modalContext.js';
 import { SessionMirror } from './SessionMirror.js'
 import { askTileCopy, useLiveTile, useWorkChip } from './liveTiles.js';
@@ -2528,23 +2528,46 @@ export function ConcourseScreen({
       {trustAsk !== null ? (
         <TrustAskModal cols={cols} rows={termRows} dir={trustAsk.dir} onAnswer={answerTrustAsk} />
       ) : null}
-      {rowPick !== null ? (
+      {rowPick !== null && rowPick.kind === 'model' ? (
+        <Box
+          position="absolute"
+          top={Math.max(0, geo.mainBand[0] - 1)}
+          left={Math.max(0, Math.floor((cols - panelWidth(cols, { cap: 62, reserve: 2, min: 20 })) / 2))}
+          width={Math.min(cols, panelWidth(cols, { cap: 62, reserve: 2, min: 20 }))}
+          flexDirection="column"
+          opaque
+        >
+          <ModalContext.Provider value={{ rows: geo.mainRows, columns: cols, scrollRef: null }}>
+            <MercurySessionModelPicker
+              currentModel={sessionRows.find(r => r.sessionId === rowPick.sessionId)?.modelId}
+              currentEffort={undefined}
+              onSelect={(id, label) => {
+                const target = rowPick
+                setRowPick(null)
+                callbacks.setSessionModel?.(target.sessionId, id, label)
+              }}
+              onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}
+              onDone={() => setRowPick(null)}
+              onSignIn={() => {
+                setRowPick(null)
+                callbacks.enterBootSettings()
+              }}
+            />
+          </ModalContext.Provider>
+        </Box>
+      ) : null}
+      {rowPick !== null && rowPick.kind === 'effort' ? (
         <RowPickModal
           cols={cols}
           rows={termRows}
-          titlePrefix={rowPick.kind === 'model' ? 'MODEL' : 'EFFORT'}
+          titlePrefix="EFFORT"
           title={rowPick.title}
-          legend={rowPick.kind === 'model' ? '↵ switches this session · esc keeps the model' : "↵ sets this session's effort · esc keeps it"}
-          options={
-            rowPick.kind === 'model'
-              ? (snapshot.newSession.modelOptions ?? []).map(o => ({ id: o.modelId, label: o.displayName }))
-              : EFFORT_LEVELS.map(l => ({ id: l, label: l }))
-          }
-          onPick={(id, label) => {
+          legend="↵ sets this session's effort · esc keeps it"
+          options={EFFORT_LEVELS.map(l => ({ id: l, label: l }))}
+          onPick={id => {
             const target = rowPick
             setRowPick(null)
-            if (target.kind === 'model') callbacks.setSessionModel?.(target.sessionId, id, label)
-            else callbacks.setSessionEffort?.(target.sessionId, id)
+            callbacks.setSessionEffort?.(target.sessionId, id)
           }}
           onClose={() => setRowPick(null)}
         />

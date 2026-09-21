@@ -861,6 +861,62 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   )
 }
 
+export function MercurySessionModelPicker({
+  currentModel,
+  currentEffort,
+  onSelect,
+  onEffort,
+  onDone,
+  onSignIn,
+}: {
+  currentModel: string | undefined
+  currentEffort: string | undefined
+  onSelect: (modelId: string, displayName: string) => void
+  onEffort: (effort: string) => void
+  onDone: () => void
+  onSignIn?: () => void
+}): React.ReactNode {
+  useCatalogueEpoch()
+  const betas = getSdkBetas()
+  const model = currentModel ?? nextBirthModel() ?? getMainLoopModel()
+  const efforts = modelSupportsEffort(model)
+    ? [...selectableEffortLevels(model), ...(modelSupportsMaxEffort(model) ? ['supercode'] : [])]
+    : []
+  const [effort, setEffort] = React.useState<string>(() => currentEffort ?? getDisplayedEffortLabel(model, getInitialEffortSetting()))
+  const [slotVersion, setSlotVersion] = React.useState(0)
+  void slotVersion
+  const options = getModelOptions()
+  const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  function handleEffort(mode: string): void {
+    setEffort(mode)
+    onEffort(mode)
+  }
+  function handleSelect(id: string): void {
+    if (isCatalogueDoorRow(id)) return
+    if (isProviderActionRow(id)) {
+      onSignIn?.()
+      return
+    }
+    onSelect(id, models.find(m => m.id === id)?.name ?? id)
+    onDone()
+  }
+  return (
+    <MercuryModelPicker
+      models={models}
+      current={resolveCurrentRowId(models, model)}
+      ctxPct={null}
+      efforts={efforts}
+      effort={effort}
+      onEffort={handleEffort}
+      groupDetails={groupDetailsOf(seatDetailOf)}
+      onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
+      expandRows={group => expandRowsOf(group, betas)}
+      onSelect={handleSelect}
+      onClose={onDone}
+    />
+  )
+}
+
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   if (args?.trim()) {
     const base = await import('./model.js')

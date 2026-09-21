@@ -59,7 +59,7 @@ const SCENES: Scene[] = [
     ready: { text: 'Doctor / Health Check', stable: 3 },
     once: ['Doctor / Health Check', 'New Session'], keep: ['Doctor / Health Check'],
     key: { data: DOWN, expect: 'changes' },
-    root: /↵ start\s+·\s+m menu/,
+    root: /↵ start\s+·\s+↑↓ choose/,
   },
   {
     name: 'boot-settings', base: 'boot-settings', world: 'face',
@@ -68,7 +68,7 @@ const SCENES: Scene[] = [
     ready: { text: 'boot menu', stable: 3 },
     once: ['boot menu'], keep: ['boot menu', 'Content-rule wards'],
     key: { data: ESC, expect: 'closes' },
-    root: /↵ start\s+·\s+m menu|esc back/,
+    root: /↵ start\s+·\s+↑↓ choose|esc back/,
   },
   {
     name: 'chat-idle', base: 'cockpit-wide', world: 'chat',

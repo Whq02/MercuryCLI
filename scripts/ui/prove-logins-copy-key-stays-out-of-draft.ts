@@ -44,7 +44,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOLDER])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const ROSTER_LEGEND = '↑↓ move · ↵ sign in · esc back'
 const CARD_FIELD = 'Paste code here if prompted >'

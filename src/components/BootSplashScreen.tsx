@@ -153,7 +153,7 @@ export function BootSplashScreen(): React.ReactNode {
   const concourseLive = routeSurfaceRegistered('concourse');
   const plainWhy = plainWorldWhy();
   const chatBoot = stripFacts().chatBoot;
-  const modelDefaultDoor = chatBoot && sessionDefaultsKeyOn();
+  const modelDefaultDoor = sessionDefaultsKeyOn();
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const stripHint = stripKeyMapHint();
   const keyMapHint = modelDefaultDoor && stripHint !== '' ? `${stripHint} · m ${SESSION_DEFAULTS_KEY_HINT}` : stripHint;

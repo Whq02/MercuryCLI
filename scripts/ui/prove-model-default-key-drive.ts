@@ -218,18 +218,18 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(closed, '>_ ready'))
 }
 
-section('§3 the face outside --chat: m menu stays and m opens the Boot Menu, as shipped')
+section('§3 the face outside --chat: the same door — m menu gone from the hint row, the bottom row names m, m opens the picker')
 {
   const home = seededHome('face')
   const c = capture('face', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-    { requireAwait: true, awaitText: 'CONTROL PLANE', awaitStableTicks: 3, mark: 'menu', data: '' },
-  ], { total: 200, ready: ['CONTROL PLANE'] })
+    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: '' },
+  ], { total: 200, ready: ['esc close'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const face = c.marks.get('face') ?? []
-  check('the hint row keeps m menu', trimmedRow(face, '>_ ready') === FULL_HINT, trimmedRow(face, '>_ ready'))
-  check('the bottom row names the concourse alone', trimmedRow(face, '⇧→') === '⇧→ concourse', trimmedRow(face, '⇧→'))
-  check('m opens the Boot Menu', (c.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+  check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
+  check('the bottom row names the concourse and m', trimmedRow(face, '⇧→') === `⇧→ concourse · ${PHRASE}`, trimmedRow(face, '⇧→'))
+  check('m opens the picker over the face', (c.marks.get('picker') ?? []).some(l => l.includes('CHOOSE A MODEL')))
 }
 
 section("§4 the chat's /model: the picker without its frontier rows")

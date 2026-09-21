@@ -43,7 +43,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOLDER])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CHIP = 'mouse off — native copy sweeps rails'
 const WARM_TICKS = 25

@@ -58,7 +58,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [WORK])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CONSENT_ACCEPT = 'Yes, I accept'
 const BOARD_EMPTY = 'no sessions running'
