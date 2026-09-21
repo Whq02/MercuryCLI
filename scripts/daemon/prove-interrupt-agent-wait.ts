@@ -208,7 +208,7 @@ console.log('\nA5 the wiring — runner to glass (structural)')
   const repl = read('src/screens/REPL.tsx')
   check("the REPL speaks the wait in the seat's own words first, then the crew owner's (the way out rides the esc ladder owner), and never maps the waiting phase onto the thinking mode", /seatLive\.phase === 'waiting'\s*\n?\s*\? \(\(seatLive\.waitingOn !== undefined \? workWaitingWords\(seatLive\.waitingOn\) : null\) \?\? crewWaitingWords\(seatLive\.agentsWaiting\) \?\? 'waiting on agents'\)/.test(repl) && !/'waiting'\s*\?\s*'thinking'/.test(repl))
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
-  check("the status row spells the wait through the crew owner too (one spelling)", /crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on agents'/.test(tagBar) && /escRungHint\(escRungOf\(/.test(tagBar))
+  check("the status row spells the wait through the crew owner too (one spelling)", /crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on agents'/.test(tagBar) && /const rung = escRungOf\(/.test(tagBar) && /escRungHint\(rung\)/.test(tagBar))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check("the live-phase vocabulary carries 'waiting' with its count", /'waiting' \| 'idle'/.test(seatLive) && /agentsWaiting: number/.test(seatLive))
 }
