@@ -25,6 +25,7 @@ import type {
 } from '../../types/message.js'
 import { normalizeToolInput, normalizeToolInputForAPI } from '../api.js'
 import { contentBlocksOf } from './normalize.js'
+import { STRIPPED_ADMISSION_RECORD_TEXT } from '../../tools/ToolSearchTool/prompt.js'
 import { logForDebugging } from '../debug.js'
 import { validateImagesForAPI } from '../imageValidation.js'
 import { safeParseJSON } from '../json.js'
@@ -204,7 +205,7 @@ export function stripToolReferenceBlocksFromUserMessage(
             content: [
               {
                 type: 'text' as const,
-                text: '[Tool references removed - tool search not enabled]',
+                text: STRIPPED_ADMISSION_RECORD_TEXT,
               },
             ],
           }
