@@ -674,6 +674,14 @@
         "full"
       ]
     },
+    "firstRunCards": {
+      "description": "Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone",
+      "type": "string",
+      "enum": [
+        "centred",
+        "top-left"
+      ]
+    },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },

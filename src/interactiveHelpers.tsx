@@ -247,6 +247,7 @@ export async function showSetupScreens(
         <MercurySetupFrame
           title={onboardingShown ? 'first run' : 'Workspace trust'}
           tone="trust"
+          firstRunCard
           steps={steps}
           stepTag={`trust · ${steps.length}/${steps.length}`}
           footer="↑↓ move · ↵ select · esc exit"

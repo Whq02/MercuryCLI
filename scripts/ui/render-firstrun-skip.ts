@@ -33,7 +33,7 @@ type Send = {
 }
 
 const WALK_TO_TERMINAL: Send[] = [
-  { requireAwait: true, awaitText: 'welcome — pick our colors', awaitSettleTicks: 4, data: '\r' },
+  { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 4, data: '\r' },
   { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 3, data: '\x1b[B' },
   ...Array.from({ length: 8 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
   { afterPrevTicks: 3, data: '\r' },
@@ -123,8 +123,8 @@ console.log('============================================================')
 
 for (const cols of [100, 120]) {
   console.log(`\n  ── A · the trust station continues the shrunken rail @ ${cols} ──`)
-  const grid = drive('trust', cols, WALK_TO_TERMINAL, ['Is this a project you created'], 200)
-  check(`@${cols}: the trust dialog paints after the credential-free walk`, grid.includes('Is this a project you created'))
+  const grid = drive('trust', cols, WALK_TO_TERMINAL, ['Do you trust this folder?'], 200)
+  check(`@${cols}: the trust dialog paints after the credential-free walk`, grid.includes('Do you trust this folder?'))
   check(`@${cols}: the rail carried through (trust · 5/5, sign in marked walked)`, grid.includes('trust · 5/5') && grid.includes('sign in'))
   check(`@${cols}: the trust rows are the real ones`, grid.includes('Yes, I trust this folder'))
 }

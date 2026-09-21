@@ -151,7 +151,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   const { loginFamilyRows, SIGN_IN_LATER_ROW } = await import('../../src/components/loginFamilyRows.ts')
   const FAMILY_ROWS = loginFamilyRows({ engineLegs: true })
 
-  const enterOnTheme: Send = { requireAwait: true, awaitText: 'welcome — pick our colors', awaitSettleTicks: 3, data: '\r' }
+  const enterOnTheme: Send = { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 3, data: '\r' }
   const toLaterRow: Send[] = [
     enterOnTheme,
     { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 2, data: '\x1b[B' },
@@ -161,15 +161,15 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
 
   for (const cols of [120, 100]) {
     console.log(`\n  ── the fitting @ ${cols} ──`)
-    const grid = capture('fitting', cols, [], ['welcome — pick our colors'])
+    const grid = capture('fitting', cols, [], ['Choose your theme'])
     check(`@${cols}: the wordmark header renders`, grid.includes('Mercury') && grid.includes('first run'))
     check(`@${cols}: the rail walks theme → sign in → guardrails → terminal → trust`,
       grid.includes('theme') && grid.includes('sign in') && grid.includes('guardrails') && grid.includes('terminal') && grid.includes('trust'))
     check(`@${cols}: ONE provider station — no 'provider' rail label beside 'sign in'`, !grid.includes('provider'))
     check(`@${cols}: the step tag counts the shrunken walk (theme · 1/5)`, grid.includes('theme · 1/5'))
-    check(`@${cols}: the critter speaks the welcome`, grid.includes('welcome — pick our colors'))
-    check(`@${cols}: the fitting byline`, grid.includes('the whole harness wears your pick'))
-    check(`@${cols}: the two reachable theme rows`, grid.includes('Oasis dark · the oasis ground') && grid.includes('True Black · the same palette on pure black'))
+    check(`@${cols}: the critter speaks the welcome`, grid.includes('Choose your theme'))
+    check(`@${cols}: the fitting byline`, grid.includes('Your theme applies throughout Mercury'))
+    check(`@${cols}: the two reachable theme rows`, grid.includes('Oasis dark · Oasis background') && grid.includes('True Black · the same palette on a pure black background'))
     check(`@${cols}: the Mercury-real syntax diff`, grid.includes('helm.tsx') && grid.includes('bootHelm'))
     check(`@${cols}: footer verbs are the fitting's`, grid.includes('↑↓ preview · ↵ keep'))
     check(`@${cols}: the boot note rides the disclosure, not raw stderr`, grid.includes('boot note'))
@@ -184,7 +184,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
       check(`@${cols}: the ${row.value} row renders the card's own wording`, grid.includes(row.label), row.label)
     }
     check(`@${cols}: the "sign in later" row with its honest caveat`, grid.includes(SIGN_IN_LATER_ROW.label), SIGN_IN_LATER_ROW.label)
-    check(`@${cols}: the opening line names the whole spread`, grid.includes('Mercury can run on a Claude or OpenAI subscription'))
+    check(`@${cols}: the opening line names the whole spread`, grid.includes('Use a Claude or OpenAI subscription'))
     check(`@${cols}: the walk footer stays honest`, grid.includes('↑↓ move · ↵ choose · esc back'))
   }
 
@@ -192,14 +192,14 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   const afterSkip = capture('skip-guardrails', 100, toLaterRow, ['Guardrails'])
   check('guardrails heading renders', afterSkip.includes('Guardrails'))
   check('the step tag advanced without a credential (guardrails · 3/5)', afterSkip.includes('guardrails · 3/5'))
-  check('the re-voiced copy (the mangled base line is dead)', afterSkip.includes('review what it does') && !afterSkip.includes('Mercuryreview'))
-  check('prompt-injection guardrail present', afterSkip.includes('Prompt injection is real'))
+  check('the re-voiced copy (the mangled base line is dead)', afterSkip.includes('Review its work') && !afterSkip.includes('Mercuryreview'))
+  check('prompt-injection guardrail present', afterSkip.includes('Prompt injection can mislead the agent'))
 
   console.log('\n  ── the terminal station @ 100 ──')
   const terminal = capture('terminal', 100, [...toLaterRow, { requireAwait: true, awaitText: 'Guardrails', awaitSettleTicks: 2, data: '\r' }], ['Terminal keys'])
   check('the terminal station paints', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5'))
-  check('the tweak line names the real chord', terminal.includes('Shift+Enter for newlines needs one terminal tweak.'))
-  check('the deferral row names /terminal-setup', terminal.includes('not now — /terminal-setup does it later'))
+  check('the tweak line names the real chord', terminal.includes('Set up Shift+Enter to add a new line in your terminal.'))
+  check('the deferral row names /terminal-setup', terminal.includes('not now; use /terminal-setup later'))
 
   console.log(failures === 0 ? '\nONBOARDING RENDER: ALL GREEN' : `\nONBOARDING RENDER: ${failures} FAILURE(S)`)
   process.exit(failures === 0 ? 0 : 1)
