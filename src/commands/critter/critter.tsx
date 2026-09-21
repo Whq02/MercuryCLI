@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { CritterSelect } from '../../components/CritterSelect.js'
-import { setCritterSize } from '../../utils/cockpit/critterSize.js'
+import { getCritterSize, setCritterSize } from '../../utils/cockpit/critterSize.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const want = (args ?? '').trim().toLowerCase()
-  if (want === 'mini' || want === 'full') {
-    setCritterSize(want)
+  if (want === '' || want === 'on' || want === 'off') {
+    setCritterSize(want === 'on' ? 'full' : want === 'off' ? 'mini' : getCritterSize() === 'mini' ? 'full' : 'mini')
     onDone(undefined, { display: 'skip' })
     return null
   }
