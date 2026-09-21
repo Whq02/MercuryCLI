@@ -9,3 +9,4 @@ prove-gemini-guided-signin-drive.ts
 prove-gemini-busy-retry-drive.ts
 prove-model-default-key-drive.ts
 prove-trust-worktree-first-frames-drive.ts
+prove-files-menu-drive.ts

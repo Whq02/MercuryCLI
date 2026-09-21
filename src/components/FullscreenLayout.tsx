@@ -47,6 +47,7 @@ import { DeckPane } from './DeckPane.js'
 import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
+import { FilesMenuSlot } from './FilesMenuSlot.js'
 import { PinnedCritterBerth, berthCritterCols } from './MercuryHome.js'
 import { useCritterSize } from './mercury-ui/sessionAccent.js'
 import { BerthCompanionLine } from './mercury-ui/MiniCritter.js'
@@ -398,6 +399,7 @@ export function FullscreenLayout({
 
   const lanesBoxRef = useRef<DOMElement | null>(null)
   const telemetryBoxRef = useRef<DOMElement | null>(null)
+  const centreBoxRef = useRef<DOMElement | null>(null)
   const [lanesRows, setLanesRows] = useState<number | undefined>(undefined)
   const [telemetryRows, setTelemetryRows] = useState<number | undefined>(
     undefined,
@@ -552,6 +554,7 @@ export function FullscreenLayout({
                 </Box>
                 {}
                 <Box
+                  ref={centreBoxRef}
                   flexDirection="column"
                   flexGrow={1}
                   minWidth={0}
@@ -598,6 +601,7 @@ export function FullscreenLayout({
                       {transcriptArea}
                     </TerminalSizeContext.Provider>
                   </TerminalSizeContext.Provider>
+                  <FilesMenuSlot hostRef={centreBoxRef} framed={centerFrame} />
                 </Box>
                 {}
                 <Box ref={telemetryBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.telemetry ? plan.telemetryW : 0}>

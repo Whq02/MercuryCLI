@@ -8,6 +8,7 @@ import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { focusedOptionSupports1m, isProviderActionRow, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
@@ -64,6 +65,7 @@ type Props = {
 
 
 export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch, expandRows }: Props): React.ReactNode {
+  const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,7 +323,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         ? { open: false }
         : undefined
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
+    <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
       {
 }
       <ProductLockup view="model" />

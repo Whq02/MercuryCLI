@@ -211,6 +211,7 @@ export const SettingsSchema = lazySchema(() => {
 
     language: z.string().optional(),
     spinnerTipsEnabled: z.boolean().optional(),
+    filesBox: z.boolean().optional(),
     spinnerVerbs: z
       .object({ mode: z.enum(['append', 'replace']), verbs: z.array(z.string()) })
       .optional(),
