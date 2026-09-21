@@ -36,6 +36,17 @@ export function setRecessTarget(t: RecessTransform | null): void {
   }
 }
 
+export function elevatedSurfaceContains(col: number, row: number): boolean | null {
+  let committed = false
+  for (const el of registrants) {
+    const rect = nodeCache.get(el)
+    if (!rect) continue
+    committed = true
+    if (col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height) return true
+  }
+  return committed ? false : null
+}
+
 export function recessActive(): boolean {
   return target !== null && registrants.size > 0
 }
