@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process'
-import { statSync } from 'node:fs'
+import { readlinkSync, statSync } from 'node:fs'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import type { ProcessSweepObservation, ProcessSweepRead, ProcessSweepTable } from './processSweep.js'
-import { parseProcessStartToken, processNamesMercury } from './processSweep.js'
+import { isMercuryExecutableName, parseProcessStartToken, processNamesMercury } from './processSweep.js'
 
 export { parseProcessStartToken } from './processSweep.js'
 
@@ -47,12 +47,39 @@ export function probePosixTerminal(terminal: string, pid: number, table: readonl
   }
 }
 
+export function linuxExecutableLink(pid: number): string | null {
+  try {
+    const target = readlinkSync(`/proc/${pid}/exe`)
+    return target === '' ? null : target
+  } catch {
+    return null
+  }
+}
+
+function lastPathSegment(path: string): string {
+  const trimmed = path.trim()
+  return trimmed.slice(Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\')) + 1)
+}
+
+export function linuxExecutableName(pid: number, args: readonly string[], commandName: string, executableOf: (pid: number) => string | null): string {
+  const first = args[0] ?? ''
+  if (isMercuryExecutableName(first)) return lastPathSegment(first)
+  const linked = executableOf(pid)
+  if (linked !== null) {
+    const name = lastPathSegment(linked.replace(/ \(deleted\)$/, ''))
+    if (name !== '') return name
+  }
+  return commandName
+}
+
 export interface PosixProcessTableOptions {
   waitMs: number
   recordedPids: readonly number[]
   nowMs?: number
+  platform?: NodeJS.Platform
   ps?: (args: readonly string[]) => Promise<string>
   probeTerminal?: (terminal: string, pid: number, table: readonly ProcessSweepObservation[], nowMs: number) => ProcessSweepRead
+  executableOf?: (pid: number) => string | null
 }
 
 export async function collectPosixProcessTable(options: PosixProcessTableOptions): Promise<ProcessSweepTable> {
@@ -76,8 +103,11 @@ export async function collectPosixProcessTable(options: PosixProcessTableOptions
     const candidates = table.observations.filter(row => recorded.has(row.process.pid) || processNamesMercury(row.process.args))
     if (candidates.length > 0) {
       const names = parsePidColumn(await ps(['-ww', '-o', 'pid=,ucomm=', '-p', candidates.map(row => row.process.pid).join(',')]))
+      const platform = options.platform ?? process.platform
+      const executableOf = options.executableOf ?? linuxExecutableLink
       for (const row of candidates) {
-        row.process.exe = names.get(row.process.pid) ?? ''
+        const commandName = names.get(row.process.pid) ?? ''
+        row.process.exe = platform === 'linux' ? linuxExecutableName(row.process.pid, row.process.args, commandName, executableOf) : commandName
         if (row.process.terminal !== null) row.terminalAlive = (options.probeTerminal ?? probePosixTerminal)(row.process.terminal, row.process.pid, table.observations, options.nowMs ?? Date.now())
       }
     }

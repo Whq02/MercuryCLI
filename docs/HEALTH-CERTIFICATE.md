@@ -131,6 +131,10 @@ dated directory inside the home — reversible, nothing deleted.
 CREW & DAEMONS also carries `Mercury processes`, the process sweep: it lists
 Mercury's own processes on this box and classes each one by Mercury's own
 facts — running · stale · cannot end · not ours — never by a parent pid. A
+process is Mercury's own when its command line names Mercury and its
+executable is node, bun or the launcher; on Linux the executable is read
+from the command line or the kernel's own link to the binary, because the
+process table's command name there is the main thread's name. A
 window is read by its own registration (`<config home>/processes/`, a pid, a
 birth token and a heartbeat the cockpit writes and clears at exit) and by
 whether a live shell still owns its terminal; a daemon by its supervisor
