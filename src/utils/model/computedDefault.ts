@@ -402,9 +402,12 @@ let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefa
 
 export async function readComputedDefaultCatalogue(): Promise<void> {
   const { getUserSpecifiedModelSetting } = require('./model.js') as typeof import('./model.js')
-  if (getUserSpecifiedModelSetting() !== null || mostRecentSignInFamily() !== 'moonshot') return
-  const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
-  await readCatalogueIfPending('moonshot')
+  if (getUserSpecifiedModelSetting() !== null) return
+  const family = mostRecentSignInFamily()
+  if (family === undefined) return
+  const { isKeyedCatalogueFamily, readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+  if (!isKeyedCatalogueFamily(family)) return
+  if (await readCatalogueIfPending(family)) resetComputedDefaultMemo()
 }
 
 export function resetComputedDefaultMemo(): void {
