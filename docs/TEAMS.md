@@ -76,8 +76,12 @@ reason — an id the registry no longer holds, a row that had already settled,
 a loop that did not end within the runner's settle budget — and a refusal is
 painted under the rows. A stopped agent's row reads `stopped` with the reason
 and its transcript stands on disk; `r` resumes it from that transcript under
-the same id. Every stop, resume and failure reaches the main agent as a
-notification of its own kind, never silently. The main agent's own door is
+the same id. A stopped teammate keeps no transcript to resume, so `r` on its
+row spawns it again from its prompt under a new row. Every stop, resume and
+failure reaches the main agent as a notification of its own kind, never
+silently, a stop or resume from the crew view included. A teammate spawned
+into a team that does not exist is refused, and no row is left standing for
+it. The main agent's own door is
 the TaskStop tool, which takes a task id, a named teammate's agent id
 (`name@team`, the id its spawn receipt gave) or its bare name, or a launch
 name.
