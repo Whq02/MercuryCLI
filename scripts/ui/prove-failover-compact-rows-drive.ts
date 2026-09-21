@@ -161,9 +161,10 @@ check('the world booted, the line was typed at the landing, the offer stood and 
 for (const label of ['landing-1', 'landing-send', 'landing-2', 'landing-3']) printFrame(label)
 const landingFrames = ['landing-1', 'landing-send', 'landing-2', 'landing-3'].map(frame)
 const held = landingFrames.filter(rows => rows.some(row => row.includes(LANDING_NOTICE)))
-const first = held[0]
+const underReady = held.filter(rows => (rows[0] ?? '').includes('● ready'))
 check('a line typed right after ↵ on New Session is held for the landing: the notice stands on at least one of the frames that follow', held.length > 0, landingFrames.map(rows => rows[rows.length - 1] ?? '').join(' | '))
-check('the frame the notice first stands on carries a band without ● ready — the ready word waits for the session to land (the notice keeps its own seconds after the landing)', first !== undefined && !(first[0] ?? '').includes('● ready'), first?.[0] ?? '')
+check('the landing window is on the frames: the band names the wordmark and no ● ready while no session holds the slot', landingFrames.some(rows => (rows[0] ?? '').includes('✶ Mercury') && !(rows[0] ?? '').includes('● ready')), landingFrames.map(rows => rows[0] ?? '').join(' | '))
+check('the notice never stands under a ● ready band before the held line has landed: every such frame carries the sent line on the transcript (the notice keeps its own seconds after the landing)', underReady.every(rows => rows.some(row => row.includes('❯ hello sol'))), underReady.map(rows => `${rows[0] ?? ''} / ${rows.find(row => row.includes('❯')) ?? 'no transcript row'}`).join(' | '))
 check('the held line sent when the session landed and was answered', frame('offer').some(row => row.includes(GPT_REPLY)) || frame('settled').some(row => row.includes(GPT_REPLY)), frame('offer').join(' | ').slice(0, 300))
 check('once the session has landed the band reads ● ready again', (frame('offer')[0] ?? '').includes('● ready'), frame('offer')[0] ?? '')
 
