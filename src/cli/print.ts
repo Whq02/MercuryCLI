@@ -199,6 +199,7 @@ import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
 import { injectUserMessageToTeammate } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
@@ -241,7 +242,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_RESUME_NOTE } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
@@ -2689,6 +2690,14 @@ export async function runHeadless(
             return
           }
           try {
+            if (isInProcessTeammateTask(target)) {
+              const { respawnTeammateByOperator } = await import('../services/agents/operatorResume.js')
+              const respawned = await respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext })
+              if (respawned.outcome === 'applied') respondSuccess(requestId, { agent_id: respawned.agentId, task_id: respawned.taskId, output_file: respawned.outputFile })
+              else respondError(requestId, respawned.reason)
+              for (const event of drainSdkEvents()) io.outbound.enqueue(event)
+              return
+            }
             const { resumeAgentBackground } = await import('../tools/AgentTool/resumeAgent.js')
             const { toolUseId: _staleToolUseId, ...lastContext } = params.toolUseContext
             void _staleToolUseId
@@ -2698,6 +2707,8 @@ export async function runHeadless(
               toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof params.toolUseContext,
               canUseTool,
             })
+            const { operatorResumeWords } = await import('../services/agents/operatorResume.js')
+            enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) })
             respondSuccess(requestId, {
               agent_id: resumed.agentId,
               output_file: resumed.outputFile,
