@@ -175,6 +175,9 @@
     "supercodeEffort": {
       "type": "boolean"
     },
+    "sessionDefaultsKey": {
+      "type": "boolean"
+    },
     "alwaysThinkingEnabled": {
       "type": "boolean"
     },
@@ -654,6 +657,13 @@
     },
     "prefersReducedMotion": {
       "type": "boolean"
+    },
+    "critterSize": {
+      "type": "string",
+      "enum": [
+        "mini",
+        "full"
+      ]
     },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"

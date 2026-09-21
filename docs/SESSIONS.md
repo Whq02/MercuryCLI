@@ -66,6 +66,10 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
+While the board is empty, its door row also names the model and the effort
+the next session starts on, and the bottom row offers `m to select
+model-default`: `m` opens the model picker over the board, and the pick is
+saved as your default — the door row follows at once.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
@@ -204,6 +208,15 @@ GPT session shrinks a large image to that patch count and never to a byte
 figure. Should a provider still refuse an attached file's image, that image
 leaves every later request of the session, a resumed one included, on the
 OpenAI route as on the Anthropic one.
+
+The session box under the `✶ SESSION` header holds the critter and, while
+a turn runs, the working row in its own capsule beside it. `/critter mini`
+(the default) paints the small critter in a slim box of five rows and takes
+the SESSIONS bar off the bottom of the chat, so a tall window gives the chat
+ten rows more; the working row keeps its capsule, and the session roll-up
+and the bar are not painted. `/critter full` paints the large critter, the
+roll-up and the bar as before. The choice is kept in the settings store
+(`critterSize`) across boots.
 
 The status row under the composer carries the project and the CREW's
 clock — the sub-agents and workflow agents the session's runner hosts —
@@ -445,7 +458,12 @@ Concourse row on the face either (New Session is the door). A `--chat` boot
 lands on the Boot face like a bare boot; ↵ on New Session starts the chat.
 From the chat, shift+← is the Boot face directly and shift+→ moves nothing;
 the face's key-map row reads "⇧→ chat" while a session is focused and "⇧→
-no chat open" otherwise. `/concourse` still opens the plain
+no chat open" otherwise, and in a `--chat` boot it also offers `m to select
+model-default`: `m` opens the model picker over the face and the pick is
+saved as the default a new session starts on, while the Boot Menu stays on
+its own card row. The setting `sessionDefaultsKey` in `settings.json` (absent
+reads as on) switches this off: with it `false`, the face and the board read
+as they did before, `m menu` included. `/concourse` still opens the plain
 live view of your sessions there.
 
 ## `mercury --concourse-off`

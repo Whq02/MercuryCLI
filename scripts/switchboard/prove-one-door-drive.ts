@@ -45,6 +45,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const WARM_TICKS = 25
 const ENTER_BUDGET_TICKS = 3
@@ -213,13 +214,13 @@ console.log('L3 — --chat: the boot menu is the landing, no session born; ↵ N
     id: 'l3-chat-menu',
     home,
     argv: ['--chat'],
-    sends: [g(READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
+    sends: [g(CHAT_READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
     ready: COMPOSER,
     total: 200,
   })
   printFrame('l3 (--chat: the chat after ↵)', c.lines)
   const face = markText(c, 'face')
-  check('L3 the landing is the boot menu (the face), not a chat', face.includes('New Session') && face.includes(READY_LINE) && !face.includes(COMPOSER), face.slice(0, 120))
+  check('L3 the landing is the boot menu (the face), not a chat', face.includes('New Session') && face.includes(CHAT_READY_LINE) && !face.includes('m menu') && !face.includes(COMPOSER), face.slice(0, 120))
   check('L3 the --chat face carries NO Session Concourse row (New Session is the door)', !face.includes('Session Concourse'), face.split('\n').filter(l => /Concourse|live view/i.test(l)).join(' | '))
   check('L3 ↵ births exactly ONE session — none existed at boot (born at ↵, not at boot)', Object.keys(liveRecords(home)).length === 1 && Object.values(liveRecords(home))[0]?.bornBlankAt !== undefined, JSON.stringify(Object.keys(liveRecords(home))))
   check('L3 the chat is on screen after ↵ (the composer is live)', c.text.includes(COMPOSER), c.tail.slice(-200))

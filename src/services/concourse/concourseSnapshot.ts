@@ -9,7 +9,10 @@ import { retiredNowLabel } from '../../daemon/idleRetirement.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getGraphemeSegmenter } from '../../utils/intl.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getInitialEffortSetting, isEffortLevel } from '../../utils/effort.js'
+import { getDisplayedEffortLevel, getInitialEffortSetting, isEffortLevel, parseEffortValue } from '../../utils/effort.js'
+import { renderModelChip } from '../../utils/model/model.js'
+import { bootBirthFacts, nextBirthModel } from '../switchboard/bootBirthFacts.js'
+import { sessionDefaultsKeyOn } from '../switchboard/sessionDefaultsKey.js'
 import { workspaceKindOf } from '../../daemon/concourseWorktrees.js'
 import { saturnSoonestFireMs } from '../../daemon/saturn.js'
 import { GROUND_NOTE_MARK, stripGroundNote } from '../../daemon/isolationNote.js'
@@ -1300,6 +1303,18 @@ export async function buildConcourseSnapshot(
   const railModelId =
     peekRecord !== null ? await canonicalWorkerModelId(peekRecord.modelKey ?? 'fable') : chosenModelId
   const savedEffort = getInitialEffortSetting()
+  let door: { modelLabel: string; effortLevel: string } | undefined
+  if (sessionDefaultsKeyOn()) {
+    try {
+      const doorModel = nextBirthModel()
+      if (doorModel !== undefined) {
+        const bootEffort = parseEffortValue(bootBirthFacts().effort ?? undefined)
+        door = { modelLabel: renderModelChip(doorModel), effortLevel: getDisplayedEffortLevel(doorModel, bootEffort ?? savedEffort) }
+      }
+    } catch {
+      door = undefined
+    }
+  }
   const railEffort =
     (peekRecord !== null ? peekRecord.effort : (seedOverrides.effort ?? savedEffort)) ??
     workerRegistry.entries.find(e => e.modelId === railModelId)?.effort
@@ -1420,6 +1435,7 @@ export async function buildConcourseSnapshot(
       advancedAvailable: true,
       ...(seedOverrides.title !== undefined ? { titleSeed: seedOverrides.title } : {}),
       ...(preflight !== undefined ? { preflight } : {}),
+      ...(door !== undefined ? { door } : {}),
     },
   }
 }

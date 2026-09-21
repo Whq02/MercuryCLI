@@ -4,6 +4,8 @@ import { getTotalLinesAdded, getTotalLinesRemoved } from '../cost-tracker.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { useCritterSize } from './mercury-ui/sessionAccent.js'
+import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { FILE_READ_TOOL_NAME } from '../tools/FileReadTool/prompt.js'
@@ -34,6 +36,8 @@ function MercuryTurnRollupInner({
   isThinking: isThinkingProp,
 }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
+  const inCockpit = React.useContext(CockpitActiveContext)
+  const critterMini = useCritterSize() === 'mini'
 
   const ledeNode: React.ReactNode = null
   void isThinkingProp
@@ -172,6 +176,7 @@ function MercuryTurnRollupInner({
     )
   }
 
+  if (inCockpit && critterMini) return null
   if (!showSpine && !ledeNode) return null
 
   return (

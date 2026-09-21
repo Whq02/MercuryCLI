@@ -7,3 +7,4 @@
 prove-berth-hero.ts
 prove-critter-gaze-live.ts
 prove-ghost-wipe-live.ts
+prove-critter-mini-drive.ts
