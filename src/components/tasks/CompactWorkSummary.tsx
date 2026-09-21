@@ -13,6 +13,7 @@ import {
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { noticeRowText } from '../PromptInput/Notifications.js'
+import { getGlobalConfig } from '../../utils/config.js'
 
 export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
 export type CompactWorkControls = {
@@ -72,17 +73,19 @@ export function CompactWorkSummary({
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
-  const hint = noticeText !== null ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
+  const wayBackStays = noticeText !== null && getGlobalConfig().compactNoticeWayBack !== false
+  const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
+  const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
-      <Box flexGrow={1} minWidth={0} onClick={onFocus}>
+      <Box {...(noticeColumns === null ? { flexGrow: 1 } : { width: noticeColumns, flexShrink: 0 })} minWidth={0} onClick={onFocus}>
         <Text wrap="truncate-end" bold={focused} color={focused ? tokens.textPrimary : tokens.textMuted} backgroundColor={focused ? tokens.selectionBand : undefined}>
           {noticeText !== null ? noticeText : compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}
         </Text>
       </Box>
       {hint !== '' ? (
-        <Box flexShrink={0} marginLeft={1}>
+        <Box flexShrink={0} marginLeft={wayBackStays ? 2 : 1}>
           <Text color={focused ? tokens.textSecondary : tokens.textMuted}>{hint}</Text>
         </Box>
       ) : null}
