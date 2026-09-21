@@ -71,6 +71,7 @@ const HINT_ROW = keyHintLabel('esc interrupt · ⇧b background the command')
 const TAIL_RUNNING = keyHintLabel('esc interrupts · ⇧b backgrounds · ⇧← back')
 const TAIL_PLAIN = keyHintLabel('esc interrupts · ⇧← back')
 const SHIFT_B = keyHintLabel('⇧b')
+const LANDED = '← back'
 const COMMAND = 'sleep 40; echo shell-drive-done'
 const ASK = 'run the long command'
 const LAST_WORDS = 'watch the rows.'
@@ -115,7 +116,7 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (l
 
 const opening = [
   { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
-  { atTick: 999, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: ASK },
+  { atTick: 999, awaitText: LANDED, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: ASK },
   { afterPrevTicks: 2, data: '\r' },
   { atTick: 999, awaitText: 'esc interrupt', minTick: 2, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'plain' },
 ]
