@@ -332,6 +332,7 @@ section('§7 the Boot face picker asks OpenAI for the live list when it opens: t
     const base = `http://127.0.0.1:${port}`
     const c = capture('gpt-face', home, [], [
       { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 2, data: '\u001b[A'.repeat(12) },
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', awaitStableTicks: 3, mark: 'picker', data: ESC },
       { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, mark: 'closed', data: '' },
     ], { total: 260, ready: ['↑↓ choose'], env: e => ({ ...e, MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` }) })
