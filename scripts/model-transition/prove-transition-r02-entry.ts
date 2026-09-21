@@ -41,10 +41,11 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       /onOpenaiDone=\{result =>/.test(onboarding),
     'walk-rows ≡ /logins-rows holds by construction only while the walk mounts the card',
   )
+  const walkBesideItsIntro = onboarding.replace(/const SIGN_IN_WORDS = \{[\s\S]*?\n\}\n/, '')
   check(
     'the walk hand-rolls NO row list beside the card (the drift class stays dead)',
-    !/ProviderChoice/.test(onboarding) &&
-      !/OpenRouter|DeepSeek|Hugging Face/.test(onboarding) &&
+    !/ProviderChoice/.test(walkBesideItsIntro) &&
+      !/OpenRouter|DeepSeek|Hugging Face/.test(walkBesideItsIntro) &&
       !/beginOpenaiBrowserConnect|resolveProviderUsability/.test(onboarding),
   )
   check(
@@ -57,9 +58,9 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
       card.includes('...(onSkip !== undefined ? [SIGN_IN_LATER_ROW] : [])'),
   )
   check(
-    'the later row carries its honest caveat: running turns needs a sign-in',
+    'the later row carries its honest caveat: sign-in is required to run the agent',
     /sign in later/i.test(SIGN_IN_LATER_ROW.label) &&
-      /running turns needs a sign-in/.test(SIGN_IN_LATER_ROW.label),
+      /Sign-in is required to run the agent/.test(SIGN_IN_LATER_ROW.label),
     SIGN_IN_LATER_ROW.label,
   )
   check(

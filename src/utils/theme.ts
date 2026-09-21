@@ -49,6 +49,7 @@ export type Theme = {
   warning: string
   merged: string
   warningShimmer: string
+  cardBrown: string
   diffAdded: string
   diffRemoved: string
   diffAddedDimmed: string
@@ -115,6 +116,9 @@ export function themeColorToAnsi(themeColor: string): string {
 }
 
 
+const CARD_BROWN = 'rgb(200, 168, 130)'
+const CARD_BROWN_LIGHT = 'rgb(89, 66, 39)'
+
 const DARK: Theme = {
   brand: 'rgb(221, 68, 68)',
   brandShimmer: 'rgb(227, 134, 129)',
@@ -140,6 +144,7 @@ const DARK: Theme = {
   success: 'rgb(63, 191, 160)',
   warning: 'rgb(219, 161, 61)',
   warningShimmer: 'rgb(226, 189, 125)',
+  cardBrown: CARD_BROWN,
   error: 'rgb(232, 85, 106)',
   text: 'rgb(237, 232, 221)',
   inverseText: 'rgb(13, 24, 27)',
@@ -211,6 +216,7 @@ const LIGHT: Theme = {
   success: 'rgb(23, 128, 104)',
   warning: 'rgb(158, 112, 24)',
   warningShimmer: 'rgb(191, 152, 72)',
+  cardBrown: CARD_BROWN_LIGHT,
   error: 'rgb(191, 42, 66)',
   text: 'rgb(23, 42, 48)',
   inverseText: 'rgb(250, 248, 243)',
@@ -268,6 +274,7 @@ const DARK_DALTONIZED: Theme = {
   success: 'rgb(77, 141, 244)',
   warning: 'rgb(219, 161, 61)',
   warningShimmer: 'rgb(226, 189, 125)',
+  cardBrown: CARD_BROWN,
   error: 'rgb(232, 85, 106)',
   text: 'rgb(237, 232, 221)',
   inverseText: 'rgb(13, 24, 27)',
@@ -325,6 +332,7 @@ const LIGHT_DALTONIZED: Theme = {
   success: 'rgb(31, 102, 189)',
   warning: 'rgb(158, 112, 24)',
   warningShimmer: 'rgb(191, 152, 72)',
+  cardBrown: CARD_BROWN_LIGHT,
   error: 'rgb(191, 42, 66)',
   text: 'rgb(23, 42, 48)',
   inverseText: 'rgb(250, 248, 243)',
@@ -382,6 +390,7 @@ const DARK_ANSI: Theme = {
   success: 'ansi:green',
   warning: 'ansi:yellow',
   warningShimmer: 'ansi:yellow',
+  cardBrown: 'ansi:yellow',
   error: 'ansi:red',
   text: 'ansi:whiteBright',
   inverseText: 'ansi:black',
@@ -439,6 +448,7 @@ const LIGHT_ANSI: Theme = {
   success: 'ansi:green',
   warning: 'ansi:yellow',
   warningShimmer: 'ansi:yellowBright',
+  cardBrown: 'ansi:yellow',
   error: 'ansi:red',
   text: 'ansi:black',
   inverseText: 'ansi:whiteBright',

@@ -1,6 +1,8 @@
 import * as React from 'react'
-import { useState } from 'react'
-import { Box, Text } from '../ink.js'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { Box, Text, measureElement } from '../ink.js'
+import type { DOMElement } from '../ink.js'
+import { useSettingsMaybe } from '../hooks/useSettings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Crab, Wordmark } from './mercury-ui/assets.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -15,11 +17,20 @@ export interface SetupRailStep {
   state: 'done' | 'current' | 'pending'
 }
 
+export function firstRunCardsCentred(settings: { firstRunCards?: string } | undefined): boolean {
+  return settings?.firstRunCards !== 'top-left'
+}
+
+export function useFirstRunCardsCentred(): boolean {
+  return firstRunCardsCentred(useSettingsMaybe())
+}
+
 export function MercurySetupFrame({
   title,
   stepTag,
   steps,
   tone = 'brand',
+  firstRunCard = false,
   footer,
   bootNotes = [],
   children,
@@ -28,18 +39,34 @@ export function MercurySetupFrame({
   stepTag?: string
   steps: SetupRailStep[]
   tone?: 'brand' | 'trust'
+  firstRunCard?: boolean
   footer: string
   bootNotes?: readonly BootNote[]
   children: React.ReactNode
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
-  const border = tone === 'trust' ? tokens.warning : tokens.accent
+  const designOn = useFirstRunCardsCentred()
+  const centred = firstRunCard && designOn
+  const trustTone = centred ? tokens.cardBrown : tokens.warning
+  const border = tone === 'trust' ? trustTone : tokens.accent
   const width = Math.max(Math.min(columns - 2, 100), 40)
   const inner = width - 4
   const [notesOpen, setNotesOpen] = useState(false)
   const frameCap = Math.max(8, rows - 1)
-  const gap = rows >= 28 ? 1 : 0
+  const fullRows = rows >= 28
+  const gap = fullRows ? 1 : 0
+  const bodyViewportRef = useRef<DOMElement | null>(null)
+  const bodyRef = useRef<DOMElement | null>(null)
+  const [clipped, setClipped] = useState(false)
+  useLayoutEffect(() => {
+    if (!centred) return
+    const viewport = bodyViewportRef.current
+    const body = bodyRef.current
+    if (!viewport || !body) return
+    const next = measureElement(body).height > measureElement(viewport).height - gap
+    if (next !== clipped) setClipped(next)
+  })
 
   const railGlyph = (s: SetupRailStep): React.ReactNode => {
     if (s.state === 'done') return <Text color={tokens.success}>{GLYPH.done}</Text>
@@ -48,7 +75,7 @@ export function MercurySetupFrame({
   }
   const railLabels = inner >= 74 - 4
 
-  return (
+  const stationCard = (
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -99,8 +126,8 @@ export function MercurySetupFrame({
       </Box>
       {
 }
-      <Box flexDirection="column" paddingTop={gap} overflowY="hidden">
-        <Box flexDirection="column" flexShrink={0}>
+      <Box ref={bodyViewportRef} flexDirection="column" paddingTop={gap} overflowY="hidden">
+        <Box ref={bodyRef} flexDirection="column" flexShrink={0}>
           {children}
         </Box>
       </Box>
@@ -121,7 +148,7 @@ export function MercurySetupFrame({
                 {bootNotes.map((n, i) => (
                   <Text key={i} wrap="truncate-end">
                     {n.kind === 'warn' ? (
-                      <Text color={tokens.warning}>{`${GLYPH.warn} `}</Text>
+                      <Text color={trustTone}>{`${GLYPH.warn} `}</Text>
                     ) : (
                       <Text color={tokens.textMuted}>{'· '}</Text>
                     )}
@@ -138,6 +165,13 @@ export function MercurySetupFrame({
           {footer}
         </Text>
       </Box>
+    </Box>
+  )
+  if (!centred) return stationCard
+  const seat = width <= columns && fullRows && !clipped ? 'center' : 'flex-start'
+  return (
+    <Box width="100%" height={frameCap} justifyContent={seat} alignItems={seat}>
+      {stationCard}
     </Box>
   )
 }

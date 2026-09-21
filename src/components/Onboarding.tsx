@@ -16,7 +16,7 @@ import { bootNotes } from '../substrate/bootNotes.js'
 import { ApproveApiKey } from './ApproveApiKey.js'
 import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
 import { AMBER, FAINT, IVORY, SECOND } from './mercuryPalette.js'
-import { MercurySetupFrame, type SetupRailStep } from './MercurySetupFrame.js'
+import { MercurySetupFrame, useFirstRunCardsCentred, type SetupRailStep } from './MercurySetupFrame.js'
 import { getSyntaxTheme } from './StructuredDiff/colorDiff.js'
 import { StructuredDiff } from './StructuredDiff.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
@@ -24,14 +24,42 @@ import { GLYPH } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
+import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
 
 const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
-  { value: 'dark', label: 'Oasis dark · the oasis ground' },
-  { value: 'true-black', label: 'True Black · the same palette on pure black' },
+  { value: 'dark', label: 'Oasis dark · Oasis background' },
+  { value: 'true-black', label: 'True Black · the same palette on a pure black background' },
 ]
+
+const THEME_WORDS = {
+  bubble: 'Choose your theme',
+  tagline: 'Your theme applies throughout Mercury. Status colors stay the same.',
+  fileName: 'helm.tsx',
+}
+
+const GUARDRAILS_WORDS = {
+  title: 'Guardrails',
+  mistakes: 'Mercury can make mistakes.',
+  mistakesTail: ' Review its work, especially before running code.',
+  injection: 'Prompt injection can mislead the agent.',
+  injectionTail: ' Only use Mercury with code you trust.',
+  row: ' ▸ continue',
+}
+
+const TERMINAL_WORDS = {
+  title: 'Terminal keys',
+  appleTweak: 'Option+Enter for newlines and the visual bell need one terminal tweak.',
+  tweak: 'Set up Shift+Enter to add a new line in your terminal.',
+  install: 'yes, apply the recommended settings',
+  later: 'not now; use /terminal-setup later',
+}
+
+const SIGN_IN_WORDS = {
+  intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM or DeepSeek. To add an API key from the terminal, run /router key <provider>.',
+}
 
 const FITTING_PATCH = {
   oldStart: 1,
@@ -125,13 +153,13 @@ function ThemeFitting({
             <Text color={FAINT}>─</Text>
             <Box borderStyle="round" borderColor={FAINT} paddingX={1} flexShrink={0}>
               <Text italic color={SECOND}>
-                welcome — pick our colors
+                {THEME_WORDS.bubble}
               </Text>
             </Box>
           </Box>
         </Box>
       </Box>
-      <Text color={SECOND}>the whole harness wears your pick — status colors stay fixed</Text>
+      <Text color={SECOND}>{THEME_WORDS.tagline}</Text>
       <Box flexDirection="column" marginTop={1}>
         {THEME_ROWS.map((r, i) => (
           <InteractiveRow key={r.value} {...rowProps(r, i)}>
@@ -154,8 +182,8 @@ function ThemeFitting({
         borderStyle="dashed"
         borderColor="subtle"
       >
-        <Text color={SECOND}>helm.tsx</Text>
-        <StructuredDiff patch={FITTING_PATCH} dim={false} filePath="helm.tsx" firstLine={null} width={Math.min(columns - 8, 92)} />
+        <Text color={SECOND}>{THEME_WORDS.fileName}</Text>
+        <StructuredDiff patch={FITTING_PATCH} dim={false} filePath={THEME_WORDS.fileName} firstLine={null} width={Math.min(columns - 8, 92)} />
       </Box>
       <Text color={FAINT}>{syntaxLine}</Text>
     </Box>
@@ -177,6 +205,7 @@ function ProviderStation({
     <Box flexDirection="column">
       <ConsoleOAuthFlow
         key={epoch}
+        startingMessage={SIGN_IN_WORDS.intro}
         onDone={onSignedIn}
         onCancel={onBack}
         onAbandonLeg={() => setEpoch(current => current + 1)}
@@ -201,6 +230,8 @@ function ProviderStation({
 }
 
 function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: () => void }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  const mark = useFirstRunCardsCentred() ? tokens.cardBrown : AMBER
   const rows = [{ id: 'continue', label: 'continue' }]
   const { rowProps, selectedIndex } = useInteractiveList({
     rows,
@@ -221,24 +252,24 @@ function Guardrails({ onContinue, onBack }: { onContinue: () => void; onBack: ()
   return (
     <Box flexDirection="column">
       <Text bold color={IVORY}>
-        Guardrails
+        {GUARDRAILS_WORDS.title}
       </Text>
       <Box flexDirection="column" marginTop={1}>
         <Text wrap="wrap">
-          <Text color={AMBER}>{`${GLYPH.warn} `}</Text>
-          <Text color={IVORY}>Mercury can make mistakes</Text>
-          <Text color={SECOND}> — review what it does, especially before running code.</Text>
+          <Text color={mark}>{`${GLYPH.warn} `}</Text>
+          <Text color={IVORY}>{GUARDRAILS_WORDS.mistakes}</Text>
+          <Text color={SECOND}>{GUARDRAILS_WORDS.mistakesTail}</Text>
         </Text>
         <Text wrap="wrap">
-          <Text color={AMBER}>{`${GLYPH.warn} `}</Text>
-          <Text color={IVORY}>Prompt injection is real</Text>
-          <Text color={SECOND}> — point Mercury only at code you trust.</Text>
+          <Text color={mark}>{`${GLYPH.warn} `}</Text>
+          <Text color={IVORY}>{GUARDRAILS_WORDS.injection}</Text>
+          <Text color={SECOND}>{GUARDRAILS_WORDS.injectionTail}</Text>
         </Text>
       </Box>
       <Box marginTop={1}>
         <InteractiveRow {...rowProps(rows[0]!, 0)}>
           <Text>
-            <Text color={selectedIndex === 0 ? IVORY : SECOND}>{' ▸ continue'}</Text>
+            <Text color={selectedIndex === 0 ? IVORY : SECOND}>{GUARDRAILS_WORDS.row}</Text>
           </Text>
         </InteractiveRow>
       </Box>
@@ -257,8 +288,8 @@ function TerminalKeys({
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const rows = [
-    { id: 'install', label: 'yes — apply the recommended settings' },
-    { id: 'no', label: 'not now — /terminal-setup does it later' },
+    { id: 'install', label: TERMINAL_WORDS.install },
+    { id: 'no', label: TERMINAL_WORDS.later },
   ]
   const { selectedIndex, rowProps } = useInteractiveList({
     rows,
@@ -282,14 +313,11 @@ function TerminalKeys({
       },
     ],
   })
-  const tweak =
-    env.terminal === 'Apple_Terminal'
-      ? 'Option+Enter for newlines and the visual bell need one terminal tweak.'
-      : 'Shift+Enter for newlines needs one terminal tweak.'
+  const tweak = env.terminal === 'Apple_Terminal' ? TERMINAL_WORDS.appleTweak : TERMINAL_WORDS.tweak
   return (
     <Box flexDirection="column">
       <Text bold color={IVORY}>
-        Terminal keys
+        {TERMINAL_WORDS.title}
       </Text>
       <Text color={SECOND}>{tweak}</Text>
       <Box flexDirection="column" marginTop={1}>
@@ -420,6 +448,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
       title="first run"
       stepTag={stepTag}
       steps={railSteps}
+      firstRunCard
       footer={footer}
       bootNotes={notes}
     >

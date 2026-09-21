@@ -790,6 +790,7 @@
   "extensions",
   "fileSuggestion",
   "filesBox",
+  "firstRunCards",
   "forceLoginMethod",
   "forceLoginOrgUUID",
   "hooks",
