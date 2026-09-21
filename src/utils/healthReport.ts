@@ -3610,13 +3610,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: () => {
             const agents = getBuiltInAgents()
             const unresolved = agents.filter(a => findRoleDefinition(a.agentType, agents)?.agentType !== a.agentType)
-            const haiku = agents.filter(a => a.model === 'haiku')
             const composable = agents.filter(a => getRoleSystemPrompt(a) !== undefined)
             const evidence = `${agents.length} built-in roles resolve · role prompts compose ${composable.length}/${agents.length} without live context`
-            if (unresolved.length > 0 || haiku.length > 0) {
+            if (unresolved.length > 0) {
               return {
                 status: 'fail' as const,
-                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
+                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}`,
                 fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
               }
             }
@@ -4086,8 +4085,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const seatLawHolds =
               (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
               (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))
-            const haikuRefused = snap.resolveExact('claude-haiku-4-5') === null
-            const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds && haikuRefused
+            const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds
             const engineLine = engines.map(p => `${p.id} ${p.available ? 'configured' : p.reason}`).join(' · ')
             const seatLine = gptRef || glmRef
               ? `engine seats: ${[gptRef ? `gpt→${gptRef.model}` : null, glmRef ? `glm→${glmRef.model}` : null].filter(Boolean).join(' · ')} (explicit slots only)`
@@ -4095,8 +4093,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: ok ? ('ok' as const) : ('fail' as const),
               evidence: ok
-                ? `anthropic configured (${classes.map(c => c!.model).join(' · ')}) · engines: ${engineLine} · ${seatLine} · haiku pin refused`
-                : `provider honesty broke: anthropic=${anthropic?.available} classes=[${classes.map(c => c?.model ?? 'null').join(',')}] engines-honest=${enginesHonest} seat-law=${seatLawHolds} haiku-refused=${haikuRefused} (${engineLine})`,
+                ? `anthropic configured (${classes.map(c => c!.model).join(' · ')}) · engines: ${engineLine} · ${seatLine}`
+                : `provider honesty broke: anthropic=${anthropic?.available} classes=[${classes.map(c => c?.model ?? 'null').join(',')}] engines-honest=${enginesHonest} seat-law=${seatLawHolds} (${engineLine})`,
               ...(ok ? {} : { fix: 'Provider resolution broke an invariant — report this.' }),
             }
           },

@@ -1,6 +1,7 @@
 import { subagentDefaultModel } from '../agentDefaults.js'
 import { MODEL_ALIASES } from './aliases.js'
-import { enforceSubagentModelFloor } from './modelFloor.js'
+import { classifyModelRoute } from '../../services/providers/idSpaces.js'
+import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
 import { getCanonicalName, parseUserSpecifiedModel, getRuntimeMainLoopModel } from './model.js'
 
 const INHERIT = 'inherit'
@@ -14,37 +15,41 @@ export function getDefaultSubagentModel(): string {
 }
 
 
-const TIER_ALIASES = new Set(['sonnet', 'opus', 'haiku', 'fable', 'mythos'])
+const FIRST_PARTY_TIER_WORDS = new Set([...FIRST_PARTY_FAMILY_WORDS, 'mythos'])
 
-function familyToken(canonical: string): string | null {
+function firstPartyFamilyToken(canonical: string): string | null {
   const match = canonical.match(/claude-(opus|sonnet|haiku|fable)/)
   return match ? match[1] : null
 }
 
-function aliasMatchesParentTier(alias: string, parentModel: string): boolean {
-  const lowered = alias.trim().toLowerCase()
-  if (!TIER_ALIASES.has(lowered)) return false
-  const parentFamily = familyToken(getCanonicalName(parentModel))
-  const aliasFamily = familyToken(getCanonicalName(parseUserSpecifiedModel(lowered)))
-  return parentFamily !== null && parentFamily === aliasFamily
+function wordNamesParentFamily(word: string, parentModel: string): boolean {
+  const lowered = word.trim().toLowerCase()
+  const parentVerdict = classifyModelRoute(parentModel)
+  if (parentVerdict.kind !== 'route') return false
+  const wordRoute = routeOfFamilyWord(lowered)
+  if (wordRoute !== null) return wordRoute === parentVerdict.route
+  if (!FIRST_PARTY_TIER_WORDS.has(lowered) || parentVerdict.route !== 'anthropic') return false
+  const parentFamily = firstPartyFamilyToken(getCanonicalName(parentModel))
+  const wordFamily = firstPartyFamilyToken(getCanonicalName(parseUserSpecifiedModel(lowered)))
+  return parentFamily !== null && parentFamily === wordFamily
 }
 
 
-function resolveAgentModelRaw(
+export function getAgentModel(
   agentModel: string | undefined,
   parentModel: string,
   toolSpecifiedModel?: string,
   permissionMode?: string,
 ): string {
   if (toolSpecifiedModel !== undefined && toolSpecifiedModel !== '') {
-    if (aliasMatchesParentTier(toolSpecifiedModel, parentModel)) return parentModel
+    if (wordNamesParentFamily(toolSpecifiedModel, parentModel)) return parentModel
     return parseUserSpecifiedModel(toolSpecifiedModel)
   }
 
   if (agentModel === undefined) {
     const configured = subagentDefaultModel()
     if (configured !== undefined) {
-      if (aliasMatchesParentTier(configured, parentModel)) return parentModel
+      if (wordNamesParentFamily(configured, parentModel)) return parentModel
       return parseUserSpecifiedModel(configured)
     }
   }
@@ -57,28 +62,8 @@ function resolveAgentModelRaw(
     })
   }
 
-  if (aliasMatchesParentTier(declared, parentModel)) return parentModel
+  if (wordNamesParentFamily(declared, parentModel)) return parentModel
   return parseUserSpecifiedModel(declared)
-}
-
-export function getAgentModelWithFloorNote(
-  agentModel: string | undefined,
-  parentModel: string,
-  toolSpecifiedModel?: string,
-  permissionMode?: string,
-): { model: string; flooredFrom?: string } {
-  const raw = resolveAgentModelRaw(agentModel, parentModel, toolSpecifiedModel, permissionMode)
-  const floored = enforceSubagentModelFloor(raw, 'getAgentModel')
-  return floored === raw ? { model: floored } : { model: floored, flooredFrom: raw }
-}
-
-export function getAgentModel(
-  agentModel: string | undefined,
-  parentModel: string,
-  toolSpecifiedModel?: string,
-  permissionMode?: string,
-): string {
-  return getAgentModelWithFloorNote(agentModel, parentModel, toolSpecifiedModel, permissionMode).model
 }
 
 

@@ -147,7 +147,7 @@ export function agentFaceDetailLines(
   ];
   if (eff !== null) {
     lines.push(
-      `model: ${eff.modelIntent} → ${eff.model}${eff.flooredFrom ? ` (floored from ${eff.flooredFrom})` : ''}${eff.modelIntent === 'inherit' ? " (your session's model)" : ''}`,
+      `model: ${eff.modelIntent} → ${eff.model}${eff.modelIntent === 'inherit' ? " (your session's model)" : ''}`,
       `effort: ${eff.effortIntent !== undefined ? `${eff.effortIntent} → ` : 'session → '}${eff.effort.label}`,
     );
     if (availabilityNote !== null) lines.push(`availability: ${availabilityNote} — Logins signs in`);
@@ -949,7 +949,7 @@ export function BootAgentsScreen({
         sessionEffort: undefined,
         tools: faceTools,
       });
-      const effectiveLine = `${effRun.modelIntent} → ${effRun.model}${effRun.flooredFrom ? ` (floored from ${effRun.flooredFrom})` : ''} · effort ${effRun.effort.label}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
+      const effectiveLine = `${effRun.modelIntent} → ${effRun.model} · effort ${effRun.effort.label}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
       if (formPick !== null) {
         const current = (snap.doc.fields as Record<string, unknown>)[formPick.field];
         if (formPick.modelRows !== undefined) {

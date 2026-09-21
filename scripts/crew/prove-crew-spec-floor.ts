@@ -47,7 +47,7 @@ setStamp(false)
 check('bare stamp ⇒ STILL ON (stamp-independence)', cs.crewEnabled() === true)
 setStamp(true)
 
-section('CREW_MODEL_CHOICES — CLOSED table, Haiku unrepresentable')
+section('CREW_MODEL_CHOICES — the CLOSED Anthropic generation-key table')
 const keys = Object.keys(cs.CREW_MODEL_CHOICES).sort()
 check('exactly {fable, fable51, opus, sonnet}', JSON.stringify(keys) === JSON.stringify(['fable', 'fable51', 'opus', 'sonnet']))
 const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } = await import('../../src/utils/model/configs.ts')

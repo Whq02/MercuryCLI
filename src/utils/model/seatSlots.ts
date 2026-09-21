@@ -1,7 +1,6 @@
 import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { EffortValue } from '../effort.js'
 import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
-import { isHaikuTier } from './modelFloor.js'
 import { parseGptModelId } from '../../services/providers/openai/gptPins.js'
 
 export const SEAT_ALLOWED_FAMILIES: readonly string[] = [
@@ -20,23 +19,11 @@ export function validateSeatModel(
 ): { model: string; note?: string } {
   const trimmed = raw?.trim()
   if (!trimmed) return { model: fallback }
-  if (isHaikuTier(trimmed)) {
-    return {
-      model: fallback,
-      note: `'${trimmed}' is Haiku-tier — never allowed for a seat; using '${fallback}'`,
-    }
-  }
   const gptIdentity = parseGptModelId(trimmed)
   if (gptIdentity) {
     return { model: gptIdentity.canonicalId }
   }
   const resolved = parseUserSpecifiedModel(trimmed)
-  if (isHaikuTier(resolved)) {
-    return {
-      model: fallback,
-      note: `'${trimmed}' resolves Haiku-tier — never allowed for a seat; using '${fallback}'`,
-    }
-  }
   const canonical = getCanonicalName(resolved)
   if (SEAT_ALLOWED_FAMILIES.includes(canonical)) {
     return { model: resolved }

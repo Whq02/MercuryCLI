@@ -10,7 +10,6 @@ import {
 } from '../../src/utils/router/providerDiscovery.js'
 import { SEAT_ALLOWED_FAMILIES } from '../../src/utils/model/seatSlots.js'
 import { getCanonicalName } from '../../src/utils/model/model.js'
-import { isHaikuTier } from '../../src/utils/model/modelFloor.js'
 import type { RouterModelClass, RouterPosture } from '../../src/utils/router/providers/types.js'
 
 let failures = 0
@@ -115,7 +114,6 @@ section('1 · anthropic — available, resolves all three of ITS classes')
       if (!ref) continue
       check(`  provider is 'anthropic'`, ref.provider === 'anthropic')
       check(`  modelClass echoes '${modelClass}'`, ref.modelClass === modelClass)
-      check(`  never Haiku`, !isHaikuTier(ref.model))
       check(
         `  allowed seat family`,
         SEAT_ALLOWED_FAMILIES.includes(getCanonicalName(ref.model)),
@@ -135,8 +133,8 @@ section('1 · anthropic — available, resolves all three of ITS classes')
   const listed = anthropicProviderAdapter.listModels()
   check('listModels() returns exactly 3 (opus/sonnet/fable)', listed.length === 3)
   check(
-    'every listed model is non-Haiku + allowed family',
-    listed.every(m => !isHaikuTier(m.ref.model) && SEAT_ALLOWED_FAMILIES.includes(getCanonicalName(m.ref.model))),
+    'every listed model is an allowed seat family',
+    listed.every(m => SEAT_ALLOWED_FAMILIES.includes(getCanonicalName(m.ref.model))),
   )
 }
 
@@ -302,7 +300,7 @@ section('4 · registry — resolveExact + never-throws matrix (credentialed + no
       `[${mode}] resolveExact('claude-opus-4-8[1m]') resolves as opus, 1M context`,
       opusExact !== null && opusExact.modelClass === 'opus' && opusExact.contextWindow === 1_000_000,
     )
-    check(`[${mode}] resolveExact('claude-haiku-4-5') is null (never Haiku)`, snapshot.resolveExact('claude-haiku-4-5') === null)
+    check(`[${mode}] resolveExact('claude-haiku-4-5') is null (not a seat family)`, snapshot.resolveExact('claude-haiku-4-5') === null)
     check(`[${mode}] resolveExact('sonnet') is null (bare alias is not a seat family)`, snapshot.resolveExact('sonnet') === null)
     check(`[${mode}] resolveExact('') is null`, snapshot.resolveExact('') === null)
 

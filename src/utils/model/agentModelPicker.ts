@@ -4,7 +4,6 @@ import {
   isProviderActionRow,
   type ModelOption,
 } from './modelOptions.js'
-import { isHaikuTier } from './modelFloor.js'
 
 const INHERIT = 'inherit'
 
@@ -30,7 +29,6 @@ export function getAgentModelPickerRows(
     },
   ]
   for (const opt of catalogue) {
-    if (isHaikuTier(opt.value)) continue
     const group = opt.group ?? ANTHROPIC_MODEL_GROUP
     if (isProviderActionRow(opt.value)) {
       rows.push({ value: opt.value, label: opt.label, description: opt.description, group, kind: 'connect' })

@@ -10,15 +10,9 @@ const aliases = await import('../../src/utils/model/aliases.ts')
 t(
   'AGENT_DISPATCH_MODELS is the canonical list',
   Array.isArray(aliases.AGENT_DISPATCH_MODELS) &&
-    ['sonnet', 'opus', 'fable', 'fable51', 'sonnet[1m]', 'opus[1m]', 'fable[1m]'].every(
+    ['sonnet', 'opus', 'haiku', 'fable', 'fable51', 'sonnet[1m]', 'opus[1m]', 'fable[1m]'].every(
       m => (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes(m),
     ),
-)
-t(
-  'haiku is not in the dispatch list',
-  !(aliases.AGENT_DISPATCH_MODELS as readonly string[] | undefined)?.includes(
-    'haiku',
-  ),
 )
 
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
@@ -27,6 +21,7 @@ const agentBase = { description: 'test', prompt: 'test' }
 for (const m of [
   'sonnet',
   'opus',
+  'haiku',
   'fable',
   'fable51',
   'sonnet[1m]',
@@ -38,10 +33,6 @@ for (const m of [
     agentSchema.safeParse({ ...agentBase, model: m }).success === true,
   )
 }
-t(
-  'Agent schema REJECTS haiku at the public contract',
-  agentSchema.safeParse({ ...agentBase, model: 'haiku' }).success === false,
-)
 const seatSlots = await import('../../src/utils/model/seatSlots.ts')
 for (const id of seatSlots.SEAT_ALLOWED_FAMILIES) {
   t(`Agent schema accepts the served id '${id}'`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
@@ -54,7 +45,7 @@ process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.ts')
-const { isHaikuTier } = await import('../../src/utils/model/modelFloor.ts')
+const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
 const options = getAgentModelPickerRows()
 t(
   'picker offers fable',
@@ -65,28 +56,17 @@ t(
   options.some(o => o.value.endsWith('[1m]')),
 )
 t(
-  'picker never offers a haiku-tier row (the floor never silently rewrites a pick)',
-  options.every(o => !isHaikuTier(o.value)),
+  'picker offers every catalogue row after inherit (no tier is dropped)',
+  options.length === getModelOptions().length + 1,
 )
 t(
   'picker leads with inherit (the agent grammar\'s own default)',
   options[0]?.value === 'inherit',
 )
 
-const { getAgentModelWithFloorNote } = await import(
-  '../../src/utils/model/agent.ts'
-)
-const floored = getAgentModelWithFloorNote(
-  'haiku',
-  'claude-opus-4-8',
-  undefined,
-  'default',
-)
-t(
-  'runtime never-Haiku floor still guards legacy agent-def pins',
-  !/haiku/i.test(floored.model) && !!floored.flooredFrom,
-  `resolved=${floored.model} from=${floored.flooredFrom ?? 'unset'}`,
-)
+const { getAgentModel } = await import('../../src/utils/model/agent.ts')
+const pinned = getAgentModel('haiku', 'claude-opus-4-8', undefined, 'default')
+t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`)
 
 t(
   "Agent run_in_background accepts quoted 'true'",

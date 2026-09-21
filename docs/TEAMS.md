@@ -101,9 +101,10 @@ same failure lines beside the per-agent rows.
 
 Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the
-floor server-side, where a client bug cannot bypass it:
+policy server-side, where a client bug cannot bypass it:
 
-- a validated model table that refuses Haiku-class models;
+- a validated model table: every row a session may run on this account, no
+  family and no tier refused;
 - permission mode `flow` — classifier-adjudicated asks — unless the operator's
   `MERCURY_DAEMON_PERMISSION_MODE` says otherwise;
 - a read-only reconnaissance tool allowlist;

@@ -1,5 +1,4 @@
 import { logForDebugging } from '../utils/debug.js'
-import { isHaikuTier } from '../utils/model/modelFloor.js'
 import { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } from '../utils/model/configs.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
@@ -62,12 +61,6 @@ export async function resolveCrewSeatModel(
   key: string | undefined,
 ): Promise<{ ok: true; model: string; effort: 'high'; label: string } | { ok: false; error: string }> {
   const named = key === undefined || key.trim() === '' ? undefined : key.trim()
-  if (named !== undefined && isHaikuTier(named)) {
-    return {
-      ok: false,
-      error: `model refused (worker-policy:frontier-only) · pick a frontier row — opus, sonnet, fable or fable51, or a signed-in family's word — a crew seat never runs Haiku (got ${JSON.stringify(named)})`,
-    }
-  }
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
   let validated: WorkerModelValidation
   try {

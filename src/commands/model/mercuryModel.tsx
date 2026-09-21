@@ -928,3 +928,38 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     </MercuryModelLandingGate>
   )
 }
+
+export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn, onClose }: {
+  leading?: ModelChoice[]
+  current: string
+  onSelect: (id: string) => void
+  onSignIn?: (id: string) => void
+  onClose: () => void
+}): React.ReactNode {
+  useCatalogueEpoch()
+  const betas = getSdkBetas()
+  const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
+  const models: ModelChoice[] = [...(leading ?? []), ...options.map(opt => modelChoiceOf(opt, betas))]
+  return (
+    <MercuryModelPicker
+      models={models}
+      current={current}
+      ctxPct={null}
+      groupDetails={groupDetailsOf(seatDetailOf)}
+      expandRows={group => expandRowsOf(group, betas)}
+      onSelect={id => {
+        if (isCatalogueDoorRow(id)) return
+        if (isProviderActionRow(id)) {
+          onSignIn?.(id)
+          return
+        }
+        onSelect(id)
+      }}
+      onClose={onClose}
+    />
+  )
+}
+
+export function modelChoiceLabel(id: string): string {
+  return pickLabelOf(getModelOptions(), id)
+}
