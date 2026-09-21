@@ -122,13 +122,6 @@
       "why": "first-run welcome — focal mission surface (big wordmark art)"
     },
     {
-      "file": "src/components/Onboarding.tsx",
-      "kind": "accent-mercury-text",
-      "excerpt": "<Text color={IVORY}>Mercury can make mistakes</Text>",
-      "role": "compact-status-inline",
-      "why": "onboarding prose mention — flat by design"
-    },
-    {
       "file": "src/components/mercury-ui/components.tsx",
       "kind": "crab",
       "excerpt": "<Crab />",
