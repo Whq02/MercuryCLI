@@ -7,6 +7,7 @@ prove-key-catalogue-drive.ts
 prove-stream-cut-drive.ts
 prove-gemini-guided-signin-drive.ts
 prove-gemini-busy-retry-drive.ts
+prove-model-default-key-drive.ts
 prove-compact-notice-way-back-drive.ts
 prove-shell-background-key-drive.ts
 prove-contract-card-fits-drive.ts

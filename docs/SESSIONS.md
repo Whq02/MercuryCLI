@@ -66,6 +66,10 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
+While the board is empty, its door row also names the model and the effort
+the next session starts on, and the bottom row offers `m to select
+model-default`: `m` opens the model picker over the board, and the pick is
+saved as your default — the door row follows at once.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
@@ -120,8 +124,10 @@ another that is still open, so the sessions your other windows hold keep
 their runners and lose nothing; it shuts down only when the last window
 closes, and parks every session on its way out so the next boot brings them
 back. A window opened while that daemon is still on its way out waits the
-beat it takes to leave, then starts its own; two daemons never share one
-config home. A deploy that arrives while sessions are live waits for every one of
+beat it takes to leave, then starts its own, and a daemon that leaves in the
+beat after answering a new session's window is checked for and started
+again by that same ↵, so the session lands without a second one; two
+daemons never share one config home. A deploy that arrives while sessions are live waits for every one of
 them — the ones open when it landed and any opened since — before it
 restarts, and never cuts a live runner short.
 
@@ -451,7 +457,12 @@ Concourse row on the face either (New Session is the door). A `--chat` boot
 lands on the Boot face like a bare boot; ↵ on New Session starts the chat.
 From the chat, shift+← is the Boot face directly and shift+→ moves nothing;
 the face's key-map row reads "⇧→ chat" while a session is focused and "⇧→
-no chat open" otherwise. `/concourse` still opens the plain
+no chat open" otherwise, and in a `--chat` boot it also offers `m to select
+model-default`: `m` opens the model picker over the face and the pick is
+saved as the default a new session starts on, while the Boot Menu stays on
+its own card row. The setting `sessionDefaultsKey` in `settings.json` (absent
+reads as on) switches this off: with it `false`, the face and the board read
+as they did before, `m menu` included. `/concourse` still opens the plain
 live view of your sessions there.
 
 ## `mercury --concourse-off`

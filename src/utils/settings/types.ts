@@ -171,6 +171,7 @@ export const SettingsSchema = lazySchema(() => {
     modelOverrides: z.record(z.string(), z.string()).optional(),
     effortLevel: z.enum(EFFORT_LEVELS).optional().catch(undefined),
     supercodeEffort: z.boolean().optional(),
+    sessionDefaultsKey: z.boolean().optional(),
     alwaysThinkingEnabled: z.boolean().optional(),
 
     enableAllProjectMcpServers: z.boolean().optional(),

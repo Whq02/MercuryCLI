@@ -867,7 +867,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   routeStore._resetSurfaceRouteForTesting()
 
   const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face seeds the layer from the one-shot and parks the list under it', face.includes("useState(faceDoor === 'logins')") && face.includes('!saturnOpen && !agentsOpen && !loginsOpen,'))
+  t.check('the face seeds the layer from the one-shot and parks the list under it', face.includes("useState(faceDoor === 'logins')") && face.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
   t.check('the layer mounts with esc-home wiring and the chip epoch bump', face.includes('<BootLoginsScreen') && face.includes('setLoginsOpen(false);') && face.includes('setPresenceEpoch(e => e + 1);'))
   t.check('the account chip re-reads on the presence epoch', face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
