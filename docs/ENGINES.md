@@ -106,9 +106,10 @@ rate limit without one keeps the single retry. A reply that arrives inside
 the ladder shows one calm grey line above it, naming the provider —
 `OpenAI was busy · answered after 2 retries (7 s)` — whose ctrl+o expansion
 carries the provider's words and every wait; the debug log carries every
-retry either way. Escape ends a wait at once. A stream the provider cuts after some of
-the reply has arrived is continued once: Mercury asks the model to pick up
-where it stopped, the reply so far stands, and the chat shows one quiet line,
+retry either way. Escape ends a wait at once. A stream the provider cuts
+after some of the reply has arrived is continued once: Mercury asks the model
+to pick up where it stopped, the reply so far stands, and the chat shows one
+quiet line,
 `Continued after 1 stream cut · context sent again`, whose expansion names
 the road, what the provider sent and the code. The cost is in those last
 three words: the continuation sends the turn's context again — on a

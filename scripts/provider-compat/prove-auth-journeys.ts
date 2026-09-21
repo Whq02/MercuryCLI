@@ -464,9 +464,11 @@ for (const row of MATRIX) {
   wire.scenario = 'http-429'
   wire.chatHits = 0
   {
+    process.env.MERCURY_BUSY_RETRY_SCALE = '0.01'
     const { errors } = await drain(row.run(model))
+    delete process.env.MERCURY_BUSY_RETRY_SCALE
     check(
-      `${row.family}: 429 → typed rate_limit after exactly one retry`,
+      `${row.family}: 429 with a one-second ask → the ask slept once on the busy ladder's scaled budget, then typed rate_limit`,
       errors.length === 1 && errors[0]!.error === 'rate_limit' && wire.chatHits === 2,
       `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}`,
     )
