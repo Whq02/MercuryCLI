@@ -596,8 +596,8 @@ return in the same place when it clears, so a receipt's fact — the model id a
 `/defaultprovider` switch resolved, say — is readable at 80 columns. On a
 narrow window the session counts step aside the same way, the notice is cut
 to what fits with an ellipsis, and the way back (`⇧← concourse`) keeps the
-row's right end; `compactNoticeWayBack: false` in the global config gives the
-notice the whole row instead. The composer never moves for a notice.
+row's right end; `compactWayBack: false` in settings.json gives the notice
+the whole row instead. The composer never moves for a notice.
 
 ## A notice an agent has not read
 

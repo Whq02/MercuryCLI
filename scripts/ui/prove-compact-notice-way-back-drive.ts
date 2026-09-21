@@ -22,12 +22,7 @@ const inkOf = (cells: Cell[]): string => cells.map(c => `${c.fg}/${c.bg}/${c.bol
 
 async function capture(tag: string, cols: number, rows: number, wayBack: boolean): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg }> {
   const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
-  if (!wayBack) {
-    const homeCfg = join(leg.home, '.mercury.json')
-    const cfg = JSON.parse(readFileSync(homeCfg, 'utf8')) as Record<string, unknown>
-    cfg['compactNoticeWayBack'] = false
-    writeFileSync(homeCfg, JSON.stringify(cfg))
-  }
+  if (!wayBack) writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ compactWayBack: false }))
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
