@@ -497,14 +497,14 @@ export function BootSplashScreen(): React.ReactNode {
           { key: '↑↓', label: ' choose', tone: 'faint' as const },
           ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
         ],
-        keyMap: keyMapHint,
+        keyMap: stripHint,
         pointer: figures.pointer,
         glowWord: wordGlow,
         glowRow: rowGlow,
       });
       const placed = [...compact.lines];
-      const corner = bottomRowWithNotice(core, columns, keyMapHint, updateLine, true);
-      if (corner !== null && ((keyMapHint !== '' && rows > 2) || placed[rows - 1] === '')) placed[rows - 1] = corner;
+      const corner = bottomRowWithNotice(core, columns, stripHint, updateLine, true);
+      if (corner !== null && ((stripHint !== '' && rows > 2) || placed[rows - 1] === '')) placed[rows - 1] = corner;
       return {
         placed,
         actionAt: new Map<number, number>(compact.actions.map(a => [a.line, a.index])),
@@ -552,7 +552,7 @@ export function BootSplashScreen(): React.ReactNode {
       lastRowFree: fit.faceRows !== rows || fit.top + fit.composed.lines.length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, isCompact, plainWhy, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
   if (settingsOpen) {
