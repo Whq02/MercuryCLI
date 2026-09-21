@@ -1,38 +1,7 @@
 import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { EffortValue } from '../effort.js'
-import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
-import { parseGptModelId } from '../../services/providers/openai/gptPins.js'
-
-export const SEAT_ALLOWED_FAMILIES: readonly string[] = [
-  'claude-opus-4-6',
-  'claude-opus-5',
-  'claude-sonnet-5',
-  'claude-fable-5',
-  'claude-fable-5-1',
-]
 
 export const SEAT_EFFORTS: readonly string[] = EFFORT_LEVELS
-
-export function validateSeatModel(
-  raw: string | undefined,
-  fallback: string,
-): { model: string; note?: string } {
-  const trimmed = raw?.trim()
-  if (!trimmed) return { model: fallback }
-  const gptIdentity = parseGptModelId(trimmed)
-  if (gptIdentity) {
-    return { model: gptIdentity.canonicalId }
-  }
-  const resolved = parseUserSpecifiedModel(trimmed)
-  const canonical = getCanonicalName(resolved)
-  if (SEAT_ALLOWED_FAMILIES.includes(canonical)) {
-    return { model: resolved }
-  }
-  return {
-    model: fallback,
-    note: `'${trimmed}' (→ ${canonical}) is not an allowed seat family [${SEAT_ALLOWED_FAMILIES.join(', ')}]; using '${fallback}'`,
-  }
-}
 
 export function validateSeatEffort(
   raw: string | undefined,

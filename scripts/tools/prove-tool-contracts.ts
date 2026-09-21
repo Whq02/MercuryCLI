@@ -33,11 +33,21 @@ for (const m of [
     agentSchema.safeParse({ ...agentBase, model: m }).success === true,
   )
 }
-const seatSlots = await import('../../src/utils/model/seatSlots.ts')
-for (const id of seatSlots.SEAT_ALLOWED_FAMILIES) {
+const { CANONICAL_MODEL_IDS } = await import('../../src/utils/model/configs.ts')
+for (const id of CANONICAL_MODEL_IDS) {
   t(`Agent schema accepts the served id '${id}'`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
 }
-t('Agent schema still refuses an unserved id', agentSchema.safeParse({ ...agentBase, model: 'claude-haiku-4-5' }).success === false)
+for (const id of ['gemini-2.5-pro', 'openrouter/qwen/qwen3-coder', 'huggingface/org/model', 'local/llama3']) {
+  t(`Agent schema accepts the exact engine id '${id}' (the dispatch grammar validates it)`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
+}
+const { unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.ts')
+const { modelFamilyWords } = await import('../../src/utils/model/modelFamilies.ts')
+t('the dispatch grammar refuses a word no family declares, naming it', (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'"))
+t('the dispatch grammar admits a served first-party id', unrecognisedModelWordRefusal('claude-haiku-4-5') === null)
+t('the dispatch grammar admits every family word', modelFamilyWords().every(word => unrecognisedModelWordRefusal(word) === null))
+t('the dispatch grammar admits the engine class aliases and exact engine ids', ['gpt', 'gemini', 'gpt-5.6-sol', 'openrouter/qwen/qwen3-coder'].every(word => unrecognisedModelWordRefusal(word) === null))
+const modelDescription = (agentSchema as unknown as { shape: { model: { description?: string } } }).shape.model.description ?? ''
+t('the model parameter\'s description enumerates no per-boot id list (prompt-cache stable)', modelDescription.length > 0 && !modelDescription.includes('gpt-5.6-sol') && !modelDescription.includes('glm-5.2'))
 
 process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
   (await import('node:path')).join((await import('node:os')).tmpdir(), 'tool-contracts-'),
