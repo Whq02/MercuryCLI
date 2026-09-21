@@ -19,6 +19,7 @@ export const CONTRACT_FIELD_CHROME_ROWS = 9
 export type ContractCardFitV1 = {
   askBlurbRows: number | null
   liftMargin: boolean
+  askGap: boolean
   fieldBlurbRows: number | null
   fieldLines: number
   fieldGaps: boolean
@@ -42,7 +43,9 @@ export function contractCardFit(rows: number, textColumns: number): ContractCard
   const fieldGaps = CONTRACT_FIELD_CHROME_ROWS + blurbShown + 1 <= rows
   const chrome = fieldGaps ? CONTRACT_FIELD_CHROME_ROWS : CONTRACT_FIELD_CHROME_ROWS - 2
   const fieldLines = Math.max(1, Math.min(visibleLines, rows - chrome - blurbShown))
-  return { askBlurbRows, liftMargin: askBlurbRows === 0 && askChrome > rows, fieldBlurbRows, fieldLines, fieldGaps }
+  const liftMargin = askBlurbRows === 0 && askChrome > rows
+  const askGap = !(askBlurbRows === 0 && askChrome - (liftMargin ? 1 : 0) > rows)
+  return { askBlurbRows, liftMargin, askGap, fieldBlurbRows, fieldLines, fieldGaps }
 }
 
 export function ContractOfferCard({
@@ -95,6 +98,7 @@ export function ContractOfferCard({
                 onSelect={value => (value === 'yes' ? setFace('field') : onAnswer(null))}
                 onCancel={() => onAnswer(null)}
                 escapeHint="esc starts it plain"
+                hintGap={fit.askGap}
               />
             </>
           ) : (
