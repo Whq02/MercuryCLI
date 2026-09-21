@@ -112,15 +112,16 @@ type Capture = { status: number | null; stderr: string; stdout: string; lines: s
 const driver = resolveCaptureDriver()
 const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c).join(''))
 
-function capture(id: string, home: string, argv: string[], sends: Send[], opts: { total: number; ready: string[] }): Capture {
+function capture(id: string, home: string, argv: string[], sends: Send[], opts: { total: number; ready: string[]; cols?: number; rows?: number; env?: (env: NodeJS.ProcessEnv) => NodeJS.ProcessEnv }): Capture {
   if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
   const out = join(ROOT, `${id}.json`)
   const cfgPath = join(ROOT, `${id}.cfg.json`)
   writeFileSync(
     cfgPath,
-    JSON.stringify({ argv: [NODE, BIN, ...argv], cwd: CWD, cols: 178, rows: 51, total: opts.total, readySettleTicks: 4, stableTicks: 3, sends, readyText: opts.ready, out }),
+    JSON.stringify({ argv: [NODE, BIN, ...argv], cwd: CWD, cols: opts.cols ?? 178, rows: opts.rows ?? 51, total: opts.total, readySettleTicks: 4, stableTicks: 3, sends, readyText: opts.ready, out }),
   )
-  const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env: childEnv(home), timeout: vshotBudgetMs(opts.total * 200 + 90_000) })
+  const env = opts.env ? opts.env(childEnv(home)) : childEnv(home)
+  const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env, timeout: vshotBudgetMs(opts.total * 200 + 90_000) })
   const marks = new Map<string, string[]>()
   let lines: string[] = []
   if (existsSync(out)) {
@@ -274,6 +275,31 @@ section('§5 the setting off (sessionDefaultsKey false in settings.json): every 
   check('--chat: the hint row keeps m menu', trimmedRow(face, '>_ ready') === FULL_HINT, trimmedRow(face, '>_ ready'))
   check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, '⇧→') === '⇧→ no chat open', trimmedRow(face, '⇧→'))
   check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
+}
+
+section('§6 a fresh home with no sign-in: the bottom row stands at the height where the card would fill the terminal, and nothing moves where it already stood')
+{
+  const noSignIn = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
+    const bare = { ...env }
+    delete bare.ANTHROPIC_API_KEY
+    return bare
+  }
+  const faceSends: Send[] = [{ atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: '' }]
+  const dividers = (lines: string[]): number => lines.filter(l => l.trim().startsWith('├')).length
+  const cardRows = (lines: string[]): number => lines.filter(l => l.includes(' → ')).length
+  const tight = capture('fresh-49', seededHome('fresh-49'), [], faceSends, { total: 200, ready: ['↑↓ choose'], cols: 177, rows: 49, env: noSignIn })
+  check('177×49: the drive delivered every send (exit 0)', tight.status === 0, `exit ${tight.status}`)
+  const at49 = tight.marks.get('face') ?? []
+  check('177×49: the strip reads no sign-in yet and not signed in', rowWith(at49, 'Model no sign-in yet') !== '' && rowWith(at49, 'Acct not signed in') !== '', at49.filter(l => l.includes('Model') || l.includes('Acct')).map(l => l.trim()).join(' | '))
+  check('177×49: the card has nine rows (no Continue row on a fresh home)', cardRows(at49) === 9, `${cardRows(at49)} rows`)
+  check('177×49: the bottom row names the concourse and m', (at49[48] ?? '').trim() === `⇧→ concourse · ${PHRASE}`, JSON.stringify((at49[48] ?? '').trim()))
+  check('177×49: the block ends above the bottom row', !(at49[48] ?? '').includes('╰') && at49.some((l, i) => i < 48 && l.trim().startsWith('╰')), (at49[48] ?? '').trim())
+  check('177×49: the card gives up its dividers to make room for the row', dividers(at49) === 0, `${dividers(at49)} dividers`)
+  const wide = capture('fresh-51', seededHome('fresh-51'), [], faceSends, { total: 200, ready: ['↑↓ choose'], env: noSignIn })
+  check('178×51: the drive delivered every send (exit 0)', wide.status === 0, `exit ${wide.status}`)
+  const at51 = wide.marks.get('face') ?? []
+  check('178×51: the bottom row names the concourse and m', (at51[50] ?? '').trim() === `⇧→ concourse · ${PHRASE}`, JSON.stringify((at51[50] ?? '').trim()))
+  check('178×51: the block stands where it stood — two blank rows above the art, eight dividers on the card, the strip\'s bottom border on row 50', (at51[0] ?? '').trim() === '' && (at51[1] ?? '').trim() === '' && (at51[2] ?? '').includes('▀') && dividers(at51) === 8 && (at51[49] ?? '').trim().startsWith('╰'), `dividers ${dividers(at51)} · row 49 ${(at51[49] ?? '').trim().slice(0, 4)}`)
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })

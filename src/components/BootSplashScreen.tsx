@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import figures from 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { Box } from '../ink.js';
-import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
+import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W, type SplashComposeOpts } from '../../assets/splash/splash-core.mjs';
 import { useTheme } from './design-system/ThemeProvider.js';
 import {
   chatOnlyBoot,
@@ -77,6 +77,12 @@ type BootRow = {
 
 const KEY_MAP_ROW = (core: ReturnType<typeof createSplashCore>, hint: string): string =>
   '  ' + core.hexFg(core.FAINT, core.T256.faint) + hint + core.R;
+
+export function faceKeyMapHintOf(stripHint: string, modelDefaultDoor: boolean): string {
+  if (!modelDefaultDoor) return stripHint;
+  const phrase = `m ${SESSION_DEFAULTS_KEY_HINT}`;
+  return stripHint === '' ? phrase : `${stripHint} · ${phrase}`;
+}
 
 function bottomRowWithNotice(
   core: ReturnType<typeof createSplashCore>,
@@ -156,7 +162,7 @@ export function BootSplashScreen(): React.ReactNode {
   const modelDefaultDoor = sessionDefaultsKeyOn();
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const stripHint = stripKeyMapHint();
-  const keyMapHint = modelDefaultDoor && stripHint !== '' ? `${stripHint} · m ${SESSION_DEFAULTS_KEY_HINT}` : stripHint;
+  const keyMapHint = faceKeyMapHintOf(stripHint, modelDefaultDoor);
 
   const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
   useEffect(
@@ -505,8 +511,7 @@ export function BootSplashScreen(): React.ReactNode {
         lastRowFree: false,
       };
     }
-    const faceRows = plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows;
-    const composed = core.composeLockup(columns, faceRows, {
+    const lockupOptions: SplashComposeOpts = {
       cardRows: composedRows.map(r => ({
         icon: r.icon,
         label: r.label,
@@ -532,12 +537,19 @@ export function BootSplashScreen(): React.ReactNode {
       stripLines: (w: number) => core.composeStrip(chips, w) as string[],
       glowWord: wordGlow,
       glowRow: rowGlow,
-    });
-    const { placed, top } = core.placeBlock(composed.lines, faceRows);
+    };
+    const composeOver = (faceRows: number) => {
+      const composed = core.composeLockup(columns, faceRows, lockupOptions);
+      return { faceRows, composed, ...core.placeBlock(composed.lines, faceRows) };
+    };
+    let fit = composeOver(plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows);
+    if (keyMapHint !== '' && fit.faceRows === rows && fit.top + fit.composed.lines.length > rows - 1) {
+      fit = composeOver(Math.max(1, rows - 1));
+    }
     return {
-      placed: placed as string[],
-      actionAt: new Map<number, number>((composed.actionLines as number[]).map((line, i) => [line + top, i])),
-      lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
+      placed: fit.placed,
+      actionAt: new Map<number, number>(fit.composed.actionLines.map((line, i) => [line + fit.top, i])),
+      lastRowFree: fit.faceRows !== rows || fit.top + fit.composed.lines.length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [core, columns, rows, isCompact, plainWhy, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
