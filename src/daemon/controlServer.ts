@@ -666,7 +666,20 @@ async function routeControlRequest(
             'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
-      const r = deps.roster.reconfigureLongLived(short, { model, effort })
+      let seatModel: string | undefined
+      if (model !== undefined && model.trim() !== '') {
+        const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
+        const validated = await validateWorkerModelChoice(model.trim(), 'crew')
+        if (!validated.ok) {
+          return answer(sock, {
+            ok: false,
+            code: 'EUNKNOWN',
+            error: `model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''} (got ${JSON.stringify(model)})`,
+          })
+        }
+        seatModel = validated.entry.modelId
+      }
+      const r = deps.roster.reconfigureLongLived(short, { model: seatModel, effort })
       if (!r.ok) {
         return answer(sock, {
           ok: false,

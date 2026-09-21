@@ -6,7 +6,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { assertSpawnCwd, recordSpawn, recordSpawnExit } from '../utils/spawnLedger.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import type { EffortValue } from '../utils/effort.js'
-import { validateSeatEffort, validateSeatModel } from '../utils/model/seatSlots.js'
+import { validateSeatEffort } from '../utils/model/seatSlots.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import {
   getTeammateExecutor,
@@ -434,9 +434,7 @@ export class TaskRoster {
     const prevEffort = ll.spec.effort
     const next = { ...ll.spec }
     if (patch.model) {
-      const v = validateSeatModel(patch.model, prevModel)
-      next.model = v.model
-      if (v.note) notes.push(v.note)
+      next.model = patch.model
     }
     if (patch.effort) {
       const v = validateSeatEffort(patch.effort, prevEffort as EffortValue)

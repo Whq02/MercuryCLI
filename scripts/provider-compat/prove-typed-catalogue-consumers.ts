@@ -48,7 +48,7 @@ function classification(file: string, table: string, owner: string, body: string
   if (table === 'GLM_STATIC_CATALOGUE') {
     const permitted: Record<string, string[]> = {
       'src/utils/router/providers/zai.ts': ['describeZaiProvider', 'listZaiModels'],
-      'src/utils/swarm/engineDispatch.ts': ['engineDispatchModelsForSchema', 'resolveEngineDispatch'],
+      'src/utils/swarm/engineDispatch.ts': ['resolveEngineDispatch'],
       'src/utils/model/modelOptions.ts': ['keyLanePins'],
       'src/utils/model/capabilities.ts': ['resolveContextWindow'],
     }
@@ -57,7 +57,6 @@ function classification(file: string, table: string, owner: string, body: string
   if (file === 'src/services/providers/openai/gptPins.ts' && owner === 'gptDisplayPin') return 'display/price metadata by id'
   if (file === 'src/utils/model/providerFrontier.ts' && ['providerFrontierFact', 'providerLightFact', 'providerSmallFastFact'].includes(owner)) return `existing OpenAI chooser obligation: ${openaiOwner}`
   if (file === 'src/utils/router/providers/openai.ts' && owner === 'staticPinCatalogue') return 'display projection; admission reads the live catalogue'
-  if (file === 'src/utils/swarm/engineDispatch.ts' && owner === 'engineDispatchModelsForSchema') return 'schema advertisement; dispatch revalidates live'
   if (file === 'src/utils/swarm/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
   if (file === 'src/utils/model/modelOptions.ts' && owner === 'getQualifiedGptOptions' && body.includes('getGptSeatAvailability') && body.includes('evaluateGptCandidate')) return 'unavailable display rows behind live qualification'
   if (file === 'src/utils/model/providerFrontier.ts' && owner === 'openaiSmallFastChoice' && body.includes('for (const raw of served)') && body.includes('pins.find(candidate => candidate.id === identity.canonicalId)') && onlyReads(body, 'pins', ['pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS', 'pins.find(candidate => candidate.id === identity.canonicalId)'])) return 'price facts keyed by a served id; the live list supplies every id'

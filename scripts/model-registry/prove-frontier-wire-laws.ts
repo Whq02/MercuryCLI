@@ -1,5 +1,16 @@
 #!/usr/bin/env bun
+import { mkdtempSync as mkScratch } from 'node:fs'
+import { tmpdir as osTmp } from 'node:os'
+import { join as pathJoin } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const proofHome = mkScratch(pathJoin(osTmp(), 'frontier-wire-proof-'))
+for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = proofHome
+for (const key of ['MERCURY_MODEL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']) delete process.env[key]
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+;(await import('../../src/utils/config.js')).enableConfigs()
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -32,11 +43,11 @@ const {
 } = await import('../../src/utils/model/capabilities.ts')
 const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
 const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
-const { SEAT_ALLOWED_FAMILIES } = await import('../../src/utils/model/seatSlots.ts')
+const seatSlots = await import('../../src/utils/model/seatSlots.ts')
 const { getLaunchDefaultEffort } = await import('../../src/utils/effort.ts')
-const { AUTOPILOT_TIER_KEYS, autopilotAllowedModels } = await import('../../src/utils/autopilot/autopilotGates.ts')
+const { autopilotTierKeys, autopilotAllowedModels } = await import('../../src/utils/autopilot/autopilotGates.ts')
 const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
-const { CREW_MODEL_CHOICES } = await import('../../src/daemon/crewSpawn.ts')
+const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
@@ -199,7 +210,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("the exact-generation alias 'fable51' resolves to the bare id", parseUserSpecifiedModel('fable51') === ID, parseUserSpecifiedModel('fable51'))
   check("the family alias 'fable' resolves to the generation table's newest row — this member", getCanonicalName(parseUserSpecifiedModel('fable')) === ID, parseUserSpecifiedModel('fable'))
   check("the router classifies it 'fable'", classOfModel(ID) === 'fable', String(classOfModel(ID)))
-  check('the seat allowlist carries it beside the family default', SEAT_ALLOWED_FAMILIES.includes(ID) && SEAT_ALLOWED_FAMILIES.includes(FAMILY))
+  check('no seat family allowlist stands beside the worker registry', !('SEAT_ALLOWED_FAMILIES' in seatSlots) && !('validateSeatModel' in seatSlots))
   check('natively 1M on the bare id', getContextWindowForModel(ID) === 1_000_000, String(getContextWindowForModel(ID)))
   check('128K output through the family arm of the output table', getModelMaxOutputTokens(ID).upperLimit === 128_000)
 
@@ -214,10 +225,10 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('the effort ladder reaches max on both members', getMaxSupportedEffortLevel(ID) === 'max' && modelSupportsXHighEffort(ID))
   check("the launch default follows the family table ('high', Fable 5's own)", getLaunchDefaultEffort(ID) === 'high' && getLaunchDefaultEffort(FAMILY) === 'high')
 
-  check("the autopilot key table lists 'fable51' beside 'fable'", (AUTOPILOT_TIER_KEYS as readonly string[]).includes('fable') && (AUTOPILOT_TIER_KEYS as readonly string[]).includes('fable51'))
-  check('the default autopilot allowlist admits both (unset env)', (autopilotAllowedModels() as readonly string[]).includes('fable51') && (autopilotAllowedModels() as readonly string[]).includes('fable'))
+  check("the autopilot keys of a session on it list 'fable51' beside 'fable'", autopilotTierKeys(ID).includes('fable') && autopilotTierKeys(ID).includes('fable51'), autopilotTierKeys(ID).join(','))
+  check('the default autopilot allowlist admits both (unset env)', autopilotAllowedModels(ID).includes('fable51') && autopilotAllowedModels(ID).includes('fable'))
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
-  check("the crew spawn table carries fable51 → claude-fable-5-1 @ high, and the family word resolves to the same newest row", CREW_MODEL_CHOICES.fable51.model === ID && CREW_MODEL_CHOICES.fable51.effort === 'high' && CREW_MODEL_CHOICES.fable.model === ID && CREW_MODEL_CHOICES.fable.effort === 'high')
+  check("a crew record's legacy keys fold to it: fable51 and the family word land on the same newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === ID)
   const daedalus = src('src/tools/WorkflowTool/bundled/daedalus.ts')
   const roster = src('src/tools/WorkflowTool/workflowPrompt.ts')
   const menu = src('src/substrate/startupMenu.ts')

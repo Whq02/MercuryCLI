@@ -44,7 +44,7 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
-const { engineDispatchModelsForSchema, resolveEngineDispatch } = await import(
+const { ENGINE_DISPATCH_MODELS, isExactEngineModelId, resolveEngineDispatch, unrecognisedModelWordRefusal } = await import(
   '../../src/utils/swarm/engineDispatch.js'
 )
 const { DEPRECATED_GPT_IDS } = await import('../../src/utils/router/providers/openai.js')
@@ -112,14 +112,14 @@ async function armWithUnreachableCatalogue(): Promise<void> {
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: failingFetch() })
 }
 
-section('1 · schema surface — always advertises the engine grammar')
+section('1 · the grammar surface — the class aliases and the exact-id shapes; no per-boot advertisement')
 {
-  const advertised = engineDispatchModelsForSchema()
-  check('class aliases first', advertised[0] === 'gpt' && advertised[1] === 'glm', advertised.join(','))
+  check('class aliases first', ENGINE_DISPATCH_MODELS[0] === 'gpt' && ENGINE_DISPATCH_MODELS[1] === 'glm', ENGINE_DISPATCH_MODELS.join(','))
   for (const id of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'glm-5.2']) {
-    check(`advertises '${id}'`, advertised.includes(id))
+    check(`'${id}' is an exact engine id shape the grammar validates`, isExactEngineModelId(id) && unrecognisedModelWordRefusal(id) === null)
   }
-  check('never a deprecated id', DEPRECATED_GPT_IDS.every(id => !advertised.includes(id)))
+  check('a deprecated id is still an engine shape (the dispatch refuses it, naming the deprecation)', DEPRECATED_GPT_IDS.every(id => isExactEngineModelId(id)))
+  check('a word no family declares is refused by the grammar, naming it', (unrecognisedModelWordRefusal('plainword') ?? '').includes("'plainword'"))
 }
 
 section('2 · exact gpt ids vs the LIVE catalogue (qualification law)')
