@@ -457,7 +457,7 @@ const ROWS = 44
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-  { data: ask, atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'typed' },
+  { data: ask, atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'typed' },
   { data: '\r', afterPrevTicks: 4, mark: 'sent' },
 ]
 const cardSend = (mark: string): Record<string, unknown> => ({ data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark })

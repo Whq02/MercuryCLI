@@ -57,7 +57,7 @@ const TERMINAL_WORDS = {
   later: 'not now; use /terminal-setup later',
 }
 
-const SIGN_IN_WORDS = {
+export const SIGN_IN_WORDS = {
   intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM or DeepSeek. To add an API key from the terminal, run /router key <provider>.',
 }
 

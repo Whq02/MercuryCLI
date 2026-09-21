@@ -60,7 +60,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, '--resume', SID],
     sends: [
-      { data: '/teammates', atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
+      { data: '/teammates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
     readyText: ['Sub-agents'], stableTicks: 5,
