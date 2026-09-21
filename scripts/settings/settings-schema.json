@@ -614,6 +614,10 @@
     "filesBox": {
       "type": "boolean"
     },
+    "modelPickerCentred": {
+      "description": "Where the model picker opens over the chat: centred (the default), or false for the left edge",
+      "type": "boolean"
+    },
     "spinnerVerbs": {
       "type": "object",
       "properties": {

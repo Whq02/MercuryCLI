@@ -9,6 +9,7 @@ import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
+import { getInitialSettings } from '../utils/settings/settings.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { focusedOptionSupports1m, isProviderActionRow, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
@@ -40,6 +41,14 @@ export const fmtCtx = (n: number): string =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`
     : `${Math.round(n / 1000)}k`
+
+export function modelPickerCentred(): boolean {
+  try {
+    return getInitialSettings().modelPickerCentred !== false
+  } catch {
+    return true
+  }
+}
 function bar(pct: number, width = 10): string {
   const f = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
   return '█'.repeat(f) + '░'.repeat(width - f)
@@ -323,6 +332,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         ? { open: false }
         : undefined
   return (
+    <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
       {
 }
@@ -453,6 +463,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       {
 }
       <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag, ...(footerDoor !== undefined ? { door: footerDoor } : {}) }, panelWidth - 4)}</Text>
+    </Box>
     </Box>
   )
 }
