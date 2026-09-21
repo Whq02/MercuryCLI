@@ -57,6 +57,8 @@ try {
   console.log('── complete: success saves through the SCOPE BRACKET ──')
   let scopeDuringSave: string | undefined
   let savedTokens: Record<string, unknown> | null = null
+  let profileUrl: string | undefined
+  process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1/gateway'
   const outcome = await completeScopedReauth(pending, `authcode-42#${pending.state}`, {
     exchange: async (code, state, verifier, _port, manual) => {
       check('exchange gets the pasted code + held verifier + manual redirect', code === 'authcode-42' && state === pending.state && verifier === pending.codeVerifier && manual === true)
@@ -72,12 +74,16 @@ try {
       savedTokens = tokens as unknown as Record<string, unknown>
       return { success: true }
     },
-    fetchImpl: (async () =>
-      new Response(JSON.stringify({ account: { email_address: 'fresh@now.example', uuid: 'fresh-uuid' } }), {
+    fetchImpl: (async (url: string) => {
+      profileUrl = url
+      return new Response(JSON.stringify({ account: { email_address: 'fresh@now.example', uuid: 'fresh-uuid' } }), {
         status: 200,
-      })) as unknown as typeof fetch,
+      })
+    }) as unknown as typeof fetch,
   })
+  delete process.env.ANTHROPIC_BASE_URL
   check('reauth succeeds with the live email', outcome.ok && outcome.email === 'fresh@now.example', JSON.stringify(outcome))
+  check('the profile is read under the base the usage read follows (ANTHROPIC_BASE_URL first)', profileUrl === 'http://127.0.0.1:1/gateway/api/oauth/profile', String(profileUrl))
   check('the save ran INSIDE the target-scope bracket', scopeDuringSave === dir)
   check('the bracket RESTORED after (primary untouched)', getAuthScope() === undefined)
   check(

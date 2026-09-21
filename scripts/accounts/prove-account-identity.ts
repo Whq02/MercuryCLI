@@ -19,6 +19,7 @@ const {
   _resetIdentityCacheForTesting,
 } = await import('../../src/utils/accounts/accountIdentity.ts')
 const { scopeIdentityFile } = await import('../../src/utils/accounts/scopeScan.ts')
+const { getOauthConfig } = await import('../../src/constants/oauth.ts')
 
 const dir = mkdtempSync(join(tmpdir(), 'acct-identity-'))
 writeFileSync(
@@ -80,6 +81,22 @@ try {
   _resetIdentityCacheForTesting()
   const signedOut = await resolveLiveScopeIdentity(dir, { readCreds: () => undefined, fetchImpl: okFetch })
   check('signed-out state', signedOut.state === 'signed-out')
+
+  console.log('── the profile read rides the base the usage read rides ──')
+  _resetIdentityCacheForTesting()
+  const seen: string[] = []
+  const recordingFetch = (async (url: string) => {
+    seen.push(url)
+    return new Response(JSON.stringify({ account: { email_address: 'true@now.example', uuid: 'true-uuid' } }), { status: 200 })
+  }) as unknown as typeof fetch
+  process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1/gateway'
+  await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: recordingFetch })
+  check('with ANTHROPIC_BASE_URL set the profile is read under that base', seen[0] === 'http://127.0.0.1:1/gateway/api/oauth/profile', seen.join(', '))
+  delete process.env.ANTHROPIC_BASE_URL
+  _resetIdentityCacheForTesting()
+  seen.length = 0
+  await resolveLiveScopeIdentity(dir, { readCreds: () => creds, fetchImpl: recordingFetch })
+  check("without it the OAuth home is the base, the usage read's own fallback", seen[0] === `${getOauthConfig().BASE_API_URL}/api/oauth/profile`, seen.join(', '))
 
   console.log('── heal is a merge, never a wipe ──')
   writeFileSync(
