@@ -168,13 +168,9 @@ export function MercurySetupFrame({
     </Box>
   )
   if (!centred) return stationCard
+  const seat = width <= columns && fullRows && !clipped ? 'center' : 'flex-start'
   return (
-    <Box
-      width="100%"
-      height={frameCap}
-      justifyContent="center"
-      alignItems={width <= columns && fullRows && !clipped ? 'center' : 'flex-start'}
-    >
+    <Box width="100%" height={frameCap} justifyContent={seat} alignItems={seat}>
       {stationCard}
     </Box>
   )
