@@ -66,10 +66,13 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
-While the board is empty, its door row also names the model and the effort
-the next session starts on, and the bottom row offers `m to select
-model-default`: `m` opens the model picker over the board, and the pick is
-saved as your default — the door row follows at once.
+The board's door row — the empty board's entry, and the first row above the
+sessions once there are any — names the model and the effort the next
+session starts on; with that row under the cursor the bottom row offers `m
+to select model-default`: `m` opens the model picker over the board, and the
+pick is saved as your default — the door row follows at once. ↵ on the row
+starts a session as `n` does, and `m` on a session row keeps that session's
+own picker.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
