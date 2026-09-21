@@ -317,6 +317,7 @@ export interface EngineConnectorV1 {
 
   stopAgent(agentId: string): Promise<AgentControlReceiptV1>
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
+  backgroundShell(): Promise<AgentControlReceiptV1>
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void

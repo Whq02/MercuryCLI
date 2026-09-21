@@ -156,6 +156,10 @@ export type SDKControlStopTaskRequest = {
   task_id: string
 }
 
+export type SDKControlBackgroundShellRequest = {
+  subtype: 'background_shell'
+}
+
 export type SDKControlResumeTaskRequest = {
   subtype: 'resume_task'
   task_id: string
@@ -287,6 +291,7 @@ export type SDKControlRequestInner =
   | SDKControlSpawnSwitchRequest
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
+  | SDKControlBackgroundShellRequest
   | SDKControlResumeTaskRequest
   | SDKControlQuiesceRequest
   | SDKControlApplyFlagSettingsRequest

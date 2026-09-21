@@ -219,6 +219,7 @@ export const SettingsSchema = lazySchema(() => {
     syntaxHighlightingDisabled: z.boolean().optional(),
     prefersReducedMotion: z.boolean().optional(),
     compactWayBack: z.boolean().optional(),
+    backgroundKey: z.boolean().optional(),
     showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),
     promptSuggestionEnabled: z.boolean().optional(),

@@ -658,6 +658,9 @@
     "compactWayBack": {
       "type": "boolean"
     },
+    "backgroundKey": {
+      "type": "boolean"
+    },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },

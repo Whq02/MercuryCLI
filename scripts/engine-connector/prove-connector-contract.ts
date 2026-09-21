@@ -41,6 +41,7 @@ const DOORS = [
   'sendAgentNote',
   'stopAgent',
   'resumeAgent',
+  'backgroundShell',
   'setKit',
   'checkpointFacts',
   'subscribeCheckpoints',

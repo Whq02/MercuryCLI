@@ -1,3 +1,4 @@
+import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { refusalEnvelope } from './headless/refusalEnvelope.js'
 import type { PermissionChannel } from '../Tool.js'
@@ -2654,6 +2655,12 @@ export async function runHeadless(
               effort_requested: effortTruth.requested === undefined ? null : String(effortTruth.requested),
             },
           })
+          return
+        }
+        case 'background_shell': {
+          const taken = requestShellBackground()
+          if (taken > 0) respondSuccess(requestId, { taken })
+          else respondError(requestId, 'no shell command is running in the main conversation')
           return
         }
         case 'stop_task': {

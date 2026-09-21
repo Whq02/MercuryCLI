@@ -1759,6 +1759,18 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.agentVerb('resume-agent', agentId, note)
   }
 
+  async backgroundShell(): Promise<AgentControlReceiptV1> {
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'background-shell', sessionId: this.record.sessionId, by: 'operator' })
+      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
   private async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {
     if (agentId === '') return { outcome: 'refused', detail: `${action} needs an agent` }
     try {
