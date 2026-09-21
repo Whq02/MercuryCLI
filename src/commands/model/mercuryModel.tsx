@@ -256,6 +256,9 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
       ...(opt.catalogueDoor ? { expand: { group, family: opt.catalogueDoor.family, total: opt.catalogueDoor.total } } : {}),
     }
   }
+  if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
+    return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
+  }
   if (opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
     return {
       id: opt.value,
