@@ -13,7 +13,8 @@ import {
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { noticeRowText } from '../PromptInput/Notifications.js'
-import { getGlobalConfig } from '../../utils/config.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snapshot.js'
 
 export type CompactWorkFocus = 'composer' | 'summary' | 'detail'
 export type CompactWorkControls = {
@@ -73,7 +74,8 @@ export function CompactWorkSummary({
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
-  const wayBackStays = noticeText !== null && getGlobalConfig().compactNoticeWayBack !== false
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.compactWayBack !== false
   const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null

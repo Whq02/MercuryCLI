@@ -655,6 +655,9 @@
     "prefersReducedMotion": {
       "type": "boolean"
     },
+    "compactWayBack": {
+      "type": "boolean"
+    },
     "showClearContextOnStrategyAccept": {
       "type": "boolean"
     },

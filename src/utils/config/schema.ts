@@ -289,7 +289,6 @@ export type GlobalConfig = {
   }
 
   prStatusFooterEnabled?: boolean
-  compactNoticeWayBack?: boolean
 
   voiceInputEnabled?: boolean
 

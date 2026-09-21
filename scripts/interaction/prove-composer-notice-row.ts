@@ -52,7 +52,7 @@ section('§1 source — the notice leaves the column for the hint row')
   check(
     "the compact layout's count line keeps the way back beside a text notice: the counts step aside while it stands and return when it clears, the notice is cut to the columns before the hint with two blank columns between, and the setting off hands the notice the whole row",
     summary.includes('const noticeText = noticeRowText(currentNotice)') &&
-      summary.includes('const wayBackStays = noticeText !== null && getGlobalConfig().compactNoticeWayBack !== false') &&
+      summary.includes('const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.compactWayBack !== false') &&
       summary.includes("const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })") &&
       summary.includes("const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null") &&
       summary.includes('marginLeft={wayBackStays ? 2 : 1}') &&
