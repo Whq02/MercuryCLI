@@ -171,13 +171,13 @@ const SCRATCH = (name: string) => join(tmpdir(), `mercury-journey-${name}-${proc
 const READY = '❯'
 const READY_TICK = 5
 const SLACK = 30
-type Timeline = Array<{ atTick: number; data: string; awaitText?: string }>
+type Timeline = Array<{ atTick: number; data: string; awaitText?: string; targetText?: string; targetDx?: number }>
 function anchored(sends: Timeline, total: number, ready: string | null): Record<string, unknown> {
   let prev = 0
   const out = sends.map((s, i) => {
     const send = i === 0
       ? { awaitText: s.awaitText ?? READY, requireAwait: true, minTick: 1, awaitSettleTicks: Math.max(0, s.atTick - READY_TICK), data: s.data }
-      : { afterPrevTicks: Math.max(1, s.atTick - prev), data: s.data }
+      : { afterPrevTicks: Math.max(1, s.atTick - prev), data: s.data, ...(s.targetText !== undefined ? { targetText: s.targetText, targetDx: s.targetDx ?? 0 } : {}) }
     prev = s.atTick
     return send
   })
@@ -246,9 +246,7 @@ if (j1) {
   check('home: agent report collapsed', rowOf(j1, 'REPORT-LINE') === -1)
   promptY0 = promptRow(j1)
   check('home: prompt row present', promptY0 >= 0, `row ${promptY0}`)
-  const stripRow = rowOf(j1, '⊞ SESSIONS')
-  check('home: SESSIONS tab strip present', stripRow >= 0)
-  check('home: session-B tab visible in the strip', stripRow >= 0 && (j1[stripRow]?.includes('bravo') ?? false))
+  check('home: the SESSIONS strip is not painted (the small critter retires it)', rowOf(j1, '⊞ SESSIONS') === -1)
 }
 
 console.log('\n── J2/J3 · composer: draft, drag-replace, timeline, palette ─')
@@ -323,7 +321,7 @@ if (j4a) {
 if (agentY4 >= 0) {
   const j4b = capture('j4-toggle', [
     { atTick: 58, awaitText: 'polish the omega handler', data: click(agentX4, agentY4 + 1) },
-    { atTick: 70, data: click(agentX4, agentY4 + 1) },
+    { atTick: 70, targetText: 'Done (3 tool uses', targetDx: 2, data: '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m' },
   ], 84)
   if (j4b) {
     check('toggle: report hidden again after the second click', rowOf(j4b, 'REPORT-LINE') === -1)
@@ -370,9 +368,9 @@ const j5d = capture('j5-close', [
   { atTick: 60, data: ']' },
   { atTick: 66, data: '\x1b' },
   { atTick: 72, data: '\x1b' },
-], 92, { ready: '⊞ SESSIONS' })
+], 92, { ready: '✶ SESSION' })
 if (j5d && j1) {
-  check('diff close: home restored (tab strip back)', rowOf(j5d, '⊞ SESSIONS') >= 0)
+  check('diff close: home restored (the session header back)', rowOf(j5d, '✶ SESSION') >= 0)
   check('diff close: no workspace residue', rowOf(j5d, 'hunk ') === -1)
   check('diff close: prompt row back at its baseline position', promptRow(j5d) === promptY0, `row ${promptRow(j5d)} vs ${promptY0}`)
 }
@@ -394,9 +392,9 @@ if (j6a) {
   const j6b = capture('j6-close', [
     ...SATURN_OPEN,
     { atTick: 52, data: '\x1b' },
-  ], 76, { cols: 140, ready: '⊞ SESSIONS' })
+  ], 76, { cols: 140, ready: '✶ SESSION' })
   if (j6b) {
-    check('board close: home restored after esc', rowOf(j6b, '⊞ SESSIONS') >= 0)
+    check('board close: home restored after esc', rowOf(j6b, '✶ SESSION') >= 0)
   }
 }
 
@@ -407,12 +405,13 @@ const DRAFT7 = [
   { atTick: 42, data: '\x1b\r' },
   { atTick: 44, data: 'line two of the draft' },
 ]
+const FULL_THEN_DRAFT7 = [{ atTick: 28, data: '/critter full\r' }, ...DRAFT7]
 let flipOut: string[] | null = null
 let tab7X = -1
 let tab7Y = -1
 for (let attempt = 0; attempt < 2 && !flipOut?.some(l => l.includes('standing by in bravo')); attempt++) {
   purgeDrafts()
-  const base = capture(`j7-draft${attempt ? '-r' : ''}`, DRAFT7, 66, { ready: 'session alpha draft line one' })
+  const base = capture(`j7-draft${attempt ? '-r' : ''}`, FULL_THEN_DRAFT7, 66, { ready: 'session alpha draft line one' })
   if (!base) break
   if (attempt === 0) {
     check('flip: the multiline draft is live', rowOf(base, 'session alpha draft line one') >= 0 && rowOf(base, 'line two of the draft') >= 0)
