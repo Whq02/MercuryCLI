@@ -1,7 +1,10 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 7 more
+  ↑ 4 more
+    C/C++ IDE lane (clangd)            default (on)
+    Sovereign mode                     default (off)
+    Autopilot tier mode                default (off)
   computer use
     Computer use                       default (on)
     Access type                        default (asks)
@@ -9,9 +12,6 @@
     Samples                            default (off)
   memory & missions
     Project facts & decisions (MNEME)  default (off)
-    Repo generation (DAEDALUS)         default (off)
-    Repo-gen planner model             default (ask per dispatch)
-    Repo-gen builder model             default (ask per dispatch)
   agents
     Sub-agents                         default (on)
     Workflows                          default (on)
