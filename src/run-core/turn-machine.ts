@@ -641,11 +641,12 @@ async function* streamModel(
                 iter.deadThinkingRecords.push(record)
               }
             }
-            if (toolUseContext.agentId == null) {
+            if (toolUseContext.rosterOwner === undefined) {
               const boundRecord = await boundPrefixRecordToEmit(
                 String(rosterOwnerFromToolUseContext(toolUseContext)),
                 iter.messagesForQuery,
                 iter.currentModel,
+                { rosterOnly: toolUseContext.agentId != null },
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }

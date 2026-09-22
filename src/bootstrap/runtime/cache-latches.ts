@@ -4,7 +4,7 @@ export class CacheLatchOwner {
   cacheEditingHeaderLatched: boolean | null = null
   systemPromptSectionCache: Map<
     string,
-    { key: string | null; value: string | null }
+    { key: string | null; value: string | null; byKey?: Map<string, string | null> }
   > = new Map()
   lastEmittedDate: string | null = null
 

@@ -26,6 +26,7 @@ export type DeferredToolsDelta = {
 export type DeferredToolsDeltaScanContext = {
   callSite: 'attachments_main' | 'attachments_subagent' | 'compact_full' | 'compact_partial' | 'reactive_compact'
   querySource?: string
+  hasPendingMcpServers?: boolean
 }
 
 export { isDeferredToolsDeltaEnabled } from './toolSearchFlags.js'
@@ -246,7 +247,7 @@ export function getDeferredToolsDelta(
   messages: Message[],
   scanContext?: DeferredToolsDeltaScanContext,
 ): DeferredToolsDelta | null {
-  void scanContext
+  const holdMcpRemovals = scanContext?.hasPendingMcpServers === true
 
   const announced = new Set<string>()
   for (const message of messages) {
@@ -265,7 +266,9 @@ export function getDeferredToolsDelta(
   const added = deferrableTools.filter(tool => !announced.has(tool.name))
   const removed: string[] = []
   for (const name of announced) {
-    if (!deferrableNames.has(name) && !pooledNames.has(name)) removed.push(name)
+    if (deferrableNames.has(name) || pooledNames.has(name)) continue
+    if (holdMcpRemovals && name.startsWith('mcp__')) continue
+    removed.push(name)
   }
 
   if (added.length === 0 && removed.length === 0) return null
