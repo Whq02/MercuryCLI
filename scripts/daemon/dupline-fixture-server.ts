@@ -52,7 +52,8 @@ export const AGENT_SLEEP_SECONDS = Number(process.argv[3] ?? 20)
 export const MAIN_SLEEP_SECONDS = Number(process.argv[4] ?? 6)
 export const FOLD_PACE_MS = Number(process.argv[5] ?? 800)
 export const HOLD_FILE = process.argv[6] ?? ''
-const HOLD_LIMIT_MS = 60_000
+const HOLD_LIMIT_SCALE = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
+const HOLD_LIMIT_MS = Math.round(60_000 * (Number.isFinite(HOLD_LIMIT_SCALE) && HOLD_LIMIT_SCALE > 0 ? HOLD_LIMIT_SCALE : 1))
 
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
 const j = (v: unknown): string => JSON.stringify(v)
