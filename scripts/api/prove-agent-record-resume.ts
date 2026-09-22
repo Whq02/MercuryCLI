@@ -12,6 +12,7 @@ delete process.env.MERCURY_THINKING_BINDING
 delete process.env.ANTHROPIC_BASE_URL
 
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.REPRO_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -131,7 +132,7 @@ const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ??
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
 
 const MAIN = 'claude-fable-5-1'
-const SEAT = 'claude-opus-5'
+const SEAT = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 const SEAT_DESCRIPTION = 'record-seat'
 const SID = 'c0ffee00-0000-4000-8000-00000000d003'
 const arena = makeArena()
