@@ -206,7 +206,7 @@ function doingTasksSection(): string {
   items.push(
     'Do not propose changes to code you have not read.',
     'Avoid creating files; prefer editing existing ones.',
-    'Avoid introducing security vulnerabilities — injection classes (SQL, command, XSS) and the OWASP top ten. Fix insecure code immediately when you see it.',
+    'Avoid introducing security vulnerabilities — injection classes (SQL, command, XSS) and the OWASP top ten. Fix security issues within the authorised implementation scope. During read-only work, or for issues outside that scope, report the issue and obtain permission before editing.',
     ...codeStyle,
     'Avoid backwards-compatibility hacks; delete code you are confident is unused.',
   )
