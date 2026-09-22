@@ -11,6 +11,7 @@ import {
   registerAsyncAgent,
   setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { recordedDescription } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import {
   workflowOwnedAgentWords,
@@ -164,7 +165,7 @@ export async function resumeAgentBackground(args: {
       definitions.activeAgents[0]!
   }
 
-  const description = meta?.description ?? RESUMED_AGENT_DESCRIPTION
+  const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
 
   let systemPromptOverride: string[] | undefined
   if (isForkResume) {

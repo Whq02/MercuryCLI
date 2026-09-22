@@ -9,11 +9,28 @@ import {
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Message } from '../../types/message.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { sliceHeadAtGrapheme } from '../../utils/intl.js'
+import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Agent launched in the background.'
+
+export const RECORDED_DESCRIPTION_MAX = 200
+export const RECORDED_PROMPT_MAX = 20_000
+
+export function recordedDescription(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  const line = stripTerminalControls(value).replace(/\s+/g, ' ').trim()
+  return line.length > RECORDED_DESCRIPTION_MAX ? `${sliceHeadAtGrapheme(line, RECORDED_DESCRIPTION_MAX - 1)}…` : line
+}
+
+export function recordedPrompt(value: unknown): string {
+  if (typeof value !== 'string') return ''
+  const text = stripTerminalControls(value)
+  return text.length > RECORDED_PROMPT_MAX ? `${sliceHeadAtGrapheme(text, RECORDED_PROMPT_MAX - 1)}…` : text
+}
 
 export interface BackgroundLaunchReceipt {
   toolUseId: string
@@ -39,7 +56,7 @@ export function restartStopSummary(description: string, reason?: RunnerRestartRe
         : reason === 'relaunch'
           ? ' after a relaunch'
           : ''
-  return `Agent "${description}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
+  return `Agent "${recordedDescription(description)}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
 export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
@@ -89,8 +106,8 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
         if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
         const input = (block.input ?? {}) as { description?: unknown; prompt?: unknown; subagent_type?: unknown }
         launches.set(block.id, {
-          description: typeof input.description === 'string' ? input.description : 'agent',
-          prompt: typeof input.prompt === 'string' ? input.prompt : '',
+          description: recordedDescription(input.description) || 'agent',
+          prompt: recordedPrompt(input.prompt),
           agentType: typeof input.subagent_type === 'string' ? input.subagent_type : 'mercury-general',
           launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
         })
