@@ -69,6 +69,27 @@ carries it. `/halt` sits on the
 same seat: the screen's brake fires interrupt-first, acting while a turn runs,
 and never rides into a session runner.
 
+## Commands every session refuses
+
+A short list of command shapes never runs, whatever the permission mode and
+whether or not anyone is watching: the tool call is refused before any
+permission question, with a sentence in the tool result that names the rule
+and tells the model to surface the refusal rather than rephrase around it.
+The list is the supply-chain shapes — an auto-confirmed `npx -y`, an install
+from a git URL pinned to a commit, `curl … | bash`, a self-daemonizing
+`nohup … &`, a crontab, systemd or autostart install, a write of the global
+git config, of `core.hooksPath` or into `.git/hooks` — and the shapes that
+destroy a machine — `sudo`, a raw write to a device, a disk format or
+repartition, a shutdown or reboot, a fork bomb, and a recursive delete of the
+filesystem root, the home directory or a system directory. Reads stay clear
+(`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
+inside the project or a scratch directory, and so does a script that only
+mentions one of these words inside a quoted string or a heredoc. The same
+list rides interactive, headless, crew and print sessions alike, and it never
+stands down within a session. `MERCURY_WARDS=warn` writes a hit to the debug
+log and lets the call proceed; `MERCURY_WARDS=0` turns every ward off; project
+rules in `.mercury/wards.json` add to the list and never remove from it.
+
 ## Non-interactive sessions
 
 Headless and SDK sessions have no trust dialog; trust is implicit in having
