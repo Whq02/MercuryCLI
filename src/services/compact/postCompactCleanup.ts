@@ -1,4 +1,4 @@
-import { getUserContext } from '../../context.js'
+import { getGitStatus, getSystemContext, getUserContext } from '../../context.js'
 import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
 import { clearSpeculativeChecks } from '../../tools/BashTool/bashPermissions.js'
 import { clearClassifierApprovals } from '../../utils/classifierApprovals.js'
@@ -41,6 +41,8 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope): v
 
   if (!mainThread) return
 
+  getGitStatus.cache?.clear?.()
+  getSystemContext.cache?.clear?.()
   getUserContext.cache?.clear?.()
   resetInstructionFilesCache('compact')
   clearSystemPromptSections()

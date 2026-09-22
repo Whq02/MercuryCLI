@@ -83,7 +83,7 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
       : status
 
     const block = [
-      "This is the repository's git status as of the start of the conversation. It is a point-in-time snapshot and is not refreshed while the conversation runs.",
+      "This is the repository's git status as of the start of the conversation or its most recent compaction. It is a point-in-time snapshot and is not refreshed between those points.",
       `Current branch: ${branch}`,
       `Main branch (pull requests normally target this): ${mainBranch}`,
       ...(userName ? [`Git user: ${userName}`] : []),
