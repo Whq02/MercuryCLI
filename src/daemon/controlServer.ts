@@ -73,6 +73,7 @@ export interface ControlServerDeps {
     kit?: SessionKitV1
     kitPreset?: string
     vacatingSessionId?: string
+    birthKey?: string
   }) => Promise<
     | {
         ok: true
@@ -227,6 +228,10 @@ function requestedModel(raw: Record<string, unknown>): { model?: string; conflic
     return { conflict: `\`model\` (${model}) and \`modelKey\` (${alias}) name different models — spell it once, in \`model\`` }
   }
   return { model: model ?? alias }
+}
+
+export function isBirthKey(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(value)
 }
 
 type AdmitOk = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: true }>
@@ -737,8 +742,12 @@ async function routeControlRequest(
       if (named.conflict !== undefined) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
       }
+      if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey)) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'birthKey refused — a birth names itself with one key of 8 to 64 letters, digits or dashes; nothing was admitted' })
+      }
       const r = await deps.concourseAdmit({
         workspaceDir,
+        ...(typeof raw.birthKey === 'string' ? { birthKey: raw.birthKey } : {}),
         ...(isolation !== undefined ? { isolation } : {}),
         ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
