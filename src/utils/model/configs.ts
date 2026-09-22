@@ -49,6 +49,9 @@ export const ALL_MODEL_CONFIGS = {
   opus5: {
     firstParty: 'claude-opus-5',
   },
+  opus55: {
+    firstParty: 'claude-opus-5-5',
+  },
   fable5: {
     firstParty: 'claude-fable-5',
   },
