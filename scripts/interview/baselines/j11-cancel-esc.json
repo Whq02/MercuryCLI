@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-22T17:39:02.416Z",
+ "capturedAt": "2026-09-22T18:55:52.838Z",
  "screens": [
   {
    "atMs": 12500,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-GtELjD · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-ERstPX · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -41,8 +41,8 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-GtELjD · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-ERstPX · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -101,21 +101,21 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭───────────────────────────────────────╮                                   ││",
-    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ /sessions switches sessions in place. │                                   ││",
-    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰───────────────────────────────────────╯                                   ││",
+    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭──────────────────────────────────────────╮                                ││",
+    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ /compact folds old turns into a summary. │                                ││",
+    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰──────────────────────────────────────────╯                                ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 18:38:41 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 19:55:31 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 18:38:42 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 19:55:31 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · /health — health ce…│ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "  · /cards — memory     │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · /mission — set a mi…│ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 18:38:51 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  ↵ or click · browse   │ 19:55:39 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -143,17 +143,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 20210,
-   "frame-recommit": 72,
+   "patches": 18376,
+   "frame-recommit": 65,
    "tail-publish": 2
   },
   "frames": {
-   "total": 113,
-   "window": 113,
-   "p50": 12.138500000000931,
-   "p95": 95.80520900000192,
-   "p99": 138.90258399999948,
-   "maxMs": 250.50337500000023
+   "total": 91,
+   "window": 91,
+   "p50": 1.4818750000013097,
+   "p95": 10.03912499999933,
+   "p99": 33.79383400000006,
+   "maxMs": 33.79383400000006
   }
  },
  "requests": [
@@ -206,15 +206,15 @@
  ],
  "sends": [
   {
-   "atMs": 12378.996133804321,
+   "atMs": 11263.278007507324,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 13978.996133804321,
+   "atMs": 12863.278007507324,
    "b64": "DQ=="
   },
   {
-   "atMs": 22378.99613380432,
+   "atMs": 21263.278007507324,
    "b64": "Gw=="
   }
  ]
