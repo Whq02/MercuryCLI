@@ -424,7 +424,7 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
   const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
   const askAt = sendSrc.indexOf('workflowOwningAgent(context.getAppState().tasks')
   check('the message road asks the workflow owner before it reads a transcript', askAt > 0 && askAt < sendSrc.indexOf('const transcriptPath = agentTranscriptPathOf(String(agentId))'))
-  check('no new registration road, worktree fallback or permission road was added (one registration, the two fallback mentions, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 2 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
+  check('no new registration road or permission road was added (one registration, the fallback field and its two values, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 3 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
 }
 
 section('R8e · every non-terminal row has a live owner; the exit card counts what is alive, by kind, and names where to see it')

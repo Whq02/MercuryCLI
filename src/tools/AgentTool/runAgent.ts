@@ -157,6 +157,7 @@ export type RunAgentParams = {
   contentReplacementState?: ContentReplacementState
   useExactTools?: boolean
   worktreePath?: string
+  cwd?: string
   reviewReceipt?: string
   description?: string
   seatHolder?: string
@@ -560,6 +561,7 @@ export async function* runAgent(
     contentReplacementState,
     useExactTools,
     worktreePath,
+    cwd,
     reviewReceipt: requestedReviewReceipt,
     description,
     seatHolder,
@@ -982,6 +984,7 @@ export async function* runAgent(
     void writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
       ...(worktreePath ? { worktreePath } : {}),
+      ...(cwd ? { cwd } : {}),
       ...(description ? { description } : {}),
       model: resolvedAgentModel,
       ...(effortOverride !== undefined && { effortOverride }),
