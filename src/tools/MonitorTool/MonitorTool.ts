@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { buildTool, type ToolDef } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolDef } from '../../Tool.js'
 import { spawnShellTask } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -28,7 +28,7 @@ Pick by how many notifications you need:
 - **One per occurrence, indefinitely** ("tell me every time an ERROR line appears", "wake me on every line another agent appends to this file") → Monitor with an unbounded command (\`tail -f\`, \`inotifywait -m\`, \`while true\`) and \`persistent: true\`, so the watch runs until you stop it with TaskStop or the session ends.
 - **One per occurrence, until a known end** ("emit each CI step result, stop when the run finishes") → Monitor with a command that exits when the watch is over.
 
-A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse.`
+A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse once the session has met the closed window.`
 
 const COMMAND_DESCRIPTION =
   'Shell command or script. Each stdout line is an event; exit ends the watch.'
@@ -81,6 +81,7 @@ export type Output = z.infer<OutputSchema>
 
 export const MonitorTool = buildTool({
   name: MONITOR_TOOL_NAME,
+  shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
   searchHint:
     'watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live notification',
   maxResultSizeChars: 10_000,

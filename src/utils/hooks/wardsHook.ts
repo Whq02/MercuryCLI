@@ -122,6 +122,7 @@ export function registerWardsHook(
               ? (hookInput.tool_input as Record<string, unknown>)
               : {},
         }
+        pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
         const refusal = evaluateWards(REFUSAL_WARDS, pending)
         if (!refusal.allow) {
           const denial = buildWardDenial(refusal, pending.toolName)

@@ -233,14 +233,16 @@ export class RecoveryBudgetSpentError extends Error {
   }
 }
 
-export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; resumeAfterMs: number; capMs: number; waits: number } | null {
-  const e = error as { recoveryBudgetSpent?: unknown; message?: unknown; resumeAfterMs?: unknown; capMs?: unknown; waits?: unknown } | null
+export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; resumeAfterMs: number; capMs: number; waits: number; lastStatus?: number; lastCause?: string } | null {
+  const e = error as { recoveryBudgetSpent?: unknown; message?: unknown; resumeAfterMs?: unknown; capMs?: unknown; waits?: unknown; lastStatus?: unknown; lastCause?: unknown } | null
   if (e === null || typeof e !== 'object' || e.recoveryBudgetSpent !== true || typeof e.message !== 'string') return null
   return {
     words: e.message,
     resumeAfterMs: typeof e.resumeAfterMs === 'number' && Number.isFinite(e.resumeAfterMs) ? Math.max(0, e.resumeAfterMs) : 0,
     capMs: typeof e.capMs === 'number' ? e.capMs : 0,
     waits: typeof e.waits === 'number' ? e.waits : 0,
+    ...(typeof e.lastStatus === 'number' && Number.isFinite(e.lastStatus) ? { lastStatus: e.lastStatus } : {}),
+    ...(typeof e.lastCause === 'string' ? { lastCause: e.lastCause } : {}),
   }
 }
 

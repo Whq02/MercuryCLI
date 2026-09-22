@@ -6,6 +6,7 @@ import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { compactGrid, DEFAULT_MASKS, firstDivergence, type StoredGrid } from '../ui/visualBaseline.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -144,18 +145,10 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
 const text = (g: Grid): string[] => g.map(row => row.map(c => c.c).join(''))
 const rowWith = (g: Grid, needle: string): number => text(g).findIndex(line => line.includes(needle))
 const sameCell = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.rev === b.rev
-function cellDiff(a: Grid, b: Grid): number {
-  let n = 0
-  for (let r = 0; r < Math.max(a.length, b.length); r++) {
-    const ra = a[r] ?? []
-    const rb = b[r] ?? []
-    for (let c = 0; c < Math.max(ra.length, rb.length); c++) {
-      const x = ra[c]
-      const y = rb[c]
-      if (x === undefined || y === undefined || !sameCell(x, y)) n++
-    }
-  }
-  return n
+const compact = (grid: Grid): StoredGrid => compactGrid({ cols: grid[0]?.length ?? 0, rows: grid.length, grid })
+function sameFrame(label: string, a: Grid, b: Grid): void {
+  const divergence = firstDivergence(compact(a), compact(b), DEFAULT_MASKS)
+  check(label, divergence === null, JSON.stringify(divergence))
 }
 function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   const t = text(g)
@@ -286,12 +279,12 @@ try {
   check('with full the strip is back at row 42 and the pane’s bottom border at row 40', rowWith(full, '⊞ SESSIONS') === 42 && paneFull === 40, `strip ${rowWith(full, '⊞ SESSIONS')} pane ${paneFull}`)
   check('with full the wordmark starts at row 15 and the ↵ sends row sits at row 24', text(full)[15]!.includes('█▄▄▄█') && text(full)[24]!.includes('❯ ↵ sends'))
   check('with full the hero art paints in the box (a ▄▄ crown row above the sprite rows)', text(full)[5]!.includes('▄▄▀▀▀▀▀▀▄▄'))
-  check('/critter off after /critter on repaints the design cell for cell', cellDiff(miniAgain, boot) === 0, `${cellDiff(miniAgain, boot)} cells differ`)
-  check('bare /critter after that toggles to the shipped look cell for cell', cellDiff(fullAgain, full) === 0, `${cellDiff(fullAgain, full)} cells differ`)
+  sameFrame('/critter off after /critter on repaints the design cell for cell', miniAgain, boot)
+  sameFrame('bare /critter after that toggles to the shipped look cell for cell', fullAgain, full)
 
   console.log('§5 the choice is kept across boots')
-  check('a second boot of the same home lands on the saved full look', cellDiff(secondBoot, full) === 0, `${cellDiff(secondBoot, full)} cells differ`)
-  check('/critter on the second boot repaints the design cell for cell', cellDiff(miniAfterSecondBoot, boot) === 0, `${cellDiff(miniAfterSecondBoot, boot)} cells differ`)
+  sameFrame('a second boot of the same home lands on the saved full look', secondBoot, full)
+  sameFrame('/critter on the second boot repaints the design cell for cell', miniAfterSecondBoot, boot)
 
   console.log('§6 the same slim box at 120×40')
   const midHeader = rowWith(midBoot, '✶ VIEW')
@@ -313,7 +306,7 @@ try {
   let narrowDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripNarrow[r]![2 + col]!, band.grid[r]![2 + col]!)) narrowDiff++
   check('narrow: the 80×21 band paints the same sprite cells', narrowDiff === 0, `${narrowDiff} cells differ`)
-  check('wide again: the frame is the boot frame cell for cell', cellDiff(tripBack, boot) === 0, `${cellDiff(tripBack, boot)} cells differ`)
+  sameFrame('wide again: the frame is the boot frame cell for cell', tripBack, boot)
 
   console.log('§8 a compact window of 26 rows or more paints the one sprite with mini, the shipped square with full')
   let tallDiff = 0

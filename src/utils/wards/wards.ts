@@ -28,13 +28,12 @@ export type WardVerdict =
 export type PendingToolCall = {
   toolName: string
   input: Record<string, unknown>
+  shellCommand?: string
 }
 
 const EDIT_TOOLS = new Set(['Edit', 'NotebookEdit'])
 const WRITE_TOOLS = new Set(['Write'])
-const BASH_TOOLS = new Set(['Bash', 'PowerShell'])
-
-export const WARDS_TOOL_MATCHER = 'Edit|Write|NotebookEdit|Bash|PowerShell'
+export const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
 
@@ -244,11 +243,11 @@ function extractTarget(pending: PendingToolCall): {
       oldText: undefined,
     }
   }
-  if (BASH_TOOLS.has(pending.toolName)) {
+  if (pending.shellCommand !== undefined) {
     return {
       scope: 'bash',
       path: '',
-      text: String(input.command ?? ''),
+      text: pending.shellCommand,
       oldText: undefined,
     }
   }

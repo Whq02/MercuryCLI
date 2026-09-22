@@ -6,7 +6,8 @@ import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const DIST = join(ROOT, 'dist', 'mercury.mjs')
+const distAt = process.argv.indexOf('--dist')
+const DIST = distAt < 0 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distAt + 1]!)
 if (!existsSync(DIST)) {
   console.error('dist/mercury.mjs missing — build the product first')
   process.exit(1)
@@ -30,6 +31,7 @@ const LANDED = 'Both calls were refused; landing.'
 const turns = (): ScriptedTurn[] => [
   { kind: 'tool_use', name: 'Bash', input: { command: CURL, description: 'fetch and run a remote script' } },
   { kind: 'tool_use', name: 'Bash', input: { command: RM, description: 'delete the filesystem root' } },
+  { kind: 'tool_use', name: 'Monitor', input: { command: 'git config --global refusal.probe monitor-ran; echo probe-line', description: 'the refused shell shape', timeout_ms: 3000 } },
   { kind: 'text', text: LANDED },
 ]
 
@@ -101,7 +103,7 @@ function transcriptLines(configDir: string): string[] {
   return out
 }
 
-interface Seat { results: ToolResult[]; code: number | null; stdout: string; stderr: string; ms: number; asks: string[]; transcript: string[] }
+interface Seat { results: ToolResult[]; code: number | null; stdout: string; stderr: string; ms: number; asks: string[]; transcript: string[]; monitorWrote: boolean }
 async function runSeat(tag: string, extraArgs: string[], channel: boolean): Promise<Seat> {
   const fixture = await startFixtureApi(turns())
   const world = makeWorld(tag, fixture.url)
@@ -147,13 +149,18 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean): Prom
   const results = toolResults(fixture.messageRequests())
   await fixture.close()
   const transcript = transcriptLines(world.configDir)
+  const gitConfig = join(world.home, '.gitconfig')
+  const monitorWrote = existsSync(gitConfig) && readFileSync(gitConfig, 'utf8').includes('monitor-ran')
   rmSync(world.home, { recursive: true, force: true })
-  return { results, code, stdout, stderr, ms, asks, transcript }
+  return { results, code, stdout, stderr, ms, asks, transcript, monitorWrote }
 }
 
 function pinRefusals(seat: Seat, label: string): boolean {
   const first = seat.results[0]
   const second = seat.results[1]
+  const monitor = seat.results[2]
+  const monitorOk = monitor !== undefined && monitor.is_error === true && monitor.text.includes("Ward 'git-config-global' blocked this Monitor call") && monitor.text.includes(CLOSING)
+  check(`${label}: Monitor's shell command meets the same refuse-list`, monitorOk, JSON.stringify(monitor?.text.slice(0, 260)))
   const firstWard = first !== undefined && first.is_error === true && first.text.includes("Ward 'curl-pipe-shell' blocked this Bash call") && first.text.includes(CLOSING)
   const firstOk = firstWard
   const secondOk = second !== undefined && second.is_error === true && second.text.includes("Ward 'no-root-recursive-delete' blocked this Bash call") && second.text.includes(CLOSING)
@@ -163,7 +170,8 @@ function pinRefusals(seat: Seat, label: string): boolean {
   check(`${label}: the seat landed — exit 0, the model's closing words on stdout, no hang`, seat.code === 0 && seat.stdout.includes(LANDED) && seat.ms < 80_000, `${seat.code} · ${seat.ms}ms · ${seat.stdout.trim().slice(-80)}`)
   const onRecord = (needle: string): boolean => seat.transcript.some(line => line.includes(needle))
   check(`${label}: the refusals sit on the session record`, onRecord("Ward 'no-root-recursive-delete'") && onRecord("Ward 'curl-pipe-shell'"), `${seat.transcript.length} record lines; sample: ${seat.transcript.find(line => line.includes('no-root-recursive-delete') || line.includes('curl-pipe-shell'))?.slice(0, 160) ?? 'none names a refusal'}`)
-  return firstOk && secondOk
+  check(`${label}: Monitor did not write the scratch git config`, !seat.monitorWrote)
+  return firstOk && secondOk && monitorOk && !seat.monitorWrote
 }
 
 section('§0 the shipped default: a print seat with no permission channel refuses both calls with the ward\'s sentence, before any ask, and lands')

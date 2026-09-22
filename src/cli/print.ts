@@ -2762,11 +2762,13 @@ export async function runHeadless(
               canUseTool,
             })
             const { operatorResumeWords } = await import('../services/agents/operatorResume.js')
-            enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) })
+            enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
             respondSuccess(requestId, {
               agent_id: resumed.agentId,
               output_file: resumed.outputFile,
               ...(resumed.cwdFallback !== undefined ? { cwd_fallback: resumed.cwdFallback } : {}),
+              ...(resumed.recordedCwd !== undefined ? { recorded_cwd: resumed.recordedCwd } : {}),
+              ...(resumed.note ? { note: resumed.note } : {}),
             })
           } catch (error) {
             respondError(requestId, errorMessage(error))

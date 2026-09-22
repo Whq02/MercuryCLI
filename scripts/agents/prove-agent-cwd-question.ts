@@ -83,6 +83,14 @@ check('…and the resolver accepts it without the admission', agentTool.resolveA
 check('a different folder is still a question', agentTool.agentCwdQuestion(another, context) !== null)
 const teammate = await agentTool.AgentTool.checkPermissions({ ...launch(another), team_name: 'crew', name: 'mate' }, seat('default'))
 check('a named teammate spawn asks no question (the launch refuses cwd typed)', teammate.behavior === 'allow')
+const teammateContext = await import('../../src/utils/teammate.ts')
+teammateContext.setDynamicTeamContext({ agentId: '', agentName: '', teamName: 'crew', planModeRequired: false })
+try {
+  const named = await agentTool.AgentTool.checkPermissions({ ...launch(another), name: 'mate' }, seat('default'))
+  check('a name-only teammate launch uses the same team resolution before asking', named.behavior === 'allow')
+} finally {
+  teammateContext.clearDynamicTeamContext()
+}
 const trustedLaunch = await decideToolPermission(agentTool.AgentTool, launch(trusted), seat('default'))
 check('a trusted folder launches with no question in a mode that asks', trustedLaunch.decision.behavior === 'allow', `${trustedLaunch.decision.behavior} by ${trustedLaunch.trace.decidedBy}`)
 

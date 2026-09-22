@@ -408,6 +408,10 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
+function isTeammateSpawn(input: AgentToolInput, teamName = isAgentSwarmsEnabled() ? (input.team_name ?? getTeamName()) : undefined): input is AgentToolInput & { name: string } {
+  return Boolean(teamName && input.name)
+}
+
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
@@ -458,7 +462,7 @@ export const AgentTool = buildTool({
   },
   async checkPermissions(input: AgentToolInput, context: ToolUseContext) {
     const question =
-      input.cwd !== undefined && !(input.team_name && input.name)
+      input.cwd !== undefined && !isTeammateSpawn(input)
         ? agentCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
         : null
     if (question !== null) return question
@@ -537,10 +541,8 @@ export const AgentTool = buildTool({
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
-    const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
-
-    if (teamName && input.name) {
-      if (cwdParam !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
+    if (isTeammateSpawn(input, teamName)) {
+      if (input.cwd !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
       const requestedType = decodeAgentType(input.subagent_type)
       if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
@@ -581,6 +583,8 @@ export const AgentTool = buildTool({
         } as never,
       }
     }
+
+    const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
 
     const activeAgents = options.agentDefinitions?.activeAgents ?? []
     const allowedAgentTypes = options.agentDefinitions?.allowedAgentTypes

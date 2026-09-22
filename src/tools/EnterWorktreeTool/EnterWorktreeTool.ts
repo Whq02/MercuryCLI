@@ -13,6 +13,7 @@ import {
   validateWorktreeSlug,
 } from '../../utils/worktree.js'
 import { findCanonicalGitRoot } from '../../utils/git.js'
+import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
 import { saveWorktreeState } from '../../utils/sessionStorage.js'
 import { setCwd } from '../../utils/Shell.js'
 import { ENTER_WORKTREE_TOOL_NAME, getEnterWorktreeToolPrompt } from './prompt.js'
@@ -90,6 +91,7 @@ export const EnterWorktreeTool = buildTool({
     chdir(session.worktreePath)
     setCwd(session.worktreePath)
     setOriginalCwd(session.worktreePath)
+    regroundGitWatch()
     void saveWorktreeState(session as never)
 
     clearInstructionFileCaches()

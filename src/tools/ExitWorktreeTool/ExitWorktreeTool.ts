@@ -9,6 +9,7 @@ import {
 } from '../../bootstrap/state.js'
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
 import { updateHooksConfigSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { getPlansDirectory } from '../../utils/plans.js'
 import { setCwd } from '../../utils/Shell.js'
@@ -90,6 +91,7 @@ async function countWorktreeChanges(
 function restoreSessionState(originalCwd: string, projectRootMoved: boolean): void {
   setCwd(originalCwd)
   setOriginalCwd(originalCwd)
+  regroundGitWatch()
   if (projectRootMoved) {
     setProjectRoot(originalCwd)
     updateHooksConfigSnapshot()

@@ -441,6 +441,7 @@ function backgroundNoticeFor(output: Out): string {
 
 export const PowerShellTool = buildTool({
   name: POWERSHELL_TOOL_NAME,
+  shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
   searchHint: 'Executes PowerShell commands.',
   get inputSchema() { return modelInputSchema() },
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,

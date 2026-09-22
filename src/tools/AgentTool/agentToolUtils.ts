@@ -46,6 +46,9 @@ import {
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
+import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getCwdState } from '../../bootstrap/state.js'
+import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
@@ -54,6 +57,7 @@ import {
   openOverloadEpisode,
   overloadDeathNotifies,
   overloadNoticeWords,
+  overloadPauseWords,
   overloadProbeRequestMs,
   type OverloadEpisode,
 } from '../../tasks/LocalAgentTask/agentOverload.js'
@@ -358,14 +362,15 @@ export function finalizeAgentTool(
     isAsync: boolean
     structuredSpec?: { mode: 'permissive' | 'strict'; source: 'dispatch' | 'agent-definition' }
   },
+  terminalFailure?: Extract<AgentTerminalOutcome, { status: 'failed' }>,
 ): AgentToolResult {
   const { startTime, agentType } = metadata
 
   const lastAssistant = getLastAssistantMessage(messages as Message[])
-  if (!lastAssistant) {
+  if (!lastAssistant && terminalFailure === undefined) {
     throw new Error('No assistant message found in agent result')
   }
-  const outcome = deriveAgentTerminalOutcome(messages)
+  const outcome = terminalFailure ?? deriveAgentTerminalOutcome(messages)
   const lastReal = getLastRealAssistantMessage(messages)
   const anchor =
     outcome.status === 'failed' ? (lastReal ?? lastAssistant) : lastAssistant
@@ -397,7 +402,7 @@ export function finalizeAgentTool(
       : outcome
 
   const usage =
-    anchor.type === 'assistant'
+    anchor?.type === 'assistant'
       ? ({
           input_tokens: anchor.message.usage?.input_tokens ?? 0,
           output_tokens: anchor.message.usage?.output_tokens ?? 0,
@@ -589,6 +594,12 @@ export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfte
   return facts === null ? null : { words: facts.words, resumeAfterMs: facts.resumeAfterMs }
 }
 
+export function overloadBudgetCutOf(error: unknown, model: string): ReturnType<typeof overloadPauseOf> {
+  if (recoveryBudgetSpentFactsOf(error)?.lastStatus !== 529) return null
+  const who = getMarketingNameForModel(model) ?? model
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who }
+}
+
 const RESUME_AFTER_CUT_FLOOR_MS = 1_000
 
 export function budgetCutResumeDelayMs(cut: { resumeAfterMs: number }): number {
@@ -630,7 +641,7 @@ export function armBudgetCutResume(args: {
     canUseTool?: CanUseToolFn
     invokingRequestId?: string
     automatic: true
-  }) => Promise<unknown>
+  }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
   if (args.automaticResume === true) return null
   if (pendingAutomaticResumes.has(args.taskId)) return null
@@ -649,8 +660,9 @@ export function armBudgetCutResume(args: {
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
+    let resumed: { note?: string } | void
     try {
-      await resume({
+      resumed = await resume({
         agentId: args.taskId,
         prompt: args.prompt ?? AGENT_BUDGET_RESUME_NOTE,
         toolUseContext: args.toolUseContext,
@@ -665,13 +677,12 @@ export function armBudgetCutResume(args: {
     enqueueAgentReceiptRow({
       taskId: args.taskId,
       description: args.description,
-      summary:
-        args.summary ??
-        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
+      summary: (args.summary ??
+        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
   const timer = setTimeout(() => {
-    void fire()
+    void runWithCwdOverride(getCwdState(), fire)
   }, args.delayMs ?? recoveryBudgetMs())
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
@@ -755,7 +766,7 @@ export function armOverloadProbe(args: {
     canUseTool?: CanUseToolFn
     invokingRequestId?: string
     automatic: true
-  }) => Promise<unknown>
+  }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
   if (pendingAutomaticResumes.has(args.taskId)) return null
   const nowMs = Date.now()
@@ -795,7 +806,7 @@ export function armOverloadProbe(args: {
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
     try {
-      await resume({
+      const resumed = await resume({
         agentId: args.taskId,
         prompt: AGENT_OVERLOAD_RESUME_NOTE,
         toolUseContext: args.toolUseContext,
@@ -803,6 +814,7 @@ export function armOverloadProbe(args: {
         invokingRequestId: args.invokingRequestId,
         automatic: true,
       })
+      if (resumed?.note) enqueueAgentReceiptRow({ taskId: args.taskId, description: args.description, summary: resumed.note.trimStart() })
     } catch (error) {
       logForDebugging(`agent lifecycle: the resume of ${args.taskId} after the provider answered did not start: ${errorMessage(error)}`)
       unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
@@ -810,7 +822,7 @@ export function armOverloadProbe(args: {
     }
   }
   const timer = setTimeout(() => {
-    void fire()
+    void runWithCwdOverride(getCwdState(), fire)
   }, delayMs)
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
@@ -991,12 +1003,13 @@ export async function runAsyncAgentLifecycle(args: {
         })()
         if (queued.length > 0) {
           const { resumeAgentBackground } = await import('./resumeAgent.js')
-          await resumeAgentBackground({
+          const resumed = await resumeAgentBackground({
             agentId: taskId,
             prompt: queued.join('\n\n'),
             toolUseContext,
             canUseTool: args.canUseTool,
           })
+          if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
           drainPendingMessages(taskId, stateReader, rootSetAppState)
         }
       } catch (error) {
@@ -1107,6 +1120,9 @@ export async function runAsyncAgentLifecycle(args: {
     stopSummarization?.()
     const errMsg = errorMessage(error)
     failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
+    const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
+    const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
+    if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
     const worktreeResult = await getWorktreeResult()
     await flushSessionStorage()
     const partialResult = extractPartialResult(accumulated)
@@ -1122,11 +1138,13 @@ export async function runAsyncAgentLifecycle(args: {
       partialText: partialResult,
       usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
     })
-    enqueueAgentNotification({
+    const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+    if (notifies) enqueueAgentNotification({
       taskId,
       description,
       status: 'failed',
       error: errMsg,
+      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who) } : {}),
       finalMessage: partialResult,
       usage,
       landedWrites: landedWritesOf(accumulated),
@@ -1137,7 +1155,9 @@ export async function runAsyncAgentLifecycle(args: {
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
     const budgetCut = recoveryBudgetCutOf(error)
-    if (budgetCut !== null && !args.automaticResume) {
+    if (overload !== null) {
+      armOverloadProbe({ taskId, description, registration: args.abortController, toolUseContext, rootSetAppState, canUseTool: args.canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
+    } else if (budgetCut !== null && !args.automaticResume) {
       const delayMs = budgetCutResumeDelayMs(budgetCut)
       armBudgetCutResume({
         taskId,

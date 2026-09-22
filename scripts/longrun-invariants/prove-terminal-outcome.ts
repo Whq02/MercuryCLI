@@ -117,6 +117,13 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
     JSON.stringify({ outcome: r.outcome, content: r.content }))
 }
 
+{
+  let result: ReturnType<typeof finalizeAgentTool> | undefined
+  const failure = { status: 'failed' as const, reason: 'provider-declined' as const, error: 'typed overload cut' }
+  try { result = finalizeAgentTool([userMsg('go')], 'ag-cut-before-answer', META, failure) } catch {}
+  check('a declared failure before the first assistant reply finalizes without inventing output or usage', result?.outcome === failure && result.content.length === 0 && result.totalTokens === 0 && result.totalToolUseCount === 0)
+}
+
 section('§B the parent transcript speaks the same outcome')
 type Mapper = (data: unknown, toolUseID: string) => { is_error?: boolean; content: Array<{ type: string; text: string }> }
 const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapper })
