@@ -7,8 +7,9 @@ import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
 import { anthropicWindowClosedUntil } from '../services/claudeAiLimits.js'
+import { openaiWindowClosedUntil } from '../services/providers/openai/openaiLimitState.js'
 import { readSessionFacts } from '../services/engine-connector/seatProjections.js'
-import type { AnthropicWindowFactV1 } from '../services/engine-connector/types.js'
+import type { AnthropicWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
 
@@ -211,11 +212,12 @@ export function readLiveAccountFacts(
   }
 }
 
-export type SessionWindowFactsV1 = { usage?: { anthropicWindow?: AnthropicWindowFactV1 } } | null
+export type SessionWindowFactsV1 = { usage?: { anthropicWindow?: AnthropicWindowFactV1; openaiWindow?: OpenaiWindowFactV1 } } | null
 
 export function sessionWindowClosedUntil(family: string, facts: SessionWindowFactsV1, nowMs: number): number | undefined {
-  if (family !== 'anthropic') return undefined
-  return anthropicWindowClosedUntil(facts?.usage?.anthropicWindow, nowMs)
+  if (family === 'anthropic') return anthropicWindowClosedUntil(facts?.usage?.anthropicWindow, nowMs)
+  if (family === 'openai') return openaiWindowClosedUntil(facts?.usage?.openaiWindow, nowMs)
+  return undefined
 }
 
 export interface SessionFireReads extends LiveFactsReads {

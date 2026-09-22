@@ -51,9 +51,10 @@ section('§C the revival honesty (structural pins)')
   const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
   check('a gone worktree reports cwdFallback on the result', resume.includes("cwdFallback: 'parent-checkout'"))
   const send = readFileSync(join(ROOT, 'src/tools/SendMessageTool/SendMessageTool.ts'), 'utf8')
-  const fallbackClauses = send.split('its worktree is gone').length - 1
-  check('BOTH SendMessage resume arms surface the fallback verbatim', fallbackClauses === 2, `clauses=${fallbackClauses}`)
-  check('the surfaced words say WHERE edits land now', send.includes('anything it edits lands in the real tree'))
+  const note = readFileSync(join(ROOT, 'src/tools/SendMessageTool/continuationNote.ts'), 'utf8')
+  const fallbackClauses = send.split('continuationDirectoryNote(resumed)').length - 1
+  check('BOTH SendMessage resume arms surface the fallback from its one owner', fallbackClauses === 2 && note.split('its worktree is gone').length - 1 === 1, `clauses=${fallbackClauses}`)
+  check('the surfaced words say WHERE edits land now', note.includes('anything it edits lands in the real tree') && note.includes('anything it edits lands there'))
 }
 
 section('§D the consumers — the vocabulary is SPOKEN (no orphan module)')

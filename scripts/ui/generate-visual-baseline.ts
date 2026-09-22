@@ -3,7 +3,7 @@ import { execSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import { DEFAULT_CRITTER_KEY } from '../../src/utils/cockpit/critterData.ts'
@@ -20,7 +20,7 @@ function baselineDriverPython(): string {
 import {
   CaptureSpec, DEFAULT_MASKS, GRIDS_DIR, LIVE_DIR, MANIFEST_PATH, RawGrid,
   VisualBaselineEntry, VisualManifest, canonicalizeCheckoutRows, compactGrid, entryId, firstDivergence,
-  gridDigest, readManifest, readStoredGrid, styleDigest, StoredGrid,
+  gridDigest, readManifest, readStoredGrid, runCaptureAttempts, storedGridStands, styleDigest, StoredGrid,
 } from './visualBaseline.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -133,14 +133,16 @@ function captureSpec(
   const cfgPath = join(RUN_HOME, 'capture-cfg.json')
   const railSettle = spec.cols >= HELM_HOME_MIN_COLS ? { readyText: [RAIL_SCAN_SETTLE_MARK, RAIL_SCAN_LANDED_MARK], stableTicks: 8 } : {}
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, ...railSettle, out: gridPath }))
+  const judge = (raw: RawGrid): { ok: boolean; reason: string } =>
+    spec.colorMode === 'none' ? { ok: true, reason: '' } : mods.oracle.evaluateCapture(raw, cfg.chromeMarkers)
   try {
-    let lastReason = 'capture never ran'
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    const { grid, stdout } = runCaptureAttempts(entryId(spec), (_attempt, budgetScale) => {
+      const scaled = { ...process.env, MERCURY_VSHOT_BUDGET_SCALE: String(budgetScale) }
       const res = spawnSync(baselineDriverPython(), [join(import.meta.dir, 'vshot.py'), cfgPath], {
         encoding: 'utf-8',
-        timeout: vshotBudgetMs(90_000),
+        timeout: vshotBudgetMs(90_000, scaled),
         env: {
-          ...process.env,
+          ...scaled,
           MERCURY_CONFIG_DIR: RUN_HOME,
           MERCURY_AWAY_SUMMARY: '0',
           COLORFGBG: spec.theme.startsWith('light') ? '0;15' : '15;0',
@@ -150,19 +152,10 @@ function captureSpec(
           ...colorModeEnv(spec.colorMode),
         },
       })
-      if (res.status !== 0) {
-        lastReason = res.stderr || `vshot failed (status ${res.status ?? 'timeout'})`
-        continue
-      }
-      const raw = JSON.parse(readFileSync(gridPath, 'utf8')) as RawGrid
-      const verdict = mods.oracle.evaluateCapture(raw, cfg.chromeMarkers)
-      if (!verdict.ok && spec.colorMode !== 'none') {
-        lastReason = verdict.reason
-        continue
-      }
-      return { grid: canonicalizeCheckoutRows(compactGrid(raw), recordingCheckout()), plainText: res.stdout }
-    }
-    throw new Error(`[${entryId(spec)}] capture rejected: ${lastReason}`)
+      if (res.status !== 0) return { status: res.status, stderr: res.stderr, stdout: res.stdout }
+      return { status: 0, stderr: res.stderr, stdout: res.stdout, grid: JSON.parse(readFileSync(gridPath, 'utf8')) as RawGrid }
+    }, judge, { baseScale: vshotBudgetScale(), log: line => console.log(line) })
+    return { grid: canonicalizeCheckoutRows(compactGrid(grid), recordingCheckout()), plainText: stdout }
   } finally {
     mods.scenarios.cleanupScenario(spec.scenario)
   }
@@ -254,17 +247,34 @@ async function main(): Promise<number> {
     }
 
     mkdirSync(GRIDS_DIR, { recursive: true })
-    const prior = only ? readManifest() : null
+    const held = readManifest()
+    const heldById = new Map<string, VisualBaselineEntry>((held?.entries ?? []).map(e => [e.id, e]))
+    const prior = only ? held : null
     const entries = new Map<string, VisualBaselineEntry>(
       (prior?.entries ?? []).map(e => [e.id, e]),
     )
+    const storedGridOf = (entry: VisualBaselineEntry): StoredGrid | null => {
+      try {
+        return readStoredGrid(entry)
+      } catch {
+        return null
+      }
+    }
     let generated = 0
+    let kept = 0
     let failedGen = 0
     for (const spec of specs) {
       const id = entryId(spec)
       const masks = spec.masks ?? DEFAULT_MASKS
+      const before = heldById.get(id)
       try {
         const { grid } = captureSpec({ ...spec, masks }, mods)
+        if (before !== undefined && JSON.stringify(before.masks) === JSON.stringify(masks) && storedGridStands(storedGridOf(before), grid, masks)) {
+          entries.set(id, before)
+          kept++
+          console.log(`= ${id} — unchanged, the stored grid stands`)
+          continue
+        }
         const gridPath = `grids/${id}.grid.json`
         writeFileSync(join(LIVE_DIR, gridPath), JSON.stringify(grid))
         entries.set(id, {
@@ -279,7 +289,8 @@ async function main(): Promise<number> {
         console.log(`✓ ${id}`)
       } catch (err) {
         failedGen++
-        console.log(`✗ ${id} — ${String(err)}`)
+        if (before !== undefined) entries.set(id, before)
+        console.log(`✗ ${id} — ${String(err)}${before !== undefined ? ' (the stored grid stands)' : ''}`)
       }
     }
     const manifest: VisualManifest = {
@@ -290,8 +301,15 @@ async function main(): Promise<number> {
       descoped: DESCOPED,
       entries: [...entries.values()].sort((a, b) => a.id.localeCompare(b.id)),
     }
+    const stands =
+      held !== null && generated === 0 && failedGen === 0 && held.sourceSha === sourceSha && held.buildDigest === buildDigest &&
+      JSON.stringify(held.entries.map(e => e.id)) === JSON.stringify(manifest.entries.map(e => e.id))
+    if (stands) {
+      console.log(`\n✅ ${kept} unchanged, nothing rewritten → ${MANIFEST_PATH} stands`)
+      return 0
+    }
     writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2))
-    console.log(`\n${failedGen === 0 ? '✅' : '❌'} ${generated} generated, ${failedGen} failed → ${MANIFEST_PATH}`)
+    console.log(`\n${failedGen === 0 ? '✅' : '❌'} ${generated} generated, ${kept} unchanged, ${failedGen} failed → ${MANIFEST_PATH}`)
     return failedGen === 0 ? 0 : 1
   } finally {
     rmSync(RUN_HOME, { recursive: true, force: true })
