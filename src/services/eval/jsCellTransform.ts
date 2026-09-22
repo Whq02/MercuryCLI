@@ -21,6 +21,18 @@ interface Segment {
 export function splitTopLevelSegments(source: string): Segment[] {
   const segments: Segment[] = []
   let start = 0
+  for (const i of topLevelCodePositions(source)) {
+    const c = source[i]!
+    if (c === ';' || c === '\n' || c === '}' && BLOCK_FOLLOWER.test(source.slice(i + 1, i + 41))) {
+      segments.push({ text: source.slice(start, i + 1) })
+      start = i + 1
+    }
+  }
+  if (start < source.length) segments.push({ text: source.slice(start) })
+  return segments
+}
+
+function* topLevelCodePositions(source: string): Generator<number> {
   let depth = 0
   let i = 0
   const n = source.length
@@ -123,29 +135,13 @@ export function splitTopLevelSegments(source: string): Segment[] {
         i++
         continue
       }
+      if (depth === 0) yield i
       i++
-      if (c === '}' && depth === 0 && BLOCK_FOLLOWER.test(source.slice(i, i + 40))) {
-        segments.push({ text: source.slice(start, i) })
-        start = i
-      }
       continue
     }
-    if (c === ';' && depth === 0) {
-      i++
-      segments.push({ text: source.slice(start, i) })
-      start = i
-      continue
-    }
-    if (c === '\n' && depth === 0) {
-      i++
-      segments.push({ text: source.slice(start, i) })
-      start = i
-      continue
-    }
+    if (depth === 0) yield i
     i++
   }
-  if (start < n) segments.push({ text: source.slice(start) })
-  return segments
 }
 
 function patternNames(region: string): string[] {
@@ -165,41 +161,27 @@ function patternNames(region: string): string[] {
 export function declarationNames(statement: string): string[] {
   const body = statement.replace(DECL_KEYWORD, '')
   const names: string[] = []
-  let depth = 0
-  let current = ''
-  const flush = (): void => {
+  let start = 0
+  const flush = (end: number): void => {
+    const current = body.slice(start, end)
     const eq = findTopLevelAssign(current)
     names.push(...patternNames(eq >= 0 ? current.slice(0, eq) : current))
-    current = ''
+    start = end + 1
   }
-  for (let i = 0; i < body.length; i++) {
-    const c = body[i]!
-    if (c === '(' || c === '[' || c === '{') depth++
-    else if (c === ')' || c === ']' || c === '}') depth--
-    if (c === ',' && depth === 0) {
-      flush()
-      continue
-    }
-    current += c
+  for (const i of topLevelCodePositions(body)) {
+    if (body[i] === ',') flush(i)
   }
-  flush()
+  flush(body.length)
   return names
 }
 
 function findTopLevelAssign(text: string): number {
-  let depth = 0
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]!
-    if (c === '(' || c === '[' || c === '{') depth++
-    else if (c === ')' || c === ']' || c === '}') depth--
-    else if (c === '=' && depth === 0) {
+  for (const i of topLevelCodePositions(text)) {
+    if (text[i] === '=') {
       const prev = i > 0 ? text[i - 1]! : ''
       const next = i + 1 < text.length ? text[i + 1]! : ''
       if (prev === '=' || prev === '!' || prev === '<' || prev === '>') continue
-      if (next === '=' || next === '>') {
-        i++
-        continue
-      }
+      if (next === '=' || next === '>') continue
       return i
     }
   }

@@ -205,9 +205,9 @@ export function quoteTolerantPattern(pattern: string): string {
   return out
 }
 
-function realSearchRoot(root: string): string {
+export function realSearchRoot(root: string): string {
   try {
-    return realpathSync(root).normalize('NFC')
+    return realpathSync(root)
   } catch {
     return root
   }

@@ -13,12 +13,13 @@ runtime and words of its own.
 
 - **JavaScript.** Top-level `import` statements and top-level `const`,
   `let`, `var`, `class` and `function` declarations persist across cells
-  through a source transform. A declaration written directly after a
-  block's closing brace on the same line (`for (…) {…} var total = 0`)
-  persists like any other; declarations inside a block or a function do
-  not. One declaration per statement reads best; a regex literal holding
-  quotes or braces can confuse the transform, so prefer `new RegExp(…)` at
-  the top level.
+  through a source transform. Quoted strings and template literals in an
+  initializer may contain text with commas and equals signs. A declaration
+  written directly after a block's closing brace on the same line
+  (`for (…) {…} var total = 0`) persists like any other; declarations inside
+  a block or a function do not. One declaration per statement reads best;
+  a regex literal holding quotes or braces can confuse the transform, so
+  prefer `new RegExp(…)` at the top level.
 - **Python.** The namespace keeps every assignment a cell made before it
   ended, error or not.
 - **A cell that throws** keeps what it bound before the throw. Its result

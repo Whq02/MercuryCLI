@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { transformJsCell } from '../../src/services/eval/jsCellTransform.js'
+import { runInNewContext } from 'node:vm'
+import { splitTopLevelSegments, transformJsCell } from '../../src/services/eval/jsCellTransform.js'
 import { check, finish, section } from './lib.js'
 
 function parsesAsCellBody(code: string): boolean {
@@ -45,6 +46,31 @@ const realistic: Array<[string, string]> = [
 for (const [label, src] of realistic) {
   const t = transformJsCell(src)
   check(label, parsesAsCellBody(t.code), t.code)
+}
+
+section('declarator separators belong to code, not strings, templates or comments')
+const lexicalCells: Array<[string, string, Record<string, unknown>]> = [
+  ['quoted delimiters', "var s = 'a, in b'; var t = `x, for y`; const u = \"p = q\", v = 2", { s: 'a, in b', t: 'x, for y', u: 'p = q', v: 2 }],
+  ['escaped quotes and brackets', String.raw`const single = 'a\', in [b', double = "x\", for }y", after = 3`, { single: "a', in [b", double: 'x", for }y', after: 3 }],
+  ['nested template interpolation', 'const text = `a, in ${[1, 2].map(n => `x, for ${n}`).join(",")}`, after = 4', { text: 'a, in x, for 1,x, for 2', after: 4 }],
+  ['block comment punctuation', 'const first = 1 /* , in = } ] ) */, second = 2', { first: 1, second: 2 }],
+  ['line comment punctuation', 'const first = 1, second = 2 // , in = } ] )', { first: 1, second: 2 }],
+  ['assignment after comment punctuation', 'var first /* = , } ] ) */ = 1, second = 2', { first: 1, second: 2 }],
+  ['prose ledger', "var ledgerIntro = '# Source issues\\n\\nEvidence register, not a runnable rulings file. Cross-references in the index, not automatic invention.\\n'; var sections = ['one', 'two']; var ledgerMd = ledgerIntro + sections.join(', ')", { ledgerIntro: '# Source issues\n\nEvidence register, not a runnable rulings file. Cross-references in the index, not automatic invention.\n', sections: ['one', 'two'], ledgerMd: '# Source issues\n\nEvidence register, not a runnable rulings file. Cross-references in the index, not automatic invention.\none, two' }],
+]
+for (const [label, source, expected] of lexicalCells) {
+  const t = transformJsCell(source)
+  check(`${label}: the raw cell parses`, parsesAsCellBody(source))
+  check(`${label}: transformed cell parses`, parsesAsCellBody(t.code), t.code)
+  check(`${label}: only declared names persist`, JSON.stringify(t.persistedNames) === JSON.stringify(Object.keys(expected)), JSON.stringify(t.persistedNames))
+  check(`${label}: segment bytes are unchanged`, splitTopLevelSegments(source).map(s => s.text).join('') === source)
+  const scope: Record<string, unknown> = {}
+  try {
+    await runInNewContext(`(async () => {\n${t.code}\n})()`, scope)
+    check(`${label}: values and the actual persistence ledger agree`, JSON.stringify(Object.fromEntries(Object.keys(expected).map(name => [name, scope[name]]))) === JSON.stringify(expected) && JSON.stringify(scope.__mercuryPersistedNames) === JSON.stringify(Object.keys(expected)))
+  } catch (error) {
+    check(`${label}: transformed cell executes`, false, String(error))
+  }
 }
 
 finish('JS-TRANSFORM')
