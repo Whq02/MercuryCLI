@@ -155,7 +155,7 @@ function enqueueShellNotification(
     status === 'completed'
       ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" completed${codePart}`
       : status === 'failed'
-        ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" failed${codePart}`
+        ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" ended${codePart}`
         : `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" was stopped`
 
   const toolUseIdLine = toolUseId
