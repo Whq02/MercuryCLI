@@ -38,7 +38,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
-import { getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
+import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { FORK_AGENT, FORK_SUBAGENT_TYPE, isForkSubagentEnabled } from './forkSubagent.js'
@@ -330,7 +330,7 @@ export async function resumeAgentBackground(args: {
     invokingRequestId: args.invokingRequestId,
     invocationKind: 'resume',
   }
-  const directory = worktreePath ?? cwdPath
+  const directory = worktreePath ?? cwdPath ?? getCwdState()
   void runWithAgentContext(resumeContext, () =>
     directory
       ? runWithCwdOverride(directory, runLifecycle)

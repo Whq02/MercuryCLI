@@ -337,11 +337,12 @@ function laneNotices(records: Record_[]): Notice[] {
     if (!text.includes('<task-notification>')) continue
     for (const block of text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? []) {
       const summary = pickTag(block, 'summary')
-      if (summary === null || !summary.includes(`"${LANE_NAME}"`)) continue
+      if (summary === null) continue
       out.push({ status: pickTag(block, 'status'), summary, taskId: pickTag(block, 'task-id') })
     }
   }
-  return out
+  const taskIds = new Set(out.filter(notice => notice.summary?.includes(`"${LANE_NAME}"`)).map(notice => notice.taskId))
+  return out.filter(notice => notice.taskId !== null && taskIds.has(notice.taskId))
 }
 function parentToolUses(records: Record_[], name: string): number {
   let n = 0

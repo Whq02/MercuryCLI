@@ -57,6 +57,10 @@ if (noteLeaf !== null) {
   const checkout = noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-checkout' }, '/proof/session')
   check('a gone worktree keeps its existing sentence byte for byte', checkout === ' NOTE: its worktree is gone (already folded or cleaned) — the revived agent runs in the PARENT checkout; anything it edits lands in the real tree.', checkout)
   check('a continuation in its recorded directory carries no note', noteLeaf.continuationDirectoryNote({}, '/proof/session') === '')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { getCwdState } = await import('../../src/bootstrap/state.ts')
+  const automaticNote = runWithCwdOverride('/proof/gone-child', () => noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory', recordedCwd: '/proof/gone-child' }))
+  check('an automatic callback names the session directory, not its departed child override', automaticNote.includes(`session's own directory, ${getCwdState()};`), automaticNote)
   check('a gone directory the result did not name is still noted', noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory' }, '/proof/session').includes('its recorded directory is gone'))
 }
 const send = src('tools', 'SendMessageTool', 'SendMessageTool.ts')
@@ -72,6 +76,7 @@ for (const [start, end] of [['export function armBudgetCutResume(', 'const overl
   const at = lifecycle.indexOf(start)
   const body = lifecycle.slice(at, lifecycle.indexOf(end, at))
   check(`${start}: the resume receipt carries the returned note`, at >= 0 && body.includes('enqueueAgentReceiptRow(') && /resumed\??\.note/.test(body))
+  if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, body.includes('runWithCwdOverride(getCwdState(), fire)'))
 }
 const print = src('cli', 'print.ts')
 check('the crew resume answer carries the note and recorded directory', print.includes('recorded_cwd: resumed.recordedCwd') && print.includes('note: resumed.note'))

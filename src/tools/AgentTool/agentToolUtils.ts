@@ -47,6 +47,8 @@ import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getCwdState } from '../../bootstrap/state.js'
+import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
@@ -679,7 +681,7 @@ export function armBudgetCutResume(args: {
     })
   }
   const timer = setTimeout(() => {
-    void fire()
+    void runWithCwdOverride(getCwdState(), fire)
   }, args.delayMs ?? recoveryBudgetMs())
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
@@ -819,7 +821,7 @@ export function armOverloadProbe(args: {
     }
   }
   const timer = setTimeout(() => {
-    void fire()
+    void runWithCwdOverride(getCwdState(), fire)
   }, delayMs)
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
