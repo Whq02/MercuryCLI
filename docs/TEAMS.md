@@ -92,7 +92,11 @@ provider refusal, a spent window, an error before its first response — is
 refused by name with the cause, is not on the roster, and a later message to
 it is refused with the same cause instead of landing in an inbox nobody
 reads. A seat that fails later leaves the roster the same way, so the team
-view and the brief never list a dead seat as running.
+view and the brief never list a dead seat as running. When an Agent call
+names the parent's own model family, its sub-agent or named teammate keeps
+the parent's exact model. Engine models still pass their provider's dispatch
+checks. A different family keeps that family's preferred model; an exact
+model id keeps its explicit choice.
 
 A workflow that ends with agent failures says so in the first line of its
 notification: the count, then the first failing agent and its cause — an

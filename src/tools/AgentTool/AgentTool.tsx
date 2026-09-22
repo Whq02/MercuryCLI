@@ -54,6 +54,7 @@ import {
 import {
   buildAgentLaunchPlan,
 } from '../../utils/swarm/agentLaunchPlan.js'
+import { getAgentModel } from '../../utils/model/agent.js'
 import {
   resolveEngineDispatch,
   unrecognisedModelWordRefusal,
@@ -451,7 +452,8 @@ export const AgentTool = buildTool({
       )
     }
 
-    const engineDispatch = await resolveEngineDispatch(input.model)
+    const modelParam = input.model ? getAgentModel(undefined, options.mainLoopModel, input.model) : input.model
+    const engineDispatch = await resolveEngineDispatch(modelParam)
     if (engineDispatch === null) {
       const unrecognised = unrecognisedModelWordRefusal(input.model)
       if (unrecognised !== null) throw new Error(unrecognised)
@@ -468,7 +470,7 @@ export const AgentTool = buildTool({
         setAgentColor(teammateDefinition.agentType, teammateDefinition.color)
       }
       const teammateModel =
-        engineDispatch?.model ?? input.model ?? teammateDefinition?.model
+        engineDispatch?.model ?? modelParam ?? teammateDefinition?.model
       const spawned = await spawnTeammate(
         {
           name: input.name,
@@ -511,6 +513,7 @@ export const AgentTool = buildTool({
       defaultAgentType: DEFAULT_AGENT_TYPE,
       mainLoopModel: options.mainLoopModel,
       modelParam: engineDispatch ? undefined : (input.model as never),
+      resolvedModel: modelParam || undefined,
       permissionMode: context.getAppState().toolPermissionContext
         .mode as never,
       isolationParam: input.isolation,
