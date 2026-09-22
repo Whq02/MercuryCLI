@@ -38,6 +38,7 @@ import { emitTaskTerminatedSdk, enqueueSdkEvent } from '../../utils/sdkEventQueu
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
+import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { observedFamilyWindow } from '../../services/capFailover.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
@@ -370,6 +371,41 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
   return last.error === 'rate_limit'
     ? { why: 'usage limit', words: `${who}'s ${window.windowName ?? 'usage window'} is spent${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
     : { why: 'provider busy', words: `the provider asked ${who} to wait${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
+}
+
+function pauseModelWords(model: string | null | undefined): string {
+  if (model === undefined || model === null) return providerFamilyOfSetting(null)
+  try {
+    return getMarketingNameForModel(model) ?? model
+  } catch {
+    return model
+  }
+}
+
+export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: AgentPauseV1; who: string } | null {
+  let last: Message | undefined
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'assistant') continue
+    last = message
+    break
+  }
+  if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
+  if (typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now()) return null
+  const content = last.message.content
+  const text = Array.isArray(content) ? content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join('\n') : ''
+  if (!isOverloadAnswerText(text)) return null
+  const who = pauseModelWords(model)
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who }
+}
+
+export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (heldByAnotherRegistration(task, registration)) return task
+    if (task.paused === undefined) return task
+    const { paused: _lifted, ...rest } = task
+    return rest as LocalAgentTaskState
+  })
 }
 
 export function enqueueAgentReceiptRow(args: { taskId: string; description: string; summary: string; status?: string }): void {
@@ -909,6 +945,7 @@ export function enqueueAgentNotification(args: {
   envelopeBlock?: string
   summary?: string
   stopReason?: string
+  statusWord?: string
   landedWrites?: readonly string[]
   controller?: AbortController
 }): void {
@@ -954,7 +991,7 @@ export function enqueueAgentNotification(args: {
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>${args.status}</${STATUS_TAG}>
+<${STATUS_TAG}>${args.statusWord ?? args.status}</${STATUS_TAG}>
 <${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${resultSection}${usageSection}${worktreeSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 

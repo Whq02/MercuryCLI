@@ -134,6 +134,20 @@ straight twin, since none of those ever wants one; a field that carries
 content or prose — a Write's content, an Edit's new text, a Workshop cell —
 stays exactly as typed, and every other wire carries every byte as typed.
 
+A dispatched sub-agent whose turn ends on the provider's overload (an HTTP
+529 or `overloaded_error` on the Anthropic wire, with no wait stated) is not
+failed: it pauses, its row says why — `paused — provider overloaded ·
+resumes by itself when the provider answers` — its work so far is kept, and
+Mercury probes the provider with one small request at a slow, bounded
+cadence — 30 s after the pause, then every minute for ten minutes, then
+every five minutes, for up to two hours — and resumes the agent by itself
+when a probe is answered; the agent continues from where its transcript
+ends. The parent's chat reads the pause as one calm line naming the provider
+and the probing, and the agent's completion follows as its own line; a
+message to the agent resumes it sooner, and the crew view stops it. If the
+outage outlasts the probing, the row is a failed one again and a message is
+the way back.
+
 A session's side jobs — the chat's title, the away summary, the tool-use
 summaries, the state read, the feedback card, a prompt hook's default model,
 the date parser and the fetch tool's summary — ride the session's own family
