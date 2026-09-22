@@ -220,7 +220,7 @@ async function lifecycleCase(
   name: string,
   stream: MessageType[],
   expect: { status: string; notifStatus: string; inNotif: RegExp; notInNotif?: RegExp },
-): Promise<void> {
+): Promise<{ status: string; error?: string; paused?: { why?: string } } | undefined> {
   resetCommandQueue()
   const store = makeStore()
   const taskId = `ag-life-${name}`
@@ -257,11 +257,28 @@ async function lifecycleCase(
   if (expect.notInNotif) {
     check(`${name}: notification does NOT carry the displaced text`, !expect.notInNotif.test(body))
   }
+  return store.state.tasks[taskId] as { status: string; error?: string; paused?: { why?: string } } | undefined
 }
 
-await lifecycleCase(
+const declinedRow = await lifecycleCase(
   'declined',
-  [userMsg('go'), realReport('partial findings so far'), declineTail('API Error: 529 overloaded')],
+  [userMsg('go'), realReport('partial findings so far'), declineTail('API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}')],
+  {
+    status: 'failed',
+    notifStatus: 'paused',
+    inNotif: /partial findings so far/,
+  },
+)
+{
+  const notifs = taskNotifications()
+  const body = notifs.map(n => (n as { value?: string }).value ?? '').join('\n')
+  check('declined: envelope block says failed', /status="failed"/.test(body), body.slice(-400))
+  check("declined on the provider's overload: the notice is the calm paused line naming the overload and the probing, not the error", /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider/.test(body) && !/failed: API Error/.test(body), body.slice(0, 400))
+  check("declined on the provider's overload: the row wears the pause", declinedRow?.paused?.why === 'provider overloaded', JSON.stringify(declinedRow?.paused))
+}
+await lifecycleCase(
+  'declined-plain',
+  [userMsg('go'), realReport('partial findings so far'), declineTail('API Error: 400 context')],
   {
     status: 'failed',
     notifStatus: 'failed',
@@ -271,8 +288,8 @@ await lifecycleCase(
 {
   const notifs = taskNotifications()
   const body = notifs.map(n => (n as { value?: string }).value ?? '').join('\n')
-  check('declined: envelope block says failed', /status="failed"/.test(body), body.slice(-400))
-  check('declined: the error rides the notification', /529 overloaded/.test(body))
+  check('declined-plain: envelope block says failed', /status="failed"/.test(body), body.slice(-400))
+  check('declined-plain: the error rides the notification', /400 context/.test(body))
 }
 await lifecycleCase(
   'clean',

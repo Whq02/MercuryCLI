@@ -51,6 +51,7 @@ type UtilitySource =
   | 'mcp_datetime_parse'
   | 'web_search_tool'
   | 'web_fetch_apply'
+  | 'overload_probe'
 
 export type QuerySource =
   | ReplSource
