@@ -340,7 +340,9 @@ to the screen, so the rail's figure becomes the list's and the mark goes the
 moment the seat reports it, with no picker opened. The model picker paints
 its cached rows at once and refreshes every signed-in family's list in the
 background on every open, even when that cache is fresh: the GPT, OpenRouter,
-Gemini and Hugging Face catalogues, and the local servers' discovery. A changed
+Gemini and Hugging Face catalogues, and the local servers' discovery. The
+sub-agent and teammate model choices in `/config` refresh the same lists
+when their pickers open. A changed
 list replaces the rows in place, keeps the highlighted model and adds a notice
 naming the family; an unchanged list stays quiet. A family with no credential,
 or with catalogue traffic switched off, sends nothing. The retry action shares
