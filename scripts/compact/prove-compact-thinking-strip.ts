@@ -75,7 +75,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
 {
   const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-  const big = 'x'.repeat(4000)
+  const big = 'x'.repeat(44_000)
   const ids = ['bash_1', 'bash_2', 'bash_3', 'bash_4', 'bash_5', 'bash_6', 'bash_7']
   const history = [
     user('go', OLD),

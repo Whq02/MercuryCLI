@@ -580,6 +580,12 @@ the provider's cached prefix; fewer input tokens do not by themselves promise
 lower billed cost for a cache-heavy conversation. `MERCURY_AUTO_COMPACT=0`
 leaves this prune available; `MERCURY_COMPACT=0` disables the early prune.
 The time-gap trigger and emergency recovery retain their existing rules.
+Those two clear stale tool results of every kind older than the recent
+five, keeping the newest 40,000 tokens of tool output, clearing only when
+a pass saves 20,000 tokens or more, and never a result under 50 tokens;
+the operator's own answers, briefs, skill material and the tool-search
+record stay, and a cleared result whose full output was saved to a file
+keeps the line that names the file.
 
 ## When the context overflows
 

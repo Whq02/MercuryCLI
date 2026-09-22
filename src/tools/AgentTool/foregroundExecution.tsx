@@ -17,6 +17,7 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  overloadPauseOf,
   pauseAgentTask,
   publishAgentProgressSoon,
   publishAgentWaitFromEvent,
@@ -57,10 +58,13 @@ import { getAssistantMessageContentLength } from '../../utils/tokens.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { BackgroundHint } from '../BashTool/UI.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
+import { noteOverloadDeath } from '../../tasks/LocalAgentTask/agentOverload.js'
 import {
   deriveAgentTerminalOutcome,
   emitTaskProgress,
   armBudgetCutResume,
+  armOverloadProbe,
+  overloadEpisodeOf,
   extractPartialResult,
   partialResultEnvelopeBlock,
   budgetCutResumeDelayMs,
@@ -584,8 +588,21 @@ export async function runForegroundAgentExecution(
               : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
-        seatPause = windowPause
-        if (windowPause !== null) {
+        const overload = outcome !== null && outcome.status === 'failed' && windowPause === null ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+        seatPause = windowPause ?? overload?.pause ?? null
+        if (overload !== null) {
+          noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))
+          armOverloadProbe({
+            taskId: foregroundTask.taskId,
+            description,
+            registration: foregroundTask.abortController,
+            toolUseContext,
+            rootSetAppState,
+            model: metadata.resolvedAgentModel,
+            pause: overload.pause,
+            afterDeath: true,
+          })
+        } else if (windowPause !== null) {
           if (windowPause.resumesAtMs !== undefined) {
             armBudgetCutResume({
               taskId: foregroundTask.taskId,
