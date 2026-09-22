@@ -2031,6 +2031,7 @@ export async function runHeadless(
           const anthropicWindow = anthropicWindowFact()
           const openaiWindow = openaiWindowFact()
           const geminiWindow = laneWindowFact('gemini')
+          const openrouterWindow = laneWindowFact('openrouter')
           const openaiCatalogue = openaiCatalogueFact()
           const answer: SessionFactsAnswerV1 = {
             model: {
@@ -2057,6 +2058,7 @@ export async function runHeadless(
               ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
               ...(openaiWindow !== undefined ? { openaiWindow } : {}),
               ...(geminiWindow !== undefined ? { geminiWindow } : {}),
+              ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),

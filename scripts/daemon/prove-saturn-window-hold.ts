@@ -143,7 +143,7 @@ console.log('§W the window fact read')
   check("the fact rides the seat's wire as openai_window with its stamps renamed", wired !== undefined && wired.source === 'chatgpt-subscription' && wired.resets_at_ms === NOW + 5_000 && wired.observed_at_ms === NOW - 1_000, JSON.stringify(onWire.usage))
   const back = wire.sessionFactsFromWire(onWire as never) as { usage?: { openaiWindow?: { resetsAtMs?: number; observedAtMs?: number; source?: string } } }
   check('and reads back whole', back.usage?.openaiWindow?.resetsAtMs === NOW + 5_000 && back.usage?.openaiWindow?.observedAtMs === NOW - 1_000 && back.usage?.openaiWindow?.source === 'chatgpt-subscription', JSON.stringify(back.usage?.openaiWindow))
-  for (const family of ['gemini'] as const) {
+  for (const family of ['gemini', 'openrouter'] as const) {
     const key = `${family}Window`
     const wireKey = `${family}_window`
     const laneFact = { resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }
@@ -152,7 +152,7 @@ console.log('§W the window fact read')
     check(`the ${family} family reads nothing from the anthropic or openai facts`, sessionWindowClosedUntil(family, { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 }, openaiWindow: openaiFact } } as never, NOW) === undefined)
     check(`the anthropic and openai families read nothing from the ${family} fact`, sessionWindowClosedUntil('anthropic', { usage: { [key]: laneFact } } as never, NOW) === undefined && sessionWindowClosedUntil('openai', { usage: { [key]: laneFact } } as never, NOW) === undefined)
     const laneFacts = liveFactsForSessionFire({ family, source: 'api-key' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'api-key' as const }), factsOf: () => ({ usage: { [key]: laneFact } }) as never, now: () => NOW })
-    check(`a ${family} session's fire-time facts carry its window as the limit signal`, laneFacts.credentialed && laneFacts.rateLimitedUntil === NOW + 5_000, JSON.stringify(laneFacts))
+    check(`the ${family} session's fire-time facts carry its window as the limit signal`, laneFacts.credentialed && laneFacts.rateLimitedUntil === NOW + 5_000, JSON.stringify(laneFacts))
     const laneOnWire = wire.sessionFactsToWire({ model: { effective: `${family}-fixture`, setting: null }, usage: { ...zeros, [key]: laneFact }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [] } as never) as { usage?: Record<string, unknown> }
     const laneWired = laneOnWire.usage?.[wireKey] as Record<string, unknown> | undefined
     check(`the fact rides the seat's wire as ${wireKey} with its stamps renamed`, laneWired !== undefined && laneWired.resets_at_ms === NOW + 5_000 && laneWired.observed_at_ms === NOW - 1_000, JSON.stringify(laneOnWire.usage))

@@ -107,6 +107,7 @@ export type UsageFactsV1 = {
   anthropicWindow?: AnthropicWindowFactV1
   openaiWindow?: OpenaiWindowFactV1
   geminiWindow?: LaneWindowFactV1
+  openrouterWindow?: LaneWindowFactV1
 }
 
 export type OpenaiObservedBandV1 = {
