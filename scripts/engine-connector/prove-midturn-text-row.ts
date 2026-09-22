@@ -43,7 +43,7 @@ type Guts = {
   reconcileQueuedSends: (facts: unknown) => void
   reconcileSends: () => boolean
   paint: () => void
-  textRows: unknown[]
+  textRows?: unknown[]
   sends: Array<{ clientMessageId: string; text: string; state: string }>
   tailSeq: number | null
 }
@@ -71,6 +71,7 @@ const write = async (rows: unknown[]): Promise<void> => {
   g.attached = false
 }
 const escaped = (text: string): string => JSON.stringify(text).slice(1, -1)
+const committedCount = (): number => (g.textRows ?? []).length
 const rowsWith = (text: string): Message[] => connector.records().filter(row => JSON.stringify(row).includes(escaped(text)))
 const indexOf = (text: string): number => connector.records().findIndex(row => JSON.stringify(row).includes(escaped(text)))
 const assistantWithId = (text: string, id: string): Message => {
@@ -118,7 +119,7 @@ section("T4 the record lands: it takes the committed row's place, the words pain
   await write([assistantWithId(WORDS, M1)])
   const rows = rowsWith(WORDS)
   check('the words paint exactly once after the landing', rows.length === 1, `${rows.length}`)
-  check('the standing row is the record, not the committed row', (rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual !== true && g.textRows.length === 0, `virtual=${String((rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual)} committed=${g.textRows.length}`)
+  check('the standing row is the record, not the committed row', (rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual !== true && committedCount() === 0, `virtual=${String((rows[0] as { isVirtual?: boolean } | undefined)?.isVirtual)} committed=${committedCount()}`)
   check('the notice still stands below the words', indexOf(WORDS) < indexOf(NOTE_AFTER), `words=${indexOf(WORDS)} notice=${indexOf(NOTE_AFTER)}`)
   g.reconcileQueuedSends(facts([], later()))
   await write([createUserMessage({ content: NOTE_AFTER }), assistantWithId('noted', 'msg_midturn_1b')])
@@ -134,7 +135,7 @@ const M2 = 'msg_midturn_2'
   await write([assistantWithId(WORDS2, M2)])
   feed({ text: null, messageId: M2, streamBlock: 'tool_use' })
   check('the words paint once', rowsWith(WORDS2).length === 1, `${rowsWith(WORDS2).length}`)
-  check('no committed row was minted', g.textRows.length === 0, `${g.textRows.length}`)
+  check('no committed row was minted', committedCount() === 0, `${committedCount()}`)
   check('no ghost stands in the store', connector.tail().readSettled() === null)
 }
 
@@ -155,9 +156,9 @@ const M4 = 'msg_midturn_4'
   const since = later()
   feed({ text: 'the coalesced', messageId: M4, streamBlock: 'text', blockSinceMs: since })
   feed({ text: null, messageId: M4, streamBlock: 'tool_use' })
-  check('the prefix stands as a committed row', rowsWith('the coalesced').length === 1 && g.textRows.length === 1)
+  check('the prefix stands as a committed row', rowsWith('the coalesced').length === 1 && committedCount() === 1)
   await write([assistantWithId('the coalesced prefix and the rest of the block', M4)])
-  check('the whole block retires the prefix row', g.textRows.length === 0 && rowsWith('the coalesced').length === 1, `committed=${g.textRows.length} shown=${rowsWith('the coalesced').length}`)
+  check('the whole block retires the prefix row', committedCount() === 0 && rowsWith('the coalesced').length === 1, `committed=${committedCount()} shown=${rowsWith('the coalesced').length}`)
 }
 
 section('T8 a notice held since before the words began stands above them')
@@ -174,7 +175,7 @@ const NOTE_BEFORE = notice('t-before', 'the errand from before the words')
   await write([assistantWithId(WORDS5, M5)])
   g.reconcileQueuedSends(facts([], later()))
   await write([createUserMessage({ content: NOTE_BEFORE })])
-  check('everything lands once', rowsWith(WORDS5).length === 1 && rowsWith(NOTE_BEFORE).length === 1 && g.textRows.length === 0)
+  check('everything lands once', rowsWith(WORDS5).length === 1 && rowsWith(NOTE_BEFORE).length === 1 && committedCount() === 0)
 }
 
 section("T9 the runner's relaunch retires a committed row whose record never came")
@@ -186,7 +187,7 @@ const M6 = 'msg_midturn_6'
   feed({ text: null, messageId: M6, streamBlock: 'tool_use' })
   check('the words stand as a committed row', rowsWith(WORDS6).length === 1)
   g.reconcileQueuedSends({ ...(facts([], later()) as Record<string, unknown>), runnerGeneration: 2 })
-  check('the relaunch retires the row', rowsWith(WORDS6).length === 0 && g.textRows.length === 0, `shown=${rowsWith(WORDS6).length}`)
+  check('the relaunch retires the row', rowsWith(WORDS6).length === 0 && committedCount() === 0, `shown=${rowsWith(WORDS6).length}`)
 }
 
 clearTimeout(watchdog)
