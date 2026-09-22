@@ -54,7 +54,7 @@ import { getCanonicalName } from '../../utils/model/model.js'
 import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
-import { expandPath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { extractPDFPages, getPDFPageCount, readPDF } from '../../utils/pdf.js'
@@ -805,6 +805,7 @@ export const FileReadTool = buildTool({
     return input?.file_path || getCwd()
   },
   backfillObservableInput(input: Input): void {
+    if (hasNulByte(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
@@ -850,6 +851,9 @@ export const FileReadTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (hasNulByte(input.file_path)) {
+      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    }
     const pages = selectedPages(input.pages)
     let parsedRange: { firstPage: number; lastPage: number } | null = null
     if (pages !== undefined) {

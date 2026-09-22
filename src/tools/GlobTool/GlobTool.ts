@@ -9,7 +9,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { glob, extractGlobBaseDirectory } from '../../utils/glob.js'
-import { expandPath, toRelativePath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
 import { suggestPathUnderCwd } from '../../utils/file.js'
 import { DESCRIPTION, GLOB_TOOL_NAME } from './prompt.js'
 import {
@@ -94,6 +94,9 @@ export const GlobTool = buildTool({
   },
   async validateInput(input: Input) {
     if (input.path !== undefined) {
+      if (hasNulByte(input.path)) {
+        return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+      }
       if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
         return { result: true as const }
       }
