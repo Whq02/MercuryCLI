@@ -629,7 +629,7 @@ export function armBudgetCutResume(args: {
     canUseTool?: CanUseToolFn
     invokingRequestId?: string
     automatic: true
-  }) => Promise<unknown>
+  }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
   if (args.automaticResume === true) return null
   if (pendingAutomaticResumes.has(args.taskId)) return null
@@ -648,8 +648,9 @@ export function armBudgetCutResume(args: {
     const { liveAgentOwner, resumeAgentBackground } = await import('./resumeAgent.js')
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
+    let resumed: { note?: string } | void
     try {
-      await resume({
+      resumed = await resume({
         agentId: args.taskId,
         prompt: args.prompt ?? AGENT_BUDGET_RESUME_NOTE,
         toolUseContext: args.toolUseContext,
@@ -664,9 +665,8 @@ export function armBudgetCutResume(args: {
     enqueueAgentReceiptRow({
       taskId: args.taskId,
       description: args.description,
-      summary:
-        args.summary ??
-        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`,
+      summary: (args.summary ??
+        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
   const timer = setTimeout(() => {
@@ -754,7 +754,7 @@ export function armOverloadProbe(args: {
     canUseTool?: CanUseToolFn
     invokingRequestId?: string
     automatic: true
-  }) => Promise<unknown>
+  }) => Promise<{ note?: string } | void>
 }): ReturnType<typeof setTimeout> | null {
   if (pendingAutomaticResumes.has(args.taskId)) return null
   const nowMs = Date.now()
@@ -794,7 +794,7 @@ export function armOverloadProbe(args: {
     if (liveAgentOwner(args.taskId, tasksNow) !== null) return
     const resume = args.resume ?? (resumeAgentBackground as unknown as NonNullable<typeof args.resume>)
     try {
-      await resume({
+      const resumed = await resume({
         agentId: args.taskId,
         prompt: AGENT_OVERLOAD_RESUME_NOTE,
         toolUseContext: args.toolUseContext,
@@ -802,6 +802,7 @@ export function armOverloadProbe(args: {
         invokingRequestId: args.invokingRequestId,
         automatic: true,
       })
+      if (resumed?.note) enqueueAgentReceiptRow({ taskId: args.taskId, description: args.description, summary: resumed.note.trimStart() })
     } catch (error) {
       logForDebugging(`agent lifecycle: the resume of ${args.taskId} after the provider answered did not start: ${errorMessage(error)}`)
       unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
@@ -989,12 +990,13 @@ export async function runAsyncAgentLifecycle(args: {
         })()
         if (queued.length > 0) {
           const { resumeAgentBackground } = await import('./resumeAgent.js')
-          await resumeAgentBackground({
+          const resumed = await resumeAgentBackground({
             agentId: taskId,
             prompt: queued.join('\n\n'),
             toolUseContext,
             canUseTool: args.canUseTool,
           })
+          if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
           drainPendingMessages(taskId, stateReader, rootSetAppState)
         }
       } catch (error) {

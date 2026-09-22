@@ -46,6 +46,7 @@ import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
+import { continuationDirectoryNote } from './continuationNote.js'
 
 export type ResumeAgentResult = {
   agentId: string
@@ -53,6 +54,7 @@ export type ResumeAgentResult = {
   outputFile: string
   cwdFallback?: 'parent-checkout' | 'parent-directory'
   recordedCwd?: string
+  note?: string
 }
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
@@ -99,11 +101,6 @@ export async function resumeAgentBackground(args: {
     ),
   )
 
-  const promptMessages: Message[] = [
-    ...cleaned,
-    createUserMessage({ content: prompt }),
-  ]
-
   const contentReplacementState = reconstructForSubagentResume(
     toolUseContext.contentReplacementState,
     cleaned,
@@ -147,6 +144,17 @@ export async function resumeAgentBackground(args: {
       )
     }
   }
+
+  const directoryFacts = meta?.worktreePath && worktreePath === undefined
+    ? { cwdFallback: 'parent-checkout' as const }
+    : meta?.cwd && cwdPath === undefined
+      ? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }
+      : {}
+  const note = continuationDirectoryNote(directoryFacts)
+  const promptMessages: Message[] = [
+    ...cleaned,
+    createUserMessage({ content: prompt + note }),
+  ]
 
   const isForkResume = meta?.agentType === FORK_SUBAGENT_TYPE
   let definition: AgentDefinition
@@ -333,10 +341,7 @@ export async function resumeAgentBackground(args: {
     agentId,
     description,
     outputFile: getTaskOutputPath(agentId),
-    ...(meta?.worktreePath && worktreePath === undefined
-      ? { cwdFallback: 'parent-checkout' as const }
-      : meta?.cwd && cwdPath === undefined
-        ? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }
-        : {}),
+    ...directoryFacts,
+    ...(note ? { note } : {}),
   }
 }
