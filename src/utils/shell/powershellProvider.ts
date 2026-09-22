@@ -1,5 +1,6 @@
 import { tmpdir } from 'node:os'
 import { posix as posixPath } from 'node:path'
+import { getPlatform } from '../platform.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { getPowerShellEdition } from './powershellDetection.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
@@ -39,7 +40,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
   return {
     type: 'powershell',
     shellPath,
-    detached: false,
+    detached: getPlatform() !== 'windows',
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       pendingUseSandbox = opts.useSandbox
