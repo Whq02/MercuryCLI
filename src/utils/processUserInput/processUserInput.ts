@@ -82,6 +82,53 @@ export async function processUserInput(
 ): Promise<ProcessUserInputBaseResult> {
   const { input, mode, context, isMeta, setUserInputOnProcessing } = options
 
+  if (mode === 'prompt' && options.batchTail && options.batchTail.length > 0) {
+    const prompts = [{ value: input, uuid: options.uuid }, ...options.batchTail]
+    const rows: UserMessage[] = []
+    const remaining: ProcessUserInputBaseResult['messages'] = []
+    const results: ProcessUserInputBaseResult[] = []
+    for (const [index, prompt] of prompts.entries()) {
+      const uuid = prompt.uuid ?? randomUUID()
+      const result = await processUserInput({
+        ...options,
+        input: prompt.value,
+        uuid,
+        batchUuids: undefined,
+        batchTail: undefined,
+        ...(index === 0 ? {} : {
+          skipSlashCommands: true,
+          bridgeOrigin: false,
+          preExpansionInput: undefined,
+          pastedContents: undefined,
+          ideSelection: undefined,
+          setUserInputOnProcessing: undefined,
+        }),
+      })
+      results.push(result)
+      for (const message of result.messages) {
+        if (result.shouldQuery && message.type === 'user' && message.uuid === uuid) {
+          rows.push(message)
+        } else if (!result.shouldQuery && message.type === 'user') {
+          remaining.push({ ...message, isVirtual: true })
+        } else if (result.shouldQuery || message.type !== 'attachment') {
+          remaining.push(message)
+        }
+      }
+    }
+    if (rows.length > 1) rows[0] = { ...rows[0]!, batchUuids: rows.map(row => row.uuid) }
+    const shouldQuery = results.some(result => result.shouldQuery)
+    const blocked = results.filter(result => result.hookBlocked)
+    return {
+      ...results[0]!,
+      messages: [...rows, ...remaining],
+      shouldQuery,
+      ...(blocked.length > 0 && !shouldQuery ? {
+        hookBlocked: true,
+        resultText: blocked.map(result => result.resultText).join('\n'),
+      } : {}),
+    }
+  }
+
   if (mode === 'prompt' && typeof input === 'string' && isMeta !== true) {
     setUserInputOnProcessing?.(input)
   }
@@ -371,7 +418,6 @@ async function processUserInputBase(
       context.getAppState().toolPermissionContext.mode,
       isMeta,
       options.batchUuids,
-      options.batchTail,
     )
   }
 

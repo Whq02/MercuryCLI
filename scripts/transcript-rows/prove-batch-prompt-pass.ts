@@ -82,6 +82,10 @@ try {
   const planned = users(planApiConversation(batch.messages).selected)
   check('the planner still folds the prompts into the old newline-joined text', planned.length === 1 && planned[0]?.message.content === `${first}\n${second}`)
 
+  const slashBatch = await run([first, '/help'], ids.slice(0, 2))
+  check('a later slash line remains prompt text rather than invoking a command', slashBatch.shouldQuery && users(slashBatch.messages).length === 2 && users(slashBatch.messages)[1]?.message.content === '/help' && users(planApiConversation(slashBatch.messages).selected)[0]?.message.content === `${first}\n/help`)
+  check('a later slash line still passes its prompt hook', JSON.stringify(hookSaw.splice(0)) === JSON.stringify([first, '/help']))
+
   const plain = [first, 'the line after the return', 'the third line']
   for (const denied of [[1], [0], [2], [0, 1, 2]]) {
     blocked.clear()
