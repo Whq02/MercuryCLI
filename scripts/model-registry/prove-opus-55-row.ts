@@ -150,6 +150,64 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check('the capability record is coherent on the row', record.canonical === ID && record.thinking.adaptive && record.effort.ceiling === 'max' && record.tools.structuredOutputs && record.context.window === 1_000_000 && record.identity.knowledgeCutoff === 'June 2026', JSON.stringify(record))
 }
 
+section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways')
+{
+  const caps = await import('../../src/utils/model/capabilities.ts')
+  const { sideQueryThinkingParam } = await import('../../src/utils/sideQuery.ts')
+  const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const src = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf-8')
+  const show = (v: unknown): string => JSON.stringify(v)
+
+  check('thinking is always on for the row (the [1m] twin too); Opus 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-opus-5-5'))
+  check('a side query with thinking off sends NO thinking parameter to the row (never the disabled shape)', sideQueryThinkingParam(ID, false, 4096) === undefined && show(sideQueryThinkingParam(PREVIOUS, false, 4096)) === show({ type: 'disabled' }))
+  check('a side query with a budget rides adaptive on the row (no budget on the wire)', show(sideQueryThinkingParam(ID, 2048, 4096)) === show({ type: 'adaptive' }) && sideQueryThinkingParam(ID, undefined, 4096) === undefined)
+  check('forced tool choice is refused on the row; Opus 5 and a carrier row keep it', !caps.modelSupportsForcedToolChoice(ID) && !caps.modelSupportsForcedToolChoice(`${ID}[1m]`) && caps.modelSupportsForcedToolChoice(PREVIOUS) && caps.modelSupportsForcedToolChoice('openrouter/anthropic/claude-opus-5-5'))
+  const forcedTool = { type: 'tool', name: 'classify_result' }
+  const forcedAny = { type: 'any' }
+  const auto = { type: 'auto' }
+  const none = { type: 'none' }
+  check("the one fold turns 'tool' and 'any' into auto on the row and leaves auto, none and an absent choice alone", show(caps.foldToolChoiceForModel(ID, forcedTool)) === show({ type: 'auto' }) && show(caps.foldToolChoiceForModel(ID, forcedAny)) === show({ type: 'auto' }) && caps.foldToolChoiceForModel(ID, auto) === auto && caps.foldToolChoiceForModel(ID, none) === none && caps.foldToolChoiceForModel(ID, undefined) === undefined)
+  check('the fold leaves Opus 5 verbatim', caps.foldToolChoiceForModel(PREVIOUS, forcedTool) === forcedTool && caps.foldToolChoiceForModel(PREVIOUS, forcedAny) === forcedAny)
+
+  const stream = src('src/services/providers/anthropic/streamCore.ts')
+  check('the main stream sends no thinking parameter when the config is disabled (the parameter stays undefined; never the disabled shape)', stream.includes("let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined") && stream.includes('if (hasThinking && modelSupportsThinking(options.model))') && !/thinking\s*=\s*\{\s*type:\s*'disabled'/.test(stream))
+  check('the main stream folds the tool choice through the one owner', stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') && stream.includes('tool_choice: toolChoice,'))
+  const roads: Array<[string, RegExp]> = [
+    ['src/QueryEngine.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
+    ['src/tools/AgentTool/runAgent.ts', /\{ thinkingConfig: \{ type: 'disabled' as const \} \}/],
+    ['src/tools/AgentTool/agentToolUtils.ts', /thinkingConfig: \{ type: 'disabled' \},/],
+    ['src/memdir/findRelevantMemories.ts', /thinkingConfig: \{ type: 'disabled' \},/],
+  ]
+  for (const [rel, shape] of roads) {
+    const text = src(rel)
+    check(`${rel}: the disabled road is a request CONFIG the main stream translates (never a wire thinking object)`, shape.test(text) && !/thinking:\s*\{\s*type:\s*'disabled'/.test(text))
+  }
+
+  const betas: string[] = []
+  const bound = applyThinkingBinding({ type: 'adaptive' as const }, betas, { firstParty: () => true, env: undefined })
+  check('the preserved-thinking binding rides the row like every first-party request: drop_block and the controls beta', (bound as { block_binding?: { prefix_mismatch_behavior?: string } }).block_binding?.prefix_mismatch_behavior === 'drop_block' && betas.includes('thinking-binding-controls-2026-08-01'), show({ bound, betas }))
+
+  const thinking = { type: 'thinking' as const, thinking: 'a plan', signature: 'sig' }
+  const text = (t: string) => ({ type: 'text' as const, text: t, citations: [] })
+  const reply = (model: string, id: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-09-22T00:00:00.000Z', message: { id, model, role: 'assistant' as const, type: 'message' as const, content: [thinking, text('done')], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
+  const history = [reply(PREVIOUS, 'msg_opus5'), reply('claude-fable-5-1', 'msg_fable'), reply(ID, 'msg_55'), reply(`${ID}[1m]`, 'msg_55_1m')] as never[]
+  const toRow = stripThinkingFromOtherModels(history, ID, isSameModel) as Array<{ message: { id: string; content: Array<{ type: string }> } }>
+  const has = (rows: typeof toRow, id: string): boolean => rows.find(r => r.message.id === id)!.message.content.some(b => b.type === 'thinking')
+  check("a request to the row carries none of Opus 5's or Fable 5.1's thinking and all of its own (the [1m] twin is the same model)", !has(toRow, 'msg_opus5') && !has(toRow, 'msg_fable') && has(toRow, 'msg_55') && has(toRow, 'msg_55_1m'))
+  const toOpus5 = stripThinkingFromOtherModels(history, PREVIOUS, isSameModel) as typeof toRow
+  const toFable = stripThinkingFromOtherModels(history, 'claude-fable-5-1', isSameModel) as typeof toRow
+  check("the row's thinking leaves a request to Opus 5 and a request to Fable 5.1", !has(toOpus5, 'msg_55') && !has(toOpus5, 'msg_55_1m') && has(toOpus5, 'msg_opus5') && !has(toFable, 'msg_55') && has(toFable, 'msg_fable'))
+  const foreign = thinkingFromOtherModels(history, ID, isSameModel)
+  check('the foreign count names the two other writers, never the twin', foreign.count === 2 && foreign.models.join(',') === `${PREVIOUS},claude-fable-5-1`, show(foreign))
+  const receipt = modelSwitchReceipt('main', history, ID)
+  check("the switch receipt keeps its words and names the row 'Opus 5.5'", receipt !== null && receipt.text === `Preserved thinking: 2 thinking blocks written by Opus 5, Fable 5.1 stay out of the requests to Opus 5.5 (the conversation switched models); the model re-plans without them.` && receipt.key === `main|${ID}`, show(receipt))
+  const receiptToOpus5 = modelSwitchReceipt('main', [reply(ID, 'msg_a')] as never[], PREVIOUS)
+  check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('written by Opus 5.5 stay out of the requests to Opus 5'), show(receiptToOpus5))
+}
+
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
   console.log(` FAIL — ${failures} Opus 5.5 row check(s) failed`)
