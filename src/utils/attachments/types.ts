@@ -461,6 +461,11 @@ export type Attachment =
       removedNames: string[]
     }
   | {
+      type: 'held_tools'
+      names: string[]
+      body: string
+    }
+  | {
       type: 'bound_prefix'
       boundKey: string
       rosterEnabled: boolean
