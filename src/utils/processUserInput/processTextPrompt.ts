@@ -3,6 +3,7 @@ import { randomUUID, type UUID } from 'node:crypto'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
+import type { BatchedPrompt } from '../../types/textInputTypes.js'
 import { createUserMessage } from '../messages.js'
 
 export function processTextPrompt(
@@ -14,6 +15,7 @@ export function processTextPrompt(
   permissionMode?: PermissionMode,
   isMeta?: boolean,
   batchUuids?: string[],
+  batchTail?: BatchedPrompt[],
 ): { messages: Message[]; shouldQuery: boolean } {
   const promptUuid = uuid ?? (randomUUID() as UUID)
 
@@ -41,5 +43,13 @@ export function processTextPrompt(
     ...(isMeta === true ? { isMeta: true as const } : {}),
     ...(batchUuids !== undefined ? { batchUuids } : {}),
   })
-  return { messages: [message, ...attachmentMessages], shouldQuery: true }
+  const tail = (batchTail ?? []).map(entry =>
+    createUserMessage({
+      content: entry.value,
+      ...(entry.uuid !== undefined ? { uuid: entry.uuid } : {}),
+      ...(permissionMode !== undefined ? { permissionMode } : {}),
+      ...(isMeta === true ? { isMeta: true as const } : {}),
+    }),
+  )
+  return { messages: [message, ...tail, ...attachmentMessages], shouldQuery: true }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, existsSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import {
   AGENT_DESCRIPTION,
@@ -51,12 +51,28 @@ if (!captureFile) {
 export const AGENT_SLEEP_SECONDS = Number(process.argv[3] ?? 20)
 export const MAIN_SLEEP_SECONDS = Number(process.argv[4] ?? 6)
 export const FOLD_PACE_MS = Number(process.argv[5] ?? 800)
+export const HOLD_FILE = process.argv[6] ?? ''
+const HOLD_LIMIT_MS = 60_000
 
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
 const j = (v: unknown): string => JSON.stringify(v)
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16)
 function record(entry: Record<string, unknown>): void {
   appendFileSync(captureFile, `${JSON.stringify(entry)}\n`)
+}
+function onceReleased(n: number, answer: () => void): void {
+  if (HOLD_FILE === '' || existsSync(HOLD_FILE)) return answer()
+  const heldAt = Date.now()
+  record({ kind: 'held', n, at: heldAt })
+  const poll = (): void => {
+    if (!existsSync(HOLD_FILE) && Date.now() - heldAt < HOLD_LIMIT_MS) {
+      setTimeout(poll, 25).unref()
+      return
+    }
+    record({ kind: 'released', n, at: Date.now(), expired: !existsSync(HOLD_FILE) })
+    answer()
+  }
+  poll()
 }
 type Block = { type?: string; text?: string; tool_use_id?: string; id?: string; name?: string; content?: unknown; is_error?: boolean }
 type Item = { role?: string; content?: unknown }
@@ -266,12 +282,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const at = text.indexOf(w)
       if (at >= 0) firstAt[w] = at
     }
-    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Agent'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
+    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Agent'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
     if (fold) return answerFold(res, n, model)
     switch (arm) {
       case 'agent':
         if (step === 0) return answerAgent(res, n, model, `toolu_agent_c${n}`, AGENT_PROMPT)
-        return answerText(res, n, model, doneText(AGENT_TURN_ASK))
+        return onceReleased(n, () => answerText(res, n, model, doneText(AGENT_TURN_ASK)))
       case 'agentsleep':
         if (step === 0) return answerAgent(res, n, model, `toolu_agent_c${n}`, SLEEP_TOOL_PROMPT)
         return answerText(res, n, model, doneText(SLEEP_TOOL_TURN_ASK))

@@ -52,8 +52,9 @@ function makeRig(withWindow: boolean): Rig {
     enqueueOutput: () => {},
     writeDirect: async () => {},
     drainSdkEvents: () => [],
-    executeTurn: async command => {
-      const blocks = typeof command.value === 'string' ? [command.value] : command.value.map(b => (b.type === 'text' ? b.text : '?'))
+    executeTurn: async (command, batch) => {
+      const words = (c: typeof command): string[] => (typeof c.value === 'string' ? [c.value] : c.value.map(b => (b.type === 'text' ? b.text : '?')))
+      const blocks = batch.length > 1 && command.mode === 'prompt' ? [batch.flatMap(words).join('\n')] : words(command)
       rig.turns.push({ at: rig.now, blocks, mode: command.mode })
       rig.duringTurn?.()
       rig.duringTurn = null

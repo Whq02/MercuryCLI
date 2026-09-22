@@ -73,7 +73,7 @@ check(
 section('C. the settle tail: exactly once per turn, after the turn, one call site')
 check(
   "runOneTurn settles in order: executeTurn → lifecycle 'completed' → onTurnSettled",
-  /await ports\.executeTurn\(command, batch\.length > 1 \? batchUuids : \[\], message => \{[\s\S]{0,1500}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
+  /await ports\.executeTurn\(command, batch\.length > 1 \? batch : \[\], message => \{[\s\S]{0,1500}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
 )
 check(
   'onTurnSettled has exactly one call site in the driver',
