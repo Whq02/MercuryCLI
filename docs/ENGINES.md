@@ -148,7 +148,10 @@ ends. The parent's chat carries one calm line per agent per outage — the
 first pause names the provider and the probing; a later death and the
 resume itself add no line, the agent's row on the crew view carries them —
 and the agent's completion follows as its own line; a message to the agent
-resumes it sooner, and the crew view stops it. If the
+resumes it sooner, and the crew view stops it. A helper the parent waited
+on inline takes the same road: its result to the parent leads with the
+pause, the probing brings it back in the background, and its completion
+follows as a notification. If the
 outage outlasts the probing, the row is a failed one again and a message is
 the way back.
 
