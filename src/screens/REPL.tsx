@@ -135,7 +135,7 @@ import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-c
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js';
 import { workWaitingWords } from '../services/engine-connector/workCounts.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
-import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
+import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
 import {
@@ -647,6 +647,7 @@ export function REPL({
   }, [isLoading, pendingModelSwitch, setAppState, addNotification]);
 
   const messages = useFocusedTranscript();
+  const tailAnchor = useFocusedTailAnchor();
   const [conversationId, setConversationId] = useState<string>(() => focusedConnector.sessionId());
   const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
   const setToolJSX: SetToolJSXFn = useCallback(next => {
@@ -2483,6 +2484,7 @@ export function REPL({
       isLoading={isLoading}
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
+      tailAnchor={inVirtualTranscript || paintedMessages !== messages ? undefined : tailAnchor}
       isBriefOnly={isBriefOnly}
       unseenDivider={unseenDivider}
       scrollRef={scrollRef}
