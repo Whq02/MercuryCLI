@@ -366,13 +366,40 @@ function paneRows(lines: string[]): string[] {
   return (headerEnd === -1 ? inner : inner.slice(headerEnd + 1)).map(collapse)
 }
 
+const GUTTER = /^│\s*/
+const DRESS = /^(\d\d:\d\d:\d\d\s+|queued\s+|\[[^\]]+\]\s*|[◐◑◒◓●⏺✶✷✸✹✺✻]\s*)+/
+const HEAD = /^(❯|▰|▶|■|◆|✶|Ran \d|Read \d|Searched)/
+function runsOf(rows: string[]): string[] {
+  const out: string[] = []
+  let open = false
+  for (const row of rows) {
+    if (row === '') {
+      open = false
+      continue
+    }
+    const bare = row.replace(/▍/g, '').replace(GUTTER, '')
+    const undressed = bare.replace(DRESS, '').replace(/^\[?Mercury\]\s*/, '')
+    const starts = undressed !== bare || HEAD.test(undressed)
+    const text = collapse(undressed)
+    if (text === '') continue
+    if (open && !starts) {
+      out[out.length - 1] = `${out[out.length - 1]} ${text}`
+      continue
+    }
+    out.push(text)
+    open = true
+  }
+  return out
+}
+const runsIn = (f: Frame): string[] => runsOf(paneRows(f.lines))
 const rawWrapperFrames = (frames: Frame[]): Frame[] => frames.filter(f => f.lines.some(l => l.includes('<monitor task=') || l.includes('</monitor>')))
 const rowFrames = (frames: Frame[], pred: (row: string) => boolean): Frame[] => frames.filter(f => paneRows(f.lines).some(pred))
-const firstRowOf = (frames: Frame[], pred: (row: string) => boolean): string => {
-  for (const f of frames) for (const row of paneRows(f.lines)) if (pred(row)) return `frame ${f.i} · tick ${f.tick}: ${row}`
+const runFrames = (frames: Frame[], pred: (run: string) => boolean): Frame[] => frames.filter(f => runsIn(f).some(pred))
+const firstRunOf = (frames: Frame[], pred: (run: string) => boolean): string => {
+  for (const f of frames) for (const run of runsIn(f)) if (pred(run)) return `frame ${f.i} · tick ${f.tick}: ${run}`
   return 'none'
 }
-const rowIndex = (rows: string[], pred: (row: string) => boolean): number => rows.findIndex(pred)
+const runIndex = (runs: string[], pred: (run: string) => boolean): number => runs.findIndex(pred)
 
 function saveArtifacts(leg: Leg, frames: Frame[], hits: Hit[]): void {
   if (FRAMES === undefined) return
@@ -424,35 +451,37 @@ for (const journey of JOURNEYS) {
     check(`${tag}: the tee replayed`, false, error instanceof Error ? error.message : String(error))
   }
   const last = frames[frames.length - 1]
-  const lastRows = last === undefined ? [] : paneRows(last.lines)
+  const lastRuns = last === undefined ? [] : runsIn(last)
   const raw = rawWrapperFrames(frames)
-  check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRowOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
-  check(`${tag}: no frame paints a notice under the operator's caret`, rowFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRowOf(frames, r => r.includes('❯ <monitor')))
+  check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
+  check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')))
   if (journey.name === 'monitor-mid-turn-rows') {
-    check(`${tag}: the plate names the watch`, rowFrames(frames, r => r.includes(`monitor · ${WATCH_MID}`)).length > 0, `rows: ${lastRows.join(' ‖ ')}`)
-    check(`${tag}: an event line stands beneath the plate, not under a caret`, rowFrames(frames, r => r.includes('event-1') && !r.includes('❯')).length > 0, `rows: ${lastRows.join(' ‖ ')}`)
-    check(`${tag}: the queued dress precedes the plate while the runner's queue holds the notice`, rowFrames(frames, r => r.startsWith('queued') && r.includes(`monitor · ${WATCH_MID}`)).length > 0, firstRowOf(frames, r => r.includes('monitor ·')))
-    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRows.some(r => r.includes(DONE)) && lastRows.some(r => r.includes(`monitor · ${WATCH_MID}`)) && lastRows.some(r => r.includes('event-3') && !r.includes('❯')), `rows: ${lastRows.join(' ‖ ')}`)
+    const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_MID}`)
+    check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: an event line stands beneath the plate, not under a caret`, runFrames(frames, r => plate(r) && r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: the queued dress precedes the plate while the runner's queue holds the notice`, rowFrames(frames, r => r.startsWith('queued') && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
+    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'notice-between-turns') {
     const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_LATE}`)
-    check(`${tag}: the notice that woke the turn stands under its plate, its line beneath`, frames.some(f => { const rows = paneRows(f.lines); return rows.some(plate) && rows.some(r => r.includes('late-event') && !r.includes('❯')) }), `rows: ${lastRows.join(' ‖ ')}`)
-    const plateAt = rowIndex(lastRows, plate)
-    const notedAt = rowIndex(lastRows, r => r.includes(NOTED))
-    check(`${tag}: the reply to the notice follows the notice row`, plateAt !== -1 && notedAt !== -1 && plateAt < notedAt, `plate=${plateAt} noted=${notedAt} rows: ${lastRows.join(' ‖ ')}`)
+    check(`${tag}: the notice that woke the turn stands under its plate, its line beneath`, runFrames(frames, r => plate(r) && r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    const plateAt = runIndex(lastRuns, plate)
+    const notedAt = runIndex(lastRuns, r => r.includes(NOTED))
+    check(`${tag}: the reply to the notice follows the notice row`, plateAt !== -1 && notedAt !== -1 && plateAt < notedAt, `plate=${plateAt} noted=${notedAt} runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'text-between-tools') {
     const carried = (r: string): boolean => r.includes(CARRIED)
     const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_OWNER}`)
-    const firstFull = frames.findIndex(f => paneRows(f.lines).some(r => r.includes('before the next step')))
-    const gaps = firstFull === -1 ? [] : frames.slice(firstFull).filter(f => !paneRows(f.lines).some(carried))
+    const noticeRun = (r: string): boolean => plate(r) || r.includes('<monitor task=')
+    const firstFull = frames.findIndex(f => runsIn(f).some(r => r.includes('before the next step')))
+    const gaps = firstFull === -1 ? [] : frames.slice(firstFull).filter(f => !runsIn(f).some(carried))
     check(`${tag}: the words written before the tool call stand in every frame from their first full paint to the end`, firstFull !== -1 && gaps.length === 0, firstFull === -1 ? 'the words never painted whole' : `${gaps.length} frames without them, first: frame ${gaps[0]?.i} · tick ${gaps[0]?.tick}`)
-    const above = frames.filter(f => { const rows = paneRows(f.lines); const c = rowIndex(rows, carried); const p = rowIndex(rows, plate); return c !== -1 && p !== -1 && p < c })
-    check(`${tag}: the notice never stands above the words it arrived after`, above.length === 0, above.length === 0 ? '' : `${above.length} frames, first: frame ${above[0]?.i} · tick ${above[0]?.tick}: ${paneRows(above[0]!.lines).join(' ‖ ')}`)
-    const c = rowIndex(lastRows, carried)
-    const p = rowIndex(lastRows, plate)
-    const d = rowIndex(lastRows, r => r.includes(DONE))
-    check(`${tag}: at the end the words stand, the notice beneath them, the turn's last words last`, c !== -1 && p !== -1 && d !== -1 && c < p && p < d, `carried=${c} plate=${p} done=${d} rows: ${lastRows.join(' ‖ ')}`)
+    const above = frames.filter(f => { const runs = runsIn(f); const c = runIndex(runs, carried); const n = runIndex(runs, noticeRun); return c !== -1 && n !== -1 && n < c })
+    check(`${tag}: the notice never stands above the words it arrived after`, above.length === 0, above.length === 0 ? '' : `${above.length} frames, first: frame ${above[0]?.i} · tick ${above[0]?.tick}: ${runsIn(above[0]!).join(' ‖ ')}`)
+    const c = runIndex(lastRuns, carried)
+    const p = runIndex(lastRuns, plate)
+    const d = runIndex(lastRuns, r => r.includes(DONE))
+    check(`${tag}: at the end the words stand, the notice beneath them, the turn's last words last`, c !== -1 && p !== -1 && d !== -1 && c < p && p < d, `carried=${c} plate=${p} done=${d} runs: ${lastRuns.join(' ‖ ')}`)
   }
   saveArtifacts(leg, frames, fixture.hits)
 }
