@@ -58,6 +58,22 @@ export function filterTrailingThinkingFromLastAssistant(
   return result
 }
 
+export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const content = msg.message.content
+    if (!Array.isArray(content) || content.length < 2) return msg
+    const kept = content.filter(
+      block => !(block.type === 'text' && (typeof block.text !== 'string' || block.text.trim() === '')),
+    )
+    if (kept.length === content.length || kept.length === 0) return msg
+    changed = true
+    return { ...msg, message: { ...msg.message, content: kept } } as typeof msg
+  })
+  return changed ? result : messages
+}
+
 function hasOnlyWhitespaceTextContent(
   content: Array<{ type: string; text?: string }>,
 ): boolean {
