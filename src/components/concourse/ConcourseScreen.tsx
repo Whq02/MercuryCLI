@@ -2574,7 +2574,7 @@ export function ConcourseScreen({
               onDone={() => setRowPick(null)}
               onSignIn={() => {
                 setRowPick(null)
-                callbacks.enterBootSettings()
+                callbacks.enterBootSettings('logins')
               }}
             />
           </ModalContext.Provider>
@@ -2645,7 +2645,7 @@ export function ConcourseScreen({
               }}
               onSignIn={() => {
                 setModelDefaultOpen(false)
-                callbacks.enterBootSettings()
+                callbacks.enterBootSettings('logins')
               }}
             />
           </ModalContext.Provider>

@@ -272,7 +272,9 @@ every sign-in path before adding a concurrent login.
 On the `/accounts` board each family's header carries the family name
 alone, never a count of sign-ins against the ceiling; the rows beneath it
 name each sign-in with its kind and identity, and a family with no ceiling
-shows how many sign-ins it holds beside its name.
+shows how many sign-ins it holds beside its name. A sign-in row in either
+of the concourse's model pickers opens the Boot face's Logins screen;
+escape returns to the face.
 
 A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
