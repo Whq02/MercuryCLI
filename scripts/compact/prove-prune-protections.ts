@@ -54,7 +54,8 @@ section('§C the clearing path honours both laws')
 {
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
   const stamp = (m: Message): Message => ({ ...m, timestamp: OLD }) as Message
-  const big = 'x'.repeat(4000)
+  const big = 'x'.repeat(36_000)
+  const huge = 'x'.repeat(80_000)
   const fillers = ['f1', 'f2', 'f3', 'f4', 'bash_recent']
   const history: Message[] = [
     stamp(createUserMessage({ content: 'go' }) as Message),
@@ -71,7 +72,7 @@ section('§C the clearing path honours both laws')
       content: [
         { type: 'tool_result', tool_use_id: 'skill_1', content: big },
         { type: 'tool_result', tool_use_id: 'read_skill', content: big },
-        { type: 'tool_result', tool_use_id: 'bash_big', content: big },
+        { type: 'tool_result', tool_use_id: 'bash_big', content: huge },
         { type: 'tool_result', tool_use_id: 'bash_small', content: 'tiny' },
         ...fillers.map(id => ({ type: 'tool_result', tool_use_id: id, content: big })),
       ] as never,

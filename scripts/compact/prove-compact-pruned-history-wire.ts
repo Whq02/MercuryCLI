@@ -80,7 +80,7 @@ const files: string[] = []
 for (let i = 0; i <= ROUNDS + 1; i++) {
   const path = join(SCRATCH, `notes-${i}.txt`)
   const lines: string[] = []
-  for (let line = 0; line < 40; line++) lines.push(`file ${i} line ${line}: the station keeps its notes tidy and its checks green`)
+  for (let line = 0; line < 480; line++) lines.push(`file ${i} line ${line}: the station keeps its notes tidy and its checks green`)
   writeFileSync(path, lines.join('\n') + '\n')
   files.push(path)
 }

@@ -180,7 +180,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   process.env.MERCURY_TIME_BASED_MC = '1'
   const history = [user('Read the files.'), ...Array.from({ length: 8 }, (_, i) => [
     assistant([THINK('Read ' + i), { type: 'tool_use', id: 'read-' + i, name: 'Read', input: {} }]),
-    user([{ type: 'tool_result', tool_use_id: 'read-' + i, content: ('Result ' + i + ' stays available. ').repeat(200) }]),
+    user([{ type: 'tool_result', tool_use_id: 'read-' + i, content: ('Result ' + i + ' stays available. ').repeat(1_300) }]),
   ]).flat()]
   const input = {
     messages: history as never,

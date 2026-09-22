@@ -19,7 +19,7 @@ const { projectTimeBasedMicrocompact, microcompactMessages } = await import('../
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
 type Message = import('../../src/types/message.ts').Message
-const big = 'the complete original result remains available until a successful later file operation supersedes it\n'.repeat(50)
+const big = 'the complete original result remains available until a successful later file operation supersedes it\n'.repeat(800)
 const history: Message[] = [createUserMessage({ content: 'keep the operator instruction verbatim' })]
 function pair(id: string, name: string, input: Record<string, unknown>, content = big, error = false): void {
   history.push(createAssistantMessage({ content: [{ type: 'tool_use', id, name, input }] as never }))
