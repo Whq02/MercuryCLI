@@ -345,6 +345,10 @@ async function readBytesOrNull(path: string): Promise<Buffer | null> {
   }
 }
 
+function blobMatchesRecord(blobSize: number, record: FileHistoryBackup): boolean {
+  return record.sourceSize === undefined || record.sourceSize === blobSize
+}
+
 async function driftedSinceLastTouch(entry: RestoreDriftEntry, filePath: string, current: Buffer): Promise<boolean> {
   let mtime: number
   try {
@@ -410,7 +414,7 @@ export async function fileHistoryRestore(
     if (target.backupFileName !== null) {
       const blob = backupPath(target.backupFileName)
       planned = await readBytesOrNull(blob)
-      if (planned === null) {
+      if (planned === null || !blobMatchesRecord(planned.length, target)) {
         missing.push(key)
         continue
       }
@@ -560,16 +564,23 @@ export async function copyFileHistoryForResume(log: LogOption): Promise<void> {
               await link(from, to)
             } catch (err) {
               const code = (err as { code?: string }).code
-              if (code === 'EEXIST') return
               if (code === 'ENOENT') {
                 failed = true
                 return
               }
-              try {
-                await copyFile(from, to)
-              } catch {
-                failed = true
+              if (code !== 'EEXIST') {
+                try {
+                  await copyFile(from, to)
+                } catch {
+                  failed = true
+                  return
+                }
               }
+            }
+            try {
+              if (!blobMatchesRecord((await stat(to)).size, backup)) failed = true
+            } catch {
+              failed = true
             }
           }),
         )
