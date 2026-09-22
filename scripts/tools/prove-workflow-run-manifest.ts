@@ -83,6 +83,8 @@ section('embedArgs / logsTail — bounded embedding')
 }
 
 section('write → read round-trip + listWorkflowRuns ordering (real files)')
+const home = mkdtempSync(join(tmpdir(), 'wf-manifest-home-'))
+process.env.MERCURY_CONFIG_DIR = home
 const tmp = mkdtempSync(join(tmpdir(), 'wf-manifest-proof-'))
 try {
   const root = workflowRunsRoot(tmp)
@@ -125,6 +127,7 @@ try {
   check('serialized running→completed lands on completed (no stale-rename freeze)', raced?.status === 'completed')
 } finally {
   rmSync(tmp, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 }
 
 section('isRunOrphaned — truth table')
