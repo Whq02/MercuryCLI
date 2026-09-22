@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import { Box, Text } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
@@ -40,7 +39,6 @@ import {
   findLastCompactBoundaryIndex,
   shouldShowUserMessage,
 } from '../utils/messages.js'
-import { computeTailRelease } from '../utils/messages/tailRetirement.js'
 import type {
   StreamingThinking,
   StreamingToolUse,
@@ -874,24 +872,6 @@ function MessagesInner({
     return visible.findIndex(message => message.uuid.startsWith(prefix))
   }, [unseenDivider, visible])
 
-  const subscribeTailBoundary = useCallback(
-    (cb: () => void) => streamingTail?.subscribe(cb) ?? (() => {}),
-    [streamingTail],
-  )
-  const readTailBoundaryKey = useCallback(() => {
-    if (!streamingTail) return ''
-    const ids = streamingTail.readIds()
-    return `${ids.current ?? ''}\x00${ids.settled ?? ''}\x00${streamingTail.readSettled() ?? ''}`
-  }, [streamingTail])
-  const tailBoundaryKey = useSyncExternalStore(subscribeTailBoundary, readTailBoundaryKey)
-  const { publishedShown, settledShown } = useMemo(() => {
-    void tailBoundaryKey
-    return computeTailRelease(
-      visible as unknown as Parameters<typeof computeTailRelease>[0],
-      streamingTail?.readIds() ?? { current: null, settled: null },
-    )
-  }, [visible, streamingTail, tailBoundaryKey])
-
   const tail = (
     <>
       {
@@ -899,8 +879,6 @@ function MessagesInner({
       {streamingTail && !isBriefOnly ? (
         <LiveStreamingTail
           store={streamingTail}
-          settledShown={settledShown}
-          publishedShown={publishedShown}
           textSuppressed={streamingTextSuppressed}
         />
       ) : null}
