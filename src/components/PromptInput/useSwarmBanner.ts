@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import type { Theme } from '../../utils/theme.js'
 import { useAppState, useAppStateStore } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
@@ -30,6 +31,7 @@ function themeColorOf(
 }
 
 export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null {
+  const cockpit = useContext(CockpitActiveContext)
   const store = useAppStateStore()
   const teamContext = useAppState((state: AppState) => state.teamContext)
   const standalone = useAppState(
@@ -110,6 +112,7 @@ export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null 
   }
 
   if (standalone) {
+    if (cockpit) return null
     return {
       text: standalone.name ?? '',
       bgColor: themeColorOf(standalone.color),
