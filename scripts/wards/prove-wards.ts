@@ -557,6 +557,10 @@ async function main(): Promise<void> {
     const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.js')
     enableDebugLogging()
     check('warn: a refuse-list hit proceeds', (await cb([], undefined as never, curl)) === true)
+    registerWardsHook(store.setAppState, 'w-warn')
+    const warnMatchers = getSessionFunctionHooks({ sessionHooks: store.get().sessionHooks } as never, 'w-warn', 'PreToolUse').get('PreToolUse' as never) ?? []
+    const cbWarn = warnMatchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
+    check('warn: a builtin house rule still denies on a fresh session (warn softens the refuse-list alone)', typeof (await cbWarn([], undefined as never, hexViolation)) === 'string')
     const { existsSync: logExists, readFileSync: readLog } = await import('node:fs')
     const logPath = getDebugLogPath()
     check('…and the hit is recorded in the debug log under the session home', logExists(logPath) && readLog(logPath, 'utf8').includes("wards: warn — Ward 'curl-pipe-shell' blocked this Bash call"), logPath)

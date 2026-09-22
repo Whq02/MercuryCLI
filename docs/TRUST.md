@@ -86,8 +86,9 @@ filesystem root, the home directory or a system directory. Reads stay clear
 inside the project or a scratch directory, and so does a script that only
 mentions one of these words inside a quoted string or a heredoc. The same
 list rides interactive, headless, crew and print sessions alike, and it never
-stands down within a session. `MERCURY_WARDS=warn` writes a hit to the debug
-log and lets the call proceed; `MERCURY_WARDS=0` turns every ward off; project
+stands down within a session. `MERCURY_WARDS=warn` writes a refuse-list hit to
+the debug log and lets that call proceed, while project and builtin rules
+still deny; `MERCURY_WARDS=0` turns every ward off; project
 rules in `.mercury/wards.json` add to the list and never remove from it.
 
 ## Non-interactive sessions
