@@ -6,7 +6,7 @@ import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isResult, user } f
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
-export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; allTexts: string[]; atMs: number; opening: string; step: number; results: SeenResult[]; toolNames: string[] }
+export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; allTexts: string[]; atMs: number; opening: string; step: number; results: SeenResult[]; toolNames: string[]; system: string }
 export type Script = (req: ScriptedRequest) => WireBlock[]
 export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; close: () => Promise<void> }
 export type ScriptedFixtureOptions = { answerDelayMs?: (req: ScriptedRequest) => number }
@@ -91,6 +91,8 @@ export function describeRequest(body: unknown, n: number): ScriptedRequest {
     }
   }
   const after = askIndex === -1 ? [] : items.slice(askIndex + 1).filter(carriesResults)
+  const systemField = (body as { system?: unknown })?.system
+  const system = typeof systemField === 'string' ? systemField : Array.isArray(systemField) ? systemField.map(part => ((part as Block).type === 'text' ? ((part as Block).text ?? '') : '')).join('\n') : ''
   return {
     n,
     ask: askIndex === -1 ? '' : askOf(items[askIndex]!.content),
@@ -101,6 +103,7 @@ export function describeRequest(body: unknown, n: number): ScriptedRequest {
     step: after.length,
     results: resultsOf(after[after.length - 1]),
     toolNames,
+    system,
   }
 }
 

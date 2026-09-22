@@ -1,11 +1,19 @@
 
+import { realpathSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { isAbsolute } from 'node:path'
 import { z, type ZodType } from 'zod'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
   getMainThreadAgentType,
   getSdkAgentProgressSummariesEnabled,
+  getSessionTrustAccepted,
 } from '../../bootstrap/state.js'
+import { isPathTrusted } from '../../utils/config/trust.js'
+import { getGlobalConfig } from '../../utils/config/globalConfig.js'
+import { projectConfigKeyForWorkspace } from '../../utils/config/projectConfig.js'
+import { describeWriteScope, pathInAllowedWorkingPath, pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import {
   enhanceSystemPromptWithEnvDetails,
   getSystemPrompt,
@@ -28,6 +36,7 @@ import {
   toolMatchesName,
   type Tool as ToolShape,
   type ToolDef,
+  type ToolPermissionContext,
   type ToolUseContext,
 } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
@@ -139,6 +148,36 @@ export type AgentToolInput = {
   cwd?: string
 }
 
+const CWD_PARAM_DESCRIPTION =
+  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist and lie inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted; any other directory is refused. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
+
+export function resolveAgentCwd(spelling: string, permissionContext: ToolPermissionContext): string {
+  if (!isAbsolute(spelling)) {
+    throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
+  }
+  const entry = (() => {
+    try {
+      return statSync(spelling)
+    } catch {
+      return null
+    }
+  })()
+  if (entry === null) {
+    throw new Error(`cwd does not exist: ${spelling} (the session folder is ${getCwd()})`)
+  }
+  if (!entry.isDirectory()) throw new Error(`cwd is not a folder: ${spelling}`)
+  const dir = realpathSync(spelling)
+  if (directoryTrusted(dir, permissionContext)) return dir
+  throw new Error(`cwd ${dir} is outside every workspace this session trusts. ${describeWriteScope(permissionContext)}`)
+}
+
+function directoryTrusted(dir: string, permissionContext: ToolPermissionContext): boolean {
+  if (pathInAllowedWorkingPath(dir, permissionContext)) return true
+  if (isPathTrusted(dir)) return true
+  if (getGlobalConfig().projects?.[projectConfigKeyForWorkspace(dir)]?.hasTrustDialogAccepted) return true
+  return getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())
+}
+
 const MODEL_PARAM_DESCRIPTION =
   "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router). An exact engine id (gpt-*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*) is validated against its live catalogue at dispatch, and a word no family declares is refused naming it."
 
@@ -197,6 +236,10 @@ export const inputSchema = lazySchema(() => {
       .describe(
         "With isolation 'worktree': pin the worktree to this commit, detached — the agent reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
       ),
+    cwd: z
+      .string()
+      .optional()
+      .describe(CWD_PARAM_DESCRIPTION),
     review_receipt: z.string().optional().describe('Required for mercury-reviewer: the existing Markdown report whose Review section may be edited.'),
     output_schema: z
       .record(z.string(), z.unknown())
@@ -459,7 +502,10 @@ export const AgentTool = buildTool({
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
+    const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext) : undefined
+
     if (teamName && input.name) {
+      if (cwdParam !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
       const requestedType = decodeAgentType(input.subagent_type)
       if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
@@ -595,7 +641,7 @@ export const AgentTool = buildTool({
       promptMessages = buildForkedMessages(input.prompt, parentAssistantMessage)
     } else {
       promptMessages = [createUserMessage({ content: input.prompt })]
-      const willOverrideCwd = plan.isolation === 'worktree' || Boolean(input.cwd)
+      const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
       if (!willOverrideCwd) {
         try {
           systemPromptOverride = await buildDefaultSystemPrompt(
@@ -631,7 +677,7 @@ export const AgentTool = buildTool({
     }
 
     if (plan.isolation === 'worktree') {
-      const capability = preflightWorktreeCapability()
+      const capability = preflightWorktreeCapability(cwdParam)
       if (!capability.available) {
         throw new Error(
           `Worktree preflight (agent dispatch): ${capability.detail}`,
@@ -645,10 +691,10 @@ export const AgentTool = buildTool({
       | Awaited<ReturnType<typeof createAgentWorktree>>
       | undefined
     if (plan.isolation === 'worktree') {
-      worktreeInfo = await createAgentWorktree(
-        `agent-${earlyAgentId.slice(0, 8)}`,
-        input.worktree_at !== undefined ? { at: input.worktree_at } : undefined,
-      )
+      worktreeInfo = await createAgentWorktree(`agent-${earlyAgentId.slice(0, 8)}`, {
+        ...(input.worktree_at !== undefined ? { at: input.worktree_at } : undefined),
+        ...(cwdParam !== undefined ? { from: cwdParam } : {}),
+      })
       if (isFork) {
         promptMessages = [
           ...promptMessages,
@@ -748,7 +794,7 @@ export const AgentTool = buildTool({
         : {}),
     }
 
-    const cwdOverride = input.cwd ?? worktreeInfo?.worktreePath
+    const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam
 
     const effectiveSystemPromptOverride = isFork
       ? systemPromptOverride
