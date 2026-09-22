@@ -1041,8 +1041,8 @@ function LiveConcourse(): React.ReactNode {
       },
       submitSessionDraft: () => {
       },
-      enterBootSettings: (door) => {
-        if (door) armFaceDoorDeepLink(door)
+      enterBootSettings: (door, opener) => {
+        if (door) armFaceDoorDeepLink(door, opener)
         enterBootSettings()
       },
       exitToRepl: () => {

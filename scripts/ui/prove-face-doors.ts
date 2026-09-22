@@ -345,19 +345,46 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
   routeStore._resetSurfaceRouteForTesting()
 }
 
-t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in, not the plain face)')
+t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its family, not the plain face)')
 {
   const board = read('src/components/concourse/ConcourseScreen.tsx')
   for (const [picker, close] of [['MercurySessionModelPicker', 'setRowPick'], ['MercuryModelDefaultPicker', 'setModelDefaultOpen']]) {
     const start = board.indexOf(`<${picker}`)
-    const body = /onSignIn=\{\(\) => \{([\s\S]*?)\}\}/.exec(board.slice(start))?.[1]
+    const body = /onSignIn=\{family => \{([\s\S]*?)\n\s*\}\}/.exec(board.slice(start))?.[1]
     const calls: unknown[] = []
-    if (body) new Function(close!, 'callbacks', body)(() => calls.push('close'), { enterBootSettings: (door?: string) => calls.push(door) })
-    t.check(`${picker}: closes its picker and opens the logins door`, JSON.stringify(calls) === JSON.stringify(['close', 'logins']), JSON.stringify(calls))
+    if (body) new Function(close!, 'callbacks', 'family', body)(() => calls.push('close'), { enterBootSettings: (door?: string, opener?: unknown) => calls.push(door, opener) }, 'gemini')
+    t.check(`${picker}: closes its picker and opens the logins door on the row's family`, JSON.stringify(calls) === JSON.stringify(['close', 'logins', { family: 'gemini' }]), JSON.stringify(calls))
   }
   const route = read('src/components/concourse/ConcourseRoute.tsx')
-  const callback = /enterBootSettings: \(door\) => \{([\s\S]*?)\n      \}/.exec(route)?.[1] ?? ''
-  t.check('the route arms the requested face door before mounting the face', callback.includes('armFaceDoorDeepLink(door)') && callback.indexOf('armFaceDoorDeepLink(door)') < callback.indexOf('enterBootSettings()'))
+  const callback = /enterBootSettings: \(door, opener\) => \{([\s\S]*?)\n      \}/.exec(route)?.[1] ?? ''
+  t.check('the route arms the requested face door with the opener before mounting the face', callback.includes('armFaceDoorDeepLink(door, opener)') && callback.indexOf('armFaceDoorDeepLink(door, opener)') < callback.indexOf('enterBootSettings()'))
+}
+
+t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it)')
+{
+  const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/utils/model/modelOptions.js')
+  t.check('the GPT connect row names openai', signInFamilyOfRow(GPT_CONNECT_OPTION_VALUE) === 'openai')
+  t.check('the Anthropic connect row names anthropic', signInFamilyOfRow(ANTHROPIC_CONNECT_OPTION_VALUE) === 'anthropic')
+  for (const family of ['openrouter', 'gemini', 'huggingface']) t.check(`the ${family} connect row names ${family}`, signInFamilyOfRow(`__mercury_${family}_connect__`) === family)
+  for (const lane of ['zai', 'moonshot', 'deepseek'] as const) t.check(`the ${lane} key row names ${lane}`, signInFamilyOfRow(keyConnectValue(lane)) === lane)
+  t.check('the custom-endpoint row, a catalogue door and a model name no family', signInFamilyOfRow(keyConnectValue('compat')) === undefined && signInFamilyOfRow('__mercury_gemini_expand__') === undefined && signInFamilyOfRow('claude-opus-5') === undefined)
+  const wrappers = read('src/commands/model/mercuryModel.tsx')
+  t.check('both picker wrappers pass the row\'s family through onSignIn', wrappers.split('onSignIn?.(signInFamilyOfRow(id))').length === 3 && wrappers.includes('onSignIn?: (family: string | undefined) => void'))
+
+  const handover = await import('../../src/substrate/splashHandover.js')
+  handover.consumeFaceDoorDeepLink()
+  handover.armFaceDoorDeepLink('logins', { family: 'gemini' })
+  t.check('the opener rides the armed door and is peeked with it', handover.peekFaceDoorDeepLink() === 'logins' && JSON.stringify(handover.peekFaceDoorOpener()) === JSON.stringify({ family: 'gemini' }))
+  t.check('consuming the door takes the opener with it, exactly once', handover.consumeFaceDoorDeepLink() === 'logins' && handover.peekFaceDoorOpener() === null && handover.consumeFaceDoorDeepLink() === null)
+  handover.armFaceDoorDeepLink('logins')
+  t.check('a door armed without an opener carries none (the splash receipt road)', handover.peekFaceDoorOpener() === null && handover.consumeFaceDoorDeepLink() === 'logins')
+
+  const face = read('src/components/BootSplashScreen.tsx')
+  t.check('the face reads the opener beside the door and seeds the layer\'s family from it', face.includes('useState(() => peekFaceDoorOpener())') && face.includes("useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined)"))
+  t.check('the layer mounts with the family; the layer\'s close forgets it', face.includes('family={loginsFamily}') && face.includes('setLoginsFamily(undefined);'))
+  t.check("the face's own picker opens the layer on the row's family", face.includes('setLoginsFamily(family);'))
+  const screen = read('src/components/BootLoginsScreen.tsx')
+  t.check('the sign-in layer opens on the named family ahead of the recorded focus', screen.includes('loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus, loginFamilyFocusFor(family))'))
 }
 
 t.finish('prove-face-doors')
