@@ -15,6 +15,7 @@ import type {
 import type { EffortValue } from '../effort.js'
 import type { PastedContent } from '../config.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
+import type { BatchedPrompt } from '../../types/textInputTypes.js'
 import {
   createAttachmentMessage,
   getAttachmentMessages,
@@ -65,6 +66,7 @@ type ProcessUserInputOptions = {
   setUserInputOnProcessing?: (input: string | undefined) => void
   uuid?: string
   batchUuids?: string[]
+  batchTail?: BatchedPrompt[]
   querySource: QuerySource
   canUseTool?: CanUseToolFn
   skipSlashCommands?: boolean
@@ -368,7 +370,8 @@ async function processUserInputBase(
       uuid as UUID | undefined,
       context.getAppState().toolPermissionContext.mode,
       isMeta,
-          options.batchUuids,
+      options.batchUuids,
+      options.batchTail,
     )
   }
 

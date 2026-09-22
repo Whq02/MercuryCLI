@@ -1,4 +1,5 @@
 import type { Tools } from '../../Tool.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -19,6 +20,7 @@ import {
   isSystemLocalCommandMessage,
   reorderAttachmentsForAPI,
 } from './apiView.js'
+import { joinBatchedContent } from './batchedContent.js'
 
 export type PlannedMessage =
   | UserMessage
@@ -184,8 +186,8 @@ export function planApiConversation(
   const reorderedMessages = modelRelevantOrder(messages)
   const stripTargets = stripTargetsOf(reorderedMessages)
 
-  const selected = reorderedMessages.filter(
-    (m): m is PlannedMessage => {
+  const selected = foldBatchedRows(
+    reorderedMessages.filter((m): m is PlannedMessage => {
       if (
         m.type === 'progress' ||
         (m.type === 'system' && !isSystemLocalCommandMessage(m)) ||
@@ -194,8 +196,30 @@ export function planApiConversation(
         return false
       }
       return true
-    },
+    }),
   )
 
   return { selected, stripTargets, availableToolNames }
+}
+
+function foldBatchedRows(messages: PlannedMessage[]): PlannedMessage[] {
+  const out: PlannedMessage[] = []
+  for (let i = 0; i < messages.length; i++) {
+    const head = messages[i]!
+    const batch = head.type === 'user' ? head.batchUuids : undefined
+    if (head.type !== 'user' || batch === undefined || batch.length < 2) {
+      out.push(head)
+      continue
+    }
+    const values: Array<string | ContentBlockParam[]> = [head.message.content]
+    let j = i + 1
+    for (; j < messages.length; j++) {
+      const next = messages[j]!
+      if (next.type !== 'user' || next.uuid === head.uuid || !batch.includes(next.uuid)) break
+      values.push(next.message.content)
+    }
+    out.push(values.length === 1 ? head : { ...head, message: { ...head.message, content: joinBatchedContent(values) } })
+    i = j - 1
+  }
+  return out
 }

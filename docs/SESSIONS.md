@@ -645,9 +645,9 @@ after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
 `/model`, `/effort`, `/subagents` or `/workflows` made while the turn runs
 (the pick lands first, and the line runs on it); lines that arrive between
-turns are joined into one row as
-before; esc interrupts the turn and anything still queued runs as the next
-turn.
+turns run as one turn, each its own row under its own identity, in the
+order sent; esc interrupts the turn and anything still queued runs as the
+next turn.
 The line always reaches the session's own model. A sub-agent the model is
 running (an Agent tool call) has tool boundaries of its own; those read only
 the notes addressed to that agent, never the operator's lines, so a line sent
