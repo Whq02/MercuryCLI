@@ -24,7 +24,7 @@ import type {
   UserMessage,
 } from './types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from './types/wire.js'
-import type { OrphanedPermission } from './types/textInputTypes.js'
+import type { BatchedPrompt, OrphanedPermission } from './types/textInputTypes.js'
 import { getGlobalConfig } from './utils/config.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
 import type { FileStateCache } from './utils/fileStateCache.js'
@@ -199,7 +199,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[] },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[] },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -361,6 +361,7 @@ export class QueryEngine {
       messages: this.mutableMessages,
       uuid: options?.uuid,
       ...(options?.batchUuids !== undefined ? { batchUuids: options.batchUuids } : {}),
+      ...(options?.batchTail !== undefined ? { batchTail: options.batchTail } : {}),
       isMeta: options?.isMeta,
       querySource: 'sdk',
       canUseTool: wrappedCanUseTool,
@@ -986,6 +987,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   promptUuid?: string
   isMeta?: boolean
   batchUuids?: string[]
+  batchTail?: BatchedPrompt[]
   promptMode?: 'prompt' | 'bash'
   mutableMessages?: Message[]
   getReadFileCache: () => FileStateCache
@@ -1000,6 +1002,7 @@ export async function* ask(
     promptUuid,
     isMeta,
     batchUuids,
+    batchTail,
     promptMode,
     mutableMessages = [],
     getReadFileCache,
@@ -1018,6 +1021,7 @@ export async function* ask(
       isMeta,
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
       ...(batchUuids !== undefined ? { batchUuids } : {}),
+      ...(batchTail !== undefined ? { batchTail } : {}),
     })
   } finally {
     setReadFileCache(engine.getReadFileState())

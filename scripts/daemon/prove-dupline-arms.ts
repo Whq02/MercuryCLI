@@ -76,6 +76,7 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
 }
 
 const U0 = '00000000-0000-4000-8000-000000000000'
+const BATCH_ITEM_SHA = '1f925c0d1a5dcee2'
 const UT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const uuidOf = (n: number): string => `${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}`
 
@@ -340,6 +341,25 @@ if (!existsSync(DIST)) {
     check('the two lines are two rows of the transcript, the first before the second, and no row carries both', returnRow !== undefined && afterRow !== undefined && returnRow.recordId !== afterRow.recordId && Number(returnRow.ordinal) < Number(afterRow.ordinal), j([returnRow?.recordId.slice(0, 8), returnRow?.ordinal, afterRow?.recordId.slice(0, 8), afterRow?.ordinal]))
     const carrier = carrying(requests.filter(r => r.arm !== 'subwork'), RETURN_LINE)[0]
     check('the session read both lines in one request, in the order sent', carrier !== undefined && carrier.counts?.[AFTER_RETURN_LINE] === 1 && (carrier.firstAt?.[RETURN_LINE] ?? -1) >= 0 && (carrier.firstAt?.[RETURN_LINE] ?? 0) < (carrier.firstAt?.[AFTER_RETURN_LINE] ?? -1), j(carrier?.firstAt))
+    const askItem = ((): Array<{ type?: string; text?: string }> => {
+      try {
+        const parsed = JSON.parse(carrier?.askItem ?? 'null') as unknown
+        return Array.isArray(parsed) ? (parsed as Array<{ type?: string; text?: string }>) : []
+      } catch {
+        return []
+      }
+    })()
+    check('the request body carries the two lines as ONE text block holding the newline-joined string, as the runner has always sent them, never a block per line', askItem.length === 1 && askItem[0]!.type === 'text' && askItem[0]!.text === `${RETURN_LINE}\n${AFTER_RETURN_LINE}`, j([carrier?.askShape, carrier?.askItem]))
+    check(`the request body's user item is byte for byte what the runner sent when it joined the lines itself (sha ${BATCH_ITEM_SHA})`, carrier?.askSha === BATCH_ITEM_SHA, j([carrier?.askSha, carrier?.askItem]))
+    const withdrawn = await Promise.all(
+      [atReturn, afterReturn].map(async (sent, i) => {
+        const id = `withdraw-${i}`
+        w.runner.send({ type: 'control_request', request_id: id, request: { subtype: 'withdraw_send', client_message_id: sent.uuid } })
+        const f = await w.runner.waitFor(`the withdraw answer for "${sent.word}"`, x => x.type === 'control_response' && (x.response as { request_id?: string } | undefined)?.request_id === id, bound(10_000))
+        return (f?.response as { response?: { withdrawn?: boolean; reason?: string } } | undefined)?.response
+      }),
+    )
+    check('the recall by identity knows each line: the runner answers taken for both uuids, never unknown', withdrawn.every(r => r?.withdrawn === false && r?.reason === 'taken'), j(withdrawn))
     const clockHolds = (row: Carrier | undefined, sent: Sent): boolean =>
       row !== undefined && (row.kind === 'attachment/queued_command' ? row.occurredAt === sent.sentAt && row.sentAt === sent.sentAt : Math.abs(Date.parse(row.occurredAt) - Date.parse(sent.sentAt)) <= CLOCK_TOLERANCE_MS)
     check('each row carries a clock within the tolerance of the clock its line was sent at', clockHolds(returnRow, atReturn) && clockHolds(afterRow, afterReturn), j([returnRow?.kind, returnRow?.occurredAt, atReturn.sentAt, afterRow?.kind, afterRow?.occurredAt, afterReturn.sentAt]))

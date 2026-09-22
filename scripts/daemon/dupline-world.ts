@@ -251,7 +251,7 @@ export function seedHome(runHome: string, cwd: string): void {
   writeFileSync(join(runHome, 'settings.json'), '{}')
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
 }
-export type Wire = { kind: string; n: number; arm?: string; step?: number; at: number; counts?: Record<string, number>; firstAt?: Record<string, number>; hasAgentTool?: boolean; hasWorkflowTool?: boolean; hasSleepTool?: boolean; folded?: boolean; lastToolResult?: { isError: boolean; text: string } | null; toolNames?: string[]; usageInput?: number }
+export type Wire = { kind: string; n: number; arm?: string; step?: number; at: number; ask?: string; askShape?: string; askItem?: string; askSha?: string; counts?: Record<string, number>; firstAt?: Record<string, number>; hasAgentTool?: boolean; hasWorkflowTool?: boolean; hasSleepTool?: boolean; folded?: boolean; lastToolResult?: { isError: boolean; text: string } | null; toolNames?: string[]; usageInput?: number }
 export type Fixture = { port: number; kill: () => void; wire: () => Wire[] }
 export async function startFixture(captureFile: string, agentSleepSeconds: number, mainSleepSeconds = 6, foldPaceMs = 0, holdFile?: string): Promise<Fixture> {
   writeFileSync(captureFile, '')

@@ -2,6 +2,7 @@ import type { ContentBlockParam } from '../../types/wire.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { StdoutMessage } from '../../entrypoints/sdk/controlTypes.js'
 import { wallRecheckDelayMs, type WatchWall } from '../../tools/MonitorTool/watchMailbox.js'
+import { joinBatchedContent } from '../../utils/messages/batchedContent.js'
 
 export type PromptValue = string | ContentBlockParam[]
 
@@ -19,11 +20,7 @@ const isTaskNotification = (command: QueuedCommand | undefined): command is Queu
   command !== undefined && command.mode === 'task-notification'
 
 export function joinPromptValues(values: PromptValue[]): PromptValue {
-  if (values.length === 1) return values[0]!
-  if (values.every(v => typeof v === 'string')) {
-    return values.join('\n')
-  }
-  return values.flatMap(toBlocks)
+  return joinBatchedContent(values)
 }
 
 export function canBatchWith(
@@ -58,7 +55,7 @@ export type TurnDriverPorts = {
 
   executeTurn(
     command: QueuedCommand,
-    batchUuids: string[],
+    batch: QueuedCommand[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void>
   beforeCycle(): Promise<void>
@@ -244,13 +241,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       for (let next = batchableAfter(command); next !== undefined; next = batchableAfter(command)) {
         batch.push(next)
       }
-      if (batch.length > 1) {
-        command = {
-          ...command,
-          value: joinPromptValues(batch.map(c => c.value as PromptValue)),
-          uuid: batch.findLast((c: QueuedCommand) => c.uuid)?.uuid ?? command.uuid,
-        }
-      }
     } else if (command.mode === 'task-notification') {
       while (isTaskNotification(ports.peek())) {
         batch.push(takeQueued()!)
@@ -278,7 +268,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.notifyLifecycle(uuid, 'started')
     }
 
-    await ports.executeTurn(command, batch.length > 1 ? batchUuids : [], message => {
+    await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
       if (message.type === 'result') {
         flushSdkEvents()
         writeOpenEdge()
