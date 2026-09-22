@@ -1,4 +1,4 @@
-export type LaneWindowFamily = 'gemini'
+export type LaneWindowFamily = 'gemini' | 'openrouter'
 
 export type LaneLimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
 
@@ -18,6 +18,16 @@ const LIVE_READS: Record<LaneWindowFamily, () => LaneWindowReads> = {
     window: () => {
       const { geminiLimitWindow } = require('./gemini/geminiUsageState.js') as typeof import('./gemini/geminiUsageState.js')
       return geminiLimitWindow()
+    },
+  }),
+  openrouter: () => ({
+    credentialed: () => {
+      const { resolveOpenrouterApiKey } = require('./openrouter/openrouterAccounts.js') as typeof import('./openrouter/openrouterAccounts.js')
+      return resolveOpenrouterApiKey() !== undefined
+    },
+    window: () => {
+      const { openrouterLimitWindow } = require('./openrouter/openrouterUsageState.js') as typeof import('./openrouter/openrouterUsageState.js')
+      return openrouterLimitWindow()
     },
   }),
 }
