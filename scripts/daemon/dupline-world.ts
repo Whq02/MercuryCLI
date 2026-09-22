@@ -49,7 +49,7 @@ export function makeTally(name: string): { check: (label: string, cond: boolean,
 }
 
 export type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; annotations?: { uuid?: string }; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown>; meta?: Record<string, unknown> } }
-export type Carrier = { file: string; kind: string; recordId: string; occurredAt: string; sourceUuid: string; sentAt: string; thread: string; agentId: string; uuid: string }
+export type Carrier = { file: string; kind: string; recordId: string; ordinal: string; occurredAt: string; sourceUuid: string; sentAt: string; thread: string; agentId: string; uuid: string }
 export function textOfRecord(r: Rec): string {
   const p = r.payload ?? {}
   if (p.kind === 'input') {
@@ -101,6 +101,7 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
         file: relative(projectsDir, p),
         kind: p2.kind === 'attachment' ? `attachment/${p2.attachmentType}` : String(p2.kind),
         recordId: String(r.recordId ?? ''),
+        ordinal: String(r.creationOrdinal ?? ''),
         occurredAt: String(r.occurredAt ?? ''),
         sourceUuid: String(f.source_uuid ?? ''),
         sentAt: String(f.sentAt ?? meta.sentAt ?? ''),
@@ -108,6 +109,31 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
         agentId: agent?.[1] ?? '',
         uuid: String(r.annotations?.uuid ?? meta.uuid ?? ''),
       })
+    }
+  }
+  return out
+}
+export type QueueJournalRow = { operation: string; content: string; at: string }
+export function queueJournal(projectsDir: string): QueueJournalRow[] {
+  const out: QueueJournalRow[] = []
+  for (const p of transcriptFiles(projectsDir)) {
+    if (p.includes('subagents')) continue
+    let text = ''
+    try {
+      text = readFileSync(p, 'utf8')
+    } catch {
+      continue
+    }
+    for (const raw of text.split('\n')) {
+      if (!raw.includes('queue-operation')) continue
+      try {
+        const r = JSON.parse(raw) as Rec
+        const pl = r.payload ?? {}
+        if (pl.kind !== 'session-meta' || pl.metaKind !== 'queue-operation') continue
+        const f = pl.fields ?? {}
+        out.push({ operation: String(f.operation ?? ''), content: typeof f.content === 'string' ? f.content : '', at: String(r.occurredAt ?? '') })
+      } catch {
+      }
     }
   }
   return out
@@ -227,9 +253,9 @@ export function seedHome(runHome: string, cwd: string): void {
 }
 export type Wire = { kind: string; n: number; arm?: string; step?: number; at: number; counts?: Record<string, number>; firstAt?: Record<string, number>; hasAgentTool?: boolean; hasWorkflowTool?: boolean; hasSleepTool?: boolean; folded?: boolean; lastToolResult?: { isError: boolean; text: string } | null; toolNames?: string[]; usageInput?: number }
 export type Fixture = { port: number; kill: () => void; wire: () => Wire[] }
-export async function startFixture(captureFile: string, agentSleepSeconds: number, mainSleepSeconds = 6, foldPaceMs = 0): Promise<Fixture> {
+export async function startFixture(captureFile: string, agentSleepSeconds: number, mainSleepSeconds = 6, foldPaceMs = 0, holdFile?: string): Promise<Fixture> {
   writeFileSync(captureFile, '')
-  const fixture = spawn(BUN, ['run', FIXTURE, captureFile, String(agentSleepSeconds), String(mainSleepSeconds), String(foldPaceMs)], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const fixture = spawn(BUN, ['run', FIXTURE, captureFile, String(agentSleepSeconds), String(mainSleepSeconds), String(foldPaceMs), ...(holdFile === undefined ? [] : [holdFile])], { stdio: ['ignore', 'pipe', 'pipe'] })
   const port = await new Promise<number>((resolve, reject) => {
     const killer = setTimeout(() => reject(new Error('fixture never printed PORT')), bound(15_000))
     let buffer = ''
