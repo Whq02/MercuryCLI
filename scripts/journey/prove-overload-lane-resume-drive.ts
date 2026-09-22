@@ -418,6 +418,12 @@ if (cap !== null) {
   check("A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded, Mercury's probing named — never 'failed: API Error' with the resume door", first !== undefined && first.status === 'paused' && /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers/.test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
   check("A6 the parent's chat painted that line once during the outage and no 'failed: API Error: 529' line", cap.marks.some(m => m.text.includes('is overloaded (HTTP 529)')) && !cap.marks.some(m => m.text.includes('failed: API Error: 529')) && !cap.text.includes('failed: API Error: 529'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
 
+  console.log('\n— §B one calm line per lane per outage episode —')
+  const completion = notices.findIndex(n => n.status === 'completed')
+  const beforeCompletion = completion < 0 ? notices : notices.slice(0, completion)
+  check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deaths.length >= 2 && beforeCompletion.length === 1, `deaths=${deaths.length} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
+  check("B2 no 'resumed' receipt row rides the episode — the lane's row carries the resume, the parent's chat one line", !notices.some(n => n.status === 'resumed'), notices.map(n => n.status).join(','))
+  check('B3 the completion notice follows as its own line', completion >= 0 && notices[completion]?.summary?.includes('completed') === true, notices.map(n => n.status).join(','))
 }
 
 if (!KEEP) {

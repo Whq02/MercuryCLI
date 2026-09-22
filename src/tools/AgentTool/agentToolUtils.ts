@@ -806,13 +806,7 @@ export function armOverloadProbe(args: {
       logForDebugging(`agent lifecycle: the resume of ${args.taskId} after the provider answered did not start: ${errorMessage(error)}`)
       unpauseAgentTask(args.taskId, args.rootSetAppState, args.registration)
       closeOverloadEpisode(args.taskId)
-      return
     }
-    enqueueAgentReceiptRow({
-      taskId: args.taskId,
-      description: args.description,
-      summary: `Agent "${args.description}" resumed by itself — the provider is answering again after its overload; its partial work carried forward`,
-    })
   }
   const timer = setTimeout(() => {
     void fire()

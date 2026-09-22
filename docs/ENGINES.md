@@ -142,9 +142,11 @@ Mercury probes the provider with one small request at a slow, bounded
 cadence — 30 s after the pause, then every minute for ten minutes, then
 every five minutes, for up to two hours — and resumes the agent by itself
 when a probe is answered; the agent continues from where its transcript
-ends. The parent's chat reads the pause as one calm line naming the provider
-and the probing, and the agent's completion follows as its own line; a
-message to the agent resumes it sooner, and the crew view stops it. If the
+ends. The parent's chat carries one calm line per agent per outage — the
+first pause names the provider and the probing; a later death and the
+resume itself add no line, the agent's row on the crew view carries them —
+and the agent's completion follows as its own line; a message to the agent
+resumes it sooner, and the crew view stops it. If the
 outage outlasts the probing, the row is a failed one again and a message is
 the way back.
 
