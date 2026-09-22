@@ -14,7 +14,7 @@ export MERCURY_EVOLUTION_LEDGER=0
 scratch_home="$(mktemp -d "${TMPDIR:-/tmp}/crew-proof-home.XXXXXX")"
 export MERCURY_CONFIG_DIR="$scratch_home"
 unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_WORKER_RECON_ALLOW 2>/dev/null || true
-trap 'rm -rf "$scratch_home"' EXIT
+trap 'rm -rf "$scratch_home"; suite_home_cleanup' EXIT
 echo "############################################################"
 echo "# Crew teammates — proof harness"
 echo "############################################################"
