@@ -76,8 +76,10 @@ cannot read refuses typed, naming a working form.
 Inside a session, the model schedules through four tools: `CronCreate` (a
 prompt on a recurrence or a one-shot, `onParked` included), `CronList`,
 `CronDelete`, and `ScheduleWakeup` (a single self-paced wake, the tool the
-session uses to put itself down and come back). The edits ride the session's
-own facts road to the daemon's one schedule writer. The `/loop`
+session uses to put itself down and come back). A self-paced wake takes the
+queue arm: a session parked by the operator is never woken by its own wake,
+which waits for the session's resume. The edits ride the session's own facts
+road to the daemon's one schedule writer. The `/loop`
 skill builds on exactly this: it schedules a short sentinel that expands at
 fire time to the loop's instructions — `loop.md` or the autonomous default —
 whole on the first delivery and a short reminder afterwards.
@@ -91,7 +93,8 @@ signed-in identity as a label, never a token or key. One verdict function
 judges the account at schedule time and again at every fire: ready, expiring before the fire (the
 schedule-time warning; an expiry with a refresh token is ready), expired,
 signed-out (a keyless account's twin is `unreachable` — the backing server
-is gone; it has no sign-in to lose), or rate-limited.
+is gone; it has no sign-in to lose), or rate-limited — a usage window the
+session's own runner saw closed counts as one.
 
 A fire whose account is not ready is **held**, typed and receipted, never
 silently dropped and never run on another family: "held: sign-in expired —
