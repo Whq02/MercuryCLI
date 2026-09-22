@@ -679,6 +679,13 @@ and every sub-agent's work row carries the count of its own unread notices;
 the Crew view (`/teammates`) paints that count on the agent's row — "2
 unread" — and nothing when there is none.
 
+A monitor's ticks that land while the session's provider has refused its
+usage window are held by the watch and delivered together, as one notice,
+on the first turn after the window reopens; ticks that arrive within a
+fifth of a second of each other fold into one notice. A monitor armed
+without `persistent` ends at its deadline with one notice that says how to
+arm it again.
+
 An agent idle with unread notices past the deadline is nudged. The session's
 own main thread is woken through its queue with a line, in Mercury's words,
 that names how many notices waited, for how long, and each one; the notices

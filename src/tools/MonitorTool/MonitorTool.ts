@@ -8,6 +8,8 @@ import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { exec } from '../../utils/Shell.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
+import { sessionLaneWall } from './laneWall.js'
+import { BURST_WINDOW_MS, createWatchMailbox } from './watchMailbox.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -22,11 +24,17 @@ const DESCRIPTION = `Start a background monitor that streams events from a long-
 
 Pick by how many notifications you need:
 - **One** ("tell me when the server is ready / the build finishes") → use **Bash with \`run_in_background\`** and a command that exits when the condition is true, e.g. \`until grep -q "Ready in" dev.log; do sleep 0.5; done\`. You get a single completion notification when it exits.
-- **One per occurrence, indefinitely** ("tell me every time an ERROR line appears") → Monitor with an unbounded command (\`tail -f\`, \`inotifywait -m\`, \`while true\`).
-- **One per occurrence, until a known end** ("emit each CI step result, stop when the run finishes") → Monitor with a command that exits when the watch is over.`
+- **One per occurrence, indefinitely** ("tell me every time an ERROR line appears", "wake me on every line another agent appends to this file") → Monitor with an unbounded command (\`tail -f\`, \`inotifywait -m\`, \`while true\`) and \`persistent: true\`, so the watch runs until you stop it with TaskStop or the session ends.
+- **One per occurrence, until a known end** ("emit each CI step result, stop when the run finishes") → Monitor with a command that exits when the watch is over.
+
+A monitor without \`persistent\` expires after \`timeout_ms\` (default 5 minutes, at most 1 hour): it is killed and you get one expiry notice that says how to re-arm it. Lines that arrive within ${BURST_WINDOW_MS}ms fold into one notification. Events that land while the session's usage window is closed are held by the watch and delivered together, in one notification, on your first turn after the window reopens — they are not lost, and they never wake a session the provider would refuse.`
 
 const COMMAND_DESCRIPTION =
   'Shell command or script. Each stdout line is an event; exit ends the watch.'
+
+export function monitorExpiryNotice(description: string, taskId: string, timeoutMs: number, events: number): string {
+  return `[Monitor "${description}" (task ${taskId}) expired after ${Math.round(timeoutMs / 1000)}s with ${events} event${events === 1 ? '' : 's'}. Re-arm it by calling Monitor again with the same command if the watch is still wanted; set persistent: true for a watch that must outlive the deadline.]`
+}
 
 const inputSchema = lazySchema(() =>
   z
@@ -44,7 +52,7 @@ const inputSchema = lazySchema(() =>
       persistent: semanticBoolean(
         z.boolean().optional().default(false),
       ).describe(
-        'Run for the lifetime of the session (no timeout). Use for session-length watches like PR monitoring or log tails. Stop with TaskStop.',
+        'Run for the lifetime of the session (no timeout): the watch runs until TaskStop or the session ends. Use for session-length watches like PR monitoring, log tails or a file other agents append to.',
       ),
       command: z.string().describe(COMMAND_DESCRIPTION),
     })
@@ -128,6 +136,7 @@ export const MonitorTool = buildTool({
 
     let taskId: string | undefined
     let stopped = false
+    let events = 0
 
     let tokens = RATE_BURST
     let lastRefill = Date.now()
@@ -158,17 +167,30 @@ export const MonitorTool = buildTool({
       })
     }
 
+    const mailbox = createWatchMailbox({
+      now: Date.now,
+      wall: () => sessionLaneWall(),
+      deliver: emit,
+      setTimer: (fn, ms) => {
+        const handle = setTimeout(fn, ms)
+        handle.unref?.()
+        return handle
+      },
+      clearTimer: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    })
+
     function onData(chunk: string): void {
       if (stopped || !chunk) return
       if (tryConsume()) {
         if (suppressed > 0) {
-          emit(
+          mailbox.push(
             `[${suppressed} events suppressed — output rate too high. Consider using TaskStop to restart this monitor with a more selective filter.]`,
           )
           suppressed = 0
           overflowStart = undefined
         }
-        emit(chunk)
+        events++
+        mailbox.push(chunk)
         return
       }
       suppressed++
@@ -176,7 +198,7 @@ export const MonitorTool = buildTool({
       if (overflowStart === undefined) overflowStart = now
       if (now - overflowStart > OVERFLOW_STOP_MS) {
         stopped = true
-        emit(
+        mailbox.push(
           `[Monitor stopped — your script produced too much output (${suppressed} events suppressed over ${Math.round(
             (now - overflowStart) / 1000,
           )}s). Write a new monitor command that filters more aggressively — a tighter grep --line-buffered pattern or a wrapper script that only emits the specific events you need.]`,
@@ -200,7 +222,7 @@ export const MonitorTool = buildTool({
       timer = setTimeout(() => {
         if (stopped) return
         stopped = true
-        emit('[Monitor timed out — re-arm if needed.]')
+        mailbox.push(monitorExpiryNotice(description, handle.taskId, timeoutMs, events))
         void stopTask(handle.taskId, { getAppState, setAppState }).catch(() => {})
       }, timeoutMs)
       timer.unref?.()
