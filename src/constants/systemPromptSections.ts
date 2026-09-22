@@ -47,7 +47,14 @@ export function resolveSystemPromptSections(
       const key = section.computeKey ? section.computeKey() : null
       if (!section.cacheBreaking) {
         const cached = cache.get(section.name)
-        if (cached !== undefined && (section.computeKey === null || cached.key === key)) return cached.value
+        if (cached !== undefined) {
+          if (section.computeKey === null || cached.key === key) return cached.value
+          if (key !== null && cached.byKey?.has(key)) {
+            const kept = cached.byKey.get(key) ?? null
+            setSystemPromptSectionCacheEntry(section.name, kept, key)
+            return kept
+          }
+        }
       }
       const value = await section.compute()
       setSystemPromptSectionCacheEntry(section.name, value, key)

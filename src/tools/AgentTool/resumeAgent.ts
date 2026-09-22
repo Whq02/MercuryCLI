@@ -39,6 +39,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
+import { restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
 import { getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
@@ -93,6 +94,7 @@ export async function resumeAgentBackground(args: {
   if (!transcript || transcript.messages.length === 0) {
     throw new Error(`No transcript found for agent ${agentId}`)
   }
+  restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
 
   const cleaned = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(

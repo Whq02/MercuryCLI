@@ -313,6 +313,28 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const pFork = await doPlan([search, read, browser], forkOwner)
   check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}`)
 
+  freshProcess()
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const agentOwner = 'conv-resume-agent'
+  const agentMessages = [{ type: 'user', uuid: 'u-agent-first-exchange', message: { role: 'user', content: 'agent first' } }]
+  const pa1 = await doPlan([search, read, browser], agentOwner, agentMessages)
+  const agentRecord = await boundPrefixRecordToEmit(agentOwner, agentMessages as never, MODEL, { rosterOnly: true })
+  const agentAttachment = agentRecord?.attachment as { boundKey?: string; sections?: unknown[]; systemContext?: Record<string, string> } | undefined
+  check('§1c an agent conversation writes its own record under its own key: the roster alone, no sections, no system context', agentRecord !== null && agentAttachment?.boundKey === conversationRosterKey(agentOwner, agentMessages as never, MODEL) && agentAttachment.sections?.length === 0 && Object.keys(agentAttachment.systemContext ?? {}).length === 0, j(agentAttachment))
+  freshProcess()
+  restoreBoundPrefixFromMessages([JSON.parse(j(agentRecord)) as never], { rosterOnly: true })
+  check('§1c an agent restore arms its roster and seeds no section', pendingToolRosterRestore()?.key === agentAttachment?.boundKey && getSystemPromptSectionCache().size === 0)
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const pa2 = await doPlan([search, read, browser, godot], agentOwner, agentMessages)
+  const pm2 = await doPlan([search, read, browser, godot])
+  const pa1Names = pa1.roster.map(t => t.name)
+  const pa2Names = pa2.roster.map(t => t.name)
+  const agentPrefixHolds =
+    pa2Names.slice(0, pa1Names.length).join(',') === pa1Names.join(',') &&
+    pa2Names.slice(pa1Names.length).every(name => pa2.deferredNames.has(name)) &&
+    pa1Names.every(name => pa1.deferredNames.has(name) === pa2.deferredNames.has(name))
+  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record (a tool that gated in since rides appended, deferred, in both), the main\'s sections seeded', agentPrefixHolds && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && pm2.deferredNames.has('Godot') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}`)
+
   const savedKeepTail = process.env.MERCURY_COMPACT_KEEP_TAIL
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
   freshProcess()
@@ -696,7 +718,7 @@ process.stdin.on('end', () => process.exit(0))
     {
       const model = 'claude-fable-5-1'
       const turns: ScriptedTurn[] = [
-        ...Array.from({ length: 8 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
+        ...Array.from({ length: 12 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
         { kind: 'text', text: 'PRUNE-READY', thinking: 'All files read.', model },
         { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'prompt is too long: 202000 tokens > 200000 maximum' },
         { kind: 'text', text: 'PRUNE-APPLIED', thinking: 'Reasoning after clearing.', model },
@@ -709,9 +731,9 @@ process.stdin.on('end', () => process.exit(0))
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
       try {
         const arena = makeArena(fixture)
-        const files = Array.from({ length: 8 }, (_, i) => join(arena.cwd, 'notes-' + i + '.txt'))
+        const files = Array.from({ length: 12 }, (_, i) => join(arena.cwd, 'notes-' + i + '.txt'))
         for (const [i, file] of files.entries()) {
-          writeFileSync(file, 'Value ' + i + '\n' + 'A fixed reference row retains its original contents across requests.\n'.repeat(75))
+          writeFileSync(file, 'Value ' + i + '\n' + 'A fixed reference row retains its original contents across requests.\n'.repeat(220))
           ;(turns[i] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: file }
         }
         const sid = 'c0ffee00-0000-4000-8000-00000000c108'
@@ -737,8 +759,8 @@ process.stdin.on('end', () => process.exit(0))
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
         const requests = fixture.messageRequests()
-        check('§11 all expected model requests occurred', requests.length === 16, String(requests.length))
-        const cleared = requests.slice(10)
+        check('§11 all expected model requests occurred', requests.length === 20, String(requests.length))
+        const cleared = requests.slice(14)
         check('§11 the clearing and all subsequent requests retain three placeholders', cleared.length === 6 && cleared.every(request => {
           const body = request.body as Body
           return ((body.messages ?? []) as Array<{ content?: Block[] }>).flatMap(message => Array.isArray(message.content) ? message.content : [])

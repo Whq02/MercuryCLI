@@ -598,4 +598,8 @@ the conversation does not fit, the preview says so with both numbers and
 where the window came from, and confirming folds the conversation before
 the first request on the new model; the fold's summary is written by the
 model the conversation was built on, whose window holds it. A conversation
-that fits switches as before.
+that fits switches as before. A switch back to a model the conversation
+already ran on re-sends the system prompt that model first saw, so the
+thinking it left behind stays bound to its prefix; a working directory
+added in between reached the model on its own row and never rewrites that
+prompt.

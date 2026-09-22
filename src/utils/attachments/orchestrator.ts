@@ -42,6 +42,7 @@ import {
 } from './queuedCommands.js'
 import {
   getDeferredToolsDeltaAttachment,
+  getHeldToolsAttachment,
   getMcpInstructionsDeltaAttachment,
 } from './deltas.js'
 import {
@@ -69,6 +70,7 @@ import {
   getTeammateMailboxAttachments,
 } from './teammates.js'
 import type { Attachment } from './types.js'
+import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
 
 export async function getAttachments(
@@ -154,8 +156,17 @@ export async function getAttachments(
               ? 'attachments_main'
               : 'attachments_subagent',
             querySource,
+            hasPendingMcpServers: [
+              ...toolUseContext.options.mcpClients,
+              ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
+            ].some(client => client.type === 'pending'),
           },
         ),
+      ),
+    ),
+    maybe('held_tools', () =>
+      Promise.resolve(
+        getHeldToolsAttachment(String(rosterOwnerFromToolUseContext(toolUseContext)), messages ?? []),
       ),
     ),
     maybe('mcp_instructions_delta', () =>
