@@ -82,7 +82,7 @@ import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle }
 import { readSessionWorkersSnapshot } from './concourseSupervisor.js'
 import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp } from './saturn.js'
-import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
+import { deriveScheduleAccountForModel, liveFactsForSessionFire, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { composeSignInView, refreshSignInReads } from './signInView.js'
 import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
@@ -1041,9 +1041,9 @@ async function daemonRun(args: string[]): Promise<void> {
         {
           now: () => Date.now(),
           records: () => Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined),
-          liveFacts: account => {
+          liveFacts: (account, sessionId) => {
             refreshSignInReads()
-            return readLiveAccountFacts(account)
+            return liveFactsForSessionFire(account, sessionId)
           },
           deriveAccount: modelKey => {
             refreshSignInReads()

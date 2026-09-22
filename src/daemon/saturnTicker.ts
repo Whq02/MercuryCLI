@@ -62,7 +62,7 @@ export interface SaturnDeliveryV1 {
 export interface SaturnTickerPortsV1 {
   now(): number
   records(): ConcourseWorkerRecordV1[]
-  liveFacts(account: ScheduleAccountV1): LiveAccountFactsV1
+  liveFacts(account: ScheduleAccountV1, sessionId?: string): LiveAccountFactsV1
   deriveAccount(modelKey: string): { ok: true; account: ScheduleAccountV1 } | { ok: false; reason: string; code?: 'unreachable' }
   deliver(d: SaturnDeliveryV1): Promise<{ ok: boolean; detail?: string }>
   birth(spec: SaturnBirthSpecV1, opts: { scheduleId: string; dueAt: number; by: string; owner: string }): Promise<{ ok: boolean; sessionId?: string; detail?: string }>
@@ -201,7 +201,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         if (schedule === undefined) continue
         const resolvedHold = resolveFireTimeAccount(ports, schedule, rec.modelKey)
         if (resolvedHold.kind === 'no-credential') continue
-        const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account) })
+        const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account, sessionId) })
         if (verdict.state !== 'ready') continue
         if (h.reason === 'account-mismatch') {
           if (resolvedHold.identityMismatch !== true) {
@@ -222,6 +222,19 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         const taken = takeSaturnHeldFires(sessionId, releasable, ports.dir)
         for (const h of taken) {
           const by = `saturn:${h.scheduleId}`
+          if (h.envelope.kind === 'fire' && parked && h.envelope.onParked === 'queue') {
+            const banked = holdSaturnFire(sessionId, { scheduleId: h.scheduleId, dueAt: h.dueAt, reason: 'parked-queued', envelope: h.envelope, heldAt: h.heldAt }, ports.dir)
+            if (banked === 'held') {
+              report.held++
+              rowSaturnTickReceipt(rec, by, 'schedule-held', heldLine('parked-queued', 1), {
+                reason: 'parked-queued',
+                scheduleId: h.scheduleId,
+                dueAt: h.dueAt,
+                releasedFrom: h.reason,
+              })
+            }
+            continue
+          }
           const rearm = refreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
           if (rearm !== undefined) {
             refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
@@ -317,7 +330,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         }
         continue
       }
-      const verdict = scheduleAccountVerdict({ account: fireAccount, nextFireMs: dueAt, nowMs: now, live: ports.liveFacts(fireAccount) })
+      const verdict = scheduleAccountVerdict({ account: fireAccount, nextFireMs: dueAt, nowMs: now, live: ports.liveFacts(fireAccount, sessionId) })
       const holdState =
         verdict.state === 'signed-out' || verdict.state === 'unreachable' || verdict.state === 'expired' || verdict.state === 'rate-limited'
           ? verdict.state
