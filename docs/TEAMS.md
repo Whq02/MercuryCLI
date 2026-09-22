@@ -10,7 +10,9 @@ journaled (see [DURABILITY.md](DURABILITY.md)).
 
 A team lives at `<config home>/teams/<team>/`: `config.json` holds the roster
 (one truth, locked writers), `inboxes/` the per-agent mailboxes, and `dedup/`
-the consumption ledgers. Task lists live beside it under
+the consumption ledgers. A roster file that does not read as a roster is left
+as it is and named in the debug log, and the team reads as absent until the
+file is repaired or removed. Task lists live beside it under
 `<config home>/tasks/<team>/`, and every spawn appends an audit row to the
 spawn ledger. Team creation and deletion are multi-record journal operations —
 an interrupted create rolls forward or compensates at the next boot rather

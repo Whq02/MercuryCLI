@@ -1,19 +1,23 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const TMP = mkdtempSync(join(tmpdir(), 'mercury-roster-lock-'))
 process.env.MERCURY_CONFIG_DIR = TMP
+const DEBUG_LOG = join(TMP, 'debug.txt')
+process.argv.push(`--debug-file=${DEBUG_LOG}`)
 
 const {
   appendTeamMember,
   readTeamFileAsync,
+  removeTeammateFromTeamFile,
   writeTeamFileAsync,
   setMemberMode,
   getTeamFilePath,
 } = await import('../../src/utils/swarm/teamHelpers.js')
+const { flushDebugLogs } = await import('../../src/utils/debug.js')
 
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -145,6 +149,64 @@ section('(HB-0068) roster cap — concurrent overshoot capped EXACTLY, surplus r
     'cap rejection names the limit',
     settled.some(s => s.status === 'rejected' && /max 16/.test(String((s as PromiseRejectedResult).reason))),
   )
+}
+
+section('(decoder) an out-of-shape roster is refused whole, named once, and its bytes stay untouched')
+{
+  const TEAM = 'shapeless-team'
+  const path = getTeamFilePath(TEAM)
+  mkdirSync(dirname(path), { recursive: true })
+  const base = { name: TEAM, createdAt: 1, leadAgentId: 'lead@t' }
+  const row = { agentId: 'x@t', name: 'x', joinedAt: 1, tmuxPaneId: '', cwd: '/tmp', subscriptions: [] as string[] }
+  const shapes: Array<[string, string]> = [
+    ['members not an array', JSON.stringify({ ...base, members: 'not-an-array' })],
+    ['members missing', JSON.stringify(base)],
+    ['a member row without a name', JSON.stringify({ ...base, members: [{ ...row, name: undefined }] })],
+    ['a member row whose subscriptions is a string', JSON.stringify({ ...base, members: [{ ...row, subscriptions: 'all' }] })],
+    ['hiddenPaneIds a string', JSON.stringify({ ...base, members: [row], hiddenPaneIds: 'pane-1' })],
+    ['the file an array', JSON.stringify([base])],
+  ]
+  for (const [label, bytes] of shapes) {
+    writeFileSync(path, bytes)
+    const read = await readTeamFileAsync(TEAM)
+    check(`${label}: the read yields no roster rather than the raw object`, read === null, JSON.stringify(read))
+    let append = ''
+    try {
+      await appendTeamMember(TEAM, mkMember(0))
+      append = 'resolved'
+    } catch (e) {
+      append = String(e)
+    }
+    check(`${label}: appendTeamMember refuses on its existing road, never a TypeError`, /does not exist/.test(append) && !/TypeError/.test(append), append)
+    let removed: boolean | string
+    try {
+      removed = removeTeammateFromTeamFile(TEAM, { name: 'x' })
+    } catch (e) {
+      removed = String(e)
+    }
+    check(`${label}: removeTeammateFromTeamFile answers false, never a throw`, removed === false, String(removed))
+    let mode: boolean | string
+    try {
+      mode = setMemberMode(TEAM, 'x', 'implement')
+    } catch (e) {
+      mode = String(e)
+    }
+    check(`${label}: setMemberMode answers false, never a throw`, mode === false, String(mode))
+    check(`${label}: the bytes on disk are untouched`, readFileSync(path, 'utf8') === bytes)
+  }
+  const whole = JSON.stringify({
+    ...base,
+    members: [row],
+    hiddenPaneIds: ['p'],
+    allowedPaths: [{ path: '/tmp', toolName: 'Bash', addedBy: 'x', addedAt: 1 }],
+    governance: { broadcastEnabled: false },
+  })
+  writeFileSync(path, whole)
+  const good = await readTeamFileAsync(TEAM)
+  check('a whole roster carrying every optional field decodes', good !== null && good.members.length === 1 && good.hiddenPaneIds?.length === 1 && good.allowedPaths?.length === 1)
+  await flushDebugLogs()
+  const named = readFileSync(DEBUG_LOG, 'utf8').split('\n').filter(l => l.includes('[team-roster]') && l.includes(path))
+  check('the refused file is named ONCE in the debug log across every read of it', named.length === 1, `${named.length} line(s)`)
 }
 
 rmSync(TMP, { recursive: true, force: true })
