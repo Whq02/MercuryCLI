@@ -3,6 +3,7 @@
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
+# gate-watch: src/tools/MonitorTool/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -85,6 +86,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-midturn-line.ts" || { __rc=$?; fai
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-agent-drain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-agent-drain.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-arms.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-arms.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-subagent-sleep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-subagent-sleep.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-monitor-window-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-monitor-window-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-memory-guard.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-memory-guard.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-landing-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-landing-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep.ts" "$__t" "$__rc"
