@@ -58,6 +58,7 @@ import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
+import { createTextRow, textRowLanded, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
@@ -417,6 +418,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tailSeq: number | null = null
   private tailSinceMs = 0
   private rowsAfterTail = 0
+  private textRows: CommittedTextRow[] = []
   private textRetiredRowUuids = new Set<string>()
   private retainedSend: { text: string; id: string } | null = null
   private interrupting = false
@@ -582,7 +584,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.setLiveFold(null)
       this.setStreamBlock(null, null)
       this.lastEventAtMs = null
-      if (this.tailStore.read() !== null) this.tailStore.update(() => null)
+      this.clearTail(Date.now())
       return
     }
     this.liveTurnChars = tail.turnChars ?? 0
@@ -612,7 +614,59 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     this.tailStore.setMessageId(typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null)
     this.tailStore.setPhase(tail.phase === 'commentary' || tail.phase === 'final_answer' ? tail.phase : null)
+    if (text === null) {
+      this.clearTail(tail.atMs)
+      return
+    }
     this.tailStore.update(() => text)
+  }
+
+  private clearTail(atMs: number): void {
+    const held = this.tailStore.read()
+    const verdict = held === null || held === '' ? 'nothing' : this.commitHeldText(held, atMs)
+    if (held !== null) this.tailStore.update(() => null)
+    if (verdict === 'committed' || verdict === 'standing') {
+      this.tailStore.dropSettled()
+      this.paint()
+    }
+  }
+
+  private commitHeldText(text: string, atMs: number): 'committed' | 'standing' | 'unidentified' {
+    const id = this.tailStore.readIds().current
+    if (id === null) return 'unidentified'
+    if (computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown) {
+      this.tailSeq = null
+      return 'standing'
+    }
+    const seq = this.tailSeq ?? (this.arrivalSeq += 2)
+    const row = createTextRow({ messageId: id, text, phase: this.tailStore.readPhases().current, atMs, model: this.modelFacts().effective })
+    this.textRows = [...this.textRows, { seq, sinceMs: this.tailSinceMs, atMs, messageId: id, text, row }]
+    this.tailSeq = null
+    connectorTrace({ ev: 'text-row', sid: this.record.sessionId, seq, chars: text.length })
+    return 'committed'
+  }
+
+  private retireTextRows(): boolean {
+    if (this.textRows.length === 0) return false
+    const now = Date.now()
+    const kept = this.textRows.filter(committed => {
+      if (now - committed.atMs > ECHO_RETIRE_MS) return false
+      for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
+        if (textRowLanded(this.rawRecords[i]!, committed.messageId, committed.text)) return false
+      }
+      return true
+    })
+    if (kept.length === this.textRows.length) return false
+    connectorTrace({ ev: 'text-row-landed', sid: this.record.sessionId, count: this.textRows.length - kept.length })
+    this.textRows = kept
+    return true
+  }
+
+  private retireTextRowsWithRunner(): void {
+    if (this.textRows.length === 0) return
+    connectorTrace({ ev: 'lost', sid: this.record.sessionId, reason: 'runner-relaunched-text', count: this.textRows.length })
+    this.textRows = []
+    this.paint()
   }
 
   turnChars(): number {
@@ -882,10 +936,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
       if (merge.reusedAll) return
       this.rawRecords = merge.records
-      if (chain.rewound) this.releaseDisplayRowsPast(chain.since)
+      if (chain.rewound) {
+        this.releaseDisplayRowsPast(chain.since)
+        this.textRows = []
+      }
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
       this.releaseTail()
       this.reconcileSends()
+      this.retireTextRows()
       this.paint()
       this.recomputeLive()
     } catch (error) {
@@ -937,7 +995,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         latchReleased = true
       }
     }
-    if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
+    if (!inFlight && this.tailStore.read() !== null) this.clearTail(Date.now())
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveTurnOutputTokens = null
     if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
@@ -974,7 +1032,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (typeof facts.runnerGeneration === 'number') {
       const moved = this.runnerGeneration !== null && facts.runnerGeneration !== this.runnerGeneration
       this.runnerGeneration = facts.runnerGeneration
-      if (moved) this.retireSendsLostWithRunner(queue)
+      if (moved) {
+        this.retireSendsLostWithRunner(queue)
+        this.retireTextRowsWithRunner()
+      }
     }
     let born = false
     for (const entry of queue) {
@@ -1126,9 +1187,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private stampArrival(clientMessageId: string, seenAtMs?: number): void {
-    const before = this.tailSeq !== null && seenAtMs !== undefined && seenAtMs < this.tailSinceMs
+    const newest = this.textRows[this.textRows.length - 1]
+    const anchor = this.tailSeq !== null ? { seq: this.tailSeq, sinceMs: this.tailSinceMs } : newest === undefined ? null : { seq: newest.seq, sinceMs: newest.sinceMs }
+    const before = anchor !== null && seenAtMs !== undefined && seenAtMs < anchor.sinceMs
     this.arrivalSeq += 2
-    this.sendSeq.set(clientMessageId, before ? (this.tailSeq as number) - 1 : this.arrivalSeq)
+    this.sendSeq.set(clientMessageId, before && anchor !== null ? anchor.seq - 1 : this.arrivalSeq)
   }
 
   private noticeStands(value: string, notBeforeMs: number): boolean {
@@ -1139,7 +1202,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private paint(): void {
-    const echoes: Message[] = []
+    const held: Array<{ seq: number; row: Message }> = []
     const afterTail: Message[] = []
     const live = new Set<string>()
     for (const s of this.sends) {
@@ -1148,10 +1211,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (row === undefined) continue
       const seq = this.sendSeq.get(s.clientMessageId) ?? 0
       if (this.tailSeq !== null && seq > this.tailSeq) afterTail.push(row)
-      else echoes.push(row)
+      else held.push({ seq, row })
     }
     for (const key of this.sendSeq.keys()) if (!live.has(key)) this.sendSeq.delete(key)
-    echoes.push(...afterTail)
+    for (const committed of this.textRows) {
+      const at = held.findIndex(entry => entry.seq > committed.seq)
+      const entry = { seq: committed.seq, row: committed.row }
+      if (at === -1) held.push(entry)
+      else held.splice(at, 0, entry)
+    }
+    const echoes: Message[] = [...held.map(entry => entry.row), ...afterTail]
     this.rowsAfterTail = afterTail.length
     const kept = projectOperatorRewinds(this.rawRecords)
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)

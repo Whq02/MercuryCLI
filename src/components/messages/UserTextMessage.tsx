@@ -16,6 +16,7 @@ import {
   turnCutOfText,
   turnCutWhy,
 } from '../../utils/messages.js'
+import { noticeOfText } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { UserAgentNotificationMessage } from './UserAgentNotificationMessage.js'
@@ -26,6 +27,7 @@ import { UserCommandMessage } from './UserCommandMessage.js'
 import { UserForkBoilerplateMessage } from './UserForkBoilerplateMessage.js'
 import { UserLocalCommandOutputMessage } from './UserLocalCommandOutputMessage.js'
 import { UserMemoryInputMessage } from './UserMemoryInputMessage.js'
+import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { UserPlanMessage } from './UserPlanMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
@@ -38,6 +40,7 @@ type Props = {
   planContent?: string
   isTranscriptMode?: boolean
   timestamp?: string
+  notice?: boolean
 }
 
 export function UserTextMessage({
@@ -47,6 +50,7 @@ export function UserTextMessage({
   planContent,
   isTranscriptMode,
   timestamp,
+  notice = false,
 }: Props): React.ReactNode {
   if (param.text.trim() === NO_CONTENT_MESSAGE) {
     return null
@@ -131,6 +135,11 @@ export function UserTextMessage({
 
   if (param.text.includes(`<${CHANNEL_TAG} source="`)) {
     return <UserChannelMessage addMargin={addMargin} param={param} />
+  }
+
+  const noticeBlocks = noticeOfText(param.text, notice)
+  if (noticeBlocks !== null) {
+    return <UserNoticeMessage addMargin={addMargin} blocks={noticeBlocks} />
   }
 
   return (

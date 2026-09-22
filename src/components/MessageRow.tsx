@@ -297,6 +297,7 @@ export function shouldRenderStatically(
     case 'attachment':
       return true
     case 'assistant': {
+      if (message.isVirtual === true) return false
       const content = Array.isArray(message.message.content)
         ? message.message.content
         : []
