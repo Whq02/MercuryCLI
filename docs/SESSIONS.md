@@ -141,7 +141,7 @@ names its birth with one key that both the first admission and the retry
 carry, and a daemon that admitted the session but whose answer was lost on
 the wire answers the retry with the session it already holds — the ↵ lands
 in that one session, never a second; two
-daemons never share one config home. A deploy that arrives while sessions are live waits for every one of
+daemons never share one config home. A daemon whose own directory under the config home is removed while it runs treats that as the end of its world: it writes nothing more there and exits. A deploy that arrives while sessions are live waits for every one of
 them — the ones open when it landed and any opened since — before it
 restarts, and never cuts a live runner short.
 
@@ -695,7 +695,8 @@ usage window are held by the watch and delivered together, as one notice,
 on the first turn after the window reopens; ticks that arrive within a
 fifth of a second of each other fold into one notice. A monitor armed
 without `persistent` ends at its deadline with one notice that says how to
-arm it again.
+arm it again. A headless run whose input closes ends every monitor with the
+seat, persistent or not: a watch never outlives the session that armed it.
 
 Every other notice bound for the session's own thread waits the same way
 while the window is closed — a sub-agent's or a shell's completion — and

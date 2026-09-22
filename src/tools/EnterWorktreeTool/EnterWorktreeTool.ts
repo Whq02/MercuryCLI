@@ -14,6 +14,7 @@ import {
 } from '../../utils/worktree.js'
 import { findCanonicalGitRoot } from '../../utils/git.js'
 import { saveWorktreeState } from '../../utils/sessionStorage.js'
+import { setCwd } from '../../utils/Shell.js'
 import { ENTER_WORKTREE_TOOL_NAME, getEnterWorktreeToolPrompt } from './prompt.js'
 import * as UI from './UI.js'
 
@@ -87,6 +88,7 @@ export const EnterWorktreeTool = buildTool({
     const session = await createWorktreeForSession(getSessionId(), slug)
 
     chdir(session.worktreePath)
+    setCwd(session.worktreePath)
     setOriginalCwd(session.worktreePath)
     void saveWorktreeState(session as never)
 

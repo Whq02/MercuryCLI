@@ -56,6 +56,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-cap-seat.ts" || { __rc=$?; fail=1;
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-first-byte-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-byte-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reissue-rows-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reissue-rows-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-handshake.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-handshake.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-home-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-home-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-field-findings-daemon-older.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-field-findings-daemon-older.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-recall-relay.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-recall-relay.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-recall-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-recall-runner.ts" "$__t" "$__rc"

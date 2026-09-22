@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { daemonHomeStands } from './daemonHome.js'
 import { dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs, type InactivityDeadline } from '../utils/deadline.js'
@@ -44,6 +45,7 @@ function readGitInitAsks(): Record<string, string> {
 
 function writeGitInitAsks(map: Record<string, string>): void {
   try {
+    if (!daemonHomeStands('the git-init asks')) return
     const path = gitInitAsksPath()
     mkdirSync(dirname(path), { recursive: true })
     const tmp = `${path}.tmp-${process.pid}`

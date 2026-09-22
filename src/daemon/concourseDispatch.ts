@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { daemonHomeStands } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
@@ -169,6 +170,7 @@ export async function flushDeferredDispatchPublishes(): Promise<void> {
 }
 
 function publishDispatches(dispatches: Record<string, ConcourseDispatchRecordV1>, dir?: string): void {
+  if (!daemonHomeStands('the dispatch ledger', dir)) return
   const settled = Object.values(dispatches)
     .filter(r => (r.state === 'failed' || r.state === 'working') && r.heldReason === undefined)
     .sort((a, b) => b.acceptedAt - a.acceptedAt)
@@ -269,6 +271,7 @@ export function readConcourseControlOps(dir?: string): Record<string, ConcourseC
 }
 
 export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: string): void {
+  if (!daemonHomeStands('the control-op ledger', dir)) return
   const ops = readConcourseControlOps(dir)
   ops[rec.clientOpId] = rec
   const stale = Object.values(ops).sort((a, b) => b.atMs - a.atMs).slice(200)
