@@ -106,6 +106,7 @@ export type UsageFactsV1 = {
   }
   anthropicWindow?: AnthropicWindowFactV1
   openaiWindow?: OpenaiWindowFactV1
+  geminiWindow?: LaneWindowFactV1
 }
 
 export type OpenaiObservedBandV1 = {
@@ -125,6 +126,11 @@ export type AnthropicWindowFactV1 = {
 
 export type OpenaiWindowFactV1 = {
   source: 'chatgpt-subscription' | 'api-key'
+  resetsAtMs: number
+  observedAtMs: number
+}
+
+export type LaneWindowFactV1 = {
   resetsAtMs: number
   observedAtMs: number
 }

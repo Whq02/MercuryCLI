@@ -36,7 +36,7 @@ const readsFor = (route: string | null, verdict: { status: string; lapsesAtMs?: 
     anthropic: lane('anthropic', verdict.status === 'rejected' ? 'rejected' : 'unknown'),
     openai: lane('openai', openaiWindow.state === 'limited' ? 'rejected' : 'unknown'),
     gemini: lane('gemini', 'rejected'),
-    zai: lane('zai', 'unknown'),
+    zai: lane('zai', 'rejected'),
   }),
   anthropicVerdict: () => verdict,
   openaiWindow: () => openaiWindow,
@@ -54,7 +54,7 @@ section("§1 the wall's reads — the OpenAI family's window carries its reopen 
   check("a rejected Anthropic verdict closes the wall at the verdict's lapse, as before", anthropic.closed === true && anthropic.reopensAtMs === 70_000, JSON.stringify(anthropic))
   const anthropicOpen = wallModule.sessionLaneWall(0, readsFor('anthropic', { status: 'allowed' }))
   check('an open Anthropic window leaves the wall open, as before', anthropicOpen.closed === false, JSON.stringify(anthropicOpen))
-  const other = wallModule.sessionLaneWall(0, readsFor('gemini'))
+  const other = wallModule.sessionLaneWall(0, readsFor('zai'))
   check('another family with no window fact closes without a reopen time, as before', other.closed === true && other.reopensAtMs === undefined, JSON.stringify(other))
   const none = wallModule.sessionLaneWall(0, readsFor(null))
   check('no declared route leaves the wall open', none.closed === false, JSON.stringify(none))
