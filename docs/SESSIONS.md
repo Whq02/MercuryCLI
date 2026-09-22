@@ -414,6 +414,17 @@ The same click outside closes every panel over the chat that `esc` closes.
 The `filesBox` setting set to false restores the rail as it was, the command
 with it.
 
+A session can work in a worktree of its repository instead of the checkout
+itself: `--worktree [name]` at launch cuts one (with `--tmux`, inside a tmux
+session of its own), and the EnterWorktree tool cuts one mid-session on the
+word "worktree". The worktree lives under the repository's
+`.mercury/worktrees/` on a branch of its own and comes ready to build:
+`node_modules` and each `vendor/<pack>` the checkout ignores are links to the
+checkout's copies, hidden from git through the clone's exclude file, so the
+checks run there without an install. Because `node_modules` is a link to the
+checkout's, an install run inside the worktree installs into the checkout's
+dependencies, not into a copy of its own.
+
 ## Closing chats
 
 Releasing the last row on the board closes the last chat: the slot rests on
