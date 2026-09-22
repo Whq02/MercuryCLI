@@ -153,6 +153,12 @@ section('the select hook consumes the edge moves; the transcript scroller yields
     decodeNavKey('', keyOf('wheelUp'), { orientation: 'horizontal' }) === null && decodeNavKey('', keyOf('wheelDown'), { orientation: 'horizontal' }) === null)
   check('Home and End on the raw-grammar lists are unchanged (first and last)',
     decodeNavKey('', keyOf('home'), { orientation: 'vertical' }) === 'first' && decodeNavKey('', keyOf('end'), { orientation: 'vertical' }) === 'last')
+  const clears = (scroller as Record<string, unknown>).shouldClearSelectionOnKey as ((key: Key) => boolean) | undefined
+  check('the scroller exposes its selection-clear rule', typeof clears === 'function')
+  if (clears) {
+    check('a wheel notch that reaches the clear listener (the scroller yielded it) never clears a transcript selection', !clears(keyOf('wheelUp')) && !clears(keyOf('wheelDown')))
+    check('a bare key still clears; a shifted or meta key still does not', clears(keyOf('downArrow')) && !clears({ ...keyOf('downArrow'), shift: true }) && !clears({ ...keyOf('downArrow'), meta: true }))
+  }
   const text = readFileSync(join(ROOT, 'src/components/ScrollKeybindingHandler.tsx'), 'utf8')
   const sites = (text.match(/if \(wheelYieldsToTopOverlay\(\)\) return/g) ?? []).length
   check('the two line actions and the raw wheel handler all stand down under the rule (three sites)', sites === 3, String(sites))
