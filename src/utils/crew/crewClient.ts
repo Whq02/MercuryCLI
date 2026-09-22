@@ -24,8 +24,8 @@ import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 
 export const CREW_LEAD_INBOX = 'team-lead'
 
-export function isRetryableSpawnReplyCode(code: string | undefined): boolean {
-  return code === 'ESTARTING' || code === 'ENOCONN' || code === 'ETIMEOUT'
+export function isRetryableSpawnReplyCode(code: string | undefined, frameWritten?: boolean): boolean {
+  return code === 'ESTARTING' || frameWritten === false && (code === 'ENOCONN' || code === 'ETIMEOUT')
 }
 
 
@@ -106,14 +106,14 @@ export async function spawnCrewTeammate(
       )
       if (reply.ok && reply.op === 'crewSpawn') return { ok: true, pid: reply.pid }
       if (!reply.ok) {
-        if (isRetryableSpawnReplyCode(reply.code)) {
+        if (isRetryableSpawnReplyCode(reply.code, reply.frameWritten)) {
           lastError = reply.error ?? 'daemon still starting'
         } else {
           return { ok: false, error: reply.error }
         }
       }
     } catch (e) {
-      lastError = String(e)
+      return { ok: false, error: String(e) }
     }
     await new Promise(r => setTimeout(r, 400))
   }

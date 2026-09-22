@@ -123,6 +123,30 @@ section('server D — a boot race inside the hold: the dispatch is held and admi
   await server.close()
 }
 
+section('transport failures distinguish an unsent spawn from an uncertain written spawn')
+{
+  const absent = await daemonControlRpc({ op: 'crewSpawn', name: 'atlas', model: 'sonnet' } as DaemonRequest, { timeoutMs: 100 })
+  check('no listener means no frame was written', !absent.ok && absent.code === 'ENOCONN' && absent.frameWritten === false, JSON.stringify(absent))
+  for (const mode of ['close', 'timeout', 'malformed']) {
+    const sockets = new Set<net.Socket>()
+    let frames = 0
+    const server = net.createServer(socket => {
+      sockets.add(socket)
+      socket.on('close', () => sockets.delete(socket))
+      socket.once('data', () => {
+        frames++
+        if (mode === 'close') socket.destroy()
+        if (mode === 'malformed') socket.end('not json\n')
+      })
+    })
+    await new Promise<void>(resolve => server.listen(controlSockPath(), resolve))
+    const reply = await daemonControlRpc({ op: 'crewSpawn', name: 'atlas', model: 'sonnet' } as DaemonRequest, { timeoutMs: 100 })
+    check(`${mode} after the write carries the written fact`, frames === 1 && !reply.ok && reply.frameWritten === true, JSON.stringify(reply))
+    for (const socket of sockets) socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) { console.log(`❌ ${failures} CREW RPC PROOF(S) FAILED`); process.exit(1) }
