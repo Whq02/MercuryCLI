@@ -49,6 +49,7 @@ const USAGE: KeyTable = {
   openaiWindow: 'openai_window',
   geminiWindow: 'gemini_window',
   openrouterWindow: 'openrouter_window',
+  huggingfaceWindow: 'huggingface_window',
 }
 const ANTHROPIC_WINDOW: KeyTable = {
   observedAtMs: 'observed_at_ms',
@@ -278,7 +279,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
   const windowKey = direction === 'to' ? 'anthropic_window' : 'anthropicWindow'
   const openaiWindowKey = direction === 'to' ? 'openai_window' : 'openaiWindow'
-  const laneWindowKeys = direction === 'to' ? ['gemini_window', 'openrouter_window'] : ['geminiWindow', 'openrouterWindow']
+  const laneWindowKeys = direction === 'to' ? ['gemini_window', 'openrouter_window', 'huggingface_window'] : ['geminiWindow', 'openrouterWindow', 'huggingfaceWindow']
   const catalogueKey = direction === 'to' ? 'openai_catalogue' : 'openaiCatalogue'
   return out => {
     out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey, t(OPENAI_WINDOW), openaiWindowKey, t(LANE_WINDOW), laneWindowKeys))

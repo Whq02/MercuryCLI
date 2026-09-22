@@ -143,7 +143,7 @@ console.log('§W the window fact read')
   check("the fact rides the seat's wire as openai_window with its stamps renamed", wired !== undefined && wired.source === 'chatgpt-subscription' && wired.resets_at_ms === NOW + 5_000 && wired.observed_at_ms === NOW - 1_000, JSON.stringify(onWire.usage))
   const back = wire.sessionFactsFromWire(onWire as never) as { usage?: { openaiWindow?: { resetsAtMs?: number; observedAtMs?: number; source?: string } } }
   check('and reads back whole', back.usage?.openaiWindow?.resetsAtMs === NOW + 5_000 && back.usage?.openaiWindow?.observedAtMs === NOW - 1_000 && back.usage?.openaiWindow?.source === 'chatgpt-subscription', JSON.stringify(back.usage?.openaiWindow))
-  for (const family of ['gemini', 'openrouter'] as const) {
+  for (const family of ['gemini', 'openrouter', 'huggingface'] as const) {
     const key = `${family}Window`
     const wireKey = `${family}_window`
     const laneFact = { resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }

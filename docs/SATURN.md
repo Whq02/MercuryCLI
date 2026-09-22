@@ -95,7 +95,8 @@ schedule-time warning; an expiry with a refresh token is ready), expired,
 signed-out (a keyless account's twin is `unreachable` — the backing server
 is gone; it has no sign-in to lose), or rate-limited — a usage window the
 session's own runner saw closed counts as one, for the Anthropic, OpenAI,
-Gemini and OpenRouter families alike, each read from its own window fact.
+Gemini, OpenRouter and Hugging Face families alike, each read from its own
+window fact.
 
 A fire whose account is not ready is **held**, typed and receipted, never
 silently dropped and never run on another family: "held: sign-in expired —
