@@ -848,7 +848,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
         const { [name]: _removed, ...rest } = existing
         await writeProjectMcpFile(rest)
       })
-      return
+      break
     }
     case 'user': {
       const servers = getGlobalConfig().mcpServers ?? {}
@@ -859,7 +859,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
         const { [name]: _removed, ...rest } = current.mcpServers ?? {}
         return { ...current, mcpServers: rest }
       })
-      return
+      break
     }
     case 'local': {
       const servers = getCurrentProjectConfig().mcpServers ?? {}
@@ -870,11 +870,13 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
         const { [name]: _removed, ...rest } = current.mcpServers ?? {}
         return { ...current, mcpServers: rest }
       })
-      return
+      break
     }
     default:
       throw new Error(`Cannot remove an MCP server from the ${String(scope)} scope`)
   }
+  const { forgetMcpNeedsAuth } = await import('./client.js')
+  await forgetMcpNeedsAuth(name)
 }
 
 
