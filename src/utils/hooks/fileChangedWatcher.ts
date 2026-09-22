@@ -5,7 +5,7 @@ import * as chokidar from 'chokidar'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { clearCwdEnvFiles } from '../sessionEnvironment.js'
-import { resolveWatchRoot } from '../watchRoot.js'
+import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 import { executeCwdChangedHooks, executeFileChangedHooks } from '../hooks.js'
 import { getHooksConfigFromSnapshot } from './hooksConfigSnapshot.js'
 
@@ -91,6 +91,7 @@ async function startWatching(): Promise<void> {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 200 },
     ignorePermissionErrors: true,
+    ignored: ignoringSpecialFiles(),
   })
   watcher.on('error', error =>
     logForDebugging(`file-changed watcher error: ${error instanceof Error ? error.message : String(error)}`, {

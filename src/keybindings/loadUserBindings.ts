@@ -12,7 +12,7 @@ import { isENOENT } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
 import { projectConfigDirs, resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { createSignal } from '../utils/signal.js'
-import { resolveWatchRoot } from '../utils/watchRoot.js'
+import { ignoringSpecialFiles, resolveWatchRoot } from '../utils/watchRoot.js'
 import { DEFAULT_BINDINGS } from './defaultBindings.js'
 import { parseBindings } from './parser.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
@@ -260,6 +260,7 @@ export async function initializeKeybindingWatcher(): Promise<void> {
     ignorePermissionErrors: true,
     usePolling: false,
     atomic: true,
+    ignored: ignoringSpecialFiles(),
   })
   watcher.on('error', error => {
     logForDebugging(`keybindings watcher error: ${error instanceof Error ? error.message : String(error)}`)

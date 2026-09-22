@@ -9,7 +9,7 @@ import { logForDebugging } from '../debug.js'
 import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
 import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
-import { resolveWatchRoot } from '../watchRoot.js'
+import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 import type { SettingSource } from './constants.js'
 import { SETTING_SOURCES } from './constants.js'
 import { clearInternalWrites, consumeInternalWrite } from './internalWrites.js'
@@ -185,7 +185,7 @@ async function initialize(): Promise<void> {
     awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
     ignorePermissionErrors: true,
     atomic: true,
-    ignored: (candidatePath: string) => {
+    ignored: ignoringSpecialFiles((candidatePath: string) => {
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
       if (watchedRoots.has(normalized)) return false
@@ -195,7 +195,7 @@ async function initialize(): Promise<void> {
         return false
       }
       return true
-    },
+    }),
   })
   watcher.on('change', path => void handleChange(path))
   watcher.on('add', path => void handleChange(path))
