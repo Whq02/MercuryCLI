@@ -80,6 +80,9 @@ export function restoreSessionStateFromLog(
     if (lastAssistantAt !== null) setLastApiCompletionTimestamp(lastAssistantAt)
   }
 
+  const adopted = adoptedSessionIdOf(result)
+  if (adopted === getSessionId()) restoreCostStateForSession(adopted)
+
   if (result.teamName && result.agentName) {
     initializeTeammateContextFromSession(setAppState, result.teamName, result.agentName)
   }
@@ -93,17 +96,20 @@ export function restoreMissionContinuity(
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): boolean {
   try {
-    const fromMessages = result.messages.find(
-      (m): m is Message & { sessionId: string } =>
-        typeof (m as { sessionId?: unknown }).sessionId === 'string',
-    ) as { sessionId?: string } | undefined
-    const adopted = String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
+    const adopted = adoptedSessionIdOf(result)
     migrateOrphanedMissionCard(adopted)
     return rearmMissionFromCard(setAppState, { cardSessionId: adopted, armSessionId: adopted })
   } catch (error) {
     logForDebugging(`resume: mission re-arm failed: ${String(error)}`)
     return false
   }
+}
+
+function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>): string {
+  const fromMessages = result.messages.find(
+    (m): m is Message & { sessionId: string } => typeof (m as { sessionId?: unknown }).sessionId === 'string',
+  ) as { sessionId?: string } | undefined
+  return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
 }
 
 export function computeRestoredAttributionState(result: ResumedConversationLog): AttributionState | undefined {

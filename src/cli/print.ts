@@ -167,6 +167,7 @@ import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markPrintModeSignalsOwned } from '../utils/gracefulShutdown.js'
+import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerCheckpoint,
   headlessProfilerStartTurn,
@@ -1686,6 +1687,7 @@ export async function runHeadless(
     void gracefulShutdown(143)
   })
   markPrintModeSignalsOwned()
+  process.on('exit', () => saveCurrentSessionCosts())
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
     idleNudge.stop()

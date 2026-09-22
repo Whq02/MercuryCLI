@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
+import type { SDKAssistantMessage, SDKUserMessage } from '../entrypoints/sdk/controlTypes.js'
 
 
 export type SdkEventUsage = {
@@ -46,6 +47,9 @@ export type SdkEvent =
       subtype: 'session_state_changed'
       state: 'idle' | 'running' | 'requires_action'
     }
+  | SdkAgentFrame
+
+export type SdkAgentFrame = (SDKAssistantMessage | SDKUserMessage) & { parent_tool_use_id: string }
 
 const QUEUE_CAP = 1000
 
@@ -60,7 +64,7 @@ export function enqueueSdkEvent(event: SdkEvent): void {
 export function drainSdkEvents(): Array<SdkEvent & { uuid: string; session_id: string }> {
   const drained = queue.splice(0, queue.length)
   const sessionId = getSessionId()
-  return drained.map(event => ({ ...event, uuid: randomUUID(), session_id: sessionId }))
+  return drained.map(event => ({ ...event, uuid: 'uuid' in event && typeof event.uuid === 'string' && event.uuid !== '' ? event.uuid : randomUUID(), session_id: sessionId }))
 }
 
 export function emitTaskTerminatedSdk(
