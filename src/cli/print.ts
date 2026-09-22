@@ -1287,6 +1287,14 @@ export async function runHeadless(
     })
   }
 
+  const isWatchTask = (task: unknown): boolean => isLocalShellTask(task) && task.kind === 'monitor'
+  const stopWatchesForClose = async (): Promise<void> => {
+    const watches = getRunningTasks(getAppState()).filter(isWatchTask)
+    if (watches.length === 0) return
+    logForDebugging(`[session-runner] the input closed with ${watches.length} watch(es) running: a watch ends with its seat`)
+    await Promise.all(watches.map(task => killTask(task.id, setAppState).catch(() => undefined)))
+  }
+
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
     const teamState = getAppState()
     const { isTeamLead } = await import('../utils/teammate.js')
@@ -1380,6 +1388,7 @@ export async function runHeadless(
         injectTeamShutdownPrompt()
         return 'reenter'
       }
+      await stopWatchesForClose()
       return 'close'
     }
     return 'stay'
@@ -1539,13 +1548,13 @@ export async function runHeadless(
       headlessProfilerStartTurn()
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate'),
+      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate' && !(inputClosed && isWatchTask(task))),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate').length,
+      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate' && !(inputClosed && isWatchTask(task))).length,
     onAgentWait: count => {
       io.outbound.enqueue({
         type: 'system',
@@ -2954,6 +2963,7 @@ export async function runHeadless(
     } finally {
       inputClosed = true
       if (!driver.isRunning()) {
+        await stopWatchesForClose()
         await driver.closeOutputOnce()
       }
     }
