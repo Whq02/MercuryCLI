@@ -106,6 +106,7 @@ import {
 } from './root/stop-continue.js'
 import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
 import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
+import { terminalQuerierFor, terminalQuerySettleMs } from './session/querier.js'
 import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
 import {
@@ -1071,6 +1072,18 @@ export default class Ink {
     else noteModeReleased(ALT_SCREEN_SESSION_OWNER, 'mouse-tracking')
   }
 
+  async awaitTerminalQueries(): Promise<void> {
+    const querier = terminalQuerierFor(this.options.stdout)
+    if (querier === undefined || querier.settled()) return
+    await querier.whenSettled(terminalQuerySettleMs())
+  }
+
+  private drainUnsettledQueries(): void {
+    const querier = terminalQuerierFor(this.options.stdout)
+    if (querier === undefined || querier.settled()) return
+    drainStdin(this.options.stdin)
+  }
+
   enterAlternateScreen(): void {
     this.pause()
     this.suspendStdin()
@@ -1299,6 +1312,7 @@ export default class Ink {
   }
 
   pause(): void {
+    this.drainUnsettledQueries()
     reconciler.flushSyncWork()
     this.onRender()
     this.isPaused = true

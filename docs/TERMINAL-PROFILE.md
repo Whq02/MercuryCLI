@@ -102,6 +102,14 @@ every one of them is a row of the in-code registry
   disables cursor-hide and live paint.
 - `MERCURY_VIRTUAL_SCROLL` (default-on) — the transcript virtual-scroll
   surface.
+- `MERCURY_TERMINAL_QUERY_SETTLE_MS` (a value; unset is 250) — how long a
+  handover of the screen (the external editor, a job-control stop, the
+  exit) waits for the terminal's open question batch to settle, counted
+  from the moment the questions were sent. Mercury asks the terminal about
+  itself once, at boot; a handover inside that round trip would let the
+  reply land at the shell or in the editor, so it waits for the closing
+  device-attributes reply up to this bound and drains whatever has arrived
+  otherwise. `0` never waits.
 
 Two more switches ride the capability profile: fullscreen and mouse
 tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`
