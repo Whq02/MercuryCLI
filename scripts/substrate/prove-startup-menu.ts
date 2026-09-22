@@ -22,13 +22,12 @@ const scratch = mkdtempSync(join(tmpdir(), 'startup-menu-'))
 process.chdir(scratch)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_THEMIS', 'MERCURY_MNEME']) {
+for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_CAP_FAILOVER', 'MERCURY_MNEME']) {
   delete process.env[k]
 }
 
 const { STARTUP_MENU, allSettingRows, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/substrate/startupMenu.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
-const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.js')
 
 console.log('============================================================')
 console.log(' startup menu — registry + boot-env applier proof')
@@ -45,8 +44,9 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
       return c.length >= 2 && c[0]!.value === null && c.slice(1).every(x => typeof x.value === 'string')
     }))
   check('toggle rows carry exactly one non-default value', STARTUP_MENU.filter(r => r.kind === 'toggle').every(r => r.options.length === 1))
-  check('the run-discipline and memory knobs are present',
-    ['MERCURY_THEMIS', 'MERCURY_MNEME'].every(e => STARTUP_MENU.some(r => r.env === e)))
+  check('the memory knob is present', STARTUP_MENU.some(r => r.env === 'MERCURY_MNEME'))
+  check('the trust combo is the wards, the debugger, the C/C++ lane, Sovereign mode and Autopilot — no other row stands between a tool call and its run',
+    STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(',') === 'MERCURY_WARDS,MERCURY_DAP,MERCURY_LSP_CPP,MERCURY_SKIP_PERMISSIONS,MERCURY_AUTOPILOT', STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(','))
   const missions = STARTUP_MENU.filter(r => r.group === 'memory & missions')
   check('the memory & missions group is the one MNEME row and nothing else', missions.length === 1 && missions[0]!.env === 'MERCURY_MNEME', missions.map(r => r.env).join(','))
   check('no row offers a whole-repository build or a standing planner or builder model pick (label, summary and detail)',
@@ -132,22 +132,22 @@ section('command-owned setting rows — the /caching dial law')
   const wFile = join(scratch, 'boot-env-writer.json')
   const w1 = writeBootEnvChoice('MERCURY_CACHE_TTL', '1h', wFile)
   check('the dial write commits through the profile writer', w1.ok === true)
-  const w2 = writeBootEnvChoice('MERCURY_THEMIS', 'warn', wFile)
+  const w2 = writeBootEnvChoice('MERCURY_CAP_FAILOVER', 'auto', wFile)
   const savedAfter = readBootEnvChoices(wFile) ?? {}
   check('a later menu-row write PRESERVES the saved dial choice',
-    w2.ok === true && savedAfter.MERCURY_CACHE_TTL === '1h' && savedAfter.MERCURY_THEMIS === 'warn')
+    w2.ok === true && savedAfter.MERCURY_CACHE_TTL === '1h' && savedAfter.MERCURY_CAP_FAILOVER === 'auto')
   const wBad = writeBootEnvChoice('MERCURY_CACHE_TTL', 'forever', wFile)
   check('the writer refuses a foreign dial value', wBad.ok === false)
   const staleFile = join(scratch, 'boot-env-stale-writer.json')
-  writeFileSync(staleFile, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_THEMIS: 'warn' } }))
+  writeFileSync(staleFile, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_CAP_FAILOVER: 'auto' } }))
   const wStale = writeBootEnvChoice('MERCURY_MNEME', '1', staleFile)
   const afterStale = readBootEnvChoices(staleFile) ?? {}
   check("a stale foreign value already in the file (an earlier build's 'sovereign') never refuses a later save: it is pruned and every other saved row is kept",
-    wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_THEMIS === 'warn' && afterStale.MERCURY_MNEME === '1', JSON.stringify({ wStale, afterStale }))
+    wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_CAP_FAILOVER === 'auto' && afterStale.MERCURY_MNEME === '1', JSON.stringify({ wStale, afterStale }))
   const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
   const menuStart = splashCore.indexOf('const MENU = [')
   const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))
-  check('the baked splash menu carries the menu rows (the THEMIS row is present)', menuBlock.includes('"env":"MERCURY_THEMIS"'))
+  check('the baked splash menu carries the menu rows (the wards row is present)', menuBlock.includes('"env":"MERCURY_WARDS"'))
   check('the baked splash menu excludes the command row', menuBlock.length > 0 && !menuBlock.includes('MERCURY_CACHE_TTL'))
 }
 
@@ -159,10 +159,10 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const noFile = applyBootMenuEnv(join(scratch, 'absent.json'), {})
   check('no file ⇒ null (byte-identical boot)', noFile === null)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'warn', MERCURY_MNEME: '1' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CAP_FAILOVER: 'auto', MERCURY_MNEME: '1' } })
   const env1: NodeJS.ProcessEnv = {}
   const r1 = applyBootMenuEnv(file, env1)
-  check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_THEMIS === 'warn' && env1.MERCURY_MNEME === '1')
+  check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_CAP_FAILOVER === 'auto' && env1.MERCURY_MNEME === '1')
   check('nothing refused, nothing env-won', r1 !== null && r1.refused.length === 0 && r1.envWins.length === 0)
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_SKIP_PERMISSIONS: '1', MERCURY_COMPUTER_ACCESS: 'permissive' } })
@@ -212,33 +212,33 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const rSamplesOff = applyBootMenuEnv(file, envSamplesOff)
   check('a saved 0 for the samples row is refused (off is the default, unset)', rSamplesOff !== null && rSamplesOff.refused.length === 1 && Object.keys(envSamplesOff).length === 0)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { PATH: '/evil', NODE_OPTIONS: '--require /evil.js', MERCURY_THEMIS: 'warn' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { PATH: '/evil', NODE_OPTIONS: '--require /evil.js', MERCURY_CAP_FAILOVER: 'auto' } })
   const env2: NodeJS.ProcessEnv = {}
   const r2 = applyBootMenuEnv(file, env2)
   check('PATH/NODE_OPTIONS smuggling refused (anti-smuggling allowlist)',
     r2 !== null && r2.refused.length === 2 && env2.PATH === undefined && env2.NODE_OPTIONS === undefined)
-  check('the legal key beside the smuggle still applies', env2.MERCURY_THEMIS === 'warn')
+  check('the legal key beside the smuggle still applies', env2.MERCURY_CAP_FAILOVER === 'auto')
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'root', MERCURY_CAP_FAILOVER: 'banana' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CONCOURSE: 'root', MERCURY_CAP_FAILOVER: 'banana' } })
   const env3: NodeJS.ProcessEnv = {}
   const r3 = applyBootMenuEnv(file, env3)
   check('values outside the row choices refused', r3 !== null && r3.refused.length === 2 && Object.keys(env3).length === 0)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'warn' } })
-  const env4: NodeJS.ProcessEnv = { MERCURY_THEMIS: 'enforce' }
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CAP_FAILOVER: 'auto' } })
+  const env4: NodeJS.ProcessEnv = { MERCURY_CAP_FAILOVER: 'off' }
   const r4 = applyBootMenuEnv(file, env4)
   check('explicit real env ALWAYS wins (never overwritten)',
-    r4 !== null && r4.envWins.join(',') === 'MERCURY_THEMIS' && env4.MERCURY_THEMIS === 'enforce' && r4.applied.length === 0)
+    r4 !== null && r4.envWins.join(',') === 'MERCURY_CAP_FAILOVER' && env4.MERCURY_CAP_FAILOVER === 'off' && r4.applied.length === 0)
 
   writeFileSync(file, '{not json')
   const r5 = applyBootMenuEnv(file, {})
   check('malformed JSON surfaced as a refusal, never a crash', r5 !== null && r5.refused.length === 1)
-  write({ version: 999, env: { MERCURY_THEMIS: 'warn' } })
+  write({ version: 999, env: { MERCURY_CAP_FAILOVER: 'auto' } })
   const env6: NodeJS.ProcessEnv = {}
   const r6 = applyBootMenuEnv(file, env6)
   check('wrong version refused wholesale', r6 !== null && r6.refused.length === 1 && Object.keys(env6).length === 0)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'warn' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CAP_FAILOVER: 'auto' } })
   process.env.MERCURY_ENTER_MENU = '0'
   const env7: NodeJS.ProcessEnv = {}
   check("MERCURY_ENTER_MENU='0' ⇒ file ignored entirely (kill honest)", applyBootMenuEnv(file, env7) === null && Object.keys(env7).length === 0)
@@ -246,46 +246,8 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
 
   setStamp(false)
   const bareStampApplied: NodeJS.ProcessEnv = {}
-  check('bare stamp ⇒ file STILL applies (stamp-independence)', applyBootMenuEnv(file, bareStampApplied) !== null && bareStampApplied.MERCURY_THEMIS === 'warn')
+  check('bare stamp ⇒ file STILL applies (stamp-independence)', applyBootMenuEnv(file, bareStampApplied) !== null && bareStampApplied.MERCURY_CAP_FAILOVER === 'auto')
   setStamp(true)
-}
-
-section('THEMIS audit — an applied boot-env writes a boot row when the plane is on')
-{
-  const file = join(scratch, 'boot-env-audit.json')
-  writeFileSync(file, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_MNEME: '1' } }))
-  process.env.MERCURY_THEMIS = 'warn'
-  const env: NodeJS.ProcessEnv = {}
-  const r = applyBootMenuEnv(file, env)
-  check('applied under an active plane', r !== null && r.applied.length === 1)
-  await new Promise(res => setTimeout(res, 250))
-  const { themisDirs } = await import('../../src/substrate/themis/auditChain.js')
-  let chain = ''
-  for (const auditDir of themisDirs(scratch)) {
-    try {
-      chain += readdirSync(auditDir).filter(f => f.startsWith('audit-')).map(f => readFileSync(join(auditDir, f), 'utf8')).join('\n')
-    } catch {
-    }
-  }
-  check("audit row 'boot-env-applied' recorded (actor boot)", chain.includes('boot-env-applied') && chain.includes('MERCURY_MNEME=1'))
-  delete process.env.MERCURY_THEMIS
-}
-
-section('Workflow prompt — the themis section rides the plane')
-{
-  process.env.MERCURY_THEMIS = 'off'
-  const base = getWorkflowToolPrompt()
-  check('explicit THEMIS off ⇒ no themis section', !base.includes('The themis global'))
-  delete process.env.MERCURY_THEMIS
-  const documented = getWorkflowToolPrompt()
-  check('unset (the default) ⇒ the themis global IS documented (default-on)', documented.includes('The themis global'))
-  const themisAt = documented.indexOf('## The themis global')
-  const nextAt = documented.indexOf('\n## ', themisAt + 1)
-  const themisSection = documented.slice(themisAt, nextAt === -1 ? undefined : nextAt)
-  check('the themis section names no bundled consumer of the global and no saved roster', !/roster|bundled|consumes it/i.test(themisSection) && !/roster/i.test(documented))
-  process.env.MERCURY_THEMIS = 'warn'
-  check('THEMIS on ⇒ the themis global is documented (no dead VM surface)', getWorkflowToolPrompt().includes('The themis global'))
-  delete process.env.MERCURY_THEMIS
 }
 
 setStamp(false)

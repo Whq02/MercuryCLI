@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
@@ -36,31 +34,6 @@ section('§2 FC-046 — the win32 code probe (structural)')
   const bridge = readFileSync(join(ROOT, 'src/cli/editorBridge.ts'), 'utf8')
   check("the win32 candidate list leads with code.cmd", /'code\.cmd', 'code', 'code\.exe'/.test(bridge))
   check('and the probe rides shell:true on win32 (a .cmd cannot spawn shell-less)', /isWindows \? \{ shell: true \} : \{\}/.test(bridge))
-}
-
-section('§3 FC-045 — themis channel discipline (artifact)')
-{
-  const DIST = join(ROOT, 'dist', 'mercury.mjs')
-  if (!existsSync(DIST)) {
-    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
-  } else {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), 'themis-channel-')))
-    const run = (args: string[], env: Record<string, string> = {}) =>
-      spawnSync('node', [DIST, ...args], {
-        env: { ...process.env, MERCURY_CONFIG_DIR: home, ...env },
-        encoding: 'utf8',
-        timeout: 60_000,
-      })
-    const refused = run(['themis', 'lock'], { MERCURY_THEMIS: 'off' })
-    check('a refusal exits 1', refused.status === 1, `status=${refused.status}`)
-    check('the refusal rides STDERR (FC-045)', /refused/.test(refused.stderr ?? ''), JSON.stringify((refused.stderr ?? '').slice(0, 100)))
-    check('and stdout stays clean', !/refused/.test(refused.stdout ?? ''), JSON.stringify((refused.stdout ?? '').slice(0, 80)))
-    const usage = run(['themis', 'bogusverb'])
-    check('usage exits 2 on stderr', usage.status === 2 && /Usage:/.test(usage.stderr ?? '') && !/Usage:/.test(usage.stdout ?? ''), `status=${usage.status}`)
-    const verify = run(['themis', 'verify'], { MERCURY_THEMIS: 'off' })
-    check('facts still ride stdout (verify level line)', /level: off/.test(verify.stdout ?? ''), JSON.stringify((verify.stdout ?? '').slice(0, 60)))
-    rmSync(home, { recursive: true, force: true })
-  }
 }
 
 if (failures > 0) {

@@ -100,7 +100,7 @@ section('R3 — launcher: splash/hold gated on takeover; OSC title gated on TTY'
   const launcher = readFileSync(join(ROOT, 'scripts', 'ops', 'launcher-mercury.sh'), 'utf8')
   check('MERCURY_TAKEOVER gate exists', launcher.includes('MERCURY_TAKEOVER=1') && launcher.includes('MERCURY_TAKEOVER=0'))
   check('print/help args disable the takeover', /-p\|--print\|-h\|--help\|-v\|-V\|--version\)\s*MERCURY_TAKEOVER=0/.test(launcher))
-  check('subcommands disable the takeover', launcher.includes('daemon|doctor|error|export|install|join|join-kit|log|mcp|extensions|setup-token|task|themis|up|update) MERCURY_TAKEOVER=0') || /case "\$\{1:-\}" in\n\s*[a-z|-]*daemon[a-z|-]*\) MERCURY_TAKEOVER=0/.test(launcher))
+  check('subcommands disable the takeover', launcher.includes('daemon|doctor|error|export|install|join|join-kit|log|mcp|extensions|setup-token|task|up|update) MERCURY_TAKEOVER=0') || /case "\$\{1:-\}" in\n\s*[a-z|-]*daemon[a-z|-]*\) MERCURY_TAKEOVER=0/.test(launcher))
   check('the splash block requires the takeover gate', launcher.includes('[ "$MERCURY_TAKEOVER" = "1" ] && [ "${MERCURY_NO_BANNER:-0}" != "1" ] && [ -t 1 ]'))
   check('the OSC title is TTY-gated', launcher.includes(`[ -t 1 ] && printf '\\033]0;Mercury\\007'`))
   const syn = spawnSync('bash', ['-n', join(ROOT, 'scripts', 'ops', 'launcher-mercury.sh')], { encoding: 'utf8' })
