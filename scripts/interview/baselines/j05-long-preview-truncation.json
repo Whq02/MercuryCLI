@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-21T22:09:57.818Z",
+ "capturedAt": "2026-09-22T04:33:18.574Z",
  "screens": [
   {
    "atMs": 12500,
@@ -22,7 +22,7 @@
     "  · /workflows — agent …│                                                                                              │",
     "                        │    model   Opus 5                                                                            │",
     "FILES · flux-arena-cwd-…│    theme   Jellyfish                                                                         │",
-    "  ↵ or click · browse   │    dir     flux-arena-cwd-XasAAf · no git                                                    │",
+    "  ↵ or click · browse   │    dir     flux-arena-cwd-0TnJF3 · no git                                                    │",
     "                        │                                                                                              │",
     "TELEMETRY               │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "  · spend —             │                                                                                              │",
@@ -72,23 +72,22 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-XasAAf                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-0TnJF3                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12421,
-   "frame-recommit": 29,
-   "tail-publish": 2
+   "patches": 12487,
+   "frame-recommit": 28
   },
   "frames": {
-   "total": 47,
-   "window": 47,
-   "p50": 1.349207999999635,
-   "p95": 7.607915999999932,
-   "p99": 21.56929200000002,
-   "maxMs": 21.56929200000002
+   "total": 46,
+   "window": 46,
+   "p50": 1.146999999999025,
+   "p95": 11.548041999999896,
+   "p99": 23.65970900000002,
+   "maxMs": 23.65970900000002
   }
  },
  "requests": [
@@ -108,7 +107,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-21.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-22.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -123,11 +122,11 @@
  ],
  "sends": [
   {
-   "atMs": 10863.240957260132,
+   "atMs": 10987.165212631226,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12463.240957260132,
+   "atMs": 12587.165212631226,
    "b64": "DQ=="
   }
  ]
