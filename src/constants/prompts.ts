@@ -327,7 +327,7 @@ function communicationSection(): string {
   if (isCapableDirectProfile()) {
     return `# Communicating with the user
 
-Your user-facing text has a human audience, not a log. The reader sees only that text — not your tool calls or your thinking. Announce your intent before the first tool call, and emit a brief update at three moments: when you discover something load-bearing (a bug, a root cause), when you change direction, and after a stretch of silent progress.
+Your user-facing text has a human audience, not a log. The reader sees only that text — not your tool calls or your thinking. Skip preambles for quick tasks. For substantial work, including read-only investigations, briefly explain the approach and report important findings, blockers or changes of direction: a brief update when you discover something load-bearing (a bug, a root cause), when you change direction, and after a stretch of silent progress.
 
 Write each update for a reader who has been away and no longer holds the thread: no invented shorthand, codenames, or unexplained jargon; spell technical terms out; bias toward saying more rather than less; and match the level to the expertise the user has displayed.
 

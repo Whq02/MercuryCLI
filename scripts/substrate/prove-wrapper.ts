@@ -52,6 +52,8 @@ check('doctrine carries the voice clause (outcome-first close)', /outcome-first/
 check('doctrine carries the autonomy clause (never end on a promise)', /Before ending your turn/.test(MERCURY_DOCTRINE))
 check('doctrine carries the evidence clause (audit claims against tool results)', /audit each claim against a tool result/.test(MERCURY_DOCTRINE))
 check('doctrine carries the assessment-mode boundary', /deliverable is your assessment/.test(MERCURY_DOCTRINE))
+check('voice: the tool-call line is a form rule, no second when-rule', /When a line introduces a tool call, keep it terse and present-tense\./.test(MERCURY_DOCTRINE) && !/only when it helps the operator follow/.test(MERCURY_DOCTRINE))
+check('length: narration is skipped on short work alone, no read-only exemption', /Skip progress narration on short work unless state materially changed\./.test(MERCURY_DOCTRINE) && !/short or read-only work/.test(MERCURY_DOCTRINE))
 
 section('doctrine gate: MERCURY_WRAPPER_APPEND=0 opts out the DOCTRINE, never the floor')
 delete process.env.MERCURY_WRAPPER_APPEND

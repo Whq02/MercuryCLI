@@ -97,6 +97,21 @@ check(
 )
 check(prompt.includes('(RememberLesson)'), 'the private-memory spelling rides when present')
 
+console.log('assembled prompt — narration: one rule, once; the old sentences gone')
+const once = (needle: string): boolean => prompt.split(needle).length === 2
+check(
+  once(
+    'Skip preambles for quick tasks. For substantial work, including read-only investigations, briefly explain the approach and report important findings, blockers or changes of direction',
+  ),
+  'the narration rule rides exactly once',
+)
+check(
+  !prompt.includes('Announce your intent before the first tool call') &&
+    !prompt.includes('only when it helps the operator follow') &&
+    !prompt.includes('on short or read-only work'),
+  'no announce-always, no introduce-only-when-it-helps, no read-only exemption',
+)
+
 console.log('assembled prompt — bare roster (laws hold without tool spellings)')
 const bare = drive('bare')
 check(bare.includes('# The project instruction estate'), 'section present without the tools')
