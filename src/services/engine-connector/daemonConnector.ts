@@ -58,6 +58,7 @@ import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
+import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
@@ -601,7 +602,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
     if (tail.atMs === this.tailAtMs && tail.text === this.tailStore.read()) return
     this.tailAtMs = tail.atMs
-    const text = tail.text
+    const id = typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null
+    const landed = id !== null && tail.text !== null && computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown
+    const text = landed ? null : tail.text
     if (text !== null && this.tailStore.read() === null) {
       this.arrivalSeq += 2
       this.tailSeq = this.arrivalSeq
@@ -881,6 +884,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.rawRecords = merge.records
       if (chain.rewound) this.releaseDisplayRowsPast(chain.since)
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
+      this.releaseTail()
       this.reconcileSends()
       this.paint()
       this.recomputeLive()
@@ -2074,6 +2078,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   tailAnchor(): number {
     return this.painted.length - this.rowsAfterTail
+  }
+
+  private releaseTail(): void {
+    const ids = this.tailStore.readIds()
+    if (ids.current === null && ids.settled === null) return
+    const release = computeTailRelease(this.rawRecords, ids)
+    if (!release.publishedShown && !release.settledShown) return
+    if (release.publishedShown) this.tailStore.reset(null)
+    this.tailStore.dropSettled()
+    this.tailSeq = null
   }
 
   status(): SeatStatusV1 {
