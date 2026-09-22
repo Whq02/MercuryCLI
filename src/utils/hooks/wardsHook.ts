@@ -10,6 +10,7 @@ import type { SetAppState } from '../messageQueueManager.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
+  REFUSAL_WARDS,
   WARDS_TOOL_MATCHER,
   buildWardDenial,
   evaluateWards,
@@ -23,8 +24,17 @@ export const WARDS_HOOK_ID = 'wards-content-rules'
 
 const WARD_DENIAL_CAP = 25
 
+export type WardsLevel = 'off' | 'warn' | 'enforce'
+
+export function wardsLevel(): WardsLevel {
+  if (!flagEnabled('MERCURY_WARDS')) return 'off'
+  const raw = flagEnv('MERCURY_WARDS')
+  const folded = typeof raw === 'string' ? raw.replace(/^["']+|["']+$/g, '').trim().toLowerCase() : ''
+  return folded === 'warn' ? 'warn' : 'enforce'
+}
+
 export function wardsEnabled(): boolean {
-  return flagEnabled('MERCURY_WARDS')
+  return wardsLevel() !== 'off'
 }
 
 export function deleteWardActive(): boolean {
@@ -98,8 +108,8 @@ export function registerWardsHook(
     'PreToolUse',
     WARDS_TOOL_MATCHER,
     (_messages, _signal, context) => {
-      if (!wardsEnabled()) return true
-      if (denials >= WARD_DENIAL_CAP) return true
+      const level = wardsLevel()
+      if (level === 'off') return true
       try {
         const hookInput = context?.hookInput as
           | { tool_name?: unknown; tool_input?: unknown }
@@ -112,15 +122,30 @@ export function registerWardsHook(
               ? (hookInput.tool_input as Record<string, unknown>)
               : {},
         }
+        const refusal = evaluateWards(REFUSAL_WARDS, pending)
+        if (!refusal.allow) {
+          const denial = buildWardDenial(refusal, pending.toolName)
+          if (level === 'warn') {
+            logForDebugging(`wards: warn — ${denial}`)
+            return true
+          }
+          return denial
+        }
+        if (denials >= WARD_DENIAL_CAP) return true
         const verdict = evaluateWards(rules, pending)
         if (verdict.allow) return true
+        const denial = buildWardDenial(verdict, pending.toolName)
+        if (level === 'warn') {
+          logForDebugging(`wards: warn — ${denial}`)
+          return true
+        }
         denials++
         if (denials === WARD_DENIAL_CAP) {
           logForDebugging(
             `wards: denial cap (${WARD_DENIAL_CAP}) reached for session ${sessionId} — standing down`,
           )
         }
-        return buildWardDenial(verdict, pending.toolName)
+        return denial
       } catch {
         return true
       }
