@@ -1,6 +1,42 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.17
+- Changed the session box to five rows with a small sprite of your creature: the SESSIONS strip under the chat and the roll-up line beside the critter are gone, so the chat has more rows; /critter switches between the small and the full critter, /critter on and /critter off name them, /critter pick chooses the creature, and the choice is kept across boots
+- Changed the session box's title to VIEW: a click on it switches the critter between small and full, the same as /critter
+- Added a FILES box to the left rail naming the folder: a click, ↵ on it or /files opens the project tree over the chat in the picker's frame, folders open and close, the file you are on is marked, a changed file carries its git mark, / filters by name, ↵ on a file puts its path into the composer and closes the menu, and esc or a click outside closes it; a setting restores the rail as shipped
+- Changed the panels that close with esc to close on a click outside them too: the model picker, the file tree, and the settings, status, config and usage panel; the click closes the panel and touches nothing beneath it
+- Added m on both Boot faces to open the model picker with its effort row: the model and effort you pick become the default for new sessions, and the bottom row reads "⇧→ concourse · m to select model-default" at every terminal height, a fresh install's included
+- Changed the concourse's m key: with the new-session entry focused it opens the same default picker, and on a session row it opens the full picker for that session; the short list is gone, and no picker shows a frontier line
+- Changed the model picker to open centred in the chat, as it does over the board and the Boot face; a setting puts it back at the left edge
+- Changed every family's model list to refresh in the background when a picker opens: OpenRouter, Gemini, Hugging Face and local rows join OpenAI, changed rows land in place with a one-line notice, and the Boot face and session-row pickers refresh too, so GPT no longer shows "connecting" until a session has started
+- Changed the first-run cards to sit centred on the screen, with a light brown trust tone and rewritten words; a setting restores the top-left cards
+- Fixed the bottom row on small screens losing its way back while a notice stood: the way back stays on the right and the notice is cut to fit
+- Added shift+B while a shell command runs: the command goes to the runner as a background task and the agent is freed, with a notice saying where it went; the hint row and the ready line name the key only while a command runs
+- Changed every provider's busy refusal to be retried quietly on a growing wait for about thirty seconds, then with a retry line, and a red line only when the wait is spent; a calm line names the provider on recovery, and esc ends a wait
+- Fixed the transcript's sign-in line not naming the account: it reads "Login successful — signed in as <account>", and /status keeps the organisation name after a switch
+- Fixed the effort chip showing "(asked)" for its first second: it shows its value from the first frame
+- Fixed the compact board's contract offer card overflowing at 80×14 and 82×17: its question and its Yes and No rows fit
+- Fixed two small-screen faults after a failover: at 80 columns the sentence keeps its "/model to return" tail, and the band says ready only once the session has landed
+- Fixed the chat showing "thinking" while a sub-agent ran: it keeps "waiting for the agent" until the runner reports idle
+- Fixed a transcript loaded while its last line was still being written reporting itself degraded
+- Fixed the workspace trust card flashing at boot in a linked worktree of a trusted repository
+- Fixed the daemon's log lines putting their timestamp at the end: every line leads with it
+- Fixed Grep missing anchored globs under a symlinked search root on macOS: ripgrep receives the root's real path
+- Fixed the boot-time account read using a different base address from the usage read
+- Fixed the note telling a background sub-agent its tool search was disabled while its deferred tools worked, and the picker's unavailable GPT rows showing a context figure the live rows lack
+- Added a release check that judges every hand-typed model id against the live model lists and refuses an id the lists lack
+- Fixed the process sweep on Linux reading every Mercury process as not ours: it reads the executable's name, not the main thread's
+- Fixed a stopped named teammate's row on the crew board refusing to respawn on r, and a row staying marked as running when its spawn failed because the team did not exist; the main agent is told when an agent is stopped or resumed from the board
+- Fixed a daemon that exited just after answering a new window costing the window a retry: startup repeats its daemon check once
+- Changed the status line above the composer to rest on "ready · <model> · <effort>", with the /effort receipt standing on that line for eight seconds in the calm grey before the words return
+- Added a new-session line at the top of the concourse board when sessions exist: ↑ reaches it, ↵ starts a session, and m on it opens the default model picker, while m on a session row keeps opening that session's own picker
+- Changed /logins in the chat to open on the same sign-in sentence the first-run walk uses
+- Fixed an image pasted while a turn was running reaching the provider as a stored reference, so every later request failed with a 400 about an unknown image source; the image now reaches every provider as its bytes and a session already carrying the reference recovers on its next send
+- Fixed shift+B saying nothing when the runner refused to background the command: the refusal's sentence now shows on the notice row
+- Fixed the FILES box and its tree browsing the folder the window opened in after a hop into a session from another project: both follow the session's folder, and a picked file's path is relative to it
+- Fixed a sub-agent's quiet provider retries not counting against its recovery time: they count, and the main chat's quiet retries look as they did
+
 ## 1.0.0-beta.16
 - Fixed the Anthropic sign-in showing the previous account after a switch: every screen shows the new account the moment its credential is saved
 - Fixed the Edit tool restyling quotes in a file of no known language: only prose gets typographic quotes; everything else lands byte for byte
