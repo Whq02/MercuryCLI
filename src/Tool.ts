@@ -346,6 +346,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   extractSearchText?(output: TOutput): string
   inputsEquivalent?(a: any, b: any): boolean
   getPath?(input: any): string | undefined
+  shellCommandOf?(input: unknown): string | undefined
   capability?: ToolCapability
   getToolUseSummary?(input?: any): string | null
   getActivityDescription?(input?: any): string | null

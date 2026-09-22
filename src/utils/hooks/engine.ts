@@ -32,7 +32,7 @@ import {
 import { isEnvTruthy } from '../envUtils.js'
 import { getIsNonInteractiveSession, getSessionId } from '../../bootstrap/state.js'
 import type { PermissionResult } from '../permissions/PermissionResult.js'
-import type { ToolUseContext } from '../../Tool.js'
+import { findToolByName, type Tool, type ToolUseContext } from '../../Tool.js'
 import { execCommandHook, shouldSkipHookDueToTrust, TOOL_HOOK_EXECUTION_TIMEOUT_MS } from './execution.js'
 import { getMatchingHooks, isInternalHook } from './matching.js'
 import { parseHookOutput, parseHttpHookOutput, processHookJSONOutput } from './outputProcessing.js'
@@ -235,6 +235,9 @@ export async function* executeHooks({
         timeoutMs,
         signal,
         hookInput,
+        tool: toolUseContext && 'tool_name' in hookInput
+          ? findToolByName(toolUseContext.options.tools, hookInput.tool_name)
+          : undefined,
       })
       return
     }
@@ -1016,6 +1019,7 @@ export async function executeFunctionHook({
   timeoutMs,
   signal,
   hookInput,
+  tool,
 }: {
   hook: FunctionHook
   messages: Message[]
@@ -1025,6 +1029,7 @@ export async function executeFunctionHook({
   timeoutMs: number
   signal?: AbortSignal
   hookInput?: HookInput
+  tool?: Tool
 }): Promise<HookResult> {
   const callbackTimeoutMs = hook.timeout ?? timeoutMs
   const { signal: abortSignal, cleanup } = createCombinedAbortSignal(signal, {
@@ -1044,7 +1049,7 @@ export async function executeFunctionHook({
       const onAbort = () => reject(new Error('Function hook cancelled'))
       abortSignal.addEventListener('abort', onAbort)
 
-      Promise.resolve(hook.callback(messages, abortSignal, { hookInput }))
+      Promise.resolve(hook.callback(messages, abortSignal, { hookInput, tool }))
         .then(result => {
           abortSignal.removeEventListener('abort', onAbort)
           resolve(result)

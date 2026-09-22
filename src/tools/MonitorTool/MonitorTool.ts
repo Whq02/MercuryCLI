@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { buildTool, type ToolDef } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolDef } from '../../Tool.js'
 import { spawnShellTask } from '../../tasks/LocalShellTask/LocalShellTask.js'
 import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -81,6 +81,7 @@ export type Output = z.infer<OutputSchema>
 
 export const MonitorTool = buildTool({
   name: MONITOR_TOOL_NAME,
+  shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
   searchHint:
     'watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live notification',
   maxResultSizeChars: 10_000,
