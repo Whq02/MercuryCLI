@@ -87,6 +87,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-agent-drain.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-arms.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-arms.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dupline-subagent-sleep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dupline-subagent-sleep.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-monitor-window-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-monitor-window-drive.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-watch-park-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-watch-park-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-memory-guard.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-memory-guard.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-landing-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-landing-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep.ts" "$__t" "$__rc"

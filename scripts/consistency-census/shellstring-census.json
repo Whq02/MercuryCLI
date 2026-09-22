@@ -409,11 +409,32 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/daemon/prove-monitor-window-drive.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(`pkill -f ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/daemon/prove-process-sweep-world.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON = process.platform === 'darwin' ? '/usr/bin/python3' : 'python3'",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/daemon/prove-watch-park-drive.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "return execSync(`pgrep -fl ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`).toString().trim()",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/daemon/prove-watch-park-drive.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(`pkill -f ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/default-provider/prove-defaultprovider-restart-drive.ts",

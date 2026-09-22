@@ -633,6 +633,16 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
+    try {
+      const { reconcileWatchesOnResume } = await import('../tools/MonitorTool/watchReceipts.js')
+      const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const deadWatches = reconcileWatchesOnResume(messages, new Set(Object.keys(getAppState().tasks ?? {})), coerceRestartReason(runnerRestartReason))
+      if (deadWatches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) without a live process — dead-watch notices written`)
+      }
+    } catch (error) {
+      logError(error)
+    }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
 

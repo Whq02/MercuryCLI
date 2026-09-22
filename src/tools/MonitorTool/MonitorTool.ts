@@ -10,6 +10,7 @@ import { exec } from '../../utils/Shell.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, createWatchMailbox } from './watchMailbox.js'
+import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -116,7 +117,7 @@ export const MonitorTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `Monitor started (task ${output.taskId}, ${
+      content: `${WATCH_STARTED_LINE}${output.taskId}, ${
         output.persistent
           ? 'persistent — runs until TaskStop or session end'
           : `timeout ${output.timeoutMs}ms`
@@ -158,9 +159,7 @@ export const MonitorTool = buildTool({
 
     function emit(text: string): void {
       enqueuePendingNotification({
-        value: `<monitor task=${JSON.stringify(taskId ?? '')} name=${JSON.stringify(
-          description,
-        )}>\n${text}\n</monitor>`,
+        value: monitorNoticeBlock(taskId ?? '', description, text),
         mode: 'task-notification',
         priority: 'next',
         agentId,
