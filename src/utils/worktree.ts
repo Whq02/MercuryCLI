@@ -313,7 +313,99 @@ export async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: s
   return copied
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string): Promise<void> {
+const DEPENDENCY_LINK_ROOT = 'node_modules'
+const PACK_LINK_DIRECTORY = 'vendor'
+
+async function isDirectoryAt(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function ignoredIn(root: string, relPath: string): Promise<boolean> {
+  const probe = await runGit(['check-ignore', '-q', '--', relPath], root)
+  return probe.code === 0
+}
+
+async function dependencyLinkCandidates(sourceRoot: string): Promise<string[]> {
+  const names: string[] = []
+  if (await isDirectoryAt(join(sourceRoot, DEPENDENCY_LINK_ROOT))) names.push(DEPENDENCY_LINK_ROOT)
+  let packs: string[] = []
+  try {
+    packs = await readdir(join(sourceRoot, PACK_LINK_DIRECTORY))
+  } catch {
+    packs = []
+  }
+  for (const pack of packs.sort()) {
+    if (await isDirectoryAt(join(sourceRoot, PACK_LINK_DIRECTORY, pack))) names.push(`${PACK_LINK_DIRECTORY}/${pack}`)
+  }
+  const ignored: string[] = []
+  for (const name of names) {
+    if (await ignoredIn(sourceRoot, name)) ignored.push(name)
+  }
+  return ignored
+}
+
+async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
+  const linked: string[] = []
+  for (const relPath of relPaths) {
+    if (containsPathTraversal(relPath)) {
+      logForDebugging(`worktree symlink entry skipped (path traversal): ${relPath}`, {
+        level: 'warn' as never,
+      })
+      continue
+    }
+    const segments = relPath.split('/')
+    const target = join(worktreePath, ...segments)
+    try {
+      await mkdir(dirname(target), { recursive: true })
+      await symlink(join(sourceRoot, ...segments), target, 'dir')
+      linked.push(relPath)
+    } catch (error) {
+      const code = (error as { code?: string }).code
+      if (code !== 'ENOENT' && code !== 'EEXIST') {
+        logForDebugging(`worktree symlink failed for ${relPath}: ${code ?? String(error)}`, {
+          level: 'warn' as never,
+        })
+      }
+    }
+  }
+  return linked
+}
+
+async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRoot: string, linked: readonly string[]): Promise<void> {
+  const lines: string[] = []
+  for (const relPath of linked) {
+    if (await ignoredIn(worktreePath, relPath)) continue
+    if (!(await ignoredIn(sourceRoot, relPath))) continue
+    lines.push(`/${relPath}`)
+  }
+  if (lines.length === 0) return
+  const gitDir = await resolveGitDir(repoRoot)
+  const commonDir = gitDir !== null ? ((await getCommonDir(gitDir)) ?? gitDir) : null
+  if (commonDir === null) return
+  const excludePath = join(commonDir, 'info', 'exclude')
+  let existing = ''
+  try {
+    existing = await readFile(excludePath, 'utf8')
+  } catch {
+    existing = ''
+  }
+  const present = new Set(existing.split(/\r?\n/))
+  const additions = lines.filter(line => !present.has(line))
+  if (additions.length === 0) return
+  try {
+    await mkdir(dirname(excludePath), { recursive: true })
+    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
+    await writeFile(excludePath, `${existing}${separator}${additions.join('\n')}\n`)
+  } catch (error) {
+    logForDebugging(`worktree exclude write failed: ${String(error)}`)
+  }
+}
+
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<void> {
   try {
     const relativeSettingsPath = getRelativeSettingsFilePathForSource('localSettings')
     const target = join(worktreePath, relativeSettingsPath)
@@ -352,24 +444,10 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string): Pro
   }
 
   const symlinkDirectories = getInitialSettings().worktree?.symlinkDirectories ?? []
-  for (const directoryName of symlinkDirectories) {
-    if (containsPathTraversal(directoryName)) {
-      logForDebugging(`worktree symlink entry skipped (path traversal): ${directoryName}`, {
-        level: 'warn' as never,
-      })
-      continue
-    }
-    try {
-      await symlink(join(repoRoot, directoryName), join(worktreePath, directoryName), 'dir')
-    } catch (error) {
-      const code = (error as { code?: string }).code
-      if (code !== 'ENOENT' && code !== 'EEXIST') {
-        logForDebugging(`worktree symlink failed for ${directoryName}: ${code ?? String(error)}`, {
-          level: 'warn' as never,
-        })
-      }
-    }
-  }
+  const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
+  const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
+  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
+  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
 
   await copyWorktreeIncludeFiles(repoRoot, worktreePath)
 }
@@ -584,6 +662,7 @@ export async function createAgentWorktree(
   slug: string,
   options?: {
     at?: string
+    from?: string
   },
 ): Promise<{
   worktreePath: string
@@ -600,7 +679,8 @@ export async function createAgentWorktree(
     const hookResult = await executeWorktreeCreateHook(slug)
     return { worktreePath: hookResult.worktreePath, hookBased: true }
   }
-  const gitRoot = findCanonicalGitRoot(getCwd())
+  const from = options?.from ?? getCwd()
+  const gitRoot = findCanonicalGitRoot(from)
   if (!gitRoot) {
     throw new Error(
       'Worktree isolation is unavailable here: this is not a git repository and no WorktreeCreate hook is configured. ' +
@@ -609,7 +689,7 @@ export async function createAgentWorktree(
   }
   const created = await createOrResumeWorktree(gitRoot, slug, options?.at !== undefined ? { at: options.at } : undefined)
   if (!created.existed) {
-    await runPostCreationSetup(gitRoot, created.worktreePath)
+    await runPostCreationSetup(gitRoot, created.worktreePath, from)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
