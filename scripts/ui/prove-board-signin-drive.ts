@@ -172,6 +172,7 @@ try {
         check(`${id}: the face's own Logins row opened the sign-in layer`, (marks.get('face') ?? '').includes('⚿ Logins') && landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed))
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
+        check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
         check(`${id}: the completed sign-in stays on the roster, the family signed in`, returned.includes('LOGINS') && returned.includes('Families') && returned.includes('Signed in  2 of 8') && !returned.includes('Mercury — model'), excerpt(returned))
         keepFrames()
         continue
@@ -183,6 +184,7 @@ try {
         const hits = fixture.hits.slice(hitsBefore)
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out names the picker that opened the door`, receipt.includes('↵ done — back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
+        check(`${id}: the status bar says the picker that opened the door`, receipt.includes('connected — ↵ returns to the picker') && !receipt.includes('returns to the roster'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
         check(`${id}: the completed sign-in returned to the picker that opened it, on the board`, returned.includes('Mercury — model') && returned.includes('SESSION CONCOURSE'), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {

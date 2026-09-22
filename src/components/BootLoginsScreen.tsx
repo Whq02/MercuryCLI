@@ -383,11 +383,11 @@ export function anthropicFlowLegendOf(snap: AnthropicLoginSnapshot, draftLen: nu
   return 'esc cancel';
 }
 
-export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot): string {
+export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker = false): string {
   const flow = snap.flow;
   if (flow.name === 'waiting') return 'waiting on the browser sign-in';
   if (flow.name === 'creating-key') return 'minting the usage-based key';
-  if (flow.name === 'success') return 'signed in — ↵ returns to the roster';
+  if (flow.name === 'success') return `signed in — ${signedInStatusWayOut(backToPicker)}`;
   if (flow.name === 'error') return 'the sign-in did not settle';
   return 'starting the sign-in';
 }
@@ -560,6 +560,10 @@ export function receiptPaneLines(receipt: string, ok: boolean, backToPicker = fa
 
 export function signedInWayOut(backToPicker: boolean): string {
   return backToPicker ? '↵ done — back to the picker' : '↵ done — the roster refreshes';
+}
+
+export function signedInStatusWayOut(backToPicker: boolean): string {
+  return backToPicker ? '↵ returns to the picker' : '↵ returns to the roster';
 }
 
 
@@ -761,7 +765,7 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
 export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
   switch (pane.kind) {
     case 'anthropic':
-      return anthropicFlowStatusOf(pane.snap);
+      return anthropicFlowStatusOf(pane.snap, pane.backToPicker === true);
     case 'pick':
       switch (pane.pick) {
         case 'openai':
@@ -799,7 +803,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'client':
       return `Google account — step ${pane.client.step} of 6`;
     case 'receipt':
-      return pane.ok ? 'connected — ↵ returns to the roster' : 'not connected — ↵ returns to the roster';
+      return pane.ok ? `connected — ${signedInStatusWayOut(pane.backToPicker === true)}` : 'not connected — ↵ returns to the roster';
   }
 }
 
