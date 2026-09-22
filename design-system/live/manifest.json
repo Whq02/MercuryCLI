@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-  "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
-  "generatedAt": "2026-09-22T06:35:47.560Z",
+  "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+  "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
+  "generatedAt": "2026-09-22T07:05:08.927Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -17,8 +17,8 @@
   "entries": [
     {
       "id": "cockpit-wide--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "cockpit-wide",
       "cols": 120,
       "rows": 40,
@@ -50,12 +50,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:52.482Z"
+      "generatedAt": "2026-09-22T07:02:13.415Z"
     },
     {
       "id": "frame--100x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 100,
       "rows": 30,
@@ -87,12 +87,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:06.824Z"
+      "generatedAt": "2026-09-22T07:01:27.703Z"
     },
     {
       "id": "frame--101x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 101,
       "rows": 30,
@@ -124,12 +124,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:13.384Z"
+      "generatedAt": "2026-09-22T07:01:34.097Z"
     },
     {
       "id": "frame--120x40--dark--256--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -161,12 +161,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:28.133Z"
+      "generatedAt": "2026-09-22T07:04:49.534Z"
     },
     {
       "id": "frame--120x40--dark--ansi--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -198,12 +198,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:34.553Z"
+      "generatedAt": "2026-09-22T07:04:55.933Z"
     },
     {
       "id": "frame--120x40--dark--none--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -235,12 +235,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:40.937Z"
+      "generatedAt": "2026-09-22T07:05:02.335Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -272,12 +272,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:19.998Z"
+      "generatedAt": "2026-09-22T07:01:40.688Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--reduced",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -309,12 +309,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:47.560Z"
+      "generatedAt": "2026-09-22T07:05:08.927Z"
     },
     {
       "id": "frame--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -346,12 +346,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:04.898Z"
+      "generatedAt": "2026-09-22T07:04:26.324Z"
     },
     {
       "id": "frame--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -383,12 +383,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:18.468Z"
+      "generatedAt": "2026-09-22T07:03:39.864Z"
     },
     {
       "id": "frame--120x40--light--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -420,12 +420,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:31.983Z"
+      "generatedAt": "2026-09-22T07:02:53.199Z"
     },
     {
       "id": "frame--120x40--light-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -457,12 +457,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:41.681Z"
+      "generatedAt": "2026-09-22T07:04:03.109Z"
     },
     {
       "id": "frame--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -494,12 +494,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:55.240Z"
+      "generatedAt": "2026-09-22T07:03:16.626Z"
     },
     {
       "id": "frame--149x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 149,
       "rows": 40,
@@ -531,12 +531,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:26.810Z"
+      "generatedAt": "2026-09-22T07:01:47.533Z"
     },
     {
       "id": "frame--150x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 150,
       "rows": 40,
@@ -568,12 +568,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:33.348Z"
+      "generatedAt": "2026-09-22T07:01:54.108Z"
     },
     {
       "id": "frame--151x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 151,
       "rows": 40,
@@ -605,12 +605,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:39.679Z"
+      "generatedAt": "2026-09-22T07:02:00.427Z"
     },
     {
       "id": "frame--160x50--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 160,
       "rows": 50,
@@ -642,12 +642,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:45.950Z"
+      "generatedAt": "2026-09-22T07:02:06.890Z"
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -679,12 +679,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:30:57.007Z"
+      "generatedAt": "2026-09-22T07:00:18.165Z"
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 80,
       "rows": 24,
@@ -716,12 +716,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:15.948Z"
+      "generatedAt": "2026-09-22T07:00:37.132Z"
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -753,12 +753,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:34.931Z"
+      "generatedAt": "2026-09-22T07:00:56.065Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -790,12 +790,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:53.929Z"
+      "generatedAt": "2026-09-22T07:01:15.037Z"
     },
     {
       "id": "help--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "help",
       "cols": 120,
       "rows": 40,
@@ -827,12 +827,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:23.728Z"
+      "generatedAt": "2026-09-22T07:02:44.675Z"
     },
     {
       "id": "resume-2turn--100x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 100,
       "rows": 30,
@@ -864,12 +864,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:10.009Z"
+      "generatedAt": "2026-09-22T07:01:30.896Z"
     },
     {
       "id": "resume-2turn--101x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 101,
       "rows": 30,
@@ -901,12 +901,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:16.555Z"
+      "generatedAt": "2026-09-22T07:01:37.293Z"
     },
     {
       "id": "resume-2turn--120x40--dark--256--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -938,12 +938,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:31.348Z"
+      "generatedAt": "2026-09-22T07:04:52.727Z"
     },
     {
       "id": "resume-2turn--120x40--dark--ansi--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -975,12 +975,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:37.751Z"
+      "generatedAt": "2026-09-22T07:04:59.134Z"
     },
     {
       "id": "resume-2turn--120x40--dark--none--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1012,12 +1012,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:44.140Z"
+      "generatedAt": "2026-09-22T07:05:05.549Z"
     },
     {
       "id": "resume-2turn--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1049,12 +1049,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:23.393Z"
+      "generatedAt": "2026-09-22T07:01:44.089Z"
     },
     {
       "id": "resume-2turn--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1086,12 +1086,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:08.097Z"
+      "generatedAt": "2026-09-22T07:04:29.512Z"
     },
     {
       "id": "resume-2turn--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1123,12 +1123,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:21.660Z"
+      "generatedAt": "2026-09-22T07:03:43.061Z"
     },
     {
       "id": "resume-2turn--120x40--light--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1160,12 +1160,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:35.190Z"
+      "generatedAt": "2026-09-22T07:02:56.399Z"
     },
     {
       "id": "resume-2turn--120x40--light-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1197,12 +1197,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:44.879Z"
+      "generatedAt": "2026-09-22T07:04:06.309Z"
     },
     {
       "id": "resume-2turn--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1234,12 +1234,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:58.436Z"
+      "generatedAt": "2026-09-22T07:03:19.831Z"
     },
     {
       "id": "resume-2turn--149x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 149,
       "rows": 40,
@@ -1271,12 +1271,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:30.220Z"
+      "generatedAt": "2026-09-22T07:01:50.954Z"
     },
     {
       "id": "resume-2turn--150x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 150,
       "rows": 40,
@@ -1308,12 +1308,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:36.500Z"
+      "generatedAt": "2026-09-22T07:01:57.228Z"
     },
     {
       "id": "resume-2turn--151x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 151,
       "rows": 40,
@@ -1345,12 +1345,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:42.781Z"
+      "generatedAt": "2026-09-22T07:02:03.698Z"
     },
     {
       "id": "resume-2turn--160x50--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 160,
       "rows": 50,
@@ -1382,12 +1382,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:49.072Z"
+      "generatedAt": "2026-09-22T07:02:10.049Z"
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1419,12 +1419,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:06.471Z"
+      "generatedAt": "2026-09-22T07:00:27.659Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 80,
       "rows": 24,
@@ -1456,12 +1456,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:25.448Z"
+      "generatedAt": "2026-09-22T07:00:46.599Z"
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1493,12 +1493,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:31:44.435Z"
+      "generatedAt": "2026-09-22T07:01:05.557Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "resume-2turn",
       "cols": 99,
       "rows": 30,
@@ -1530,12 +1530,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:32:03.414Z"
+      "generatedAt": "2026-09-22T07:01:24.496Z"
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1567,12 +1567,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:09.286Z"
+      "generatedAt": "2026-09-22T07:02:30.217Z"
     },
     {
       "id": "sessions--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1604,12 +1604,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:24.920Z"
+      "generatedAt": "2026-09-22T07:04:46.315Z"
     },
     {
       "id": "sessions--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1641,12 +1641,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:38.476Z"
+      "generatedAt": "2026-09-22T07:03:59.895Z"
     },
     {
       "id": "sessions--120x40--light--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1678,12 +1678,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:52.026Z"
+      "generatedAt": "2026-09-22T07:03:13.204Z"
     },
     {
       "id": "sessions--120x40--light-ansi--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1715,12 +1715,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:35:01.702Z"
+      "generatedAt": "2026-09-22T07:04:23.114Z"
     },
     {
       "id": "sessions--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1752,12 +1752,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:34:15.254Z"
+      "generatedAt": "2026-09-22T07:03:36.646Z"
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
-      "sourceSha": "bd286c110e2155bd70ce930ff34fa43f58338b31",
-      "buildDigest": "00497b3c6eaeab3e6e999c6c7c0b8c759222e5c0",
+      "sourceSha": "8a606796a9ef377bcbf6103ef16ba1f7f96a62e9",
+      "buildDigest": "9d0dc69431b66e64994bee6982eaafc3b8512c4b",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1789,7 +1789,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T06:33:28.796Z"
+      "generatedAt": "2026-09-22T07:02:49.979Z"
     }
   ]
 }
