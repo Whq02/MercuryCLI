@@ -545,7 +545,7 @@ export async function createWorktreeForSession(
       : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`,
   )
   if (!created.existed) {
-    await runPostCreationSetup(gitRoot, created.worktreePath)
+    await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
   }
 
   const usedSparse = (getInitialSettings().worktree?.sparsePaths ?? []).length > 0
@@ -1216,7 +1216,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
-        await runPostCreationSetup(gitRoot, created.worktreePath)
+        await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())
       }
     } catch (error) {
       return { handled: false, error: error instanceof Error ? error.message : String(error) }

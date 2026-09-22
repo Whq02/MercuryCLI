@@ -51,7 +51,7 @@ export type ResumeAgentResult = {
   agentId: string
   description: string
   outputFile: string
-  cwdFallback?: 'parent-checkout'
+  cwdFallback?: 'parent-checkout' | 'parent-directory'
 }
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
@@ -125,6 +125,24 @@ export async function resumeAgentBackground(args: {
     } catch {
       logForDebugging(
         `resumeAgent: recorded worktree ${meta.worktreePath} is gone — resuming in the parent cwd`,
+      )
+    }
+  }
+
+  let cwdPath: string | undefined
+  if (meta?.cwd) {
+    try {
+      const info = await stat(meta.cwd)
+      if (info.isDirectory()) {
+        cwdPath = meta.cwd
+      } else {
+        logForDebugging(
+          `resumeAgent: recorded directory ${meta.cwd} is not a directory — resuming in the parent cwd`,
+        )
+      }
+    } catch {
+      logForDebugging(
+        `resumeAgent: recorded directory ${meta.cwd} is gone — resuming in the parent cwd`,
       )
     }
   }
@@ -206,6 +224,7 @@ export async function resumeAgentBackground(args: {
   void writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
     ...(worktreePath ? { worktreePath } : {}),
+    ...(cwdPath ? { cwd: cwdPath } : {}),
     description,
     ...(restoredModel ? { model: restoredModel } : {}),
     ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
@@ -265,6 +284,7 @@ export async function resumeAgentBackground(args: {
           ...(contentReplacementState ? { contentReplacementState } : {}),
           ...(isForkResume ? { useExactTools: true } : {}),
           ...(worktreePath ? { worktreePath } : {}),
+          ...(cwdPath ? { cwd: cwdPath } : {}),
           description,
           effortOverride: meta?.effortOverride,
           ...(instructionProfileOverride
@@ -301,9 +321,10 @@ export async function resumeAgentBackground(args: {
     invokingRequestId: args.invokingRequestId,
     invocationKind: 'resume',
   }
+  const directory = worktreePath ?? cwdPath
   void runWithAgentContext(resumeContext, () =>
-    worktreePath
-      ? runWithCwdOverride(worktreePath, runLifecycle)
+    directory
+      ? runWithCwdOverride(directory, runLifecycle)
       : runLifecycle(),
   )
 
@@ -313,6 +334,8 @@ export async function resumeAgentBackground(args: {
     outputFile: getTaskOutputPath(agentId),
     ...(meta?.worktreePath && worktreePath === undefined
       ? { cwdFallback: 'parent-checkout' as const }
-      : {}),
+      : meta?.cwd && cwdPath === undefined
+        ? { cwdFallback: 'parent-directory' as const }
+        : {}),
   }
 }

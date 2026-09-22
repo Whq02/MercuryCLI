@@ -635,6 +635,7 @@
    "src/tools/AgentTool/AgentTool.tsx": [
     "AgentTool",
     "SUBAGENT_BRIEFING_LEAD",
+    "agentCwdQuestion",
     "inputSchema",
     "outputSchema",
     "resolveAgentCwd",
