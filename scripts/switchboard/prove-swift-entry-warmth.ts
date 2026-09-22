@@ -32,8 +32,8 @@ check(
   repl.includes('paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId)'),
 )
 check(
-  'the live view alone paints the hint (the deferred pair rides paintedMessages…)',
-  repl.includes('useDeferredValue(paintedMessages)') && repl.includes('? deferredMessages : paintedMessages'),
+  'the live view alone paints the hint (one lane: the composed list, never a deferred copy of it)',
+  repl.includes('inVirtualTranscript ? transcriptMessages : paintedMessages') && !repl.includes('useDeferredValue'),
 )
 check(
   '…while the transcript modes keep the connector records',

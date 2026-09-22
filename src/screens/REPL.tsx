@@ -9,7 +9,6 @@ import { tmpdir } from 'node:os';
 import { basename as nodePathBasename, join } from 'node:path';
 import React, {
   useCallback,
-  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -2009,14 +2008,12 @@ export function REPL({
       settleEntryWarmth(warmth.sessionId);
     }
   }, [messages, focusedConnector, warmthVersion]);
-  const deferredMessages = useDeferredValue(paintedMessages);
-  const liveOrDeferred = isLoading && !textActive ? deferredMessages : paintedMessages;
   const transcriptMessages = useMemo(
     () => (frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages),
     [messages, frozenTranscriptState],
   );
   const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
-  const displayedMessages = inVirtualTranscript ? transcriptMessages : liveOrDeferred;
+  const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
   const unseen = useUnseenDivider(messages.length);
   const rekeyedSessionRef = useRef(focusedSessionId);
