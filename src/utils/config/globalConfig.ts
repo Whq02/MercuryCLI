@@ -228,6 +228,86 @@ function migrateConfigFields(config: GlobalConfig): GlobalConfig {
   return projects === rewritten.projects ? rewritten : { ...rewritten, projects }
 }
 
+type ConfigFieldShape = 'boolean' | 'number' | 'string' | 'list' | 'object'
+
+export type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape; found: string }
+
+const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
+  claudeAiMcpEverConnected: 'list',
+  concourseEnabled: 'boolean',
+}
+
+function configFieldShapeOf(value: unknown): ConfigFieldShape | null {
+  if (typeof value === 'boolean') return 'boolean'
+  if (typeof value === 'number') return 'number'
+  if (typeof value === 'string') return 'string'
+  if (Array.isArray(value)) return 'list'
+  if (value !== null && typeof value === 'object') return 'object'
+  return null
+}
+
+export function configShapeWords(shape: ConfigFieldShape): string {
+  return shape === 'string' ? 'text' : shape === 'object' ? 'an object' : `a ${shape}`
+}
+
+function configValueWords(value: unknown): string {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'a list'
+  if (typeof value === 'object') return 'an object'
+  if (typeof value === 'string') return `the text ${JSON.stringify(value)}`
+  return `the ${typeof value} ${String(value)}`
+}
+
+let globalConfigFieldDrops: GlobalConfigFieldDrop[] = []
+let namedGlobalConfigFieldDrops = ''
+
+export function getGlobalConfigFieldDrops(): readonly GlobalConfigFieldDrop[] {
+  return globalConfigFieldDrops
+}
+
+export function decodeGlobalConfigFields(parsed: unknown): unknown {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return parsed
+  const defaults = createDefaultGlobalConfig() as unknown as Record<string, unknown>
+  const source = parsed as Record<string, unknown>
+  const drops: GlobalConfigFieldDrop[] = []
+  let out: Record<string, unknown> | null = null
+  for (const [key, value] of Object.entries(source)) {
+    const expected = key in defaults ? configFieldShapeOf(defaults[key]) : (OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES[key] ?? null)
+    if (expected === null) continue
+    if (configFieldShapeOf(value) !== expected) {
+      out ??= { ...source }
+      delete out[key]
+      drops.push({ field: key, expected, found: configValueWords(value) })
+      continue
+    }
+    if (expected !== 'object' || !(key in defaults)) continue
+    const nestedDefaults = defaults[key] as Record<string, unknown>
+    const nested = value as Record<string, unknown>
+    let nestedOut: Record<string, unknown> | null = null
+    for (const [nestedKey, nestedValue] of Object.entries(nested)) {
+      const nestedExpected = nestedKey in nestedDefaults ? configFieldShapeOf(nestedDefaults[nestedKey]) : null
+      if (nestedExpected === null || configFieldShapeOf(nestedValue) === nestedExpected) continue
+      nestedOut ??= { ...nested }
+      delete nestedOut[nestedKey]
+      drops.push({ field: `${key}.${nestedKey}`, expected: nestedExpected, found: configValueWords(nestedValue) })
+    }
+    if (nestedOut !== null) {
+      out ??= { ...source }
+      out[key] = nestedOut
+    }
+  }
+  globalConfigFieldDrops = drops
+  const named = drops.map(d => d.field).join(',')
+  if (drops.length > 0 && named !== namedGlobalConfigFieldDrops) {
+    logForDebugging(
+      `global config: ${drops.length} field(s) ignored for their shape and read as their defaults: ${drops.map(d => `${d.field} expected ${configShapeWords(d.expected)}, found ${d.found}`).join('; ')}`,
+      { level: 'warn' },
+    )
+  }
+  namedGlobalConfigFieldDrops = named
+  return out ?? parsed
+}
+
 function removeProjectHistory(
   projects: Record<string, ProjectConfig> | undefined,
 ): Record<string, ProjectConfig> | undefined {
@@ -285,7 +365,7 @@ function startGlobalConfigFreshnessWatcher(): void {
           globalConfigCache = {
             config: foldPendingUpdaters(migrateConfigFields({
               ...createDefaultGlobalConfig(),
-              ...(parsed as Partial<GlobalConfig>),
+              ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>),
             })),
             mtime: curr.mtimeMs,
           }
@@ -317,7 +397,7 @@ export function readGlobalConfigAgain(): void {
   const parsed = safeParseJSON(stripBOM(content))
   if (parsed === null || typeof parsed !== 'object') return
   globalConfigCache = {
-    config: foldPendingUpdaters(migrateConfigFields({ ...createDefaultGlobalConfig(), ...(parsed as Partial<GlobalConfig>) })),
+    config: foldPendingUpdaters(migrateConfigFields({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>) })),
     mtime: stamp,
   }
   notifyGlobalConfigCache()
@@ -677,9 +757,10 @@ export function getConfig<A>(
     })
     try {
       const parsedConfig = jsonParse(stripBOM(fileContent))
+      const decoded = file === getGlobalMercuryFile() ? decodeGlobalConfigFields(parsedConfig) : parsedConfig
       return {
         ...createDefault(),
-        ...parsedConfig,
+        ...(decoded as Partial<A>),
       }
     } catch (error) {
       const errorMessage =
