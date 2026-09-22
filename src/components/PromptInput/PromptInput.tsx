@@ -1683,8 +1683,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       } else if (typeof result.content === 'string' && result.content !== expanded) {
         buffer.pushAtomic(input, cursorOffset, pastedContents)
         pendingInput.edit(result.content)
-        lastSelfWriteRef.current = result.content
-        setCursorOffset(result.content.length)
+        const edited = pendingInput.text()
+        lastSelfWriteRef.current = edited
+        setCursorOffset(edited.length)
       }
     } catch (error) {
       addNotification({

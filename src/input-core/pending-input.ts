@@ -17,6 +17,14 @@ import {
 import { createSignal } from '../utils/signal.js'
 import { noteCompanionTyping } from '../utils/cockpit/companionEngine.js'
 import { markTypingActivity } from '../utils/cockpit/typingActivity.js'
+import { normalizePastedInput } from './composer-document.js'
+
+export function sanitizeComposerText(raw: string): string {
+  return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, '')).replace(
+    /[\u0000-\u0008\u000b-\u001f\u007f]/g,
+    '',
+  )
+}
 
 export type ComposerDraft = {
   text: string
@@ -117,9 +125,10 @@ export function initOnce(seed: {
 }): void {
   if (initialized) return
   initialized = true
+  const text = sanitizeComposerText(seed.text)
   draft = {
-    text: seed.text,
-    cursorOffset: seed.cursorOffset ?? seed.text.length,
+    text,
+    cursorOffset: Math.min(seed.cursorOffset ?? text.length, text.length),
     mode: seed.mode,
     pastedContents: seed.pastedContents,
   }
@@ -153,7 +162,7 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return
   if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
-  const text = saved?.text ?? ''
+  const text = sanitizeComposerText(saved?.text ?? '')
   draft = {
     text,
     cursorOffset:
@@ -203,7 +212,8 @@ function armSuppressionTimer(nonempty: boolean): void {
   }, PROMPT_SUPPRESSION_MS)
 }
 
-export function edit(value: string): void {
+export function edit(raw: string): void {
+  const value = sanitizeComposerText(raw)
   const prev = draft.text
   if (interceptors.interceptSuggestion?.(prev, value)) return
   if (prev === '' && value !== '') {
