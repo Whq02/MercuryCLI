@@ -3,6 +3,7 @@
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence* src/services/api/withRetry.ts src/services/api/errors.ts scripts/api/authRetry* scripts/api/prove-authentication-retry.ts
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
+# gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -42,5 +43,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-refusal-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-image-refusal-recovery.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-block.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-text-block.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi
