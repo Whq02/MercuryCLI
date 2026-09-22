@@ -14,7 +14,7 @@ fail=0
 export MERCURY_EVOLUTION_LEDGER=0
 scratch_state="$(mktemp -d "${TMPDIR:-/tmp}/router-proof-state.XXXXXX")"
 export MERCURY_ROUTER_STATE_DIR="$scratch_state"
-trap 'rm -rf "$scratch_state"' EXIT
+trap 'rm -rf "$scratch_state"; suite_home_cleanup' EXIT
 echo "############################################################"
 echo "# Router fabric — proof harness"
 echo "############################################################"

@@ -19,7 +19,7 @@ bash -n "$here/workspace-backup.sh"; check 'workspace-backup.sh parses (bash -n)
 bash -n "$here/deploy-backup-agent.sh"; check 'deploy-backup-agent.sh parses (bash -n)' $?
 
 tmphome="$(mktemp -d /tmp/ops-proof-home-XXXXXX)"
-trap 'rm -rf "$tmphome" "$fixrepo" 2>/dev/null' EXIT
+trap 'rm -rf "$tmphome" "$fixrepo" 2>/dev/null; suite_home_cleanup' EXIT
 
 say '— the backup LaunchAgent derives every path from the ONE config-home owner —'
 rendered="$(MERCURY_CONFIG_DIR="$tmphome" bash "$here/deploy-backup-agent.sh" --print)"; rc=$?
