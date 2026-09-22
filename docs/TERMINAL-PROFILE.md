@@ -68,7 +68,14 @@ live:
 
 Keyboard input is read as a stream: a mouse report or escape sequence split
 across two reads is finished on the next one rather than mis-read as
-keystrokes, and a genuine lone Escape still interrupts. Under
+keystrokes, and a genuine lone Escape still interrupts. The terminal's
+replies to Mercury's own questions (its name, the background colour, the
+mode and key-protocol flags, the device attributes that close each batch)
+are never keystrokes: a reply split by the flush timer's window on a slow
+link is held whole until its final byte, so it resolves as the reply it is
+and no part of it is typed into the composer; a head no tail ever follows
+is let go after two flush windows, so a silent terminal cannot deafen the
+loop. Under
 the kitty keyboard protocol a non-Latin layout reports its own codepoint as
 the key (Cyrillic ф arrives as 1092): plain typing inserts it, and a chord —
 ctrl, alt, super — resolves its name from the base-layout subfield, the
