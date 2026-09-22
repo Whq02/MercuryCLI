@@ -204,13 +204,13 @@ section('the ask LABEL: the consent card names the workflow and the agent')
     '../../src/tools/WorkflowTool/workflowPermissionChannel.ts'
   )
   const task = {
-    workflowName: 'daedalus',
+    workflowName: 'stale-doc-sweep',
     workflowProgress: [
       { type: 'workflow_agent', index: 0, agentId: 'a1234567890', label: 'scan:alpha' },
     ],
   }
-  check('badge = workflow · agent label', workflowAskBadgeName(task, 'a1234567890') === 'daedalus · scan:alpha')
-  check('unknown agent falls back to its id prefix', workflowAskBadgeName(task, 'zz9876543210') === 'daedalus · zz987654')
+  check('badge = workflow · agent label', workflowAskBadgeName(task, 'a1234567890') === 'stale-doc-sweep · scan:alpha')
+  check('unknown agent falls back to its id prefix', workflowAskBadgeName(task, 'zz9876543210') === 'stale-doc-sweep · zz987654')
   check('nameless run still says workflow', workflowAskBadgeName(undefined, undefined) === 'workflow')
   check(
     'summary stands in for a missing name',
@@ -232,7 +232,7 @@ section('the ask LABEL: the consent card names the workflow and the agent')
     getAppState: () => ({
       tasks: {
         [taskId]: {
-          workflowName: 'daedalus',
+          workflowName: 'stale-doc-sweep',
           workflowProgress: [
             { type: 'workflow_agent', index: 0, agentId: 'agent-1', label: 'scan:alpha' },
           ],
@@ -244,7 +244,7 @@ section('the ask LABEL: the consent card names the workflow and the agent')
   await wrapped(TOOL, {}, tuc, MSG, 'badge-ask-1')
   check(
     'wrapper stamps { name: workflow · agent, color } on the ask context',
-    JSON.stringify(seenBadge) === JSON.stringify({ name: 'daedalus · scan:alpha', color: 'yellow' }),
+    JSON.stringify(seenBadge) === JSON.stringify({ name: 'stale-doc-sweep · scan:alpha', color: 'yellow' }),
     JSON.stringify(seenBadge),
   )
   const handler = readFileSync(
