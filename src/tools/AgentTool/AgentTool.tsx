@@ -825,6 +825,7 @@ export const AgentTool = buildTool({
           }
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
+      ...(worktreeInfo === undefined && cwdParam !== undefined ? { cwd: cwdParam } : {}),
       ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),

@@ -114,6 +114,7 @@ export function getWorkflowTranscriptDir(runId: string): string {
 export type AgentMetadata = {
   agentType: string
   worktreePath?: string
+  cwd?: string
   description?: string
   model?: string
   effortOverride?: string
