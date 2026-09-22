@@ -89,13 +89,69 @@ export function getTeamFilePath(teamName: string): string {
 }
 
 
-function parseTeamFile(raw: string): TeamFile {
-  return JSON.parse(raw) as TeamFile
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(item => typeof item === 'string')
+}
+
+function isAbsentOr(v: unknown, holds: (value: unknown) => boolean): boolean {
+  return v === undefined || holds(v)
+}
+
+function isTeamMember(v: unknown): v is TeamMember {
+  return (
+    isRecord(v) &&
+    typeof v.agentId === 'string' &&
+    typeof v.name === 'string' &&
+    typeof v.joinedAt === 'number' &&
+    typeof v.tmuxPaneId === 'string' &&
+    typeof v.cwd === 'string' &&
+    isStringArray(v.subscriptions)
+  )
+}
+
+function isTeamAllowedPath(v: unknown): v is TeamAllowedPath {
+  return isRecord(v) && typeof v.path === 'string' && typeof v.toolName === 'string'
+}
+
+function isTeamFile(v: unknown): v is TeamFile {
+  return (
+    isRecord(v) &&
+    typeof v.name === 'string' &&
+    typeof v.createdAt === 'number' &&
+    typeof v.leadAgentId === 'string' &&
+    Array.isArray(v.members) &&
+    v.members.every(isTeamMember) &&
+    isAbsentOr(v.description, x => typeof x === 'string') &&
+    isAbsentOr(v.leadSessionId, x => typeof x === 'string') &&
+    isAbsentOr(v.charter, isRecord) &&
+    isAbsentOr(v.hiddenPaneIds, isStringArray) &&
+    isAbsentOr(v.allowedPaths, x => Array.isArray(x) && x.every(isTeamAllowedPath)) &&
+    isAbsentOr(v.governance, isRecord)
+  )
+}
+
+const namedRosterFiles = new Set<string>()
+
+function parseTeamFile(raw: string, path: string): TeamFile | null {
+  const parsed: unknown = JSON.parse(raw)
+  if (isTeamFile(parsed)) return parsed
+  if (!namedRosterFiles.has(path)) {
+    namedRosterFiles.add(path)
+    logForDebugging(`[team-roster] ${path} is not a decodable roster: left in place, reported`, {
+      level: 'warn',
+    })
+  }
+  return null
 }
 
 export function readTeamFile(teamName: string): TeamFile | null {
+  const path = getTeamFilePath(teamName)
   try {
-    return parseTeamFile(readFileSync(getTeamFilePath(teamName), 'utf-8'))
+    return parseTeamFile(readFileSync(path, 'utf-8'), path)
   } catch (error) {
     if (!isENOENT(error)) logError(error)
     return null
@@ -103,8 +159,9 @@ export function readTeamFile(teamName: string): TeamFile | null {
 }
 
 export async function readTeamFileAsync(teamName: string): Promise<TeamFile | null> {
+  const path = getTeamFilePath(teamName)
   try {
-    return parseTeamFile(await readFile(getTeamFilePath(teamName), 'utf-8'))
+    return parseTeamFile(await readFile(path, 'utf-8'), path)
   } catch (error) {
     if (!isENOENT(error)) logError(error)
     return null
@@ -168,7 +225,7 @@ function laneFor(teamName: string): GroupCommitLane<TeamFile | null> {
     read: async () => {
       let value: TeamFile | null = null
       try {
-        value = parseTeamFile(await readFile(path, 'utf-8'))
+        value = parseTeamFile(await readFile(path, 'utf-8'), path)
       } catch (error) {
         if (!isENOENT(error)) logError(error)
       }
@@ -240,7 +297,7 @@ function withLockedTeamFileSync<R>(
   try {
     let current: TeamFile | null = null
     try {
-      current = parseTeamFile(readFileSync(path, 'utf-8'))
+      current = parseTeamFile(readFileSync(path, 'utf-8'), path)
     } catch (error) {
       if (!isENOENT(error)) logError(error)
     }

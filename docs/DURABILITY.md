@@ -51,7 +51,8 @@ bytes, the bytes are preserved as a bounded, clearly-named quarantine copy
 beside the store, and the recovery is recorded in an append-only ledger
 that `/health` and the UI surface — including whether the mutation resumed
 from the last committed value or from empty. A read that degraded to empty
-is recorded too; the damaged bytes stay in place until quarantined.
+is recorded too; the damaged bytes stay in place until quarantined. A ledger
+row the build cannot read as an event is skipped and counted nowhere.
 
 ## Deadlines and watchdogs
 

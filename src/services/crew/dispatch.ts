@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getCwd } from '../../utils/cwd.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { authorizeCapability, type CapabilityKind } from './capabilities.js'
 import { agentOf, crewDirectoryEnabled, listAgentBindings, type CrewAgentId, crewStoreRoot } from './identity.js'
 import {
@@ -76,18 +77,53 @@ function projectKey(): string {
   return createHash('sha256').update(getCwd()).digest('hex').slice(0, 16)
 }
 
+const INSTRUCTION_OUTCOMES: ReadonlySet<string> = new Set(['accepted', 'rejected', 'unknown'])
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function isDeliveryReceipt(v: unknown): v is DeliveryReceiptV1 {
+  return (
+    isRecord(v) &&
+    v.schema === 1 &&
+    typeof v.clientMessageId === 'string' &&
+    typeof v.state === 'string' &&
+    (DELIVERY_STATES as readonly string[]).includes(v.state) &&
+    isRecord(v.requestedAddress) &&
+    typeof v.requestedAddress.agentId === 'string' &&
+    typeof v.requestedDisposition === 'string' &&
+    (DISPATCH_DISPOSITIONS as readonly string[]).includes(v.requestedDisposition) &&
+    typeof v.instructionOutcome === 'string' &&
+    INSTRUCTION_OUTCOMES.has(v.instructionOutcome) &&
+    Array.isArray(v.attachmentOutcomes) &&
+    typeof v.observedAt === 'number'
+  )
+}
+
+let droppedReceiptRowsNamed = false
+
 const receiptStore = defineStore<ReceiptFile, [dir?: string]>({
   name: 'crew-dispatch-receipts',
   path: (dir?: string) =>
     join(crewStoreRoot(dir), `receipts-${projectKey()}.json`),
   schemaVersion: 1,
   decode: raw => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-    const r = raw as { receipts?: unknown; settledIds?: unknown }
-    return {
-      receipts: Array.isArray(r.receipts) ? (r.receipts as DeliveryReceiptV1[]) : [],
-      settledIds: Array.isArray(r.settledIds) ? (r.settledIds as string[]) : [],
+    if (!isRecord(raw)) return null
+    const rows = raw.receipts === undefined ? [] : raw.receipts
+    const ids = raw.settledIds === undefined ? [] : raw.settledIds
+    if (!Array.isArray(rows) || !Array.isArray(ids)) return null
+    const receipts = rows.filter(isDeliveryReceipt)
+    const settledIds = ids.filter((id): id is string => typeof id === 'string')
+    const dropped = rows.length - receipts.length + ids.length - settledIds.length
+    if (dropped > 0 && !droppedReceiptRowsNamed) {
+      droppedReceiptRowsNamed = true
+      logForDebugging(
+        `[crew-dispatch-receipts] ${dropped} row(s) not decodable as receipts or settled ids: dropped from the read, the rest kept`,
+        { level: 'warn' },
+      )
     }
+    return { receipts, settledIds }
   },
   empty: () => ({ receipts: [], settledIds: [] }),
   onReadFailure: 'empty',

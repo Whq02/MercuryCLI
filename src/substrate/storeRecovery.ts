@@ -92,19 +92,37 @@ export async function recordStoreReadDegradation(args: {
   }
 }
 
+const STORE_RECOVERY_EVENT_KINDS: ReadonlySet<string> = new Set(['quarantine', 'read-degrade'])
+
+function isStoreRecoveryEvent(v: unknown): v is StoreRecoveryEvent {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
+  const e = v as Record<string, unknown>
+  return (
+    typeof e.ts === 'string' &&
+    typeof e.store === 'string' &&
+    (e.kind === undefined || (typeof e.kind === 'string' && STORE_RECOVERY_EVENT_KINDS.has(e.kind)))
+  )
+}
+
 export async function readStoreRecoveryEvents(): Promise<StoreRecoveryEvent[]> {
   try {
     const text = await readFile(storeRecoveryLedgerPath(), 'utf-8')
     const out: StoreRecoveryEvent[] = []
+    let dropped = 0
     for (const line of text.split('\n')) {
       if (!line.trim()) continue
+      let parsed: unknown
       try {
-        const e = JSON.parse(line)
-        if (e && typeof e === 'object' && typeof e.store === 'string') {
-          out.push(e as StoreRecoveryEvent)
-        }
+        parsed = JSON.parse(line)
       } catch {
+        dropped++
+        continue
       }
+      if (isStoreRecoveryEvent(parsed)) out.push(parsed)
+      else dropped++
+    }
+    if (dropped > 0) {
+      logForDebugging(`[store-recovery] ${dropped} ledger row(s) not decodable as recovery events: skipped`)
     }
     return out.slice(-MAX_LEDGER_ROWS)
   } catch {
