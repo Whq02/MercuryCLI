@@ -112,6 +112,15 @@ check(
   'no announce-always, no introduce-only-when-it-helps, no read-only exemption',
 )
 
+console.log('assembled prompt — security: fixes stay within the authorised scope')
+check(
+  once(
+    'Fix security issues within the authorised implementation scope. During read-only work, or for issues outside that scope, report the issue and obtain permission before editing.',
+  ) && prompt.includes('Avoid introducing security vulnerabilities'),
+  'the scoped security rule rides exactly once, beside the avoid-vulnerabilities half',
+)
+check(!prompt.includes('Fix insecure code immediately when you see it'), 'no fix-on-sight sentence')
+
 console.log('assembled prompt — bare roster (laws hold without tool spellings)')
 const bare = drive('bare')
 check(bare.includes('# The project instruction estate'), 'section present without the tools')
