@@ -66,6 +66,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-delivery-exactly-onc
 echo "── core-runtime: driver settle race (delivery-verifier)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-driver-settle-race.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-driver-settle-race.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-notification-settle.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-notification-settle.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-wake-hold.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-wake-hold.ts "$__t" "$__rc"
 
 echo "── core-runtime: delivery interleavings (delivery-verifier)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-delivery-interleavings.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-delivery-interleavings.ts "$__t" "$__rc"
