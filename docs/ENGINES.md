@@ -283,6 +283,9 @@ names the account (the face's account chip and its Logins roster, `/status`,
 `/accounts`) reads it at once; a sign-in whose result carries no account
 names none rather than the account stored before it. The `/accounts` board's
 live verification still heals the stored identity whenever the two disagree.
+Organisation roles enrich only the account and authentication scope that
+requested them; changing accounts or leaving the sign-in flow discards a
+late reply without delaying sign-in.
 
 On the claude.ai sign-in door the subscription endpoint gates models on a
 minimum client version it reads from the billing attribution line Mercury
