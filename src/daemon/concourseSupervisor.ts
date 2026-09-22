@@ -138,6 +138,7 @@ export interface ConcourseWorkerRecordV1 {
     lastTurnAt: number | null
   }
   bornBlankAt?: number
+  birthKey?: string
   settingsSnapshot?: import('../substrate/startupMenu.js').SessionEffectiveSettingsSnapshotV1
   branchName?: string
   worktreePath?: string
@@ -662,6 +663,7 @@ export interface ConcourseAdmitRequest {
   runnerArgv?: string[]
   bornBlank?: boolean
   vacatingSessionId?: string
+  birthKey?: string
   kit?: SessionKitV1
   kitPreset?: string
   bypassConsent?: true
@@ -815,6 +817,27 @@ export function makeConcourseAdmitHandler(
     const liveWorkers = Object.values(records).filter(
       r => r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined),
     )
+    if (req.birthKey !== undefined) {
+      const born = Object.values(records).find(r => r.birthKey === req.birthKey && r.endedAt === undefined && r.workspaceId === workspaceId)
+      if (born !== undefined) {
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] admission replayed: ${born.runnerId} already holds session ${born.sessionId} for this birth`)
+        return {
+          ok: true,
+          ...(retainedNote !== undefined ? { note: retainedNote } : {}),
+          runnerId: born.runnerId,
+          sessionId: born.sessionId,
+          workspaceId: born.workspaceId,
+          modelId: born.modelKey,
+          modelDisplayName,
+          effort: born.effort ?? 'high',
+          kitSource: req.kit !== undefined ? 'carried' : preset !== undefined ? 'preset' : 'derived',
+          ...(preset !== undefined ? { presetName: preset.name, ...(preset.note !== undefined ? { presetNote: preset.note } : {}) } : {}),
+          ...(born.pid !== undefined ? { pid: born.pid } : {}),
+          ...(born.branchName !== undefined ? { branchName: born.branchName } : {}),
+        }
+      }
+    }
     if (req.resumeSessionId !== undefined) {
       const standing = Object.values(records).find(r => r.sessionId === req.resumeSessionId && r.endedAt === undefined)
       if (standing !== undefined) {
@@ -907,6 +930,7 @@ export function makeConcourseAdmitHandler(
             workspaceKind: workspaceKindOf(workspaceId),
             ...(req.title !== undefined ? { title: req.title } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+            ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
             ...kitStampOf(kit),
             permissionMode: claimPosture,
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
@@ -1053,6 +1077,7 @@ export function makeConcourseAdmitHandler(
         ...(req.title !== undefined ? { title: req.title } : {}),
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
         ...spawnPostureOf(spec),
         ...kitStampOf(kit),
       }

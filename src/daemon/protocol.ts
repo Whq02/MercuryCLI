@@ -188,6 +188,7 @@ export type DaemonRequest =
       kit?: SessionKitV1
       kitPreset?: string
       bypassConsent?: true
+      birthKey?: string
     }
   | { op: 'sessionList'; proto: number; auth?: string }
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }

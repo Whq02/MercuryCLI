@@ -1,4 +1,5 @@
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
+import { randomUUID } from '../../utils/crypto.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, subscribeFocusedSessionConnector, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, birthFallbackModel, birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, settleLandingWords, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
@@ -137,10 +138,12 @@ async function admitAndEnter(
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
+    const birthKey = randomUUID()
     const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(
       {
         op: 'sessionAdmit',
         workspaceDir: req.workspaceDir,
+        birthKey,
         isolation: 'shared',
         ...(model !== undefined ? { model } : {}),
         bornBlank: true,
