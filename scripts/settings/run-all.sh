@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/bootstrap/state*
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
+# gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts
 # gate-watch: src/migrations/**
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**

@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, type Stats } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
 
 import * as chokidar from 'chokidar'
@@ -185,7 +185,8 @@ async function initialize(): Promise<void> {
     awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
     ignorePermissionErrors: true,
     atomic: true,
-    ignored: (candidatePath: string) => {
+    ignored: (candidatePath: string, stats?: Stats) => {
+      if (stats !== undefined && (stats.isFIFO() || stats.isSocket() || stats.isCharacterDevice() || stats.isBlockDevice())) return true
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
       if (watchedRoots.has(normalized)) return false
