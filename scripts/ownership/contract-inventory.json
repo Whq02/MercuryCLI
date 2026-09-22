@@ -424,6 +424,7 @@
     "fetchCommandsForClient",
     "fetchResourcesForClient",
     "fetchToolsForClient",
+    "forgetMcpNeedsAuth",
     "getMcpServerConnectionBatchSize",
     "getMcpToolsCommandsAndResources",
     "getServerCacheKey",

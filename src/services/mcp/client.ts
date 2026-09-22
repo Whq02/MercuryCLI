@@ -348,6 +348,23 @@ export function clearMcpAuthCache(): void {
   void rm(needsAuthCachePath(), { force: true }).catch(() => {})
 }
 
+export function forgetMcpNeedsAuth(serverName: string): Promise<void> {
+  needsAuthWriteChain = needsAuthWriteChain
+    .then(async () => {
+      const cache = await readNeedsAuthCache()
+      if (!(serverName in cache)) return
+      delete cache[serverName]
+      const path = needsAuthCachePath()
+      await mkdir(dirname(path), { recursive: true })
+      await writeFile(path, JSON.stringify(cache, null, 2))
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      needsAuthReadMemo = null
+    })
+  return needsAuthWriteChain
+}
+
 async function handleRemoteAuthFailure(name: string, config: ScopedMcpServerConfig, transportClass: string): Promise<MCPServerConnection> {
   logMCPDebug(name, `Authentication required for ${transportClass} server`)
   await writeNeedsAuth(name)
