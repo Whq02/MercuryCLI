@@ -148,16 +148,16 @@ function decodeOp(raw: string): DurableOperation | null {
   return null
 }
 
-async function scanJournalDir(
-  dir: string,
-): Promise<{ ops: DurableOperation[]; rejected: string[] }> {
+type JournalFile = { name: string; op: DurableOperation }
+
+async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; rejected: string[] }> {
   let names: string[]
   try {
     names = await readdir(dir)
   } catch {
-    return { ops: [], rejected: [] }
+    return { records: [], rejected: [] }
   }
-  const ops: DurableOperation[] = []
+  const records: JournalFile[] = []
   const rejected: string[] = []
   for (const name of names) {
     if (!name.startsWith(OP_PREFIX) || !name.endsWith(OP_SUFFIX)) continue
@@ -168,15 +168,25 @@ async function scanJournalDir(
       continue
     }
     const op = decodeOp(raw)
-    if (op) ops.push(op)
-    else rejected.push(name)
+    if (op === null) {
+      rejected.push(name)
+      continue
+    }
+    if (name !== `${OP_PREFIX}${op.operationId}${OP_SUFFIX}`) {
+      logForDebugging(
+        `[journal] ${join(dir, name)} names operation ${op.operationId} under another file name: left in place, reported`,
+      )
+      rejected.push(name)
+      continue
+    }
+    records.push({ name, op })
   }
-  ops.sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
-  return { ops, rejected }
+  records.sort((a, b) => (a.op.createdAt ?? '').localeCompare(b.op.createdAt ?? ''))
+  return { records, rejected }
 }
 
 export async function listJournalOperations(dir: string): Promise<DurableOperation[]> {
-  return (await scanJournalDir(dir)).ops
+  return (await scanJournalDir(dir)).records.map(record => record.op)
 }
 
 const dirChains = new Map<string, Promise<void>>()
@@ -387,13 +397,13 @@ export async function recoverJournalDir(
     waiting: [],
     unrecoverable: [],
   }
-  const { ops, rejected } = await scanJournalDir(dir)
+  const { records, rejected } = await scanJournalDir(dir)
   for (const name of rejected) {
     summary.scanned++
     summary.unrecoverable.push(name)
     logForDebugging(`[journal] ${join(dir, name)} is not a decodable operation record: left in place, reported`)
   }
-  for (const op of ops) {
+  for (const { op } of records) {
     summary.scanned++
     if (isTerminal(op.state)) continue
     if (isJournalWriterAlive(op)) {
@@ -449,13 +459,13 @@ export async function compactJournalDir(
   opts?: { keepTerminal?: number },
 ): Promise<number> {
   const keep = opts?.keepTerminal ?? KEEP_TERMINAL_OPS
-  const ops = await listJournalOperations(dir)
-  const terminal = ops.filter(o => isTerminal(o.state))
+  const { records } = await scanJournalDir(dir)
+  const terminal = records.filter(record => isTerminal(record.op.state))
   const excess = Math.max(0, terminal.length - keep)
   let removed = 0
-  for (const op of terminal.slice(0, excess)) {
+  for (const record of terminal.slice(0, excess)) {
     try {
-      await unlink(opPath(dir, op.operationId))
+      await unlink(join(dir, record.name))
       removed++
     } catch {
     }
