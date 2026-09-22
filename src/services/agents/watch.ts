@@ -1,5 +1,5 @@
 import chokidar, { type FSWatcher } from 'chokidar'
-import { resolveWatchRoot } from '../../utils/watchRoot.js'
+import { ignoringSpecialFiles, resolveWatchRoot } from '../../utils/watchRoot.js'
 import { existsSync, readdirSync, realpathSync, watch as fsWatch, type FSWatcher as NodeWatcher } from 'node:fs'
 import * as platformPath from 'node:path'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
@@ -218,12 +218,12 @@ export async function startAgentWatch(cwd: string): Promise<void> {
       stabilityThreshold: t.stabilityThreshold,
       pollInterval: t.pollInterval,
     },
-    ignored: (path, stats) => {
+    ignored: ignoringSpecialFiles((path, stats) => {
       if (stats && !stats.isFile() && !stats.isDirectory()) return true
       return path
         .split(platformPath.sep)
         .some(dir => dir === '.git' || dir === 'node_modules')
-    },
+    }),
     ignorePermissionErrors: true,
     usePolling: USE_POLLING,
     interval: t.chokidarInterval,

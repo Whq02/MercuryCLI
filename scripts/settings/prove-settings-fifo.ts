@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn } from 'node:child_process'
-import { rmSync, writeFileSync } from 'node:fs'
+import { rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, NODE, childEnv, makeTally, requireDist, scratchWorld, seedScratchHome, sleep, startScriptedFixture, textScript } from '../lib/scratchSeat.ts'
 
@@ -40,13 +40,21 @@ const c = await bootExits('control', control.runHome, control.cwd)
 tally.check('the control boot exits well inside the deadline', c.exited && c.ms < DEADLINE_MS / 2, `code ${c.code} after ${c.ms} ms`)
 tally.check('and it answered the turn', c.stdout.includes('settings probe answered'))
 
-tally.section('the defect: settings.json replaced by a named pipe (no writer) while the seat boots')
-const world = scratchWorld('settings-fifo')
-seedScratchHome(world.runHome, world.cwd)
-const settings = join(world.runHome, 'settings.json')
-rmSync(settings)
-execFileSync('mkfifo', [settings])
-const f = await bootExits('fifo', world.runHome, world.cwd)
-tally.check('the seat exits (refusing the pipe) instead of blocking forever on it', f.exited, f.exited ? `code ${f.code} after ${f.ms} ms` : `hung on the pipe past ${DEADLINE_MS} ms (the control took ${c.ms} ms)`)
+const specials: Array<{ name: string; make: (settings: string) => void }> = [
+  { name: 'a named pipe (no writer)', make: settings => execFileSync('mkfifo', [settings]) },
+  { name: 'a socket', make: settings => execFileSync('python3', ['-c', 'import socket, sys; s = socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])', settings]) },
+  { name: 'a device (a link to /dev/null)', make: settings => symlinkSync('/dev/null', settings) },
+]
+for (const special of specials) {
+  tally.section(`the defect: settings.json replaced by ${special.name} while the seat boots`)
+  const world = scratchWorld('settings-special')
+  seedScratchHome(world.runHome, world.cwd)
+  const settings = join(world.runHome, 'settings.json')
+  rmSync(settings)
+  special.make(settings)
+  const f = await bootExits(special.name, world.runHome, world.cwd)
+  tally.check(`the seat exits (refusing ${special.name}) instead of blocking forever on it`, f.exited, f.exited ? `code ${f.code} after ${f.ms} ms` : `hung past ${DEADLINE_MS} ms (the control took ${c.ms} ms)`)
+  tally.check('and it still answered the turn', f.stdout.includes('settings probe answered'), `code ${f.code}; stdout ${f.stdout.slice(0, 160)}`)
+}
 await fixture.close()
 tally.finish()
