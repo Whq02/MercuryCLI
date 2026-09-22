@@ -1,4 +1,4 @@
-import { C0, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
+import { C0, ESC, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
 import { isCSIFinal, isCSIIntermediate, isCSIParam } from '../termio/csi.js'
 
 
@@ -82,6 +82,12 @@ export function createScanner(options?: ScannerOptions): Scanner {
     buffer: () => carry,
   }
 }
+
+function isMetaPrefixedIntroducer(code: number): boolean {
+  return code === ESC_TYPE.CSI || code === 0x4f
+}
+
+const DOUBLE_ESC = ESC + ESC
 
 function isPartialMouseHead(s: string, x10Mouse: boolean): boolean {
   if (/^\x1b\[<[\d;]*$/.test(s)) return true
@@ -177,6 +183,10 @@ function scan(
           i++
           emit('esc')
         } else if (code === C0.ESC) {
+          if (i + 1 >= data.length || isMetaPrefixedIntroducer(data.charCodeAt(i + 1))) {
+            i++
+            break
+          }
           emit('esc')
           seqStart = i
           seqKind = 'esc'
@@ -275,6 +285,10 @@ function scan(
       return { tokens, state: 'ground', carry: '' }
     }
     return { tokens, state, carry: '' }
+  }
+  if (remaining === DOUBLE_ESC) {
+    tokens.push({ kind: 'esc', value: ESC }, { kind: 'esc', value: ESC })
+    return { tokens, state: 'ground', carry: '' }
   }
   if (remaining) {
     tokens.push({ kind: seqKind, value: remaining })
