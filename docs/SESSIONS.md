@@ -131,7 +131,11 @@ closes, and parks every session on its way out so the next boot brings them
 back. A window opened while that daemon is still on its way out waits the
 beat it takes to leave, then starts its own, and a daemon that leaves in the
 beat after answering a new session's window is checked for and started
-again by that same ↵, so the session lands without a second one; two
+again by that same ↵, so the session lands without a second one. Each ↵
+names its birth with one key that both the first admission and the retry
+carry, and a daemon that admitted the session but whose answer was lost on
+the wire answers the retry with the session it already holds — the ↵ lands
+in that one session, never a second; two
 daemons never share one config home. A deploy that arrives while sessions are live waits for every one of
 them — the ones open when it landed and any opened since — before it
 restarts, and never cuts a live runner short.

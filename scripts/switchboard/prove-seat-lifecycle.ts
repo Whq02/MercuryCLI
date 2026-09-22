@@ -103,20 +103,30 @@ function walk(root: string): string[] {
     const gone = { ok: false, code: 'ENOCONN', error: 'daemon closed without a reply (ENOCONN)' }
     const landed = { ok: true, sessionId: 's-1' }
     const refused = { ok: false, code: 'EUNKNOWN', error: 'the session could not start' }
-    const drive = async (replies: Array<Record<string, unknown>>, daemonBack: boolean): Promise<{ answer: unknown; sends: number; rechecks: number }> => {
+    const drive = async (replies: Array<Record<string, unknown>>, daemonBack: boolean): Promise<{ answer: unknown; sends: number; rechecks: number; keys: string[] }> => {
       let sends = 0
       let rechecks = 0
+      const keys: string[] = []
+      const birthKey = `key-${Math.random().toString(16).slice(2)}`
       const answer = await recheck(
-        async () => replies[Math.min(sends++, replies.length - 1)]!,
+        async () => {
+          keys.push(birthKey)
+          return replies[Math.min(sends++, replies.length - 1)]!
+        },
         async () => {
           rechecks++
           return daemonBack
         },
       )
-      return { answer, sends, rechecks }
+      return { answer, sends, rechecks, keys }
     }
     const back = await drive([gone, landed], true)
     check('P3 a transport ENOCONN on the admit re-runs the daemon check once and re-sends once: the birth lands without a second Enter', back.answer === landed && back.sends === 2 && back.rechecks === 1, JSON.stringify(back))
+    check('P3 the two sends carry ONE birth key (the re-send is the same birth, so a daemon that admitted the first answers it again)', back.keys.length === 2 && back.keys[0] === back.keys[1], JSON.stringify(back.keys))
+    const doorAt = body.indexOf('async function admitAndEnter(')
+    const mintAt = body.indexOf('const birthKey = randomUUID()', doorAt)
+    const closureAt = body.indexOf('const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(', doorAt)
+    check('P3 the door mints the birth key ONCE per birth, before the admit closure, and the admit literal carries it', mintAt !== -1 && closureAt !== -1 && mintAt < closureAt && body.slice(closureAt, body.indexOf('{ timeoutMs: 60_000 }', closureAt)).includes('birthKey,'))
     const still = await drive([gone, landed], false)
     check('P3 a daemon check that fails leaves the first refusal standing after one send', still.answer === gone && still.sends === 1 && still.rechecks === 1, JSON.stringify(still))
     const twice = await drive([gone, gone, landed], true)
