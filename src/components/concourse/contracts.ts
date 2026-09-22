@@ -255,7 +255,7 @@ export interface ConcourseCallbacks {
     seatsMax?: 1 | 2 | null
   }) => void
   submitSessionDraft: (text: string) => void
-  enterBootSettings: () => void
+  enterBootSettings: (door?: 'logins') => void
   exitToRepl: () => void
   retrySnapshot?: () => void
   sendCoordinatorMessage?: (

@@ -272,7 +272,9 @@ every sign-in path before adding a concurrent login.
 On the `/accounts` board each family's header carries the family name
 alone, never a count of sign-ins against the ceiling; the rows beneath it
 name each sign-in with its kind and identity, and a family with no ceiling
-shows how many sign-ins it holds beside its name.
+shows how many sign-ins it holds beside its name. A sign-in row in either
+of the concourse's model pickers opens the Boot face's Logins screen;
+escape returns to the face.
 
 A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
@@ -281,6 +283,9 @@ names the account (the face's account chip and its Logins roster, `/status`,
 `/accounts`) reads it at once; a sign-in whose result carries no account
 names none rather than the account stored before it. The `/accounts` board's
 live verification still heals the stored identity whenever the two disagree.
+Organisation roles enrich only the account and authentication scope that
+requested them; changing accounts or leaving the sign-in flow discards a
+late reply without delaying sign-in.
 
 On the claude.ai sign-in door the subscription endpoint gates models on a
 minimum client version it reads from the billing attribution line Mercury

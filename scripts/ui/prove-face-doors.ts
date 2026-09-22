@@ -345,4 +345,19 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
   routeStore._resetSurfaceRouteForTesting()
 }
 
+t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in, not the plain face)')
+{
+  const board = read('src/components/concourse/ConcourseScreen.tsx')
+  for (const [picker, close] of [['MercurySessionModelPicker', 'setRowPick'], ['MercuryModelDefaultPicker', 'setModelDefaultOpen']]) {
+    const start = board.indexOf(`<${picker}`)
+    const body = /onSignIn=\{\(\) => \{([\s\S]*?)\}\}/.exec(board.slice(start))?.[1]
+    const calls: unknown[] = []
+    if (body) new Function(close!, 'callbacks', body)(() => calls.push('close'), { enterBootSettings: (door?: string) => calls.push(door) })
+    t.check(`${picker}: closes its picker and opens the logins door`, JSON.stringify(calls) === JSON.stringify(['close', 'logins']), JSON.stringify(calls))
+  }
+  const route = read('src/components/concourse/ConcourseRoute.tsx')
+  const callback = /enterBootSettings: \(door\) => \{([\s\S]*?)\n      \}/.exec(route)?.[1] ?? ''
+  t.check('the route arms the requested face door before mounting the face', callback.includes('armFaceDoorDeepLink(door)') && callback.indexOf('armFaceDoorDeepLink(door)') < callback.indexOf('enterBootSettings()'))
+}
+
 t.finish('prove-face-doors')

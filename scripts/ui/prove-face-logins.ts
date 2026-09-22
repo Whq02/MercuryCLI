@@ -847,7 +847,8 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
       entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(dir, entry.name)] : [],
     )
   const armCallers = sourceFiles('src').filter(rel => rel !== 'src/substrate/splashHandover.ts' && codeOnlyText(rel, read(rel)).includes('armFaceDoorDeepLink('))
-  t.check('the logins arming stays a NAMED SEAM only (the export stands; no product site calls it)', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink): void {') && armCallers.length === 0, armCallers.join(' '))
+  const boardRoute = 'src/components/concourse/ConcourseRoute.tsx'
+  t.check('the board route uses the face-door owner; no other product caller arms a different entry', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink): void {') && armCallers.includes(boardRoute) && armCallers.every(rel => rel === boardRoute) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door)'), armCallers.join(' '))
 
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')

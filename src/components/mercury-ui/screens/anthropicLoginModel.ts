@@ -19,6 +19,7 @@ import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../utils/accounts/signInLedger.js'
 import { setClipboard } from '../../../ink/termio/osc.js'
 import { logError } from '../../../utils/log.js'
+import { getAuthScope } from '../../../utils/envUtils.js'
 
 
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
@@ -106,7 +107,7 @@ export interface AnthropicLoginDeps {
   mintApiKey: (accessToken: string) => Promise<unknown>
   validateOrg: () => Promise<unknown>
   storeAccount: (account: AccountInfo) => void
-  fetchRoles?: (accessToken: string) => Promise<unknown>
+  fetchRoles?: typeof fetchAndStoreUserRoles
   shadowWarning: () => string | null
   recordSignIn: (kind: SignInKind) => void
   settings: () => { forceLoginMethod?: 'claudeai' | 'console' | null; forceLoginOrgUUID?: string | null }
@@ -126,7 +127,7 @@ function liveDeps(): AnthropicLoginDeps {
     mintApiKey: accessToken => createAndStoreApiKey(accessToken),
     validateOrg: () => validateForceLoginOrg(),
     storeAccount: account => storeOAuthAccountInfo(account),
-    fetchRoles: accessToken => fetchAndStoreUserRoles(accessToken),
+    fetchRoles: fetchAndStoreUserRoles,
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),
     settings: () => getInitialSettings(),
@@ -179,6 +180,7 @@ export function createAnthropicLoginMachine(
   let started = false
   let disposed = false
   let generation = 0
+  let rolesRequest: AbortController | null = null
   const timers = new Set<unknown>()
 
   const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, copied, shadowWarning, accountLabel })
@@ -230,9 +232,14 @@ export function createAnthropicLoginMachine(
       if (landed !== undefined) deps.storeAccount(landed)
       const fetchRoles = deps.fetchRoles
       if (landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)) {
+        rolesRequest?.abort()
+        const request = new AbortController()
+        rolesRequest = request
+        const origin = { account: landed, authScope: getAuthScope(), isCurrent: () => !disposed && gen === generation, signal: request.signal }
         void Promise.resolve()
-          .then(() => fetchRoles(tokens.accessToken))
+          .then(() => origin.isCurrent() && !request.signal.aborted ? fetchRoles(tokens.accessToken, origin) : undefined)
           .catch(error => deps.log(error))
+          .finally(() => { if (rolesRequest === request) rolesRequest = null })
       }
       if (!deps.usesClaudeAiAuth(tokens.scopes)) {
         setFlow({ name: 'creating-key' })
@@ -339,6 +346,8 @@ export function createAnthropicLoginMachine(
     },
     reset(): void {
       generation += 1
+      rolesRequest?.abort()
+      rolesRequest = null
       for (const handle of timers) deps.clearTimer(handle)
       timers.clear()
       service?.cleanup()
@@ -354,6 +363,8 @@ export function createAnthropicLoginMachine(
     dispose(): void {
       disposed = true
       generation += 1
+      rolesRequest?.abort()
+      rolesRequest = null
       for (const handle of timers) deps.clearTimer(handle)
       timers.clear()
       service?.cleanup()
