@@ -3,7 +3,7 @@
  "note": "contract journey 12 — 120→80→44→120 with a preview card up; semantic state (focused option) must be inspectable at each width",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-22T15:38:59.069Z",
+ "capturedAt": "2026-09-22T16:09:30.464Z",
  "screens": [
   {
    "atMs": 13000,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Sl6a6K · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Ys7eOW · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Sl6a6K · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Ys7eOW · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -122,7 +122,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Sl6a6K · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Ys7eOW · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -163,17 +163,17 @@
     "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
-    "  no prompts sent yet   │                                                                                              │",
-    "                        │  █▄▄▄█  █▀▀▀  █▀▀▄  █▀▀▀  █  █  █▀▀▄  █   █                                                  │",
-    "NEXT                    │  █ ▀ █  █▀▀   █▀█   █     █  █  █▀█    ▀█▀                                                   │",
-    "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
-    "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
+    "  design the cache layer│                                                                                              │",
+    "                        │ 17:09:04 [sam] ❯ design the cache layer                                                      │",
+    "NEXT                    │                                                                                              │",
+    "  · /workflows — agent …│                                                                                              │",
+    "  · /health — health ce…│                                                                                              │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
-    "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Sl6a6K · no git                                                    │",
+    "  · /mission — set a mi…│                                                                                              │",
+    "                        │                                                                                              │",
+    "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
+    "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend —             │                                                                                              │",
     "  · ctx — · 1000k       │                                                                                              │",
@@ -207,15 +207,15 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭───────────────────────────────────────╮                                   ││",
-    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ One ask is open; the card is waiting. │                                   ││",
-    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰───────────────────────────────────────╯                                   ││",
+    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭───────────────────────────────────╮                                       ││",
+    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ Still waiting on that permission. │                                       ││",
+    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰───────────────────────────────────╯                                       ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 16:38:33 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 17:09:04 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 16:38:33 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 17:09:04 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -247,22 +247,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-Sl6a6K                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-Ys7eOW                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 23643,
+   "patches": 23697,
    "frame-recommit": 39
   },
   "frames": {
-   "total": 60,
-   "window": 60,
-   "p50": 1.4688329999999041,
-   "p95": 9.041291000000001,
-   "p99": 28.018041999999923,
-   "maxMs": 28.018041999999923
+   "total": 61,
+   "window": 61,
+   "p50": 1.5999590000010357,
+   "p95": 8.84658300000001,
+   "p99": 29.123749999999973,
+   "maxMs": 29.123749999999973
   }
  },
  "requests": [
@@ -297,15 +297,15 @@
  ],
  "sends": [
   {
-   "atMs": 10761.666059494019,
+   "atMs": 10785.506010055542,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12361.666059494019,
+   "atMs": 12385.506010055542,
    "b64": "DQ=="
   },
   {
-   "atMs": 19761.66605949402,
+   "atMs": 19785.506010055542,
    "b64": "G1tC"
   }
  ]
