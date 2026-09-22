@@ -1,7 +1,6 @@
 
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import crypto from 'node:crypto'
-import { daedalusResolveModels } from './bundled/daedalus.js'
 import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -576,14 +575,6 @@ const WorkflowToolDef = {
 
     const compiled = compileWorkflow(scriptBody)
     if (!compiled.ok) return errorResult(compiled.error)
-
-    if (meta.name === 'daedalus') {
-      const modelChoice = daedalusResolveModels(input.args)
-      if (!modelChoice.ok) {
-        return errorResult(modelChoice.error ?? 'invalid model choice')
-      }
-      input = { ...input, args: modelChoice.args }
-    }
 
     const runDir = runDirectoryFor(runId)
     const scriptPath =

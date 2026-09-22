@@ -161,21 +161,6 @@ export function WorkflowPermissionRequest({
     },
     { k: 'args', v: input.args !== undefined ? 'provided' : 'none', tone: input.args !== undefined ? IVORY : FAINT },
   ]
-  if (workflowName === 'daedalus' && input.args && typeof input.args === 'object') {
-    const a = input.args as Record<string, unknown>
-    const modelRow = (key: string, srcKey: string): string => {
-      const v = typeof a[key] === 'string' ? (a[key] as string) : '(ask at preview)'
-      const src = typeof a[srcKey] === 'string' && String(a[srcKey]).includes('boot-menu') ? ' · saved choice' : ''
-      return v + src
-    }
-    facts.push({ k: 'planning', v: modelRow('model', 'modelSource'), tone: IVORY })
-    facts.push({ k: 'building', v: modelRow('executorModel', 'executorModelSource'), tone: IVORY })
-    facts.push({
-      k: 'launch',
-      v: a.accept === true ? 'ACCEPTED — the fleet dispatches' : 'preview only (no agents until accept=true)',
-      tone: a.accept === true ? AMBER : SECOND,
-    })
-  }
   if (input.resumeFromRunId) {
     facts.push({ k: 'resume', v: input.resumeFromRunId, tone: AMBER, note: 'cached steps reused' })
   }
