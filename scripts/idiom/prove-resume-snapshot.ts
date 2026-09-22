@@ -111,5 +111,24 @@ section('§C invalidation — truncation, rewrite, corruption each fall back')
   check('loader remains correct under snapshot corruption', afterCorrupt.messages.size >= 1150, String(afterCorrupt.messages.size))
 }
 
+section('§D an older schema — a snapshot written under a previous schema is discarded, parsed whole once, then a new one stands')
+{
+  const { SNAPSHOT_SCHEMA } = await import('../../src/utils/sessionStorage/resumeSnapshot.js')
+  const { _resetTranscriptReaderForTesting } = await import('../../src/utils/sessionStorage/transcriptReader.js')
+  const OLD_SCHEMA = 1
+  check('the snapshot schema moved past the one older builds wrote', SNAPSHOT_SCHEMA !== OLD_SCHEMA, String(SNAPSHOT_SCHEMA))
+  _resetTranscriptReaderForTesting()
+  const fresh = await loadTranscriptFile(FILE)
+  const written = JSON.parse(readFileSync(snapshotPathFor(FILE), 'utf8')) as { schemaVersion?: number; byteCursor?: number }
+  check('a cold load leaves a snapshot under the current schema', written.schemaVersion === SNAPSHOT_SCHEMA, JSON.stringify({ written: written.schemaVersion, current: SNAPSHOT_SCHEMA }))
+  writeFileSync(snapshotPathFor(FILE), JSON.stringify({ ...written, schemaVersion: OLD_SCHEMA }))
+  check('a snapshot under the older schema is discarded, its cursor and digest untouched', (await tryLoadResumeSnapshot(FILE)) === null)
+  _resetTranscriptReaderForTesting()
+  const reparsed = await loadTranscriptFile(FILE)
+  check('the transcript is parsed whole once and reads the same state', normalize(reparsed) === normalize(fresh))
+  const renewed = JSON.parse(readFileSync(snapshotPathFor(FILE), 'utf8')) as { schemaVersion?: number }
+  check('a new snapshot under the current schema stands after that load', renewed.schemaVersion === SNAPSHOT_SCHEMA && (await tryLoadResumeSnapshot(FILE)) !== null, String(renewed.schemaVersion))
+}
+
 console.log(failures === 0 ? '\n ✅ RESUME SNAPSHOT PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
