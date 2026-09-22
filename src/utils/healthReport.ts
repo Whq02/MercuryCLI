@@ -789,7 +789,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence: `subscription door presents cc_version ${contract.presented} (${source}) — MERCURY_ANTHROPIC_CLIENT_CONTRACT=${contract.ignoredOverride} ignored: not a three-part version`,
-                fix: 'set MERCURY_ANTHROPIC_CLIENT_CONTRACT to a three-part version such as 2.1.257, or unset it',
+                fix: 'set MERCURY_ANTHROPIC_CLIENT_CONTRACT to a three-part version such as 2.1.280, or unset it',
               }
             }
             return {
