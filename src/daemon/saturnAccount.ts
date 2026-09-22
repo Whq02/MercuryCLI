@@ -6,6 +6,9 @@ import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscr
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
+import { anthropicWindowClosedUntil } from '../services/claudeAiLimits.js'
+import { readSessionFacts } from '../services/engine-connector/seatProjections.js'
+import type { AnthropicWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
 
@@ -206,4 +209,30 @@ export function readLiveAccountFacts(
     refreshable: detail?.refreshable ?? false,
     ...(rateLimitedUntil !== undefined ? { rateLimitedUntil } : {}),
   }
+}
+
+export type SessionWindowFactsV1 = { usage?: { anthropicWindow?: AnthropicWindowFactV1 } } | null
+
+export function sessionWindowClosedUntil(family: string, facts: SessionWindowFactsV1, nowMs: number): number | undefined {
+  if (family !== 'anthropic') return undefined
+  return anthropicWindowClosedUntil(facts?.usage?.anthropicWindow, nowMs)
+}
+
+export interface SessionFireReads extends LiveFactsReads {
+  factsOf?: (sessionId: string) => SessionWindowFactsV1
+  now?: () => number
+}
+
+export function liveFactsForSessionFire(
+  account: Pick<ScheduleAccountV1, 'family' | 'source'>,
+  sessionId: string | undefined,
+  reads: SessionFireReads = {},
+): LiveAccountFactsV1 {
+  const factsOf = reads.factsOf ?? ((id: string): SessionWindowFactsV1 => readSessionFacts(id))
+  const now = reads.now ?? Date.now
+  return readLiveAccountFacts(account, {
+    ...reads,
+    rateLimitedUntilOf: family =>
+      reads.rateLimitedUntilOf?.(family) ?? (sessionId === undefined ? undefined : sessionWindowClosedUntil(family, factsOf(sessionId), now())),
+  })
 }
