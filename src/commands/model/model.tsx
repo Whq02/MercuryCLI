@@ -165,7 +165,7 @@ function ModelSet({
           ? crossProviderNote(target)
           : ''
       const lossNote = plan && receipt.state !== 'no-op' && receipt.state !== 'refused' ? transitionPlanSummary(plan) : ''
-      const saved = receipt.state === 'refused' ? '' : persistModelChoice(target)
+      const saved = receipt.state === 'refused' ? '' : persistModelChoice(target).sentence
       onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
       return
     }
@@ -180,7 +180,7 @@ function ModelSet({
       })
       return landed.patch ? { ...prev, ...landed.patch } : prev
     })
-    onDone(settlementMessage(landed, plan, persistModelChoice(target)))
+    onDone(settlementMessage(landed, plan, persistModelChoice(target).sentence))
   }
 
   useEffect(() => {
