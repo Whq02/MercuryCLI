@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-22T07:16:32.896Z",
+ "capturedAt": "2026-09-22T07:46:24.376Z",
  "screens": [
   {
    "atMs": 12500,
@@ -11,9 +11,9 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
-    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
-    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
+    "TABULA · 0              ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  no prompts sent yet   │                                                                                              │",
@@ -22,7 +22,7 @@
     "  · /workflows — agent …│                                                                                              │",
     "                        │    model   Opus 5                                                                            │",
     "FILES · flux-arena-cwd-…│    theme   Jellyfish                                                                         │",
-    "  ↵ or click · browse   │    dir     flux-arena-cwd-Nobafs · no git                                                    │",
+    "  ↵ or click · browse   │    dir     flux-arena-cwd-c8Vqcl · no git                                                    │",
     "                        │                                                                                              │",
     "TELEMETRY               │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "  · spend —             │                                                                                              │",
@@ -46,9 +46,9 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
-    "FILES · flux-arena-cwd-…││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
-    "  ↵ or click · browse   ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
+    "FILES · flux-arena-cwd-…││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "  ↵ or click · browse   ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -72,22 +72,23 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-Nobafs                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-c8Vqcl                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12173,
-   "frame-recommit": 28
+   "patches": 12362,
+   "frame-recommit": 33,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 44,
-   "window": 44,
-   "p50": 1.48174999999992,
-   "p95": 7.80441699999983,
-   "p99": 22.595709000000056,
-   "maxMs": 22.595709000000056
+   "total": 48,
+   "window": 48,
+   "p50": 1.1909169999998994,
+   "p95": 7.130125000000135,
+   "p99": 21.865749999999935,
+   "maxMs": 21.865749999999935
   }
  },
  "requests": [
@@ -122,11 +123,11 @@
  ],
  "sends": [
   {
-   "atMs": 10821.397066116333,
+   "atMs": 10745.584964752197,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12421.397066116333,
+   "atMs": 12345.584964752197,
    "b64": "DQ=="
   }
  ]
