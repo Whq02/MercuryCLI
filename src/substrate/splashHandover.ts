@@ -17,16 +17,26 @@ export function consumeKitManagerDeepLink(): boolean {
 }
 
 export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'
+export interface FaceDoorOpenerV1 {
+  family?: string
+  returnToOpener?: boolean
+}
 let pendingFaceDoorDeepLink: FaceDoorDeepLink | null = null
-export function armFaceDoorDeepLink(door: FaceDoorDeepLink): void {
+let pendingFaceDoorOpener: FaceDoorOpenerV1 | null = null
+export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpenerV1): void {
   pendingFaceDoorDeepLink = door
+  pendingFaceDoorOpener = opener ?? null
 }
 export function peekFaceDoorDeepLink(): FaceDoorDeepLink | null {
   return pendingFaceDoorDeepLink
 }
+export function peekFaceDoorOpener(): FaceDoorOpenerV1 | null {
+  return pendingFaceDoorOpener
+}
 export function consumeFaceDoorDeepLink(): FaceDoorDeepLink | null {
   const v = pendingFaceDoorDeepLink
   pendingFaceDoorDeepLink = null
+  pendingFaceDoorOpener = null
   return v
 }
 

@@ -20,7 +20,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -798,7 +798,7 @@ function MercuryModelWrapper({
 }
 
 
-export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => void; onSignIn?: () => void }): React.ReactNode {
+export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => void; onSignIn?: (family: string | undefined) => void }): React.ReactNode {
   const setAppState = useSetAppStateMaybe()
   useCatalogueEpoch()
   const betas = getSdkBetas()
@@ -840,7 +840,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   function handleSelect(id: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
-      onSignIn?.()
+      onSignIn?.(signInFamilyOfRow(id))
       return
     }
     const saved = persistModelChoice(id)
@@ -889,7 +889,7 @@ export function MercurySessionModelPicker({
   onSelect: (modelId: string, displayName: string) => void
   onEffort: (effort: string) => void
   onDone: () => void
-  onSignIn?: () => void
+  onSignIn?: (family: string | undefined) => void
 }): React.ReactNode {
   useCatalogueEpoch()
   const betas = getSdkBetas()
@@ -912,7 +912,7 @@ export function MercurySessionModelPicker({
   function handleSelect(id: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
-      onSignIn?.()
+      onSignIn?.(signInFamilyOfRow(id))
       return
     }
     onSelect(id, models.find(m => m.id === id)?.name ?? id)

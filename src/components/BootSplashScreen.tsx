@@ -33,7 +33,7 @@ import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
-import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink } from '../substrate/splashHandover.js';
+import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js';
 import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
 import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
@@ -143,14 +143,26 @@ export function BootSplashScreen(): React.ReactNode {
   permissionModeRef.current = permissionMode;
   const [settingsOpen, setSettingsOpen] = useState(() => consumeBootSettingsLayerDeepLink());
   const [kitOpen, setKitOpen] = useState(() => consumeKitManagerDeepLink());
+  const [faceDoorOpener] = useState(() => peekFaceDoorOpener());
   const [faceDoor] = useState(() => consumeFaceDoorDeepLink());
   const [healthOpen, setHealthOpen] = useState(faceDoor === 'health');
   const [resumeOpen, setResumeOpen] = useState(faceDoor === 'resume');
   const [saturnOpen, setSaturnOpen] = useState(faceDoor === 'saturn');
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
+  const [loginsFamily, setLoginsFamily] = useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined);
+  const [loginsBack, setLoginsBack] = useState<'route' | 'picker' | null>(faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null);
   const [modelDefaultOpen, setModelDefaultOpen] = useState(false);
   const [presenceEpoch, setPresenceEpoch] = useState(0);
+  const closeLogins = (): void => {
+    const back = loginsBack;
+    setLoginsBack(null);
+    setLoginsFamily(undefined);
+    if (back === 'route' && leaveCurrentSurface().ok) return;
+    setLoginsOpen(false);
+    setPresenceEpoch(e => e + 1);
+    if (back === 'picker') setModelDefaultOpen(true);
+  };
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
@@ -613,10 +625,7 @@ export function BootSplashScreen(): React.ReactNode {
         {loginsOpen ? (
           <BootLoginsScreen
             fullScene={{ columns, rows }}
-            onClose={() => {
-              setLoginsOpen(false);
-              setPresenceEpoch(e => e + 1);
-            }}
+            onClose={closeLogins}
           />
         ) : null}
       </>
@@ -626,10 +635,9 @@ export function BootSplashScreen(): React.ReactNode {
     return (
       <BootLoginsScreen
         fullScene={{ columns, rows }}
-        onClose={() => {
-          setLoginsOpen(false);
-          setPresenceEpoch(e => e + 1);
-        }}
+        family={loginsFamily}
+        onClose={closeLogins}
+        {...(loginsBack !== null ? { onSignedIn: closeLogins } : {})}
       />
     );
   }
@@ -710,8 +718,10 @@ export function BootSplashScreen(): React.ReactNode {
           <ModalContext.Provider value={{ rows: Math.max(10, rows - 7), columns, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => setModelDefaultOpen(false)}
-              onSignIn={() => {
+              onSignIn={family => {
                 setModelDefaultOpen(false);
+                setLoginsFamily(family);
+                setLoginsBack('picker');
                 setLoginsOpen(true);
               }}
             />
