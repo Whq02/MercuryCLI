@@ -3,13 +3,13 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-22T20:35:03.577Z",
+ "capturedAt": "2026-09-22T21:08:06.475Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
-    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5 · effort h…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-NzDL2f",
+    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · ● ready · Opus 5 …",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-fy05Tg",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
@@ -51,20 +51,20 @@
     "╭──────────────────────────────────────────╮",
     "│❯ Type a prompt, or start a slash command │",
     "╰──────────────────────────────────────────╯",
-    "S:0 · M:0 · A:0                 ⇧← concourse"
+    "S:1 · M:0 · A:0                 ⇧← concourse"
    ]
   },
   {
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5 · effort h…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-NzDL2f · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-fy05Tg · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "21:34:53 [sam] ❯ design the cache layer",
+    "22:07:48 [sam] ❯ design the cache layer",
     "",
-    "21:34:54 [Mercury] Let me confirm the open",
+    "22:07:48 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,17 +106,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6412,
-   "frame-recommit": 39,
+   "patches": 6259,
+   "frame-recommit": 31,
    "tail-publish": 2
   },
   "frames": {
-   "total": 56,
-   "window": 56,
-   "p50": 3.44262499999968,
-   "p95": 46.17816700000185,
-   "p99": 79.40520899999956,
-   "maxMs": 79.40520899999956
+   "total": 48,
+   "window": 48,
+   "p50": 0.7733749999997599,
+   "p95": 5.943250000000262,
+   "p99": 12.050624999999968,
+   "maxMs": 12.050624999999968
   }
  },
  "requests": [
@@ -151,11 +151,11 @@
  ],
  "sends": [
   {
-   "atMs": 17921.36788368225,
+   "atMs": 10854.942083358765,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 19521.36788368225,
+   "atMs": 12454.942083358765,
    "b64": "DQ=="
   }
  ]
