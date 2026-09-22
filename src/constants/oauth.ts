@@ -34,7 +34,7 @@ const PRODUCTION_CONFIG: OauthConfig = {
   MCP_PROXY_PATH: '/v1/mcp/{server_id}',
 }
 
-export const ANTHROPIC_CLIENT_CONTRACT_VERSION = '2.1.257'
+export const ANTHROPIC_CLIENT_CONTRACT_VERSION = '2.1.280'
 
 const CLIENT_CONTRACT_VERSION_SHAPE = /^\d+\.\d+\.\d+$/
 
