@@ -359,14 +359,15 @@ export function finalizeAgentTool(
     isAsync: boolean
     structuredSpec?: { mode: 'permissive' | 'strict'; source: 'dispatch' | 'agent-definition' }
   },
+  terminalFailure?: Extract<AgentTerminalOutcome, { status: 'failed' }>,
 ): AgentToolResult {
   const { startTime, agentType } = metadata
 
   const lastAssistant = getLastAssistantMessage(messages as Message[])
-  if (!lastAssistant) {
+  if (!lastAssistant && terminalFailure === undefined) {
     throw new Error('No assistant message found in agent result')
   }
-  const outcome = deriveAgentTerminalOutcome(messages)
+  const outcome = terminalFailure ?? deriveAgentTerminalOutcome(messages)
   const lastReal = getLastRealAssistantMessage(messages)
   const anchor =
     outcome.status === 'failed' ? (lastReal ?? lastAssistant) : lastAssistant
@@ -398,7 +399,7 @@ export function finalizeAgentTool(
       : outcome
 
   const usage =
-    anchor.type === 'assistant'
+    anchor?.type === 'assistant'
       ? ({
           input_tokens: anchor.message.usage?.input_tokens ?? 0,
           output_tokens: anchor.message.usage?.output_tokens ?? 0,

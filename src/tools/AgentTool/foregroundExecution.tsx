@@ -665,7 +665,8 @@ export async function runForegroundAgentExecution(
     )
   }
 
-  const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata)
+  const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata,
+    heldError !== undefined && seatPause !== null ? { status: 'failed', reason: 'provider-declined', error: errorMessage(heldError) } : undefined)
   const failureText =
     heldError !== undefined
       ? seatPause !== null ? `${pauseLineWords(seatPause, Date.now())} — ${errorMessage(heldError)}` : errorMessage(heldError)
