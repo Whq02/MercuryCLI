@@ -365,13 +365,14 @@ function onSeatEphemeralProgress(seat: SeatState, line: string, dir?: string): b
 
 function onSeatAssistantFrame(seat: SeatState, line: string, dir?: string): void {
   if (seat.streamedThisTurn) return
-  let frame: { type?: string; message?: { id?: string; content?: Array<{ type?: string; text?: string; phase?: unknown }> } }
+  let frame: { type?: string; parent_tool_use_id?: unknown; message?: { id?: string; content?: Array<{ type?: string; text?: string; phase?: unknown }> } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
     return
   }
   if (frame.type !== 'assistant' || !Array.isArray(frame.message?.content)) return
+  if (typeof frame.parent_tool_use_id === 'string') return
   const textBlocks = frame.message.content.filter(block => block.type === 'text' && typeof block.text === 'string')
   const text = textBlocks.map(block => block.text).join('')
   if (text !== '') {
@@ -794,8 +795,11 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
   }
   if (line.includes('"assistant"') || line.includes('"result"')) {
     let kind: string | undefined
+    let tagged = false
     try {
-      kind = (JSON.parse(line) as { type?: string }).type
+      const parsed = JSON.parse(line) as { type?: string; parent_tool_use_id?: unknown }
+      kind = parsed.type
+      tagged = typeof parsed.parent_tool_use_id === 'string'
     } catch {
       return
     }
@@ -803,6 +807,10 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       const seat = seatOf(short)
       if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
       noteSeatEvent(seat, dir)
+      if (tagged) {
+        requestSessionFacts(short, roster)
+        return
+      }
       onSeatAssistantFrame(seat, line, dir)
       publishActivity(short, roster, dir, Date.now())
       requestSessionFacts(short, roster)
