@@ -117,7 +117,7 @@ itself up. A sub-agent continued by a later message wakes in the directory it
 was launched in: the launch records the directory beside the transcript and
 the continuation reads it back; a recorded directory that no longer exists
 puts the continuation in the session's own directory, and the message's
-receipt says so.
+receipt says so, naming the directory that is gone.
 
 A workflow that ends with agent failures says so in the first line of its
 notification: the count, then the first failing agent and its cause — an

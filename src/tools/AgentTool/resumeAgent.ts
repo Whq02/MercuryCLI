@@ -52,6 +52,7 @@ export type ResumeAgentResult = {
   description: string
   outputFile: string
   cwdFallback?: 'parent-checkout' | 'parent-directory'
+  recordedCwd?: string
 }
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
@@ -335,7 +336,7 @@ export async function resumeAgentBackground(args: {
     ...(meta?.worktreePath && worktreePath === undefined
       ? { cwdFallback: 'parent-checkout' as const }
       : meta?.cwd && cwdPath === undefined
-        ? { cwdFallback: 'parent-directory' as const }
+        ? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }
         : {}),
   }
 }
