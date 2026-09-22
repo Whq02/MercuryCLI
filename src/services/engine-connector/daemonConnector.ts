@@ -995,7 +995,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         latchReleased = true
       }
     }
-    if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
+    if (!inFlight && this.tailStore.read() !== null) this.clearTail(Date.now())
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveTurnOutputTokens = null
     if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
