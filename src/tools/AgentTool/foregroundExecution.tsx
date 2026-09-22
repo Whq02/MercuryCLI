@@ -69,6 +69,7 @@ import {
   partialResultEnvelopeBlock,
   budgetCutResumeDelayMs,
   recoveryBudgetCutOf,
+  overloadBudgetCutOf,
   finalizeAgentTool,
   getLastToolUseName,
   landedWritesOf,
@@ -588,7 +589,9 @@ export async function runForegroundAgentExecution(
               : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
-        const overload = outcome !== null && outcome.status === 'failed' && windowPause === null ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+        const overload = heldError !== undefined
+          ? overloadBudgetCutOf(heldError, metadata.resolvedAgentModel)
+          : outcome !== null && outcome.status === 'failed' && windowPause === null ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
         seatPause = windowPause ?? overload?.pause ?? null
         if (overload !== null) {
           noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))
@@ -656,7 +659,7 @@ export async function runForegroundAgentExecution(
     const hasAssistantMessages = agentMessages.some(
       message => message.type === 'assistant',
     )
-    if (!hasAssistantMessages) throw heldError
+    if (!hasAssistantMessages && seatPause === null) throw heldError
     logForDebugging(
       `Sync agent recovered with partial output: ${errorMessage(heldError)}`,
     )
@@ -665,7 +668,7 @@ export async function runForegroundAgentExecution(
   const finalized = finalizeAgentTool(agentMessages, syncAgentId, metadata)
   const failureText =
     heldError !== undefined
-      ? errorMessage(heldError)
+      ? seatPause !== null ? `${pauseLineWords(seatPause, Date.now())} — ${errorMessage(heldError)}` : errorMessage(heldError)
       : finalized.outcome?.status === 'failed'
         ?
           seatPause !== null

@@ -46,6 +46,7 @@ const LANE_NAME = 'overload-lane'
 const LANE_MODEL = arg('--lane-model') ?? 'claude-fable-5-1'
 const DOOR = /opus/i.test(LANE_MODEL)
 const INLINE = process.argv.includes('--inline')
+const BUDGET_CUT = process.argv.includes('--budget-cut')
 const GONE_CWD = process.argv.includes('--gone-cwd')
 const SEAT_MARK = 'overload-seat:lane'
 const PROBE_MARK = 'Reply with the single word ready.'
@@ -278,6 +279,7 @@ function driveEnv(home: string, base: string): Record<string, string> {
     MERCURY_BUSY_RETRY_SCALE: BUSY_SCALE,
     MERCURY_OVERLOAD_PROBE_SCALE: PROBE_SCALE,
     MERCURY_MAX_RETRIES: '2',
+    ...(BUDGET_CUT ? { MERCURY_RECOVERY_BUDGET_MINUTES: '0.02' } : {}),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',
@@ -434,13 +436,22 @@ if (cap !== null) {
   const laneHits = fixture.hits.filter(h => h.lane === 'lane')
   const probeHits = fixture.hits.filter(h => h.lane === 'probe')
   const refused = laneHits.filter(h => h.answer === 'down' || h.answer === 'mid-stream')
+  const workHits = fixture.hits.filter(hit => hit.lane === 'lane' || hit.lane === 'probe')
+  const probeStarts = workHits.filter((hit, index) => hit.lane === 'probe' && workHits[index - 1]?.lane === 'lane')
+  const deathCount = BUDGET_CUT ? probeStarts.length : deaths.length
   console.log(`  lane requests ${laneHits.length} (refused ${refused.length}) · probes ${probeHits.length} (answered ${probeHits.filter(h => h.answer === 'up').length}) · lane deaths ${deaths.length} · ${LANE_DONE} ${done} · parent SendMessage uses ${sendMessages}`)
   console.log('  the parent\'s lane notices:')
   for (const n of notices) console.log(`    [${n.status}] ${flat(n.summary ?? '').slice(0, 220)}`)
 
   console.log('\n— §A the lane dies on the overload, pauses, and comes back by itself —')
   check('A1 the lane met the outage: its first request was cut mid-stream by an overloaded_error and its next ones were refused with HTTP 529', laneHits[0]?.answer === 'mid-stream' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
-  check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+  if (BUDGET_CUT) {
+    const firstProbe = probeHits[0]
+    const beforeProbe = firstProbe === undefined ? [] : laneHits.filter(hit => hit.atMs < firstProbe.atMs)
+    check('A2 the shorter retry budget reaches the probe before the full busy ladder is spent', beforeProbe.length >= 2 && beforeProbe.length < 8 && deaths.length === 0, `${beforeProbe.length} requests before the first probe, ${deaths.length} full-ladder deaths`)
+  } else {
+    check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+  }
   check(`A3 the lane finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent (SendMessage uses 0)`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
   check('A4 Mercury probed the provider while the lane was paused, and a probe was answered before the lane resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
   const first = notices[0]
@@ -451,12 +462,12 @@ if (cap !== null) {
     console.log('\n— §B one calm line per lane per outage episode —')
     const completion = notices.findIndex(n => n.status === 'completed')
     const beforeCompletion = completion < 0 ? notices : notices.slice(0, completion)
-    check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deaths.length >= 2 && beforeCompletion.length === 1, `deaths=${deaths.length} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
+    check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deathCount >= 2 && beforeCompletion.length === 1, `deaths=${deathCount} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
     check("B2 no 'resumed' receipt row rides the episode — the lane's row carries the resume, the parent's chat one line", !notices.some(n => n.status === 'resumed'), notices.map(n => n.status).join(','))
     check('B3 the completion notice follows as its own line', completion >= 0 && notices[completion]?.summary?.includes('completed') === true, notices.map(n => n.status).join(','))
   }
 
-  if (DOOR) {
+  if (DOOR && !BUDGET_CUT) {
     console.log('\n— §C the three-strikes door yields to the ladder —')
     const firstDeathAtMs = deaths.length > 0 ? Date.parse(deaths[0]!.at) : Number.NaN
     const beforeFirstDeath = laneHits.filter(h => h.atMs <= firstDeathAtMs)

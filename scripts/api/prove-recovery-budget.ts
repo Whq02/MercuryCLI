@@ -237,6 +237,7 @@ section("S8 — the cut's signal: the typed stop carries the words and the momen
   check('the moment the allowance is back is the part of the cutting wait the budget did not honour', cutting.honoredMs === 2_000 && stop.resumeAfterMs === 8_000, `${cutting.honoredMs} ${stop.resumeAfterMs}`)
   const facts = budget.recoveryBudgetSpentFactsOf(stop)
   check('the typed read: the words, the moment, the budget', facts !== null && facts.words === stop.message && facts.resumeAfterMs === 8_000 && facts.capMs === 6_000 && facts.waits === 2, JSON.stringify(facts))
+  check('the typed read keeps the last refusal status and cause', facts?.lastStatus === stop.lastStatus && facts?.lastCause === stop.lastCause && facts?.lastStatus === 429, JSON.stringify(facts))
   check('the read survives a module copy (the shape, not the class)', budget.recoveryBudgetSpentFactsOf(Object.assign(new Error('x'), { recoveryBudgetSpent: true, resumeAfterMs: 3 }))?.resumeAfterMs === 3)
   check('a plain error is no cut, whatever its words', budget.recoveryBudgetSpentFactsOf(new Error('provider throttled — the 5m retry budget is spent after 2 declared waits')) === null && budget.recoveryBudgetSpentFactsOf(new Error(budget.recoveryBudgetSpentLine(b))) === null && budget.recoveryBudgetSpentFactsOf(null) === null)
   const whole = budget.makeRecoveryBudget(6_000)
