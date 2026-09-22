@@ -1,5 +1,12 @@
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
+import { configHomeIsReal } from './loginDriverGuard.ts'
+import { resolveProofHome } from './proofHome.ts'
+
+if (configHomeIsReal()) {
+  delete process.env.MERCURY_CONFIG_DIR
+  resolveProofHome([join(import.meta.dir, '..', '..')])
+}
 
 export type CaptureDriver =
   | { kind: 'posix-pty'; python: string; tempRoot: string; engine: 'scripts/ui/vshot.py' }
