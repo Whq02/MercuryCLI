@@ -227,6 +227,38 @@ const counterAt = (p: string) =>
   ok(Array.isArray(onDisk), '§7 the on-disk shape stays a BARE ARRAY (mixed-version compat)')
 }
 
+{
+  const ledger = join(home, 'recovery', 'store-recovery.jsonl')
+  mkdirSync(join(home, 'recovery'), { recursive: true })
+  const good = {
+    ts: '2026-01-01T00:00:00.000Z',
+    store: 'proof-store',
+    path: '/x',
+    reason: 'seeded',
+    quarantinePath: null,
+    resumedFrom: 'empty',
+  }
+  const rows = [
+    JSON.stringify(good),
+    JSON.stringify({ ...good, ts: '2026-01-02T00:00:00.000Z', kind: 'read-degrade' }),
+    JSON.stringify({ ...good, ts: undefined }),
+    JSON.stringify({ ...good, ts: 1_700_000_000_000 }),
+    JSON.stringify({ ...good, kind: 'exploded' }),
+    JSON.stringify({ ...good, store: undefined }),
+    'not json at all',
+    JSON.stringify([good]),
+  ]
+  writeFileSync(ledger, rows.join('\n') + '\n')
+  const events = await readStoreRecoveryEvents()
+  ok(events.length === 2, `§8 the read keeps the two whole rows of eight (${events.length})`)
+  ok(
+    events.every(
+      e => typeof e.ts === 'string' && typeof e.store === 'string' && (e.kind === undefined || e.kind === 'read-degrade'),
+    ),
+    '§8 every surviving row carries a string time and a known kind',
+  )
+}
+
 rmSync(tmp, { recursive: true, force: true })
 console.log(failures === 0 ? '\nPASS prove-store-revisions' : `\nFAIL prove-store-revisions (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
