@@ -170,7 +170,7 @@ if (driver.kind !== 'posix-pty') {
           { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
-          { requireAwait: true, awaitText: '│ │ Opus 5 ', awaitSettleTicks: 2, data: '\u001b[H' },
+          { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' },
           ...Array.from({ length: openrouterIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
           { requireAwait: true, awaitText: 'Anthropic: Claude Opus 5', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },

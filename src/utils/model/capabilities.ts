@@ -892,6 +892,9 @@ export function clearBetasCaches(): void {
 
 export function getModelKnowledgeCutoff(modelId: string): string | null {
   if (isCarrierShapedId(modelId)) return null
+  if (modelId.includes('claude-opus-5-5')) {
+    return 'June 2026'
+  }
   if (modelId.includes('claude-opus-5')) {
     return 'May 2026'
   }

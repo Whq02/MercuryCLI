@@ -67,7 +67,7 @@ export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 
 export const FAMILY_GENERATIONS = {
   fable: ['fable51', 'fable5'],
-  opus: ['opus5', 'opus48', 'opus47', 'opus46'],
+  opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
   sonnet: ['sonnet5', 'sonnet46'],
   haiku: ['haiku45'],
 } as const satisfies Record<string, readonly ModelKey[]>
