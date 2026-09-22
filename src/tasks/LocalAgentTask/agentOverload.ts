@@ -32,7 +32,7 @@ export function noteOverloadDeath(episode: OverloadEpisode): { first: boolean; d
 }
 
 export function overloadDeathNotifies(episode: OverloadEpisode): boolean {
-  return episode.deaths >= 1
+  return episode.deaths === 1
 }
 
 export function nextOverloadProbeDelayMs(episode: OverloadEpisode, nowMs: number, afterDeath: boolean): number | null {
