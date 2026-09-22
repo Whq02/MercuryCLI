@@ -183,7 +183,8 @@ console.log('\n── A3/A4: continue → menu → New Session → a clean secon
 console.log('\n── A4: the solo doors carry the claim in source ──')
 {
   const bornDoor = read('src/services/switchboard/bornSession.ts')
-  check("A4 the birth door claims 'shared' explicitly", /op: 'sessionAdmit'[\s\S]{0,400}isolation: 'shared'/.test(bornDoor))
+  const admitAt = bornDoor.indexOf("op: 'sessionAdmit'")
+  check("A4 the birth door claims 'shared' explicitly", admitAt !== -1 && bornDoor.slice(admitAt, bornDoor.indexOf('{ timeoutMs: 60_000 }', admitAt)).includes("isolation: 'shared'"))
   check('A4 the birth door never names resumeSessionId (new ≠ replay)', !bornDoor.includes('resumeSessionId'))
   const resumeDoor = read('src/services/switchboard/hopIntoSession.ts')
   check("A4 the resume door claims 'shared' beside its resumeSessionId", /resumeSessionId: sessionId, isolation: 'shared'/.test(resumeDoor))
