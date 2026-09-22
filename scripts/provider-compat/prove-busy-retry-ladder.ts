@@ -319,7 +319,7 @@ try {
       return body.stream === true ? homeStreamAnswer() : homeJsonAnswer()
     }) as unknown as typeof fetch
   }
-  function homeCall(script: HomeScript, opts: { querySource?: string; signal?: AbortSignal; door?: { agentId?: string; onWait: (wait: unknown) => void } } = {}): { generator: AsyncGenerator<unknown>; homeHits: HomeHit[] } {
+  function homeCall(script: HomeScript, opts: { querySource?: string; signal?: AbortSignal; door?: { agentId?: string; onWait: (wait: unknown) => void }; model?: string; fallbackModel?: string } = {}): { generator: AsyncGenerator<unknown>; homeHits: HomeHit[] } {
     const homeHits: HomeHit[] = []
     const generator = queryModelWithStreaming({
       messages: [user('Say hello.')],
@@ -328,7 +328,8 @@ try {
       tools: [],
       signal: opts.signal ?? new AbortController().signal,
       options: {
-        model: HOME_MODEL,
+        model: opts.model ?? HOME_MODEL,
+        ...(opts.fallbackModel === undefined ? {} : { fallbackModel: opts.fallbackModel }),
         querySource: opts.querySource ?? 'repl_main_thread',
         isNonInteractiveSession: true,
         fetchOverride: homeFetch(script, homeHits) as never,
@@ -410,6 +411,38 @@ try {
     const askedHome = await drain(run.generator)
     const askedWait = run.homeHits.length === 2 ? run.homeHits[1]!.atMs - run.homeHits[0]!.atMs : -1
     check("home: a Retry-After on the 529 inside the budget is honoured whole in place of the rung, quietly, and the second request answers", run.homeHits.length === 2 && askedWait >= 990 && notices(askedHome).length === 0 && redLines(askedHome).length === 0 && answered(askedHome, HOME_ANSWER), `${run.homeHits.length} requests, ${askedWait} ms, ${notices(askedHome).length} notices`)
+  }
+
+  console.log('── the three-strikes door on the home road: an Opus model on an API key')
+  const DOOR_MODEL = 'claude-opus-5'
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: 3 }, { model: DOOR_MODEL })
+    const cleared = await drain(run.generator)
+    check('door: three 529s in a row on an Opus model with an API key do not end the turn — the ladder runs first and the fourth request answers, no red line', run.homeHits.length === 4 && redLines(cleared).length === 0 && answered(cleared, HOME_ANSWER), `${run.homeHits.length} requests, ${redLines(cleared)[0] ?? 'no red line'}`)
+  }
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: Infinity }, { model: DOOR_MODEL })
+    const spentDoor = await drain(run.generator)
+    check("door: a 529 that never clears walks every rung, and only then does the door end the turn with the repeated-overload line: seven requests, one red line in the door's words", run.homeHits.length === 7 && redLines(spentDoor).length === 1 && /Repeated API overload errors \(529\)/.test(redLines(spentDoor)[0] ?? ''), `${run.homeHits.length} requests, ${redLines(spentDoor)[0] ?? 'no red line'}`)
+  }
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: Infinity }, { model: DOOR_MODEL, fallbackModel: 'claude-sonnet-5' })
+    let fallback: unknown = null
+    try {
+      await drain(run.generator)
+    } catch (error) {
+      fallback = error
+    }
+    check('door: with a fallback model named, the spent ladder votes the fallback — seven requests, then the fallback signal', run.homeHits.length === 7 && fallback instanceof retrySeam.FallbackTriggeredError, `${run.homeHits.length} requests, ${fallback === null ? 'no signal' : String((fallback as Error).message).slice(0, 80)}`)
+  }
+  reset('0.6')
+  {
+    const run = homeCall({ refusals: 2 }, { model: 'claude-sonnet-5' })
+    const other = await drain(run.generator)
+    check('door: a model the door does not count keeps the plain ladder — a 529 that clears on the third request answers with no red line', run.homeHits.length === 3 && redLines(other).length === 0 && answered(other, HOME_ANSWER), `${run.homeHits.length} requests`)
   }
 
   console.log("── the agent's budget bounds the quiet ladder: a six-second budget ends it in about six seconds on every road with the quiet branch")
