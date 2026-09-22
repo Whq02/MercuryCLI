@@ -402,6 +402,68 @@ const wipeMarkers = (work: string) => {
   )
 }
 
+{
+  const dir = join(tmp, 'j9')
+  mkdirSync(dir, { recursive: true })
+  const genuine: DurableOperation = {
+    schema: 1,
+    operationId: 'genuine-applying',
+    ownerKey: 'owner-a',
+    kind: 'relia-two-step',
+    idempotencyKey: 'genuine-key',
+    state: 'applying',
+    steps: [{ id: 's1', target: 'x', state: 'pending' }],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    writerPid: 999999,
+  }
+  const impostor: DurableOperation = {
+    ...genuine,
+    state: 'committed',
+    idempotencyKey: 'impostor-key',
+    createdAt: '2025-01-01T00:00:00.000Z',
+    updatedAt: '2025-01-01T00:00:00.000Z',
+  }
+  const genuineFile = join(dir, 'op-genuine-applying.json')
+  const impostorFile = join(dir, 'op-impostor.json')
+  writeFileSync(genuineFile, JSON.stringify(genuine))
+  writeFileSync(impostorFile, JSON.stringify(impostor))
+  let listed: DurableOperation[] | null = null
+  try {
+    listed = await listJournalOperations(dir)
+  } catch {
+    listed = null
+  }
+  ok(
+    listed !== null && listed.length === 1 && listed[0]!.state === 'applying',
+    `§9 the read returns the genuine record alone; a record whose id names another file is refused (${listed === null ? 'threw' : `${listed.length} record(s)`})`,
+  )
+  let removed = -1
+  try {
+    removed = await compactJournalDir(dir, { keepTerminal: 0 })
+  } catch {
+    removed = -1
+  }
+  ok(
+    removed === 0 && existsSync(genuineFile) && existsSync(impostorFile),
+    `§9 compaction unlinks nothing: the incomplete op's file survives and the impostor stays in place (removed ${removed}; genuine ${existsSync(genuineFile) ? 'kept' : 'GONE'})`,
+  )
+  let summary: JournalRecoverySummary | null = null
+  try {
+    summary = await recoverJournalDir(dir, { 'relia-two-step': { compensate: async () => {} } })
+  } catch {
+    summary = null
+  }
+  ok(
+    summary !== null &&
+      summary.unrecoverable.length === 1 &&
+      summary.unrecoverable[0] === 'op-impostor.json' &&
+      summary.compensated.length === 1 &&
+      summary.compensated[0] === 'genuine-applying',
+    `§9 recovery names the impostor by its file and compensates the genuine dead-writer op (${JSON.stringify(summary)})`,
+  )
+}
+
 rmSync(tmp, { recursive: true, force: true })
 console.log(failures === 0 ? '\nPASS prove-operation-journal' : `\nFAIL prove-operation-journal (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

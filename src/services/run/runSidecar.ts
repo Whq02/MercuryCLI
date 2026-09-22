@@ -89,6 +89,88 @@ export function runRevision(owner: OwnerKey): number {
   return writeSeqByOwner.get(owner) ?? 0
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function isRecordArray(v: unknown): v is Record<string, unknown>[] {
+  return Array.isArray(v) && v.every(isRecord)
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(item => typeof item === 'string')
+}
+
+function isNullOrRecord(v: unknown): boolean {
+  return v === null || isRecord(v)
+}
+
+function isDeliverableRow(v: unknown): boolean {
+  return isRecord(v) && typeof v.id === 'string' && typeof v.title === 'string' && typeof v.state === 'string'
+}
+
+function decodeRunSnapshot(v: unknown): RunSnapshot | null {
+  if (!isRecord(v)) return null
+  const whole =
+    typeof v.schema === 'number' &&
+    typeof v.runId === 'string' &&
+    typeof v.owner === 'string' &&
+    (v.rootMessageId === null || typeof v.rootMessageId === 'string') &&
+    typeof v.objective === 'string' &&
+    typeof v.startedAt === 'number' &&
+    typeof v.updatedAt === 'number' &&
+    typeof v.lifecycle === 'string' &&
+    typeof v.substantive === 'boolean' &&
+    typeof v.phase === 'string' &&
+    typeof v.phaseReason === 'string' &&
+    Array.isArray(v.deliverables) &&
+    v.deliverables.every(isDeliverableRow) &&
+    typeof v.lastAction === 'string' &&
+    typeof v.nextAction === 'string' &&
+    isNullOrRecord(v.blocker) &&
+    isStringArray(v.changedPaths) &&
+    typeof v.totalChangedPaths === 'number' &&
+    isRecordArray(v.recentEvents) &&
+    isRecord(v.verification) &&
+    typeof v.verification.state === 'string' &&
+    typeof v.verification.detail === 'string'
+  if (!whole) return null
+  const recentEffects = v.recentEffects ?? []
+  const pendingTools = v.pendingTools ?? []
+  const unresolvedBadEffects = v.unresolvedBadEffects ?? 0
+  const contextEpoch = v.contextEpoch ?? 0
+  const lastContextTransition = v.lastContextTransition ?? null
+  const ideFeedback = v.ideFeedback ?? { state: 'unknown', detail: 'no IDE feedback yet', at: null }
+  const continuationCount = v.continuationCount ?? 0
+  const lastStopDecision = v.lastStopDecision ?? null
+  const totalEvents = v.totalEvents ?? (v.recentEvents as unknown[]).length
+  const tails =
+    isRecordArray(recentEffects) &&
+    isRecordArray(pendingTools) &&
+    typeof unresolvedBadEffects === 'number' &&
+    typeof contextEpoch === 'number' &&
+    isNullOrRecord(lastContextTransition) &&
+    isRecord(ideFeedback) &&
+    typeof continuationCount === 'number' &&
+    isNullOrRecord(lastStopDecision) &&
+    typeof totalEvents === 'number' &&
+    (v.progress === undefined || isRecord(v.progress)) &&
+    (v.modelState === undefined || isRecord(v.modelState))
+  if (!tails) return null
+  return {
+    ...v,
+    recentEffects,
+    pendingTools,
+    unresolvedBadEffects,
+    contextEpoch,
+    lastContextTransition,
+    ideFeedback,
+    continuationCount,
+    lastStopDecision,
+    totalEvents,
+  } as unknown as RunSnapshot
+}
+
 export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
   const file = runSidecarPath(owner)
   let raw: string
@@ -99,9 +181,9 @@ export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
     if (cls.state === 'empty') return { state: 'none' }
     return { state: 'unavailable', reason: cls.reason, retryable: cls.retryable }
   }
-  let parsed: { schema?: number; writeSeq?: number; snapshot?: RunSnapshot }
+  let parsed: { schema?: number; writeSeq?: number; snapshot?: unknown }
   try {
-    parsed = JSON.parse(raw) as { schema?: number; writeSeq?: number; snapshot?: RunSnapshot }
+    parsed = JSON.parse(raw) as { schema?: number; writeSeq?: number; snapshot?: unknown }
   } catch {
     return { state: 'recoverable', reason: 'sidecar is not valid JSON (torn or corrupt write)', raw }
   }
@@ -116,15 +198,8 @@ export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
       reason: `sidecar schema ${String(parsed.schema)} is newer than this build (${RUN_SCHEMA_VERSION})`,
     }
   }
-  const snap = parsed.snapshot
-  if (
-    !snap ||
-    typeof snap.runId !== 'string' ||
-    typeof snap.objective !== 'string' ||
-    typeof snap.lifecycle !== 'string' ||
-    !Array.isArray(snap.deliverables) ||
-    !Array.isArray(snap.recentEvents)
-  ) {
+  const snap = decodeRunSnapshot(parsed.snapshot)
+  if (snap === null) {
     return { state: 'recoverable', reason: 'sidecar snapshot is structurally invalid' }
   }
   return { state: 'loaded', snapshot: snap }

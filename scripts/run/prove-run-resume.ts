@@ -80,6 +80,75 @@ async function main(): Promise<void> {
     check('absent sidecar → none', none.state === 'none')
     const rec = await coordinator.reconcileOnResume(owner, process.cwd())
     check('coordinator surfaces recoverable (no fake run)', rec.state === 'recoverable')
+    writeFileSync(
+      file,
+      JSON.stringify({ schema: 1, writeSeq: 3, snapshot: { ...snapshot, pendingTools: null, deliverables: [null] } }),
+      'utf8',
+    )
+    const malformed = await sidecar.loadRunSidecar(owner)
+    check(
+      'a whole envelope over a malformed snapshot → recoverable, the snapshot named in the reason',
+      malformed.state === 'recoverable' && /snapshot/.test((malformed as { reason: string }).reason),
+      JSON.stringify(malformed),
+    )
+    let recMalformed: { state: string }
+    try {
+      recMalformed = await coordinator.reconcileOnResume(owner, process.cwd())
+    } catch (e) {
+      recMalformed = { state: `threw: ${e}` }
+    }
+    check(
+      'the coordinator surfaces the malformed snapshot as recoverable, never a throw',
+      recMalformed.state === 'recoverable',
+      recMalformed.state,
+    )
+    const olderOwner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'resume-older', lane: 'main' })
+    const older = {
+      schema: 1,
+      runId: 'older-run',
+      owner: olderOwner,
+      rootMessageId: null,
+      objective: 'a run recorded by an older build',
+      startedAt: 1,
+      updatedAt: 2,
+      lifecycle: 'active',
+      substantive: true,
+      phase: 'implementation',
+      phaseReason: 'seeded',
+      deliverables: [],
+      lastAction: '',
+      nextAction: 'keep going',
+      blocker: null,
+      changedPaths: [],
+      totalChangedPaths: 0,
+      recentEvents: [],
+      verification: { state: 'unknown', detail: '' },
+    }
+    const olderFile = sidecar.runSidecarPath(olderOwner)
+    mkdirSync(dirname(olderFile), { recursive: true })
+    writeFileSync(
+      olderFile,
+      JSON.stringify({ schema: 1, writeSeq: 4, operationId: 'older-op', committedAt: '2026-07-01T00:00:00.000Z', snapshot: older }),
+      'utf8',
+    )
+    const loadedOlder = await sidecar.loadRunSidecar(olderOwner)
+    check(
+      "an older build's snapshot loads whole, its absent tails read as empty",
+      loadedOlder.state === 'loaded' &&
+        Array.isArray(loadedOlder.snapshot.pendingTools) &&
+        loadedOlder.snapshot.pendingTools.length === 0 &&
+        Array.isArray(loadedOlder.snapshot.recentEffects) &&
+        loadedOlder.snapshot.recentEffects.length === 0 &&
+        loadedOlder.snapshot.totalEvents === 0,
+      JSON.stringify(loadedOlder),
+    )
+    let recOlder: { state: string }
+    try {
+      recOlder = await coordinator.reconcileOnResume(olderOwner, process.cwd())
+    } catch (e) {
+      recOlder = { state: `threw: ${e}` }
+    }
+    check("an older build's run reconciles on resume without a throw", recOlder.state === 'reconciled', recOlder.state)
   }
 
   section('3. resume reconciliation (interrupted run)')

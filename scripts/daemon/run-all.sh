@@ -21,6 +21,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-supervisor-lock.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-verbs.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-verbs.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-signin-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-signin-live.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dispatch-death-settles.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dispatch-death-settles.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-control-ops-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-control-ops-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-env-scrub.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-env-scrub.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-work-poll.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-work-poll.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-session-activity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-activity.ts" "$__t" "$__rc"
