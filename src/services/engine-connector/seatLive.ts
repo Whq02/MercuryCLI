@@ -35,6 +35,7 @@ export interface SeatLiveExtensionV1 {
   subscribeLive(listener: () => void): () => void
   status(): SeatStatusV1
   tail(): StreamingTailStore
+  tailAnchor?(): number
   turnChars?(): number
   turnOutputTokens?(): number | null
   fold?(): FoldStatusV1 | null
