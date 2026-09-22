@@ -158,11 +158,7 @@ function windowsNpxWarning(
 
 const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
 
-let documentShape: z.ZodType<{ mcpServers: Record<string, unknown> }> | null = null
-function mcpDocumentShape(): z.ZodType<{ mcpServers: Record<string, unknown> }> {
-  if (documentShape === null) documentShape = z.object({ mcpServers: z.record(z.string(), z.unknown()) })
-  return documentShape
-}
+const McpDocumentShape = z.object({ mcpServers: z.record(z.string(), z.unknown()) })
 
 export function parseMcpConfig({
   configObject,
@@ -176,7 +172,7 @@ export function parseMcpConfig({
   filePath?: string
 }): ParseResult {
   const file = filePath ?? ''
-  const document = mcpDocumentShape().safeParse(configObject)
+  const document = McpDocumentShape.safeParse(configObject)
   if (!document.success) {
     return {
       config: null,
