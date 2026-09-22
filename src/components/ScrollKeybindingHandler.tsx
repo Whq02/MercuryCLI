@@ -185,8 +185,16 @@ export function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
 }
 
 
+const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu'])
+
+export function wheelYieldsToTopOverlay(): boolean {
+  const top = topOverlay()
+  return top !== null && WHEEL_OWNING_OVERLAYS.has(top.id)
+}
+
 export function shouldClearSelectionOnKey(key: Key): boolean {
   if (key.shift || key.meta) return false
+  if (key.wheelUp || key.wheelDown) return false
   return true
 }
 
@@ -380,10 +388,12 @@ export function ScrollKeybindingHandler({
         },
       'scroll:lineUp': () => {
           if (topOverlayOwnsPageKeys()) return false
+          if (wheelYieldsToTopOverlay()) return false
           runScroll(-(modalUp ? 3 : 1))
         },
       'scroll:lineDown': () => {
           if (topOverlayOwnsPageKeys()) return false
+          if (wheelYieldsToTopOverlay()) return false
           runScroll(modalUp ? 3 : 1)
         },
       'scroll:top': () => {
@@ -436,6 +446,7 @@ export function ScrollKeybindingHandler({
       const wheelUp = (key as { wheelUp?: boolean }).wheelUp === true
       const wheelDown = (key as { wheelDown?: boolean }).wheelDown === true
       if (!wheelUp && !wheelDown) return
+      if (wheelYieldsToTopOverlay()) return
       const handle = activeHandle()
       if (!handle) return
       const max = Math.max(
@@ -552,7 +563,6 @@ export function ScrollKeybindingHandler({
   }, [isActive, activeHandle, selection, notifyScroll])
 
   void isModal
-  void topOverlay
   return null
 }
 
