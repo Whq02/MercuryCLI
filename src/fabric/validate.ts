@@ -207,12 +207,12 @@ export function bodyShapeIssue(record: MercuryRecord): ValidationIssue | null {
   const p = record.payload
   const owner =
     p.kind === 'attachment'
-      ? { shape: ATTACHMENT_BODY_SHAPES[p.attachmentType], name: `attachment ${p.attachmentType}` }
+      ? { shape: ATTACHMENT_BODY_SHAPES[p.attachmentType], name: `attachment ${p.attachmentType}`, fields: p.fields }
       : p.kind === 'notice'
-        ? { shape: NOTICE_BODY_SHAPES[p.noticeKind], name: `notice ${p.noticeKind}` }
+        ? { shape: NOTICE_BODY_SHAPES[p.noticeKind], name: `notice ${p.noticeKind}`, fields: p.fields }
         : null
   if (owner === null || owner.shape === undefined) return null
-  const parsed = owner.shape.safeParse(p.fields)
+  const parsed = owner.shape.safeParse(owner.fields)
   if (parsed.success) return null
   const first = parsed.error.issues[0]
   const at = first === undefined || first.path.length === 0 ? '' : `.${first.path.map(String).join('.')}`
