@@ -91,7 +91,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     detail: {
       controls: "Two things, truthfully: (1) a FIXED set of built-in attack-shape checks on risky shell/config commands (supply-chain installs, persistence, git-config mutation — house-style rules live in Wards) with a tamper-evident audit log; (2) tracked change MISSIONS for substantial work (/mission) — bounded criteria, expected paths, fresh verification evidence to complete. ON at enforce by default, measured imperceptible (sub-µs per call, ~0.1% of a real command round). A refused command is a typed teaching message — never a permission prompt; warn records without blocking when legitimate work trips a rule. No model calls, no spend.",
       on: ["risky command shapes are checked before running (enforce refuses · warn records) — a typed refusal, never a prompt", "a tamper-evident audit log accrues under the project's themis store", "/mission tracks substantial changes; enforce refuses unexpected-path edits ONLY while a mission is active"],
-      off: ["explicit off: no checks, no audit log, no /mission", "repo generation (DAEDALUS) becomes unavailable — it requires this layer"],
+      off: ["explicit off: no checks, no audit log, no /mission"],
     },
   },
   {
@@ -191,48 +191,6 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       controls: "Long-term facts and decisions organized as hand-inspectable topic documents beside the always-on notes and lessons. A just-recorded fact is findable immediately; corrections supersede (the old value stays as history, never as current truth); maintenance runs itself at boot and turn end. Inspect, search, correct and maintain it all from /memory. Needs auto-memory on (it is, unless you disabled it). No model calls, no spend — capture is explicit.",
       on: ["the agent gains record/search/read/correct memory tools", "facts consolidate into topic documents automatically (boot + turn-end upkeep)", "/memory shows status, search, corrections and maintenance; /health has a Memory row"],
       off: ["nothing written, no memory tools added", "the always-on notes + experience-card lessons keep working"],
-    },
-  },
-  {
-    env: 'MERCURY_DAEDALUS',
-    label: 'Repo generation (DAEDALUS)',
-    group: 'memory & missions',
-    kind: 'toggle',
-    options: ['1'],
-    defaultLabel: 'off',
-    summary: 'build a whole repository with a team of agents working in parallel (real API cost; rides the THEMIS control plane, on by default)',
-    detail: {
-      controls: "Builds a whole repository from a brief using a team of agents \u2014 planners, developers, reviewers \u2014 SCALED to the brief (a tiny CLI gets 1 architect, not 4). Every launch is preview-first: a deterministic preflight shows the size class, roster, models and expected agent/token band with ZERO agents dispatched; the fleet runs only after you accept. Runs cost real API usage, shown before you commit. Rides Run discipline (THEMIS), which is on by default \u2014 only an explicit THEMIS off makes this unavailable.",
-      on: ["a daedalus entry appears in /workflows", "preview-first: preflight (size class · roster · spend band) before ANY agent; accept launches", "runs on the THEMIS control plane (on unless you switched it off)", "models come from your choice \u2014 explicit, or the saved rows below (always shown at launch)"],
-      off: ["not offered in /workflows", "no chance of accidental multi-agent spend"],
-    },
-  },
-  {
-    env: 'MERCURY_DAEDALUS_MODEL',
-    label: 'Repo-gen planner model',
-    group: 'memory & missions',
-    kind: 'enum',
-    options: ['opus', 'sonnet', 'fable', 'fable51'],
-    defaultLabel: 'ask per dispatch',
-    summary: 'your standing model choice for the planning roles — set it to skip the per-run question',
-    detail: {
-      controls: "Your standing model choice for repo generation's planning roles (architects, lead reviewer, QA). Injected mechanically at launch with its provenance named, validated against the current model catalogue, and shown in the launch consent \u2014 an explicit per-run choice always wins.",
-      on: ["planning roles use this model automatically (named as the saved choice in the launch consent)", "shown at launch \u2014 pass a different model in the run's args to override"],
-      off: ["the run asks for a model pick before launching"],
-    },
-  },
-  {
-    env: 'MERCURY_DAEDALUS_EXECUTOR_MODEL',
-    label: 'Repo-gen builder model',
-    group: 'memory & missions',
-    kind: 'enum',
-    options: ['opus', 'sonnet', 'fable', 'fable51'],
-    defaultLabel: 'ask per dispatch',
-    summary: 'your standing model choice for the building roles — set it to skip the per-run question',
-    detail: {
-      controls: "Your standing model choice for repo generation's building roles (developers, repair, integrator). Injected mechanically at launch with its provenance named, validated against the current model catalogue, and shown in the launch consent \u2014 an explicit per-run choice always wins.",
-      on: ["building roles use this model automatically (named as the saved choice in the launch consent)", "shown at launch \u2014 pass a different model in the run's args to override"],
-      off: ["the run asks for a model pick before launching"],
     },
   },
   {
@@ -412,7 +370,7 @@ export function allSettingRows(): readonly MenuRow[] {
 }
 
 const RETIRED_MENU_ENV: ReadonlySet<string> = new Set(
-  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_TABULA_MINERVA'.split(' '),
+  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_TABULA_MINERVA MERCURY_DAEDALUS MERCURY_DAEDALUS_MODEL MERCURY_DAEDALUS_EXECUTOR_MODEL'.split(' '),
 )
 
 export function menuRowChoices(row: MenuRow): MenuChoice[] {

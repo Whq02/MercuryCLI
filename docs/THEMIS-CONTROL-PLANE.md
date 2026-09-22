@@ -102,5 +102,3 @@ add-to-contract directions. Completion demands fresh verification evidence.
 
 While the plane is active, workflow scripts get the `themis` VM global
 (deterministic SDS/scheduling/trace checks — see the workflow prompt).
-The bundled DAEDALUS workflow requires it and refuses to run with THEMIS
-switched off.

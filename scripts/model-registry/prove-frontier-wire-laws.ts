@@ -229,15 +229,6 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('the default autopilot allowlist admits both (unset env)', autopilotAllowedModels(ID).includes('fable51') && autopilotAllowedModels(ID).includes('fable'))
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
   check("a crew record's legacy keys fold to it: fable51 and the family word land on the same newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === ID)
-  const daedalus = src('src/tools/WorkflowTool/bundled/daedalus.ts')
-  const roster = src('src/tools/WorkflowTool/workflowPrompt.ts')
-  const menu = src('src/substrate/startupMenu.ts')
-  check(
-    'the DAEDALUS compatible set, the saved-roster aliases and both boot-menu enums list it',
-    daedalus.includes("'fable51'") && daedalus.includes("'claude-fable-5-1'") &&
-      roster.includes("['opus', 'sonnet', 'fable', 'fable51']") &&
-      (menu.match(/options: \['opus', 'sonnet', 'fable', 'fable51'\]/g) ?? []).length === 2,
-  )
 }
 
 console.log('\n' + '='.repeat(60))

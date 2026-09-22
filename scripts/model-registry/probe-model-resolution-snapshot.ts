@@ -12,7 +12,6 @@ const cost = await import('../../src/utils/modelCost.js')
 const effort = await import('../../src/utils/effort.js')
 const opts = await import('../../src/utils/model/modelOptions.js')
 const policy = await import('../../src/utils/model/frontierPolicy.js')
-const daedalus = await import('../../src/tools/WorkflowTool/bundled/daedalus.js')
 
 out.defaults = {
   opus: model.getDefaultOpusModel(),
@@ -68,9 +67,5 @@ out.frontier = {
   noSubscriber: policy.evaluateFrontierDecision({ ...operatorFacts, claudeAiSubscriber: false, maxSubscriber: false, rateLimitTier: null } as never).setting,
   liveGather: policy.frontierOperatorDecision().setting,
   liveCode: policy.frontierOperatorDecision().code,
-}
-out.daedalus = {
-  sonnet5: daedalus.daedalusResolveModels({ model: 'claude-sonnet-5' }),
-  junk: daedalus.daedalusResolveModels({ model: 'no-such-model' }),
 }
 console.log(JSON.stringify(out, null, 1))

@@ -22,11 +22,11 @@ const scratch = mkdtempSync(join(tmpdir(), 'startup-menu-'))
 process.chdir(scratch)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_THEMIS', 'MERCURY_MNEME', 'MERCURY_DAEDALUS', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) {
+for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_THEMIS', 'MERCURY_MNEME']) {
   delete process.env[k]
 }
 
-const { STARTUP_MENU, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/substrate/startupMenu.js')
+const { STARTUP_MENU, allSettingRows, menuRowChoices, menuRowValueLabel, applyBootMenuEnv, BOOT_ENV_VERSION, resolveComputerAccess, computerAccessDefaultLabel, resolveEffectiveSettingsSnapshot } = await import('../../src/substrate/startupMenu.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.js')
 
@@ -45,8 +45,12 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
       return c.length >= 2 && c[0]!.value === null && c.slice(1).every(x => typeof x.value === 'string')
     }))
   check('toggle rows carry exactly one non-default value', STARTUP_MENU.filter(r => r.kind === 'toggle').every(r => r.options.length === 1))
-  check('the paper-triad knobs are all present',
-    ['MERCURY_THEMIS', 'MERCURY_MNEME', 'MERCURY_DAEDALUS', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL'].every(e => STARTUP_MENU.some(r => r.env === e)))
+  check('the run-discipline and memory knobs are present',
+    ['MERCURY_THEMIS', 'MERCURY_MNEME'].every(e => STARTUP_MENU.some(r => r.env === e)))
+  const missions = STARTUP_MENU.filter(r => r.group === 'memory & missions')
+  check('the memory & missions group is the one MNEME row and nothing else', missions.length === 1 && missions[0]!.env === 'MERCURY_MNEME', missions.map(r => r.env).join(','))
+  check('no row offers a whole-repository build or a standing planner or builder model pick (label, summary and detail)',
+    !STARTUP_MENU.some(r => /repo(sitory)?[ -]?gen/i.test(r.label + r.summary + (r.detail?.controls ?? '') + (r.detail?.on ?? []).join(' ') + (r.detail?.off ?? []).join(' '))))
   check('the IDE lane rows are present (clangd visible-ON · godot arm-OFF)',
     STARTUP_MENU.some(r => r.env === 'MERCURY_LSP_CPP' && r.defaultLabel === 'on') &&
     STARTUP_MENU.some(r => r.env === 'MERCURY_GODOT' && r.defaultLabel === 'off'))
@@ -90,10 +94,6 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
-  const rosterA = getFlagSpec('MERCURY_DAEDALUS_MODEL')
-  const rosterB = getFlagSpec('MERCURY_DAEDALUS_EXECUTOR_MODEL')
-  check('roster flags registered as value knobs consumed by the Workflow prompt',
-    rosterA?.kind === 'value' && rosterB?.kind === 'value' && rosterA?.consumer === 'src/tools/WorkflowTool/workflowPrompt.ts')
 }
 
 section('command-owned setting rows — the /caching dial law')
@@ -191,6 +191,17 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const rCurator = applyBootMenuEnv(file, envCurator)
   check('a saved choice for the retired notepad-curator row is dropped as retired (never applied, never refused), the row beside it still applied', rCurator !== null && rCurator.retired.length === 1 && rCurator.retired[0] === 'MERCURY_TABULA_MINERVA' && rCurator.refused.length === 0 && envCurator.MERCURY_TABULA_MINERVA === undefined && envCurator.MERCURY_SAMPLES === '1')
   check('no menu row is the retired curator row', STARTUP_MENU.every(r => r.env !== 'MERCURY_TABULA_MINERVA'))
+  const menuSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'startupMenu.ts'), 'utf-8')
+  const retiredRows = (menuSource.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/) ?? [])[1]?.split(' ') ?? []
+  check('the retired list names the curator row and the three rows that left the memory & missions group beside it', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 11 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))
+  check('the memory & missions group keeps MNEME alone and every other row it once carried is on the retired list', STARTUP_MENU.filter(r => r.group === 'memory & missions').length === 1 && retiredRows.filter(e => /_MODEL$/.test(e)).length === 2)
+  for (const retired of retiredRows) {
+    write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { [retired]: '1', MERCURY_SAMPLES: '1' } })
+    const envRetired: NodeJS.ProcessEnv = {}
+    const rRetired = applyBootMenuEnv(file, envRetired)
+    check(`a saved choice for the retired row ${retired} is dropped as retired (never applied, never refused, no boot note), the row beside it still applied`, rRetired !== null && rRetired.retired.length === 1 && rRetired.retired[0] === retired && rRetired.refused.length === 0 && envRetired[retired] === undefined && envRetired.MERCURY_SAMPLES === '1', JSON.stringify(rRetired))
+    check(`the retired row ${retired} is no menu row and no command row`, !allSettingRows().some(r => r.env === retired))
+  }
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_SAMPLES: '1' } })
   const envSamples: NodeJS.ProcessEnv = {}
@@ -208,7 +219,7 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
     r2 !== null && r2.refused.length === 2 && env2.PATH === undefined && env2.NODE_OPTIONS === undefined)
   check('the legal key beside the smuggle still applies', env2.MERCURY_THEMIS === 'warn')
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'root', MERCURY_DAEDALUS_MODEL: 'banana' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_THEMIS: 'root', MERCURY_CAP_FAILOVER: 'banana' } })
   const env3: NodeJS.ProcessEnv = {}
   const r3 = applyBootMenuEnv(file, env3)
   check('values outside the row choices refused', r3 !== null && r3.refused.length === 2 && Object.keys(env3).length === 0)
@@ -260,30 +271,21 @@ section('THEMIS audit — an applied boot-env writes a boot row when the plane i
   delete process.env.MERCURY_THEMIS
 }
 
-section('Workflow prompt — themis section + the DAEDALUS roster surfacing')
+section('Workflow prompt — the themis section rides the plane')
 {
   process.env.MERCURY_THEMIS = 'off'
-  delete process.env.MERCURY_DAEDALUS
   const base = getWorkflowToolPrompt()
-  check('explicit THEMIS off + daedalus off ⇒ no themis section, no roster', !base.includes('The themis global') && !base.includes('DAEDALUS roster'))
+  check('explicit THEMIS off ⇒ no themis section', !base.includes('The themis global'))
   delete process.env.MERCURY_THEMIS
-  check('unset (the default) ⇒ the themis global IS documented (default-on)', getWorkflowToolPrompt().includes('The themis global'))
+  const documented = getWorkflowToolPrompt()
+  check('unset (the default) ⇒ the themis global IS documented (default-on)', documented.includes('The themis global'))
+  const themisAt = documented.indexOf('## The themis global')
+  const nextAt = documented.indexOf('\n## ', themisAt + 1)
+  const themisSection = documented.slice(themisAt, nextAt === -1 ? undefined : nextAt)
+  check('the themis section names no bundled consumer of the global and no saved roster', !/roster|bundled|consumes it/i.test(themisSection) && !/roster/i.test(documented))
   process.env.MERCURY_THEMIS = 'warn'
   check('THEMIS on ⇒ the themis global is documented (no dead VM surface)', getWorkflowToolPrompt().includes('The themis global'))
   delete process.env.MERCURY_THEMIS
-
-  process.env.MERCURY_DAEDALUS = '1'
-  check('daedalus on, no saved picks ⇒ no roster line', !getWorkflowToolPrompt().includes('DAEDALUS roster'))
-  process.env.MERCURY_DAEDALUS_MODEL = 'opus'
-  process.env.MERCURY_DAEDALUS_EXECUTOR_MODEL = 'sonnet'
-  const withRoster = getWorkflowToolPrompt()
-  check('saved picks surfaced for the dispatcher', withRoster.includes('DAEDALUS roster') && withRoster.includes("args.model='opus'") && withRoster.includes("args.executorModel='sonnet'"))
-  process.env.MERCURY_DAEDALUS_MODEL = 'banana'
-  check('a junk pick is never surfaced', !getWorkflowToolPrompt().includes("args.model='banana'"))
-  delete process.env.MERCURY_DAEDALUS
-  process.env.MERCURY_DAEDALUS_MODEL = 'opus'
-  check('roster absent while the workflow itself is off', !getWorkflowToolPrompt().includes('DAEDALUS roster'))
-  for (const k of ['MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) delete process.env[k]
 }
 
 setStamp(false)
