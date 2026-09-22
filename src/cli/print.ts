@@ -61,6 +61,7 @@ import {
 } from '../services/engine-connector/seatWire.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
 import { openaiWindowFact } from '../services/providers/openai/openaiWindowFact.js'
+import { laneWindowFact } from '../services/providers/laneWindowFact.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
@@ -2029,6 +2030,9 @@ export async function runHeadless(
           const state = getAppState()
           const anthropicWindow = anthropicWindowFact()
           const openaiWindow = openaiWindowFact()
+          const geminiWindow = laneWindowFact('gemini')
+          const openrouterWindow = laneWindowFact('openrouter')
+          const huggingfaceWindow = laneWindowFact('huggingface')
           const openaiCatalogue = openaiCatalogueFact()
           const answer: SessionFactsAnswerV1 = {
             model: {
@@ -2054,6 +2058,9 @@ export async function runHeadless(
               })(),
               ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
               ...(openaiWindow !== undefined ? { openaiWindow } : {}),
+              ...(geminiWindow !== undefined ? { geminiWindow } : {}),
+              ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),
+              ...(huggingfaceWindow !== undefined ? { huggingfaceWindow } : {}),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),
