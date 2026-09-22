@@ -52,6 +52,7 @@ export function decodeNavKey(
 
   if (key.upArrow) return vertical || grid ? 'movePrevious' : null
   if (key.downArrow) return vertical || grid ? 'moveNext' : null
+  if (key.wheelUp || key.wheelDown) return vertical || grid ? (key.wheelUp ? 'movePrevious' : 'moveNext') : null
   if (key.leftArrow) {
     if (horizontal || grid) return 'moveLeft'
     if (opts.hierarchy) return 'leaveChild'
