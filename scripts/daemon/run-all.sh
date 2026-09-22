@@ -50,6 +50,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-status-honesty.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-focus-one-writer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-focus-one-writer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-protocol-shape.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-protocol-shape.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compact-state-word.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compact-state-word.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-tail-ignores-agent-frames.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-tail-ignores-agent-frames.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-interrupt-agent-wait.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-interrupt-agent-wait.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-stop-acknowledged.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stop-acknowledged.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-hard-stop-cut.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hard-stop-cut.ts" "$__t" "$__rc"
