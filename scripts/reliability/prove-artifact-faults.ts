@@ -185,25 +185,42 @@ console.log('— A. doctor --json --deep on the artifact —')
 }
 
 console.log('— B. seeded dead op → diagnose-only doctor —')
+const undecodablePath = join(journalDir, 'op-zz-undecodable.json')
+const undecodableBytes = JSON.stringify({
+  schema: 1,
+  operationId: 'zz-undecodable',
+  ownerKey: 'dead-owner-session',
+  kind: 'team-create',
+  idempotencyKey: 'team-create:af-ghost',
+  state: 'applying',
+  steps: [{ id: 'team-file', target: 'x', state: 'applied' }],
+  updatedAt: new Date().toISOString(),
+  writerPid: deadPid,
+})
+const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(undecodablePath, 'utf8') === undecodableBytes
 {
   seedDeadOp('af-b', 'af-team-b')
+  writeFileSync(undecodablePath, undecodableBytes, 'utf8')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
-  ok(row?.status === 'warn', `durable-journals warns (${row?.status})`)
+  ok(row?.status === 'warn', `durable-journals warns beside an undecodable journal file (${row?.status})`)
   ok(row?.evidence.includes('1 interrupted awaiting recovery') === true, `evidence counts the op (${row?.evidence})`)
   ok(opState('af-b') === 'applying', 'doctor did NOT touch the op (diagnose-only)')
   ok(existsSync(join(teams, 'af-team-b', 'config.json')), 'doctor did NOT touch the half-team')
+  ok(undecodableIntact(), 'doctor did NOT touch the undecodable file')
 }
 
 console.log('— C. daemon boot recovery on the artifact —')
 {
   const r = await bootDaemon({ until: () => terminal(opState('af-b')), timeoutMs: 30_000 })
-  ok(r.converged, `daemon boot terminal-ized the op (state ${opState('af-b')})`)
+  ok(r.converged, `daemon boot terminal-ized the op beside the undecodable file (state ${opState('af-b')})`)
   ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
   ok(!existsSync(join(teams, 'af-team-b')), 'half-team compensated away by the artifact boot')
+  ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
   ok(row?.status === 'ok', `doctor green after recovery (${row?.evidence})`)
+  rmSync(undecodablePath)
 }
 
 console.log('— D. kill-at-every-boundary (recovery is resumable) —')
