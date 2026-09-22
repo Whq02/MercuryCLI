@@ -53,6 +53,7 @@ import {
   normalizeMessages,
 } from '../../utils/messages.js'
 import { enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
+import { emitBackgroundAgentFrames } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../utils/tokens.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
@@ -247,6 +248,7 @@ export async function runForegroundAgentExecution(
       while (!step.done) {
         const message = step.value
         agentMessages.push(message)
+        emitBackgroundAgentFrames(toolUseContext.toolUseId, backgroundedTaskId, message)
         updateProgressFromMessage(
           tracker,
           message,
