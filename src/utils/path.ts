@@ -19,10 +19,16 @@ function defaultBaseDir(): string {
 
 const POSIX_DRIVE_PREFIX = /^\/[a-zA-Z]\//
 
+export const NUL_PATH_MESSAGE = 'Path contains null bytes'
+
+export function hasNulByte(path: string): boolean {
+  return path.includes('\0')
+}
+
 export function expandPath(path: string, baseDir: string = defaultBaseDir()): string {
   if (typeof path !== 'string') throw new TypeError(`expandPath: expected a string path, received ${typeof path}`)
   if (typeof baseDir !== 'string') throw new TypeError(`expandPath: expected a string base directory, received ${typeof baseDir}`)
-  if (path.includes('\0') || baseDir.includes('\0')) throw new Error('Path contains null bytes')
+  if (hasNulByte(path) || hasNulByte(baseDir)) throw new Error(NUL_PATH_MESSAGE)
   if (path.trim() === '') return normalize(baseDir).normalize('NFC')
   const trimmed = path.trim()
   if (trimmed === '~') return homedir().normalize('NFC')
