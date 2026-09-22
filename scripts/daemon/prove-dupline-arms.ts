@@ -25,6 +25,7 @@ import {
   WORKFLOW_TURN_ASK,
 } from './dupline-fixture-words.ts'
 import {
+  argAfter,
   bootRunner,
   bound,
   briefly,
@@ -41,6 +42,7 @@ import {
   isResult,
   j,
   makeTally,
+  queueJournal,
   removeWorld,
   REPO,
   requestsOf,
@@ -59,6 +61,8 @@ import {
 
 const { check, section, finish, failed } = makeTally('prove-dupline-arms')
 const src = (rel: string): string => readFileSync(join(REPO, 'src', ...rel.split('/')), 'utf8')
+const only = new Set((argAfter('--only') ?? '').split(',').map(a => a.trim()).filter(a => a !== ''))
+const runs = (arm: string): boolean => only.size === 0 || only.has(arm)
 
 section('S the doors a sub-agent could nest or fork through are shut at their owners (the source)')
 {
@@ -76,21 +80,22 @@ const UT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const uuidOf = (n: number): string => `${String(n).repeat(8)}-${String(n).repeat(4)}-4${String(n).repeat(3)}-8${String(n).repeat(3)}-${String(n).repeat(12)}`
 
 type Sent = { word: string; uuid: string; sentAt: string }
-type World = { name: string; home: string; fx: Fixture; runner: Runner; sessionId: string; failedAtOpen: number }
+type World = { name: string; home: string; fx: Fixture; runner: Runner; sessionId: string; failedAtOpen: number; holdFile?: string }
 
-async function openWorld(name: string, agentSleepSeconds: number, foldPaceMs = 0, extra: { argv?: string[]; seed?: (cwd: string) => void } = {}): Promise<World> {
+async function openWorld(name: string, agentSleepSeconds: number, foldPaceMs = 0, extra: { argv?: string[]; seed?: (cwd: string) => void; hold?: boolean } = {}): Promise<World> {
   const failedAtOpen = failed()
   const home = join(SCRATCH_ROOT, `mercury-dupline-${name}-${process.pid}`)
   const cwd = join(home, 'repo')
   seedHome(home, cwd)
   extra.seed?.(cwd)
-  const fx = await startFixture(join(home, 'wire.jsonl'), agentSleepSeconds, 6, foldPaceMs)
+  const holdFile = extra.hold === true ? join(home, 'release-final-answer') : undefined
+  const fx = await startFixture(join(home, 'wire.jsonl'), agentSleepSeconds, 6, foldPaceMs, holdFile)
   const runner = bootRunner({ cwd, env: childEnv(home, fx.port), extraArgv: extra.argv })
   runner.send(user('hello there', U0))
   const init = await runner.waitFor('the init frame', isInit, bound(90_000))
   const first = await runner.waitFor('the first turn', isResult, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
-  return { name, home, fx, runner, sessionId: String(init?.session_id ?? ''), failedAtOpen }
+  return { name, home, fx, runner, sessionId: String(init?.session_id ?? ''), failedAtOpen, ...(holdFile === undefined ? {} : { holdFile }) }
 }
 async function closeWorld(w: World): Promise<void> {
   await w.runner.stop(bound(8_000))
@@ -130,13 +135,22 @@ async function settled(w: World, words: string[], timeoutMs: number, want: (cs: 
   }
 }
 const drainedOnce = (words: string[]) => (cs: WordCarrier[]): boolean => words.every(word => cs.some(c => c.word === word && isDrainedMainRow(c)))
+async function queuedBoth(w: World, words: string[], timeoutMs: number): Promise<boolean> {
+  const until = Date.now() + timeoutMs
+  for (;;) {
+    const journal = queueJournal(projectsOf(w))
+    if (words.every(word => journal.some(row => row.operation === 'enqueue' && row.content === word))) return true
+    if (Date.now() >= until) return false
+    await sleep(100)
+  }
+}
 
 if (!existsSync(DIST)) {
   console.log(`\nFAIL ${DIST} missing — run \`bun run build.ts\` first (every arm boots the BUILT product)`)
   check('the built bundle is present', false, DIST)
 } else {
+  if (runs('A1')) {
   section("A1 two lines sent during one sub-agent's run reach the session's own model once each, in order")
-  {
     const w = await openWorld('two-lines', 10)
     const before = w.runner.frames.length
     w.runner.send(user(AGENT_TURN_ASK, UT))
@@ -157,8 +171,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A2')) {
   section("A2 a line sent while the sub-agent runs the Sleep tool waits past the sub-agent's Sleep boundary")
-  {
     const w = await openWorld('sleep-tool', 10)
     const before = w.runner.frames.length
     w.runner.send(user(SLEEP_TOOL_TURN_ASK, UT))
@@ -175,8 +189,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A3')) {
   section("A3 a crew notice raised while a sub-agent runs reaches the session's own model once, at the Agent tool's return")
-  {
     const w = await openWorld('crew-notice', 10)
     const before = w.runner.frames.length
     w.runner.send(user(CREW_TURN_ASK, UT))
@@ -201,8 +215,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A4')) {
   section("A4 a line sent during a sub-agent's compaction fold waits past the fold and the sub-agent's next boundary")
-  {
     const w = await openWorld('fold', 3, 800)
     const before = w.runner.frames.length
     w.runner.send(user(FOLD_TURN_ASK, UT))
@@ -221,8 +235,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A5')) {
   section('A5 a sub-agent cannot nest: its Agent call is refused, and the line sent during its run still waits')
-  {
     const w = await openWorld('nested', 5)
     const before = w.runner.frames.length
     w.runner.send(user(NESTED_TURN_ASK, UT))
@@ -241,8 +255,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A6')) {
   section('A6 a fork is refused at the Agent tool, and the line sent during the sub-agent that follows still waits')
-  {
     const w = await openWorld('fork', 5)
     const before = w.runner.frames.length
     w.runner.send(user(FORK_TURN_ASK, UT))
@@ -260,8 +274,8 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
+  if (runs('A7')) {
   section("A7 a line sent while a workflow's agent runs waits for the session's own boundary")
-  {
     const w = await openWorld('workflow', 5, 0, {
       argv: ['--allowed-tools', WORKFLOW_ALLOW_RULE],
       seed: cwd => {
@@ -287,17 +301,19 @@ if (!existsSync(DIST)) {
     await closeWorld(w)
   }
 
-  section("A8 a line sent at the moment the Agent tool returns, and one sent just after, each reach the session's own model once")
-  {
-    const w = await openWorld('return', 4)
+  if (runs('A8')) {
+  section("A8 two lines sent after the Agent tool's return, while the session's final request is held on the wire, each keep their own row and identity")
+    const w = await openWorld('return', 4, 0, { hold: true })
     const before = w.runner.frames.length
     w.runner.send(user(AGENT_TURN_ASK, UT))
-    const last = await waitWire(w.fx.wire, "the sub-agent's final request", wireOf(w, 'subwork', 1), bound(60_000))
-    const atReturn = send(w, RETURN_LINE, 1)
-    check("the sub-agent's final request was on the wire when the first line was sent", last !== null)
     const mainNext = await waitWire(w.fx.wire, "the session's request after the Agent tool", wireOf(w, 'agent', 1), bound(60_000))
+    const held = await waitWire(w.fx.wire, 'the fixture holding the final answer', x => x.kind === 'held', bound(10_000))
+    check("the Agent tool had returned and the session's own final request was on the wire, held by the fixture, before either line was sent", mainNext !== null && held !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
+    const atReturn = send(w, RETURN_LINE, 1)
     const afterReturn = send(w, AFTER_RETURN_LINE, 2)
-    check("the session's own request after the Agent tool was on the wire when the second line was sent", mainNext !== null)
+    const queued = await queuedBoth(w, [RETURN_LINE, AFTER_RETURN_LINE], bound(20_000))
+    check('the runner queued both lines while the final answer was held (two enqueue rows in its journal, nothing released yet)', queued && w.fx.wire().every(x => x.kind !== 'released'), j(queueJournal(projectsOf(w)).slice(-4)))
+    writeFileSync(w.holdFile!, '')
     const result = await w.runner.waitFor("the agent turn's result", isResult, bound(90_000), before)
     check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.result))
     const both = (cs: WordCarrier[]): boolean => [RETURN_LINE, AFTER_RETURN_LINE].every(word => cs.some(c => c.word === word && inMainFile(c)))
@@ -314,16 +330,19 @@ if (!existsSync(DIST)) {
       const subCarrying = carrying(requests.filter(r => r.arm === 'subwork'), sent.word)
       const mainCarrying = carrying(requests.filter(r => r.arm !== 'subwork'), sent.word)
       check(`no request of the sub-agent carried "${sent.word}"`, subCarrying.length === 0, j(subCarrying.map(r => [r.n, r.step])))
-      check(`the session's own model read "${sent.word}" once, at the boundary after the send or as the next turn`, mainCarrying.length >= 1 && mainCarrying[0]!.counts?.[sent.word] === 1 && mainCarrying[0]!.at >= Date.parse(sent.sentAt) - 1000, describeRequests(requests, [sent.word]))
+      check(`the session's own model read "${sent.word}" once, as the next turn after the send`, mainCarrying.length >= 1 && mainCarrying[0]!.counts?.[sent.word] === 1 && mainCarrying[0]!.at >= Date.parse(sent.sentAt) - 1000, describeRequests(requests, [sent.word]))
       const mine = carriers.filter(c => c.word === sent.word)
       const mainRows = mine.filter(inMainFile)
       check(`the session's transcript holds "${sent.word}" once, under the send's identity, and no sub-agent's transcript holds it`, mainRows.length === 1 && mine.length === 1 && (mainRows[0]!.sourceUuid === sent.uuid || mainRows[0]!.recordId === sent.uuid || mainRows[0]!.uuid === sent.uuid) && mainRows[0]!.file.endsWith(`${w.sessionId}.jsonl`), briefly(mine) + ' ' + j(mine.map(c => [c.kind, c.recordId.slice(0, 8), c.uuid.slice(0, 8), c.sourceUuid.slice(0, 8), c.occurredAt, c.sentAt])))
     }
     const returnRow = carriers.find(c => c.word === RETURN_LINE && inMainFile(c))
     const afterRow = carriers.find(c => c.word === AFTER_RETURN_LINE && inMainFile(c))
+    check('the two lines are two rows of the transcript, the first before the second, and no row carries both', returnRow !== undefined && afterRow !== undefined && returnRow.recordId !== afterRow.recordId && Number(returnRow.ordinal) < Number(afterRow.ordinal), j([returnRow?.recordId.slice(0, 8), returnRow?.ordinal, afterRow?.recordId.slice(0, 8), afterRow?.ordinal]))
+    const carrier = carrying(requests.filter(r => r.arm !== 'subwork'), RETURN_LINE)[0]
+    check('the session read both lines in one request, in the order sent', carrier !== undefined && carrier.counts?.[AFTER_RETURN_LINE] === 1 && (carrier.firstAt?.[RETURN_LINE] ?? -1) >= 0 && (carrier.firstAt?.[RETURN_LINE] ?? 0) < (carrier.firstAt?.[AFTER_RETURN_LINE] ?? -1), j(carrier?.firstAt))
     const clockHolds = (row: Carrier | undefined, sent: Sent): boolean =>
       row !== undefined && (row.kind === 'attachment/queued_command' ? row.occurredAt === sent.sentAt && row.sentAt === sent.sentAt : Math.abs(Date.parse(row.occurredAt) - Date.parse(sent.sentAt)) <= CLOCK_TOLERANCE_MS)
-    check('each row carries the clock its line was sent at: the drained row exactly, a next-turn row within the tolerance', clockHolds(returnRow, atReturn) && clockHolds(afterRow, afterReturn), j([returnRow?.kind, returnRow?.occurredAt, atReturn.sentAt, afterRow?.kind, afterRow?.occurredAt, afterReturn.sentAt]))
+    check('each row carries a clock within the tolerance of the clock its line was sent at', clockHolds(returnRow, atReturn) && clockHolds(afterRow, afterReturn), j([returnRow?.kind, returnRow?.occurredAt, atReturn.sentAt, afterRow?.kind, afterRow?.occurredAt, afterReturn.sentAt]))
     await closeWorld(w)
   }
 }
