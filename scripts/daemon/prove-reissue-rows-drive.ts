@@ -144,11 +144,11 @@ try {
   check('the fixture answered 529, 529, then 200', wire().filter(x => x.kind === 'answered' && x.arm === 'overloaded').map(x => x.status).join(',') === '529,529,200', JSON.stringify(wire().filter(x => x.arm === 'overloaded')))
   const rows = transcriptOf(sid)
   const retryRows = (rows.match(/"noticeKind":"api_error"/g) ?? []).length
-  check('R2 two retry rows are RECORDED in the transcript (one per reissue)', retryRows === 2, `api_error rows=${retryRows}`)
-  check("R3 the seat's wait spoke the reissue ('retrying — attempt n of 2 after a 529')", retryWait?.kind === 'retry' && retryWait.reason === 'a 529' && retryWait.of === 2 && retryWait.attempt >= 1, JSON.stringify(retryWait))
+  check('R2 no retry row is RECORDED for refusals answered inside the quiet window', retryRows === 0, `api_error rows=${retryRows}`)
+  check('R3 the seat declared no loud retry wait inside the quiet window', retryWait === null, JSON.stringify(retryWait))
 } finally {
   await cleanup()
 }
 
-console.log(failures === 0 ? '\n ✅ REISSUE ROWS — every reissue paints a row; the seat spoke each one' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ REISSUE ROWS — the quiet window records no row and declares no loud wait' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
