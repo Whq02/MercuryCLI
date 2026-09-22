@@ -59,6 +59,7 @@ try {
       check(`${id}: every send delivered`, result.status === 0, result.stderr.slice(-600))
       check(`${id}: connect row selected in the model picker`, (marks.get('selected') ?? '').includes('GPT — sign in') && (marks.get('picker') ?? '').includes('Mercury — model'))
       check(`${id}: the sign-in layer is open`, landed.includes('LOGINS') && landed.includes('Families'), landed.split('\n').filter(l => l.trim()).slice(0, 8).join('\n'))
+      check(`${id}: the sign-in layer opened on the chosen row's family`, landed.includes('❯ OpenAI — ChatGPT subscription or API key'), landed.split('\n').filter(l => l.includes('❯')).join('\n'))
       if (FRAMES) {
         mkdirSync(FRAMES, { recursive: true })
         if (captured) writeFileSync(join(FRAMES, `${id}.json`), JSON.stringify(captured))

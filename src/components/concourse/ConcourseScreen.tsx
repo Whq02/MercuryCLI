@@ -2572,9 +2572,9 @@ export function ConcourseScreen({
               }}
               onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}
               onDone={() => setRowPick(null)}
-              onSignIn={() => {
+              onSignIn={family => {
                 setRowPick(null)
-                callbacks.enterBootSettings('logins')
+                callbacks.enterBootSettings('logins', { family })
               }}
             />
           </ModalContext.Provider>
@@ -2643,9 +2643,9 @@ export function ConcourseScreen({
                 setModelDefaultOpen(false)
                 callbacks.retrySnapshot?.()
               }}
-              onSignIn={() => {
+              onSignIn={family => {
                 setModelDefaultOpen(false)
-                callbacks.enterBootSettings('logins')
+                callbacks.enterBootSettings('logins', { family })
               }}
             />
           </ModalContext.Provider>

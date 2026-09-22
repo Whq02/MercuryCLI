@@ -263,6 +263,13 @@ export function parseKeyConnectValue(
     : undefined
 }
 
+export function signInFamilyOfRow(value: string): string | undefined {
+  if (value === GPT_CONNECT_OPTION_VALUE) return 'openai'
+  const keyLane = parseKeyConnectValue(value)
+  if (keyLane !== undefined) return keyLane === 'compat' ? undefined : keyLane
+  return /^__mercury_([a-z0-9-]+)_connect__$/.exec(value)?.[1]
+}
+
 export function isCatalogueDoorRow(value: string): boolean {
   return /^__mercury_[a-z0-9-]+_expand__$/.test(value)
 }

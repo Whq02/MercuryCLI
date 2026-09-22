@@ -886,11 +886,12 @@ export function loginsMenuModelOf(
 
 interface BootLoginsScreenProps {
   onClose?: () => void;
+  family?: string;
   fullScene?: { columns: number; rows: number };
   facts?: LoginsScreenFactsV1;
 }
 
-export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLoginsScreenProps = {}): React.ReactNode {
+export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: BootLoginsScreenProps = {}): React.ReactNode {
   const t = useMercuryTokens();
   const { columns: termCols, rows: termRows } = useTerminalSize();
   const columns = fullScene?.columns ?? termCols;
@@ -1270,7 +1271,7 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   };
 
   const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily());
-  const initialFocus = loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus);
+  const initialFocus = loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus, loginFamilyFocusFor(family));
 
   const list = useInteractiveList<LoginsArmV1>({
     rows: arms,
