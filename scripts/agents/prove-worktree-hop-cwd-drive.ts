@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, makeTally, transcriptFiles } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-worktree-hop-cwd-drive')
@@ -85,6 +85,14 @@ tally.check('ExitWorktree kept the worktree and returned the session to the chec
 tally.check('the first shell command after the exit ran in the checkout', firstLine(seen.afterExit) === repo, `ran in ${JSON.stringify(firstLine(seen.afterExit))}, the checkout is ${repo}`)
 tally.check('the first shell command after the exit carried no working-directory reset notice', seen.afterExit !== undefined && !seen.afterExit.text.includes(RESET_NOTICE), seen.afterExit?.text.slice(0, 300))
 tally.check('the run settled with a result', turn.result !== null, turn.stderr.slice(-300))
+
+tally.section('the session records name the branch of their working directory')
+const stamps = transcriptFiles(join(scratch, 'home', 'projects')).flatMap(file => readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { annotations?: { cwd?: string; gitBranch?: string } })).map(row => row.annotations).filter(row => row?.cwd !== undefined)
+const inWorktree = stamps.filter(row => row!.cwd === lane)
+const branch = git(lane, 'branch', '--show-current')
+tally.check('records written in the worktree carry its branch', inWorktree.length > 0 && inWorktree.every(row => row!.gitBranch === branch), JSON.stringify(inWorktree))
+const last = stamps.at(-1)
+tally.check('the final record is back on the checkout branch', last?.cwd === repo && last.gitBranch === 'main', JSON.stringify(last))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)
