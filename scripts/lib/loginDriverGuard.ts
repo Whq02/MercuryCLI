@@ -1,5 +1,6 @@
+import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export function defaultConfigHome(): string {
   return resolve(join(homedir(), '.mercury'))
@@ -8,7 +9,20 @@ export function defaultConfigHome(): string {
 export function configHomeIsReal(env: NodeJS.ProcessEnv = process.env): boolean {
   const pinned = env.MERCURY_CONFIG_DIR?.trim()
   if (pinned === undefined || pinned === '') return true
-  return resolve(pinned) === defaultConfigHome()
+  const target = canonicalPath(pinned)
+  const root = canonicalPath(defaultConfigHome())
+  const inside = relative(root, target)
+  return inside === '' || inside !== '..' && !inside.startsWith(`..${sep}`) && !isAbsolute(inside)
+}
+
+function canonicalPath(path: string): string {
+  const resolved = resolve(path)
+  try {
+    return realpathSync(resolved)
+  } catch {
+    const parent = dirname(resolved)
+    return parent === resolved ? resolved : join(canonicalPath(parent), basename(resolved))
+  }
 }
 
 export function guardLoginDriverWrite(what: string, env: NodeJS.ProcessEnv = process.env): void {
