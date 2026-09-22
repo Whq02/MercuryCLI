@@ -154,6 +154,10 @@ export async function getAttachments(
               ? 'attachments_main'
               : 'attachments_subagent',
             querySource,
+            hasPendingMcpServers: [
+              ...toolUseContext.options.mcpClients,
+              ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
+            ].some(client => client.type === 'pending'),
           },
         ),
       ),

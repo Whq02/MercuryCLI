@@ -1042,7 +1042,10 @@ async function assembleAttachments(
   if (skills !== null) attachments.push(skills)
   const model = context.options.mainLoopModel
   const deltas = [
-    ...getDeferredToolsDeltaAttachment(context.options.tools, model, preserved, { callSite }),
+    ...getDeferredToolsDeltaAttachment(context.options.tools, model, preserved, {
+      callSite,
+      hasPendingMcpServers: [...context.options.mcpClients, ...(context.getAppState?.().mcp?.clients ?? [])].some(client => client.type === 'pending'),
+    }),
     ...getMcpInstructionsDeltaAttachment(context.options.mcpClients, context.options.tools, model, preserved),
   ]
   for (const delta of deltas) attachments.push(createAttachmentMessage(delta))
