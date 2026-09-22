@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-22T12:22:13.091Z",
+ "capturedAt": "2026-09-22T12:48:39.928Z",
  "screens": [
   {
    "atMs": 12500,
@@ -22,7 +22,7 @@
     "  · /workflows — agent …│                                                                                              │",
     "                        │    model   Opus 5                                                                            │",
     "FILES · flux-arena-cwd-…│    theme   Jellyfish                                                                         │",
-    "  ↵ or click · browse   │    dir     flux-arena-cwd-8UKEYw · no git                                                    │",
+    "  ↵ or click · browse   │    dir     flux-arena-cwd-4m1SRx · no git                                                    │",
     "                        │                                                                                              │",
     "TELEMETRY               │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "  · spend —             │                                                                                              │",
@@ -72,22 +72,23 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-8UKEYw                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-4m1SRx                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12297,
-   "frame-recommit": 36
+   "patches": 12344,
+   "frame-recommit": 35,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 52,
-   "window": 52,
-   "p50": 0.9738749999996799,
-   "p95": 11.505041999999776,
-   "p99": 24.94724999999994,
-   "maxMs": 24.94724999999994
+   "total": 50,
+   "window": 50,
+   "p50": 1.731499999999869,
+   "p95": 7.572416999999859,
+   "p99": 21.907292000000098,
+   "maxMs": 21.907292000000098
   }
  },
  "requests": [
@@ -122,11 +123,11 @@
  ],
  "sends": [
   {
-   "atMs": 10853.076934814453,
+   "atMs": 10732.95783996582,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12453.076934814453,
+   "atMs": 12332.95783996582,
    "b64": "DQ=="
   }
  ]
