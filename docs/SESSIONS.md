@@ -170,7 +170,9 @@ never regresses to a lesser stage. `/title <words>` names the focused
 session yourself — a typed name outranks and outlives the mint — and a
 bare `/title` asks the model again, an explicit spend; `r` on a board row
 renames it there. The worker id is a fact of the detail column and never a
-session's title, in any world.
+session's title, in any world. `/rename <words>` names the session from the
+chat. In the cockpit the name stays on the `✶ VIEW` header and the composer
+keeps its rounded box.
 
 ## The focused chat
 
@@ -229,7 +231,9 @@ OpenAI route as on the Anthropic one.
 The session box under the `✶ VIEW` header holds the critter and, while
 a turn runs, the working row in its own capsule beside it. By default the
 small critter sits in a slim box of five rows and the SESSIONS bar is off
-the bottom of the chat, so a tall window gives the chat ten rows more; the
+the bottom of the chat, so a tall window gives the chat ten rows more. The
+small sprite is centred in the space it owns, beside the working capsule
+or speech bubble when one is present, and across the box when alone. The
 working row keeps its capsule, and the session roll-up and the bar are not
 painted. `/critter on` paints the large critter with the roll-up and the
 bar as before, `/critter off` the small one, and `/critter` alone toggles;

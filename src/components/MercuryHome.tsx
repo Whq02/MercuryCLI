@@ -72,6 +72,7 @@ export function PinnedCritterBerth(): React.ReactNode {
   return (
     <InteractiveRow
       id="berth:critter"
+      width={mini ? Math.max(...dockDef.square.map(row => row.length)) : undefined}
       directActivate
       onActivate={cycleSessionCritter}
       flexDirection="column"
