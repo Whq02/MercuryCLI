@@ -125,6 +125,8 @@ export const ACTION_GRAPH = {
   'diff:sendAllComments': { description: 'Send every pending comment', contexts: ['DiffDialog'] },
   'select:next': { description: 'Next row', contexts: ['Select', 'Settings'] },
   'select:previous': { description: 'Previous row', contexts: ['Select', 'Settings'] },
+  'select:first': { description: 'First row', contexts: ['Select', 'Settings'] },
+  'select:last': { description: 'Last row', contexts: ['Select', 'Settings'] },
   'select:accept': { description: 'Choose the selected row', contexts: ['Select', 'Settings'] },
   'select:cancel': { description: 'Cancel the selection', contexts: ['Select'] },
   'extensions:toggle': { description: 'Turn the selected extension off or on', contexts: ['Extensions'] },

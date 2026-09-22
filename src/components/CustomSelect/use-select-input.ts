@@ -81,6 +81,12 @@ export function useSelectInput<T>({
         }
         state.focusPreviousOption()
       },
+      'select:first': () => {
+        state.focusFirstOption()
+      },
+      'select:last': () => {
+        state.focusLastOption()
+      },
       'select:accept': () => {
         if (disableSelection === true) return
         if (state.focusedValue === undefined) return

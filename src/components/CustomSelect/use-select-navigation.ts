@@ -21,7 +21,7 @@ export function focusSeedAfterOptionsChange<T>(input: {
   return focusValue !== undefined ? focusValue : initialFocusValue
 }
 
-type NavigationState<T> = {
+export type NavigationState<T> = {
   optionMap: OptionMap<T>
   visibleOptionCount: number
   focusedValue: OptionValue<T> | undefined
@@ -29,7 +29,7 @@ type NavigationState<T> = {
   visibleToIndex: number
 }
 
-type CreateStateInput<T> = {
+export type CreateStateInput<T> = {
   options: readonly OptionWithDescription<T>[]
   visibleOptionCount?: number
   initialFocusValue?: OptionValue<T>
@@ -48,7 +48,7 @@ function lastEnabled<T>(map: OptionMap<T>): OptionMapItem<T> | undefined {
   return item
 }
 
-function createNavigationState<T>({
+export function createNavigationState<T>({
   options,
   visibleOptionCount,
   initialFocusValue,
@@ -102,15 +102,17 @@ function createNavigationState<T>({
   }
 }
 
-type NavigationAction<T> =
+export type NavigationAction<T> =
   | { type: 'focus-next-option' }
   | { type: 'focus-previous-option' }
   | { type: 'focus-next-page' }
   | { type: 'focus-previous-page' }
+  | { type: 'focus-first-option' }
+  | { type: 'focus-last-option' }
   | { type: 'focus-value'; value: OptionValue<T> | undefined }
   | { type: 'reset'; state: NavigationState<T> }
 
-function reduceNavigation<T>(
+export function reduceNavigation<T>(
   state: NavigationState<T>,
   action: NavigationAction<T>,
 ): NavigationState<T> {
@@ -118,6 +120,30 @@ function reduceNavigation<T>(
   const size = optionMap.size
 
   switch (action.type) {
+    case 'focus-first-option': {
+      const landing = firstEnabled(optionMap)
+      if (!landing || landing.value === focusedValue) return state
+      const to = Math.min(size, Math.max(visibleOptionCount, landing.index + 1))
+      return {
+        ...state,
+        focusedValue: landing.value,
+        visibleFromIndex: Math.max(0, to - visibleOptionCount),
+        visibleToIndex: to,
+      }
+    }
+
+    case 'focus-last-option': {
+      const landing = lastEnabled(optionMap)
+      if (!landing || landing.value === focusedValue) return state
+      const from = Math.max(0, Math.min(landing.index, size - visibleOptionCount))
+      return {
+        ...state,
+        focusedValue: landing.value,
+        visibleFromIndex: from,
+        visibleToIndex: Math.min(size, from + visibleOptionCount),
+      }
+    }
+
     case 'focus-next-option': {
       const current =
         focusedValue !== undefined ? optionMap.get(focusedValue) : undefined
@@ -311,6 +337,8 @@ export type SelectNavigation<T> = {
   focusPreviousOption: () => void
   focusNextPage: () => void
   focusPreviousPage: () => void
+  focusFirstOption: () => void
+  focusLastOption: () => void
   focusValue: (value: T | undefined) => void
 }
 
@@ -394,6 +422,12 @@ export function useSelectNavigation<T>({
   const focusPreviousPage = useCallback(() => {
     dispatch({ type: 'focus-previous-page' })
   }, [])
+  const focusFirstOption = useCallback(() => {
+    dispatch({ type: 'focus-first-option' })
+  }, [])
+  const focusLastOption = useCallback(() => {
+    dispatch({ type: 'focus-last-option' })
+  }, [])
   const focusByValue = useCallback((value: T | undefined) => {
     dispatch({ type: 'focus-value', value })
   }, [])
@@ -416,6 +450,8 @@ export function useSelectNavigation<T>({
     focusPreviousOption,
     focusNextPage,
     focusPreviousPage,
+    focusFirstOption,
+    focusLastOption,
     focusValue: focusByValue,
   }
 }
