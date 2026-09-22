@@ -820,23 +820,32 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
-    setEffort(mode)
-    unpinAllLaunchEffort()
-    if (mode === 'supercode') {
-      updateSettingsForSource('userSettings', { effortLevel: 'max', supercodeEffort: true })
-      setAppState?.(prev => ({ ...prev, effortValue: 'max', supercode: true }))
+    const persistable = mode === 'supercode' ? 'max' : toPersistableEffort(mode as EffortValue)
+    if (persistable === undefined) return
+    const { error } = updateSettingsForSource('userSettings', {
+      effortLevel: persistable,
+      supercodeEffort: mode === 'supercode' ? true : undefined,
+    })
+    if (error) {
+      setNotice(mode === 'supercode'
+        ? `Could not save the supercode setting: ${error.message}`
+        : `Could not save the effort level: ${error.message}`)
       return
     }
-    const persistable = toPersistableEffort(mode as EffortValue)
-    if (persistable !== undefined) {
-      updateSettingsForSource('userSettings', { effortLevel: persistable, supercodeEffort: undefined })
-    }
-    setAppState?.(prev => ({ ...prev, effortValue: mode as EffortValue, supercode: false }))
+    unpinAllLaunchEffort()
+    setEffort(mode)
+    setNotice(undefined)
+    setAppState?.(prev => ({ ...prev, effortValue: persistable, supercode: mode === 'supercode' }))
   }
   function handleSelect(id: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
       onSignIn?.()
+      return
+    }
+    const saved = persistModelChoice(id)
+    if (saved !== '' && saved !== ' · saved as your default') {
+      setNotice(saved)
       return
     }
     if (setAppState !== null) {
@@ -847,7 +856,6 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
         return settled.patch === null ? prev : { ...prev, ...settled.patch }
       })
     }
-    persistModelChoice(id)
     onDone()
   }
   return (
