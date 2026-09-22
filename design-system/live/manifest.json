@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-  "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
-  "generatedAt": "2026-09-22T13:28:26.253Z",
+  "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+  "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
+  "generatedAt": "2026-09-22T13:57:48.395Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -17,8 +17,8 @@
   "entries": [
     {
       "id": "cockpit-wide--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "cockpit-wide",
       "cols": 120,
       "rows": 40,
@@ -50,12 +50,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:23.544Z"
+      "generatedAt": "2026-09-22T13:54:48.127Z"
     },
     {
       "id": "frame--100x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 100,
       "rows": 30,
@@ -87,12 +87,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:28.783Z"
+      "generatedAt": "2026-09-22T13:53:46.405Z"
     },
     {
       "id": "frame--101x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 101,
       "rows": 30,
@@ -124,12 +124,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:36.229Z"
+      "generatedAt": "2026-09-22T13:53:53.398Z"
     },
     {
       "id": "frame--120x40--dark--256--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -161,12 +161,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:01.685Z"
+      "generatedAt": "2026-09-22T13:57:27.424Z"
     },
     {
       "id": "frame--120x40--dark--ansi--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -198,12 +198,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:10.817Z"
+      "generatedAt": "2026-09-22T13:57:34.597Z"
     },
     {
       "id": "frame--120x40--dark--none--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -235,12 +235,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:18.260Z"
+      "generatedAt": "2026-09-22T13:57:41.377Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -272,12 +272,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:43.054Z"
+      "generatedAt": "2026-09-22T13:54:00.174Z"
     },
     {
       "id": "frame--120x40--dark--truecolor--reduced",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -309,12 +309,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:26.252Z"
+      "generatedAt": "2026-09-22T13:57:48.394Z"
     },
     {
       "id": "frame--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -346,12 +346,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:38.101Z"
+      "generatedAt": "2026-09-22T13:57:03.551Z"
     },
     {
       "id": "frame--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -383,12 +383,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:50.875Z"
+      "generatedAt": "2026-09-22T13:56:15.736Z"
     },
     {
       "id": "frame--120x40--light--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -420,12 +420,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:03.548Z"
+      "generatedAt": "2026-09-22T13:55:28.678Z"
     },
     {
       "id": "frame--120x40--light-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -457,12 +457,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:14.485Z"
+      "generatedAt": "2026-09-22T13:56:39.749Z"
     },
     {
       "id": "frame--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 120,
       "rows": 40,
@@ -494,12 +494,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:27.213Z"
+      "generatedAt": "2026-09-22T13:55:52.319Z"
     },
     {
       "id": "frame--149x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 149,
       "rows": 40,
@@ -531,12 +531,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:50.491Z"
+      "generatedAt": "2026-09-22T13:54:06.960Z"
     },
     {
       "id": "frame--150x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 150,
       "rows": 40,
@@ -547,7 +547,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "7432192f921b9b9d56dfe920f0494c265c39d2f2eb8e111c2426756ff841e9b1",
+      "gridDigest": "d5ee2e4aaa0b7d6956747338eadbb740081d5fef2e81c29d4b781e70d4f0bb49",
       "styleDigest": "8046689f8f592433b8678cefc2287bd6af73c0a4a9b3f52cfb27847ed998bc23",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -568,12 +568,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:59.791Z"
+      "generatedAt": "2026-09-22T13:54:16.025Z"
     },
     {
       "id": "frame--151x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 151,
       "rows": 40,
@@ -605,12 +605,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:09.453Z"
+      "generatedAt": "2026-09-22T13:54:27.905Z"
     },
     {
       "id": "frame--160x50--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 160,
       "rows": 50,
@@ -642,12 +642,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:16.425Z"
+      "generatedAt": "2026-09-22T13:54:38.804Z"
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -679,12 +679,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:23:17.585Z"
+      "generatedAt": "2026-09-22T13:52:35.892Z"
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 80,
       "rows": 24,
@@ -716,12 +716,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:23:36.906Z"
+      "generatedAt": "2026-09-22T13:52:54.923Z"
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -753,12 +753,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:23:56.165Z"
+      "generatedAt": "2026-09-22T13:53:13.934Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -790,12 +790,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:15.727Z"
+      "generatedAt": "2026-09-22T13:53:33.125Z"
     },
     {
       "id": "help--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "help",
       "cols": 120,
       "rows": 40,
@@ -827,12 +827,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:54.773Z"
+      "generatedAt": "2026-09-22T13:55:19.619Z"
     },
     {
       "id": "resume-2turn--100x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 100,
       "rows": 30,
@@ -864,12 +864,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:32.557Z"
+      "generatedAt": "2026-09-22T13:53:50.001Z"
     },
     {
       "id": "resume-2turn--101x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 101,
       "rows": 30,
@@ -901,12 +901,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:39.624Z"
+      "generatedAt": "2026-09-22T13:53:56.777Z"
     },
     {
       "id": "resume-2turn--120x40--dark--256--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -938,12 +938,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:07.093Z"
+      "generatedAt": "2026-09-22T13:57:31.109Z"
     },
     {
       "id": "resume-2turn--120x40--dark--ansi--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -975,12 +975,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:14.351Z"
+      "generatedAt": "2026-09-22T13:57:37.964Z"
     },
     {
       "id": "resume-2turn--120x40--dark--none--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1012,12 +1012,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:28:22.676Z"
+      "generatedAt": "2026-09-22T13:57:44.796Z"
     },
     {
       "id": "resume-2turn--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1049,12 +1049,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:46.759Z"
+      "generatedAt": "2026-09-22T13:54:03.555Z"
     },
     {
       "id": "resume-2turn--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1086,12 +1086,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:41.334Z"
+      "generatedAt": "2026-09-22T13:57:06.943Z"
     },
     {
       "id": "resume-2turn--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1123,12 +1123,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:54.269Z"
+      "generatedAt": "2026-09-22T13:56:19.427Z"
     },
     {
       "id": "resume-2turn--120x40--light--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1160,12 +1160,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:06.981Z"
+      "generatedAt": "2026-09-22T13:55:32.078Z"
     },
     {
       "id": "resume-2turn--120x40--light-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1197,12 +1197,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:17.867Z"
+      "generatedAt": "2026-09-22T13:56:43.291Z"
     },
     {
       "id": "resume-2turn--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 120,
       "rows": 40,
@@ -1234,12 +1234,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:30.612Z"
+      "generatedAt": "2026-09-22T13:55:55.500Z"
     },
     {
       "id": "resume-2turn--149x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 149,
       "rows": 40,
@@ -1271,12 +1271,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:55.861Z"
+      "generatedAt": "2026-09-22T13:54:10.611Z"
     },
     {
       "id": "resume-2turn--150x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 150,
       "rows": 40,
@@ -1287,7 +1287,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "7432192f921b9b9d56dfe920f0494c265c39d2f2eb8e111c2426756ff841e9b1",
+      "gridDigest": "d5ee2e4aaa0b7d6956747338eadbb740081d5fef2e81c29d4b781e70d4f0bb49",
       "styleDigest": "8046689f8f592433b8678cefc2287bd6af73c0a4a9b3f52cfb27847ed998bc23",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1308,12 +1308,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:03.781Z"
+      "generatedAt": "2026-09-22T13:54:21.441Z"
     },
     {
       "id": "resume-2turn--151x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 151,
       "rows": 40,
@@ -1345,12 +1345,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:12.925Z"
+      "generatedAt": "2026-09-22T13:54:33.326Z"
     },
     {
       "id": "resume-2turn--160x50--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 160,
       "rows": 50,
@@ -1382,12 +1382,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:19.941Z"
+      "generatedAt": "2026-09-22T13:54:44.686Z"
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1419,12 +1419,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:23:27.261Z"
+      "generatedAt": "2026-09-22T13:52:45.434Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 80,
       "rows": 24,
@@ -1456,12 +1456,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:23:46.510Z"
+      "generatedAt": "2026-09-22T13:53:04.438Z"
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1493,12 +1493,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:05.963Z"
+      "generatedAt": "2026-09-22T13:53:23.516Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "resume-2turn",
       "cols": 99,
       "rows": 30,
@@ -1530,12 +1530,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:24:25.340Z"
+      "generatedAt": "2026-09-22T13:53:42.738Z"
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1567,12 +1567,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:25:40.344Z"
+      "generatedAt": "2026-09-22T13:55:04.962Z"
     },
     {
       "id": "sessions--120x40--dark-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1604,12 +1604,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:58.190Z"
+      "generatedAt": "2026-09-22T13:57:23.791Z"
     },
     {
       "id": "sessions--120x40--dark-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1641,12 +1641,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:11.077Z"
+      "generatedAt": "2026-09-22T13:56:36.314Z"
     },
     {
       "id": "sessions--120x40--light--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1678,12 +1678,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:23.810Z"
+      "generatedAt": "2026-09-22T13:55:48.914Z"
     },
     {
       "id": "sessions--120x40--light-ansi--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1715,12 +1715,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:27:34.678Z"
+      "generatedAt": "2026-09-22T13:57:00.152Z"
     },
     {
       "id": "sessions--120x40--light-daltonized--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "sessions",
       "cols": 120,
       "rows": 40,
@@ -1752,12 +1752,12 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:47.452Z"
+      "generatedAt": "2026-09-22T13:56:12.290Z"
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
-      "sourceSha": "e5d583588713a0907b7095516260df94a875bffb",
-      "buildDigest": "367a12965a255c85e961e1aaf9efa949975c4709",
+      "sourceSha": "9a0761710828a86d9aa9c22be88433367044cd6f",
+      "buildDigest": "3a83accef6d4778c45d20f207eefe78ff31b6f49",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1789,7 +1789,7 @@
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]"
       ],
-      "generatedAt": "2026-09-22T13:26:00.098Z"
+      "generatedAt": "2026-09-22T13:55:25.494Z"
     }
   ]
 }
