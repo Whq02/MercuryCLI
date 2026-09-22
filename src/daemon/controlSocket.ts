@@ -328,7 +328,7 @@ function protoToStamp(): number {
 export async function daemonControlRpc(
   req: DaemonRequest,
   opts: { timeoutMs?: number; protoRetry?: boolean } = {},
-): Promise<DaemonReply> {
+): Promise<DaemonReply & { frameWritten?: boolean }> {
   const timeoutMs = opts.timeoutMs ?? 2000
   const outbound: DaemonRequest & { proto?: number; auth?: string } = { ...req }
   const stamped = AUTH_STAMPED_OPS.has(req.op)
@@ -399,10 +399,11 @@ function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {
   return { ...reply, error: olderDaemonRefusalLine(verb, needs, negotiated), refusal: 'daemon-older' }
 }
 
-function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number): Promise<DaemonReply> {
-  return new Promise<DaemonReply>(resolve => {
+function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number): Promise<DaemonReply & { frameWritten?: boolean }> {
+  return new Promise<DaemonReply & { frameWritten?: boolean }>(resolve => {
     let settled = false
-    const finish = (reply: DaemonReply) => {
+    let frameWritten = false
+    const finish = (reply: DaemonReply, transportFailure = false) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -410,18 +411,20 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
         sock.destroy()
       } catch {
       }
-      resolve(reply)
+      resolve(transportFailure ? { ...reply, frameWritten } : reply)
     }
 
     const sock = net.connect(controlSockPath())
     const collected: Buffer[] = []
 
     const timer = setTimeout(() => {
-      finish({ ok: false, code: 'ETIMEOUT', error: `daemon did not answer within ${timeoutMs}ms (ETIMEOUT)` })
+      finish({ ok: false, code: 'ETIMEOUT', error: `daemon did not answer within ${timeoutMs}ms (ETIMEOUT)` }, true)
     }, timeoutMs)
     timer.unref?.()
 
     sock.on('connect', () => {
+      if (settled) return
+      frameWritten = true
       sock.write(encodeFrame(outbound))
     })
     sock.on('data', (chunk: Buffer) => {
@@ -433,7 +436,7 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
       try {
         finish(JSON.parse(line) as DaemonReply)
       } catch {
-        finish({ ok: false, code: 'EUNKNOWN', error: 'malformed daemon reply' })
+        finish({ ok: false, code: 'EUNKNOWN', error: 'malformed daemon reply' }, true)
       }
     })
     sock.on('error', err => {
@@ -442,10 +445,10 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
         ok: false,
         code: 'ENOCONN',
         error: `daemon unreachable (${(err as NodeJS.ErrnoException).code ?? 'ENOCONN'})`,
-      })
+      }, true)
     })
     sock.on('close', () => {
-      finish({ ok: false, code: 'ENOCONN', error: 'daemon closed without a reply (ENOCONN)' })
+      finish({ ok: false, code: 'ENOCONN', error: 'daemon closed without a reply (ENOCONN)' }, true)
     })
   })
 }
