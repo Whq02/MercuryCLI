@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-22T16:05:49.568Z",
+ "capturedAt": "2026-09-22T17:35:44.559Z",
  "screens": [
   {
    "atMs": 12500,
@@ -22,7 +22,7 @@
     "  · /workflows — agent …│                                                                                              │",
     "                        │    model   Opus 5                                                                            │",
     "FILES · flux-arena-cwd-…│    theme   Jellyfish                                                                         │",
-    "  ↵ or click · browse   │    dir     flux-arena-cwd-2jngto · no git                                                    │",
+    "  ↵ or click · browse   │    dir     flux-arena-cwd-GtWXmY · no git                                                    │",
     "                        │                                                                                              │",
     "TELEMETRY               │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "  · spend —             │                                                                                              │",
@@ -31,8 +31,8 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
+    "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -72,23 +72,23 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-2jngto                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-GtWXmY                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12370,
-   "frame-recommit": 35,
+   "patches": 13025,
+   "frame-recommit": 44,
    "tail-publish": 2
   },
   "frames": {
-   "total": 50,
-   "window": 50,
-   "p50": 0.7167920000001686,
-   "p95": 7.596915999999965,
-   "p99": 23.030083999999988,
-   "maxMs": 23.030083999999988
+   "total": 64,
+   "window": 64,
+   "p50": 7.304500000000189,
+   "p95": 50.17099999999846,
+   "p99": 215.6714579999998,
+   "maxMs": 215.6714579999998
   }
  },
  "requests": [
@@ -123,11 +123,11 @@
  ],
  "sends": [
   {
-   "atMs": 10841.433048248291,
+   "atMs": 16133.058071136475,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12441.433048248291,
+   "atMs": 17733.058071136475,
    "b64": "DQ=="
   }
  ]
