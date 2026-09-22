@@ -186,7 +186,7 @@ try {
         check(`${id}: the completed sign-in returned to the picker that opened it, on the board`, returned.includes('Mercury — model') && returned.includes('SESSION CONCOURSE'), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {
-        const beneath = kind === 'face' ? 'Doctor / Health Check' : 'SESSION CONCOURSE'
+        const beneath = kind === 'face' ? '⇧→ concourse' : 'SESSION CONCOURSE'
         check(`${id}: escape returned to the picker that opened it, ${kind === 'face' ? 'on the face' : 'on the board'}`, returned.includes('Mercury — model') && returned.includes(beneath), excerpt(returned))
       }
       keepFrames()
