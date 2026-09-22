@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-22T21:42:20.162Z",
+ "capturedAt": "2026-09-22T21:47:55.738Z",
  "screens": [
   {
    "atMs": 12500,
@@ -22,9 +22,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-SEu0un · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-cLZDxn · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -42,7 +42,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -67,9 +67,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-SEu0un · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-cLZDxn · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -87,7 +87,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -101,21 +101,21 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭─────────────────────────────────────────╮                                 ││",
-    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ /help lists every command and shortcut. │                                 ││",
-    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰─────────────────────────────────────────╯                                 ││",
+    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭──────────────────────────────────────────╮                                ││",
+    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ /compact folds old turns into a summary. │                                ││",
+    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰──────────────────────────────────────────╯                                ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 22:41:58 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:47:34 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 22:41:58 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 22:47:34 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · /health — health ce…│ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "  · /cards — memory     │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · /mission — set a mi…│ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 22:42:06 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  ↵ or click · browse   │ 22:47:42 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -132,7 +132,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -143,22 +143,23 @@
  ],
  "probe": {
   "counters": {
-   "patches": 18606,
-   "frame-recommit": 64
+   "patches": 18224,
+   "frame-recommit": 65,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 91,
-   "window": 91,
-   "p50": 1.1256659999999101,
-   "p95": 6.580707999999504,
-   "p99": 25.177832999999964,
-   "maxMs": 25.177832999999964
+   "total": 88,
+   "window": 88,
+   "p50": 0.8754169999999704,
+   "p95": 6.48462500000096,
+   "p99": 37.33479199999988,
+   "maxMs": 37.33479199999988
   }
  },
  "requests": [
   {
    "path": "/v1/messages?beta=true",
-   "model": "claude-opus-5",
+   "model": "claude-opus-5-5",
    "lastMessage": {
     "role": "user",
     "content": [
@@ -186,7 +187,7 @@
   },
   {
    "path": "/v1/messages?beta=true",
-   "model": "claude-opus-5",
+   "model": "claude-opus-5-5",
    "lastMessage": {
     "role": "user",
     "content": [
@@ -205,15 +206,15 @@
  ],
  "sends": [
   {
-   "atMs": 10825.463056564331,
+   "atMs": 11018.430948257446,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12425.463056564331,
+   "atMs": 12618.430948257446,
    "b64": "DQ=="
   },
   {
-   "atMs": 20825.46305656433,
+   "atMs": 21018.430948257446,
    "b64": "Gw=="
   }
  ]
