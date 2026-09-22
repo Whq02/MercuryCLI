@@ -59,18 +59,30 @@ export interface RosterRestore {
   enabled: boolean
   marks: Array<{ name: string; deferred: boolean; definition?: string }>
 }
-let armedRosterRestore: RosterRestore | null = null
+const armedRosterRestores = new Map<string, RosterRestore[]>()
+let lastArmedRosterRestore: RosterRestore | null = null
 
 export function armToolRosterRestore(restore: RosterRestore): void {
-  armedRosterRestore = restore
+  const suffix = conversationSuffixOf(restore.key)
+  const kept = (armedRosterRestores.get(suffix) ?? []).filter(entry => entry.key !== restore.key)
+  kept.push(restore)
+  armedRosterRestores.set(suffix, kept)
+  lastArmedRosterRestore = restore
 }
 
 export function pendingToolRosterRestore(): RosterRestore | null {
-  return armedRosterRestore
+  return lastArmedRosterRestore
 }
 
 export function clearToolRosterRestore(): void {
-  armedRosterRestore = null
+  armedRosterRestores.clear()
+  lastArmedRosterRestore = null
+}
+
+function armedRestoreFor(latchKey: string): RosterRestore | null {
+  const list = armedRosterRestores.get(conversationSuffixOf(latchKey))
+  if (list === undefined || list.length === 0) return null
+  return list.find(entry => entry.key === latchKey) ?? list[list.length - 1]!
 }
 
 function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, tools: Tools): string[] {
@@ -96,7 +108,8 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
 
 function firstConversationRow(messages: readonly Message[]): string {
   for (const message of messages) {
-    if (message.type === 'user' || message.type === 'assistant') return message.uuid
+    if (message.type === 'assistant') return message.uuid
+    if (message.type === 'user' && message.isMeta !== true) return message.uuid
   }
   return 'empty'
 }
@@ -152,13 +165,9 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   const wire = deferralWireFormFor(model)
   const latchKey = input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model)
   let restoredMissingTools: string[] = []
-  if (
-    latchKey !== null &&
-    armedRosterRestore !== null &&
-    conversationSuffixOf(armedRosterRestore.key) === conversationSuffixOf(latchKey) &&
-    !rosterLatches.has(latchKey)
-  ) {
-    restoredMissingTools = seedRosterLatchFromRestore(latchKey, armedRosterRestore, tools)
+  if (latchKey !== null && !rosterLatches.has(latchKey)) {
+    const restore = armedRestoreFor(latchKey)
+    if (restore !== null) restoredMissingTools = seedRosterLatchFromRestore(latchKey, restore, tools)
   }
   const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
 
