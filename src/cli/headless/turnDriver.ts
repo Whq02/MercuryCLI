@@ -1,6 +1,7 @@
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { StdoutMessage } from '../../entrypoints/sdk/controlTypes.js'
+import { wallRecheckDelayMs, type WatchWall } from '../../tools/MonitorTool/watchMailbox.js'
 
 export type PromptValue = string | ContentBlockParam[]
 
@@ -83,6 +84,7 @@ export type TurnDriverPorts = {
   clock: { sleep(ms: number): Promise<void>; now?(): number }
   queuedMainThread?(): readonly QueuedCommand[]
   settleWindowMs?: number
+  wall?(): WatchWall
 }
 
 export type TurnDriver = {
@@ -102,6 +104,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
   const settledAt = new Map<string, number>()
   let holding = false
+  let wallHeld = false
+  let wall: (WatchWall & { recheckAtMs: number }) | null = null
+  let wallTimerArmed = false
   const now = (): number => ports.clock.now?.() ?? Date.now()
   const queuedMainThread = (): readonly QueuedCommand[] => ports.queuedMainThread?.() ?? []
 
@@ -151,8 +156,36 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     return taken
   }
 
+  const wallClosed = (): boolean => {
+    if (ports.wall === undefined) return false
+    const t = now()
+    if (wall === null || !wall.closed || t >= wall.recheckAtMs) {
+      const read = ports.wall()
+      wall = { ...read, recheckAtMs: t + wallRecheckDelayMs(read, t) }
+    }
+    return wall.closed
+  }
+
+  const dueQueued = (): boolean => {
+    const head = ports.peek()
+    if (head === undefined) return false
+    if (!isTaskNotification(head)) return true
+    if (queuedMainThread().some(c => !isTaskNotification(c))) return true
+    return !(wall !== null && wall.closed && now() < wall.recheckAtMs)
+  }
+
+  const armWallRecheck = (): void => {
+    if (wallTimerArmed || wall === null || !wall.closed) return
+    wallTimerArmed = true
+    void ports.clock.sleep(Math.max(0, wall.recheckAtMs - now())).then(() => {
+      wallTimerArmed = false
+      kick()
+    })
+  }
+
   const nextDue = (): QueuedCommand | undefined => {
     holding = false
+    wallHeld = false
     const head = ports.peek()
     if (head === undefined) return undefined
     const words = wordsBefore(head)
@@ -171,6 +204,16 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           return undefined
         }
       }
+    }
+    if (isTaskNotification(head) && wallClosed()) {
+      const line = queuedMainThread().find(c => !isTaskNotification(c))
+      const taken = line === undefined ? undefined : ports.dequeueCommand(line)
+      if (taken !== undefined) {
+        if (taken.queueId !== undefined) settledAt.delete(taken.queueId)
+        return taken
+      }
+      wallHeld = true
+      return undefined
     }
     return takeQueued()
   }
@@ -298,9 +341,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         }
 
         waitingForAgents = false
-        if ((!holdReleased && ports.hasWaitableBackgroundTasks()) || ports.peek() !== undefined) {
+        if ((!holdReleased && ports.hasWaitableBackgroundTasks()) || dueQueued()) {
           waitingForAgents = true
-          if (ports.peek() === undefined || holding) {
+          if (ports.peek() === undefined || holding || wallHeld) {
             phase = 'waiting_for_agents'
             const running = ports.waitableBackgroundTaskCount?.() ?? (ports.hasWaitableBackgroundTasks() ? 1 : 0)
             announceWait(holding ? running : Math.max(1, running))
@@ -336,10 +379,11 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.idleTimerStart()
     }
 
-    if (ports.peek() !== undefined) {
+    if (dueQueued()) {
       void kick()
       return
     }
+    if (wallHeld) armWallRecheck()
 
     phase = 'settling_idle'
     const settled = await ports.settleIdle()
@@ -352,7 +396,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       await closeOutputOnce()
       return
     }
-    if (ports.peek() !== undefined) {
+    if (dueQueued()) {
       void kick()
     }
   }
