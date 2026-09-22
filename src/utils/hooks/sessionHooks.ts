@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { HookEvent, HookInput } from 'src/entrypoints/agentSdkTypes.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
+import type { Tool } from '../../Tool.js'
 import type { HookCommand } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
 import { logForDebugging } from '../debug.js'
@@ -12,6 +13,7 @@ import type { AggregatedHookResult } from './types.js'
 
 export type FunctionHookContext = {
   hookInput?: HookInput
+  tool?: Tool
 }
 
 export type FunctionHookCallback = (
