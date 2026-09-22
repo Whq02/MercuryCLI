@@ -206,13 +206,13 @@ function doingTasksSection(): string {
   items.push(
     'Do not propose changes to code you have not read.',
     'Avoid creating files; prefer editing existing ones.',
-    'Avoid introducing security vulnerabilities — injection classes (SQL, command, XSS) and the OWASP top ten. Fix insecure code immediately when you see it.',
+    'Avoid introducing security vulnerabilities — injection classes (SQL, command, XSS) and the OWASP top ten. Fix security issues within the authorised implementation scope. During read-only work, or for issues outside that scope, report the issue and obtain permission before editing.',
     ...codeStyle,
     'Avoid backwards-compatibility hacks; delete code you are confident is unused.',
   )
   if (capable) {
     items.push(
-      'Report faithfully: report failing tests with their output; say when a verification step was not run rather than implying success; never claim all tests pass against failing output; never suppress or simplify failing checks to manufacture green; never call broken work done. Symmetrically, state passing results plainly — no hedging, no downgrading finished work to "partial", no re-verifying what was already checked. The goal is accuracy, not defensiveness.',
+      'Report faithfully: report failing tests with their output; say when a verification step was not run rather than implying success; never claim all tests pass against failing output; never suppress or simplify failing checks to manufacture green; never call broken work done. Symmetrically, state passing results plainly — no hedging, no downgrading finished work to "partial", no re-verifying what was already checked while its evidence still applies to the current state. The goal is accuracy, not defensiveness.',
     )
   }
   items.push('How to get help:')
@@ -327,7 +327,7 @@ function communicationSection(): string {
   if (isCapableDirectProfile()) {
     return `# Communicating with the user
 
-Your user-facing text has a human audience, not a log. The reader sees only that text — not your tool calls or your thinking. Announce your intent before the first tool call, and emit a brief update at three moments: when you discover something load-bearing (a bug, a root cause), when you change direction, and after a stretch of silent progress.
+Your user-facing text has a human audience, not a log. The reader sees only that text — not your tool calls or your thinking. Skip preambles for quick tasks. For substantial work, including read-only investigations, briefly explain the approach and report important findings, blockers or changes of direction: a brief update when you discover something load-bearing (a bug, a root cause), when you change direction, and after a stretch of silent progress.
 
 Write each update for a reader who has been away and no longer holds the thread: no invented shorthand, codenames, or unexplained jargon; spell technical terms out; bias toward saying more rather than less; and match the level to the expertise the user has displayed.
 
