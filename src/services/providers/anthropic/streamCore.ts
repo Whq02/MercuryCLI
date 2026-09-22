@@ -28,6 +28,7 @@ import { STRUCTURED_OUTPUTS_BETA_HEADER } from 'src/constants/betas.js'
 import type { QuerySource } from 'src/constants/querySource.js'
 import type { Notification } from 'src/context/notifications.js'
 import { applyThinkingBinding } from './thinkingBinding.js'
+import { applyThinkingDisplay } from './thinkingDisplay.js'
 import { addToTotalSessionCost } from 'src/cost-tracker.js'
 import type { AgentId } from 'src/types/ids.js'
 import type { NativeWebSearchRequest } from 'src/services/search/nativeSearchRequest.js'
@@ -711,6 +712,7 @@ async function* queryModel(
       }
     }
 
+    thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking
     thinking = applyThinkingBinding(thinking, betasParams) as typeof thinking
     const sendBetas = betasParams.length > 0
 
