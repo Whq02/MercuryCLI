@@ -325,7 +325,7 @@ export function wrapHard(text: string, width: number): string[] {
   return lines.length > 0 ? lines : [''];
 }
 
-export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number): string[] {
+export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[] {
   const flow = snap.flow;
   switch (flow.name) {
     case 'idle':
@@ -360,7 +360,7 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
         lines.push('');
         lines.push(...wrapPlain(snap.shadowWarning, DETAIL_W));
       }
-      lines.push('', '↵ done — the roster refreshes');
+      lines.push('', signedInWayOut(backToPicker));
       return lines;
     }
     case 'error': {
@@ -551,11 +551,15 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
 }
 
 const RECEIPT_PANE_MAX = 9;
-export function receiptPaneLines(receipt: string, _ok: boolean): string[] {
+export function receiptPaneLines(receipt: string, ok: boolean, backToPicker = false): string[] {
   const wrapped = wrapPlain(receipt, DETAIL_W);
   const body =
     wrapped.length > RECEIPT_PANE_MAX ? [...wrapped.slice(0, RECEIPT_PANE_MAX - 1), '…'] : wrapped;
-  return [...body, '↵ done — the roster refreshes'];
+  return [...body, signedInWayOut(ok && backToPicker)];
+}
+
+export function signedInWayOut(backToPicker: boolean): string {
+  return backToPicker ? '↵ done — back to the picker' : '↵ done — the roster refreshes';
 }
 
 
@@ -720,14 +724,14 @@ export function geminiClientPaneLines(c: GeminiClientStateV1, draftLen: number, 
 }
 
 export type LoginsFlowPaneV1 =
-  | { kind: 'anthropic'; snap: AnthropicLoginSnapshot; draftLen: number }
+  | { kind: 'anthropic'; snap: AnthropicLoginSnapshot; draftLen: number; backToPicker?: boolean }
   | { kind: 'pick'; pick: LoginsPickId; pickSel: number }
   | { kind: 'key'; leg: FaceKeyLegId; note: string | null; draftLen: number; storing: boolean; opened?: GeminiGuideOpenState }
   | { kind: 'device'; device: DeviceWaitStateV1; nowMs: number }
   | { kind: 'handles'; handles: HandlesWaitStateV1; draftLen: number }
   | { kind: 'opdevice'; opdevice: OpenaiDeviceStateV1 }
   | { kind: 'client'; client: GeminiClientStateV1; draftLen: number; draft: string }
-  | { kind: 'receipt'; receipt: string; ok: boolean };
+  | { kind: 'receipt'; receipt: string; ok: boolean; backToPicker?: boolean };
 
 export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
   switch (pane.kind) {
@@ -802,7 +806,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
 export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
   switch (pane.kind) {
     case 'anthropic':
-      return anthropicFlowPaneLines(pane.snap, pane.draftLen);
+      return anthropicFlowPaneLines(pane.snap, pane.draftLen, pane.backToPicker === true);
     case 'pick':
       return loginsPickPaneLines(pane.pick);
     case 'key':
@@ -816,7 +820,7 @@ export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
     case 'client':
       return geminiClientPaneLines(pane.client, pane.draftLen, pane.draft);
     case 'receipt':
-      return receiptPaneLines(pane.receipt, pane.ok);
+      return receiptPaneLines(pane.receipt, pane.ok, pane.backToPicker === true);
   }
 }
 
@@ -886,12 +890,13 @@ export function loginsMenuModelOf(
 
 interface BootLoginsScreenProps {
   onClose?: () => void;
+  onSignedIn?: () => void;
   family?: string;
   fullScene?: { columns: number; rows: number };
   facts?: LoginsScreenFactsV1;
 }
 
-export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: BootLoginsScreenProps = {}): React.ReactNode {
+export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts: given }: BootLoginsScreenProps = {}): React.ReactNode {
   const t = useMercuryTokens();
   const { columns: termCols, rows: termRows } = useTerminalSize();
   const columns = fullScene?.columns ?? termCols;
@@ -964,6 +969,12 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
     handlesRef.current = null;
     setFlow(null);
     setDraft('');
+  };
+  const settleSignedIn = (): void => {
+    refreshFacts();
+    postLoginSettle();
+    closeFlow();
+    onSignedIn?.();
   };
 
   const discloseLateSettle = (sentence: string): void => {
@@ -1125,9 +1136,7 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
 
   const model = useAnthropicLoginModel({
     onDone: () => {
-      refreshFacts();
-      postLoginSettle();
-      closeFlow();
+      settleSignedIn();
     },
   });
   const openPick = (pick: LoginsPickId, cursor = 0): void => {
@@ -1341,9 +1350,11 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
       if (current === null) return;
       if (current.kind === 'receipt') {
         if (key.return || key.escape) {
-          refreshFacts();
-          if (current.ok) postLoginSettle();
-          closeFlow();
+          if (current.ok) settleSignedIn();
+          else {
+            refreshFacts();
+            closeFlow();
+          }
         }
         return;
       }
@@ -1530,19 +1541,16 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
       const snap = model.flow;
       if (key.escape) {
         if (snap.name === 'success') {
-          refreshFacts();
-          postLoginSettle();
-        } else {
-          model.reset();
+          settleSignedIn();
+          return;
         }
+        model.reset();
         closeFlow();
         return;
       }
       if (key.return) {
         if (snap.name === 'success') {
-          refreshFacts();
-          postLoginSettle();
-          closeFlow();
+          settleSignedIn();
           return;
         }
         if (snap.name === 'error') {
@@ -1618,6 +1626,7 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
                       accountLabel: model.accountLabel,
                     },
                     draftLen: draft.length,
+                    ...(onSignedIn !== undefined ? { backToPicker: true } : {}),
                   }
                 : flow.kind === 'pick'
                   ? { kind: 'pick' as const, pick: flow.pick, pickSel: pickList.selectedIndex }
@@ -1631,7 +1640,7 @@ export function BootLoginsScreen({ onClose, family, fullScene, facts: given }: B
                           ? { kind: 'opdevice' as const, opdevice: flow.opdevice }
                           : flow.kind === 'client'
                             ? { kind: 'client' as const, client: flow.client, draftLen: draft.length, draft }
-                            : { kind: 'receipt' as const, receipt: flow.receipt, ok: flow.ok },
+                            : { kind: 'receipt' as const, receipt: flow.receipt, ok: flow.ok, ...(onSignedIn !== undefined ? { backToPicker: true } : {}) },
           }
         : {}),
     });

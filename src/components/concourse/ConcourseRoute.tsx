@@ -1043,7 +1043,7 @@ function LiveConcourse(): React.ReactNode {
       },
       enterBootSettings: (door, opener) => {
         if (door) armFaceDoorDeepLink(door, opener)
-        enterBootSettings()
+        return enterBootSettings().ok
       },
       exitToRepl: () => {
         if (!enterRootRepl().ok) enterBootSettings()

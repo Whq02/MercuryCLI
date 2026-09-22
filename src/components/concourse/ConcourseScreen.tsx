@@ -111,6 +111,17 @@ export function _resetConcourseCapsuleForTesting(): void {
   presentationCapsule = null
 }
 
+export type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
+let pendingSignInPicker: SignInPickerV1 | null = null
+export function armSignInPickerReturn(picker: SignInPickerV1): void {
+  pendingSignInPicker = picker
+}
+export function consumeSignInPickerReturn(): SignInPickerV1 | null {
+  const picker = pendingSignInPicker
+  pendingSignInPicker = null
+  return picker
+}
+
 export function liveComposerGateOf(
   sel: ConcourseRowV1 | undefined,
   openAsk: boolean,
@@ -397,9 +408,12 @@ export function ConcourseScreen({
     markProjectRef.current = snapshot.context.projectLabel
     setMarkedIds(new Set())
   }, [snapshot.context.projectLabel])
-  const [rowPick, setRowPick] = useState<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(null)
+  const [signInPicker] = useState(() => consumeSignInPickerReturn())
+  const [rowPick, setRowPick] = useState<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(
+    signInPicker?.kind === 'session' ? { kind: 'model', sessionId: signInPicker.sessionId, title: signInPicker.title } : null,
+  )
   const rowPickRef = useRef<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(null)
-  const [modelDefaultOpen, setModelDefaultOpen] = useState(false)
+  const [modelDefaultOpen, setModelDefaultOpen] = useState(signInPicker?.kind === 'default')
   const modelDefaultOpenRef = useRef(false)
   modelDefaultOpenRef.current = modelDefaultOpen
   rowPickRef.current = rowPick
@@ -2573,8 +2587,10 @@ export function ConcourseScreen({
               onEffort={effort => callbacks.setSessionEffort?.(rowPick.sessionId, effort)}
               onDone={() => setRowPick(null)}
               onSignIn={family => {
+                const target = rowPick
                 setRowPick(null)
-                callbacks.enterBootSettings('logins', { family })
+                armSignInPickerReturn({ kind: 'session', sessionId: target.sessionId, title: target.title })
+                if (!callbacks.enterBootSettings('logins', { family, returnToOpener: true })) consumeSignInPickerReturn()
               }}
             />
           </ModalContext.Provider>
@@ -2645,7 +2661,8 @@ export function ConcourseScreen({
               }}
               onSignIn={family => {
                 setModelDefaultOpen(false)
-                callbacks.enterBootSettings('logins', { family })
+                armSignInPickerReturn({ kind: 'default' })
+                if (!callbacks.enterBootSettings('logins', { family, returnToOpener: true })) consumeSignInPickerReturn()
               }}
             />
           </ModalContext.Provider>
