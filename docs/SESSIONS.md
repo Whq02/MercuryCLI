@@ -489,6 +489,13 @@ part of the request that moved. Mercury no longer asks the server to clear
 reasoning older than the last turn once a session has sat idle for an hour, so
 such a drop is never attributed to an idle clear.
 
+The tool list a conversation starts with is kept for its life, so nothing
+already sent moves under the model. A tool that joins later (a connector
+that connects after the first request, a tool a setting turns on) rides
+deferred where the list can carry it that way; otherwise it is held out
+until the next compaction or `/clear`, and the model is told on its next
+turn which tools are held and that they cannot be called yet.
+
 ## Winding a chat back
 
 `/rewind` (alias `/checkpoint`) lists the turns of the focused chat and

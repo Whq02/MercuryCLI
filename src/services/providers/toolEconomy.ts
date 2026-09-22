@@ -32,16 +32,25 @@ interface RosterLatch {
   deferred: Set<string>
 }
 const rosterLatches = new Map<string, RosterLatch>()
+const heldAtLastPlan = new Map<string, string[]>()
 
 export function clearToolRosterLatches(owner?: string): void {
   clearConversationToolSchemas(owner)
   if (owner === undefined) {
     rosterLatches.clear()
+    heldAtLastPlan.clear()
     return
   }
   for (const key of [...rosterLatches.keys()]) {
     if (key.startsWith(`${owner}|`)) rosterLatches.delete(key)
   }
+  for (const key of [...heldAtLastPlan.keys()]) {
+    if (key.startsWith(`${owner}|`)) heldAtLastPlan.delete(key)
+  }
+}
+
+export function heldToolsAtLastPlan(latchKey: string, messages: readonly Message[]): readonly string[] {
+  return heldAtLastPlan.get(`${latchKey}|${firstConversationRow(messages)}`) ?? []
 }
 
 
@@ -215,6 +224,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   } else {
     ordered.push(...tools)
   }
+  if (input.latchKey !== undefined) heldAtLastPlan.set(`${input.latchKey}|${firstConversationRow(messages)}`, held)
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
