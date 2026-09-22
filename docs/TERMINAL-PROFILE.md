@@ -73,7 +73,15 @@ the kitty keyboard protocol a non-Latin layout reports its own codepoint as
 the key (Cyrillic ф arrives as 1092): plain typing inserts it, and a chord —
 ctrl, alt, super — resolves its name from the base-layout subfield, the
 physical key position, with the shifted subfield as the fallback, so ctrl+ф
-is ctrl+a.
+is ctrl+a. A shifted key that arrives with its shifted codepoint in that
+subfield and no text (WezTerm's encoding under the protocol) types the
+shifted glyph — shift+; is `:`, shift+a is `A` — while a chord keeps the
+base code. `CSI P` is the protocol's F1 wherever the kitty push was armed
+and st's Delete where it was not; the push is never armed where the
+terminal identity says st, so the two readings never meet. F2 and F4 (`CSI
+Q`, `CSI S`) are read everywhere. rxvt's alt+arrow arrives as `ESC ESC [ A`
+and is read as one alt+arrow, never as an Escape (which would interrupt the
+turn) followed by an arrow; a bare `ESC ESC` is still two Escapes.
 
 ## Experience controls
 
