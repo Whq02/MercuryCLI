@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-22T21:36:03.167Z",
+ "capturedAt": "2026-09-22T21:41:39.234Z",
  "screens": [
   {
    "atMs": 12000,
@@ -22,9 +22,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-buGulK · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CLDQJN · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -42,7 +42,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 22:35:46 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:41:21 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 22:35:46 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 22:41:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
@@ -75,7 +75,7 @@
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -92,28 +92,29 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-buGulK                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-CLDQJN                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 13398,
-   "frame-recommit": 34
+   "patches": 13295,
+   "frame-recommit": 34,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 54,
-   "window": 54,
-   "p50": 1.1765420000010636,
-   "p95": 8.931875000000218,
-   "p99": 42.47312499999998,
-   "maxMs": 42.47312499999998
+   "total": 53,
+   "window": 53,
+   "p50": 1.1462910000009288,
+   "p95": 8.77154100000007,
+   "p99": 33.422624999999925,
+   "maxMs": 33.422624999999925
   }
  },
  "requests": [
   {
    "path": "/v1/messages?beta=true",
-   "model": "claude-opus-5",
+   "model": "claude-opus-5-5",
    "lastMessage": {
     "role": "user",
     "content": [
@@ -142,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 11355.531930923462,
+   "atMs": 10884.299039840698,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12955.531930923462,
+   "atMs": 12484.299039840698,
    "b64": "DQ=="
   }
  ]

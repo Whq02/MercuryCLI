@@ -3,7 +3,7 @@
  "note": "contract journey 6 (internal leg) — notes opened with n, typed, exited with Esc (external editor lands at Wave B)",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-22T21:39:52.516Z",
+ "capturedAt": "2026-09-22T21:45:28.130Z",
  "screens": [
   {
    "atMs": 13800,
@@ -22,9 +22,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-uixiJc · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-fdBQUq · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -46,7 +46,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -71,9 +71,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-uixiJc · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-fdBQUq · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -95,7 +95,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 22:39:30 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:45:06 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 22:39:30 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 22:45:06 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -149,28 +149,29 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-uixiJc                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-fdBQUq                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 15262,
-   "frame-recommit": 37
+   "patches": 15105,
+   "frame-recommit": 37,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 60,
-   "window": 60,
-   "p50": 1.074165999999991,
-   "p95": 8.485208000000057,
-   "p99": 28.11500000000001,
-   "maxMs": 28.11500000000001
+   "total": 59,
+   "window": 59,
+   "p50": 1.1206249999995634,
+   "p95": 8.68145800000093,
+   "p99": 27.52479100000005,
+   "maxMs": 27.52479100000005
   }
  },
  "requests": [
   {
    "path": "/v1/messages?beta=true",
-   "model": "claude-opus-5",
+   "model": "claude-opus-5-5",
    "lastMessage": {
     "role": "user",
     "content": [
@@ -199,23 +200,23 @@
  ],
  "sends": [
   {
-   "atMs": 10822.510242462158,
+   "atMs": 10756.092071533203,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12422.510242462158,
+   "atMs": 12356.092071533203,
    "b64": "DQ=="
   },
   {
-   "atMs": 20422.51024246216,
+   "atMs": 20356.092071533203,
    "b64": "bg=="
   },
   {
-   "atMs": 21422.51024246216,
+   "atMs": 21356.092071533203,
    "b64": "cHJlZmVyIHRoZSBsYXllcmVkIHNoYXBl"
   },
   {
-   "atMs": 23222.51024246216,
+   "atMs": 23156.092071533203,
    "b64": "Gw=="
   }
  ]

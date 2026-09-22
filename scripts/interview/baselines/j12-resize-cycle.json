@@ -3,7 +3,7 @@
  "note": "contract journey 12 — 120→80→44→120 with a preview card up; semantic state (focused option) must be inspectable at each width",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-22T21:42:58.576Z",
+ "capturedAt": "2026-09-22T21:48:34.180Z",
  "screens": [
   {
    "atMs": 13000,
@@ -22,9 +22,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-pzsT5g · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-cFyByQ · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -46,7 +46,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -71,9 +71,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-pzsT5g · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-cFyByQ · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -95,7 +95,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -120,9 +120,9 @@
     "  · /workflows — agent …│  ▀   ▀  ▀▀▀▀  ▀  ▀  ▀▀▀▀  ▀▀▀▀  ▀  ▀    ▀                                                    │",
     "  · /health — health ce…│  ● ready · type a prompt, or / for commands                                                  │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│    model   Opus 5                                                                            │",
+    "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-pzsT5g · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-cFyByQ · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -144,7 +144,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ design the cache layer                                                                                              │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -164,7 +164,7 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 22:42:32 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:48:08 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
     "  · /health — health ce…│                                                                                              │",
@@ -193,7 +193,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
-    " ready · Opus 5 · high                                                                                          ⇧← back",
+    " ready · Opus 5.5 · high                                                                                        ⇧← back",
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
@@ -207,15 +207,15 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭────────────────────────────────────╮                                      ││",
-    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ Held at the gate until you decide. │                                      ││",
-    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰────────────────────────────────────╯                                      ││",
+    "                        ││   ▄▀▀▀▀▀▀▀▄    ╭─────────────────────────────────╮                                         ││",
+    "TABULA · 0              ││   ▀▀▀▀▀▀▀▀▀   ─│ A permission is waiting on you. │                                         ││",
+    "  ✧ no notes — /note    ││   ▀▀▀▀▀▀▀▀▀    ╰─────────────────────────────────╯                                         ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 22:42:32 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:48:08 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 22:42:32 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 22:48:08 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -247,28 +247,28 @@
     "",
     "",
     "",
-    " flux-arena-cwd-pzsT5g                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-cFyByQ                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 23990,
-   "frame-recommit": 40
+   "patches": 23648,
+   "frame-recommit": 39
   },
   "frames": {
-   "total": 64,
-   "window": 64,
-   "p50": 1.2137910000001284,
-   "p95": 10.098999999998341,
-   "p99": 27.472249999999917,
-   "maxMs": 27.472249999999917
+   "total": 60,
+   "window": 60,
+   "p50": 1.099583999999595,
+   "p95": 7.935124999999971,
+   "p99": 32.419374999999945,
+   "maxMs": 32.419374999999945
   }
  },
  "requests": [
   {
    "path": "/v1/messages?beta=true",
-   "model": "claude-opus-5",
+   "model": "claude-opus-5-5",
    "lastMessage": {
     "role": "user",
     "content": [
@@ -297,15 +297,15 @@
  ],
  "sends": [
   {
-   "atMs": 10833.469152450562,
+   "atMs": 10850.29411315918,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12433.469152450562,
+   "atMs": 12450.29411315918,
    "b64": "DQ=="
   },
   {
-   "atMs": 19833.46915245056,
+   "atMs": 19850.29411315918,
    "b64": "G1tC"
   }
  ]
