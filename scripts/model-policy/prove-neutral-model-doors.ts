@@ -215,6 +215,12 @@ section('§4 the Agent tool: haiku is a dispatch word like any other, and the wo
 
 section('§5 the doors store exact ids; the words come from a lookup of the id')
 {
+  const wrapper = src('commands', 'model', 'mercuryModel.tsx')
+  const choice = wrapper.slice(wrapper.indexOf('export function MercuryModelChoicePicker('), wrapper.indexOf('function modelChoiceRowOf('))
+  for (const road of ['GPT_ROAD', 'OPENROUTER_ROAD', 'GEMINI_ROAD', 'HUGGINGFACE_ROAD', 'LOCAL_ROAD']) {
+    check(`the Config choice picker refreshes ${road} through the shared open hook`, choice.includes(`useCatalogueRefreshOnOpen(${road}, setNotice)`))
+  }
+  check('the Config choice picker paints the shared refresh notice', choice.includes('notice={notice}'))
   const picker = await import('../../src/commands/model/mercuryModel.tsx')
   const fable = model.parseUserSpecifiedModel('fable')
   check("a first-party family word resolves to its exact id at write time", /^claude-/.test(fable) && fable !== 'fable', fable)
