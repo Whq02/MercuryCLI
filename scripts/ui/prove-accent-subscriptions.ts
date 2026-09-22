@@ -10,6 +10,7 @@ const MUST_SUBSCRIBE = [
   'src/components/DeckPane.tsx',
   'src/components/messages/TaskAssignmentMessage.tsx',
   'src/components/messages/UserAgentNotificationMessage.tsx',
+  'src/components/messages/UserNoticeMessage.tsx',
 ];
 
 for (const file of MUST_SUBSCRIBE) {
