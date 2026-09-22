@@ -65,6 +65,16 @@ const CAPTURE_RULES: Record<string, Rule> = {
       { file: 'src/components/mcp/MCPRemoteServerMenu.tsx', needles: ['isCancelActive={pasteSubmit === null}', "{ context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null }"] },
     ],
   },
+  Chat: {
+    rule: 'gated',
+    reason: 'shift+b is bound while a shell command runs; the handler types the letter whenever the composer holds a draft, and the binding is live only while a shell runs and the background key is on',
+    gates: [
+      {
+        file: 'src/hooks/useCancelRequest.ts',
+        needles: ["if (pendingInput.text() !== '') return false", 'isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.backgroundKey !== false'],
+      },
+    ],
+  },
   Transcript: {
     rule: 'gated',
     reason: 'q is bound; the pager owns q / g G n N raw and stands every one down while the search bar captures, and the bar replaces the hints row while open',
