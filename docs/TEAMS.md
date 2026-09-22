@@ -110,7 +110,11 @@ sub-agent's worktree carries links to its parent checkout's `node_modules`
 and to each `vendor/<pack>` the checkout ignores, hidden from git through the
 clone's exclude file, so the sub-agent builds and runs the checks there
 without an install, and a worktree it left otherwise untouched still cleans
-itself up.
+itself up. A sub-agent continued by a later message wakes in the directory it
+was launched in: the launch records the directory beside the transcript and
+the continuation reads it back; a recorded directory that no longer exists
+puts the continuation in the session's own directory, and the message's
+receipt says so.
 
 A workflow that ends with agent failures says so in the first line of its
 notification: the count, then the first failing agent and its cause — an
