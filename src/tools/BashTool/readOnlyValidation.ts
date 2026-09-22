@@ -325,7 +325,7 @@ function findIsSafe(command: string): boolean {
 }
 
 
-const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp'])
+const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp', 'tee', 'dd'])
 
 function writesToGitInternalPath(command: string): boolean {
   for (const raw of splitCommand_DEPRECATED(command)) {
