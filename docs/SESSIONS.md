@@ -270,7 +270,7 @@ task whose output arrives as a notification; with a draft in the composer
 the key types its letter. `backgroundKey: false` in settings.json turns the
 key and both hints off, and esc keeps its meaning either way. The row's
 warnings stay its own: a request wait names what the runner waits on and the budget that
-fires ("waiting for the first byte from Opus 5 — within 2m"); a held turn
+fires ("waiting for the first byte from Opus 5.5 — within 2m"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
 says the request is torn down. The row says the session may be stuck only
 when the runner's stream has carried no event of any kind — the provider's

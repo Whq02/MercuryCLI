@@ -45,6 +45,10 @@ export const COST_FABLE_5_1: ModelCosts = {
   ...COST_TIER_10_50,
   promptCacheReadTokens: 0.25,
 }
+export const COST_OPUS_5_5: ModelCosts = {
+  ...tierFromInputOutput(4, 20),
+  promptCacheReadTokens: 0.2,
+}
 export const COST_HAIKU_35: ModelCosts = {
   inputTokens: 0.8,
   outputTokens: 4,
@@ -78,6 +82,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-opus-4-5': COST_TIER_5_25,
   'claude-opus-4-6': COST_TIER_5_25,
   'claude-opus-5': COST_TIER_5_25,
+  'claude-opus-5-5': COST_OPUS_5_5,
   'claude-fable-5': COST_TIER_10_50,
   'claude-fable-5-1': COST_FABLE_5_1,
 }

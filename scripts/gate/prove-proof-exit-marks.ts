@@ -56,7 +56,7 @@ try {
   const copiedRunners = new Map<string, string>()
   for (const [name, count, files] of [
     ['smoke', 7, []],
-    ['api', 32, []],
+    ['api', 33, []],
     ['attention', 2, ['prove-fixture.ts', 'journey-fixture.ts']],
     ['session-graph', 2, ['run-journeys.ts', 'run-sensitivity.ts']],
     ['golden-journeys', 9, []],

@@ -483,12 +483,12 @@ older observation never replaces a newer one, and a sign-in change clears it.
 When a window walls and the session hands off to another signed-in family's
 lane (the offer card, or the unattended posture), the session runs on a
 failover lane until the home window is observed to reset. One amber sentence
-above the composer says so — `on the anthropic failover lane · Opus 5 · OpenAI
+above the composer says so — `on the anthropic failover lane · Opus 5.5 · OpenAI
 window resets 24 Sept, 8:15 pm · /model to return` — for two minutes after the
 switch, and again for two minutes whenever the facts it states change: the
 served model, the lane, the home window's stated reset changing or passing,
 the way home opening. Then it clears, and the strip's model segment carries a
-short amber mark beside the served model (`Opus 5 · failover`) for as long as
+short amber mark beside the served model (`Opus 5.5 · failover`) for as long as
 the session runs on the lane; the mark leaves when the session is back on its
 home family. On a window too narrow for the whole sentence it is cut to what
 fits, an ellipsis closing the cut, and keeps its `/model to return` tail.

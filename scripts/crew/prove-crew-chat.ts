@@ -35,7 +35,7 @@ await cs.ensureCrewTeamMember('atlas', atlasSeat.ok ? atlasSeat.model : 'sonnet'
 await cs.ensureCrewTeamMember('beacon', beaconSeat.ok ? beaconSeat.model : 'opus', scratch)
 const members = await cc.listCrewMembers()
 check('listCrewMembers: both, lead excluded', members.length === 2 && members.some(m => m.name === 'atlas') && members.some(m => m.name === 'beacon') && !members.some(m => m.name === 'team-lead'))
-check('member models are the seat-resolved ids (sonnet → claude-sonnet-5, opus → claude-opus-5 — the Anthropic keys while anthropic is signed in)', members.find(m => m.name === 'atlas')?.model === 'claude-sonnet-5' && members.find(m => m.name === 'beacon')?.model === 'claude-opus-5', JSON.stringify(members.map(m => [m.name, m.model])))
+check('member models are the seat-resolved ids (sonnet → claude-sonnet-5, opus → claude-opus-5-5 — the Anthropic keys while anthropic is signed in)', members.find(m => m.name === 'atlas')?.model === 'claude-sonnet-5' && members.find(m => m.name === 'beacon')?.model === 'claude-opus-5-5', JSON.stringify(members.map(m => [m.name, m.model])))
 
 check('sendCrewMessage writes the operator frame', (await cc.sendCrewMessage('atlas', '  hi atlas  ')) === true)
 check('blank message refused (no ghost writes)', (await cc.sendCrewMessage('atlas', '   ')) === false)
