@@ -341,15 +341,36 @@ export async function fetchAndStoreUserRoles(
 
 export async function createAndStoreApiKey(accessToken: string): Promise<string | null> {
   const config = getOauthConfig()
-  const response = await axios.post<{ raw_key?: string }>(
-    config.API_KEY_URL,
-    {},
-    { timeout: EXCHANGE_TIMEOUT_MS, headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': getMercuryUserAgent() } },
-  )
+  let response: { data?: { raw_key?: string } }
+  try {
+    response = await axios.post<{ raw_key?: string }>(
+      config.API_KEY_URL,
+      {},
+      { timeout: EXCHANGE_TIMEOUT_MS, headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': getMercuryUserAgent() } },
+    )
+  } catch (error) {
+    const said = serverErrorSentence(error)
+    if (said !== undefined) throw new Error(said)
+    throw honestDeadlineBreach(error, EXCHANGE_TIMEOUT_MS)
+  }
   const rawKey = response.data?.raw_key
   if (!rawKey) return null
   saveApiKey(rawKey)
   return rawKey
+}
+
+function serverErrorSentence(error: unknown): string | undefined {
+  if (!(error instanceof AxiosError) || error.response === undefined) return undefined
+  const body = error.response.data as { error?: unknown; message?: unknown; error_description?: unknown } | undefined
+  if (body === undefined || body === null || typeof body !== 'object') return undefined
+  const nested = body.error
+  const candidates = [
+    nested !== null && typeof nested === 'object' ? (nested as { message?: unknown }).message : undefined,
+    body.message,
+    body.error_description,
+  ]
+  const said = candidates.find(value => typeof value === 'string' && value.trim() !== '') as string | undefined
+  return said?.trim()
 }
 
 

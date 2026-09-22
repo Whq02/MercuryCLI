@@ -58,7 +58,7 @@ import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
-import { expandPath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
@@ -588,6 +588,7 @@ export const FileEditTool = buildTool({
     )
   },
   backfillObservableInput(input: FileEditInput): void {
+    if (hasNulByte(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
@@ -627,6 +628,9 @@ export const FileEditTool = buildTool({
     )
   },
   async validateInput(input: FileEditInput, context: ToolUseContext) {
+    if (hasNulByte(input.file_path)) {
+      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    }
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
 

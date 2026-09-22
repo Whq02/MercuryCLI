@@ -54,10 +54,10 @@ import { getCanonicalName } from '../../utils/model/model.js'
 import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
-import { expandPath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
-import { extractPDFPages, getPDFPageCount, readPDF } from '../../utils/pdf.js'
+import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../../utils/pdf.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
@@ -577,6 +577,7 @@ async function readPdfLane(
         logError(err)
       }
     }
+    await removePDFPages(outputDir)
     const data: Output = {
       type: 'parts',
       file: {
@@ -603,7 +604,8 @@ async function readPdfLane(
   const turnModel = context.options.mainLoopModel
   const pdfSupported = isPDFSupported(turnModel)
   if (!pdfSupported || stats.size > PDF_TARGET_RAW_SIZE) {
-    await extractPDFPages(resolvedPath).catch(() => undefined)
+    const extraction = await extractPDFPages(resolvedPath).catch(() => undefined)
+    if (extraction?.success) await removePDFPages(extraction.data.file.outputDir)
   }
   if (!pdfSupported) {
     const pagesFallback = resolveModelCapabilities(turnModel).media.images
@@ -805,6 +807,7 @@ export const FileReadTool = buildTool({
     return input?.file_path || getCwd()
   },
   backfillObservableInput(input: Input): void {
+    if (hasNulByte(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
@@ -850,6 +853,9 @@ export const FileReadTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (hasNulByte(input.file_path)) {
+      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    }
     const pages = selectedPages(input.pages)
     let parsedRange: { firstPage: number; lastPage: number } | null = null
     if (pages !== undefined) {

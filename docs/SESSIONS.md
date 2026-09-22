@@ -504,7 +504,9 @@ tools edit (Settings › File checkpointing is the switch; the row beneath it,
 and a restore is the runner's act, answered as a receipt. Restoring the code
 puts every tracked file back to its saved bytes at that turn, all or nothing —
 a file you edited by hand since the session last touched it is refused by
-name and nothing is written until you reconcile it. Restoring the
+name and nothing is written until you reconcile it; a saved copy that is gone
+from the checkpoint store, or whose size no longer matches what was recorded
+for it, refuses the restore the same way. Restoring the
 conversation winds the chat back to before that turn: the later messages
 leave the model's view and the chat, the turn's words return to the composer,
 and the session keeps its identity — the transcript keeps every row (ctrl+o

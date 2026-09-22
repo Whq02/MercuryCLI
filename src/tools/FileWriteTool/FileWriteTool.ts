@@ -29,7 +29,7 @@ import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistor
 import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { logError } from '../../utils/log.js'
-import { expandPath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
@@ -125,9 +125,13 @@ export const FileWriteTool = buildTool({
     )
   },
   backfillObservableInput(input: Input): void {
+    if (hasNulByte(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    if (hasNulByte(input.file_path)) {
+      return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+    }
     const expandedPath = expandPath(input.file_path)
     const permissionContext = context.getAppState().toolPermissionContext
     if (matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')) {
@@ -139,6 +143,19 @@ export const FileWriteTool = buildTool({
     }
     if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
       return { result: true as const }
+    }
+    let isDirectory = false
+    try {
+      isDirectory = getFsImplementation().statSync(expandedPath).isDirectory()
+    } catch {
+      isDirectory = false
+    }
+    if (isDirectory) {
+      return {
+        result: false as const,
+        message: `The path is a directory, not a file: ${input.file_path}`,
+        errorCode: 2,
+      }
     }
     return { result: true as const }
   },

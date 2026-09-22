@@ -49,6 +49,7 @@ import {
   age,
   installedRollup,
   noteWords,
+  plainRowText,
   sourceStateWord,
   sourceWhereWords,
   sourcesRollup,
@@ -1259,8 +1260,8 @@ function SourceSidePane({ row }: { row: SourceRow }): React.ReactNode {
     { k: 'where', v: row.record.where },
     ...(row.record.commit ? [{ k: 'commit', v: row.record.commit.slice(0, 7) }] : []),
     { k: 'checked', v: `${age(row.record.checkedAt)} · ${w.word}`, tone: tokens[w.role] },
-    ...(row.record.lastError ? [{ k: 'error', v: row.record.lastError, tone: tokens.failure }] : []),
-    { k: 'offers', v: row.catalogue ? `${row.offered} extension${row.offered === 1 ? '' : 's'}` : row.catalogueError ?? 'unknown' },
+    ...(row.record.lastError ? [{ k: 'error', v: plainRowText(row.record.lastError), tone: tokens.failure }] : []),
+    { k: 'offers', v: row.catalogue ? `${row.offered} extension${row.offered === 1 ? '' : 's'}` : row.catalogueError ? plainRowText(row.catalogueError) : 'unknown' },
     ...(row.installed > 0 || row.updates > 0
       ? [{ k: '', v: `${row.installed} installed${row.updates > 0 ? ` · ${row.updates} update${row.updates === 1 ? '' : 's'}` : ''}` }]
       : []),
