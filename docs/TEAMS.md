@@ -98,6 +98,20 @@ the parent's exact model. Engine models still pass their provider's dispatch
 checks. A different family keeps that family's preferred model; an exact
 model id keeps its explicit choice.
 
+An Agent call may name the directory its sub-agent works in with `cwd`: an
+absolute directory that exists, inside a workspace the session already trusts
+— one of the session's working directories, or a folder the operator has
+trusted. The sub-agent's shell, its file tools and its environment section
+start there. A missing directory, or one outside every trusted workspace, is
+refused before anything is launched, and a named teammate spawn does not take
+the parameter. With `isolation: "worktree"` the temporary worktree is cut from
+that directory's repository and the sub-agent runs in the worktree. A
+sub-agent's worktree carries links to its parent checkout's `node_modules`
+and to each `vendor/<pack>` the checkout ignores, hidden from git through the
+clone's exclude file, so the sub-agent builds and runs the checks there
+without an install, and a worktree it left otherwise untouched still cleans
+itself up.
+
 A workflow that ends with agent failures says so in the first line of its
 notification: the count, then the first failing agent and its cause — an
 error's words, a refusal's stop reason — and its run record carries the

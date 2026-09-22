@@ -369,7 +369,7 @@ async function main(): Promise<void> {
     const repo = w.preflightWorktreeCapability(join(import.meta.dir, '../../'))
     check('WK floor: a real git repository preflights AVAILABLE', repo.available === true)
     const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-    const preflightAt = agentTool.indexOf('preflightWorktreeCapability()')
+    const preflightAt = agentTool.indexOf('preflightWorktreeCapability(')
     const mintAt = agentTool.indexOf("const earlyAgentId = generateTaskId('local_agent')")
     check('WK-03 wiring: the preflight runs BEFORE the agent id mints (nothing allocates on a refusal)', preflightAt > 0 && preflightAt < mintAt)
     check("WK-05: createAgentWorktree's own throw stays the FLOOR (isolation never silently downgraded)", src('src/utils/worktree.ts').includes('Worktree isolation is unavailable here'))

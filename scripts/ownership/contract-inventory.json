@@ -637,6 +637,7 @@
     "SUBAGENT_BRIEFING_LEAD",
     "inputSchema",
     "outputSchema",
+    "resolveAgentCwd",
     "type:AgentToolInput",
     "type:AgentToolOutput",
     "type:Progress"
