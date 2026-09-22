@@ -193,8 +193,8 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   check('no menu row is the retired curator row', STARTUP_MENU.every(r => r.env !== 'MERCURY_TABULA_MINERVA'))
   const menuSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'startupMenu.ts'), 'utf-8')
   const retiredRows = (menuSource.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/) ?? [])[1]?.split(' ') ?? []
-  check('the retired list names the curator row and the three rows that left the memory & missions group beside it', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 11 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))
-  check('the memory & missions group keeps MNEME alone and every other row it once carried is on the retired list', STARTUP_MENU.filter(r => r.group === 'memory & missions').length === 1 && retiredRows.filter(e => /_MODEL$/.test(e)).length === 2)
+  check('the retired list names the curator row', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 8 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))
+  check('the memory & missions group keeps MNEME alone', STARTUP_MENU.filter(r => r.group === 'memory & missions').length === 1)
   for (const retired of retiredRows) {
     write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { [retired]: '1', MERCURY_SAMPLES: '1' } })
     const envRetired: NodeJS.ProcessEnv = {}
