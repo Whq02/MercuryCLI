@@ -194,6 +194,7 @@ export function wheelYieldsToTopOverlay(): boolean {
 
 export function shouldClearSelectionOnKey(key: Key): boolean {
   if (key.shift || key.meta) return false
+  if (key.wheelUp || key.wheelDown) return false
   return true
 }
 
