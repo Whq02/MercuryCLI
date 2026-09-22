@@ -255,17 +255,63 @@ export function concourseControlOpsPath(dir: string = daemonDir()): string {
   return join(dir, 'concourse-control-ops.json')
 }
 
+const CONTROL_OP_OUTCOMES: ReadonlySet<string> = new Set(['applied', 'noop', 'refused'])
+
+function isControlOpRecord(key: string, v: unknown): v is ConcourseControlOpRecordV1 {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
+  const r = v as Record<string, unknown>
+  return (
+    r.clientOpId === key &&
+    typeof r.action === 'string' &&
+    typeof r.sessionId === 'string' &&
+    typeof r.outcome === 'string' &&
+    CONTROL_OP_OUTCOMES.has(r.outcome) &&
+    (r.detail === undefined || typeof r.detail === 'string') &&
+    typeof r.atMs === 'number' &&
+    Number.isFinite(r.atMs)
+  )
+}
+
+const namedControlOpLedgers = new Set<string>()
+
+function nameControlOpLedger(path: string, what: string): void {
+  if (namedControlOpLedgers.has(path)) return
+  namedControlOpLedgers.add(path)
+  logForDebugging(`[daemon] ${path}: ${what}`, { level: 'warn' })
+}
+
 export function readConcourseControlOps(dir?: string): Record<string, ConcourseControlOpRecordV1> {
+  const path = concourseControlOpsPath(dir)
+  let text: string
   try {
-    const raw = JSON.parse(readFileSync(concourseControlOpsPath(dir), 'utf8')) as {
-      version: 1
-      ops: Record<string, ConcourseControlOpRecordV1>
-    }
-    if (!raw || raw.version !== 1 || typeof raw.ops !== 'object') return {}
-    return raw.ops
+    text = readFileSync(path, 'utf8')
   } catch {
     return {}
   }
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    nameControlOpLedger(path, 'not decodable as an applied-ops ledger, read as empty')
+    return {}
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    nameControlOpLedger(path, 'not decodable as an applied-ops ledger, read as empty')
+    return {}
+  }
+  const file = raw as { version?: unknown; ops?: unknown }
+  if (file.version !== 1 || typeof file.ops !== 'object' || file.ops === null || Array.isArray(file.ops)) {
+    nameControlOpLedger(path, 'not decodable as an applied-ops ledger, read as empty')
+    return {}
+  }
+  const ops: Record<string, ConcourseControlOpRecordV1> = {}
+  let dropped = 0
+  for (const [key, row] of Object.entries(file.ops as Record<string, unknown>)) {
+    if (isControlOpRecord(key, row)) ops[key] = row
+    else dropped++
+  }
+  if (dropped > 0) nameControlOpLedger(path, `${dropped} applied-op row(s) not decodable, dropped from the read`)
+  return ops
 }
 
 export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: string): void {
