@@ -32,7 +32,7 @@ export type PathCommand =
   | 'cat' | 'head' | 'tail' | 'sort' | 'uniq' | 'wc' | 'cut' | 'paste' | 'column'
   | 'tr' | 'file' | 'stat' | 'diff' | 'awk' | 'strings' | 'hexdump' | 'od'
   | 'base64' | 'nl' | 'grep' | 'rg' | 'sed' | 'git' | 'jq' | 'sha256sum'
-  | 'sha1sum' | 'md5sum'
+  | 'sha1sum' | 'md5sum' | 'tee' | 'dd'
 
 export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   cd: 'read', ls: 'read', find: 'read', cat: 'read', head: 'read', tail: 'read',
@@ -40,7 +40,7 @@ export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   tr: 'read', file: 'read', stat: 'read', diff: 'read', awk: 'read', strings: 'read',
   hexdump: 'read', od: 'read', base64: 'read', nl: 'read', grep: 'read', rg: 'read',
   git: 'read', jq: 'read', sha256sum: 'read', sha1sum: 'read', md5sum: 'read',
-  mkdir: 'create', touch: 'create',
+  mkdir: 'create', touch: 'create', tee: 'create', dd: 'create',
   rm: 'write', rmdir: 'write', mv: 'write', cp: 'write', sed: 'write',
 }
 
@@ -103,6 +103,8 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   sed: extractSedOperands,
   jq: args => extractPatternCommand(args, JQ_CONSUMING, null),
   git: extractGitOperands,
+  tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
+  dd: args => args.filter(a => a.startsWith('of=') && a !== 'of=/dev/null').map(a => a.slice(3)),
   mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
   mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,
   tail: extractBaseline, sort: extractBaseline, uniq: extractBaseline, wc: extractBaseline,
@@ -365,7 +367,7 @@ const COMMAND_ACTION: Record<PathCommand, string> = {
   tr: 'read', file: 'inspect', stat: 'inspect', diff: 'compare', awk: 'process',
   strings: 'read strings from', hexdump: 'dump', od: 'dump', base64: 'encode',
   nl: 'number lines of', grep: 'search', rg: 'search', sed: 'edit', git: 'run git on',
-  jq: 'query', sha256sum: 'hash', sha1sum: 'hash', md5sum: 'hash',
+  jq: 'query', sha256sum: 'hash', sha1sum: 'hash', md5sum: 'hash', tee: 'write', dd: 'write',
 }
 
 export function createPathChecker(command: PathCommand, operationTypeOverride?: FileOperationType) {
