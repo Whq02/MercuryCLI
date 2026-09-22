@@ -3,7 +3,7 @@
  "note": "contract journey 2 — four questions, unanswered navigation into review",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-22T21:42:44.090Z",
+ "capturedAt": "2026-09-22T23:15:11.507Z",
  "screens": [
   {
    "atMs": 12200,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-UyLPCR · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CSrLdV · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-UyLPCR · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CSrLdV · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -114,7 +114,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-UyLPCR · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CSrLdV · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -152,9 +152,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 22:42:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 00:14:49 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 22:42:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 00:14:49 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -182,23 +182,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-UyLPCR                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-CSrLdV                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 17803,
-   "frame-recommit": 44,
-   "tail-publish": 2
+   "patches": 17227,
+   "frame-recommit": 42
   },
   "frames": {
-   "total": 67,
-   "window": 67,
-   "p50": 1.2417500000001382,
-   "p95": 9.114208999999391,
-   "p99": 25.99487499999998,
-   "maxMs": 25.99487499999998
+   "total": 62,
+   "window": 62,
+   "p50": 1.5313750000000255,
+   "p95": 9.079250000000684,
+   "p99": 27.629999999999995,
+   "maxMs": 27.629999999999995
   }
  },
  "requests": [
@@ -218,7 +217,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-22.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-23.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -233,27 +232,27 @@
  ],
  "sends": [
   {
-   "atMs": 10899.248838424683,
+   "atMs": 10817.853927612305,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12499.248838424683,
+   "atMs": 12417.853927612305,
    "b64": "DQ=="
   },
   {
-   "atMs": 19899.248838424683,
+   "atMs": 19817.853927612305,
    "b64": "CQ=="
   },
   {
-   "atMs": 20899.248838424683,
+   "atMs": 20817.853927612305,
    "b64": "CQ=="
   },
   {
-   "atMs": 21899.248838424683,
+   "atMs": 21817.853927612305,
    "b64": "CQ=="
   },
   {
-   "atMs": 22899.248838424683,
+   "atMs": 22817.853927612305,
    "b64": "CQ=="
   }
  ]
