@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-22T05:26:19.797Z",
+ "capturedAt": "2026-09-22T05:51:04.500Z",
  "screens": [
   {
    "atMs": 12500,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CG9oZ7 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-nfq9gJ · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5                                                                            │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-CG9oZ7 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-nfq9gJ · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -101,21 +101,21 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││  ▄▀▀▀▀▀▀▀▄     ╭─────────────────────────────────────────╮                                 ││",
-    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀    ─│ /help lists every command and shortcut. │                                 ││",
-    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀     ╰─────────────────────────────────────────╯                                 ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄     ╭───────────────────────────────────────╮                                   ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀    ─│ /sessions switches sessions in place. │                                   ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀     ╰───────────────────────────────────────╯                                   ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 06:25:58 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 06:50:42 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 06:25:58 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 06:50:42 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · /health — health ce…│ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "  · /cards — memory     │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · /mission — set a mi…│ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 06:26:07 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  ↵ or click · browse   │ 06:50:51 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -143,16 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 20420,
-   "frame-recommit": 68
+   "patches": 17680,
+   "frame-recommit": 57
   },
   "frames": {
-   "total": 93,
-   "window": 93,
-   "p50": 1.30291699999907,
-   "p95": 12.163832999998704,
-   "p99": 33.655917000000045,
-   "maxMs": 33.655917000000045
+   "total": 79,
+   "window": 79,
+   "p50": 1.1360829999975977,
+   "p95": 6.580583999999817,
+   "p99": 29.514290999999957,
+   "maxMs": 29.514290999999957
   }
  },
  "requests": [
@@ -205,15 +205,15 @@
  ],
  "sends": [
   {
-   "atMs": 11346.484184265137,
+   "atMs": 10831.360816955566,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12946.484184265137,
+   "atMs": 12431.360816955566,
    "b64": "DQ=="
   },
   {
-   "atMs": 21346.484184265137,
+   "atMs": 20831.360816955566,
    "b64": "Gw=="
   }
  ]
