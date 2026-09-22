@@ -3,7 +3,7 @@ import { realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { isAbsolute } from 'node:path'
 import { z, type ZodType } from 'zod'
-import { decodePermissionModeSpelling } from '../../types/permissions.js'
+import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
   getMainThreadAgentType,
@@ -149,9 +149,11 @@ export type AgentToolInput = {
 }
 
 const CWD_PARAM_DESCRIPTION =
-  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist and lie inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted; any other directory is refused. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
+  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist. A directory inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted — is used as named; any other directory is a permission question to the operator, asked once per folder per session, and a declined question leaves the agent unlaunched. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
 
-export function resolveAgentCwd(spelling: string, permissionContext: ToolPermissionContext): string {
+const admittedAgentDirectories = new Set<string>()
+
+function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling)) {
     throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
   }
@@ -166,9 +168,37 @@ export function resolveAgentCwd(spelling: string, permissionContext: ToolPermiss
     throw new Error(`cwd does not exist: ${spelling} (the session folder is ${getCwd()})`)
   }
   if (!entry.isDirectory()) throw new Error(`cwd is not a folder: ${spelling}`)
-  const dir = realpathSync(spelling)
-  if (directoryTrusted(dir, permissionContext)) return dir
-  throw new Error(`cwd ${dir} is outside every workspace this session trusts. ${describeWriteScope(permissionContext)}`)
+  return realpathSync(spelling)
+}
+
+function outsideTrustSentence(dir: string, permissionContext: ToolPermissionContext): string {
+  return `cwd ${dir} is outside every workspace this session trusts. ${describeWriteScope(permissionContext)}`
+}
+
+export function resolveAgentCwd(spelling: string, permissionContext: ToolPermissionContext, options?: { admit?: boolean }): string {
+  const dir = agentDirectoryOf(spelling)
+  if (directoryTrusted(dir, permissionContext) || admittedAgentDirectories.has(dir)) return dir
+  if (options?.admit === true) {
+    admittedAgentDirectories.add(dir)
+    return dir
+  }
+  throw new Error(outsideTrustSentence(dir, permissionContext))
+}
+
+export function agentCwdQuestion(spelling: string, permissionContext: ToolPermissionContext): PermissionAskDecision | null {
+  let dir: string
+  try {
+    dir = agentDirectoryOf(spelling)
+  } catch {
+    return null
+  }
+  if (directoryTrusted(dir, permissionContext) || admittedAgentDirectories.has(dir)) return null
+  return {
+    behavior: 'ask',
+    message: outsideTrustSentence(dir, permissionContext),
+    decisionReason: { type: 'workingDir', reason: `The sub-agent would work in ${dir}, a folder outside every workspace this session trusts` },
+    suggestions: [{ type: 'addDirectories', directories: [dir], destination: 'session' }],
+  }
 }
 
 function directoryTrusted(dir: string, permissionContext: ToolPermissionContext): boolean {
@@ -426,7 +456,12 @@ export const AgentTool = buildTool({
   isConcurrencySafe(): boolean {
     return true
   },
-  async checkPermissions(input: AgentToolInput) {
+  async checkPermissions(input: AgentToolInput, context: ToolUseContext) {
+    const question =
+      input.cwd !== undefined && !(input.team_name && input.name)
+        ? agentCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
+        : null
+    if (question !== null) return question
     return { behavior: 'allow' as const, updatedInput: input }
   },
   getActivityDescription(input?: AgentToolInput): string {
@@ -502,7 +537,7 @@ export const AgentTool = buildTool({
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
-    const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext) : undefined
+    const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
 
     if (teamName && input.name) {
       if (cwdParam !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
