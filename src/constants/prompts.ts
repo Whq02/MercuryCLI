@@ -1,5 +1,6 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
 import { canAnswerAsks, getOriginalCwd } from '../bootstrap/state.js'
+import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
@@ -102,7 +103,7 @@ export async function computeEnvInfo(
   modelId: string,
   additionalWorkingDirectories?: string[],
 ): Promise<string> {
-  const cwd = getOriginalCwd()
+  const cwd = getCwd()
   const extraDirs =
     additionalWorkingDirectories && additionalWorkingDirectories.length > 0
       ? `\nAdditional working directories: ${additionalWorkingDirectories.join(', ')}`
