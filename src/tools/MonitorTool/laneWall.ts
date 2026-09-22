@@ -1,4 +1,5 @@
 import type { WatchWall } from './watchMailbox.js'
+import { activeLaneWindow, isLaneWindowFamily, type LaneWindowFamily } from '../../services/providers/laneWindowFact.js'
 
 type LaneLimit = { limit: string }
 type LimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
@@ -8,6 +9,7 @@ export interface LaneWallReads {
   usability: () => Record<string, LaneLimit | undefined>
   anthropicVerdict: (nowMs: number) => { status: string; lapsesAtMs?: number }
   openaiWindow: () => LimitWindow
+  laneWindow: (family: LaneWindowFamily) => LimitWindow
 }
 
 function liveLaneWallReads(): LaneWallReads {
@@ -31,6 +33,7 @@ function liveLaneWallReads(): LaneWallReads {
         require('../../services/providers/openai/openaiWindowFact.js') as typeof import('../../services/providers/openai/openaiWindowFact.js')
       return activeOpenaiWindow()
     },
+    laneWindow: family => activeLaneWindow(family),
   }
 }
 
@@ -46,6 +49,10 @@ export function sessionLaneWall(nowMs: number = Date.now(), reads: LaneWallReads
     }
     if (route === 'openai') {
       const window = reads.openaiWindow()
+      return window.state === 'limited' ? { closed: true, reopensAtMs: window.resetsAtMs } : { closed: true }
+    }
+    if (isLaneWindowFamily(route)) {
+      const window = reads.laneWindow(route)
       return window.state === 'limited' ? { closed: true, reopensAtMs: window.resetsAtMs } : { closed: true }
     }
     return { closed: true }
