@@ -14,8 +14,13 @@ function check(label: string, cond: boolean, detail = ''): void {
 console.log('crew spawn retry + hidden daemon console (the field class)')
 
 check('ESTARTING retries', isRetryableSpawnReplyCode('ESTARTING'))
-check('ENOCONN retries (the field ENOENT class)', isRetryableSpawnReplyCode('ENOCONN'))
-check('ETIMEOUT retries', isRetryableSpawnReplyCode('ETIMEOUT'))
+check('ENOCONN before a write retries', isRetryableSpawnReplyCode('ENOCONN', false))
+check('ETIMEOUT before a write retries', isRetryableSpawnReplyCode('ETIMEOUT', false))
+for (const code of ['ENOCONN', 'ETIMEOUT']) {
+  check(`${code} after a write never repeats the spawn`, !isRetryableSpawnReplyCode(code, true))
+  check(`${code} without a write fact never repeats the spawn`, !isRetryableSpawnReplyCode(code))
+}
+check('ESTARTING remains a pre-admission refusal after a write', isRetryableSpawnReplyCode('ESTARTING', true))
 check('EUNKNOWN is a real refusal', !isRetryableSpawnReplyCode('EUNKNOWN'))
 check('ECAP-style refusals never retry', !isRetryableSpawnReplyCode('ECAP'))
 check('undefined code never retries', !isRetryableSpawnReplyCode(undefined))
@@ -24,7 +29,7 @@ const repoRoot = join(import.meta.dir, '..', '..')
 const crewClient = readFileSync(join(repoRoot, 'src/utils/crew/crewClient.ts'), 'utf8')
 check(
   'spawn loop consults isRetryableSpawnReplyCode (never an ESTARTING-only branch)',
-  /isRetryableSpawnReplyCode\(reply\.code\)/.test(crewClient),
+  /isRetryableSpawnReplyCode\(reply\.code, reply\.frameWritten\)/.test(crewClient),
 )
 const ownedDaemon = readFileSync(join(repoRoot, 'src/daemon/ownedDaemon.ts'), 'utf8')
 check('spawnOwnedDaemon hides the win32 console (windowsHide)', /windowsHide: true/.test(ownedDaemon))

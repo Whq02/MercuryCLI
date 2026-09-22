@@ -93,5 +93,14 @@ section('§5 the seams, by their text')
   check("the completed and the stopped exits close the lane's episode", utils.split('closeOverloadEpisode(taskId)').length >= 3)
 }
 
+section('§6 a typed overload budget cut takes the probe road without reading its words')
+{
+  const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+  const classify = (utils as Record<string, unknown>).overloadBudgetCutOf as undefined | ((error: unknown, model: string) => { pause: { why: string } } | null)
+  const cut = { recoveryBudgetSpent: true, message: 'arbitrary refusal words', lastStatus: 529, lastCause: 'a typed provider refusal', resumeAfterMs: 0, capMs: 1200, waits: 6 }
+  check('a thrown 529 cut takes the overload pause independent of its text', classify?.(cut, 'claude-fable-5-1')?.pause.why === 'provider overloaded')
+  check('529 in words alone does not turn another failure into an overload', classify !== undefined && classify({ ...cut, lastStatus: 429, message: 'API Error: 529' }, 'claude-fable-5-1') === null && classify(new Error('API Error: 529'), 'claude-fable-5-1') === null)
+}
+
 console.log(failures === 0 ? '\n✅ overload-episode-relay GREEN' : `\n❌ overload-episode-relay RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

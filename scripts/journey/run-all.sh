@@ -29,6 +29,10 @@ for f in scripts/journey/prove-*.ts; do
   fi
   echo "▶ $f"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$f"; __rc=$?; [ "$__rc" -eq 0 ]; }; then fail=1; fi; prover_mark "$f" "$__t" "$__rc"
+  if [ "$name" = "prove-overload-lane-resume-drive.ts" ]; then
+    __t=$SECONDS; __rc=0; "$BUN" run "$f" --budget-cut --gone-cwd || { __rc=$?; fail=1; }; prover_mark "$f --budget-cut --gone-cwd" "$__t" "$__rc"
+    __t=$SECONDS; __rc=0; "$BUN" run "$f" --budget-cut --inline || { __rc=$?; fail=1; }; prover_mark "$f --budget-cut --inline" "$__t" "$__rc"
+  fi
   echo
 done
 if [ "$fail" -eq 0 ]; then echo "✅ JOURNEY SUITE GREEN"; else echo "❌ JOURNEY SUITE RED"; fi

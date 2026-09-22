@@ -68,6 +68,7 @@ import {
   type EffortLevel,
   type EffortValue,
   getDisplayedEffortLabel,
+  getEffortEnvOverride,
   getInitialEffortSetting,
   getInitialSupercodeSetting,
   modelSupportsEffort,
@@ -79,6 +80,7 @@ import {
   unpinAllLaunchEffort,
 } from '../../utils/effort.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { persistModelChoice } from './persistModelChoice.js'
 
@@ -834,7 +836,10 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
     }
     unpinAllLaunchEffort()
     setEffort(mode)
-    setNotice(undefined)
+    const override = getEffortEnvOverride()
+    setNotice(override !== undefined && override !== persistable
+      ? `Saved ${persistable} as your default, but MERCURY_EFFORT_LEVEL=${flagEnv('MERCURY_EFFORT_LEVEL') ?? ''} overrides this session — clear it to let ${persistable} take over.`
+      : undefined)
     setAppState?.(prev => ({ ...prev, effortValue: persistable, supercode: mode === 'supercode' }))
   }
   function handleSelect(id: string): void {

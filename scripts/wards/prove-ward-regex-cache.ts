@@ -27,7 +27,7 @@ const wards = await import('../../src/utils/wards/wards.ts')
 type WardRule = (typeof wards.AUTONOMOUS_WARDS)[number]
 
 const bashCall = (command: string) =>
-  ({ toolName: 'Bash', input: { command } }) as never
+  ({ toolName: 'Bash', input: { command }, shellCommand: command }) as never
 const editCall = (file_path: string, new_string: string) =>
   ({ toolName: 'Edit', input: { file_path, new_string, old_string: 'x' } }) as never
 

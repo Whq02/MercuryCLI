@@ -751,6 +751,7 @@ function backgroundNoticeFor(output: Out): string {
 
 export const BashTool = buildTool({
   name: BASH_TOOL_NAME,
+  shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
   searchHint: 'Executes shell commands.',
   get inputSchema() {
     return modelInputSchema()

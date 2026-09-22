@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, symlinkSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -41,6 +41,16 @@ const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../
   check('configHomeIsReal: no MERCURY_CONFIG_DIR pin reads real (the default home, or the launcher word MERCURY_HOME — an operator pin, never a proof pin)', configHomeIsReal({}) && configHomeIsReal({ MERCURY_HOME: '/tmp/prove-fixture-launcher-home' }))
   check('configHomeIsReal: a pin naming the default home reads real', configHomeIsReal({ MERCURY_CONFIG_DIR: join(homedir(), '.mercury') }) && configHomeIsReal({ MERCURY_CONFIG_DIR: join(homedir(), '.mercury') + '/' }))
   check('configHomeIsReal: a scratch pin is not the real store', !configHomeIsReal({ MERCURY_CONFIG_DIR: '/tmp/prove-fixture-scratch' }))
+  check('configHomeIsReal: a nested path under the real store is still real', configHomeIsReal({ MERCURY_CONFIG_DIR: join(defaultConfigHome(), 'nested', 'missing') }))
+  check('configHomeIsReal: a sibling sharing the prefix is not real', !configHomeIsReal({ MERCURY_CONFIG_DIR: `${defaultConfigHome()}-proof` }))
+  const alias = join(process.env.MERCURY_CONFIG_DIR!, 'home-link')
+  symlinkSync(defaultConfigHome(), alias, 'dir')
+  try {
+    check('configHomeIsReal: a symlink to the real store is real', configHomeIsReal({ MERCURY_CONFIG_DIR: alias }))
+    check('configHomeIsReal: a missing leaf under that symlink is real', configHomeIsReal({ MERCURY_CONFIG_DIR: join(alias, 'missing', 'leaf') }))
+  } finally {
+    unlinkSync(alias)
+  }
   check("configHomeIsReal: a drive world's shape — MERCURY_CONFIG_DIR and MERCURY_HOME both on one scratch home — is not the real store", !configHomeIsReal({ MERCURY_HOME: '/tmp/prove-fixture-world/home', MERCURY_CONFIG_DIR: '/tmp/prove-fixture-world/home' }))
   const throws = (env: NodeJS.ProcessEnv): boolean => {
     try {

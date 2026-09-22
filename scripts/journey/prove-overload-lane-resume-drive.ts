@@ -46,6 +46,8 @@ const LANE_NAME = 'overload-lane'
 const LANE_MODEL = arg('--lane-model') ?? 'claude-fable-5-1'
 const DOOR = /opus/i.test(LANE_MODEL)
 const INLINE = process.argv.includes('--inline')
+const BUDGET_CUT = process.argv.includes('--budget-cut')
+const GONE_CWD = process.argv.includes('--gone-cwd')
 const SEAT_MARK = 'overload-seat:lane'
 const PROBE_MARK = 'Reply with the single word ready.'
 const OLD_DOOR = 'its work is kept; resume it'
@@ -111,9 +113,9 @@ const pickTag = (text: string, tag: string): string | null => {
 }
 
 type Hit = { lane: 'parent' | 'lane' | 'probe' | 'other'; atMs: number; answer: string }
-async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; state: { handResumes: number }; close(): Promise<void> }> {
+async function startFixture(port: number, laneCwd?: string): Promise<{ base: string; hits: Hit[]; state: { handResumes: number; noteSeen: boolean }; close(): Promise<void> }> {
   const hits: Hit[] = []
-  const state = { handResumes: 0 }
+  const state = { handResumes: 0, noteSeen: false }
   let outageStartedAt: number | null = null
   let secondWaveAt: number | null = null
   let laneCalls = 0
@@ -153,6 +155,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
       const isProbe = userText.includes(PROBE_MARK) && items.length === 1
       const isLane = !isProbe && userText.includes(SEAT_MARK)
       if (isProbe) {
+        if (laneCwd !== undefined) rmSync(laneCwd, { recursive: true, force: true })
         const answer = phase(now, true)
         hits.push({ lane: 'probe', atMs: now, answer })
         if (answer === 'down') {
@@ -165,6 +168,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
         return
       }
       if (isLane) {
+        if (laneCwd !== undefined && userText.includes(`NOTE: its recorded directory ${laneCwd} is gone`)) state.noteSeen = true
         laneCalls++
         if (outageStartedAt === null) outageStartedAt = now
         const answer = phase(now, false)
@@ -204,6 +208,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
             prompt: `${SEAT_MARK} read the notes file once, then report in one line`,
             subagent_type: 'mercury-general',
             ...(INLINE ? {} : { run_in_background: true }),
+            ...(laneCwd !== undefined ? { cwd: laneCwd } : {}),
           }) + tail('tool_use')
       } else out = textBlock(0, 'side') + tail('end_turn')
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -274,6 +279,7 @@ function driveEnv(home: string, base: string): Record<string, string> {
     MERCURY_BUSY_RETRY_SCALE: BUSY_SCALE,
     MERCURY_OVERLOAD_PROBE_SCALE: PROBE_SCALE,
     MERCURY_MAX_RETRIES: '2',
+    ...(BUDGET_CUT ? { MERCURY_RECOVERY_BUDGET_MINUTES: '0.02' } : {}),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',
@@ -331,11 +337,12 @@ function laneNotices(records: Record_[]): Notice[] {
     if (!text.includes('<task-notification>')) continue
     for (const block of text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? []) {
       const summary = pickTag(block, 'summary')
-      if (summary === null || !summary.includes(`"${LANE_NAME}"`)) continue
+      if (summary === null) continue
       out.push({ status: pickTag(block, 'status'), summary, taskId: pickTag(block, 'task-id') })
     }
   }
-  return out
+  const taskIds = new Set(out.filter(notice => notice.summary?.includes(`"${LANE_NAME}"`)).map(notice => notice.taskId))
+  return out.filter(notice => notice.taskId !== null && taskIds.has(notice.taskId))
 }
 function parentToolUses(records: Record_[], name: string): number {
   let n = 0
@@ -384,7 +391,9 @@ console.log(`  bundle ${BIN}`)
 console.log('============================================================')
 const KEEP = process.env.OVERLOAD_DRIVE_KEEP === '1'
 const { home, cwd } = seedWorld()
-const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 25311))
+const laneCwd = GONE_CWD ? join(cwd, 'helper') : undefined
+if (laneCwd !== undefined) mkdirSync(laneCwd)
+const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 25311), laneCwd)
 const FRAMES = 30
 const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
@@ -413,7 +422,13 @@ if (cap !== null) {
   }
   const session = sessionTranscript(home)
   const parentRecords = session?.records ?? []
-  const notices = laneNotices(parentRecords)
+  const allNotices = laneNotices(parentRecords)
+  const notices = GONE_CWD ? allNotices.filter(notice => !notice.summary?.includes('NOTE: its recorded directory')) : allNotices
+  if (GONE_CWD) {
+    check('E1 the resumed helper reads the gone-directory note', fixture.state.noteSeen)
+    check('E2 the automatic resume receipt names the removed folder and where edits land', allNotices.some(notice => notice.summary?.includes(`NOTE: its recorded directory ${laneCwd} is gone`) && notice.summary.includes(cwd) && notice.summary.includes('anything it edits lands there')))
+    check('E3 the fixture removed the helper directory during the pause', laneCwd !== undefined && !existsSync(laneCwd))
+  }
   const lane = session === null ? null : laneTranscript(session.dir, session.path)
   const outputs = lane === null ? [] : laneOutputs(lane)
   const deaths = outputs.filter(o => o.model === '<synthetic>' && /^API Error: 529\b|API overload errors \(529\)/.test(o.text))
@@ -422,13 +437,22 @@ if (cap !== null) {
   const laneHits = fixture.hits.filter(h => h.lane === 'lane')
   const probeHits = fixture.hits.filter(h => h.lane === 'probe')
   const refused = laneHits.filter(h => h.answer === 'down' || h.answer === 'mid-stream')
+  const workHits = fixture.hits.filter(hit => hit.lane === 'lane' || hit.lane === 'probe')
+  const probeStarts = workHits.filter((hit, index) => hit.lane === 'probe' && workHits[index - 1]?.lane === 'lane')
+  const deathCount = BUDGET_CUT ? probeStarts.length : deaths.length
   console.log(`  lane requests ${laneHits.length} (refused ${refused.length}) · probes ${probeHits.length} (answered ${probeHits.filter(h => h.answer === 'up').length}) · lane deaths ${deaths.length} · ${LANE_DONE} ${done} · parent SendMessage uses ${sendMessages}`)
   console.log('  the parent\'s lane notices:')
   for (const n of notices) console.log(`    [${n.status}] ${flat(n.summary ?? '').slice(0, 220)}`)
 
   console.log('\n— §A the lane dies on the overload, pauses, and comes back by itself —')
   check('A1 the lane met the outage: its first request was cut mid-stream by an overloaded_error and its next ones were refused with HTTP 529', laneHits[0]?.answer === 'mid-stream' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
-  check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+  if (BUDGET_CUT) {
+    const firstProbe = probeHits[0]
+    const beforeProbe = firstProbe === undefined ? [] : laneHits.filter(hit => hit.atMs < firstProbe.atMs)
+    check('A2 the shorter retry budget reaches the probe before the full busy ladder is spent', beforeProbe.length >= 2 && beforeProbe.length < 8 && deaths.length === 0, `${beforeProbe.length} requests before the first probe, ${deaths.length} full-ladder deaths`)
+  } else {
+    check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+  }
   check(`A3 the lane finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent (SendMessage uses 0)`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
   check('A4 Mercury probed the provider while the lane was paused, and a probe was answered before the lane resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
   const first = notices[0]
@@ -439,12 +463,12 @@ if (cap !== null) {
     console.log('\n— §B one calm line per lane per outage episode —')
     const completion = notices.findIndex(n => n.status === 'completed')
     const beforeCompletion = completion < 0 ? notices : notices.slice(0, completion)
-    check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deaths.length >= 2 && beforeCompletion.length === 1, `deaths=${deaths.length} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
+    check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deathCount >= 2 && beforeCompletion.length === 1, `deaths=${deathCount} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
     check("B2 no 'resumed' receipt row rides the episode — the lane's row carries the resume, the parent's chat one line", !notices.some(n => n.status === 'resumed'), notices.map(n => n.status).join(','))
     check('B3 the completion notice follows as its own line', completion >= 0 && notices[completion]?.summary?.includes('completed') === true, notices.map(n => n.status).join(','))
   }
 
-  if (DOOR) {
+  if (DOOR && !BUDGET_CUT) {
     console.log('\n— §C the three-strikes door yields to the ladder —')
     const firstDeathAtMs = deaths.length > 0 ? Date.parse(deaths[0]!.at) : Number.NaN
     const beforeFirstDeath = laneHits.filter(h => h.atMs <= firstDeathAtMs)

@@ -47,7 +47,7 @@ const teamsDoc = readFileSync(join(ROOT, 'docs/TEAMS.md'), 'utf8').replace(/\s+/
 check('the teams page says a continued sub-agent wakes in its launch directory', teamsDoc.includes('continued by a later message wakes in the directory it was launched in'))
 
 section("§4 the message's receipt names a recorded directory that is gone, once, with the directory the continuation runs in")
-const noteLeaf = await import('../../src/tools/SendMessageTool/continuationNote.ts').catch(() => null)
+const noteLeaf = await import('../../src/tools/AgentTool/continuationNote.ts').catch(() => null)
 check('the receipt note has one owner beside the tool', noteLeaf !== null)
 if (noteLeaf !== null) {
   const gone = noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory', recordedCwd: '/proof/gone-lane' }, '/proof/session')
@@ -57,12 +57,29 @@ if (noteLeaf !== null) {
   const checkout = noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-checkout' }, '/proof/session')
   check('a gone worktree keeps its existing sentence byte for byte', checkout === ' NOTE: its worktree is gone (already folded or cleaned) — the revived agent runs in the PARENT checkout; anything it edits lands in the real tree.', checkout)
   check('a continuation in its recorded directory carries no note', noteLeaf.continuationDirectoryNote({}, '/proof/session') === '')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { getCwdState } = await import('../../src/bootstrap/state.ts')
+  const automaticNote = runWithCwdOverride('/proof/gone-child', () => noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory', recordedCwd: '/proof/gone-child' }))
+  check('an automatic callback names the session directory, not its departed child override', automaticNote.includes(`session's own directory, ${getCwdState()};`), automaticNote)
   check('a gone directory the result did not name is still noted', noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory' }, '/proof/session').includes('its recorded directory is gone'))
 }
 const send = src('tools', 'SendMessageTool', 'SendMessageTool.ts')
-check('BOTH resume arms of the message tool paint the note from its owner', send.split('continuationDirectoryNote(resumed)').length - 1 === 2 && send.includes("from './continuationNote.js'"))
+check('BOTH resume arms of the message tool paint the note from its owner', send.split("(resumed.note ?? '')").length - 1 === 2 && resume.includes("from './continuationNote.js'"))
 check('the resume result names the recorded directory beside the parent-directory fallback', resume.includes("{ cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
 check('the teams page says the receipt names the gone directory', teamsDoc.includes('naming the directory that is gone'))
+
+section('§5 the resume owner carries the note into every continuation')
+check('the result carries the note', resume.includes('note?: string'))
+check('the resumed helper reads the note in its own prompt', /createUserMessage\(\{ content: prompt \+ note \}\)/.test(resume))
+const lifecycle = src('tools', 'AgentTool', 'agentToolUtils.ts')
+for (const [start, end] of [['export function armBudgetCutResume(', 'const overloadEpisodes'], ['export function armOverloadProbe(', 'export async function runAsyncAgentLifecycle('], ['if (queued.length > 0)', 'drainPendingMessages(taskId,']]) {
+  const at = lifecycle.indexOf(start)
+  const body = lifecycle.slice(at, lifecycle.indexOf(end, at))
+  check(`${start}: the resume receipt carries the returned note`, at >= 0 && body.includes('enqueueAgentReceiptRow(') && /resumed\??\.note/.test(body))
+  if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, body.includes('runWithCwdOverride(getCwdState(), fire)'))
+}
+const print = src('cli', 'print.ts')
+check('the crew resume answer carries the note and recorded directory', print.includes('recorded_cwd: resumed.recordedCwd') && print.includes('note: resumed.note'))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

@@ -661,7 +661,10 @@ console.log('H — the session model picker follows the selected session facts')
   let mirrored = 0
   let unpinned = 0
   let writes = 0
+  let effortOverride: string | undefined
   const defaultPicker = load('MercuryModelDefaultPicker', {
+    getEffortEnvOverride: () => effortOverride,
+    flagEnv: () => effortOverride,
     useSetAppStateMaybe: () => () => { mirrored++ },
     getInitialSupercodeSetting: () => false,
     unpinAllLaunchEffort: () => { unpinned++ },
@@ -703,6 +706,13 @@ console.log('H — the session model picker follows the selected session facts')
   reset()
   renderDefault().onEffort('medium')
   check('I5 a successful effort write updates the bracket, application state and launch pins once', renderDefault().effort === 'medium' && mirrored === 1 && unpinned === 1 && writes === 1)
+  reset()
+  effortOverride = 'high'
+  renderDefault().onEffort('medium')
+  check('I6 an effort override is named with the existing effort sentence', renderDefault().notice === 'Saved medium as your default, but MERCURY_EFFORT_LEVEL=high overrides this session — clear it to let medium take over.')
+  reset()
+  renderDefault().onEffort('high')
+  check('I6 an equal override adds no notice', renderDefault().notice === undefined)
 }
 
 process.exit(failures === 0 ? 0 : 1)

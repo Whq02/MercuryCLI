@@ -1,26 +1,33 @@
 
 export type ModelConfig = {
   firstParty: string
+  canonical?: string
 }
 
 export const ALL_MODEL_CONFIGS = {
   haiku35: {
     firstParty: 'claude-3-5-haiku-20241022',
+    canonical: 'claude-3-5-haiku',
   },
   haiku45: {
     firstParty: 'claude-haiku-4-5-20251001',
+    canonical: 'claude-haiku-4-5',
   },
   sonnet35: {
     firstParty: 'claude-3-5-sonnet-20241022',
+    canonical: 'claude-3-5-sonnet',
   },
   sonnet37: {
     firstParty: 'claude-3-7-sonnet-20250219',
+    canonical: 'claude-3-7-sonnet',
   },
   sonnet40: {
     firstParty: 'claude-sonnet-4-20250514',
+    canonical: 'claude-sonnet-4',
   },
   sonnet45: {
     firstParty: 'claude-sonnet-4-5-20250929',
+    canonical: 'claude-sonnet-4-5',
   },
   sonnet46: {
     firstParty: 'claude-sonnet-4-6',
@@ -30,21 +37,26 @@ export const ALL_MODEL_CONFIGS = {
   },
   opus40: {
     firstParty: 'claude-opus-4-20250514',
+    canonical: 'claude-opus-4',
   },
   opus41: {
     firstParty: 'claude-opus-4-1-20250805',
+    canonical: 'claude-opus-4-1',
   },
   opus45: {
     firstParty: 'claude-opus-4-5-20251101',
+    canonical: 'claude-opus-4-5',
   },
   opus46: {
     firstParty: 'claude-opus-4-6',
   },
   opus47: {
     firstParty: 'claude-opus-4-7',
+    canonical: 'claude-opus-4-6',
   },
   opus48: {
     firstParty: 'claude-opus-4-8',
+    canonical: 'claude-opus-4-6',
   },
   opus5: {
     firstParty: 'claude-opus-5',
@@ -60,6 +72,7 @@ export const ALL_MODEL_CONFIGS = {
   },
   mythos5: {
     firstParty: 'claude-mythos-5',
+    canonical: 'claude-fable-5',
   },
 } as const satisfies Record<string, ModelConfig>
 
