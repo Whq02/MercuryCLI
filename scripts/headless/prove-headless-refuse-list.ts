@@ -34,7 +34,7 @@ const turns = (): ScriptedTurn[] => [
 ]
 
 interface World { home: string; cwd: string; configDir: string; env: Record<string, string> }
-function makeWorld(tag: string, baseUrl: string, themisOff: boolean): World {
+function makeWorld(tag: string, baseUrl: string): World {
   const home = realpathSync(mkdtempSync(join(tmpdir(), `refuse-list-${tag}-`)))
   const cwd = join(home, 'project')
   const configDir = join(home, '.mercury')
@@ -65,7 +65,6 @@ function makeWorld(tag: string, baseUrl: string, themisOff: boolean): World {
       BROWSER: '/usr/bin/true',
       ANTHROPIC_BASE_URL: baseUrl,
       ANTHROPIC_API_KEY: API_KEY,
-      ...(themisOff ? { MERCURY_THEMIS: 'off' } : {}),
     },
   }
 }
@@ -103,9 +102,9 @@ function transcriptLines(configDir: string): string[] {
 }
 
 interface Seat { results: ToolResult[]; code: number | null; stdout: string; stderr: string; ms: number; asks: string[]; transcript: string[] }
-async function runSeat(tag: string, extraArgs: string[], channel: boolean, themisOff: boolean): Promise<Seat> {
+async function runSeat(tag: string, extraArgs: string[], channel: boolean): Promise<Seat> {
   const fixture = await startFixtureApi(turns())
-  const world = makeWorld(tag, fixture.url, themisOff)
+  const world = makeWorld(tag, fixture.url)
   const args = channel
     ? [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio', '--model', MODEL, ...extraArgs]
     : [DIST, '-p', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs]
@@ -152,42 +151,37 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, themi
   return { results, code, stdout, stderr, ms, asks, transcript }
 }
 
-const THEMIS_CURL = /refused by the THEMIS blocklist: rule curl-pipe-shell/
-function pinRefusals(seat: Seat, label: string, wardOnly: boolean): boolean {
+function pinRefusals(seat: Seat, label: string): boolean {
   const first = seat.results[0]
   const second = seat.results[1]
   const firstWard = first !== undefined && first.is_error === true && first.text.includes("Ward 'curl-pipe-shell' blocked this Bash call") && first.text.includes(CLOSING)
-  const firstOk = wardOnly ? firstWard : firstWard || (first !== undefined && first.is_error === true && THEMIS_CURL.test(first.text) && first.text.includes(CLOSING))
+  const firstOk = firstWard
   const secondOk = second !== undefined && second.is_error === true && second.text.includes("Ward 'no-root-recursive-delete' blocked this Bash call") && second.text.includes(CLOSING)
-  check(`${label}: the pipe-to-shell call came back refused typed${wardOnly ? " with the ward's sentence" : ''}`, firstOk, JSON.stringify(first?.text.slice(0, 260)))
+  check(`${label}: the pipe-to-shell call came back refused with the ward's sentence`, firstOk, JSON.stringify(first?.text.slice(0, 260)))
   check(`${label}: the root delete came back refused with the ward's sentence`, secondOk, JSON.stringify(second?.text.slice(0, 260)))
   check(`${label}: no permission road spoke (no auto-deny note, no prompt)`, [first, second].every(row => row !== undefined && !/auto-denied|requires approval|Permission to use/.test(row.text)), JSON.stringify(second?.text.slice(0, 200)))
   check(`${label}: the seat landed — exit 0, the model's closing words on stdout, no hang`, seat.code === 0 && seat.stdout.includes(LANDED) && seat.ms < 80_000, `${seat.code} · ${seat.ms}ms · ${seat.stdout.trim().slice(-80)}`)
   const onRecord = (needle: string): boolean => seat.transcript.some(line => line.includes(needle))
-  check(`${label}: the refusals sit on the session record`, onRecord("Ward 'no-root-recursive-delete'") && (!wardOnly || onRecord("Ward 'curl-pipe-shell'")), `${seat.transcript.length} record lines; sample: ${seat.transcript.find(line => line.includes('no-root-recursive-delete') || line.includes('curl-pipe-shell'))?.slice(0, 160) ?? 'none names a refusal'}`)
+  check(`${label}: the refusals sit on the session record`, onRecord("Ward 'no-root-recursive-delete'") && onRecord("Ward 'curl-pipe-shell'"), `${seat.transcript.length} record lines; sample: ${seat.transcript.find(line => line.includes('no-root-recursive-delete') || line.includes('curl-pipe-shell'))?.slice(0, 160) ?? 'none names a refusal'}`)
   return firstOk && secondOk
 }
 
-section('§0 the shipped default: a print seat with no permission channel refuses both calls typed, before any ask, and lands')
-const shipped = await runSeat('shipped', [], false, false)
-const shippedOk = pinRefusals(shipped, '§0', false)
-
-section('§1 the same seat on the wards road alone (MERCURY_THEMIS=off): both refusals carry the ward\'s sentence')
-const plain = await runSeat('plain', [], false, true)
-const plainOk = pinRefusals(plain, '§1', true)
-if (!shippedOk || !plainOk) {
-  console.log('\nprove-headless-refuse-list: the refusal did not hold on the plain seats; the pre-approved seat is not run')
+section('§0 the shipped default: a print seat with no permission channel refuses both calls with the ward\'s sentence, before any ask, and lands')
+const shipped = await runSeat('shipped', [], false)
+const shippedOk = pinRefusals(shipped, '§0')
+if (!shippedOk) {
+  console.log('\nprove-headless-refuse-list: the refusal did not hold on the plain seat; the pre-approved seat is not run')
   process.exit(1)
 }
 
-section('§2 the wards road with Bash pre-approved: a permission grant lifts nothing')
-const granted = await runSeat('granted', ['--allowed-tools', 'Bash'], false, true)
-pinRefusals(granted, '§2', true)
+section('§1 the wards road with Bash pre-approved: a permission grant lifts nothing')
+const granted = await runSeat('granted', ['--allowed-tools', 'Bash'], false)
+pinRefusals(granted, '§1')
 
-section('§3 the wards road over the stream-json permission channel: the client is never asked about either call')
-const channel = await runSeat('channel', [], true, true)
-pinRefusals(channel, '§3', true)
-check('§3: zero can_use_tool asks reached the client for the two refused calls', channel.asks.filter(name => name === 'Bash').length === 0, channel.asks.join(','))
+section('§2 the wards road over the stream-json permission channel: the client is never asked about either call')
+const channel = await runSeat('channel', [], true)
+pinRefusals(channel, '§2')
+check('§2: zero can_use_tool asks reached the client for the two refused calls', channel.asks.filter(name => name === 'Bash').length === 0, channel.asks.join(','))
 
 console.log(failures === 0 ? '\nprove-headless-refuse-list: ALL LAWS HOLD' : `\nprove-headless-refuse-list: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

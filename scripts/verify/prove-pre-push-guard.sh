@@ -19,7 +19,7 @@ section '§1 — the hook is committed and delegates to the readable guard'
 grep -q 'pre-push-guard.sh' "$hook"; check 'the hook delegates to the guard' $?
 grep -q 'core.hooksPath .githooks' AGENTS.md; check 'the manual enablement is documented for the operator (AGENTS.md names the one command)' $?
 ! grep -v '^[[:space:]]*#' "$hook" | grep -q 'hooksPath'; check 'the hook never sets the hooks path itself (enablement stays the operator'"'"'s act)' $?
-grep -q "id: 'git-hooks-path'" src/substrate/themis/blocklist.ts
+grep -q "name: 'git-hooks-path'" src/utils/wards/wards.ts
 check 'the safety plane still blocks a hooks-path change' $?
 ! grep -nE 'git config' "$guard" "$hook" | grep -vE ':[[:space:]]*#' | grep -q .
 check 'neither the guard nor the hook installs itself' $?

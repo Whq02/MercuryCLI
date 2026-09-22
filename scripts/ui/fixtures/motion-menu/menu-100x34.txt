@@ -1,7 +1,7 @@
 
   (>_) MERCURY · boot menu
 
-  ↑ 4 more
+  ↑ 3 more
     C/C++ IDE lane (clangd)            default (on)
     Sovereign mode                     default (off)
     Autopilot tier mode                default (off)

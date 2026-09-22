@@ -127,7 +127,6 @@ import { onChangeAppState } from './state/onChangeAppState.js'
 import type { AppState } from './state/AppStateStore.js'
 import type { Props as REPLProps } from './screens/REPL.js'
 import type { UUID } from 'node:crypto'
-import { runThemisCli } from './cli/themisCli.js'
 import { update as updateCli } from './cli/update.js'
 import type { McpSdkServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js'
 import { setCliTeammateModeOverride } from './utils/swarm/backends/teammateModeSnapshot.js'
@@ -985,13 +984,6 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
         process.exit(1)
       })
   }
-
-  program
-    .command('themis [verb] [paths...]')
-    .description('THEMIS integrity tooling')
-    .action(async (verb: string | undefined, paths: string[] | undefined) => {
-      await runThemisCli(verb ?? 'help', paths ?? [])
-    })
 
   program
     .command('show <image>')

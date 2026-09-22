@@ -25,7 +25,7 @@ section('§1 multi-topic stream → consolidation (deterministic rewriter)')
 {
   appendObservation({ text: 'the build uses bun, not npm', source: 'BUILD-NOTES.md', topicHint: 'build system' }, dir)
   appendObservation({ text: 'dist bundles to a single mjs file', source: 'build output', topicHint: 'build system' }, dir)
-  appendObservation({ text: 'the operator prefers warn posture interactively', source: 'operator', topicHint: 'themis posture' }, dir)
+  appendObservation({ text: 'the operator prefers warn posture interactively', source: 'operator', topicHint: 'wards posture' }, dir)
   check('3 rows staged', readBuffer(dir).length === 3)
   const r = maybeConsolidate({ force: true, dir })
   check('consolidated', r.consolidated, r.reason)

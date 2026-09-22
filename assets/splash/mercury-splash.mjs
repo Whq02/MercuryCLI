@@ -888,8 +888,6 @@ function menuData() {
     summary: {
       profile: changed > 0 ? `custom · ${changed} set` : 'default',
       harness: harness.join(' · ') || 'none',
-      integrity: val('MERCURY_THEMIS') || 'off',
-      integritySet: !!val('MERCURY_THEMIS'),
     },
     environment: {
       model: modelLabel(),

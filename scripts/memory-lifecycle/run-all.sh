@@ -13,7 +13,6 @@ for proof in \
   prove-topic-memory-correction.ts \
   prove-topic-memory-maintenance.ts \
   prove-memory-refs.ts \
-  prove-themis-mission.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then

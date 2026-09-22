@@ -59,7 +59,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /daemon | — | `src/commands/daemon` |
 | /defaultprovider | — | `src/commands/defaultprovider` |
 | /diff | — | `src/commands/diff` |
-| /effort | — | `src/commands/effort` |
+| /effort | irow | `src/commands/effort` |
 | /exit | — | `src/commands/exit` |
 | /export | — | `src/commands/export` |
 | /extensions | panes | `src/commands/extensions` |
@@ -75,7 +75,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /keys | irow | `src/commands/keys` |
 | /ledger | panes | `src/commands/ledger` |
 | /live | — | `src/commands/live` |
-| /logins | irow | `src/commands/login` |
+| /logins | ilist irow | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
 | /mcp | ilist irow | `src/commands/mcp` |
 | /memory | flat irow | `src/commands/memory` |
@@ -115,9 +115,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 34)
+## Slash routes — transcript prints (local: 33)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/themis` · `/update-notes` · `/vim` · `/voice`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/update-notes` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 

@@ -8,7 +8,6 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { flagEnabled, flagEnv, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
 import { addBootNote } from './bootNotes.js'
-import { themisActive } from './themis/level.js'
 
 export interface MenuRow {
   env: string
@@ -78,20 +77,6 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       controls: 'The Debug tool speaks the Debug Adapter Protocol to real debuggers (Python via debugpy, native code via lldb-dap). Launching a program under the debugger always asks permission first. Rounds out the trust combo: real runtime evidence instead of guesses.',
       on: ['the Debug tool joins the catalog', 'launch asks permission like any command execution', 'inspection (stacks, variables) rides the permitted session'],
       off: ['the tool is absent — identical to a build without it'],
-    },
-  },
-  {
-    env: 'MERCURY_THEMIS',
-    label: 'Run discipline (THEMIS)',
-    group: 'trust combo',
-    kind: 'enum',
-    options: ['warn', 'enforce', 'off'],
-    defaultLabel: 'enforce',
-    summary: 'built-in attack-shape checks on risky commands, ON by default — enforce refuses with a typed message (never a prompt), warn records only, off disarms; tracked change missions (/mission) ride the same level',
-    detail: {
-      controls: "Two things, truthfully: (1) a FIXED set of built-in attack-shape checks on risky shell/config commands (supply-chain installs, persistence, git-config mutation — house-style rules live in Wards) with a tamper-evident audit log; (2) tracked change MISSIONS for substantial work (/mission) — bounded criteria, expected paths, fresh verification evidence to complete. ON at enforce by default, measured imperceptible (sub-µs per call, ~0.1% of a real command round). A refused command is a typed teaching message — never a permission prompt; warn records without blocking when legitimate work trips a rule. No model calls, no spend.",
-      on: ["risky command shapes are checked before running (enforce refuses · warn records) — a typed refusal, never a prompt", "a tamper-evident audit log accrues under the project's themis store", "/mission tracks substantial changes; enforce refuses unexpected-path edits ONLY while a mission is active"],
-      off: ["explicit off: no checks, no audit log, no /mission"],
     },
   },
   {
@@ -508,17 +493,6 @@ export function applyBootMenuEnv(
       for (const spelling of flagSpellings(a.env)) receipt[spelling] = a.value
     }
     stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(receipt))
-  }
-  if (result.applied.length > 0 && themisActive()) {
-    void import('./themis/auditChain.js')
-      .then(m =>
-        m.appendAuditRow({
-          actor: 'boot',
-          action: 'boot-env-applied',
-          details: result.applied.map(a => `${a.env}=${a.value}`).join(' '),
-        }),
-      )
-      .catch(() => {})
   }
   return surfaced(result, path)
 }

@@ -419,8 +419,6 @@ export function BootSettingsScreen({
       summary: {
         profile: `r${profile?.revision ?? 0} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`,
         harness: harness.join(' · ') || 'none',
-        integrity: savedVal('MERCURY_THEMIS') ?? 'enforce',
-        integritySet: savedVal('MERCURY_THEMIS') !== null,
       },
       environment: {
         model: renderModelChip(mainModel),
