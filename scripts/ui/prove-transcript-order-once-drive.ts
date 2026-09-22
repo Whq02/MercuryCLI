@@ -414,7 +414,7 @@ export function paneRows(lines: string[]): string[] {
   const topBorder = above.findIndex(l => /╭─+╮\s*$/.test(l) && l.indexOf('╭') === left)
   if (topBorder === -1) return []
   const inner = above.slice(topBorder + 1, bottom).map(l => l.slice(left + 1, right).replace(/│\s*$/, ''))
-  const headerEnd = inner.findIndex(l => l.includes('╰─') && l.includes('─╯'))
+  const headerEnd = inner.findIndex(l => /^\s*╰─+╯\s*$/.test(l))
   return (headerEnd === -1 ? inner : inner.slice(headerEnd + 1)).map(collapse)
 }
 
@@ -478,6 +478,7 @@ export function classify(frames: Frame[], sendTicks: number[], resizeTicks: numb
     for (const b of cur.blocks) counts.set(b.text, (counts.get(b.text) ?? 0) + 1)
     const prevCounts = new Map<string, number>()
     for (const b of prev.blocks) prevCounts.set(b.text, (prevCounts.get(b.text) ?? 0) + 1)
+    const fresh = (c: Run): boolean => !prev.blocks.some(p => p.text === c.text && Math.abs(p.y - c.y) <= 3)
     const unique = cur.blocks.filter(b => counts.get(b.text) === 1)
     for (let i = 0; i < unique.length; i++) {
       for (let j = i + 1; j < unique.length; j++) {
@@ -493,13 +494,20 @@ export function classify(frames: Frame[], sendTicks: number[], resizeTicks: numb
         pairSign.set(key, sign)
       }
     }
+    for (const key of pairSign.keys()) {
+      const [a, b] = key.split('\u0000')
+      if (!counts.has(a!) || !counts.has(b!)) pairSign.delete(key)
+    }
     for (const [text, n] of counts) {
       if (n >= 2 && (prevCounts.get(text) ?? 0) < n && !repeatSeen.has(text)) repeatSeen.set(text, { tick: cur.f.tick, frame: cur.f.i, count: n })
     }
     for (const [text, seen] of repeatSeen) {
       const n = counts.get(text) ?? 0
       if (n < seen.count) {
-        if (cur.f.tick - seen.tick <= POP_TICKS && quiet(cur.f.tick)) events.push({ kind: 'REPEAT', tick: seen.tick, frame: seen.frame, row: text, detail: `painted ${seen.count}× at tick ${seen.tick}, ${n}× by tick ${cur.f.tick}` })
+        const copies = prev.blocks.filter(b => b.text === text)
+        const gone = copies[copies.length - 1]
+        const merged = gone !== undefined && cur.blocks.some(c => fresh(c) && c.y >= gone.y - 3 && c.y <= gone.y + gone.rows)
+        if (!merged && cur.f.tick - seen.tick <= POP_TICKS && quiet(cur.f.tick)) events.push({ kind: 'REPEAT', tick: seen.tick, frame: seen.frame, row: text, detail: `painted ${seen.count}× at tick ${seen.tick}, ${n}× by tick ${cur.f.tick}` })
         repeatSeen.delete(text)
       }
     }
@@ -511,9 +519,9 @@ export function classify(frames: Frame[], sendTicks: number[], resizeTicks: numb
       if ((prevCounts.get(text) ?? 0) !== 1) continue
       const at = prev.blocks.findIndex(p => p.text === text)
       const gone = prev.blocks[at]!
-      if (gone.y === 0) continue
+      if (gone.y <= 1) continue
       if (cur.blocks.some(c => continues(text, c.text))) continue
-      const replaced = cur.blocks.some(c => !prevCounts.has(c.text) && c.y >= gone.y - 3 && c.y <= gone.y + gone.rows)
+      const replaced = cur.blocks.some(c => fresh(c) && c.y >= gone.y - 3 && c.y <= gone.y + gone.rows)
       if (replaced) continue
       events.push({ kind: 'POP', tick: b.tick, frame: b.frame, row: text, detail: `appeared at tick ${b.tick}, gone by tick ${cur.f.tick}` })
     }
