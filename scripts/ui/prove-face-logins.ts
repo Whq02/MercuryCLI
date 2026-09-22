@@ -621,6 +621,8 @@ t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset total
   })
   t.check('NO flow state exists without a painted way out', strandable.length === 0, JSON.stringify(strandable))
   t.check('the success pane speaks the account and the refresh; error speaks the machine sentence verbatim', anthropicFlowPaneLines(snapOf({ name: 'success' }, { accountLabel: 'op@x' }), 0)[0] === 'Signed in as op@x.' && anthropicFlowPaneLines(snapOf({ name: 'error', message: 'the exact words' }), 0)[0] === 'the exact words')
+  t.check("the Anthropic success pane names the picker as the way out exactly when a picker's row opened the door", anthropicFlowPaneLines(snapOf({ name: 'success' }, { accountLabel: 'op@x' }), 0, true).at(-1) === '↵ done — back to the picker' && anthropicFlowPaneLines(snapOf({ name: 'success' }, { accountLabel: 'op@x' }), 0).at(-1) === '↵ done — the roster refreshes')
+  t.check("the Anthropic success status names the picker exactly when a picker's row opened the door, the roster otherwise", anthropicFlowStatusOf(snapOf({ name: 'success' }), true) === 'signed in — ↵ returns to the picker' && anthropicFlowStatusOf(snapOf({ name: 'success' })) === 'signed in — ↵ returns to the roster')
   t.check('the legends name only the moves that exist', anthropicFlowLegendOf(waiting, 0) === '↵ submit code · c copy url · esc cancel' && anthropicFlowLegendOf(waiting, 3) === '↵ submit code · esc cancel' && anthropicFlowLegendOf(snapOf({ name: 'success' }), 0) === '↵ done' && anthropicFlowLegendOf(snapOf({ name: 'error', message: 'x', retry: { name: 'ready', loginWithClaudeAi: true } }), 0) === '↵ retry · esc close')
   t.check('the status words track the flow', anthropicFlowStatusOf(waiting) === 'waiting on the browser sign-in' && anthropicFlowStatusOf(snapOf({ name: 'creating-key' })) === 'minting the usage-based key')
 
@@ -637,6 +639,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
     keyLegGuardOpts,
     keyPromptPaneLines,
     loginsFlowLegendOf,
+    loginsFlowPaneLines,
     loginsFlowReady,
     loginsFlowStatusOf,
     loginsPickOptions,
@@ -691,6 +694,8 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('the storing pane swaps the way out for the honest wait', keyPromptPaneLines('deepseek', null, 8, true)[keyPromptPaneLines('deepseek', null, 8, true).length - 1] === 'checking the key…')
   const longReceipt = receiptPaneLines(Array.from({ length: 120 }, () => 'word').join(' '), true)
   t.check('a long receipt clamps and the way out stays last', longReceipt[longReceipt.length - 1] === '↵ done — the roster refreshes' && longReceipt.length <= 10 && longReceipt.includes('…'))
+  t.check("a receipt whose door a picker's row opened names the picker as the way out; a refused key still returns to the roster; the face's own door keeps its line", receiptPaneLines('r', true, true).at(-1) === '↵ done — back to the picker' && receiptPaneLines('r', false, true).at(-1) === '↵ done — the roster refreshes' && receiptPaneLines('r', true).at(-1) === '↵ done — the roster refreshes' && loginsFlowPaneLines({ kind: 'receipt', receipt: 'r', ok: true, backToPicker: true }).at(-1) === '↵ done — back to the picker' && loginsFlowPaneLines({ kind: 'receipt', receipt: 'r', ok: true }).at(-1) === '↵ done — the roster refreshes')
+  t.check("the receipt status names the picker exactly when a picker's row opened the door; a refused key and the face's own door keep the roster", loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: true, backToPicker: true }) === 'connected — ↵ returns to the picker' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false, backToPicker: true }) === 'not connected — ↵ returns to the roster' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: true }) === 'connected — ↵ returns to the roster' && loginsFlowStatusOf({ kind: 'anthropic', snap: { flow: { name: 'success' }, pastePromptUp: false, copied: false, shadowWarning: null, accountLabel: null } as never, draftLen: 0, backToPicker: true }) === 'signed in — ↵ returns to the picker')
 
   t.check('the pick/key/receipt legends name only the moves that exist', loginsFlowLegendOf({ kind: 'pick', pick: 'console', pickSel: 0 }) === '↑↓ move · ↵ pick · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: false }) === '↵ store key · esc back' && loginsFlowLegendOf({ kind: 'key', leg: 'deepseek', note: null, draftLen: 0, storing: true }) === 'checking…' && loginsFlowLegendOf({ kind: 'receipt', receipt: 'r', ok: true }) === '↵ done')
   t.check('the status words track the sub-view', loginsFlowStatusOf({ kind: 'pick', pick: 'zai', pickSel: 0 }) === 'which Z.AI key is this?' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false }) === 'not connected — ↵ returns to the roster')
@@ -848,7 +853,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
     )
   const armCallers = sourceFiles('src').filter(rel => rel !== 'src/substrate/splashHandover.ts' && codeOnlyText(rel, read(rel)).includes('armFaceDoorDeepLink('))
   const boardRoute = 'src/components/concourse/ConcourseRoute.tsx'
-  t.check('the board route uses the face-door owner; no other product caller arms a different entry', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink): void {') && armCallers.includes(boardRoute) && armCallers.every(rel => rel === boardRoute) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door)'), armCallers.join(' '))
+  t.check('the board route uses the face-door owner; no other product caller arms a different entry', handoverSrc.includes('export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpenerV1): void {') && armCallers.includes(boardRoute) && armCallers.every(rel => rel === boardRoute) && read(boardRoute).includes('if (door) armFaceDoorDeepLink(door, opener)'), armCallers.join(' '))
 
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
@@ -876,7 +881,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   const screen = read('src/components/BootLoginsScreen.tsx')
   t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetBypassPermissionsCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetBypassPermissionsCheck();') && !screen.includes('services/analytics/featureGates'))
   t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe)'))
-  t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
+  t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) settleSignedIn();') && screen.slice(screen.indexOf('const settleSignedIn = (): void => {'), screen.indexOf('const settleSignedIn = (): void => {') + 160).includes('postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
 }
 
 t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the container · the filter · one highlight)')
@@ -970,7 +975,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
 
   const screen = read('src/components/BootLoginsScreen.tsx')
   t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean, opened?: GeminiGuideOpenState): string[]'))
-  t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number): string[]'))
+  t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[]'))
   t.check('the handles pane signature takes draftLen, never the draft', screen.includes('export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[]'))
   t.check("the c and d handlers fire on an empty paste only (c with a URL), and the hint composer gates on the same", screen.includes("h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined") && screen.includes("h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === ''") && screen.includes('lines.push(handlesWaitWayOut(h, draftLen));') && screen.includes("const copy = draftLen === 0 && h.authorizeUrl !== undefined;"))
 }
