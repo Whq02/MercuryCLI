@@ -131,6 +131,8 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(firstPartyString('sonnet5'))
     case 'opus5':
       return reattach(firstPartyString('opus5'))
+    case 'opus55':
+      return reattach(firstPartyString('opus55'))
     case 'opusplan':
       return reattach(getDefaultSonnetModel())
     case 'best':
@@ -214,6 +216,7 @@ function canonicalMatch(id: string): string {
   if (isCarrierShapedId(id)) return id
   const lowered = id.toLowerCase()
   if (lowered.includes('sonnet-5')) return 'claude-sonnet-5'
+  if (lowered.includes('opus-5-5')) return 'claude-opus-5-5'
   if (lowered.includes('opus-5')) return 'claude-opus-5'
   if (lowered.includes('fable-5-1') || lowered.includes('mythos-5-1')) return 'claude-fable-5-1'
   if (lowered.includes('fable-5') || lowered.includes('mythos-5')) return 'claude-fable-5'
@@ -246,12 +249,13 @@ export function firstPartyNameToCanonical(name: string): string {
 }
 
 
-const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40'])
+const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40'])
 
 const DISPLAY_NAMES: Record<string, string> = {
   fable5: 'Fable 5',
   fable51: 'Fable 5.1',
   mythos5: 'Mythos 5',
+  opus55: 'Opus 5.5',
   opus5: 'Opus 5',
   opus48: 'Opus 4.8',
   opus47: 'Opus 4.7',
