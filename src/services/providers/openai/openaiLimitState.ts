@@ -162,6 +162,11 @@ export function adoptOpenaiObservedUsage(
   }
 }
 
+export function openaiWindowClosedUntil(fact: { resetsAtMs?: unknown } | undefined, nowMs: number): number | undefined {
+  if (fact === undefined || typeof fact.resetsAtMs !== 'number' || !Number.isFinite(fact.resetsAtMs)) return undefined
+  return fact.resetsAtMs > nowMs ? fact.resetsAtMs : undefined
+}
+
 export function __resetOpenaiLimitStateForTest(): void {
   observedBySource['chatgpt-subscription'] = null
   observedBySource['api-key'] = null

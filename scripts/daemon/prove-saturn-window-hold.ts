@@ -130,6 +130,19 @@ console.log('§W the window fact read')
   check('the fire-time facts of a session carry its window as the limit signal', facts.credentialed && facts.rateLimitedUntil === NOW + 9_000, JSON.stringify(facts))
   const noSession = liveFactsForSessionFire({ family: 'anthropic', source: 'oauth' }, undefined, { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), strandedNow: () => false, anthropicDetail: () => null, factsOf: () => ({ usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 9_000 } } }) as never, now: () => NOW })
   check('a fire with no session (the box tier) carries no window signal', noSession.rateLimitedUntil === undefined)
+  const openaiFact = { source: 'chatgpt-subscription', resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }
+  check("the openai family reads its own window from the session's facts", sessionWindowClosedUntil('openai', { usage: { openaiWindow: openaiFact } } as never, NOW) === NOW + 5_000)
+  check('an openai window whose reset has passed reads open', sessionWindowClosedUntil('openai', { usage: { openaiWindow: { ...openaiFact, resetsAtMs: NOW - 1 } } } as never, NOW) === undefined)
+  check('the anthropic family reads nothing from the openai fact', sessionWindowClosedUntil('anthropic', { usage: { openaiWindow: openaiFact } } as never, NOW) === undefined)
+  check('the openai family reads nothing from the anthropic fact', sessionWindowClosedUntil('openai', { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 } } }, NOW) === undefined)
+  const openaiFacts = liveFactsForSessionFire({ family: 'openai', source: 'oauth' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), factsOf: () => ({ usage: { openaiWindow: openaiFact } }) as never, now: () => NOW })
+  check("an openai session's fire-time facts carry its window as the limit signal", openaiFacts.credentialed && openaiFacts.rateLimitedUntil === NOW + 5_000, JSON.stringify(openaiFacts))
+  const wire = await import('../../src/services/engine-connector/seatWire.ts')
+  const onWire = wire.sessionFactsToWire({ model: { effective: 'gpt-fixture', setting: null }, usage: { ...zeros, openaiWindow: openaiFact }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [] } as never) as { usage?: Record<string, unknown> }
+  const wired = onWire.usage?.openai_window as Record<string, unknown> | undefined
+  check("the fact rides the seat's wire as openai_window with its stamps renamed", wired !== undefined && wired.source === 'chatgpt-subscription' && wired.resets_at_ms === NOW + 5_000 && wired.observed_at_ms === NOW - 1_000, JSON.stringify(onWire.usage))
+  const back = wire.sessionFactsFromWire(onWire as never) as { usage?: { openaiWindow?: { resetsAtMs?: number; observedAtMs?: number; source?: string } } }
+  check('and reads back whole', back.usage?.openaiWindow?.resetsAtMs === NOW + 5_000 && back.usage?.openaiWindow?.observedAtMs === NOW - 1_000 && back.usage?.openaiWindow?.source === 'chatgpt-subscription', JSON.stringify(back.usage?.openaiWindow))
 }
 
 console.log('§H a due self-wake inside a closed window holds and replays once at the reopen')

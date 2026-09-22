@@ -46,8 +46,13 @@ const USAGE: KeyTable = {
   limitWarning: 'limit_warning',
   openaiObserved: 'openai_observed',
   anthropicWindow: 'anthropic_window',
+  openaiWindow: 'openai_window',
 }
 const ANTHROPIC_WINDOW: KeyTable = {
+  observedAtMs: 'observed_at_ms',
+  resetsAtMs: 'resets_at_ms',
+}
+const OPENAI_WINDOW: KeyTable = {
   observedAtMs: 'observed_at_ms',
   resetsAtMs: 'resets_at_ms',
 }
@@ -188,7 +193,15 @@ function boxNested(memory: KeyTable, waiter: KeyTable): (out: Row) => void {
   }
 }
 
-function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string, windowTable: KeyTable, windowKey: string): (out: Row) => void {
+function usageNested(
+  table: KeyTable,
+  bandTable: KeyTable,
+  observedKey: string,
+  windowTable: KeyTable,
+  windowKey: string,
+  openaiWindowTable: KeyTable,
+  openaiWindowKey: string,
+): (out: Row) => void {
   return out => {
     const observed = out[observedKey]
     if (isRow(observed)) {
@@ -200,6 +213,8 @@ function usageNested(table: KeyTable, bandTable: KeyTable, observedKey: string, 
     }
     const window = out[windowKey]
     if (isRow(window)) out[windowKey] = renamed(window, windowTable)
+    const openaiWindow = out[openaiWindowKey]
+    if (isRow(openaiWindow)) out[openaiWindowKey] = renamed(openaiWindow, openaiWindowTable)
     void table
   }
 }
@@ -250,9 +265,10 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const editsKey = direction === 'to' ? 'pending_schedule_edits' : 'pendingScheduleEdits'
   const observedKey = direction === 'to' ? 'openai_observed' : 'openaiObserved'
   const windowKey = direction === 'to' ? 'anthropic_window' : 'anthropicWindow'
+  const openaiWindowKey = direction === 'to' ? 'openai_window' : 'openaiWindow'
   const catalogueKey = direction === 'to' ? 'openai_catalogue' : 'openaiCatalogue'
   return out => {
-    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey))
+    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey, t(OPENAI_WINDOW), openaiWindowKey))
     out.identity = row(out.identity, t(IDENTITY))
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))

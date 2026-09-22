@@ -60,6 +60,7 @@ import {
   sessionKitFromWire,
 } from '../services/engine-connector/seatWire.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
+import { openaiWindowFact } from '../services/providers/openai/openaiWindowFact.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
@@ -2012,6 +2013,7 @@ export async function runHeadless(
           }
           const state = getAppState()
           const anthropicWindow = anthropicWindowFact()
+          const openaiWindow = openaiWindowFact()
           const openaiCatalogue = openaiCatalogueFact()
           const answer: SessionFactsAnswerV1 = {
             model: {
@@ -2036,6 +2038,7 @@ export async function runHeadless(
                 return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
               })(),
               ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
+              ...(openaiWindow !== undefined ? { openaiWindow } : {}),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),
