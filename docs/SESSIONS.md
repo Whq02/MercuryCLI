@@ -161,7 +161,9 @@ never regresses to a lesser stage. `/title <words>` names the focused
 session yourself — a typed name outranks and outlives the mint — and a
 bare `/title` asks the model again, an explicit spend; `r` on a board row
 renames it there. The worker id is a fact of the detail column and never a
-session's title, in any world.
+session's title, in any world. `/rename <words>` names the session from the
+chat. In the cockpit the name stays on the `✶ VIEW` header and the composer
+keeps its rounded box.
 
 ## The focused chat
 
