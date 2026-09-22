@@ -46,6 +46,7 @@ const LANE_NAME = 'overload-lane'
 const LANE_MODEL = arg('--lane-model') ?? 'claude-fable-5-1'
 const DOOR = /opus/i.test(LANE_MODEL)
 const INLINE = process.argv.includes('--inline')
+const GONE_CWD = process.argv.includes('--gone-cwd')
 const SEAT_MARK = 'overload-seat:lane'
 const PROBE_MARK = 'Reply with the single word ready.'
 const OLD_DOOR = 'its work is kept; resume it'
@@ -111,9 +112,9 @@ const pickTag = (text: string, tag: string): string | null => {
 }
 
 type Hit = { lane: 'parent' | 'lane' | 'probe' | 'other'; atMs: number; answer: string }
-async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; state: { handResumes: number }; close(): Promise<void> }> {
+async function startFixture(port: number, laneCwd?: string): Promise<{ base: string; hits: Hit[]; state: { handResumes: number; noteSeen: boolean }; close(): Promise<void> }> {
   const hits: Hit[] = []
-  const state = { handResumes: 0 }
+  const state = { handResumes: 0, noteSeen: false }
   let outageStartedAt: number | null = null
   let secondWaveAt: number | null = null
   let laneCalls = 0
@@ -153,6 +154,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
       const isProbe = userText.includes(PROBE_MARK) && items.length === 1
       const isLane = !isProbe && userText.includes(SEAT_MARK)
       if (isProbe) {
+        if (laneCwd !== undefined) rmSync(laneCwd, { recursive: true, force: true })
         const answer = phase(now, true)
         hits.push({ lane: 'probe', atMs: now, answer })
         if (answer === 'down') {
@@ -165,6 +167,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
         return
       }
       if (isLane) {
+        if (laneCwd !== undefined && userText.includes(`NOTE: its recorded directory ${laneCwd} is gone`)) state.noteSeen = true
         laneCalls++
         if (outageStartedAt === null) outageStartedAt = now
         const answer = phase(now, false)
@@ -204,6 +207,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
             prompt: `${SEAT_MARK} read the notes file once, then report in one line`,
             subagent_type: 'mercury-general',
             ...(INLINE ? {} : { run_in_background: true }),
+            ...(laneCwd !== undefined ? { cwd: laneCwd } : {}),
           }) + tail('tool_use')
       } else out = textBlock(0, 'side') + tail('end_turn')
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -384,7 +388,9 @@ console.log(`  bundle ${BIN}`)
 console.log('============================================================')
 const KEEP = process.env.OVERLOAD_DRIVE_KEEP === '1'
 const { home, cwd } = seedWorld()
-const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 25311))
+const laneCwd = GONE_CWD ? join(cwd, 'helper') : undefined
+if (laneCwd !== undefined) mkdirSync(laneCwd)
+const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 25311), laneCwd)
 const FRAMES = 30
 const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
@@ -413,7 +419,13 @@ if (cap !== null) {
   }
   const session = sessionTranscript(home)
   const parentRecords = session?.records ?? []
-  const notices = laneNotices(parentRecords)
+  const allNotices = laneNotices(parentRecords)
+  const notices = GONE_CWD ? allNotices.filter(notice => !notice.summary?.includes('NOTE: its recorded directory')) : allNotices
+  if (GONE_CWD) {
+    check('E1 the resumed helper reads the gone-directory note', fixture.state.noteSeen)
+    check('E2 the automatic resume receipt names the removed folder and where edits land', allNotices.some(notice => notice.summary?.includes(`NOTE: its recorded directory ${laneCwd} is gone`) && notice.summary.includes(cwd) && notice.summary.includes('anything it edits lands there')))
+    check('E3 the fixture removed the helper directory during the pause', laneCwd !== undefined && !existsSync(laneCwd))
+  }
   const lane = session === null ? null : laneTranscript(session.dir, session.path)
   const outputs = lane === null ? [] : laneOutputs(lane)
   const deaths = outputs.filter(o => o.model === '<synthetic>' && /^API Error: 529\b|API overload errors \(529\)/.test(o.text))

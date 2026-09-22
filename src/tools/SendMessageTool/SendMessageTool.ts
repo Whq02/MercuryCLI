@@ -12,7 +12,6 @@ import { requestWorkflowControl, workflowControlBy } from '../WorkflowTool/runCo
 import { listWorkflowRunsDetailed, runLiveness } from '../WorkflowTool/runManifest.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
-import { continuationDirectoryNote } from './continuationNote.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId, getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
@@ -595,7 +594,7 @@ async function routeToLocalAgent(
         message:
           `Agent ${rawTo} ${ended}; it was resumed in the background with your ` +
           `message and you will be notified when it completes. Output file: ${resumed.outputFile}` +
-          continuationDirectoryNote(resumed),
+          (resumed.note ?? ''),
       }
     } catch (error) {
       return {
@@ -649,7 +648,7 @@ async function routeToLocalAgent(
       message:
         `Agent ${rawTo} is not running (${endedOnDisk}); it was resumed in the background with your message and you will be ` +
         `notified when it completes. Output file: ${resumed.outputFile}` +
-        continuationDirectoryNote(resumed),
+        (resumed.note ?? ''),
     }
   } catch (error) {
     return {
