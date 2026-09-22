@@ -28,6 +28,7 @@ export type ComposerDraft = {
 export type StashedPrompt = {
   text: string
   cursorOffset: number
+  mode: PromptInputMode
   pastedContents: Record<number, PastedContent>
 }
 
@@ -250,6 +251,30 @@ export function reportCursor(offset: number): void {
 export function setStash(next: StashedPrompt | undefined): void {
   stash = next
   commit()
+}
+
+export function stashDraft(cursorOffset: number = draft.cursorOffset): void {
+  stash = {
+    text: draft.text,
+    cursorOffset,
+    mode: draft.mode,
+    pastedContents: draft.pastedContents,
+  }
+  edit('')
+  setPastedContents({})
+  setMode('prompt')
+  commit()
+}
+
+export function popStash(): StashedPrompt | undefined {
+  const pocket = stash
+  if (pocket === undefined) return undefined
+  stash = undefined
+  edit(pocket.text)
+  setPastedContents(pocket.pastedContents)
+  setMode(pocket.mode)
+  commit()
+  return pocket
 }
 
 

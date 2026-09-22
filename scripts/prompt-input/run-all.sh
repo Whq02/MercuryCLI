@@ -32,6 +32,7 @@ for p in \
   scripts/prompt-input/prove-history-scan-debounce.ts \
   scripts/prompt-input/prove-typing-survives-rekey.ts \
   scripts/prompt-input/prove-image-paste-drive.ts \
+  scripts/prompt-input/prove-stash-carries-mode.ts \
 ; do
   echo "── $p"
   __t=$SECONDS; __rc=0; "$BUN" run "$p" || { __rc=$?; overall=1; }; prover_mark "$p" "$__t" "$__rc"

@@ -1700,22 +1700,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const performStash = useCallback((): void => {
     if (input.trim() === '') {
-      const stashed = pendingInput.stashedPrompt()
+      const stashed = pendingInput.popStash()
       if (stashed === undefined) return
-      pendingInput.setStash(undefined)
-      pendingInput.edit(stashed.text)
       lastSelfWriteRef.current = stashed.text
       setCursorOffset(stashed.cursorOffset)
-      pendingInput.setPastedContents(stashed.pastedContents)
       return
     }
-    pendingInput.setStash({ text: input, cursorOffset, pastedContents })
-    pendingInput.edit('')
+    pendingInput.stashDraft(cursorOffset)
     lastSelfWriteRef.current = ''
     setCursorOffset(0)
-    pendingInput.setPastedContents({})
     saveGlobalConfig(config => ({ ...config, hasUsedStash: true }))
-  }, [input, cursorOffset, pastedContents, setCursorOffset])
+  }, [input, cursorOffset, setCursorOffset])
 
   const cyclePermission = useCallback((): void => {
     const fresh = appStateStore.getState() as AppState
