@@ -47,14 +47,19 @@ type Capture = { grid: Grid; marks: Record<string, Grid>; endReason: string }
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'critter-mini-'))
 process.env.ANTHROPIC_API_KEY = KEY
 
-function homeFor(name: string): { configHome: string; cwd: string } {
+const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
+const STACK_VERB = 'Reading the whole fixture answer before replying'
+const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`
+const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun', 100: 'Basking in the sun' }
+
+function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : undefined): { configHome: string; cwd: string } {
   const world = join(scratch, name)
   const cwd = join(world, 'fixture-cwd')
   const configHome = join(world, 'confighome')
   mkdirSync(cwd, { recursive: true })
   mkdirSync(configHome, { recursive: true })
   seedFirstRun(configHome, [cwd])
-  if (name.startsWith('busy-')) writeFileSync(join(configHome, 'settings.json'), JSON.stringify({ spinnerVerbs: { mode: 'replace', verbs: ['Reading the complete fixture response and checking every part of it'] } }))
+  if (verb !== undefined) writeFileSync(join(configHome, 'settings.json'), JSON.stringify({ spinnerVerbs: { mode: 'replace', verbs: [verb] } }))
   return { configHome, cwd }
 }
 
@@ -166,6 +171,32 @@ function centeredLeft(g: Grid): number {
   const border = text(g)[header + 1] ?? ''
   return Math.round((border.indexOf('╭') + border.lastIndexOf('╮') - 8) / 2)
 }
+
+type Berth = { left: number; right: number; top: number; bottom: number; cardTop: number; cardBottom: number; cardLeft: number; x: number; y: number; cells: number }
+function berthOf(g: Grid): Berth {
+  const t = text(g)
+  const border = t[rowWith(g, '✶ VIEW') + 1] ?? ''
+  const left = border.indexOf('╭')
+  const right = border.lastIndexOf('╮')
+  const { top, bottom } = boxRows(g, left)
+  const inner = t.slice(top + 1, bottom)
+  const cardTop = inner.findIndex(row => row.indexOf('╭', left + 1) >= 0)
+  const cardBottom = inner.findIndex(row => row.indexOf('╰', left + 1) >= 0)
+  const cardLeft = inner.map(row => row.indexOf('╭', left + 1)).find(c => c >= 0) ?? -1
+  const art: Array<[number, number]> = []
+  for (let r = top + 1; r < bottom; r++) for (let c = left + 1; c < right; c++) if (g[r]![c]!.c === '▀') art.push([c, r])
+  return {
+    left, right, top, bottom,
+    cardTop: cardTop < 0 ? -1 : top + 1 + cardTop,
+    cardBottom: cardBottom < 0 ? -1 : top + 1 + cardBottom,
+    cardLeft,
+    x: art.length ? Math.min(...art.map(cell => cell[0])) : -1,
+    y: art.length ? Math.min(...art.map(cell => cell[1])) : -1,
+    cells: art.length,
+  }
+}
+const cardRows = (b: Berth): number => b.cardTop < 0 ? 0 : b.cardBottom - b.cardTop + 1
+const middleRowTop = (b: Berth): number => b.cardTop + Math.floor((cardRows(b) - 3) / 2)
 
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
@@ -316,21 +347,14 @@ try {
     const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
     const border = text(idle)[rowWith(idle, '✶ VIEW') + 1]!
     const left = border.indexOf('╭')
-    const right = border.lastIndexOf('╮')
     const bounds = boxRows(idle, left)
     const at = centeredLeft(idle)
     check(`${cols}×${rows}: the idle sprite is centred horizontally and vertically`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀')), `expected ${at},${bounds.top + 1}`)
     const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
-    const t = text(busy.grid)
-    const bb = boxRows(busy.grid, left)
-    const art: Array<[number, number]> = []
-    for (let r = bb.top + 1; r < bb.bottom; r++) for (let c = left + 1; c < right; c++) if (busy.grid[r]![c]!.c === '▀') art.push([c, r])
-    const cardLeft = t.slice(bb.top + 1, bb.bottom).map(row => row.indexOf('╭', left + 1)).find(c => c >= 0) ?? -1
-    const x = Math.min(...art.map(cell => cell[0]))
-    const y = Math.min(...art.map(cell => cell[1]))
-    check(`${cols}×${rows}: work paints beside the sprite`, cardLeft > left && art.length === 27, `card ${cardLeft}, art cells ${art.length}`)
-    check(`${cols}×${rows}: the card keeps its column`, cardLeft === left + 16, `card ${cardLeft}, expected ${left + 16}`)
-    check(`${cols}×${rows}: the busy sprite is centred in its owned slot`, x === Math.round((left + cardLeft - 9) / 2) && y === Math.round((bb.top + bb.bottom - 2) / 2), `sprite ${x},${y}; box ${bb.top}..${bb.bottom}`)
+    const b = berthOf(busy.grid)
+    check(`${cols}×${rows}: work paints beside the sprite`, b.cardLeft > left && b.cells === 27, `card ${b.cardLeft}, art cells ${b.cells}`)
+    check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
+    check(`${cols}×${rows}: the busy sprite is centred in its owned slot, level with the card's middle row`, b.x === Math.round((left + b.cardLeft - 9) / 2) && b.y === middleRowTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${Math.round((left + b.cardLeft - 9) / 2)},${middleRowTop(b)}`)
   }
   console.log('§12 a companion bubble owns its space only while painted')
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
@@ -349,6 +373,27 @@ try {
     const clearBounds = boxRows(cleared, left)
     const clearLeft = centeredLeft(cleared)
     check(`${cols}×${rows}: removing the bubble restores the whole berth to the sprite`, clearBounds.bottom - clearBounds.top === 4 && cleared.slice(clearBounds.top + 1, clearBounds.bottom).every(row => row.slice(clearLeft, clearLeft + 9).every(cell => cell.c === '▀')))
+  }
+  console.log('§14 the sprite sits level with the thinking box’s middle row however tall the box grows')
+  for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
+    const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, 6]]
+    for (const [leg, verb, expectedRows] of legs) {
+      const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
+      const b = berthOf(shot.grid)
+      check(`${cols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
+      check(`${cols}×${rows} ${leg}: the sprite’s middle row is the box’s middle row (sprite rows ${middleRowTop(b)}–${middleRowTop(b) + 2})`, b.y === middleRowTop(b), `sprite top ${b.y}, expected ${middleRowTop(b)}`)
+      check(`${cols}×${rows} ${leg}: no sprite row lies beside the box’s bottom border unless the box is three rows`, expectedRows === 3 || b.y + 2 < b.cardBottom, `sprite rows ${b.y}–${b.y + 2}, bottom border ${b.cardBottom}`)
+    }
+    const ticks = Array.from({ length: 8 }, (_, i) => ({ afterPrevTicks: 2, data: '', mark: `tick${i}` }))
+    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB[cols]!), cols, rows, [onReady('hello fixture\r', 'idle'), ...ticks], 'first byte', [], true)
+    const early = ticks.map(tick => berthOf(grow.marks[tick.mark]!))
+    const oneLine = early.find(b => cardRows(b) === 3 && b.cells === 27)
+    const last = berthOf(grow.grid)
+    console.log(`  ${cols}×${rows} grow: the box reads ${early.map(cardRows).join(',')} rows across the early marks and ${cardRows(last)} rows at the end (sprite top ${early.map(b => b.y).join(',')} → ${last.y})`)
+    check(`${cols}×${rows} grow: an early mark caught the one-line box before the timer stacked the meta`, oneLine !== undefined, `rows across the marks: ${early.map(cardRows).join(',')}`)
+    check(`${cols}×${rows} grow: once the timer stacks the meta the box is four rows tall`, cardRows(last) === 4 && last.cells === 27, `card ${last.cardTop}..${last.cardBottom} (${cardRows(last)} rows), art cells ${last.cells}`)
+    check(`${cols}×${rows} grow: the sprite stays on the box’s top three rows, its middle row on the verb line`, last.y === last.cardTop, `sprite top ${last.y}, card top ${last.cardTop}`)
+    check(`${cols}×${rows} grow: the sprite did not move when the box grew from three rows to four`, oneLine !== undefined && oneLine.y === last.y, `sprite top ${oneLine?.y} → ${last.y}`)
   }
   }
   console.log('§13 the companion mini keeps its neighbours in place')
