@@ -4,6 +4,7 @@ import { basename, dirname } from 'node:path';
 import { logForDebugging } from '../../utils/debug.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getInitialEffortSetting } from '../../utils/effort.js';
+import { armFaceDoorDeepLink } from '../../substrate/splashHandover.js';
 import {
   chatOnlyBoot,
   chatPresent,
@@ -1040,7 +1041,8 @@ function LiveConcourse(): React.ReactNode {
       },
       submitSessionDraft: () => {
       },
-      enterBootSettings: () => {
+      enterBootSettings: (door) => {
+        if (door) armFaceDoorDeepLink(door)
         enterBootSettings()
       },
       exitToRepl: () => {

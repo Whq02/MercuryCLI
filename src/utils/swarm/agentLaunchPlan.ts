@@ -34,6 +34,7 @@ export type AgentLaunchPlanInput = {
   defaultAgentType: string
   mainLoopModel: string
   modelParam?: ModelAlias
+  resolvedModel?: string
   permissionMode?: PermissionMode
   isolationParam?: 'worktree' | 'remote'
   runInBackground?: boolean
@@ -117,7 +118,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     }
   }
 
-  const model = getAgentModel(
+  const model = (!isForkPath ? i.resolvedModel : undefined) ?? getAgentModel(
     definition.model,
     i.mainLoopModel,
     isForkPath ? undefined : i.modelParam,
