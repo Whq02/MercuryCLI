@@ -133,6 +133,16 @@ section('the select hook consumes the edge moves; the transcript scroller yields
     const picker = stack.pushOverlay({ id: 'model-picker', modal: true })
     check('the model picker on top ⇒ the transcript yields the wheel', yields())
     stack.popOverlay(picker)
+    for (const id of ['command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu']) {
+      const token = stack.pushOverlay({ id, modal: true })
+      check(`the ${id} list over the transcript ⇒ the transcript yields the wheel`, yields())
+      stack.popOverlay(token)
+    }
+    for (const id of ['search', 'input-atlas', 'compact-work', 'multi-select', 'board', 'list']) {
+      const token = stack.pushOverlay({ id, modal: true })
+      check(`the ${id} overlay on top ⇒ the transcript keeps the wheel as before`, !yields())
+      stack.popOverlay(token)
+    }
     stack.popOverlay(dialog)
     stack.resetOverlayStackForTests()
   }
