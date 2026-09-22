@@ -214,7 +214,13 @@ export function readLiveAccountFacts(
 }
 
 export type SessionWindowFactsV1 = {
-  usage?: { anthropicWindow?: AnthropicWindowFactV1; openaiWindow?: OpenaiWindowFactV1; geminiWindow?: LaneWindowFactV1; openrouterWindow?: LaneWindowFactV1 }
+  usage?: {
+    anthropicWindow?: AnthropicWindowFactV1
+    openaiWindow?: OpenaiWindowFactV1
+    geminiWindow?: LaneWindowFactV1
+    openrouterWindow?: LaneWindowFactV1
+    huggingfaceWindow?: LaneWindowFactV1
+  }
 } | null
 
 export function sessionWindowClosedUntil(family: string, facts: SessionWindowFactsV1, nowMs: number): number | undefined {
@@ -222,6 +228,7 @@ export function sessionWindowClosedUntil(family: string, facts: SessionWindowFac
   if (family === 'openai') return openaiWindowClosedUntil(facts?.usage?.openaiWindow, nowMs)
   if (family === 'gemini') return laneWindowClosedUntil(facts?.usage?.geminiWindow, nowMs)
   if (family === 'openrouter') return laneWindowClosedUntil(facts?.usage?.openrouterWindow, nowMs)
+  if (family === 'huggingface') return laneWindowClosedUntil(facts?.usage?.huggingfaceWindow, nowMs)
   return undefined
 }
 

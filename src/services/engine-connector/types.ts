@@ -108,6 +108,7 @@ export type UsageFactsV1 = {
   openaiWindow?: OpenaiWindowFactV1
   geminiWindow?: LaneWindowFactV1
   openrouterWindow?: LaneWindowFactV1
+  huggingfaceWindow?: LaneWindowFactV1
 }
 
 export type OpenaiObservedBandV1 = {

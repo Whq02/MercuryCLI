@@ -708,9 +708,9 @@ Every other notice bound for the session's own thread waits the same way
 while the window is closed — a sub-agent's or a shell's completion — and
 the first turn after the window reopens carries them together; a self-paced
 wake due meanwhile fires after the reopen instead. The window is the
-provider's own: an Anthropic, OpenAI, Gemini or OpenRouter usage window
-closes the lane the same way, and the re-check waits for the reset the
-provider stated. The
+provider's own: an Anthropic, OpenAI, Gemini, OpenRouter or Hugging Face
+usage window closes the lane the same way, and the re-check waits for the
+reset the provider stated. The
 operator's own words are never held. A session parked by the operator is woken by none of these:
 what it holds waits for its resume.
 

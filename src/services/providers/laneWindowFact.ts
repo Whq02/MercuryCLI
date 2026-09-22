@@ -1,4 +1,4 @@
-export type LaneWindowFamily = 'gemini' | 'openrouter'
+export type LaneWindowFamily = 'gemini' | 'openrouter' | 'huggingface'
 
 export type LaneLimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
 
@@ -28,6 +28,16 @@ const LIVE_READS: Record<LaneWindowFamily, () => LaneWindowReads> = {
     window: () => {
       const { openrouterLimitWindow } = require('./openrouter/openrouterUsageState.js') as typeof import('./openrouter/openrouterUsageState.js')
       return openrouterLimitWindow()
+    },
+  }),
+  huggingface: () => ({
+    credentialed: () => {
+      const { resolveHuggingfaceAccount } = require('./huggingface/huggingfaceAccounts.js') as typeof import('./huggingface/huggingfaceAccounts.js')
+      return resolveHuggingfaceAccount() !== undefined
+    },
+    window: () => {
+      const { huggingfaceLimitWindow } = require('./huggingface/huggingfaceUsageState.js') as typeof import('./huggingface/huggingfaceUsageState.js')
+      return huggingfaceLimitWindow()
     },
   }),
 }
