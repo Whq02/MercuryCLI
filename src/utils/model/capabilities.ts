@@ -96,12 +96,13 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
 export function modelThinkingAlwaysOn(model: string): boolean {
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(model)
-  return canonical.includes('fable-5') || canonical.includes('mythos-5')
+  return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5'
 }
 
 export function modelSupportsForcedToolChoice(model: string): boolean {
   if (isCarrierShapedId(model)) return true
-  return getCanonicalName(model) !== 'claude-fable-5-1'
+  const canonical = getCanonicalName(model)
+  return canonical !== 'claude-fable-5-1' && canonical !== 'claude-opus-5-5'
 }
 
 export function foldToolChoiceForModel<T extends { type: string }>(
