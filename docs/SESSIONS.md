@@ -737,6 +737,10 @@ reply is being written stands below that reply from the moment it appears and
 stays there when the reply settles, and one that arrived before the reply
 began stays above it. A reply's settled row takes the place its live text
 held, once; the live text is never painted beside its own row.
+A task notification the chat shows, and every line a monitor reports, paints
+as a notice row of its own: a dim plate naming the kind and the task (a
+monitor's plate carries the watch's name), the notification's lines beneath
+it, never your plate and never the wrapper the model reads.
 
 Completions that land while the session waits between turns fold into one
 turn. The runner holds the first for the task poll's second and carries every

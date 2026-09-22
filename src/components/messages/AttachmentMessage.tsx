@@ -303,6 +303,7 @@ export function AttachmentMessage({
             param={{ type: 'text', text }}
             verbose={verbose}
             isTranscriptMode={isTranscriptMode}
+            notice={attachment.commandMode === 'task-notification'}
           />
           {(attachment.imagePasteIds ?? []).map(id => (
             <UserImageMessage key={id} imageId={id} />
