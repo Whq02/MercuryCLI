@@ -384,16 +384,18 @@ try {
       check(`${cols}×${rows} ${leg}: the sprite’s middle row is the box’s middle row (sprite rows ${middleRowTop(b)}–${middleRowTop(b) + 2})`, b.y === middleRowTop(b), `sprite top ${b.y}, expected ${middleRowTop(b)}`)
       check(`${cols}×${rows} ${leg}: no sprite row lies beside the box’s bottom border unless the box is three rows`, expectedRows === 3 || b.y + 2 < b.cardBottom, `sprite rows ${b.y}–${b.y + 2}, bottom border ${b.cardBottom}`)
     }
-    const ticks = Array.from({ length: 8 }, (_, i) => ({ afterPrevTicks: 2, data: '', mark: `tick${i}` }))
-    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB[cols]!), cols, rows, [onReady('hello fixture\r', 'idle'), ...ticks], 'first byte', [], true)
-    const early = ticks.map(tick => berthOf(grow.marks[tick.mark]!))
-    const oneLine = early.find(b => cardRows(b) === 3 && b.cells === 27)
-    const last = berthOf(grow.grid)
-    console.log(`  ${cols}×${rows} grow: the box reads ${early.map(cardRows).join(',')} rows across the early marks and ${cardRows(last)} rows at the end (sprite top ${early.map(b => b.y).join(',')} → ${last.y})`)
-    check(`${cols}×${rows} grow: an early mark caught the one-line box before the timer stacked the meta`, oneLine !== undefined, `rows across the marks: ${early.map(cardRows).join(',')}`)
-    check(`${cols}×${rows} grow: once the timer stacks the meta the box is four rows tall`, cardRows(last) === 4 && last.cells === 27, `card ${last.cardTop}..${last.cardBottom} (${cardRows(last)} rows), art cells ${last.cells}`)
-    check(`${cols}×${rows} grow: the sprite stays on the box’s top three rows, its middle row on the verb line`, last.y === last.cardTop, `sprite top ${last.y}, card top ${last.cardTop}`)
-    check(`${cols}×${rows} grow: the sprite did not move when the box grew from three rows to four`, oneLine !== undefined && oneLine.y === last.y, `sprite top ${oneLine?.y} → ${last.y}`)
+    const wide = cols + 10
+    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB[cols]!), wide, rows, [
+      onReady('hello fixture\r', 'idle'),
+      { requireAwait: true, awaitText: GROW_VERB[cols]!, awaitSettleTicks: 5, data: '', mark: 'one-line' },
+    ], '│ (', [{ afterMark: 'one-line', afterMs: 400, cols, rows }], true)
+    const before = berthOf(grow.marks[`stage0:${wide}x${rows}`]!)
+    const after = berthOf(grow.grid)
+    console.log(`  ${cols}×${rows} grow: the box is ${cardRows(before)} rows at ${wide} columns and ${cardRows(after)} rows at ${cols} (sprite top ${before.y} → ${after.y})`)
+    check(`${cols}×${rows} grow: at ${wide} columns the status fits one line and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
+    check(`${cols}×${rows} grow: at ${cols} columns the meta stacks and the box is four rows`, cardRows(after) === 4 && after.cells === 27, `card ${after.cardTop}..${after.cardBottom} (${cardRows(after)} rows), art cells ${after.cells}`)
+    check(`${cols}×${rows} grow: the sprite stays on the box’s top three rows, its middle row on the verb line`, after.y === after.cardTop, `sprite top ${after.y}, card top ${after.cardTop}`)
+    check(`${cols}×${rows} grow: the sprite did not move when the box grew from three rows to four`, before.y === after.y && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
   }
   }
   console.log('§13 the companion mini keeps its neighbours in place')
