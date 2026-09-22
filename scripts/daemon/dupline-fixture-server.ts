@@ -282,7 +282,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const at = text.indexOf(w)
       if (at >= 0) firstAt[w] = at
     }
-    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Agent'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
+    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Agent'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
     if (fold) return answerFold(res, n, model)
     switch (arm) {
       case 'agent':

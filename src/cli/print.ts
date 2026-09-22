@@ -197,7 +197,7 @@ import {
   getCommandQueue,
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
-import type { QueuedCommand } from '../types/textInputTypes.js'
+import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import { subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
@@ -1135,9 +1135,14 @@ export async function runHeadless(
 
   const executeTurn = async (
     command: QueuedCommand,
-    batchUuids: string[],
+    batch: QueuedCommand[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void> => {
+    const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
+    const batchTail: BatchedPrompt[] =
+      command.mode === 'prompt'
+        ? batch.slice(1).map(member => ({ value: member.value, ...(member.uuid !== undefined ? { uuid: member.uuid } : {}) }))
+        : []
     emitTaskNotificationFrames(taskNotificationPayloads(command))
     abortSuggestion()
     if (lastEmittedSuggestion && command.mode !== 'task-notification') {
@@ -1193,6 +1198,7 @@ export async function runHeadless(
           prompt: command.value,
           promptUuid: command.uuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
+          ...(batchTail.length > 0 ? { batchTail } : {}),
           isMeta: command.isMeta,
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
@@ -1525,7 +1531,7 @@ export async function runHeadless(
         batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined),
         randomUUID(),
       )
-      if (options.replayUserMessages && batch.length > 1) {
+      if (options.replayUserMessages && batch.length > 1 && command.mode !== 'prompt') {
         const surviving = command.uuid
         for (const member of batch) {
           const uuid = member.uuid
@@ -1542,8 +1548,8 @@ export async function runHeadless(
       }
       return openEdge
     },
-    executeTurn: (command, batchUuids, onMessage) =>
-      executeTurn(command, batchUuids, message => {
+    executeTurn: (command, batch, onMessage) =>
+      executeTurn(command, batch, message => {
         onMessage(message)
       }),
     onTurnSettled: () => {
