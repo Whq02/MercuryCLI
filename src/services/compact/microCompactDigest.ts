@@ -29,7 +29,7 @@ export function isMicroCompactDigestEnabled(): boolean {
 export function isClearedOrDigested(content: DigestableContent): boolean {
   return (
     typeof content === 'string' &&
-    (content === MC_CLEARED_PLACEHOLDER ||
+    (content.startsWith(MC_CLEARED_PLACEHOLDER) ||
       content === LEGACY_MC_CLEARED_PLACEHOLDER ||
       content.startsWith(MC_DIGEST_PREFIX) ||
       content.startsWith(LEGACY_MC_DIGEST_PREFIX))

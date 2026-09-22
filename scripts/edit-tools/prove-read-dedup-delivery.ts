@@ -65,7 +65,7 @@ const fixtures = mkdtempSync(join(tmpdir(), 'dedup-delivery-fixture-'))
 const files: string[] = []
 for (let i = 1; i <= 6; i++) {
   const p = join(fixtures, `f${i}.txt`)
-  writeFileSync(p, `file ${i} — ${'delivery truth line\n'.repeat(120)}`)
+  writeFileSync(p, `file ${i} — ${`${'delivery truth line '.repeat(5)}\n`.repeat(850)}`)
   files.push(p)
 }
 
