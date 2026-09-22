@@ -124,6 +124,7 @@ import {
   writeSupervisorState,
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
+import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
@@ -954,6 +955,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           healInflight = true
           try {
+            if (!daemonHomeStands('the plane heal')) return
             const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
             const keyMissing = !existsSync(controlKeyPath())
             let foreignOwner = false
@@ -1112,6 +1114,7 @@ async function daemonRun(args: string[]): Promise<void> {
         let reconcileHadLive = bootReconcile.live.length > 0
         const reconcileTick = setInterval(() => {
           try {
+            if (!daemonHomeStands('the reconcile tick')) return
             const live = new Set(
               roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
             )
@@ -1243,6 +1246,9 @@ async function daemonRun(args: string[]): Promise<void> {
       shutdown(signal)
     }
     requestShutdown = shutdown
+    armDaemonHomeWatch(daemonDir(), where => {
+      shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
+    })
     process.on('SIGINT', () => shutdown('SIGINT'))
     process.on('SIGTERM', () => shutdown('SIGTERM'))
     process.on('SIGHUP', () => shutdown('SIGHUP'))

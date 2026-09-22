@@ -139,7 +139,7 @@ section('§6 the road: the sign-in reaches the runners, and the live reads ride 
   const usabilitySrc = src('src/services/providers/providerUsability.ts')
   check('the live usability reads take the guarded verdict, never the raw latch', usabilitySrc.includes('anthropicLimitVerdict(clock())') && !usabilitySrc.includes('currentLimits.status'))
   const limitsSrc = src('src/services/claudeAiLimits.ts')
-  check('both wire paths stamp the verdict owner', (limitsSrc.match(/stampVerdictOwner\(\)/g) ?? []).length >= 2)
+  check('both wire paths stamp the verdict owner', (limitsSrc.match(/stampVerdictOwner\([^)]*\)/g) ?? []).length >= 2)
   check('the reset roads clear the stamp', (limitsSrc.match(/verdictOwner = null/g) ?? []).length >= 2)
 }
 

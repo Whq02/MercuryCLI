@@ -16,6 +16,7 @@ import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pi
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
+import { daemonHomeStands } from './daemonHome.js'
 import {
   MERCURY_DAEMON_PROTO,
   MIN_PROTO,
@@ -97,6 +98,7 @@ export async function writeSupervisorState(
   state: SupervisorState,
 ): Promise<void> {
   try {
+    if (!daemonHomeStands('the supervisor record')) return
     await mkdir(daemonDir(), { recursive: true })
     await writeFile(supervisorStatePath(), JSON.stringify(state, null, 2), 'utf8')
   } catch (e) {
@@ -105,6 +107,7 @@ export async function writeSupervisorState(
 }
 
 export function markSupervisorStoppingSync(now = Date.now()): boolean {
+  if (!daemonHomeStands('the supervisor record')) return false
   const path = supervisorStatePath()
   let current: SupervisorState
   try {
@@ -133,6 +136,7 @@ export function ownsControlPlaneSync(): boolean {
 
 export async function reassertControlKey(key: string): Promise<void> {
   try {
+    if (!daemonHomeStands('the control key')) return
     await mkdir(daemonDir(), { recursive: true })
     await writeFile(controlKeyPath(), key, { encoding: 'utf8', mode: 0o600 })
     await chmod(controlKeyPath(), 0o600).catch(() => {})
