@@ -47,11 +47,14 @@ const h = React.createElement as (...a: unknown[]) => React.ReactElement
 
 const MARKER = 'frame-marker'
 const framed = (): boolean => painted().includes(MARKER)
-let setShown: ((shown: boolean) => void) | null = null
+let landRow: (() => void) | null = null
 function Host({ store }: { store: TailStore }): React.ReactElement {
-  const [shown, set] = React.useState(false)
-  setShown = set
-  return h(Box as never, { flexDirection: 'column' }, h(LiveStreamingTail as never, { store, settledShown: shown }), h(Text as never, {}, MARKER))
+  const [, bump] = React.useState(0)
+  landRow = () => {
+    store.dropSettled()
+    bump(n => n + 1)
+  }
+  return h(Box as never, { flexDirection: 'column' }, h(LiveStreamingTail as never, { store }), h(Text as never, {}, MARKER))
 }
 
 const REPLY = 'The finished single-block reply'
@@ -75,7 +78,7 @@ section('§1 THE FIRST DEFECT PIN: the turn is over, the row has not landed — 
   check('THE DEFECT PIN: with the turn already idle and no row landed, the ghost paints', painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
   check('…and the hold stands (not dropped on the turn\'s end alone)', store.readSettled() === REPLY)
   written = ''
-  setShown!(true)
+  landRow!()
   await settle(300)
   check('the row landing releases the ghost (a fresh frame: marker present, the reply gone)', framed() && !painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
   check('…and drops the hold', store.readSettled() === null)
@@ -106,7 +109,7 @@ section('§3 THE SECOND DEFECT PIN: the turn runs on (a queued next turn) — th
   await settle()
   const again = await mountWithHold(true)
   written = ''
-  setShown!(true)
+  landRow!()
   await settle(300)
   check('the row landing mid-turn releases the ghost at once and drops the hold', framed() && !painted().includes(REPLY) && again.store.readSettled() === null, JSON.stringify(painted().slice(-160)))
   again.unmount()
@@ -137,9 +140,9 @@ section('§5 structural: the budget is the exported constant, bounded; the leaf 
 {
   check('SETTLE_LINGER_MS is exported and bounded (≤ 3 s)', typeof SETTLE_LINGER_MS === 'number' && SETTLE_LINGER_MS > 0 && SETTLE_LINGER_MS <= 3000, String(SETTLE_LINGER_MS))
   const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('the ghost stands until its row lands or its own linger expires — never on the turn', leaf.includes('const ghost = settled !== null && !settledShown && !lingerExpired'))
+  check('the ghost stands until its hold drops (the connector\'s release) or its own linger expires — never on the turn', leaf.includes('const ghost = settled !== null && !lingerExpired'))
   check('the linger is armed from the clear\'s stamp (readSettledSinceMs), the remaining budget only', /readSettledSinceMs\(\)/.test(leaf) && /SETTLE_LINGER_MS - age/.test(leaf))
-  check('the hold drops on the row landing, or on the expired linger', leaf.includes('if (settled !== null && (settledShown || lingerExpired)) store.dropSettled()'))
+  check('the leaf drops the hold only on the expired linger (the row landing drops it at the source)', leaf.includes('if (settled !== null && lingerExpired) store.dropSettled()'))
 }
 
 console.log(failures === 0 ? '\nprove-settle-ghost-linger: ALL LAWS HOLD' : `\nprove-settle-ghost-linger: ${failures} FAILURE(S)`)
