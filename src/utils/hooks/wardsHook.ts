@@ -135,10 +135,6 @@ export function registerWardsHook(
         const verdict = evaluateWards(rules, pending)
         if (verdict.allow) return true
         const denial = buildWardDenial(verdict, pending.toolName)
-        if (level === 'warn') {
-          logForDebugging(`wards: warn — ${denial}`)
-          return true
-        }
         denials++
         if (denials === WARD_DENIAL_CAP) {
           logForDebugging(
