@@ -99,6 +99,11 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5'
 }
 
+export function modelNarratesInThinkingBlocks(model: string): boolean {
+  if (isCarrierShapedId(model)) return false
+  return getCanonicalName(model) === 'claude-opus-5-5'
+}
+
 export function modelSupportsForcedToolChoice(model: string): boolean {
   if (isCarrierShapedId(model)) return true
   const canonical = getCanonicalName(model)
