@@ -140,7 +140,7 @@ failed: it pauses, its row says why — `paused — provider overloaded ·
 resumes by itself when the provider answers` — its work so far is kept, and
 Mercury probes the provider with one small request at a slow, bounded
 cadence — 30 s after the pause, then every minute for ten minutes, then
-every five minutes, for up to two hours — and resumes the agent by itself
+every five minutes, for up to one hour — and resumes the agent by itself
 when a probe is answered; the agent continues from where its transcript
 ends. The parent's chat carries one calm line per agent per outage — the
 first pause names the provider and the probing; a later death and the

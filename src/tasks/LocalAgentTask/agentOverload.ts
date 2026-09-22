@@ -5,7 +5,7 @@ export const OVERLOAD_PROBE_FIRST_MS = 30_000
 export const OVERLOAD_PROBE_EARLY_MS = 60_000
 export const OVERLOAD_PROBE_EARLY_WINDOW_MS = 10 * 60_000
 export const OVERLOAD_PROBE_LATE_MS = 5 * 60_000
-export const OVERLOAD_PROBE_WINDOW_MS = 2 * 60 * 60_000
+export const OVERLOAD_PROBE_WINDOW_MS = 60 * 60_000
 export const OVERLOAD_PROBE_REQUEST_MS = 30_000
 
 export function overloadProbeScale(): number {
@@ -50,7 +50,7 @@ export function overloadProbeRequestMs(scale: number = overloadProbeScale()): nu
 const OVERLOADED_MARKER = '"type":"overloaded_error"'
 
 export function isOverloadAnswerText(text: string): boolean {
-  return text.includes(OVERLOADED_MARKER) || /^API Error: 529\b/.test(text) || /API overload errors \(529\)/.test(text)
+  return text.includes(OVERLOADED_MARKER) || /^API Error: 529\b/.test(text) || /API overload errors \(529\)/.test(text) || /\(HTTP 529, overloaded\)/.test(text)
 }
 
 export function overloadProbeWindowWords(scale: number = overloadProbeScale()): string {
