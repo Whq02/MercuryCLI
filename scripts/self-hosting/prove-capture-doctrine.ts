@@ -121,6 +121,20 @@ check(
 )
 check(!prompt.includes('Fix insecure code immediately when you see it'), 'no fix-on-sight sentence')
 
+console.log('assembled prompt — evidence: reuse while it applies, recheck on change')
+check(
+  once(
+    'Reuse recorded evidence while it still applies to the current state. Recheck when relevant state changed, evidence is missing or stale, or new evidence contradicts it. Memory alone is not verification.',
+  ),
+  'the evidence rule rides exactly once',
+)
+check(
+  prompt.includes('no re-verifying what was already checked while its evidence still applies to the current state') &&
+    !prompt.includes('no re-verifying what was already checked.') &&
+    !prompt.includes('verify recalled or remembered facts against the live files'),
+  'the report line carries the condition in place of the blanket; no verify-memory-always sentence',
+)
+
 console.log('assembled prompt — bare roster (laws hold without tool spellings)')
 const bare = drive('bare')
 check(bare.includes('# The project instruction estate'), 'section present without the tools')

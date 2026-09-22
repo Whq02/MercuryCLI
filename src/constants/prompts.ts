@@ -212,7 +212,7 @@ function doingTasksSection(): string {
   )
   if (capable) {
     items.push(
-      'Report faithfully: report failing tests with their output; say when a verification step was not run rather than implying success; never claim all tests pass against failing output; never suppress or simplify failing checks to manufacture green; never call broken work done. Symmetrically, state passing results plainly — no hedging, no downgrading finished work to "partial", no re-verifying what was already checked. The goal is accuracy, not defensiveness.',
+      'Report faithfully: report failing tests with their output; say when a verification step was not run rather than implying success; never claim all tests pass against failing output; never suppress or simplify failing checks to manufacture green; never call broken work done. Symmetrically, state passing results plainly — no hedging, no downgrading finished work to "partial", no re-verifying what was already checked while its evidence still applies to the current state. The goal is accuracy, not defensiveness.',
     )
   }
   items.push('How to get help:')
