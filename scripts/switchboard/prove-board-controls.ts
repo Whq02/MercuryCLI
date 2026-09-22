@@ -655,6 +655,7 @@ console.log('H — the session model picker follows the selected session facts')
   const modelRefusal = ' · not saved as your default: fixture write refused'
   const override = ' · saved as your default, but MERCURY_MODEL=fixture-model overrides it at boot'
   let saved = modelRefusal
+  let savedOutcome: 'saved' | 'refused' | 'overridden' = 'refused'
   let error: Error | null = new Error('fixture write refused')
   let done = 0
   let mirrored = 0
@@ -666,7 +667,7 @@ console.log('H — the session model picker follows the selected session facts')
     unpinAllLaunchEffort: () => { unpinned++ },
     toPersistableEffort: (value: string) => value,
     updateSettingsForSource: () => { writes++; return { error } },
-    persistModelChoice: () => saved,
+    persistModelChoice: () => ({ outcome: savedOutcome, sentence: saved }),
     settleModelSelection: () => ({ patch: {} }),
   })
   const defaultProps = { onDone: () => { done++ } }
@@ -681,10 +682,12 @@ console.log('H — the session model picker follows the selected session facts')
   check('I1 a failed model save changes no application state', mirrored === 0)
   reset()
   saved = override
+  savedOutcome = 'overridden'
   renderDefault().onSelect('fixture-choice')
   check('I2 a launch override stays open and carries its sentence verbatim', done === 0 && renderDefault().notice === override)
   reset()
   saved = ' · saved as your default'
+  savedOutcome = 'saved'
   renderDefault().onSelect('fixture-choice')
   check('I3 a successful unopposed model save closes and mirrors the choice once', done === 1 && mirrored === 1)
   for (const [value, sentence] of [['medium', 'Could not save the effort level:'], ['supercode', 'Could not save the supercode setting:']]) {

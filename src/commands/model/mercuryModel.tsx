@@ -688,7 +688,7 @@ function MercuryModelWrapper({
           onDone(`The model switch was refused: ${receipt.detail}`)
           return
         }
-        const saved = persistModelChoice(value)
+        const saved = persistModelChoice(value).sentence
         if (receipt.state === 'no-op') {
           onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
           return
@@ -709,7 +709,7 @@ function MercuryModelWrapper({
     const settled = settleModelSelection(stateNow, value, {
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
-    const saved = persistModelChoice(value)
+    const saved = persistModelChoice(value).sentence
     if (settled.kind === 'no-op') {
       onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
       return
@@ -844,8 +844,8 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       return
     }
     const saved = persistModelChoice(id)
-    if (saved !== '' && saved !== ' · saved as your default') {
-      setNotice(saved)
+    if (saved.outcome !== 'saved') {
+      setNotice(saved.sentence)
       return
     }
     if (setAppState !== null) {
