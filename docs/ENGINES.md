@@ -93,14 +93,16 @@ recorded; a provider fault never crashes the turn — a terminal fault lands
 as an API-error message in the chat, cancellation returns quietly, and a
 retryable fault before any content is retried once; every request's usage
 joins the one session cost ledger. A refusal that says the provider is busy
-(an HTTP 503, Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
+(an HTTP 503, the Anthropic wire's HTTP 529 or `overloaded_error` — inside a
+stream too — Google's UNAVAILABLE, OpenAI's overloaded model, DeepSeek's
 overloaded server, OpenRouter's no available provider, Z.AI's code 1305, or a
 vendor's own overloaded or unavailable word) is retried quietly on a growing
 wait on every road — 1 s, 2 s, 4 s, 8 s, 16 s and 30 s, about a minute in
 all — before the chat gives up: nothing is painted for the first thirty
 seconds, then the retry line shows the true wait and the true count, and the
 red error line comes only once the whole ladder is spent, saying how many
-retries it took and how long. A rate limit that names its own wait
+retries it took and how long (on the Anthropic wire it carries the
+provider's own answer). A rate limit that names its own wait
 (Retry-After) rides the same ladder with that wait in place of the rung; a
 rate limit without one keeps the single retry. A reply that arrives inside
 the ladder shows one calm grey line above it, naming the provider —
