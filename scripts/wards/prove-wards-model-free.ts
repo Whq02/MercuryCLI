@@ -161,10 +161,11 @@ async function main(): Promise<void> {
 
   section('§5 rules are data — JSON round-trip intact (no function smuggling)')
   {
-    const { BUILTIN_WARDS, AUTONOMOUS_WARDS } = await import('../../src/utils/wards/wards.js')
+    const { BUILTIN_WARDS, AUTONOMOUS_WARDS, REFUSAL_WARDS } = await import('../../src/utils/wards/wards.js')
     for (const [name, rules] of [
       ['BUILTIN_WARDS', BUILTIN_WARDS],
       ['AUTONOMOUS_WARDS', AUTONOMOUS_WARDS],
+      ['REFUSAL_WARDS', REFUSAL_WARDS],
     ] as const) {
       const roundTripped = JSON.parse(JSON.stringify(rules))
       check(
