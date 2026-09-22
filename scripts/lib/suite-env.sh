@@ -65,7 +65,7 @@ suite_home_guard() {
     echo "suite $suite: cannot make a scratch config home under $temp" >&2
     exit 78
   }
-  trap 'rm -rf "$__suite_home_scratch"' EXIT
+  trap suite_home_cleanup EXIT
   export MERCURY_CONFIG_DIR="$__suite_home_scratch"
   export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
   bun="${BUN:-${HOME:-}/.bun/bin/bun}"
@@ -75,4 +75,9 @@ suite_home_guard() {
     seeded=", seeded for $root"
   fi
   echo "suite $suite: MERCURY_CONFIG_DIR $was; this run's config home is $MERCURY_CONFIG_DIR$seeded; removed at exit" >&2
+}
+
+suite_home_cleanup() {
+  [ -n "${__suite_home_scratch:-}" ] && rm -rf "$__suite_home_scratch"
+  return 0
 }
