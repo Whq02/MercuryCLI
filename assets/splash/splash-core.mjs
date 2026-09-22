@@ -117,12 +117,12 @@ const MODEL_NAMES = {
   "claude-fable-5-1": "Fable 5.1",
   "claude-mythos-5": "Mythos 5",
   "sonnet": "Sonnet 5",
-  "opus": "Opus 5",
+  "opus": "Opus 5.5",
   "haiku": "Haiku 4.5",
   "fable": "Fable 5.1",
   "fable51": "Fable 5.1",
   "mythos": "Mythos 5",
-  "best": "Opus 5",
+  "best": "Opus 5.5",
   "opusplan": "Opus in strategy mode, else Sonnet",
 }
 
