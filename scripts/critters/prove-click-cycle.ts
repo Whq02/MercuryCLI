@@ -66,7 +66,9 @@ console.log('\n§2 every mount hands its pointer seam the one owner')
   )
   check(
     'the mini art is clickable through the one owner — BOTH mounts (sub-hero row + bare deck dock)',
-    (mini.match(/onClick=\{cycleSessionCritter\}/g) ?? []).length === 2,
+    /if \(bare\)\s*\{\s*return <BareMiniArt miniDef=\{miniDef\}/.test(mini) &&
+      mini.slice(mini.indexOf('function BareMiniArt'), mini.indexOf('function SpeakingMiniRow')).includes('onClick={cycleSessionCritter}') &&
+      mini.slice(mini.indexOf('function SpeakingMiniRow')).includes('<BareMiniArt miniDef={miniDef} />'),
   )
   const band = readFileSync(join(repo, 'src/components/CompactIdentityBand.tsx'), 'utf8')
   check(

@@ -2,16 +2,30 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
-const DIST = join(ROOT, 'dist/mercury.mjs')
+const argAfter = (flag: string): string | undefined => {
+  const at = process.argv.indexOf(flag)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+const DIST = argAfter('--dist') ?? join(ROOT, 'dist/mercury.mjs')
+const FRAMES = argAfter('--frames')
+const mountsOnly = process.argv.includes('--mounts-only')
 const VSHOT = join(ROOT, 'scripts/ui/vshot.py')
-const VENDORED_NODE = join(ROOT, 'dist/vendor/node/bin/node')
+const VENDORED_NODE = join(DIST, '../vendor/node/bin/node')
 const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
 const DEAD = 'http://127.0.0.1:9'
+let requests = 0
+const pending = createServer((req, res) => {
+  if (req.method === 'POST') { requests++; return }
+  res.writeHead(404).end()
+})
+await new Promise<void>(resolve => pending.listen(0, '127.0.0.1', resolve))
+const fixtureBase = `http://127.0.0.1:${(pending.address() as { port: number }).port}`
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 
 let failures = 0
@@ -27,7 +41,7 @@ if (!existsSync(DIST)) {
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
-type Send = { data: string; awaitText?: string; awaitSettleTicks?: number; afterPrevTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
+type Send = { data: string; targetText?: string; awaitText?: string; awaitSettleTicks?: number; afterPrevTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
 type Capture = { grid: Grid; marks: Record<string, Grid>; endReason: string }
 
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'critter-mini-'))
@@ -40,17 +54,18 @@ function homeFor(name: string): { configHome: string; cwd: string } {
   mkdirSync(cwd, { recursive: true })
   mkdirSync(configHome, { recursive: true })
   seedFirstRun(configHome, [cwd])
+  if (name.startsWith('busy-')) writeFileSync(join(configHome, 'settings.json'), JSON.stringify({ spinnerVerbs: { mode: 'replace', verbs: ['Reading the complete fixture response and checking every part of it'] } }))
   return { configHome, cwd }
 }
 
 const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
-const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: '← back', awaitSettleTicks: 6, data, mark })
+const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6, data, mark })
 
-type Resize = { atTick: number; cols: number; rows: number }
-async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = []): Promise<Capture> {
+type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: number; rows: number }
+async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, companion = false, envPatch: Record<string, string> = {}): Promise<Capture> {
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, DIST], cwd: world.cwd, sends: [faceEnter, ...sends], readyText: [readyText], readySettleTicks: 4, stableTicks: 4, total: 400, cols, rows, out, resizes }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, DIST], cwd: world.cwd, sends: [faceEnter, ...sends], readyText: readyText === 'ready ·' ? [readyText, '⇧← back'] : [readyText], readySettleTicks: 8, stableTicks: live ? 0 : 4, total: 400, cols, rows, out, resizes }))
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     USER: 'sam',
@@ -62,12 +77,13 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_BOOT_PREFLIGHT: '0',
-    MERCURY_LIVE_GLYPHS: '0',
+    MERCURY_LIVE_GLYPHS: live ? '1' : '0',
+    MERCURY_OPERATOR: 'sam',
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DECK_COMPANION: '0',
+    MERCURY_DECK_COMPANION: companion ? '' : '0',
     MERCURY_AWAY_SUMMARY: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_CRITTER: 'clam',
@@ -79,7 +95,7 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
     MERCURY_HOME: join(scratch, 'proof-home'),
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
-    ANTHROPIC_BASE_URL: DEAD,
+    ANTHROPIC_BASE_URL: fixtureBase,
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: DEAD,
     MERCURY_OPENAI_AUTH_BASE: DEAD,
@@ -95,6 +111,7 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
     MERCURY_MOONSHOT_CODING_BASE: `${DEAD}/v1`,
     MERCURY_ZAI_API_BASE: `${DEAD}/v4`,
     MERCURY_DEEPSEEK_API_BASE: DEAD,
+    ...envPatch,
   }
   for (const key of ['NODE_ENV', 'MERCURY_DEMO', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN']) delete env[key]
   const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })
@@ -108,6 +125,14 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
   const marks: Record<string, Grid> = {}
   for (const m of payload.marks ?? []) marks[m.label] = m.grid
   for (const [i, stage] of (payload.stages ?? []).entries()) marks[`stage${i}:${stage.cols}x${stage.rows}`] = stage.grid
+  if (FRAMES !== undefined) {
+    mkdirSync(FRAMES, { recursive: true })
+    for (const [name, grid] of Object.entries({ final: payload.grid, ...marks })) {
+      const base = join(FRAMES, `${tag}-${name.replaceAll(':', '-')}`)
+      writeFileSync(`${base}.json`, JSON.stringify({ cols: grid[0]?.length, rows: grid.length, grid }))
+      writeFileSync(`${base}.txt`, grid.map(row => row.map(cell => cell.c).join('')).join('\n') + '\n')
+    }
+  }
   return { grid: payload.grid, marks, endReason: payload.endReason }
 }
 
@@ -136,6 +161,12 @@ function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   for (let r = top + 1; r < t.length && top >= 0; r++) if (t[r]![left] === '╰') { bottom = r; break }
   return { top, bottom }
 }
+function centeredLeft(g: Grid): number {
+  const header = rowWith(g, '✶ VIEW')
+  const border = text(g)[header + 1] ?? ''
+  return Math.round((border.indexOf('╭') + border.lastIndexOf('╮') - 8) / 2)
+}
+
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
   for (let r = t.length - 1; r > 0; r--) if (t[r]![left] === '╰' && t[r]![right] === '╯') return r
@@ -154,6 +185,7 @@ console.log(' the small critter in the slim session box — driven')
 console.log('============================================================')
 
 try {
+  if (!mountsOnly) {
   const wide = homeFor('wide')
   const a = await capture('wide-a', wide, 178, 51, [onReady('/critter on\r', 'boot'), onReady('/critter off\r', 'full'), onReady('/critter\r', 'mini-again')], '← back')
   const boot = a.marks['boot']!
@@ -188,12 +220,13 @@ try {
   check('the header row ✶ VIEW stays at row 1', rowWith(boot, '✶ VIEW') === 1, `row ${rowWith(boot, '✶ VIEW')}`)
   check('the session box is five rows: border at row 2, border at row 6', bx.top === 2 && bx.bottom === 6, `top ${bx.top} bottom ${bx.bottom}`)
   let spriteDiff = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![34 + col]!, band.grid[r]![2 + col]!)) spriteDiff++
-  check('the three inner rows carry the 80×21 band’s sprite cells two columns in (glyph, fg, bg — 27 cells)', spriteDiff === 0, `${spriteDiff} cells differ`)
-  check('the sprite cells are half-block glyphs', boot.slice(3, 6).every(row => row.slice(34, 43).every(cell => cell.c === '▀')))
+  const bootLeft = centeredLeft(boot)
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
+  check('the three inner rows carry the band sprite centred in the berth (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
+  check('the centred sprite cells are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀')))
   const ground = boot[7]![33]!.bg
   let tintOff = 0
-  for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= 34 && col <= 42) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
+  for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
   check('the rest of the three rows is the box’s own tint (blank cells on the pane ground)', tintOff === 0, `${tintOff} cells off`)
   check('the companion bubble is silent here (no border glyph beside the sprite)', boot.slice(3, 6).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
 
@@ -236,7 +269,7 @@ try {
   check('the box is five rows under the header', mx.top === midHeader + 1 && mx.bottom === midHeader + 5, `top ${mx.top} bottom ${mx.bottom}`)
   check('no row reads ⊞ SESSIONS', rowWith(midBoot, '⊞ SESSIONS') === -1)
   let midSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![midLeft + 3 + col]!, band.grid[r]![2 + col]!)) midSprite++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![centeredLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
   const mfx = boxRows(midFull, midLeft)
   check('/critter at 120×40 flips to the eleven-row box and the strip', mfx.bottom === midHeader + 11 && rowWith(midFull, '⊞ SESSIONS') >= 0, `bottom ${mfx.bottom} strip ${rowWith(midFull, '⊞ SESSIONS')}`)
@@ -244,7 +277,7 @@ try {
 
   console.log('§7 a resize from wide to narrow and back keeps the one sprite')
   let tripDiff = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[3 + r]![34 + col]!, band.grid[r]![2 + col]!)) tripDiff++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[3 + r]![centeredLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
   check('wide before the resize: the box carries the band’s sprite cells', tripDiff === 0, `${tripDiff} cells differ`)
   let narrowDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripNarrow[r]![2 + col]!, band.grid[r]![2 + col]!)) narrowDiff++
@@ -274,14 +307,75 @@ try {
   check('with full, the SESSIONS bar is back at row 42', rowWith(clickFull, '⊞ SESSIONS') === 42, `row ${rowWith(clickFull, '⊞ SESSIONS')}`)
   check('a second click flips back to the slim five-row box (border at 2, border at 6) and the bar is gone', boxRows(clickMini, 31).top === 2 && boxRows(clickMini, 31).bottom === 6 && rowWith(clickMini, '⊞ SESSIONS') === -1, `top ${boxRows(clickMini, 31).top} bottom ${boxRows(clickMini, 31).bottom}`)
   let clickSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickMini[3 + r]![34 + col]!, band.grid[r]![2 + col]!)) clickSprite++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickMini[3 + r]![centeredLeft(clickMini) + col]!, band.grid[r]![2 + col]!)) clickSprite++
   check('the slim box carries the band’s sprite cells again (27 cells)', clickSprite === 0, `${clickSprite} cells differ`)
   const savedSize = (JSON.parse(readFileSync(join(clickWorld.configHome, 'settings.json'), 'utf8')) as { critterSize?: string }).critterSize
   check('the click saved the size to the settings store (critterSize mini after the second click)', savedSize === 'mini', `critterSize ${String(savedSize)}`)
+  console.log('§11 the small critter centres without moving the working card')
+  for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
+    const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
+    const border = text(idle)[rowWith(idle, '✶ VIEW') + 1]!
+    const left = border.indexOf('╭')
+    const right = border.lastIndexOf('╮')
+    const bounds = boxRows(idle, left)
+    const at = centeredLeft(idle)
+    check(`${cols}×${rows}: the idle sprite is centred horizontally and vertically`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀')), `expected ${at},${bounds.top + 1}`)
+    const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
+    const t = text(busy.grid)
+    const bb = boxRows(busy.grid, left)
+    const art: Array<[number, number]> = []
+    for (let r = bb.top + 1; r < bb.bottom; r++) for (let c = left + 1; c < right; c++) if (busy.grid[r]![c]!.c === '▀') art.push([c, r])
+    const cardLeft = t.slice(bb.top + 1, bb.bottom).map(row => row.indexOf('╭', left + 1)).find(c => c >= 0) ?? -1
+    const x = Math.min(...art.map(cell => cell[0]))
+    const y = Math.min(...art.map(cell => cell[1]))
+    check(`${cols}×${rows}: work paints beside the sprite`, cardLeft > left && art.length === 27, `card ${cardLeft}, art cells ${art.length}`)
+    check(`${cols}×${rows}: the card keeps its column`, cardLeft === left + 16, `card ${cardLeft}, expected ${left + 16}`)
+    check(`${cols}×${rows}: the busy sprite is centred in its owned slot`, x === Math.round((left + cardLeft - 9) / 2) && y === Math.round((bb.top + bb.bottom - 2) / 2), `sprite ${x},${y}; box ${bb.top}..${bb.bottom}`)
+  }
+  console.log('§12 a companion bubble owns its space only while painted')
+  for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
+    const companion = await capture(`companion-${cols}x${rows}`, homeFor(`companion-${cols}`), cols, rows, [
+      onReady('/companion tip\r', 'before-tip'),
+      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '/companion off\r', mark: 'speaking' },
+    ], 'companion off —', [], false, true)
+    const speaking = companion.marks.speaking!
+    const border = text(speaking)[rowWith(speaking, '✶ VIEW') + 1]!
+    const left = border.indexOf('╭')
+    const bounds = boxRows(speaking, left)
+    const art = speaking.slice(bounds.top + 1, bounds.bottom).flatMap((row, r) => row.flatMap((cell, c) => cell.c === '▀' ? [[c, r + bounds.top + 1]] : []))
+    check(`${cols}×${rows}: the speech bubble stands beside the small sprite`, text(speaking).slice(bounds.top + 1, bounds.bottom).some(row => row.indexOf('╭', left + 1) >= 0) && art.length === 27)
+    check(`${cols}×${rows}: the sprite centres beside the speech bubble`, Math.min(...art.map(cell => cell[0]!)) === left + 4 && Math.min(...art.map(cell => cell[1]!)) === Math.round((bounds.top + bounds.bottom - 2) / 2))
+    const cleared = companion.grid
+    const clearBounds = boxRows(cleared, left)
+    const clearLeft = centeredLeft(cleared)
+    check(`${cols}×${rows}: removing the bubble restores the whole berth to the sprite`, clearBounds.bottom - clearBounds.top === 4 && cleared.slice(clearBounds.top + 1, clearBounds.bottom).every(row => row.slice(clearLeft, clearLeft + 9).every(cell => cell.c === '▀')))
+  }
+  }
+  console.log('§13 the companion mini keeps its neighbours in place')
+  for (const cols of [178, 120]) {
+    const inline = await capture(`inline-${cols}x29`, homeFor(`inline-${cols}`), cols, 29, [], 'ready ·', [], false, true, { MERCURY_FULLSCREEN: '0' })
+    const lines = text(inline.grid)
+    const r = lines.findIndex(row => row.includes('▀'.repeat(9)))
+    const x = r < 0 ? -1 : lines[r]!.indexOf('▀'.repeat(9))
+    check(`${cols}×29: the inline companion paints its complete three-row sprite`, r >= 0 && lines.slice(r, r + 3).every(row => row.slice(x, x + 9) === '▀'.repeat(9)))
+    const flourish = lines.find(row => row.includes('──') && row.includes('▀'.repeat(9))) ?? ''
+    const left = flourish.indexOf('──')
+    const right = flourish.lastIndexOf('──')
+    check(`${cols}×29: the inline sprite is centred between its flourishes`, left >= 0 && right > left && x === Math.round((left + right + 1 - 8) / 2), `sprite ${x}, flourishes ${left}..${right}`)
+  }
+  const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: '⇧← back', awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, true, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
+  const deckLines = text(deck.grid)
+  const deckRow = deckLines.findIndex(row => row.includes('▀'.repeat(9)))
+  const deckX = deckRow < 0 ? -1 : deckLines[deckRow]!.indexOf('▀'.repeat(9))
+  check('99×29: the deck companion paints its complete three-row sprite', deckRow >= 0 && deckLines.slice(deckRow, deckRow + 3).every(row => row.slice(deckX, deckX + 9) === '▀'.repeat(9)))
+  check('99×29: the deck sprite is centred in its existing thirteen-column slot', deckX === 4, `sprite column ${deckX}`)
 } catch (error) {
   failures++
   console.log(`  [FAIL] drive — ${error instanceof Error ? error.message : String(error)}`)
 } finally {
+  pending.closeAllConnections()
+  pending.close()
+  if (!mountsOnly) check('the working captures reached the local fixture', requests >= 3, `${requests} requests`)
   if (failures === 0) rmSync(scratch, { recursive: true, force: true })
   else console.log(`  scratch kept for reading: ${scratch}`)
 }

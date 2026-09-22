@@ -1,6 +1,6 @@
 
 import * as React from 'react'
-import { critterDefForKey, squareDockArtFor } from '../../utils/cockpit/critterData.js'
+import { CR_COLS, SQUARE_DOCK_ART_LINES, critterDefForKey, squareDockArtFor } from '../../utils/cockpit/critterData.js'
 import { FAINT } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { Box, Text } from '../../ink.js'
@@ -32,8 +32,10 @@ export function MiniCritter({ cols, bare = false }: { cols: number; bare?: boole
 
 function BareMiniArt({ miniDef }: { miniDef: React.ComponentProps<typeof AnimatedCritterArt>['def'] }): React.ReactNode {
   return (
-    <Box onClick={cycleSessionCritter}>
-      <AnimatedCritterArt def={miniDef} square />
+    <Box width={CR_COLS} justifyContent="center" alignItems="center" onClick={cycleSessionCritter}>
+      <Box width={Math.max(...miniDef.square.map(row => row.length))} height={SQUARE_DOCK_ART_LINES} flexDirection="column" overflow="hidden" flexShrink={0}>
+        <AnimatedCritterArt def={miniDef} square />
+      </Box>
     </Box>
   )
 }
@@ -60,9 +62,7 @@ function SpeakingMiniRow({
           <Text color={accentSoft}>{GLYPH.sparkFaint}</Text>
           <Text color={FAINT}>{' ── '}</Text>
         </Text>
-        <Box onClick={cycleSessionCritter}>
-          <AnimatedCritterArt def={miniDef} square />
-        </Box>
+        <BareMiniArt miniDef={miniDef} />
         <Text>
           <Text color={FAINT}>{' ── '}</Text>
           <Text color={accentSoft}>{GLYPH.sparkFaint}</Text>
