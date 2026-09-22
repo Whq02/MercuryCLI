@@ -357,7 +357,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
       })
       continue
     }
-    const segments = relPath.split('/')
+    const segments = relPath.split(/[\\/]+/)
     const target = join(worktreePath, ...segments)
     try {
       await mkdir(dirname(target), { recursive: true })
