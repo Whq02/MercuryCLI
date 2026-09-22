@@ -13,7 +13,7 @@ import {
 import { getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import { resolveAntModel } from './antModels.js'
-import { ALL_MODEL_CONFIGS, newestGenerationKey } from './configs.js'
+import { ALL_MODEL_CONFIGS, newestGenerationKey, type ModelConfig } from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
@@ -210,9 +210,14 @@ export function isNonCustomOpusModel(model: string): boolean {
 }
 
 
+const DECLARED_CANONICALS = (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[])
+  .sort((a, b) => b.firstParty.length - a.firstParty.length)
+
 function canonicalMatch(id: string): string {
   if (isCarrierShapedId(id)) return id
   const lowered = id.toLowerCase()
+  const declared = DECLARED_CANONICALS.find(config => lowered.endsWith(config.firstParty))
+  if (declared !== undefined) return declared.canonical ?? declared.firstParty
   if (lowered.includes('sonnet-5')) return 'claude-sonnet-5'
   if (lowered.includes('opus-5')) return 'claude-opus-5'
   if (lowered.includes('fable-5-1') || lowered.includes('mythos-5-1')) return 'claude-fable-5-1'
