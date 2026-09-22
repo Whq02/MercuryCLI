@@ -948,6 +948,12 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   onClose: () => void
 }): React.ReactNode {
   useCatalogueEpoch()
+  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   const betas = getSdkBetas()
   const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
   const models: ModelChoice[] = [...(leading ?? []), ...options.map(opt => modelChoiceOf(opt, betas))]
@@ -956,6 +962,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
       models={models}
       current={current}
       ctxPct={null}
+      notice={notice}
       groupDetails={groupDetailsOf(seatDetailOf)}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={id => {
