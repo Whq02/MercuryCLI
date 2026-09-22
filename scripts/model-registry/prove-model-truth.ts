@@ -38,8 +38,8 @@ const src = (rel: string): string => readFileSync(join(repoRoot, rel), 'utf-8')
 section("2. the 'opus' alias tracks the current Opus through the ratified owners")
 {
   check(
-    "getDefaultOpusModel() = the ratified static default (Opus 5)",
-    getDefaultOpusModel() === 'claude-opus-5',
+    "getDefaultOpusModel() = the ratified static default (Opus 5.5)",
+    getDefaultOpusModel() === 'claude-opus-5-5',
     getDefaultOpusModel(),
   )
   check(
@@ -54,7 +54,7 @@ section("2. the 'opus' alias tracks the current Opus through the ratified owners
   )
   check(
     'opusplan copy derives from the tier owners',
-    renderDefaultModelSetting('opusplan') === 'Opus 5 in strategy mode, else Sonnet 5',
+    renderDefaultModelSetting('opusplan') === 'Opus 5.5 in strategy mode, else Sonnet 5',
     renderDefaultModelSetting('opusplan'),
   )
 }

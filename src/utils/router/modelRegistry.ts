@@ -54,6 +54,7 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
 function classForCanonical(canonical: string): RouterModelClass | null {
   if (canonical === 'claude-opus-4-6') return 'opus'
   if (canonical === 'claude-opus-5') return 'opus'
+  if (canonical === 'claude-opus-5-5') return 'opus'
   if (canonical === 'claude-sonnet-5') return 'sonnet'
   if (canonical === 'claude-fable-5') return 'fable'
   if (canonical === 'claude-fable-5-1') return 'fable'

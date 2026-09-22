@@ -26,10 +26,10 @@ const SOVEREIGN_ARGV = ['--dangerously-bypass-permissions']
 const SOVEREIGN_SETTINGS = { skipSovereignConsentPrompt: true }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
-const RESTING_STATUS_ROW = /^ ready · Opus 5 · high {2,}(?:⇧|shift\+)← back$/
+const RESTING_STATUS_ROW = /^ ready · Opus 5\.5 · high {2,}(?:⇧|shift\+)← back$/
 const restingRowCheck = (tag: string, text: string[]): void => {
   const row = text.find(l => l.includes(STATUS_ROW)) ?? ''
-  check(`${tag}: the row above the composer reads ready · Opus 5 · high with the way back at the right`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
+  check(`${tag}: the row above the composer reads ready · Opus 5.5 · high with the way back at the right`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
   check(`${tag}: the project name left the resting row`, !row.includes(tree), JSON.stringify(row))
 }
 const SHIFT_RIGHT = '\x1b[1;2C'
@@ -118,18 +118,18 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
     if (form === 'square') {
       check(`${tag}: the square's top air row is blank`, text[0] === '')
       check(`${tag}: row 2 is the lockup and the readiness`, /^✶ Mercury · ● ready$/.test(facts(1)), JSON.stringify(facts(1)))
-      check(`${tag}: row 3 is the model, the effort and the context`, /^Opus 5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(2)), JSON.stringify(facts(2)))
+      check(`${tag}: row 3 is the model, the effort and the context`, /^Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(2)), JSON.stringify(facts(2)))
       check(`${tag}: row 4 is the directory, the branch and the tree state`, new RegExp(`^${tree}(?: ⌥ \\S+)?(?: · (?:clean|uncommitted))?$`).test(facts(3)), JSON.stringify(facts(3)))
       check(`${tag}: row 5 carries no turn count on a fresh session`, facts(4) === '', JSON.stringify(facts(4)))
       check(`${tag}: row 6 is the critter alone`, facts(5) === '', JSON.stringify(facts(5)))
     } else {
-      check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), JSON.stringify(facts(0)))
+      check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), JSON.stringify(facts(0)))
       check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), JSON.stringify(facts(1)))
       check(`${tag}: row 3 is the critter alone`, facts(2) === '', JSON.stringify(facts(2)))
     }
     check(`${tag}: the tree state and the turn count never reach the chip line`, !text.slice(bandRows).some(l => /uncommitted|⤳/.test(l)))
   } else if (form === 'line') {
-    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), JSON.stringify(text[0] ?? ''))
+    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), JSON.stringify(text[0] ?? ''))
     check(`${tag}: the rule closes the band on row 2`, text[1] === '─'.repeat(cols), JSON.stringify(text[1] ?? ''))
     check(`${tag}: no critter under 20 rows`, !text.some(l => /[▀▄]{3,}/.test(l)))
   } else {
@@ -151,7 +151,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
   } else if (form !== 'none') {
     check(`${tag}: no chip line in default mode with nothing needing you`, !/sovereign|need you/.test(chipRow) && !chipRow.includes('Opus 5'), JSON.stringify(chipRow))
   } else {
-    check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5 · effort/.test(chipRow), JSON.stringify(chipRow))
+    check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5\.5 · effort/.test(chipRow), JSON.stringify(chipRow))
   }
   const lines = text.filter(l => l.trim() !== '')
   check(`${tag}: nothing is shown twice (ready · ctx · sessions on)`, ['● ready', 'ctx —', 'sessions on'].every(needle => lines.filter(l => l.includes(needle)).length <= 1))
@@ -332,7 +332,7 @@ function firstFrameChecks(tag: string, cols: number, rows: number, grid: Grid): 
   const chipAt = chipRowAt(text, rows, ladder.mini(cols, rows))
   const expected = compactModeChip('sovereign')!.text
   check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)'))
-  check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
+  check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5\.5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
   check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for/.test(joined(text)))
 }
 

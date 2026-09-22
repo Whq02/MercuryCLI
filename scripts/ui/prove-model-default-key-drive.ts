@@ -193,7 +193,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const picked = c.marks.get('picked') ?? []
   const typed = c.marks.get('typed') ?? []
   check('with the coordinator panel focused, the door row reads as shipped and the bottom row carries no m phrase', rowWith(coord, DOOR) !== '' && !rowWith(coord, DOOR).includes(`${DOOR} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, DOOR)} / ${trimmedRow(coord, 'esc boot face')}`)
-  check('the door row reads the pair it starts on (Opus 5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5 · ● high`), trimmedRow(board, DOOR))
+  check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the title row)', rowWith(picker, 'Mercury — model') !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(3, 8).join(' | '))
   check('the picker spans the main band, centred (rows 3–46, left column 58)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
@@ -252,7 +252,7 @@ section("§4 the chat's /model: the picker without its frontier rows")
   ], { total: 360, ready: ['esc close'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const chat = c.marks.get('chat') ?? []
-  check('the row above the composer reads ready · Opus 5 · high, the way back at its right, the project name gone from it', /^ready · Opus 5 · high {2,}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')) && !trimmedRow(chat, '← back').includes('fixture-cwd'), trimmedRow(chat, '← back'))
+  check('the row above the composer reads ready · Opus 5.5 · high, the way back at its right, the project name gone from it', /^ready · Opus 5\.5 · high {2,}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')) && !trimmedRow(chat, '← back').includes('fixture-cwd'), trimmedRow(chat, '← back'))
   const picker = c.marks.get('picker') ?? []
   const at = picker.findIndex(l => l.includes('Z.AI MODELS'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
@@ -400,14 +400,14 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const headerAt = (lines: string[]): number => lines.findIndex(l => l.includes('STATUS & TITLE'))
   const sessionRows = (lines: string[]): string[] => lines.filter(l => /new session · fixture-cwd/.test(l))
   check('two blank sessions stand on the board', sessionRows(board).length >= 2, sessionRows(board).map(l => l.trim().slice(0, 80)).join(' | '))
-  check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
-  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
+  check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
+  check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5.5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
   check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
   check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
   check('m on a session row opens a picker over the board', sessionPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(sessionPicker), sessionPicker.slice(3, 8).join(' | '))
   const afterPick = settingsOf(home)
-  check("the session row's pick is the session's own: the default door still reads Opus 5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('CHOOSE A MODEL')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
+  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('CHOOSE A MODEL')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
 }
 

@@ -56,6 +56,7 @@ const FIRST_PARTY_ALIASES: ReadonlySet<string> = new Set([
   ...MODEL_ALIASES.map(alias => alias.replace(/\[1m\]$/i, '')),
   'sonnet5',
   'opus5',
+  'opus55',
 ])
 
 export const FIRST_PARTY_MODEL_ENV_PINS = [

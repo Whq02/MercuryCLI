@@ -26,7 +26,7 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { has1mContext, modelSupports1M } from './capabilities.js'
+import { getContextWindowForModel, has1mContext, modelSupports1M } from './capabilities.js'
 import {
   getBestModel,
   getDefaultSonnetModel,
@@ -122,6 +122,10 @@ function getOpusFrontierFallbackOption(): ModelOption {
   }
 }
 
+function isNatively1M(id: string): boolean {
+  return getContextWindowForModel(normalizeModelStringForAPI(id)) >= 1_000_000
+}
+
 function suffixedMidRow(): ModelOption | null {
   if (has1mContext(getDefaultSonnetModel())) return null
   if (!checkSonnet1mAccess()) return null
@@ -136,7 +140,7 @@ function previousGenerationLargeRows(): ModelOption[] {
     const id = strings[key]
     if (normalizeModelStringForAPI(id) === currentLarge) continue
     rows.push(literalRow(id, ''))
-    if (checkOpus1mAccess()) {
+    if (checkOpus1mAccess() && !isNatively1M(id)) {
       rows.push(literalRow(withContext1m(id), ''))
     }
   }
@@ -569,7 +573,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
 export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   let options = baseTierRows()
 
-  for (const id of ['claude-sonnet-5', 'claude-opus-5']) {
+  for (const id of ['claude-sonnet-5', 'claude-opus-5-5']) {
     const marketing = getMarketingNameForModel(id) ?? id
     pushIfAbsent(options, {
       value: id,

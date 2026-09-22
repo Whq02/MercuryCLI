@@ -17,4 +17,5 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-submodel-effort-di
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-model-honesty.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-model-honesty.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-spelling-fold.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-spelling-fold.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-frontier-wire-laws.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-frontier-wire-laws.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-opus-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-opus-55-row.ts "$__t" "$__rc"
 exit "$fail"
