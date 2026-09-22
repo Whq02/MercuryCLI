@@ -1,7 +1,6 @@
 
 import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { evolutionLedgerEnabled } from '../../utils/evolution/evolutionLedger.js'
-import { themisActive } from '../../substrate/themis/level.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of subagents with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
 
@@ -177,12 +176,6 @@ const AUTHORING_DOCTRINE_SECTION = `
 - Model choice belongs to the operator, and their standing rule overrides the "leave opts.model out" default above: name an explicit catalog alias, or a declared tier, for each dispatch — the operator directs models per dispatch. Do not lean on the inherited session model (project-level settings sometimes pin a tier the live session is not using), and never pick an agentType whose definition pins a small-tier model — when you need read-only scoping, put it in the prompt, not in a downgraded engine.
 - A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — refute-to-survive from the pattern list, or one dedicated checker per changed unit — before it returns success. A fixer agent asserting its own success is an assertion, not evidence.`
 
-const THEMIS_GLOBAL_SECTION = `
-
-## The themis global (present at the default level; absent only when THEMIS is switched off)
-
-- themis: eleven deterministic async checks the THEMIS control plane hands to scripts (docs/THEMIS-CONTROL-PLANE.md). Plain JSON in, plain JSON out, every result boundary-cloned; violations append audit rows. The surface: validateSDS / normalizeSDS (the machine-checkable SDS contract), topoLayers / taskPriority (scheduling arithmetic), verifyOwnership({ownership, lane}) / scanDiff({declared, actual}) (diff-derived audits), routeRepair({issue, normalized}) (repair routing by root cause), phase({op, ...}) (the run's phase state machine), traceUpdate({op, ...}) / verifyTrace({}) (the requirement→file→test trace gate), observe({text, source, topicHint?}) (the observation bridge; a clean no-op while its own gate is off). THEMIS is on by default, but an explicit MERCURY_THEMIS=off removes the global — any script that depends on it must feature-test (typeof themis === 'undefined') and decline to run, never assume the global is there.`
-
 const LEDGER_GLOBAL_SECTION = `
 
 ## The ledger global (evolution rows)
@@ -192,7 +185,6 @@ const LEDGER_GLOBAL_SECTION = `
 export function getWorkflowToolPrompt(): string {
   let text = WORKFLOW_TOOL_PROMPT
   text += AUTHORING_DOCTRINE_SECTION
-  if (themisActive()) text += THEMIS_GLOBAL_SECTION
   if (evolutionLedgerEnabled()) text += LEDGER_GLOBAL_SECTION
   return text
 }

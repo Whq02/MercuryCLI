@@ -52,20 +52,6 @@ export interface EvolutionLedgerHost {
   report(program: unknown): Promise<unknown>
 }
 
-export interface ThemisWorkflowHost {
-  validateSDS(a: unknown): Promise<unknown>
-  normalizeSDS(a: unknown): Promise<unknown>
-  topoLayers(a: unknown): Promise<unknown>
-  taskPriority(a: unknown): Promise<unknown>
-  verifyOwnership(a: unknown): Promise<unknown>
-  routeRepair(a: unknown): Promise<unknown>
-  scanDiff(a: unknown): Promise<unknown>
-  phase(a: unknown): Promise<unknown>
-  traceUpdate(a: unknown): Promise<unknown>
-  verifyTrace(a: unknown): Promise<unknown>
-  observe(a: unknown): Promise<unknown>
-}
-
 export interface WorkflowToolContext {
   abortController?: AbortController
   canUseTool?: unknown
@@ -182,19 +168,6 @@ function projectHostApi<T extends object>(
 }
 
 const LEDGER_API = ['record', 'read', 'report'] as const
-const THEMIS_API = [
-  'validateSDS',
-  'normalizeSDS',
-  'topoLayers',
-  'taskPriority',
-  'verifyOwnership',
-  'routeRepair',
-  'scanDiff',
-  'phase',
-  'traceUpdate',
-  'verifyTrace',
-  'observe',
-] as const
 
 function readThrownShape(e: unknown): { msg: string; name: string; stack?: string } {
   let msg: string
@@ -269,7 +242,6 @@ export interface BuildContextOptions {
   getAllWorkflows?: SubWorkflowDeps['getAllWorkflows']
   getCwd?: SubWorkflowDeps['getCwd']
   evolutionLedger?: EvolutionLedgerHost
-  themis?: ThemisWorkflowHost
 }
 
 export function buildVMContext(opts: BuildContextOptions): {
@@ -320,7 +292,6 @@ export function buildVMContext(opts: BuildContextOptions): {
     getAllWorkflows: opts.getAllWorkflows ?? emptyGetAllWorkflows,
     getCwd: opts.getCwd,
     evolutionLedger: opts.evolutionLedger,
-    themis: opts.themis,
   })
 
   const ctx = vm.createContext(
@@ -358,9 +329,6 @@ export function buildVMContext(opts: BuildContextOptions): {
       'ledger',
       projectHostApi(ctx, wrapHostFn, opts.evolutionLedger, LEDGER_API),
     )
-  }
-  if (opts.themis) {
-    defineScriptGlobal(ctx, 'themis', projectHostApi(ctx, wrapHostFn, opts.themis, THEMIS_API))
   }
 
   let realmArgs: unknown
@@ -422,7 +390,6 @@ export interface RunWorkflowOptions {
   getAllWorkflows?: SubWorkflowDeps['getAllWorkflows']
   getCwd?: SubWorkflowDeps['getCwd']
   evolutionLedger?: EvolutionLedgerHost
-  themis?: ThemisWorkflowHost
 }
 
 export async function runWorkflowScript(
@@ -460,7 +427,6 @@ export async function runWorkflowScript(
     getAllWorkflows: opts.getAllWorkflows,
     getCwd: opts.getCwd,
     evolutionLedger: opts.evolutionLedger,
-    themis: opts.themis,
   })
 
   const signal: AbortSignal | undefined = toolUseContext.abortController?.signal
@@ -547,7 +513,6 @@ export interface SubWorkflowDeps {
   getAllWorkflows: (cwd: string) => Promise<Array<{ name: string }>>
   readScriptFile?: (path: string) => Promise<{ script: string; path: string } | { error: string }>
   evolutionLedger?: EvolutionLedgerHost
-  themis?: ThemisWorkflowHost
   hooks: {
     agent: (prompt: string, opts?: unknown) => Promise<unknown>
     parallel: (thunks: Array<() => Promise<unknown>>) => Promise<unknown[]>
@@ -663,9 +628,6 @@ export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
           'ledger',
           projectHostApi(ctx, wrapHostFn, deps.evolutionLedger, LEDGER_API),
         )
-      }
-      if (deps.themis) {
-        defineScriptGlobal(ctx, 'themis', projectHostApi(ctx, wrapHostFn, deps.themis, THEMIS_API))
       }
       defineScriptGlobal(ctx, 'args', args === undefined ? undefined : cloneIn(args))
 

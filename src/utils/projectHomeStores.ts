@@ -8,7 +8,6 @@ export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.free
   ['workflows', 'runs'],
   ['evolution'],
   ['test-runs'],
-  ['themis'],
   ['agent-memory-local'],
   ['router'],
   ['ide-transactions'],

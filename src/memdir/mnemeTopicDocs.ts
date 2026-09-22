@@ -1,7 +1,20 @@
 
 
 
-import { jaccard, tokenSet } from '../substrate/themis/drift.js'
+function tokenSet(body: string): Set<string> {
+  const out = new Set<string>()
+  for (const m of body.toLowerCase().matchAll(/[a-z0-9_./-]{2,}/g)) out.add(m[0])
+  return out
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 && b.size === 0) return 1
+  let inter = 0
+  const [small, large] = a.size <= b.size ? [a, b] : [b, a]
+  for (const t of small) if (large.has(t)) inter++
+  const union = a.size + b.size - inter
+  return union === 0 ? 1 : inter / union
+}
 
 export const MAX_DOC_TOKENS = 5000
 export const MIN_DOC_TOKENS = 1000

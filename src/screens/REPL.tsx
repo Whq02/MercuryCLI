@@ -158,8 +158,6 @@ import {
 import type { RewindReceiptV1, SessionAskV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
-import { themisBootVerify } from '../substrate/themis/boot.js';
-import { themisActive } from '../substrate/themis/level.js';
 import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
 import type { LogOption } from '../types/logs.js';
@@ -1622,23 +1620,6 @@ export function REPL({
       }
     } catch {
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!themisActive()) return;
-    void themisBootVerify(getCwd())
-      .then(report => {
-        if (!report.ran || report.problems.length === 0) return;
-        const others = report.problems.length - 1;
-        addNotification({
-          key: 'integrity-boot-verify',
-          text: `integrity: ${report.problems[0]}${others > 0 ? ` (+${others} more)` : ''} · /health for details`,
-          priority: 'high',
-          timeoutMs: 60_000,
-        });
-      })
-      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

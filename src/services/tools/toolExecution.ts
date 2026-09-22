@@ -11,7 +11,6 @@ import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, getStatsStore } from '../../bootstrap/state.js'
-import { themisToolGate } from '../../substrate/themis/gate.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
@@ -353,44 +352,6 @@ async function runTransactionBody(args: {
       }),
     )
     logForDebugging(`tool use refused by capability kill-switch: ${tool.name}`)
-    return
-  }
-
-  const themisVerdict = themisToolGate(tool.name, input, toolUseContext.agentType)
-  if (themisVerdict.action === 'deny-mission') {
-    traceOnce({ killed: true, ok: false })
-    const content = `This call was refused by the active change mission (enforce level). ${themisVerdict.missionMessage}`
-    const hermesKill: HermesKillInfo = { kind: 'themis-mission', tool: tool.name }
-    push(
-      errorResultUpdate({
-        toolUseID,
-        content,
-        toolUseResult: { error: content, hermesKill },
-        sourceToolAssistantUUID: sourceUUID,
-      }),
-    )
-    return
-  }
-  if (themisVerdict.action === 'deny') {
-    traceOnce({ killed: true, ok: false })
-    const hit = themisVerdict.hit
-    const content =
-      `This call was refused by the THEMIS blocklist: rule ${hit.id} (${hit.category}). ` +
-      `Do not rephrase the command to evade this rule — surface the refusal to the operator instead.`
-    const hermesKill: HermesKillInfo = {
-      kind: 'themis-blocklist',
-      killPattern: hit.id,
-      tool: tool.name,
-      target: hit.match,
-    }
-    push(
-      errorResultUpdate({
-        toolUseID,
-        content,
-        toolUseResult: { error: content, hermesKill },
-        sourceToolAssistantUUID: sourceUUID,
-      }),
-    )
     return
   }
 

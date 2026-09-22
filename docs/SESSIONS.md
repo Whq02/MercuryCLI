@@ -396,7 +396,7 @@ deletes `.mercury/`. The project folder holds shared configuration — the
 settings, the gates and wards, the Apollo specs, the agents, the saved
 workflow scripts — the way a team commits its shared config; everything a
 machine or a session writes for itself (run manifests, ledgers, evidence,
-test-run records, audit chains, local memory, the doctor's certificate)
+test-run records, local memory, the doctor's certificate)
 lives in the config home beside that folder's transcripts. A local store
 found in the project folder from before is read once and migrated on its
 first touch; the folder keeps its copy, and the doctor's Project estate row
