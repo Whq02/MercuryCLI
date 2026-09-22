@@ -41,6 +41,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-output-tail-truth.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worktree-janitor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worktree-janitor.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-resolved-invocation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resolved-invocation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-win32-console-close-cleanup.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-win32-console-close-cleanup.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-providers-detach-alike.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-providers-detach-alike.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-watch-root-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-watch-root-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-snapshot-path.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-snapshot-path.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t" "$__rc"
