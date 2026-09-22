@@ -5,6 +5,7 @@
 # only by editing this list. A name listed here but missing on disk is a
 # loud red in this runner.
 prove-birth-flips-first.ts
+prove-birth-lost-reply-drive.ts
 prove-close-chord.ts
 prove-command-privacy-drive.ts
 prove-consent-rides-every-door-drive.ts
