@@ -93,6 +93,20 @@ await helpers.writeTeamFileAsync(foreignTeam, {
 })
 writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'team-create', `team-create:${foreignTeam}`, 'dead-owner-session'), 'utf8')
 
+const undecodableName = 'op-undecodable.json'
+const undecodableBytes = JSON.stringify({
+  schema: 1,
+  operationId: 'undecodable',
+  ownerKey: 'dead-owner-session',
+  kind: 'team-create',
+  idempotencyKey: 'team-create:orch-ghost',
+  state: 'applying',
+  steps: [{ id: 'team-file', target: 'x', state: 'applied' }],
+  updatedAt: new Date().toISOString(),
+  writerPid: deadPid,
+})
+writeFileSync(join(journalDir, undecodableName), undecodableBytes, 'utf8')
+
 const list = 'orch-list'
 const listDir = join(home, 'tasks', list)
 mkdirSync(listDir, { recursive: true })
@@ -120,6 +134,11 @@ console.log('— boot 1: reconciliation over seeded damage —')
   ok(existsSync(freshTemp), 'fresh temp PRESERVED (live-writer guard)')
   ok(report.orphanTemps.removed >= 1, `orphan sweep counted (${report.orphanTemps.removed} across ${report.orphanTemps.dirsSwept} dirs)`)
   ok(report.teamJournal !== null && report.teamJournal.compensated.length === 2, `both dead ops compensated (${report.teamJournal?.compensated.length})`)
+  ok(
+    report.teamJournal !== null && report.teamJournal.unrecoverable.length === 1 && report.teamJournal.unrecoverable[0] === undecodableName,
+    `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.teamJournal?.unrecoverable ?? report.errors)})`,
+  )
+  ok(readFileSync(join(journalDir, undecodableName), 'utf8') === undecodableBytes, 'the undecodable file is left in place, byte for byte')
   ok(!existsSync(join(teams, deadTeam)), 'half-created team REMOVED by compensation')
   ok(existsSync(join(teams, foreignTeam, 'config.json')), 'foreign team UNTOUCHED (guarded unwind)')
   const ops = await listJournalOperations(journalDir)
@@ -136,7 +155,10 @@ console.log('— boot 1: reconciliation over seeded damage —')
 
   const line = orch.bootRecoveryStatusLine(orch.getBootRecovery())
   ok(line !== null && line.text.includes('2 interrupted op(s) reconciled'), `status line reports the work (${line?.text})`)
-  ok(line !== null && line.tone === 'ok', 'status tone ok (no unrecoverables)')
+  ok(
+    line !== null && line.text.includes('1 op(s) NEED ATTENTION (journal preserved)') && line.tone === 'warn',
+    'status tone warn: the undecodable file needs attention, in the grammar the line already has',
+  )
   const row = buildBootRecoveryRow(orch.getBootRecovery())
   ok(row !== null && row.section === 'RECOVERY' && row.detail.length >= 4, '/run RECOVERY row carries the evidence detail')
 
@@ -152,6 +174,15 @@ console.log('— boot 2: idempotent re-run —')
   ok(report.teamJournal !== null && report.teamJournal.compensated.length === 0 && report.teamJournal.rolledForward.length === 0, 'journal recovery is a no-op')
   ok(report.deadEpochTasks.removed === 0, 'dead-epoch GC is a no-op')
   ok(report.errors.length === 0, 'still no errors')
+  const named = orch.bootRecoveryStatusLine(orch.getBootRecovery())
+  ok(
+    report.teamJournal !== null && report.teamJournal.unrecoverable[0] === undecodableName && named !== null && named.tone === 'warn',
+    `the undecodable file is named on every boot until it is removed (${named?.text})`,
+  )
+  rmSync(join(journalDir, undecodableName))
+  orch._resetBootRecoveryForTests()
+  const quiet = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
+  ok(quiet.teamJournal !== null && quiet.teamJournal.unrecoverable.length === 0 && quiet.errors.length === 0, 'once the file is removed nothing is left to name')
   ok(orch.bootRecoveryStatusLine(orch.getBootRecovery()) === null, 'a quiet boot earns NO status line')
   ok(buildBootRecoveryRow(orch.getBootRecovery()) === null, 'a quiet boot earns NO /run row')
 }

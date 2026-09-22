@@ -203,7 +203,9 @@ disables the check, the cache and both lines.
 - **Journaled operations.** Interrupted durable operations (multi-file
   change sets among them) reconcile deterministically at the next boot
   through the operation journal — see
-  [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md).
+  [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md). A journal file the
+  build cannot decode never blocks the others: it is left in place and the
+  boot's recovery line names it as needing attention until it is removed.
 - **Provenance at boot.** Packaged launchers run the shipped
   `verify-artifact.mjs` on interactive boots — warn-only, never blocking; `/health` reports the same
   verification from in-bundle.
