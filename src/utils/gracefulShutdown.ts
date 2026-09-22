@@ -427,6 +427,7 @@ export async function gracefulShutdown(
 
   process.exitCode = exitCode
 
+  if (restorationModule) await (await import('../ink/instances.js')).default.get(process.stdout)?.awaitTerminalQueries()
   runTerminalRestoration()
   runResumeHint()
 

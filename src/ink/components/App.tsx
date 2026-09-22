@@ -59,7 +59,7 @@ import {
   upgradeSyncOutputSupport,
 } from '../session/capabilities.js'
 import { getTerminalFocused, setTerminalFocused } from '../session/focus-store.js'
-import { decrqm, kittyKeyboard, oscColor, TerminalQuerier, xtversion } from '../session/querier.js'
+import { decrqm, kittyKeyboard, oscColor, TerminalQuerier, terminalQuerySettleMs, xtversion } from '../session/querier.js'
 import { resolveTerminalExperience } from '../session/terminalExperience.js'
 import { cockpitEngine } from '../../render-engine/cockpit/engineMount.js'
 import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
@@ -576,6 +576,10 @@ export default class App extends PureComponent<Props, State> {
 
   private handleSuspend(): void {
     if (!this.isRawModeSupported) return
+    void this.querier.whenSettled(terminalQuerySettleMs()).then(() => this.stopForSuspend())
+  }
+
+  private stopForSuspend(): void {
     this.internal_eventEmitter.emit('suspend')
     const onContinue = (): void => {
       this.internal_eventEmitter.emit('resume')

@@ -1,4 +1,5 @@
 import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
@@ -78,17 +79,67 @@ type PendingQuery = {
 type Batch = {
   queries: PendingQuery[]
   sentinel: (() => void) | null
+  flushedAt: number
 }
 
+const DEFAULT_QUERY_SETTLE_MS = 250
+
+export function terminalQuerySettleMs(): number {
+  const raw = flagEnv('MERCURY_TERMINAL_QUERY_SETTLE_MS')
+  const parsed = raw === undefined ? NaN : parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_QUERY_SETTLE_MS
+}
+
+const queriers = new WeakMap<object, TerminalQuerier>()
+
+export function terminalQuerierFor(stdout: NodeJS.WriteStream): TerminalQuerier | undefined {
+  return queriers.get(stdout)
+}
+
+export type QuerySettleOutcome = 'settled' | 'deadline'
+
 export class TerminalQuerier {
-  private batches: Batch[] = [{ queries: [], sentinel: null }]
+  private batches: Batch[] = [{ queries: [], sentinel: null, flushedAt: 0 }]
+
+  private settleWaiters: Array<() => void> = []
 
   private pendingRequests = ''
 
-  constructor(private stdout: NodeJS.WriteStream) {}
+  constructor(private stdout: NodeJS.WriteStream) {
+    queriers.set(stdout, this)
+  }
 
   private get openBatch(): Batch {
     return this.batches[this.batches.length - 1]!
+  }
+
+  settled(): boolean {
+    return this.batches.every(batch => batch.sentinel === null)
+  }
+
+  whenSettled(deadlineMs: number = terminalQuerySettleMs()): Promise<QuerySettleOutcome> {
+    if (this.settled()) return Promise.resolve('settled')
+    const oldest = this.batches.find(batch => batch.sentinel !== null)!
+    const remaining = deadlineMs - (Date.now() - oldest.flushedAt)
+    if (remaining <= 0) return Promise.resolve('deadline')
+    return new Promise(resolve => {
+      const waiter = (): void => {
+        clearTimeout(timer)
+        resolve('settled')
+      }
+      const timer = setTimeout(() => {
+        this.settleWaiters = this.settleWaiters.filter(w => w !== waiter)
+        resolve('deadline')
+      }, remaining)
+      this.settleWaiters.push(waiter)
+    })
+  }
+
+  private notifySettled(): void {
+    if (!this.settled()) return
+    const waiters = this.settleWaiters
+    this.settleWaiters = []
+    for (const waiter of waiters) waiter()
   }
 
   send<T extends TerminalResponse>(query: TerminalQuery<T>): Promise<T | undefined> {
@@ -104,7 +155,8 @@ export class TerminalQuerier {
   flush(): Promise<void> {
     return new Promise(resolve => {
       this.openBatch.sentinel = resolve
-      this.batches.push({ queries: [], sentinel: null })
+      this.openBatch.flushedAt = Date.now()
+      this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
       const bytes = this.pendingRequests + SENTINEL
       this.pendingRequests = ''
       termWrite(this.stdout, bytes, 'probe')
@@ -126,6 +178,7 @@ export class TerminalQuerier {
       const [batch] = this.batches.splice(idx, 1)
       for (const q of batch!.queries) q.resolve(undefined)
       batch!.sentinel!()
+      this.notifySettled()
     }
   }
 }

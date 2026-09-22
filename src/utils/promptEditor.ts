@@ -69,6 +69,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   const commandLine = [`"${editorExe}"`, ...invocation.args.map(arg => `"${arg}"`), `"${filePath}"`].join(' ')
 
   try {
+    await instance.awaitTerminalQueries()
     if (isTerminalEditor) {
       instance.enterAlternateScreen()
     } else {
