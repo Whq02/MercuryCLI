@@ -396,7 +396,7 @@ try {
       check('L2 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), leg.receipt ?? '(none)')
     }
     if (arm === '529') {
-      check('L3 the row names the overload and the wait', leg.waits.some(w => /provider overloaded \(HTTP 529\) — waiting \d+ s before retry \d+ of \d+/.test(w)), leg.waits.join(' | '))
+      check('L3 the quiet window keeps the overload waits off the row', !leg.waits.some(w => /provider overloaded \(HTTP 529\) — waiting \d+ s before retry \d+ of \d+/.test(w)), leg.waits.join(' | '))
       check('L3 the overloads end the seat typed and the receipt names them', leg.seatStatus === 'failed' && leg.receipt !== null && /overload/i.test(leg.receipt), `${leg.seatStatus} ${leg.receipt ?? '(none)'}`)
     }
     if (arm === 'quiet' || arm === 'drop') {
