@@ -1,5 +1,7 @@
 import { dirname, join, resolve } from 'node:path'
 
+import { z } from 'zod'
+
 import { stripBOM } from '../../utils/jsonRead.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
@@ -23,7 +25,6 @@ import { fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
 import { isMcpServerDisabledIn, withMcpServerEnabled } from './disabledRecord.js'
 import { expandEnvVarsInString } from './envExpansion.js'
 import {
-  McpJsonConfigSchema,
   McpServerConfigSchema,
   type ConfigScope,
   type McpServerConfig,
@@ -155,6 +156,14 @@ function windowsNpxWarning(
   }
 }
 
+const SCHEMA_MISMATCH = 'does not match the MCP server configuration schema'
+
+let documentShape: z.ZodType<{ mcpServers: Record<string, unknown> }> | null = null
+function mcpDocumentShape(): z.ZodType<{ mcpServers: Record<string, unknown> }> {
+  if (documentShape === null) documentShape = z.object({ mcpServers: z.record(z.string(), z.unknown()) })
+  return documentShape
+}
+
 export function parseMcpConfig({
   configObject,
   expandVars,
@@ -167,14 +176,14 @@ export function parseMcpConfig({
   filePath?: string
 }): ParseResult {
   const file = filePath ?? ''
-  const parsed = McpJsonConfigSchema().safeParse(configObject)
-  if (!parsed.success) {
+  const document = mcpDocumentShape().safeParse(configObject)
+  if (!document.success) {
     return {
       config: null,
-      errors: parsed.error.issues.map(issue => ({
+      errors: document.error.issues.map(issue => ({
         filePath: file,
         path: issue.path.join('.'),
-        message: 'does not match the MCP server configuration schema',
+        message: SCHEMA_MISMATCH,
         scope,
         severity: 'fatal' as const,
       })),
@@ -182,8 +191,20 @@ export function parseMcpConfig({
   }
   const mcpServers: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
   const errors: McpConfigError[] = []
-  for (const [serverName, serverConfig] of Object.entries(parsed.data.mcpServers)) {
-    let effective = serverConfig as McpServerConfig
+  for (const [serverName, rawEntry] of Object.entries(document.data.mcpServers)) {
+    const entry = McpServerConfigSchema().safeParse(rawEntry)
+    if (!entry.success) {
+      errors.push({
+        filePath: file,
+        path: `mcpServers.${serverName}`,
+        message: SCHEMA_MISMATCH,
+        scope,
+        serverName,
+        severity: 'warning',
+      })
+      continue
+    }
+    let effective = entry.data as McpServerConfig
     if (expandVars) {
       const { config: expanded, missingVars } = expandServerConfig(effective)
       effective = expanded
@@ -464,7 +485,8 @@ export function doesEnterpriseMcpConfigExist(): boolean {
   if (enterpriseMcpConfigExists === null) {
     const read = readConfigFile(getEnterpriseMcpFilePath())
     enterpriseMcpConfigExists =
-      read.kind === 'content' && McpJsonConfigSchema().safeParse(read.value).success
+      read.kind === 'content' &&
+      parseMcpConfig({ configObject: read.value, expandVars: false, scope: 'enterprise' }).config !== null
   }
   return enterpriseMcpConfigExists
 }
