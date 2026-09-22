@@ -46,6 +46,7 @@ import {
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
+import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
@@ -54,6 +55,7 @@ import {
   openOverloadEpisode,
   overloadDeathNotifies,
   overloadNoticeWords,
+  overloadPauseWords,
   overloadProbeRequestMs,
   type OverloadEpisode,
 } from '../../tasks/LocalAgentTask/agentOverload.js'
@@ -588,6 +590,12 @@ export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfte
   return facts === null ? null : { words: facts.words, resumeAfterMs: facts.resumeAfterMs }
 }
 
+export function overloadBudgetCutOf(error: unknown, model: string): ReturnType<typeof overloadPauseOf> {
+  if (recoveryBudgetSpentFactsOf(error)?.lastStatus !== 529) return null
+  const who = getMarketingNameForModel(model) ?? model
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who }
+}
+
 const RESUME_AFTER_CUT_FLOOR_MS = 1_000
 
 export function budgetCutResumeDelayMs(cut: { resumeAfterMs: number }): number {
@@ -1107,6 +1115,9 @@ export async function runAsyncAgentLifecycle(args: {
     stopSummarization?.()
     const errMsg = errorMessage(error)
     failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
+    const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
+    const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
+    if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
     const worktreeResult = await getWorktreeResult()
     await flushSessionStorage()
     const partialResult = extractPartialResult(accumulated)
@@ -1122,11 +1133,13 @@ export async function runAsyncAgentLifecycle(args: {
       partialText: partialResult,
       usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
     })
-    enqueueAgentNotification({
+    const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+    if (notifies) enqueueAgentNotification({
       taskId,
       description,
       status: 'failed',
       error: errMsg,
+      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who) } : {}),
       finalMessage: partialResult,
       usage,
       landedWrites: landedWritesOf(accumulated),
@@ -1137,7 +1150,9 @@ export async function runAsyncAgentLifecycle(args: {
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
     const budgetCut = recoveryBudgetCutOf(error)
-    if (budgetCut !== null && !args.automaticResume) {
+    if (overload !== null) {
+      armOverloadProbe({ taskId, description, registration: args.abortController, toolUseContext, rootSetAppState, canUseTool: args.canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
+    } else if (budgetCut !== null && !args.automaticResume) {
       const delayMs = budgetCutResumeDelayMs(budgetCut)
       armBudgetCutResume({
         taskId,
