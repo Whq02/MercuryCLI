@@ -731,7 +731,7 @@ export function handleAutoModeTransition(
 
 export function getSystemPromptSectionCache(): Map<
   string,
-  { key: string | null; value: string | null }
+  { key: string | null; value: string | null; byKey?: Map<string, string | null> }
 > {
   return cacheLatches.systemPromptSectionCache
 }
@@ -741,7 +741,13 @@ export function setSystemPromptSectionCacheEntry(
   value: string | null,
   key: string | null = null,
 ): void {
-  cacheLatches.systemPromptSectionCache.set(name, { key, value })
+  if (key === null) {
+    cacheLatches.systemPromptSectionCache.set(name, { key, value })
+    return
+  }
+  const byKey = cacheLatches.systemPromptSectionCache.get(name)?.byKey ?? new Map<string, string | null>()
+  byKey.set(key, value)
+  cacheLatches.systemPromptSectionCache.set(name, { key, value, byKey })
 }
 
 export function clearSystemPromptSectionState(): void {

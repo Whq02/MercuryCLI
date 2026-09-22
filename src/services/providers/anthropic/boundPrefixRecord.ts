@@ -46,6 +46,9 @@ export async function buildBoundPrefixRecordData(
   const roster: BoundPrefixToolMark[] = latch.names.map(name => ({ name, deferred: latch.deferred.has(name), ...(definitions.has(name) ? { definition: definitions.get(name)! } : {}) }))
   const sections: BoundPrefixSection[] = []
   for (const [name, entry] of getSystemPromptSectionCache()) {
+    for (const [key, value] of entry.byKey ?? []) {
+      if (key !== entry.key) sections.push({ name, key, value })
+    }
     sections.push({ name, key: entry.key, value: entry.value })
   }
   const systemContext = await sentSystemContext()
