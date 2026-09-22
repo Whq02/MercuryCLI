@@ -13,6 +13,7 @@ console.log(`world: ${scratch}`)
 
 const ASK = 'place-probe'
 const WHERE_PROMPT = 'say where you are'
+const CONTINUE_PROMPT = 'say where you are now'
 const BUILD_PROMPT = 'typecheck the checkout'
 const BUN = process.execPath
 
@@ -33,14 +34,23 @@ const work = join(scratch, 'work')
 const lane = join(work, 'lane')
 const missing = join(work, 'nowhere')
 const elsewhere = join(scratch, 'elsewhere')
+const another = join(scratch, 'another')
+const flag = join(scratch, 'continued.flag')
 mkdirSync(lane, { recursive: true })
 mkdirSync(elsewhere)
+mkdirSync(another)
 
 const pwds: string[] = []
+let continuedPwd = ''
 const systems: string[] = []
 const seen: Record<string, SeenResult | undefined> = {}
 const whereFixture = await startScriptedFixture(req => {
   if (req.opening.trim() === WHERE_PROMPT) {
+    if (req.ask.includes(CONTINUE_PROMPT)) {
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `pwd | tee "${flag}"`, description: 'where am I now' } }]
+      if (req.step === 1) continuedPwd = (req.results[0]?.text ?? '').split('\n')[0]?.trim() ?? ''
+      return [{ type: 'text', text: 'continued' }]
+    }
     if (req.step === 0) {
       systems.push(req.system)
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'pwd', description: 'where am I' } }]
@@ -53,27 +63,37 @@ const whereFixture = await startScriptedFixture(req => {
   switch (req.step) {
     case 0:
       return [{ type: 'tool_use', name: 'Agent', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
-    case 1:
+    case 1: {
       seen.launch = last
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'nowhere', prompt: WHERE_PROMPT, cwd: missing } }]
+      const id = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? 'unknown'
+      return [{ type: 'tool_use', name: 'SendMessage', input: { to: id, message: CONTINUE_PROMPT, summary: 'continue' } }]
+    }
     case 2:
+      seen.continued = last
+      return [{ type: 'tool_use', name: 'Bash', input: { command: `for i in $(seq 1 150); do [ -f "${flag}" ] && break; sleep 0.2; done; cat "${flag}" 2>/dev/null || echo no-flag`, description: 'wait for the continuation' } }]
+    case 3:
+      seen.waited = last
+      return [{ type: 'tool_use', name: 'Agent', input: { description: 'nowhere', prompt: WHERE_PROMPT, cwd: missing } }]
+    case 4:
       seen.missing = last
       return [{ type: 'tool_use', name: 'Agent', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: elsewhere } }]
     default:
-      if (req.step === 3) seen.outside = last
+      if (req.step === 5) seen.outside = last
       return [{ type: 'text', text: 'done' }]
   }
 })
 let whereTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions'] })
+  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: 240_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
 } finally {
   await whereFixture.close()
 }
 show('the launch into the named directory', seen.launch, whereTurn)
+show('the continuation by message', seen.continued, whereTurn)
+show('the wait for the continuation', seen.waited, whereTurn)
 show('the launch into a missing directory', seen.missing, whereTurn)
-show('the launch into a directory outside the trusted workspace', seen.outside, whereTurn)
-console.log(`\npwd seen by the helpers: ${JSON.stringify(pwds)}`)
+show('the launch into a directory outside the trusted workspace, in sovereign', seen.outside, whereTurn)
+console.log(`\npwd seen by the helpers: ${JSON.stringify(pwds)}; on the continuation: ${JSON.stringify(continuedPwd)}`)
 
 tally.section('a helper launched with cwd works there')
 tally.check('the launch into the named directory answered without error', seen.launch !== undefined && !seen.launch.isError, seen.launch?.text.slice(0, 300))
@@ -81,8 +101,47 @@ tally.check("the helper's shell ran in the named directory", pwds[0] === lane, `
 const envLine = systems[0]?.split('\n').find(line => line.startsWith('Working directory:')) ?? '(no env line)'
 tally.check("the helper's environment section names the named directory", envLine === `Working directory: ${lane}`, envLine)
 tally.check('a missing directory is refused typed before any spawn', seen.missing !== undefined && seen.missing.isError && /cwd does not exist/.test(seen.missing.text), seen.missing?.text.slice(0, 300))
-tally.check('a directory outside every trusted workspace is refused with the write-scope sentence', seen.outside !== undefined && seen.outside.isError && /outside every workspace this session trusts/.test(seen.outside.text) && /write scope/.test(seen.outside.text), seen.outside?.text.slice(0, 300))
-tally.check('the refused launches ran no helper', pwds.length === 1, JSON.stringify(pwds))
+
+tally.section('a helper continued by message wakes in its own directory')
+tally.check('the message resumed the finished helper', seen.continued !== undefined && !seen.continued.isError && /resumed in the background/.test(seen.continued.text), seen.continued?.text.slice(0, 300))
+tally.check("the continuation's shell ran in the launch directory", continuedPwd === lane, `pwd=${continuedPwd || '(none)'} wanted ${lane}`)
+tally.check('the flag the continuation wrote names the same directory', (seen.waited?.text ?? '').split('\n')[0]?.trim() === lane, seen.waited?.text.slice(0, 200))
+
+tally.section('a directory outside every trusted workspace is a question, and sovereign answers it')
+tally.check('in sovereign the launch outside the trusted workspace runs without an ask', seen.outside !== undefined && !seen.outside.isError && !/outside every workspace/.test(seen.outside.text), seen.outside?.text.slice(0, 300))
+tally.check("that helper's shell ran in the named directory", pwds[1] === elsewhere, JSON.stringify(pwds))
+tally.check('the refused launch ran no helper', pwds.length === 2, JSON.stringify(pwds))
+
+const pwdsAsked: string[] = []
+const askFixture = await startScriptedFixture(req => {
+  if (req.opening.trim() === WHERE_PROMPT) {
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'pwd', description: 'where am I' } }]
+    if (req.step === 1) pwdsAsked.push((req.results[0]?.text ?? '').split('\n')[0]?.trim() ?? '')
+    return [{ type: 'text', text: 'agent done' }]
+  }
+  if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
+  const last = req.results[req.results.length - 1]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
+  if (req.step === 1) {
+    seen.askedLane = last
+    return [{ type: 'tool_use', name: 'Agent', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: another } }]
+  }
+  if (req.step === 2) seen.askedOutside = last
+  return [{ type: 'text', text: 'done' }]
+})
+let askTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+try {
+  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--permission-mode', 'default', '--allowed-tools', 'Bash'] })
+} finally {
+  await askFixture.close()
+}
+show('a seat that asks: the launch into the named directory', seen.askedLane, askTurn)
+show('a seat that asks, with no operator to answer: the launch outside the trusted workspace', seen.askedOutside, askTurn)
+console.log(`\npwd seen by the helpers of the asking seat: ${JSON.stringify(pwdsAsked)}`)
+tally.section('a seat that asks: the question with nobody to answer it keeps the helper unlaunched')
+tally.check('a trusted directory launches with no question', seen.askedLane !== undefined && !seen.askedLane.isError && pwdsAsked[0] === lane, `${seen.askedLane?.text.slice(0, 200)} pwd=${pwdsAsked[0] ?? '(none)'}`)
+tally.check('the launch outside the trusted workspace is a question the seat cannot ask, so it is refused with the existing sentence', seen.askedOutside !== undefined && seen.askedOutside.isError && /outside every workspace this session trusts/.test(seen.askedOutside.text) && /write scope/.test(seen.askedOutside.text) && /cannot ask for approval/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
+tally.check('the refused launch ran no helper', pwdsAsked.length === 1, JSON.stringify(pwdsAsked))
 
 const repo = join(scratch, 'repo')
 mkdirSync(repo)
