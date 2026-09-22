@@ -886,10 +886,8 @@ export function MercurySessionModelPicker({
   useCatalogueEpoch()
   const betas = getSdkBetas()
   const model = currentModel ?? nextBirthModel() ?? getMainLoopModel()
-  const efforts = modelSupportsEffort(model)
-    ? [...selectableEffortLevels(model), ...(modelSupportsMaxEffort(model) ? ['supercode'] : [])]
-    : []
-  const [effort, setEffort] = React.useState<string>(() => currentEffort ?? getDisplayedEffortLabel(model, getInitialEffortSetting()))
+  const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
+  const effort = currentEffort ?? 'default'
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
@@ -901,7 +899,6 @@ export function MercurySessionModelPicker({
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
-    setEffort(mode)
     onEffort(mode)
   }
   function handleSelect(id: string): void {

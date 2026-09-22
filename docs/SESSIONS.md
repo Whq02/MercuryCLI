@@ -71,8 +71,10 @@ sessions once there are any — names the model and the effort the next
 session starts on; with that row under the cursor the bottom row offers `m
 to select model-default`: `m` opens the model picker over the board, and the
 pick is saved as your default — the door row follows at once. ↵ on the row
-starts a session as `n` does, and `m` on a session row keeps that session's
-own picker.
+starts a session as `n` does. On a session row, `m` opens that session's
+picker on its own effort, with only the effort levels the session accepts.
+The effort selection follows the session's settled value; a refused change
+leaves it where it was.
 The chat paints while the birth lands, and its first frame already names
 the model, the effort and the permission mode the birth resolved; once the
 session's own record and facts are read they take over, the same words
