@@ -489,6 +489,10 @@ part of the request that moved. Mercury no longer asks the server to clear
 reasoning older than the last turn once a session has sat idle for an hour, so
 such a drop is never attributed to an idle clear.
 
+A sub-agent keeps the same kind of record on its own transcript: one brought
+back after its run ended (a message sent to it, the crew view's resume) sends
+the tool list it first sent, whatever the session's tools are by then.
+
 The tool list a conversation starts with is kept for its life, so nothing
 already sent moves under the model. A tool that joins later (a connector
 that connects after the first request, a tool a setting turns on) rides

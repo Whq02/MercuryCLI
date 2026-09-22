@@ -313,6 +313,22 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const pFork = await doPlan([search, read, browser], forkOwner)
   check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}`)
 
+  freshProcess()
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const agentOwner = 'conv-resume-agent'
+  const agentMessages = [{ type: 'user', uuid: 'u-agent-first-exchange', message: { role: 'user', content: 'agent first' } }]
+  const pa1 = await doPlan([search, read, browser], agentOwner, agentMessages)
+  const agentRecord = await boundPrefixRecordToEmit(agentOwner, agentMessages as never, MODEL, { rosterOnly: true })
+  const agentAttachment = agentRecord?.attachment as { boundKey?: string; sections?: unknown[]; systemContext?: Record<string, string> } | undefined
+  check('§1c an agent conversation writes its own record under its own key: the roster alone, no sections, no system context', agentRecord !== null && agentAttachment?.boundKey === conversationRosterKey(agentOwner, agentMessages as never, MODEL) && agentAttachment.sections?.length === 0 && Object.keys(agentAttachment.systemContext ?? {}).length === 0, j(agentAttachment))
+  freshProcess()
+  restoreBoundPrefixFromMessages([JSON.parse(j(agentRecord)) as never], { rosterOnly: true })
+  check('§1c an agent restore arms its roster and seeds no section', pendingToolRosterRestore()?.key === agentAttachment?.boundKey && getSystemPromptSectionCache().size === 0)
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const pa2 = await doPlan([search, read, browser, godot], agentOwner, agentMessages)
+  const pm2 = await doPlan([search, read, browser, godot])
+  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record, the main\'s sections seeded', rosterNames(pa2) === rosterNames(pa1) && marks(pa2) === marks(pa1) && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}`)
+
   const savedKeepTail = process.env.MERCURY_COMPACT_KEEP_TAIL
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
   freshProcess()
