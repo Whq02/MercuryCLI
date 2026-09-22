@@ -35,6 +35,7 @@ import {
   isToolSearchEnabledOptimistic,
 } from '../toolSearch.js'
 import {
+  dropEmptyTextBlocks,
   ensureNonEmptyAssistantContent,
   filterOrphanedThinkingOnlyMessages,
   filterTrailingThinkingFromLastAssistant,
@@ -415,7 +416,7 @@ export function normalizeMessagesForAPI(
     })
 
 
-  const withFilteredOrphans = filterOrphanedThinkingOnlyMessages(result)
+  const withFilteredOrphans = filterOrphanedThinkingOnlyMessages(dropEmptyTextBlocks(result))
 
   const withFilteredThinking =
     filterTrailingThinkingFromLastAssistant(withFilteredOrphans)

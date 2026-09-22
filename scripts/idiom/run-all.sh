@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/utils/sessionStorage/** src/utils/projectConfig* src/utils/json*
 # gate-watch: src/utils/envUtils* src/services/tools/toolExecution*
+# gate-watch: src/fabric/** scripts/lib/scratchSeat.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -31,5 +32,7 @@ run "transcript vNext: header + records + restart ordinals + lineage (C01/C02/C0
 run "cross-surface identity + headless per-client policy (E02/E07)" prove-identity-and-headless.ts
 run "managed-policy precedence: native outranks imported (D12)" prove-managed-precedence.ts
 run "bounded subscribers + batched deltas (A10/F04)" prove-bounded-subscribers.ts
+run "persisted body shapes: a registered kind whose body fails its shape is thinned and named" prove-body-shape-registry.ts
+run "persisted body shapes on the built seat: a malformed body never breaks the resume" prove-persisted-body-shape.ts
 
 exit "$failed"

@@ -13,7 +13,7 @@ import { logForDebugging } from '../debug.js'
 import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
 import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
-import { resolveWatchRoot } from '../watchRoot.js'
+import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 
 
 type TimingOverrides = {
@@ -162,6 +162,7 @@ async function armWatcher(gen: number): Promise<string[]> {
       ignorePermissionErrors: true,
       atomic: true,
       ...(runningUnderBun ? { usePolling: true, interval: bunPollIntervalMs } : {}),
+      ignored: ignoringSpecialFiles(),
     })
     const onBirth = (rawPath: string): void => {
       const added = resolve(rawPath)
@@ -199,7 +200,7 @@ async function armWatcher(gen: number): Promise<string[]> {
     ignorePermissionErrors: true,
     atomic: true,
     ...(runningUnderBun ? { usePolling: true, interval: bunPollIntervalMs } : {}),
-    ignored: (candidatePath: string) => {
+    ignored: ignoringSpecialFiles((candidatePath: string) => {
       const normalized = resolve(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
       try {
@@ -216,7 +217,7 @@ async function armWatcher(gen: number): Promise<string[]> {
         return false
       }
       return false
-    },
+    }),
   })
   built.on('add', path => scheduleReload(path as string))
   built.on('change', path => scheduleReload(path as string))

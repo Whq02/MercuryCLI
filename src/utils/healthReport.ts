@@ -1343,6 +1343,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'config-fields',
+          label: 'Config fields',
+          run: async () => {
+            const { configShapeWords, getGlobalConfigFieldDrops } = await import('./config/globalConfig.js')
+            const drops = getGlobalConfigFieldDrops()
+            if (drops.length === 0) {
+              return { status: 'ok' as const, evidence: 'every stored field has its declared shape' }
+            }
+            return {
+              status: 'warn' as const,
+              evidence: `${drops.length} field(s) ignored and read as their defaults: ${drops.map(d => `${d.field} expected ${configShapeWords(d.expected)}, found ${d.found}`).join(' · ')}`,
+              fix: `Correct or remove the named field(s) in ${getGlobalMercuryFile()}.`,
+            }
+          },
+        },
+        {
           id: 'scratch-leases',
           label: 'Scratch leases',
           run: async () => {
