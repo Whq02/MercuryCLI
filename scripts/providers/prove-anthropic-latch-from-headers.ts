@@ -146,7 +146,7 @@ section('§5 the subscriber gate: a response for a session with no sign-in clear
 section('§6 the wire road hands the latch what it reads, and the seam never stands in for it (source pins)')
 {
   const stream = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check("the stream road hands the streaming response's headers to the latch", stream.includes('extractQuotaStatusFromHeaders(resp.headers)'))
+  check("the stream road hands the streaming response's headers to the latch", stream.includes('extractQuotaStatusFromHeaders(resp.headers, start)'))
   check('…and a refused turn to the error road', stream.includes('extractQuotaStatusFromError(error)'))
   const seam = readFileSync(join(ROOT, 'src/commands/mock-limits/index.ts'), 'utf8')
   check("the fixture seam is a screen-seat command, so its scenarios arm the screen's latch and never the runner's wire road", /seat:\s*'screen'/.test(seam))

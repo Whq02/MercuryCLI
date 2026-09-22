@@ -396,9 +396,9 @@ let verdictOwner: string | null = null
 let verdictObservedAtMs: number | null = null
 let lastWindowReadKey: string | null = null
 
-function stampVerdictOwner(): void {
+function stampVerdictOwner(observedAtMs: number = Date.now()): void {
   verdictOwner = resolveOwner()
-  verdictObservedAtMs = Date.now()
+  verdictObservedAtMs = observedAtMs
   logForDebugging(`[limits] window observed · ${currentLimits.status} · owner ${verdictOwner}`)
 }
 function verdictOwnerStands(): boolean {
@@ -510,16 +510,20 @@ function handleGateClosed(): void {
   }
 }
 
-export function extractQuotaStatusFromHeaders(headers: Headers): void {
+export function extractQuotaStatusFromHeaders(headers: Headers, startedAtMs: number = Date.now()): void {
   if (!shouldProcessRateLimits(isClaudeAISubscriber())) {
     handleGateClosed()
+    return
+  }
+  if (verdictObservedAtMs !== null && startedAtMs < verdictObservedAtMs) {
+    logForDebugging(`[limits] a reply that began at ${new Date(startedAtMs).toISOString()} folds nothing: the standing verdict (${currentLimits.status}) was observed later, at ${new Date(verdictObservedAtMs).toISOString()}`)
     return
   }
   const effective = processRateLimitHeaders(headers)
   recomputeRawUtilization(effective)
   const next = computeNewLimitsFromHeaders(effective)
   windowObserved = true
-  stampVerdictOwner()
+  stampVerdictOwner(startedAtMs)
   if (!limitsEqual(next, currentLimits)) {
     emitStatusChange(next)
   }
