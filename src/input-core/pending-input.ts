@@ -1,4 +1,5 @@
 import type { PastedContent } from '../utils/config.js'
+import type { IDESelection } from '../hooks/useIdeSelection.js'
 import type {
   EditablePromptInputMode,
   PromptInputMode,
@@ -17,17 +18,27 @@ import {
 import { createSignal } from '../utils/signal.js'
 import { noteCompanionTyping } from '../utils/cockpit/companionEngine.js'
 import { markTypingActivity } from '../utils/cockpit/typingActivity.js'
+import { normalizePastedInput } from './composer-document.js'
+
+export function sanitizeComposerText(raw: string): string {
+  return normalizePastedInput(raw.replace(/[\u0080-\u009f]/g, '')).replace(
+    /[\u0000-\u0008\u000b-\u001f\u007f]/g,
+    '',
+  )
+}
 
 export type ComposerDraft = {
   text: string
   cursorOffset: number
   mode: PromptInputMode
   pastedContents: Record<number, PastedContent>
+  selection?: IDESelection
 }
 
 export type StashedPrompt = {
   text: string
   cursorOffset: number
+  mode: PromptInputMode
   pastedContents: Record<number, PastedContent>
 }
 
@@ -80,7 +91,11 @@ export function clearForSubmit(submittedText?: string): void {
   cancelPendingDraftSave()
   deleteDraft(owningSessionId ?? getSessionId())
   if (submittedText !== undefined) {
-    staged = { text: submittedText, at: Date.now() }
+    staged = { text: submittedText, at: Date.now(), selection: draft.selection }
+  }
+  if (draft.selection !== undefined) {
+    draft = { ...draft, selection: undefined }
+    commit()
   }
 }
 
@@ -103,6 +118,10 @@ export function stashedPrompt(): StashedPrompt | undefined {
   return stash
 }
 
+export function selection(): IDESelection | undefined {
+  return draft.selection
+}
+
 export function editGeneration(): number {
   return editSeq
 }
@@ -116,9 +135,10 @@ export function initOnce(seed: {
 }): void {
   if (initialized) return
   initialized = true
+  const text = sanitizeComposerText(seed.text)
   draft = {
-    text: seed.text,
-    cursorOffset: seed.cursorOffset ?? seed.text.length,
+    text,
+    cursorOffset: Math.min(seed.cursorOffset ?? text.length, text.length),
     mode: seed.mode,
     pastedContents: seed.pastedContents,
   }
@@ -152,13 +172,14 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return
   if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
-  const text = saved?.text ?? ''
+  const text = sanitizeComposerText(saved?.text ?? '')
   draft = {
     text,
     cursorOffset:
       saved && saved.text === text ? Math.max(0, Math.min(saved.cursorOffset, text.length)) : text.length,
     mode: saved?.mode === 'bash' || saved?.mode === 'prompt' ? saved.mode : 'prompt',
     pastedContents: saved?.pastedContents ?? {},
+    selection: draft.selection,
   }
   commit()
 }
@@ -202,7 +223,8 @@ function armSuppressionTimer(nonempty: boolean): void {
   }, PROMPT_SUPPRESSION_MS)
 }
 
-export function edit(value: string): void {
+export function edit(raw: string): void {
+  const value = sanitizeComposerText(raw)
   const prev = draft.text
   if (interceptors.interceptSuggestion?.(prev, value)) return
   if (prev === '' && value !== '') {
@@ -246,21 +268,61 @@ export function reportCursor(offset: number): void {
   persistDraft()
 }
 
+export function setSelection(next: IDESelection | undefined): void {
+  if (draft.selection === next) return
+  draft = { ...draft, selection: next }
+  commit()
+}
+
 
 export function setStash(next: StashedPrompt | undefined): void {
   stash = next
   commit()
 }
 
+export function stashDraft(cursorOffset: number = draft.cursorOffset): void {
+  stash = {
+    text: draft.text,
+    cursorOffset,
+    mode: draft.mode,
+    pastedContents: draft.pastedContents,
+  }
+  edit('')
+  setPastedContents({})
+  setMode('prompt')
+  commit()
+}
 
-let staged: { text: string; at: number } | null = null
+export function popStash(): StashedPrompt | undefined {
+  const pocket = stash
+  if (pocket === undefined) return undefined
+  stash = undefined
+  edit(pocket.text)
+  setPastedContents(pocket.pastedContents)
+  setMode(pocket.mode)
+  commit()
+  return pocket
+}
 
-export function stagedSubmit(): { text: string; at: number } | null {
+
+let staged: { text: string; at: number; selection?: IDESelection } | null = null
+
+export function stagedSubmit(): { text: string; at: number; selection?: IDESelection } | null {
   return staged
 }
 
 export function clearStaged(): void {
   staged = null
+}
+
+export function restoreStaged(expectedText?: string): { text: string; selection?: IDESelection } | null {
+  const record = staged
+  if (record === null) return null
+  if (expectedText !== undefined && record.text !== expectedText) return null
+  staged = null
+  edit(record.text)
+  if (record.selection !== undefined) setSelection(record.selection)
+  return { text: record.text, selection: record.selection }
 }
 
 

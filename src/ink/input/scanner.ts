@@ -1,4 +1,4 @@
-import { C0, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
+import { C0, ESC, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
 import { isCSIFinal, isCSIIntermediate, isCSIParam } from '../termio/csi.js'
 
 
@@ -49,24 +49,18 @@ export function createScanner(options?: ScannerOptions): Scanner {
   let state: ScanState = 'ground'
   let carry = ''
   let sealedFlushes = 0
+  let fedSinceFlush = false
 
   const run = (input: string, flush: boolean): ScanToken[] => {
-    const result = scan(carry + input, state, flush, x10Mouse)
+    const result = scan(carry + input, state, flush, x10Mouse, { sealedFlushes, fedSinceFlush })
     state = result.state
     carry = result.carry
     if (flush) {
-      if (state === 'osc' || state === 'dcs' || state === 'apc') {
-        sealedFlushes++
-        if (sealedFlushes >= 2) {
-          state = 'ground'
-          carry = ''
-          sealedFlushes = 0
-        }
-      } else {
-        sealedFlushes = 0
-      }
-    } else if (state === 'ground') {
-      sealedFlushes = 0
+      sealedFlushes = result.sealed ? sealedFlushes + 1 : 0
+      fedSinceFlush = false
+    } else {
+      fedSinceFlush = true
+      if (state === 'ground') sealedFlushes = 0
     }
     return result.tokens
   }
@@ -78,10 +72,26 @@ export function createScanner(options?: ScannerOptions): Scanner {
       state = 'ground'
       carry = ''
       sealedFlushes = 0
+      fedSinceFlush = false
     },
     buffer: () => carry,
   }
 }
+
+type FlushPolicy = {
+  sealedFlushes: number
+  fedSinceFlush: boolean
+}
+
+function isResponseHead(s: string): boolean {
+  return /^\x1b\[[?>]/.test(s)
+}
+
+function isMetaPrefixedIntroducer(code: number): boolean {
+  return code === ESC_TYPE.CSI || code === 0x4f
+}
+
+const DOUBLE_ESC = ESC + ESC
 
 function isPartialMouseHead(s: string, x10Mouse: boolean): boolean {
   if (/^\x1b\[<[\d;]*$/.test(s)) return true
@@ -95,7 +105,8 @@ function scan(
   initial: ScanState,
   flush: boolean,
   x10Mouse: boolean,
-): { tokens: ScanToken[]; state: ScanState; carry: string } {
+  policy: FlushPolicy,
+): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean } {
   const tokens: ScanToken[] = []
   let state = initial
   let i = 0
@@ -177,6 +188,10 @@ function scan(
           i++
           emit('esc')
         } else if (code === C0.ESC) {
+          if (i + 1 >= data.length || isMetaPrefixedIntroducer(data.charCodeAt(i + 1))) {
+            i++
+            break
+          }
           emit('esc')
           seqStart = i
           seqKind = 'esc'
@@ -274,7 +289,16 @@ function scan(
       tokens.push({ kind: 'esc', value: remaining })
       return { tokens, state: 'ground', carry: '' }
     }
-    return { tokens, state, carry: '' }
+    if (policy.sealedFlushes === 0) return { tokens, state, carry: remaining, sealed: true }
+    if (!policy.fedSinceFlush) return { tokens, state, carry: '', sealed: true }
+    return { tokens, state: 'ground', carry: '' }
+  }
+  if (remaining && state === 'csi' && policy.sealedFlushes === 0 && isResponseHead(remaining)) {
+    return { tokens, state, carry: remaining, sealed: true }
+  }
+  if (remaining === DOUBLE_ESC) {
+    tokens.push({ kind: 'esc', value: ESC }, { kind: 'esc', value: ESC })
+    return { tokens, state: 'ground', carry: '' }
   }
   if (remaining) {
     tokens.push({ kind: seqKind, value: remaining })
