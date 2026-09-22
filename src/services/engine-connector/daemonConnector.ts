@@ -966,6 +966,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (!isNoticeFact(entry)) continue
       const key = noticeKeyOf(entry.value)
       if (this.sends.some(s => s.clientMessageId === key)) continue
+      if (this.noticeStands(entry.value)) continue
       const atMs = Date.now()
       const heldSinceMs = typeof facts.atMs === 'number' && facts.atMs < atMs ? facts.atMs : atMs
       this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: heldSinceMs, state: 'queued', mode: 'prompt' }]
@@ -1106,6 +1107,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     for (const id of landed) this.echoRows.delete(id)
     if (this.sends.length === 0) this.textRetiredRowUuids.clear()
     return true
+  }
+
+  private noticeStands(value: string): boolean {
+    for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
+      if (noticeRowLanded(this.rawRecords[i]!, value)) return true
+    }
+    return false
   }
 
   private paint(): void {
