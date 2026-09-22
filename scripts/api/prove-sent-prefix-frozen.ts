@@ -327,7 +327,13 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   restoreBoundPrefixFromMessages([recordMessage as never])
   const pa2 = await doPlan([search, read, browser, godot], agentOwner, agentMessages)
   const pm2 = await doPlan([search, read, browser, godot])
-  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record, the main\'s sections seeded', rosterNames(pa2) === rosterNames(pa1) && marks(pa2) === marks(pa1) && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}`)
+  const pa1Names = pa1.roster.map(t => t.name)
+  const pa2Names = pa2.roster.map(t => t.name)
+  const agentPrefixHolds =
+    pa2Names.slice(0, pa1Names.length).join(',') === pa1Names.join(',') &&
+    pa2Names.slice(pa1Names.length).every(name => pa2.deferredNames.has(name)) &&
+    pa1Names.every(name => pa1.deferredNames.has(name) === pa2.deferredNames.has(name))
+  check('§1c the resumed agent and the resumed main each re-send their own frozen roster from their own record (a tool that gated in since rides appended, deferred, in both), the main\'s sections seeded', agentPrefixHolds && pm2.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && pm2.deferredNames.has('Godot') && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pa2)} vs ${rosterNames(pa1)}; main ${rosterNames(pm2)}`)
 
   const savedKeepTail = process.env.MERCURY_COMPACT_KEEP_TAIL
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
