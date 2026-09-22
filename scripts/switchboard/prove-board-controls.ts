@@ -579,4 +579,127 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
   )
 }
 
+console.log('H — the session model picker follows the selected session facts')
+{
+  const ts = await import('typescript')
+  const source = read('src/commands/model/mercuryModel.tsx')
+  const parsed = ts.createSourceFile('picker.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const slots: unknown[] = []
+  let cursor = 0
+  const dependencies = {
+    React: {
+      createElement: (_type: unknown, props: Record<string, unknown>) => ({ props }),
+      useState: (initial: unknown) => {
+        const at = cursor++
+        if (!(at in slots)) slots[at] = typeof initial === 'function' ? initial() : initial
+        return [slots[at], (value: unknown) => { slots[at] = typeof value === 'function' ? value(slots[at]) : value }]
+      },
+    },
+    MercuryModelPicker: 'picker',
+    useCatalogueEpoch: () => {},
+    getSdkBetas: () => [],
+    nextBirthModel: () => 'fixture-model',
+    getMainLoopModel: () => 'fixture-model',
+    modelSupportsEffort: () => true,
+    modelSupportsMaxEffort: () => true,
+    selectableEffortLevels: () => ['low', 'medium', 'high', 'xhigh', 'max'],
+    getDisplayedEffortLabel: (_model: string, value: string | undefined) => value ?? 'default',
+    getInitialEffortSetting: () => 'high',
+    useCatalogueRefreshOnOpen: () => {},
+    GPT_ROAD: {}, OPENROUTER_ROAD: {}, GEMINI_ROAD: {}, HUGGINGFACE_ROAD: {}, LOCAL_ROAD: {},
+    getModelOptions: () => [],
+    modelChoiceOf: (v: unknown) => v,
+    resolveCurrentRowId: (_rows: unknown[], value: string) => value,
+    groupDetailsOf: () => ({}),
+    seatDetailOf: () => '',
+    slotSwitchOf: () => null,
+    expandRowsOf: () => [],
+    isCatalogueDoorRow: () => false,
+    isProviderActionRow: () => false,
+  }
+  const load = (name: string, extra: Record<string, unknown> = {}) => {
+    const declaration = parsed.statements.find(s => ts.isFunctionDeclaration(s) && s.name?.text === name)
+    if (declaration === undefined) throw new Error(`the ${name} declaration is missing`)
+    const body = ts.transpileModule(declaration.getText(parsed).replace(/^export /, ''), {
+      compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText
+    const scope = { ...dependencies, ...extra }
+    return new Function(...Object.keys(scope), `${body}; return ${name}`)(...Object.values(scope))
+  }
+  const component = load('MercurySessionModelPicker')
+  const seat = await import('../../src/daemon/sessionSeat.ts')
+  let refused: Promise<unknown> | undefined
+  const props = {
+    currentModel: 'fixture-model', currentEffort: 'low' as string | undefined,
+    onSelect: () => {}, onDone: () => {},
+    onEffort: (effort: string) => { refused = seat.setSessionEffort('no-such-session', effort, { control: () => false } as never, process.env.MERCURY_CONFIG_DIR) },
+  }
+  const render = (): { effort: string; efforts: string[]; onEffort: (value: string) => void } => {
+    cursor = 0
+    return component(props).props
+  }
+  const opened = render()
+  check('H1 the initial effort is the selected session low, not the saved high', opened.effort === 'low')
+  check('H2 the session ladder never offers the unsupported supercode mode', !opened.efforts.includes('supercode') && opened.efforts.includes('max'))
+  opened.onEffort('medium')
+  check('H3 the refusing seat really refused the effort request', (await refused as { outcome?: string })?.outcome === 'refused')
+  check('H3 a refused effort request never changes the displayed selection', render().effort === 'low')
+  props.currentEffort = 'max'
+  check('H4 settled session facts update the open picker', render().effort === 'max')
+  props.currentEffort = undefined
+  check('H4 missing session facts never borrow the screen saved effort', render().effort === 'default')
+  const screen = read('src/components/concourse/ConcourseScreen.tsx')
+  check('H5 the board hands over its painted effort only when the snapshot owns the selected session', screen.includes('currentEffort={snapshot.peek?.sessionId === rowPick.sessionId ? snapshot.context.effortLabel : undefined}'))
+
+  console.log('I — the default picker waits for persistence and carries the existing refusal words')
+  const modelRefusal = ' · not saved as your default: fixture write refused'
+  const override = ' · saved as your default, but MERCURY_MODEL=fixture-model overrides it at boot'
+  let saved = modelRefusal
+  let error: Error | null = new Error('fixture write refused')
+  let done = 0
+  let mirrored = 0
+  let unpinned = 0
+  let writes = 0
+  const defaultPicker = load('MercuryModelDefaultPicker', {
+    useSetAppStateMaybe: () => () => { mirrored++ },
+    getInitialSupercodeSetting: () => false,
+    unpinAllLaunchEffort: () => { unpinned++ },
+    toPersistableEffort: (value: string) => value,
+    updateSettingsForSource: () => { writes++; return { error } },
+    persistModelChoice: () => saved,
+    settleModelSelection: () => ({ patch: {} }),
+  })
+  const defaultProps = { onDone: () => { done++ } }
+  const renderDefault = (): { effort: string; notice?: string; onSelect: (id: string) => void; onEffort: (value: string) => void } => {
+    cursor = 0
+    return defaultPicker(defaultProps).props
+  }
+  const reset = (): void => { slots.length = 0; done = 0; mirrored = 0; unpinned = 0; writes = 0 }
+  reset()
+  renderDefault().onSelect('fixture-choice')
+  check('I1 a failed model save stays open and carries its refusal verbatim', done === 0 && renderDefault().notice === modelRefusal)
+  check('I1 a failed model save changes no application state', mirrored === 0)
+  reset()
+  saved = override
+  renderDefault().onSelect('fixture-choice')
+  check('I2 a launch override stays open and carries its sentence verbatim', done === 0 && renderDefault().notice === override)
+  reset()
+  saved = ' · saved as your default'
+  renderDefault().onSelect('fixture-choice')
+  check('I3 a successful unopposed model save closes and mirrors the choice once', done === 1 && mirrored === 1)
+  for (const [value, sentence] of [['medium', 'Could not save the effort level:'], ['supercode', 'Could not save the supercode setting:']]) {
+    reset()
+    renderDefault().onEffort(value)
+    const refused = renderDefault()
+    check(`I4 ${value}: a failed write is named, with the prior effort still selected`, refused.notice === `${sentence} fixture write refused` && refused.effort === 'high')
+    check(`I4 ${value}: a failed write changes no application state or launch pin`, mirrored === 0 && unpinned === 0 && done === 0 && writes === 1)
+  }
+  error = null
+  renderDefault().onEffort('supercode')
+  check('I5 a successful retry selects supercode and clears the stale refusal', renderDefault().effort === 'supercode' && renderDefault().notice === undefined && mirrored === 1 && unpinned === 1 && writes === 2)
+  reset()
+  renderDefault().onEffort('medium')
+  check('I5 a successful effort write updates the bracket, application state and launch pins once', renderDefault().effort === 'medium' && mirrored === 1 && unpinned === 1 && writes === 1)
+}
+
 process.exit(failures === 0 ? 0 : 1)

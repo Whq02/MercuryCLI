@@ -820,23 +820,32 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
-    setEffort(mode)
-    unpinAllLaunchEffort()
-    if (mode === 'supercode') {
-      updateSettingsForSource('userSettings', { effortLevel: 'max', supercodeEffort: true })
-      setAppState?.(prev => ({ ...prev, effortValue: 'max', supercode: true }))
+    const persistable = mode === 'supercode' ? 'max' : toPersistableEffort(mode as EffortValue)
+    if (persistable === undefined) return
+    const { error } = updateSettingsForSource('userSettings', {
+      effortLevel: persistable,
+      supercodeEffort: mode === 'supercode' ? true : undefined,
+    })
+    if (error) {
+      setNotice(mode === 'supercode'
+        ? `Could not save the supercode setting: ${error.message}`
+        : `Could not save the effort level: ${error.message}`)
       return
     }
-    const persistable = toPersistableEffort(mode as EffortValue)
-    if (persistable !== undefined) {
-      updateSettingsForSource('userSettings', { effortLevel: persistable, supercodeEffort: undefined })
-    }
-    setAppState?.(prev => ({ ...prev, effortValue: mode as EffortValue, supercode: false }))
+    unpinAllLaunchEffort()
+    setEffort(mode)
+    setNotice(undefined)
+    setAppState?.(prev => ({ ...prev, effortValue: persistable, supercode: mode === 'supercode' }))
   }
   function handleSelect(id: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
       onSignIn?.()
+      return
+    }
+    const saved = persistModelChoice(id)
+    if (saved !== '' && saved !== ' · saved as your default') {
+      setNotice(saved)
       return
     }
     if (setAppState !== null) {
@@ -847,7 +856,6 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
         return settled.patch === null ? prev : { ...prev, ...settled.patch }
       })
     }
-    persistModelChoice(id)
     onDone()
   }
   return (
@@ -886,10 +894,8 @@ export function MercurySessionModelPicker({
   useCatalogueEpoch()
   const betas = getSdkBetas()
   const model = currentModel ?? nextBirthModel() ?? getMainLoopModel()
-  const efforts = modelSupportsEffort(model)
-    ? [...selectableEffortLevels(model), ...(modelSupportsMaxEffort(model) ? ['supercode'] : [])]
-    : []
-  const [effort, setEffort] = React.useState<string>(() => currentEffort ?? getDisplayedEffortLabel(model, getInitialEffortSetting()))
+  const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
+  const effort = currentEffort ?? 'default'
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
@@ -901,7 +907,6 @@ export function MercurySessionModelPicker({
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
-    setEffort(mode)
     onEffort(mode)
   }
   function handleSelect(id: string): void {
@@ -951,6 +956,12 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   onClose: () => void
 }): React.ReactNode {
   useCatalogueEpoch()
+  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   const betas = getSdkBetas()
   const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
   const models: ModelChoice[] = [...(leading ?? []), ...options.map(opt => modelChoiceOf(opt, betas))]
@@ -959,6 +970,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
       models={models}
       current={current}
       ctxPct={null}
+      notice={notice}
       groupDetails={groupDetailsOf(seatDetailOf)}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={id => {

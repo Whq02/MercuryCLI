@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -7,7 +7,13 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const argAfter = (flag: string): string | undefined => {
+  const at = process.argv.indexOf(flag)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+const BIN = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
+const FRAMES = argAfter('--frames')
+const CASE = argAfter('--case')
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 const DEAD = 'http://127.0.0.1:9'
@@ -103,7 +109,7 @@ type Capture = { status: number | null; stderr: string; lines: string[]; marks: 
 const driver = resolveCaptureDriver()
 const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c).join(''))
 
-function capture(id: string, home: string, cols: number, rows: number, sends: Send[], opts: { total: number; ready: string[] }): Capture {
+function capture(id: string, home: string, cols: number, rows: number, sends: Send[], opts: { total: number; ready: string[]; env?: NodeJS.ProcessEnv }): Capture {
   if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
   const out = join(ROOT, `${id}.json`)
   const cfgPath = join(ROOT, `${id}.cfg.json`)
@@ -111,7 +117,7 @@ function capture(id: string, home: string, cols: number, rows: number, sends: Se
     cfgPath,
     JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: opts.total, readySettleTicks: 4, stableTicks: 3, sends, readyText: opts.ready, out }),
   )
-  const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env: childEnv(home), timeout: vshotBudgetMs(opts.total * 200 + 90_000) })
+  const res = spawnSync(driver.python, [VSHOT, cfgPath], { encoding: 'utf-8', env: { ...childEnv(home), ...opts.env }, timeout: vshotBudgetMs(opts.total * 200 + 90_000) })
   const marks = new Map<string, string[]>()
   let lines: string[] = []
   if (existsSync(out)) {
@@ -156,6 +162,7 @@ function openConfig(cols: number): Send[] {
   ]
 }
 
+if (CASE === undefined) {
 for (const [cols, rows] of SIZES) {
   section(`§1 ${cols}×${rows} · the sub-agent default model row: a picker door, every family live, the pick written as an exact id`)
   const home = seededHome(`agent-${cols}x${rows}`)
@@ -224,6 +231,65 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-before.txt`), before.join('\n'))
   writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-picker.txt`), picker.join('\n'))
   writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-after.txt`), after.join('\n'))
+}
+
+}
+
+if (CASE === undefined || CASE === 'cold-catalogue') {
+  section('a cold Config model door requests its live GPT list without a model turn')
+  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['teammate', TEAMMATE_ROW, "Leader's model"]]) {
+    const home = seededHome(`cold-${tag}`)
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: 'opus', prefersReducedMotion: true, spinnerTipsEnabled: false }))
+    writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })
+    const wireFile = join(home, 'wire.jsonl')
+    const catalogueFile = join(home, 'models.json')
+    writeFileSync(wireFile, '')
+    const gpt = (id: string, display_name: string, priority: number) => ({ id, display_name, priority, visibility: 'public', supported_in_api: true, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium', context_window: 400_000, input_modalities: ['text', 'image'] })
+    writeFileSync(catalogueFile, JSON.stringify({ models: [gpt('gpt-5.6-sol', 'GPT-5.6 Sol', 1), gpt('gpt-5.6-terra', 'GPT-5.6 Terra', 2)], afterTurn: [], delayMs: 0 }))
+    const fixture = spawn(NODE, [join(REPO, 'scripts/journey/cap-offer-fixture-server.ts'), wireFile, catalogueFile], { stdio: ['ignore', 'pipe', 'pipe'] })
+    try {
+      const port = await new Promise<number>((resolvePort, reject) => {
+        const timer = setTimeout(() => reject(new Error('the catalogue fixture did not print PORT')), vshotBudgetMs(15_000))
+        let output = ''
+        fixture.stdout!.on('data', chunk => {
+          output += String(chunk)
+          const match = /PORT (\d+)/.exec(output)
+          if (match) {
+            clearTimeout(timer)
+            resolvePort(Number(match[1]))
+          }
+        })
+        fixture.on('exit', code => {
+          clearTimeout(timer)
+          reject(new Error(`the catalogue fixture exited ${code}`))
+        })
+      })
+      const base = `http://127.0.0.1:${port}`
+      const c = capture(`cold-${tag}`, home, 120, 40, [
+        ...openConfig(120),
+        { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: rowLabel },
+        { requireAwait: true, awaitText: rowLabel, awaitSettleTicks: 3, data: '\r' },
+        { afterPrevTicks: 3, data: RIGHT },
+        { requireAwait: true, awaitText: leading, awaitSettleTicks: 4, data: `${ESC}[H` },
+        { afterPrevTicks: 3, data: DOWN.repeat(5) },
+        { afterPrevTicks: 25, data: '', mark: 'picker' },
+      ], { total: 420, ready: ['CHOOSE A MODEL'], env: { MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` } })
+      const picker = c.marks.get('picker') ?? []
+      const wire = readFileSync(wireFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { kind: string })
+      check(`${tag}: the drive delivered every send`, c.status === 0, `exit ${c.status}`)
+      check(`${tag}: exactly one live models request reached the fixture`, wire.filter(e => e.kind === 'models').length === 1, wire.map(e => e.kind).join(',') || 'no requests')
+      check(`${tag}: the fetched GPT rows replaced the connecting row`, picker.some(l => l.includes('GPT-5.6 Sol')) && picker.some(l => l.includes('GPT-5.6 Terra')) && !picker.some(l => l.includes('GPT — connecting')), picker.filter(l => /GPT|connecting/.test(l)).join(' | '))
+      check(`${tag}: fetching the list sent no model turn`, !wire.some(e => e.kind === 'openai'))
+      if (FRAMES !== undefined) {
+        mkdirSync(FRAMES, { recursive: true })
+        writeFileSync(join(FRAMES, `config-cold-${tag}-120x40.json`), readFileSync(join(ROOT, `cold-${tag}.json`)))
+        writeFileSync(join(FRAMES, `config-cold-${tag}-120x40.txt`), picker.join('\n') + '\n')
+        writeFileSync(join(FRAMES, `config-cold-${tag}-wire.jsonl`), readFileSync(wireFile))
+      }
+    } finally {
+      fixture.kill('SIGTERM')
+    }
+  }
 }
 
 console.log(`\nframes under ${ROOT}`)
