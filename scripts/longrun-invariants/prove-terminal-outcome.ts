@@ -316,6 +316,8 @@ section('§D wiring pins (source locks on the threaded surfaces)')
     fg.includes("failAsyncAgent(backgroundedTaskId, declined.error"))
   check('sync result forks failed/completed on the same outcome',
     fg.includes("status: 'failed' as const,") && fg.includes('error: failureText'))
+  check("the foreground settle hands an overload death to the pause-and-probe road a background lane takes (the episode noted, the probe armed, the receipt leading with the pause)",
+    fg.includes('overloadPauseOf(agentMessages, metadata.resolvedAgentModel)') && fg.includes('noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))') && fg.includes('armOverloadProbe({') && fg.includes('seatPause = windowPause ?? overload?.pause ?? null'))
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
   check("in-process teammate: a declined tail reports idleReason 'failed'",
     runner.includes('isSyntheticApiErrorMessage(lastAssistant)') && runner.includes("sendIdleNotificationToLead(identity, 'failed'"))
