@@ -27,6 +27,11 @@ process.env.MERCURY_OPENROUTER_API_BASE = 'https://openrouter.fixture.invalid/ap
 process.env.MERCURY_COMPAT_BASE_URL = 'https://compat.fixture.invalid/v1'
 process.env.MERCURY_COMPAT_MODELS = 'fixture-model'
 process.env.MERCURY_COMPAT_LABEL = 'the fixture endpoint'
+process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'
+delete process.env.ANTHROPIC_BASE_URL
+delete process.env.ANTHROPIC_AUTH_TOKEN
+delete process.env.MERCURY_MAX_RETRIES
+delete process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
 for (const name of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY']) delete process.env[name]
 const access = 'ya29.fixture-busy-access'
 writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'oauth', client: { clientId: 'fixture-client' }, tokens: { accessToken: access, refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 3600000 } }))
@@ -46,6 +51,10 @@ const { huggingfaceLaneProfile } = await import('../../src/services/providers/hu
 const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
 const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
 const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
+const bootstrap = await import('../../src/bootstrap/state.ts')
+bootstrap.setIsInteractive(false)
+const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
+const retrySeam = await import('../../src/services/api/withRetry.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 import type { Message } from '../../src/types/message.ts'
@@ -271,10 +280,161 @@ try {
     check(`${road.name}: a rate limit with a wait rides the ladder: the ask slept whole and quietly, the second request answered, one stamp naming 1 retry`, hits.length === 2 && roadRateAskedWait >= 990 && notices(roadRateAsked).length === 0 && redLines(roadRateAsked).length === 0 && answered(roadRateAsked, ANSWER) && stamped(roadRateAsked)[0]?.busyRecovery?.retries === 1, `${hits.length} requests, ${roadRateAskedWait} ms, ${notices(roadRateAsked).length} notices, ${redLines(roadRateAsked)[0] ?? ''}`)
   }
 
+  console.log('── the ladder on the home road (the first-party wire): HTTP 529 overloaded_error')
+  const HOME_MODEL = 'claude-fable-5-1'
+  const HOME_ANSWER = 'home answer'
+  const OVERLOADED_BODY = (n: number): string => JSON.stringify({ type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' }, request_id: `req_fixture_529_${n}` })
+  const homeSse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
+  const homeUsage = { input_tokens: 12, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 }
+  const homeStreamAnswer = (): Response =>
+    new Response(
+      [
+        homeSse('message_start', { type: 'message_start', message: { id: 'msg_fixture_home', type: 'message', role: 'assistant', model: HOME_MODEL, content: [], stop_reason: null, stop_sequence: null, usage: homeUsage } }),
+        homeSse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+        homeSse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: HOME_ANSWER } }),
+        homeSse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+        homeSse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: homeUsage }),
+        homeSse('message_stop', { type: 'message_stop' }),
+      ].join(''),
+      { status: 200, headers: { 'content-type': 'text/event-stream', 'request-id': 'req_fixture_home_stream' } },
+    )
+  const homeMidStreamOverload = (): Response =>
+    new Response(
+      homeSse('message_start', { type: 'message_start', message: { id: 'msg_fixture_cut', type: 'message', role: 'assistant', model: HOME_MODEL, content: [], stop_reason: null, stop_sequence: null, usage: homeUsage } }) +
+        homeSse('error', { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' }, request_id: 'req_fixture_mid_stream' }),
+      { status: 200, headers: { 'content-type': 'text/event-stream', 'request-id': 'req_fixture_mid_stream' } },
+    )
+  const homeJsonAnswer = (): Response =>
+    Response.json({ id: 'msg_fixture_home_json', type: 'message', role: 'assistant', model: HOME_MODEL, content: [{ type: 'text', text: HOME_ANSWER }], stop_reason: 'end_turn', stop_sequence: null, usage: homeUsage }, { headers: { 'request-id': 'req_fixture_home_json' } })
+  type HomeHit = { atMs: number; stream: boolean }
+  type HomeScript = { refusals: number; midStream?: boolean; retryAfter?: string }
+  function homeFetch(script: HomeScript, homeHits: HomeHit[]): typeof fetch {
+    return (async (_input: unknown, init?: RequestInit) => {
+      const body = init?.body ? (JSON.parse(String(init.body)) as { stream?: boolean }) : {}
+      homeHits.push({ atMs: Date.now(), stream: body.stream === true })
+      const n = homeHits.length
+      if (script.midStream === true && n === 1) return homeMidStreamOverload()
+      const refused = script.midStream === true ? n - 1 <= script.refusals : n <= script.refusals
+      if (refused) return new Response(OVERLOADED_BODY(n), { status: 529, headers: { 'content-type': 'application/json', 'request-id': `req_fixture_529_${n}`, ...(script.retryAfter === undefined ? {} : { 'retry-after': script.retryAfter }) } })
+      return body.stream === true ? homeStreamAnswer() : homeJsonAnswer()
+    }) as unknown as typeof fetch
+  }
+  function homeCall(script: HomeScript, opts: { querySource?: string; signal?: AbortSignal; door?: { agentId?: string; onWait: (wait: unknown) => void } } = {}): { generator: AsyncGenerator<unknown>; homeHits: HomeHit[] } {
+    const homeHits: HomeHit[] = []
+    const generator = queryModelWithStreaming({
+      messages: [user('Say hello.')],
+      systemPrompt: asSystemPrompt(['Only answer the request.']),
+      thinkingConfig: { type: 'disabled' } as never,
+      tools: [],
+      signal: opts.signal ?? new AbortController().signal,
+      options: {
+        model: HOME_MODEL,
+        querySource: opts.querySource ?? 'repl_main_thread',
+        isNonInteractiveSession: true,
+        fetchOverride: homeFetch(script, homeHits) as never,
+        getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+        agents: [],
+        hasAppendSystemPrompt: false,
+        mcpTools: [],
+        maxOutputTokensOverride: 64,
+        skipCacheWrite: true,
+        ...(opts.door === undefined ? {} : { onWait: opts.door.onWait, ...(opts.door.agentId !== undefined ? { agentId: opts.door.agentId } : {}) }),
+      } as never,
+    }) as AsyncGenerator<unknown>
+    return { generator, homeHits }
+  }
+  const homeWaits = (homeHits: HomeHit[]): number[] => homeHits.slice(1).map((hit, i) => hit.atMs - homeHits[i]!.atMs)
+  const foreground = (retrySeam as { isForegroundQuerySource?: (source: string) => boolean }).isForegroundQuerySource ?? ((): undefined => undefined)
+  check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-general') === true && foreground('agent:custom') === true && foreground('repl_main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
+
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: Infinity })
+    const spentHome = await drain(run.generator)
+    const spentHomeNotices = notices(spentHome)
+    const spentHomeRed = redLines(spentHome)
+    check('home: a 529 that never clears is retried six times on the scaled rungs: seven requests', run.homeHits.length === 7, `${run.homeHits.length} requests`)
+    check('home: the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentHomeNotices.length === 1 && spentHomeNotices[0]?.retryInMs === 300 && spentHomeNotices[0].retryAttempt === 6 && spentHomeNotices[0].maxRetries === 6, JSON.stringify(spentHomeNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
+    check("home: the spent ladder ends the turn with one red line carrying the wire's 529 answer, its words unchanged", spentHomeRed.length === 1 && /^API Error: 529 \{"type":"error","error":\{"type":"overloaded_error","message":"Overloaded"\}/.test(spentHomeRed[0] ?? ''), spentHomeRed[0] ?? '(no red line)')
+    const waits = homeWaits(run.homeHits)
+    check('home: the waits between requests grow with the rungs', waits.length === 6 && waits.every((wait, i) => wait >= [10, 20, 40, 80, 160, 300][i]! - 2) && waits[5]! > waits[0]!, JSON.stringify(waits))
+  }
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: Infinity }, { querySource: 'agent:builtin:mercury-general' })
+    const resumedSpent = await drain(run.generator)
+    check("home: a resumed built-in sub-agent's turn (source agent:builtin:<type>) rides the same ladder instead of dying on its first 529: seven requests, one red line", run.homeHits.length === 7 && redLines(resumedSpent).length === 1 && notices(resumedSpent).length === 1, `${run.homeHits.length} requests, ${notices(resumedSpent).length} notices, ${redLines(resumedSpent).length} red lines`)
+  }
+  reset('0.6')
+  {
+    const run = homeCall({ refusals: 2 })
+    const recoveredHome = await drain(run.generator)
+    check('home: a 529 that clears on the third request answers with no notice and no red line', run.homeHits.length === 3 && notices(recoveredHome).length === 0 && redLines(recoveredHome).length === 0 && answered(recoveredHome, HOME_ANSWER), `${run.homeHits.length} requests, ${notices(recoveredHome).length} notices, ${redLines(recoveredHome).length} red lines`)
+  }
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: 3, midStream: true })
+    const midStream = await drain(run.generator)
+    const midNotices = notices(midStream)
+    const fallbackNotices = midNotices.filter(notice => notice.retryInMs === 0 && (notice as { recoveryTimeoutMs?: number }).recoveryTimeoutMs !== undefined && (notice as { recoveryTimeoutMs?: number }).recoveryTimeoutMs! > 0)
+    check("home: an overloaded_error inside the stream (no HTTP status) takes the non-streamed recovery — one notice with a ceiling, attempt 1 of 1 — and the recovery's 529s ride the quiet ladder: five requests, no retry notice, the answer", run.homeHits.length === 5 && run.homeHits[0]?.stream === true && run.homeHits.slice(1).every(hit => !hit.stream) && fallbackNotices.length === 1 && fallbackNotices[0]?.retryAttempt === 1 && fallbackNotices[0].maxRetries === 1 && midNotices.filter(notice => notice.retryInMs > 0).length === 0 && redLines(midStream).length === 0 && answered(midStream, HOME_ANSWER), `${run.homeHits.length} requests (${run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(',')}), notices ${JSON.stringify(midNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries]))}, red ${redLines(midStream).length}`)
+  }
+  reset('1')
+  {
+    const controller = new AbortController()
+    const stopAt = Date.now()
+    setTimeout(() => controller.abort(), 100)
+    const run = homeCall({ refusals: Infinity }, { signal: controller.signal })
+    const stoppedHome = await drain(run.generator)
+    const stoppedAfterMs = Date.now() - stopAt
+    check("home: the operator's stop ends the first wait at once: one request, no red line, the road silent, well inside the 1 s rung", run.homeHits.length === 1 && redLines(stoppedHome).length === 0 && notices(stoppedHome).length === 0 && stoppedAfterMs < 1000, `${run.homeHits.length} requests, ${stoppedAfterMs} ms`)
+  }
+  reset('0.01')
+  {
+    const agentDoor: unknown[] = []
+    const run = homeCall({ refusals: Infinity }, { door: { agentId: 'agent-held', onWait: wait => agentDoor.push(wait) } })
+    const heldHome = await drain(run.generator)
+    const held = agentDoor.map(heldNoticeOf).filter(notice => notice !== null)
+    check("home: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing", held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === [10, 20, 40, 80, 160][i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldHome).length === 1 && run.homeHits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldHome).length} notices, ${run.homeHits.length} requests`)
+  }
+  reset('0.01')
+  {
+    const mainDoor: unknown[] = []
+    const run = homeCall({ refusals: Infinity }, { door: { onWait: wait => mainDoor.push(wait) } })
+    await drain(run.generator)
+    check("home: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel", mainDoor.every(wait => heldNoticeOf(wait) === null) && run.homeHits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
+  }
+  reset('0.01')
+  {
+    const run = homeCall({ refusals: 1, retryAfter: '1' })
+    const askedHome = await drain(run.generator)
+    const askedWait = run.homeHits.length === 2 ? run.homeHits[1]!.atMs - run.homeHits[0]!.atMs : -1
+    check("home: a Retry-After on the 529 inside the budget is honoured whole in place of the rung, quietly, and the second request answers", run.homeHits.length === 2 && askedWait >= 990 && notices(askedHome).length === 0 && redLines(askedHome).length === 0 && answered(askedHome, HOME_ANSWER), `${run.homeHits.length} requests, ${askedWait} ms, ${notices(askedHome).length} notices`)
+  }
+
   console.log("── the agent's budget bounds the quiet ladder: a six-second budget ends it in about six seconds on every road with the quiet branch")
   check('runAgent exports the recovery accountant the door and the loop share', typeof agentModule.makeRecoveryAccountant === 'function')
-  for (const road of roads.filter(r => r.name === 'openai' || r.name === 'zai' || r.name === 'deepseek')) {
-    reset('1', { status: road.busy.status, body: road.busy.body })
+  type BoundedRun = { name: string; run: (signal: AbortSignal, door: (wait: unknown) => void) => Promise<{ items: Item[]; requests: number }> }
+  const boundedRuns: BoundedRun[] = [
+    ...roads.filter(r => r.name === 'openai' || r.name === 'zai' || r.name === 'deepseek').map(road => ({
+      name: road.name,
+      run: async (signal: AbortSignal, door: (wait: unknown) => void) => {
+        reset('1', { status: road.busy.status, body: road.busy.body })
+        const items = await drain(road.call(params(signal, road.model, { agentId: 'agent-bound', onWait: door })))
+        return { items, requests: hits.length }
+      },
+    })),
+    {
+      name: 'home',
+      run: async (signal: AbortSignal, door: (wait: unknown) => void) => {
+        reset('1')
+        const home = homeCall({ refusals: Infinity }, { signal, door: { agentId: 'agent-bound', onWait: door } })
+        const items = await drain(home.generator)
+        return { items, requests: home.homeHits.length }
+      },
+    },
+  ]
+  for (const road of boundedRuns) {
     const controller = new AbortController()
     const budget = budgetModule.makeRecoveryBudget(6_000)
     const words: Array<string | null> = []
@@ -287,11 +447,11 @@ try {
       if (facts !== null) accountant.wait(facts, false)
     }
     const startedAt = Date.now()
-    const bounded = await drain(road.call(params(controller.signal, road.model, { agentId: 'agent-bound', onWait: door })))
+    const bounded = await road.run(controller.signal, door)
     const elapsedMs = Date.now() - startedAt
-    check(`${road.name}: a 1 s, a 2 s and a 4 s quiet wait, the third cut at the budget — three requests and the ladder over after about six seconds, not sixty-one`, hits.length === 3 && elapsedMs >= 5_800 && elapsedMs < 9_000 && cut instanceof budgetModule.RecoveryBudgetSpentError, `${hits.length} requests, ${elapsedMs} ms, cut=${cut === null ? 'none' : String((cut as Error).message).slice(0, 80)}`)
+    check(`${road.name}: a 1 s, a 2 s and a 4 s quiet wait, the third cut at the budget — three requests and the ladder over after about six seconds, not sixty-one`, bounded.requests === 3 && elapsedMs >= 5_800 && elapsedMs < 9_000 && cut instanceof budgetModule.RecoveryBudgetSpentError, `${bounded.requests} requests, ${elapsedMs} ms, cut=${cut === null ? 'none' : String((cut as Error).message).slice(0, 80)}`)
     const spent = cut as { waits?: number; message?: string } | null
-    check(`${road.name}: the cut counts the three quiet waits against the six-second budget, and nothing was painted — no notice, no words`, spent !== null && spent.waits === 3 && /6s retry budget is spent/.test(spent.message ?? '') && words.length === 0 && notices(bounded).length === 0, `waits=${spent?.waits} words=${words.length} notices=${notices(bounded).length} ${spent?.message ?? ''}`)
+    check(`${road.name}: the cut counts the three quiet waits against the six-second budget, and nothing was painted — no notice, no words`, spent !== null && spent.waits === 3 && /6s retry budget is spent/.test(spent.message ?? '') && words.length === 0 && notices(bounded.items).length === 0, `waits=${spent?.waits} words=${words.length} notices=${notices(bounded.items).length} ${spent?.message ?? ''}`)
   }
 } finally {
   globalThis.fetch = realFetch
@@ -313,6 +473,10 @@ for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallMod
   const text = source(name)
   check(`${name} hands a quiet step's held notice through the wait door only on an agent's road`, text.includes("else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))"))
 }
+const retrySource = readFileSync(new URL('../../src/services/api/withRetry.ts', import.meta.url), 'utf8')
+check('the home road\'s retry seam opens the one ladder for an overload and hands a quiet step\'s held notice through its door', retrySource.includes('openBusyRetryLadder(') && retrySource.includes('nextBusyRetry(') && retrySource.includes('heldBusyRetryWait(step, notice)') && retrySource.includes('await sleep(step.waitMs, options.signal)'))
+const streamSource = readFileSync(new URL('../../src/services/providers/anthropic/streamCore.ts', import.meta.url), 'utf8')
+check('the home road binds that door to the wait door only on an agent\'s road, on the streamed attempt and on every non-streamed recovery', streamSource.includes("options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined") && streamSource.split('onHeldWait: heldWaitDoor').length === 4)
 const agentSource = readFileSync(new URL('../../src/tools/AgentTool/runAgent.ts', import.meta.url), 'utf8')
 check("runAgent's door charges a held notice through the accountant and forwards it to no row", agentSource.includes('const heldNotice = heldBusyRetryNotice(wait)') && agentSource.includes('accountant.wait(facts, false)') && agentSource.includes('accountant.wait(notice, true)'))
 console.log(`${checks} checks, ${failures} failures`)

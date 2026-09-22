@@ -21,6 +21,7 @@ import { disableKeepAlive } from '../../utils/proxy.js'
 import { sleep } from '../../utils/sleep.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
+import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder, type HeldBusyRetryWait } from '../providers/busyRetry.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
@@ -50,6 +51,10 @@ const FOREGROUND_QUERY_SOURCES = new Set([
   'auto_mode',
   ...([] as string[]),
 ])
+
+export function isForegroundQuerySource(source: string): boolean {
+  return FOREGROUND_QUERY_SOURCES.has(source) || source.startsWith('agent:')
+}
 
 export type RetryContext = {
   maxTokensOverride?: number
@@ -191,6 +196,7 @@ type WithRetryOptions = {
   signal?: AbortSignal
   querySource?: string
   initialConsecutive529Errors?: number
+  onHeldWait?: (wait: HeldBusyRetryWait) => void
 }
 
 export async function* withRetry<T>(
@@ -210,8 +216,9 @@ export async function* withRetry<T>(
   let previousError: unknown
   let consecutive529Errors = options.initialConsecutive529Errors ?? 0
   let authenticationRecoveryAttempted = false
+  let busy: BusyRetryLadder | undefined
 
-  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+  for (let attempt = 1; attempt <= maxRetries + 1 || busy !== undefined; attempt++) {
     if (options.signal?.aborted) throw new APIUserAbortError()
 
     if (client === null || isStaleConnectionError(previousError)) {
@@ -266,7 +273,7 @@ export async function* withRetry<T>(
 
       if (overload) {
         const source = options.querySource
-        if (source !== undefined && !FOREGROUND_QUERY_SOURCES.has(source)) {
+        if (source !== undefined && !isForegroundQuerySource(source)) {
           throw new CannotRetryError(error, retryContext)
         }
       }
@@ -286,6 +293,23 @@ export async function* withRetry<T>(
         }
       } else {
         consecutive529Errors = 0
+      }
+
+      if (overload && isRetryableError(error)) {
+        const ladder = busy ?? openBusyRetryLadder(Date.now())
+        busy = ladder
+        const step = nextBusyRetry(ladder, providerAskedWaitMs(error), Date.now())
+        if (step === null) throw new CannotRetryError(error, retryContext)
+        const notice = createSystemAPIErrorMessage(
+          error instanceof Error ? error : new Error(errorMessage(error)),
+          step.waitMs,
+          step.attempt,
+          step.of,
+        )
+        if (!step.quiet) yield notice
+        else options.onHeldWait?.(heldBusyRetryWait(step, notice))
+        await sleep(step.waitMs, options.signal)
+        continue
       }
 
       if (attempt > maxRetries) {

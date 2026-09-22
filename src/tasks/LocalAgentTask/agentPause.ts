@@ -1,5 +1,5 @@
 
-export type AgentPauseWhy = 'usage limit' | 'provider busy'
+export type AgentPauseWhy = 'usage limit' | 'provider busy' | 'provider overloaded'
 
 export type AgentPauseV1 = {
   why: AgentPauseWhy
@@ -23,8 +23,8 @@ export function pauseCountdownWords(ms: number): string {
 
 export const AGENT_PAUSE_DOORS = 'a message resumes it now (/model first runs it on another model); the crew view stops it'
 
-export function pauseResumeWords(pause: Pick<AgentPauseV1, 'resumesAtMs'>, nowMs: number): string {
-  if (pause.resumesAtMs === undefined) return 'no reset stated — a message resumes it'
+export function pauseResumeWords(pause: Pick<AgentPauseV1, 'why' | 'resumesAtMs'>, nowMs: number): string {
+  if (pause.resumesAtMs === undefined) return pause.why === 'provider overloaded' ? 'resumes by itself when the provider answers' : 'no reset stated — a message resumes it'
   const left = pause.resumesAtMs - nowMs
   return left <= 0 ? 'resuming now' : `resumes by itself at ${pauseClockWords(pause.resumesAtMs)} (in ${pauseCountdownWords(left)})`
 }
@@ -40,7 +40,7 @@ export function pauseLineWords(pause: AgentPauseV1, nowMs: number): string {
 export function decodeAgentPause(raw: unknown): AgentPauseV1 | null {
   if (raw === null || typeof raw !== 'object') return null
   const p = raw as Record<string, unknown>
-  if ((p.why !== 'usage limit' && p.why !== 'provider busy') || typeof p.words !== 'string') return null
+  if ((p.why !== 'usage limit' && p.why !== 'provider busy' && p.why !== 'provider overloaded') || typeof p.words !== 'string') return null
   const resumesAtMs = typeof p.resumesAtMs === 'number' && Number.isFinite(p.resumesAtMs) ? p.resumesAtMs : undefined
   return { why: p.why, words: p.words, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
 }

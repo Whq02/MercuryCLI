@@ -175,6 +175,7 @@ import {
   type RetryContext,
   withRetry,
 } from '../../api/withRetry.js'
+import type { HeldBusyRetryWait } from '../busyRetry.js'
 import {
   addCacheBreakpoints,
   buildSystemPromptBlocks,
@@ -379,6 +380,7 @@ export async function* executeNonStreamingRequest(
     signal: AbortSignal
     initialConsecutive529Errors?: number
     querySource?: QuerySource
+    onHeldWait?: (wait: HeldBusyRetryWait) => void
   },
   paramsFromContext: (context: RetryContext) => BetaMessageStreamParams,
   onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
@@ -435,6 +437,7 @@ export async function* executeNonStreamingRequest(
       signal: retryOptions.signal,
       initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
       querySource: retryOptions.querySource,
+      ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}),
     },
   )
 
@@ -937,6 +940,7 @@ async function* queryModel(
     return { error, errorModel }
   }
 
+  const heldWaitDoor = options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined
   try {
     streamingPass: for (;;) {
     let noteTransportActivity: (() => void) | null = null
@@ -1024,6 +1028,7 @@ async function* queryModel(
         thinkingConfig,
         signal,
         querySource: options.querySource,
+        ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
       },
     )
 
@@ -1515,6 +1520,7 @@ async function* queryModel(
           signal,
           initialConsecutive529Errors: is529Error(streamingError) ? 1 : 0,
           querySource: options.querySource,
+          ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
         },
         paramsFromContext,
         (attempt, _startTime, tokens) => {
@@ -1579,6 +1585,7 @@ async function* queryModel(
             fallbackModel: options.fallbackModel,
             thinkingConfig,
             signal,
+            ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
           },
           paramsFromContext,
           (attempt, _startTime, tokens) => {
