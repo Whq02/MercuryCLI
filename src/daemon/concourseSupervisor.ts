@@ -6,6 +6,7 @@ import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../utils/mod
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { daemonHomeStands } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
@@ -261,6 +262,7 @@ export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
 
 export function recordCollisionEvidence(row: CollisionEvidenceV1, dir?: string): void {
   const rows = [...readCollisionEvidence(dir), row].slice(-COLLISION_EVIDENCE_CAP)
+  if (!daemonHomeStands('the collision evidence', dir)) return
   durableAtomicPublishSync(
     concourseCollisionsPath(dir),
     `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
@@ -281,6 +283,7 @@ export function markCollisionEvidenceConsumed(
       ? { ...row, consumedAt: Date.now() }
       : row,
   )
+  if (!daemonHomeStands('the collision evidence', dir)) return
   durableAtomicPublishSync(
     concourseCollisionsPath(dir),
     `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
@@ -438,6 +441,7 @@ let concourseDeltaRevision = 0
 
 function stampConcourseDelta(dir?: string): void {
   try {
+    if (!daemonHomeStands('the delta stamp', dir)) return
     concourseDeltaRevision += 1
     durableAtomicPublishSync(
       concourseDeltaPath(dir),
@@ -454,6 +458,7 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
       rec.activity = sessionActivityOf(false, [], 0, rec.activity.lastTurnAt)
     }
   }
+  if (!daemonHomeStands('the session records', dir)) return
   durableAtomicPublishSync(
     concourseWorkersPath(dir),
     `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`,

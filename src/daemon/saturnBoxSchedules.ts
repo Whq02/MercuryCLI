@@ -3,6 +3,7 @@ import { readFileSync, mkdirSync, rmdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { daemonHomeStands } from './daemonHome.js'
 import { daemonDir } from './controlSocket.js'
 import {
   mintUnusedId,
@@ -140,6 +141,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
 }
 
 function publishBox(file: SaturnBoxFileV1, dir?: string): void {
+  if (!daemonHomeStands('the box schedules', dir)) return
   const p = saturnBoxSchedulesPath(dir)
   mkdirSync(dirname(p), { recursive: true })
   durableAtomicPublishSync(p, JSON.stringify(file, null, 2))

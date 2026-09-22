@@ -2,6 +2,7 @@ import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
+import { daemonHomeStands } from '../../daemon/daemonHome.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
 import type { EffortResolution } from '../../utils/effort.js'
@@ -256,16 +257,19 @@ function publishOrdered(path: string, bytes: string): void {
 }
 
 export function publishSessionFacts(facts: SessionFactsV1, dir?: string): void {
+  if (!daemonHomeStands('the session facts', dir)) return
   mkdirSync(sessionFactsDir(dir), { recursive: true })
   publishOrdered(sessionFactsPath(facts.sessionId, dir), `${JSON.stringify(facts)}\n`)
 }
 
 export function publishSessionAsks(asks: SessionAsksV1, dir?: string): void {
+  if (!daemonHomeStands('the session asks', dir)) return
   mkdirSync(sessionAsksDir(dir), { recursive: true })
   publishOrdered(sessionAsksPath(asks.sessionId, dir), `${JSON.stringify(asks)}\n`)
 }
 
 export function publishSessionTail(tail: SessionTailV1, dir?: string): void {
+  if (!daemonHomeStands('the session tail', dir)) return
   const dest = sessionTailPath(tail.sessionId, dir)
   mkdirSync(sessionTailDir(dir), { recursive: true })
   const tmp = `${dest}.${process.pid}.tmp`
@@ -274,6 +278,7 @@ export function publishSessionTail(tail: SessionTailV1, dir?: string): void {
 }
 
 export function publishSessionProgress(progress: SessionProgressV1, dir?: string): void {
+  if (!daemonHomeStands('the session progress', dir)) return
   const dest = sessionProgressPath(progress.sessionId, dir)
   mkdirSync(sessionProgressDir(dir), { recursive: true })
   const tmp = `${dest}.${process.pid}.tmp`
