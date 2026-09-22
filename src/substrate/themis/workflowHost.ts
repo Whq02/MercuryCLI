@@ -183,7 +183,7 @@ export function makeThemisWorkflowHost(runId?: string): ThemisWorkflowHost {
       const o = asRecord(input)
       const written = appendObservation({
         text: String(o.text ?? ''),
-        source: String(o.source ?? 'daedalus'),
+        source: String(o.source ?? 'workflow'),
         topicHint: typeof o.topicHint === 'string' ? o.topicHint : undefined,
       })
       return { written }

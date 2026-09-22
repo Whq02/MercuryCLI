@@ -1,7 +1,6 @@
 
 import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { evolutionLedgerEnabled } from '../../utils/evolution/evolutionLedger.js'
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { themisActive } from '../../substrate/themis/level.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of subagents with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
@@ -182,7 +181,7 @@ const THEMIS_GLOBAL_SECTION = `
 
 ## The themis global (present at the default level; absent only when THEMIS is switched off)
 
-- themis: eleven deterministic async checks the THEMIS control plane hands to scripts (docs/THEMIS-CONTROL-PLANE.md). Plain JSON in, plain JSON out, every result boundary-cloned; violations append audit rows. The surface: validateSDS / normalizeSDS (the machine-checkable SDS contract), topoLayers / taskPriority (scheduling arithmetic), verifyOwnership({ownership, lane}) / scanDiff({declared, actual}) (diff-derived audits), routeRepair({issue, normalized}) (repair routing by root cause), phase({op, ...}) (the run's phase state machine), traceUpdate({op, ...}) / verifyTrace({}) (the requirement→file→test trace gate), observe({text, source, topicHint?}) (the observation bridge; a clean no-op while its own gate is off). The bundled repo-generation workflow consumes it as the worked example. THEMIS is on by default, but an explicit MERCURY_THEMIS=off removes the global — any script that depends on it must feature-test (typeof themis === 'undefined') and decline to run, never assume the global is there.`
+- themis: eleven deterministic async checks the THEMIS control plane hands to scripts (docs/THEMIS-CONTROL-PLANE.md). Plain JSON in, plain JSON out, every result boundary-cloned; violations append audit rows. The surface: validateSDS / normalizeSDS (the machine-checkable SDS contract), topoLayers / taskPriority (scheduling arithmetic), verifyOwnership({ownership, lane}) / scanDiff({declared, actual}) (diff-derived audits), routeRepair({issue, normalized}) (repair routing by root cause), phase({op, ...}) (the run's phase state machine), traceUpdate({op, ...}) / verifyTrace({}) (the requirement→file→test trace gate), observe({text, source, topicHint?}) (the observation bridge; a clean no-op while its own gate is off). THEMIS is on by default, but an explicit MERCURY_THEMIS=off removes the global — any script that depends on it must feature-test (typeof themis === 'undefined') and decline to run, never assume the global is there.`
 
 const LEDGER_GLOBAL_SECTION = `
 
@@ -190,27 +189,10 @@ const LEDGER_GLOBAL_SECTION = `
 
 - ledger: {record(row): Promise<{ok, path?, deduped?, reason?}>, read(program): Promise<row[]>, report(program): Promise<string>} — an append-only record of ITERATED improvement work (patch loops, hardening rounds, audit campaigns). record() accepts {program, subject, outcome, iteration?, hypothesis?, mechanism?, lineage?, score?: {dev?, holdout?, unit?}, delta?, evidenceRefs?, notes?}; outcome is one of 'baseline'|'improved'|'regressed'|'tie'|'accepted'|'refused'|'error'. A row whose outcome is 'improved' or 'accepted' must name at least one evidenceRef (a gate log, judge rulings, a transcript path) — claims without evidence are refused by construction. Each row is anchored to the run's own raw traces automatically and deduplicated by identity, so replays after a resume cannot double-append. read(program) hands back that program's earlier rows; report(program) renders frontier, drift, and the recent tail. The loop contract: open with report() plus the earlier rows before proposing; a 'baseline' row goes in before anything changes; every candidate gets a row, failed ones too; and roughly three straight iterations that never log an 'improved' row mean the loop converged — stop there. (Method detail: the harness-evolution skill, plus docs/workflows/patch-loop.workflow.js.) One-shot work — a review, a migration, a research sweep — has no business writing rows.`
 
-function daedalusRosterAddendum(): string {
-  if (!flagEnabled('MERCURY_DAEDALUS')) return ''
-  const ROSTER_ALIASES = ['opus', 'sonnet', 'fable', 'fable51']
-  const saved: string[] = []
-  const planning = flagEnv('MERCURY_DAEDALUS_MODEL')
-  const lanes = flagEnv('MERCURY_DAEDALUS_EXECUTOR_MODEL')
-  if (planning && ROSTER_ALIASES.includes(planning)) saved.push(`args.model='${planning}'`)
-  if (lanes && ROSTER_ALIASES.includes(lanes)) saved.push(`args.executorModel='${lanes}'`)
-  if (saved.length === 0) return ''
-  return `
-
-## DAEDALUS roster (the operator's saved picks)
-
-- The 'daedalus' roster the operator saved from the enter menu: ${saved.join(', ')}. Pass these through args explicitly at launch, unless the operator's message picks differently. Launching without explicit models fails regardless — no saved pick and no stated choice means ask first.`
-}
-
 export function getWorkflowToolPrompt(): string {
   let text = WORKFLOW_TOOL_PROMPT
   text += AUTHORING_DOCTRINE_SECTION
   if (themisActive()) text += THEMIS_GLOBAL_SECTION
   if (evolutionLedgerEnabled()) text += LEDGER_GLOBAL_SECTION
-  text += daedalusRosterAddendum()
   return text
 }

@@ -31,7 +31,6 @@
  "src/tools/FileReadTool/FileReadTool.ts :: split-slash": 1,
  "src/tools/PowerShellTool/gitSafety.ts :: split-slash": 1,
  "src/tools/WorkflowTool/bundled/code-review.ts :: split-slash": 1,
- "src/tools/WorkflowTool/bundled/daedalus.ts :: split-slash": 1,
  "src/utils/detectRepository.ts :: split-slash": 1,
  "src/utils/git.ts :: split-slash": 1,
  "src/utils/git/gitFilesystem.ts :: split-slash": 1,

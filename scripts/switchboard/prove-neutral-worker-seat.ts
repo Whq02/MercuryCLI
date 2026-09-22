@@ -44,7 +44,7 @@ const CREDENTIAL_KEYS = [
   'MERCURY_COMPAT_BASE_URL',
 ] as const
 for (const key of CREDENTIAL_KEYS) delete process.env[key]
-for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING', 'MERCURY_DAEDALUS_MODEL', 'MERCURY_DAEDALUS_EXECUTOR_MODEL']) {
+for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_WORKFLOW_ROUTING']) {
   delete process.env[ambient]
 }
 delete process.env.NODE_ENV
@@ -65,7 +65,6 @@ enableConfigs()
 const wm = await import('../../src/services/concourse/workerModels.ts')
 const crew = await import('../../src/daemon/crewSpawn.ts')
 const wr = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
-const daedalus = await import('../../src/tools/WorkflowTool/bundled/daedalus.ts')
 const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 
@@ -108,7 +107,6 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   )
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
   check('the workflow executor routes nothing on a keyless home (never a family the account does not hold)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === undefined)
-  check('the bundled workflow offers no model (nothing signed in)', daedalus.daedalusCompatibleModels().size === 0, text([...daedalus.daedalusCompatibleModels()]))
 
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
   check('screenBirthModel() is undefined on a keyless home — the birth door passes no model', facts.screenBirthModel() === undefined, text(facts.screenBirthModel()))
@@ -182,12 +180,6 @@ try {
   check('the workflow executor routes to the same GPT row (one resolver)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === gptRow, text({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), gptRow }))
   const facts3 = await import('../../src/services/switchboard/bootBirthFacts.ts')
   check('with only OpenAI signed in the birth door hands the daemon the GPT row (screenBirthModel = the neutral default)', facts3.screenBirthModel() === gptRow, text({ screen: facts3.screenBirthModel(), gptRow }))
-  const compatible = daedalus.daedalusCompatibleModels()
-  check(
-    "the bundled workflow's compatible set carries 'openai' and the GPT row, and no Claude id",
-    compatible.has('openai') && compatible.has(gptRow) && ![...compatible].some(id => /claude|^opus$|^sonnet$|^fable/.test(id)),
-    text([...compatible]),
-  )
 
   section('§4 — anthropic signs in LATER: the neutral default follows the most recent sign-in')
   process.env.ANTHROPIC_API_KEY = fixture.env.ANTHROPIC_API_KEY
