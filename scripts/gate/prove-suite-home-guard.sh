@@ -107,5 +107,54 @@ belt MERCURY_CONFIG_DIR="$scratch/pinned"; rc=$?
 check "a proof pinned to a scratch home keeps it" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/pinned" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
 check "nothing under \$HOME/.mercury after the single-proof road" "$(own_empty && echo 0 || echo 1)" "$(ls -A "$scratch/home/.mercury" | tr '\n' ' ')"
 
+echo "── a runner with its own EXIT trap chains the guard's cleanup"
+trap_chained() { ! grep -q 'trap .* EXIT' "$1" || grep -q suite_home_cleanup "$1"; }
+unchained=""
+for r in "$root"/scripts/*/run-all.sh; do
+  name="${r#"$root"/scripts/}"; name="${name%/run-all.sh}"
+  trap_chained "$r" || unchained="$unchained $name"
+done
+check "every runner that sets its own EXIT trap chains suite_home_cleanup" "$([ -z "$unchained" ] && echo 0 || echo 1)" "$unchained"
+printf '#!/usr/bin/env bash\nset -u\n. "%s" || exit 78; suite_env_guard "$0"\nown="$(mktemp -d "$TMPDIR/own.XXXXXX")"\ntrap %s EXIT\nprintf "%%s\\n" "$MERCURY_CONFIG_DIR"\n' "$guard" "'rm -rf \"\$own\"; suite_home_cleanup'" >"$scratch/chained.sh"
+printf '#!/usr/bin/env bash\nset -u\n. "%s" || exit 78; suite_env_guard "$0"\nown="$(mktemp -d "$TMPDIR/own.XXXXXX")"\ntrap %s EXIT\nprintf "%%s\\n" "$MERCURY_CONFIG_DIR"\n' "$guard" "'rm -rf \"\$own\"'" >"$scratch/unchained.sh"
+home="$(clean BUN=/usr/bin/false bash "$scratch/chained.sh" 2>/dev/null)"
+check "a runner's own trap chained with suite_home_cleanup still removes the scratch home" "$([ -n "$home" ] && [ ! -e "$home" ] && echo 0 || echo 1)" "home=$home"
+home="$(clean BUN=/usr/bin/false bash "$scratch/unchained.sh" 2>/dev/null)"
+check "an unchained trap would leave it, and the census reads that runner as unchained" "$([ -n "$home" ] && [ -e "$home" ] && ! trap_chained "$scratch/unchained.sh" && echo 0 || echo 1)" "home=$home"
+rm -rf "$home"
+
+echo "── the single-proof road: the bunfig preload"
+check "bunfig.toml names the proof-home preload" "$(grep -qx 'preload = \["./scripts/lib/proofHomePreload.ts"\]' "$root/bunfig.toml" && echo 0 || echo 1)"
+from_root() { (cd "$root" && clean "$@" >"$scratch/out" 2>"$scratch/err"); }
+from_root "$bun" scripts/lib/proofHomePreload.ts; rc=$?
+home="$(first)"
+check "a scripts/ entry with no home pinned sees a scratch home under the temp root" "$([ "$rc" = 0 ] && under_temp "$home" && echo 0 || echo 1)" "rc=$rc home=$home $(tr '\n' ' ' <"$scratch/err")"
+check "…removed at exit" "$([ -n "$home" ] && [ ! -e "$home" ] && echo 0 || echo 1)"
+from_root MERCURY_CONFIG_DIR="$scratch/home/.mercury" "$bun" scripts/lib/proofHomePreload.ts; rc=$?
+home="$(first)"
+check "a scripts/ entry pinned to the operator's own home is moved to a scratch home" "$([ "$rc" = 0 ] && under_temp "$home" && ! under_own "$home" && echo 0 || echo 1)" "rc=$rc home=$home"
+from_root MERCURY_CONFIG_DIR="$scratch/pinned" "$bun" scripts/lib/proofHomePreload.ts; rc=$?
+check "a scripts/ entry pinned to a scratch home keeps it" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/pinned" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
+printf "console.log(process.env.MERCURY_CONFIG_DIR ?? '')\n" >"$scratch/outside.ts"
+from_root "$bun" "$scratch/outside.ts"; rc=$?
+check "an entry outside scripts/ sees no home pinned" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
+from_root "$bun" -e "import('./src/utils/envUtils.ts').then(m => console.log(m.getMercuryHome()))"; rc=$?
+check "the product's own resolver, loaded outside scripts/, still answers the default home" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/home/.mercury" ] && echo 0 || echo 1)" "rc=$rc home=$(first) $(head -c 200 "$scratch/err")"
+estate="$scratch/estate"
+mkdir -p "$estate/scripts/lib" "$estate/scripts/vendor" "$estate/scripts/gate" "$estate/src"
+for f in proofHomePreload.ts loginDriverGuard.ts proofHome.ts firstRunSeed.ts; do cp "$root/scripts/lib/$f" "$estate/scripts/lib/$f"; done
+cp "$root/bunfig.toml" "$estate/bunfig.toml"
+for e in scripts/gate/prove-x.ts scripts/vendor/fetch-x.ts build.ts src/y.ts; do printf "console.log(process.env.MERCURY_CONFIG_DIR ?? '')\n" >"$estate/$e"; done
+in_estate() { (cd "$estate" && clean "$bun" "$1" >"$scratch/out" 2>"$scratch/err"); }
+in_estate scripts/gate/prove-x.ts; rc=$?
+check "in an estate: a proof under scripts/ takes a scratch home" "$([ "$rc" = 0 ] && under_temp "$(first)" && echo 0 || echo 1)" "rc=$rc home=$(first) $(tr '\n' ' ' <"$scratch/err")"
+in_estate scripts/vendor/fetch-x.ts; rc=$?
+check "…a setup script under scripts/vendor/ is untouched" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
+in_estate build.ts; rc=$?
+check "…build.ts is untouched" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
+in_estate src/y.ts; rc=$?
+check "…a src/ entry is untouched" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
+check "nothing under \$HOME/.mercury after the preload road" "$(own_empty && echo 0 || echo 1)" "$(ls -A "$scratch/home/.mercury" | tr '\n' ' ')"
+
 if [ "$fail" = 0 ]; then echo "  ALL PASS"; else echo "  FAILED"; fi
 exit "$fail"
