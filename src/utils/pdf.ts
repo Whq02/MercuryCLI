@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { PDF_MAX_EXTRACT_SIZE, PDF_TARGET_RAW_SIZE } from '../constants/apiLimits.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
-import { getToolResultsDir } from './toolResultStorage.js'
 
 
 export type PDFError = {
@@ -70,6 +70,14 @@ export function isPdftoppmAvailable(): Promise<boolean> {
   return pdftoppmAvailable
 }
 
+export function pdfPageOutputDir(): string {
+  return join(tmpdir(), `mercury-pdf-${randomUUID()}`)
+}
+
+export async function removePDFPages(outputDir: string): Promise<void> {
+  await rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+}
+
 export async function extractPDFPages(
   filePath: string,
   options: { firstPage?: number; lastPage?: number } = {},
@@ -86,7 +94,7 @@ export async function extractPDFPages(
         'The pdftoppm utility is not installed. Install the poppler tool suite (macOS: `brew install poppler`; Debian/Ubuntu: `sudo apt-get install poppler-utils`) to read large PDFs page by page.',
       )
     }
-    const outputDir = join(getToolResultsDir(), `pdf-${randomUUID()}`)
+    const outputDir = pdfPageOutputDir()
     getFsImplementation().mkdirSync(outputDir)
     const args = ['-jpeg', '-r', '100']
     if (options.firstPage) args.push('-f', String(options.firstPage))

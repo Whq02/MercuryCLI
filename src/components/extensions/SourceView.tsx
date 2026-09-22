@@ -7,7 +7,7 @@ import { useAppState } from '../../state/AppState.js'
 import { NavigablePanes, type ColumnDef, type RowAction, type SectionDef } from '../mercury-ui/NavigablePanes.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { resolveExtensionsBindings } from './bindings.js'
-import { age, sourceStateWord, trustWord } from './rowWords.js'
+import { age, plainRowText, sourceStateWord, trustWord } from './rowWords.js'
 
 type EntryRow = {
   name: string
@@ -185,7 +185,7 @@ export function SourceView({
         source === null
           ? 'this source was removed — esc returns to sources'
           : source.catalogueError !== null
-            ? `catalogue unreadable: ${source.catalogueError}`
+            ? `catalogue unreadable: ${plainRowText(source.catalogueError)}`
             : 'this source offers nothing yet',
     },
   ]

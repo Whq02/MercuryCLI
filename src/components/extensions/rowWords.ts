@@ -1,4 +1,5 @@
 import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
+import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { healthWord } from '../../extensions/health.js'
 import { PROJECT_EXTENSIONS_DIR } from '../../extensions/paths.js'
 import { trustStateOf } from '../../extensions/roster.js'
@@ -100,14 +101,18 @@ export function age(iso: string | null | undefined): string {
   return `${Math.floor(s / 86400)}d ago`
 }
 
+export function plainRowText(text: string): string {
+  return stripTerminalControls(text).replace(/[\n\t]+/g, ' ')
+}
+
 export function sourceWhereWords(row: SourceRow): string {
   const parts: string[] = []
   if (row.state === 'unreachable') {
-    parts.push(row.record.lastError ?? 'unreachable', 'u retries', row.record.where)
+    parts.push(row.record.lastError ? plainRowText(row.record.lastError) : 'unreachable', 'u retries', row.record.where)
     if (row.catalogue) parts.push('cached catalogue still lists')
   } else {
     parts.push(row.record.where)
-    if (row.catalogueError) parts.push(row.catalogueError)
+    if (row.catalogueError) parts.push(plainRowText(row.catalogueError))
   }
   if (row.catalogue) parts.push(`${row.offered} offered`, `${row.installed} installed`)
   if (row.record.kind !== 'folder') parts.push(age(row.record.checkedAt))

@@ -23,7 +23,7 @@ import {
   findSimilarFile,
   suggestPathUnderCwd,
 } from '../../utils/file.js'
-import { expandPath, toRelativePath } from '../../utils/path.js'
+import { NUL_PATH_MESSAGE, expandPath, hasNulByte, toRelativePath } from '../../utils/path.js'
 import {
   getFileReadIgnorePatterns,
   normalizePatternsToPath,
@@ -305,6 +305,9 @@ export const GrepTool = buildTool({
   },
   async validateInput(input: Input) {
     if (input.path !== undefined) {
+      if (hasNulByte(input.path)) {
+        return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
+      }
       const expanded = expandPath(input.path)
       if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
         return { result: true as const }

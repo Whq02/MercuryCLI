@@ -88,7 +88,9 @@ managed `managed-mcp.json`, and extension-provided servers
 boot menu's MCPs & Skills record, session-scoped toggles in `/mcp`
 ([KIT.md](KIT.md)), project-scope server approval prompts, and a risk
 ceiling (`MERCURY_MCP_MAX_RISK`). An extension declares its MCP servers in
-its own manifest ([EXTENSIONS.md](EXTENSIONS.md)).
+its own manifest ([EXTENSIONS.md](EXTENSIONS.md)). A server entry that does
+not match the configuration schema is dropped and named once as a warning in
+`/mcp`'s diagnostics; the entries beside it load as configured.
 
 Mercury consults no vendor registry of "official" MCP servers: every MCP
 server is the operator's own configuration, no boot makes a request on its
