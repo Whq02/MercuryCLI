@@ -345,22 +345,40 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
   routeStore._resetSurfaceRouteForTesting()
 }
 
-t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its family, not the plain face)')
+t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its family, not the plain face, and arms the way back to the picker)')
 {
   const board = read('src/components/concourse/ConcourseScreen.tsx')
-  for (const [picker, close] of [['MercurySessionModelPicker', 'setRowPick'], ['MercuryModelDefaultPicker', 'setModelDefaultOpen']]) {
+  const { armSignInPickerReturn, consumeSignInPickerReturn } = await import('../../src/components/concourse/ConcourseScreen.js')
+  for (const [picker, close, kind] of [['MercurySessionModelPicker', 'setRowPick', 'session'], ['MercuryModelDefaultPicker', 'setModelDefaultOpen', 'default']]) {
     const start = board.indexOf(`<${picker}`)
     const body = /onSignIn=\{family => \{([\s\S]*?)\n\s*\}\}/.exec(board.slice(start))?.[1]
-    const calls: unknown[] = []
-    if (body) new Function(close!, 'callbacks', 'family', body)(() => calls.push('close'), { enterBootSettings: (door?: string, opener?: unknown) => calls.push(door, opener) }, 'gemini')
-    t.check(`${picker}: closes its picker and opens the logins door on the row's family`, JSON.stringify(calls) === JSON.stringify(['close', 'logins', { family: 'gemini' }]), JSON.stringify(calls))
+    for (const entered of [true, false]) {
+      const calls: unknown[] = []
+      consumeSignInPickerReturn()
+      if (body) {
+        new Function(close!, 'callbacks', 'rowPick', 'armSignInPickerReturn', 'consumeSignInPickerReturn', 'family', body)(
+          () => calls.push('close'),
+          { enterBootSettings: (door?: string, opener?: unknown) => (calls.push(door, opener), entered) },
+          { kind: 'model', sessionId: 's-1', title: 'the row' },
+          armSignInPickerReturn,
+          consumeSignInPickerReturn,
+          'gemini',
+        )
+      }
+      const armed = consumeSignInPickerReturn()
+      t.check(`${picker}: closes its picker and opens the logins door on the row's family, asking for the way back`, JSON.stringify(calls) === JSON.stringify(['close', 'logins', { family: 'gemini', returnToOpener: true }]), JSON.stringify(calls))
+      t.check(`${picker}: the picker's return is armed exactly when the face was entered (${entered})`, entered ? JSON.stringify(armed) === JSON.stringify(kind === 'session' ? { kind: 'session', sessionId: 's-1', title: 'the row' } : { kind: 'default' }) : armed === null, JSON.stringify(armed))
+    }
   }
+  t.check('the board seeds its pickers from the one-shot at mount (the return re-opens the picker that opened the door)', board.includes('const [signInPicker] = useState(() => consumeSignInPickerReturn())') && board.includes("signInPicker?.kind === 'session' ? { kind: 'model', sessionId: signInPicker.sessionId, title: signInPicker.title } : null") && board.includes("useState(signInPicker?.kind === 'default')"))
+  armSignInPickerReturn({ kind: 'default' })
+  t.check('the one-shot is consumed exactly once', JSON.stringify(consumeSignInPickerReturn()) === JSON.stringify({ kind: 'default' }) && consumeSignInPickerReturn() === null)
   const route = read('src/components/concourse/ConcourseRoute.tsx')
   const callback = /enterBootSettings: \(door, opener\) => \{([\s\S]*?)\n      \}/.exec(route)?.[1] ?? ''
-  t.check('the route arms the requested face door with the opener before mounting the face', callback.includes('armFaceDoorDeepLink(door, opener)') && callback.indexOf('armFaceDoorDeepLink(door, opener)') < callback.indexOf('enterBootSettings()'))
+  t.check('the route arms the requested face door with the opener before mounting the face, and answers whether the face was entered', callback.includes('armFaceDoorDeepLink(door, opener)') && callback.indexOf('armFaceDoorDeepLink(door, opener)') < callback.indexOf('enterBootSettings()') && callback.includes('return enterBootSettings().ok'))
 }
 
-t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it)')
+t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it and returns to the opener)')
 {
   const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/utils/model/modelOptions.js')
   t.check('the GPT connect row names openai', signInFamilyOfRow(GPT_CONNECT_OPTION_VALUE) === 'openai')
@@ -373,18 +391,21 @@ t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the fac
 
   const handover = await import('../../src/substrate/splashHandover.js')
   handover.consumeFaceDoorDeepLink()
-  handover.armFaceDoorDeepLink('logins', { family: 'gemini' })
-  t.check('the opener rides the armed door and is peeked with it', handover.peekFaceDoorDeepLink() === 'logins' && JSON.stringify(handover.peekFaceDoorOpener()) === JSON.stringify({ family: 'gemini' }))
+  handover.armFaceDoorDeepLink('logins', { family: 'gemini', returnToOpener: true })
+  t.check('the opener rides the armed door and is peeked with it', handover.peekFaceDoorDeepLink() === 'logins' && JSON.stringify(handover.peekFaceDoorOpener()) === JSON.stringify({ family: 'gemini', returnToOpener: true }))
   t.check('consuming the door takes the opener with it, exactly once', handover.consumeFaceDoorDeepLink() === 'logins' && handover.peekFaceDoorOpener() === null && handover.consumeFaceDoorDeepLink() === null)
   handover.armFaceDoorDeepLink('logins')
   t.check('a door armed without an opener carries none (the splash receipt road)', handover.peekFaceDoorOpener() === null && handover.consumeFaceDoorDeepLink() === 'logins')
 
   const face = read('src/components/BootSplashScreen.tsx')
-  t.check('the face reads the opener beside the door and seeds the layer\'s family from it', face.includes('useState(() => peekFaceDoorOpener())') && face.includes("useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined)"))
-  t.check('the layer mounts with the family; the layer\'s close forgets it', face.includes('family={loginsFamily}') && face.includes('setLoginsFamily(undefined);'))
-  t.check("the face's own picker opens the layer on the row's family", face.includes('setLoginsFamily(family);'))
+  t.check('the face reads the opener beside the door and seeds the layer\'s family and way back from it', face.includes('useState(() => peekFaceDoorOpener())') && face.includes("useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined)") && face.includes("faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null"))
+  const close = face.slice(face.indexOf('const closeLogins = (): void => {'), face.indexOf('const closeLogins = (): void => {') + 400)
+  t.check('the layer\'s close leaves through the route token when the opener asked for the way back, else restores the face (its own picker re-opens when it was the opener)', close.includes("if (back === 'route' && leaveCurrentSurface().ok) return;") && close.includes('setLoginsOpen(false);') && close.includes("if (back === 'picker') setModelDefaultOpen(true);"))
+  t.check('the layer mounts with the family and, exactly when an opener waits, the signed-in road', face.includes('family={loginsFamily}') && face.includes("{...(loginsBack !== null ? { onSignedIn: closeLogins } : {})}"))
+  t.check("the face's own picker opens the layer on the row's family with the picker as the way back", face.includes('setLoginsFamily(family);') && face.includes("setLoginsBack('picker');"))
   const screen = read('src/components/BootLoginsScreen.tsx')
   t.check('the sign-in layer opens on the named family ahead of the recorded focus', screen.includes('loginFamilyInitialFocus(arms.map(arm => arm.row), recordedFocus, loginFamilyFocusFor(family))'))
+  t.check('a completed sign-in settles through the one road that leaves by onSignedIn', screen.includes('onSignedIn?.();') && screen.split('settleSignedIn();').length >= 5)
 }
 
 t.finish('prove-face-doors')

@@ -255,7 +255,7 @@ export interface ConcourseCallbacks {
     seatsMax?: 1 | 2 | null
   }) => void
   submitSessionDraft: (text: string) => void
-  enterBootSettings: (door?: 'logins', opener?: { family?: string }) => void
+  enterBootSettings: (door?: 'logins', opener?: { family?: string; returnToOpener?: boolean }) => boolean
   exitToRepl: () => void
   retrySnapshot?: () => void
   sendCoordinatorMessage?: (

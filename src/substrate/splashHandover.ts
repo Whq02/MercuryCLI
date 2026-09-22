@@ -19,6 +19,7 @@ export function consumeKitManagerDeepLink(): boolean {
 export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'
 export interface FaceDoorOpenerV1 {
   family?: string
+  returnToOpener?: boolean
 }
 let pendingFaceDoorDeepLink: FaceDoorDeepLink | null = null
 let pendingFaceDoorOpener: FaceDoorOpenerV1 | null = null

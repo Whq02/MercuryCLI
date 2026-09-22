@@ -151,12 +151,17 @@ export function BootSplashScreen(): React.ReactNode {
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [loginsFamily, setLoginsFamily] = useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined);
+  const [loginsBack, setLoginsBack] = useState<'route' | 'picker' | null>(faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null);
   const [modelDefaultOpen, setModelDefaultOpen] = useState(false);
   const [presenceEpoch, setPresenceEpoch] = useState(0);
   const closeLogins = (): void => {
+    const back = loginsBack;
+    setLoginsBack(null);
     setLoginsFamily(undefined);
+    if (back === 'route' && leaveCurrentSurface().ok) return;
     setLoginsOpen(false);
     setPresenceEpoch(e => e + 1);
+    if (back === 'picker') setModelDefaultOpen(true);
   };
   const signInEpoch = useSignInEpoch();
 
@@ -632,6 +637,7 @@ export function BootSplashScreen(): React.ReactNode {
         fullScene={{ columns, rows }}
         family={loginsFamily}
         onClose={closeLogins}
+        {...(loginsBack !== null ? { onSignedIn: closeLogins } : {})}
       />
     );
   }
@@ -715,6 +721,7 @@ export function BootSplashScreen(): React.ReactNode {
               onSignIn={family => {
                 setModelDefaultOpen(false);
                 setLoginsFamily(family);
+                setLoginsBack('picker');
                 setLoginsOpen(true);
               }}
             />
