@@ -68,12 +68,27 @@ live:
 
 Keyboard input is read as a stream: a mouse report or escape sequence split
 across two reads is finished on the next one rather than mis-read as
-keystrokes, and a genuine lone Escape still interrupts. Under
+keystrokes, and a genuine lone Escape still interrupts. The terminal's
+replies to Mercury's own questions (its name, the background colour, the
+mode and key-protocol flags, the device attributes that close each batch)
+are never keystrokes: a reply split by the flush timer's window on a slow
+link is held whole until its final byte, so it resolves as the reply it is
+and no part of it is typed into the composer; a head no tail ever follows
+is let go after two flush windows, so a silent terminal cannot deafen the
+loop. Under
 the kitty keyboard protocol a non-Latin layout reports its own codepoint as
 the key (Cyrillic ф arrives as 1092): plain typing inserts it, and a chord —
 ctrl, alt, super — resolves its name from the base-layout subfield, the
 physical key position, with the shifted subfield as the fallback, so ctrl+ф
-is ctrl+a.
+is ctrl+a. A shifted key that arrives with its shifted codepoint in that
+subfield and no text (WezTerm's encoding under the protocol) types the
+shifted glyph — shift+; is `:`, shift+a is `A` — while a chord keeps the
+base code. `CSI P` is the protocol's F1 wherever the kitty push was armed
+and st's Delete where it was not; the push is never armed where the
+terminal identity says st, so the two readings never meet. F2 and F4 (`CSI
+Q`, `CSI S`) are read everywhere. rxvt's alt+arrow arrives as `ESC ESC [ A`
+and is read as one alt+arrow, never as an Escape (which would interrupt the
+turn) followed by an arrow; a bare `ESC ESC` is still two Escapes.
 
 ## Experience controls
 
@@ -87,6 +102,14 @@ every one of them is a row of the in-code registry
   disables cursor-hide and live paint.
 - `MERCURY_VIRTUAL_SCROLL` (default-on) — the transcript virtual-scroll
   surface.
+- `MERCURY_TERMINAL_QUERY_SETTLE_MS` (a value; unset is 250) — how long a
+  handover of the screen (the external editor, a job-control stop, the
+  exit) waits for the terminal's open question batch to settle, counted
+  from the moment the questions were sent. Mercury asks the terminal about
+  itself once, at boot; a handover inside that round trip would let the
+  reply land at the shell or in the editor, so it waits for the closing
+  device-attributes reply up to this bound and drains whatever has arrived
+  otherwise. `0` never waits.
 
 Two more switches ride the capability profile: fullscreen and mouse
 tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`

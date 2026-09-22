@@ -642,7 +642,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   pi.edit('alpha')
   check('no-lost 1: typed text lives in the draft alone',
     JSON.stringify(homes()) === JSON.stringify({ inDraft: 1, inStash: 0, inStaged: 0, inQueue: 0 }))
-  pi.setStash({ text: pi.text(), cursorOffset: 2, pastedContents: {} })
+  pi.setStash({ text: pi.text(), cursorOffset: 2, mode: 'prompt', pastedContents: {} })
   pi.edit('')
   check('no-lost 2: stashing moves the text draft→stash',
     JSON.stringify(homes()) === JSON.stringify({ inDraft: 0, inStash: 1, inStaged: 0, inQueue: 0 })

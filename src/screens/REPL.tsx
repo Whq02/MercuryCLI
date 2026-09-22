@@ -845,7 +845,11 @@ export function REPL({
   const [showIdeOnboarding, setShowIdeOnboarding] = useState(false);
   const [ideInstallationStatus, setIDEInstallationState] = useState<IDEExtensionInstallationStatus | null>(null);
   const [ideToInstallExtension, setIdeToInstallExtension] = useState<IdeType | null>(null);
-  const [ideSelection, setIdeSelection] = useState<IDESelection | undefined>(undefined);
+  const [ideSelection, setIdeSelectionState] = useState<IDESelection | undefined>(undefined);
+  const setIdeSelection = useCallback((next: IDESelection | undefined): void => {
+    setIdeSelectionState(next);
+    pendingInput.setSelection(next);
+  }, []);
   useIdeSelection(mcpState.clients, setIdeSelection);
   useIDEIntegration({
     autoConnectIdeFlag: ideAutoConnectSeed(),
@@ -1222,7 +1226,7 @@ export function REPL({
         .then(receipt => {
           if (receipt.state !== 'refused') return;
           if (pendingInput.text() === '') {
-            setInputValue(input);
+            if (pendingInput.restoreStaged(input) === null) setInputValue(input);
             setPastedContents(seatPastes);
           }
           addNotification({
@@ -1307,11 +1311,7 @@ export function REPL({
           if (doneOptions.submitNextInput) void onSubmitRef.current(doneOptions.nextInput, INERT_PROMPT_HELPERS);
           else setInputValue(doneOptions.nextInput);
         }
-        const stash = pendingInput.stashedPrompt();
-        if (stash) {
-          pendingInput.setStash(undefined);
-          setInputValue(stash.text);
-        }
+        pendingInput.popStash();
       };
       try {
         const module = await seatCommand.load();

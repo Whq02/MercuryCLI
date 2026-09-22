@@ -1,4 +1,6 @@
 
+import { extendedKeysSupportedNow } from '../session/capabilities.js'
+
 
 export type ParsedKey = {
   kind: 'key'
@@ -123,6 +125,7 @@ const KEY_NAME: Record<string, string> = {
   '[20~': 'f9', '[21~': 'f10', '[23~': 'f11', '[24~': 'f12',
   '[A': 'up', '[B': 'down', '[C': 'right', '[D': 'left',
   '[E': 'clear', '[F': 'end', '[H': 'home',
+  '[Q': 'f2', '[S': 'f4',
   OA: 'up', OB: 'down', OC: 'right', OD: 'left',
   OE: 'clear', OF: 'end', OH: 'home',
   '[1~': 'home', '[2~': 'insert', '[3~': 'delete',
@@ -136,6 +139,12 @@ const KEY_NAME: Record<string, string> = {
   '[2^': 'insert', '[3^': 'delete', '[5^': 'pageup',
   '[6^': 'pagedown', '[7^': 'home', '[8^': 'end',
   '[Z': 'tab',
+}
+
+const CSI_P = '[P'
+
+function csiPName(): string {
+  return extendedKeysSupportedNow() ? 'f1' : 'delete'
 }
 
 const SHIFT_CODES = new Set([
@@ -196,6 +205,11 @@ function keycodeToName(keycode: number): string | undefined {
       }
       return undefined
   }
+}
+
+function isTypedCodepoint(codepoint: number): boolean {
+  if (!Number.isFinite(codepoint) || codepoint < 0x20 || codepoint === 0x7f || codepoint > 0x10ffff) return false
+  return !(codepoint >= 0xe000 && codepoint <= 0xf8ff)
 }
 
 function resolveChordNameFromLayout(
@@ -280,6 +294,10 @@ export function interpretKey(s: string = ''): ParsedKey {
     const key = modifiedKey(s, parseInt(match[1]!, 10), match[4] ? parseInt(match[4], 10) : 1)
     if (key.name === undefined && (key.ctrl || key.meta || key.super)) {
       key.name = resolveChordNameFromLayout(match[3], match[2])
+    }
+    if (match[2] && key.shift && !key.ctrl && !key.meta && !key.super && !match[6]) {
+      const shifted = parseInt(match[2], 10)
+      if (isTypedCodepoint(shifted)) key.name = String.fromCodePoint(shifted)
     }
     if (match[6] && !key.ctrl && !key.meta) {
       const text = match[6]
@@ -366,7 +384,7 @@ export function interpretKey(s: string = ''): ParsedKey {
     key.super = !!(modifier & 8)
     key.shift = !!(modifier & 1)
     key.code = code
-    key.name = KEY_NAME[code]
+    key.name = code === CSI_P ? csiPName() : KEY_NAME[code]
     key.shift = SHIFT_CODES.has(code) || key.shift
     key.ctrl = CTRL_CODES.has(code) || key.ctrl
   }

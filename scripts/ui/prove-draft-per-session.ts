@@ -66,7 +66,7 @@ p.edit('typed during swap')
 await swap
 check('(d) typing during the swap wins (the re-key never rolls it back)', p.text() === 'typed during swap')
 
-p.setStash({ text: 'the pocket', cursorOffset: 0, pastedContents: {} })
+p.setStash({ text: 'the pocket', cursorOffset: 0, mode: 'prompt', pastedContents: {} })
 await p.rekeyToSession('session-A')
 check("(e) the stash survives the hop (operator-scoped, named in the docblock)", p.stashedPrompt()?.text === 'the pocket')
 check("…and the re-key never touches the stash (the pocket is the operator's, not the page's)", rekeyBody.length > 0 && !/\bstash\b/.test(codeOnlyText('pending-input.ts', rekeyBody)))
