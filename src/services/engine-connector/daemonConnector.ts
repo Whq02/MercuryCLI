@@ -981,9 +981,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (!isNoticeFact(entry)) continue
       const key = noticeKeyOf(entry.value)
       if (this.sends.some(s => s.clientMessageId === key)) continue
-      if (this.noticeStands(entry.value)) continue
       const atMs = Date.now()
       const heldSinceMs = typeof facts.atMs === 'number' && facts.atMs < atMs ? facts.atMs : atMs
+      if (this.noticeStands(entry.value, heldSinceMs)) continue
       this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: heldSinceMs, state: 'queued', mode: 'prompt' }]
       this.stampArrival(key, heldSinceMs)
       this.echoRows.set(key, createNoticeRow(entry.value, atMs))
@@ -1131,9 +1131,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.sendSeq.set(clientMessageId, before ? (this.tailSeq as number) - 1 : this.arrivalSeq)
   }
 
-  private noticeStands(value: string): boolean {
+  private noticeStands(value: string, notBeforeMs: number): boolean {
     for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
-      if (noticeRowLanded(this.rawRecords[i]!, value)) return true
+      if (noticeRowLanded(this.rawRecords[i]!, value, notBeforeMs)) return true
     }
     return false
   }
