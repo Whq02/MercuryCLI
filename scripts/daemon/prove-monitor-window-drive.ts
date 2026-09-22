@@ -121,7 +121,7 @@ writeFileSync(
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
 )
 writeFileSync(WATCHED, '')
-const env = { ...childEnv(HOME, port), MERCURY_TASKS: '1' }
+const env = { ...childEnv(HOME, port), MERCURY_TASKS: '1', MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1' }
 delete env.ANTHROPIC_API_KEY
 
 const waitWire = async (label: string, test: (w: Wire) => boolean, timeoutMs: number): Promise<Wire | null> => {
