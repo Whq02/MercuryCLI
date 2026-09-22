@@ -43,7 +43,9 @@ const NOTED = 'OVERLOAD-NOTED'
 const RESUMED = 'OVERLOAD-RESUMED-BY-HAND'
 const LANE_DONE = 'LANE-DONE'
 const LANE_NAME = 'overload-lane'
-const LANE_MODEL = 'claude-fable-5-1'
+const LANE_MODEL = arg('--lane-model') ?? 'claude-fable-5-1'
+const DOOR = /opus/i.test(LANE_MODEL)
+const INLINE = process.argv.includes('--inline')
 const SEAT_MARK = 'overload-seat:lane'
 const PROBE_MARK = 'Reply with the single word ready.'
 const OLD_DOOR = 'its work is kept; resume it'
@@ -201,7 +203,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
             description: LANE_NAME,
             prompt: `${SEAT_MARK} read the notes file once, then report in one line`,
             subagent_type: 'mercury-general',
-            run_in_background: true,
+            ...(INLINE ? {} : { run_in_background: true }),
           }) + tail('tool_use')
       } else out = textBlock(0, 'side') + tail('end_turn')
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -355,10 +357,25 @@ function laneTranscript(sessionDir: string, sessionPath: string): Record_[] | nu
   }
   return null
 }
-const laneOutputs = (records: Record_[]): Array<{ model: string; text: string }> =>
+const laneOutputs = (records: Record_[]): Array<{ model: string; text: string; at: string }> =>
   records
     .filter(record => (record.payload as { kind?: string } | undefined)?.kind === 'output')
-    .map(record => ({ model: String((record.payload as { model?: unknown }).model ?? ''), text: payloadText(record) }))
+    .map(record => ({ model: String((record.payload as { model?: unknown }).model ?? ''), text: payloadText(record), at: String(record.occurredAt ?? '') }))
+function parentToolResults(records: Record_[], name: string): string[] {
+  const ids = new Set<string>()
+  for (const record of records) {
+    const payload = record.payload as { kind?: string; content?: unknown } | undefined
+    if (payload?.kind !== 'output' || !Array.isArray(payload.content)) continue
+    for (const block of payload.content as Array<{ kind?: string; name?: string; callId?: string }>) if (block.kind === 'tool-use' && block.name === name && typeof block.callId === 'string') ids.add(block.callId)
+  }
+  const out: string[] = []
+  for (const record of records) {
+    const payload = record.payload as { kind?: string; content?: unknown } | undefined
+    if (payload?.kind !== 'input' || !Array.isArray(payload.content)) continue
+    for (const block of payload.content as Array<{ kind?: string; callId?: string; body?: unknown }>) if (block.kind === 'tool-result' && typeof block.callId === 'string' && ids.has(block.callId)) out.push(typeof block.body === 'string' ? block.body : JSON.stringify(block.body ?? ''))
+  }
+  return out
+}
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 console.log('============================================================')
@@ -411,19 +428,39 @@ if (cap !== null) {
 
   console.log('\n— §A the lane dies on the overload, pauses, and comes back by itself —')
   check('A1 the lane met the outage: its first request was cut mid-stream by an overloaded_error and its next ones were refused with HTTP 529', laneHits[0]?.answer === 'mid-stream' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
-  check("A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => /^API Error: 529\b/.test(d.text)), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+  check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
   check(`A3 the lane finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent (SendMessage uses 0)`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
   check('A4 Mercury probed the provider while the lane was paused, and a probe was answered before the lane resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
   const first = notices[0]
-  check("A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded, Mercury's probing named — never 'failed: API Error' with the resume door", first !== undefined && first.status === 'paused' && /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers/.test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
-  check("A6 the parent's chat painted that line once during the outage and no 'failed: API Error: 529' line", cap.marks.some(m => m.text.includes('is overloaded (HTTP 529)')) && !cap.marks.some(m => m.text.includes('failed: API Error: 529')) && !cap.text.includes('failed: API Error: 529'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
+  if (!INLINE) {
+    check("A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded, Mercury's probing named — never 'failed: API Error' with the resume door", first !== undefined && first.status === 'paused' && /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers/.test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
+    check("A6 the parent's chat painted that line once during the outage and no 'failed: API Error: 529' line", cap.marks.some(m => m.text.includes('is overloaded (HTTP 529)')) && !cap.marks.some(m => m.text.includes('failed: API Error: 529')) && !cap.text.includes('failed: API Error: 529'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
 
-  console.log('\n— §B one calm line per lane per outage episode —')
-  const completion = notices.findIndex(n => n.status === 'completed')
-  const beforeCompletion = completion < 0 ? notices : notices.slice(0, completion)
-  check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deaths.length >= 2 && beforeCompletion.length === 1, `deaths=${deaths.length} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
-  check("B2 no 'resumed' receipt row rides the episode — the lane's row carries the resume, the parent's chat one line", !notices.some(n => n.status === 'resumed'), notices.map(n => n.status).join(','))
-  check('B3 the completion notice follows as its own line', completion >= 0 && notices[completion]?.summary?.includes('completed') === true, notices.map(n => n.status).join(','))
+    console.log('\n— §B one calm line per lane per outage episode —')
+    const completion = notices.findIndex(n => n.status === 'completed')
+    const beforeCompletion = completion < 0 ? notices : notices.slice(0, completion)
+    check(`B1 the lane died more than once in the episode (the second wave) yet the parent's record holds exactly ONE lane notice before the completion notice`, deaths.length >= 2 && beforeCompletion.length === 1, `deaths=${deaths.length} notices before completion=${beforeCompletion.length} (${beforeCompletion.map(n => n.status).join(',')})`)
+    check("B2 no 'resumed' receipt row rides the episode — the lane's row carries the resume, the parent's chat one line", !notices.some(n => n.status === 'resumed'), notices.map(n => n.status).join(','))
+    check('B3 the completion notice follows as its own line', completion >= 0 && notices[completion]?.summary?.includes('completed') === true, notices.map(n => n.status).join(','))
+  }
+
+  if (DOOR) {
+    console.log('\n— §C the three-strikes door yields to the ladder —')
+    const firstDeathAtMs = deaths.length > 0 ? Date.parse(deaths[0]!.at) : Number.NaN
+    const beforeFirstDeath = laneHits.filter(h => h.atMs <= firstDeathAtMs)
+    check('C1 the lane walked every rung before its first death: eight requests (the cut stream and seven refused) before the door spoke', deaths.length >= 1 && beforeFirstDeath.length >= 8, `${beforeFirstDeath.length} requests before the first death at +${((firstDeathAtMs - t0) / 1000).toFixed(1)}s`)
+    check('C2 the first death came once the ladder was spent, not inside its first rungs', deaths.length >= 1 && firstDeathAtMs - (laneHits[0]?.atMs ?? firstDeathAtMs) >= 2_500, `${firstDeathAtMs - (laneHits[0]?.atMs ?? 0)} ms from the first request`)
+    check("C3 the death row carries the door's words, and the pause road read them as an overload", deaths.length >= 1 && /API overload errors \(529\)/.test(deaths[0]!.text) && probeHits.length >= 1, deaths[0]?.text.slice(0, 80) ?? '(no death)')
+  }
+
+  if (INLINE) {
+    console.log('\n— §D an inline helper takes the same pause-and-probe road —')
+    const results = parentToolResults(parentRecords, 'Agent')
+    check("D1 the helper's tool result leads with the pause — 'paused — provider overloaded', the probing named — never a bare 'Agent execution failed: API Error: 529'", results.length >= 1 && results.some(r => /Agent execution failed: paused — provider overloaded/.test(r) && /Mercury probes it for up to/.test(r)) && !results.some(r => /Agent execution failed: API Error: 529/.test(r)), results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
+    check('D2 Mercury probed the provider while the helper was paused, and a probe was answered before it resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
+    check(`D3 the helper finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
+    check("D4 the helper's completion reached the parent as its own line, and no 'failed' notice with the resume door rode the episode", notices.some(n => n.status === 'completed') && !notices.some(n => n.status === 'failed'), notices.map(n => n.status).join(','))
+  }
 }
 
 if (!KEEP) {

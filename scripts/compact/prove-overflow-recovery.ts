@@ -259,7 +259,7 @@ function seedWithReads(rounds: number, lastUsage?: number): unknown[] {
       type: 'user',
       uuid: `00000000-0000-4000-b000-0000000000${String(10 + i)}`,
       timestamp: new Date().toISOString(),
-      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_read_${i}`, content: `file ${i} body ${'lorem ipsum dolor sit amet '.repeat(74)}` }] },
+      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_read_${i}`, content: `file ${i} body ${'lorem ipsum dolor sit amet '.repeat(1_200)}` }] },
     })
   }
   out.push(createUserMessage({ content: OPERATOR_ASK }))

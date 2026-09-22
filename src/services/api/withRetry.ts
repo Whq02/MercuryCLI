@@ -282,15 +282,7 @@ export async function* withRetry<T>(
         const countingEnabled =
           flagEnabled('MERCURY_FALLBACK_ALL_MODELS') ||
           (!isClaudeAISubscriber() && isNonCustomOpusModel(retryContext.model))
-        if (countingEnabled) {
-          consecutive529Errors++
-          if (consecutive529Errors >= CONSECUTIVE_529_FALLBACK_THRESHOLD) {
-            if (options.fallbackModel !== undefined) {
-              throw new FallbackTriggeredError(retryContext.model, options.fallbackModel)
-            }
-            throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
-          }
-        }
+        if (countingEnabled) consecutive529Errors++
       } else {
         consecutive529Errors = 0
       }
@@ -299,7 +291,15 @@ export async function* withRetry<T>(
         const ladder = busy ?? openBusyRetryLadder(Date.now())
         busy = ladder
         const step = nextBusyRetry(ladder, providerAskedWaitMs(error), Date.now())
-        if (step === null) throw new CannotRetryError(error, retryContext)
+        if (step === null) {
+          if (consecutive529Errors >= CONSECUTIVE_529_FALLBACK_THRESHOLD) {
+            if (options.fallbackModel !== undefined) {
+              throw new FallbackTriggeredError(retryContext.model, options.fallbackModel)
+            }
+            throw new CannotRetryError(new Error(REPEATED_529_ERROR_MESSAGE), retryContext)
+          }
+          throw new CannotRetryError(error, retryContext)
+        }
         const notice = createSystemAPIErrorMessage(
           error instanceof Error ? error : new Error(errorMessage(error)),
           step.waitMs,
