@@ -44,7 +44,6 @@ import substrate from './commands/substrate/index.js'
 import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
 import remember from './commands/remember/index.js'
-import themis from './commands/themis/index.js'
 import meh from './commands/meh/index.js'
 import good from './commands/good/index.js'
 import diff from './commands/diff/index.js'
@@ -235,7 +234,6 @@ const COMMANDS = memoize((): Command[] => [
   kill,
   unkill,
   remember,
-  themis,
   meh,
   good,
   diff,
