@@ -102,7 +102,9 @@ all — before the chat gives up: nothing is painted for the first thirty
 seconds, then the retry line shows the true wait and the true count, and the
 red error line comes only once the whole ladder is spent, saying how many
 retries it took and how long (on the Anthropic wire it carries the
-provider's own answer). A rate limit that names its own wait
+provider's own answer; with an API key and an Opus model, a spent ladder
+ends the turn with the repeated-overload line, or switches to the fallback
+model when one was named at launch). A rate limit that names its own wait
 (Retry-After) rides the same ladder with that wait in place of the rung; a
 rate limit without one keeps the single retry. A reply that arrives inside
 the ladder shows one calm grey line above it, naming the provider —
