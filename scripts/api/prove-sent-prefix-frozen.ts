@@ -712,7 +712,7 @@ process.stdin.on('end', () => process.exit(0))
     {
       const model = 'claude-fable-5-1'
       const turns: ScriptedTurn[] = [
-        ...Array.from({ length: 8 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
+        ...Array.from({ length: 12 }, (_, i) => ({ kind: 'tool_use' as const, name: 'Read', input: {}, thinking: 'Read file ' + i, model })),
         { kind: 'text', text: 'PRUNE-READY', thinking: 'All files read.', model },
         { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'prompt is too long: 202000 tokens > 200000 maximum' },
         { kind: 'text', text: 'PRUNE-APPLIED', thinking: 'Reasoning after clearing.', model },
@@ -725,9 +725,9 @@ process.stdin.on('end', () => process.exit(0))
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
       try {
         const arena = makeArena(fixture)
-        const files = Array.from({ length: 8 }, (_, i) => join(arena.cwd, 'notes-' + i + '.txt'))
+        const files = Array.from({ length: 12 }, (_, i) => join(arena.cwd, 'notes-' + i + '.txt'))
         for (const [i, file] of files.entries()) {
-          writeFileSync(file, 'Value ' + i + '\n' + 'A fixed reference row retains its original contents across requests.\n'.repeat(75))
+          writeFileSync(file, 'Value ' + i + '\n' + 'A fixed reference row retains its original contents across requests.\n'.repeat(220))
           ;(turns[i] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: file }
         }
         const sid = 'c0ffee00-0000-4000-8000-00000000c108'
@@ -753,8 +753,8 @@ process.stdin.on('end', () => process.exit(0))
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
         const requests = fixture.messageRequests()
-        check('§11 all expected model requests occurred', requests.length === 16, String(requests.length))
-        const cleared = requests.slice(10)
+        check('§11 all expected model requests occurred', requests.length === 20, String(requests.length))
+        const cleared = requests.slice(14)
         check('§11 the clearing and all subsequent requests retain three placeholders', cleared.length === 6 && cleared.every(request => {
           const body = request.body as Body
           return ((body.messages ?? []) as Array<{ content?: Block[] }>).flatMap(message => Array.isArray(message.content) ? message.content : [])
