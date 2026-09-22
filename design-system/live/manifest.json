@@ -48,7 +48,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:30.756Z"
     },
@@ -85,7 +86,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:43.721Z"
     },
@@ -122,7 +124,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:50.323Z"
     },
@@ -159,7 +162,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:10.483Z"
     },
@@ -196,7 +200,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:16.872Z"
     },
@@ -233,7 +238,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:23.421Z"
     },
@@ -270,7 +276,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:57.192Z"
     },
@@ -307,7 +314,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:30.012Z"
     },
@@ -344,7 +352,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:47.073Z"
     },
@@ -381,7 +390,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:59.427Z"
     },
@@ -418,7 +428,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:11.144Z"
     },
@@ -455,7 +466,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:23.816Z"
     },
@@ -492,7 +504,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:34.577Z"
     },
@@ -529,7 +542,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:03.944Z"
     },
@@ -547,7 +561,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "d5ee2e4aaa0b7d6956747338eadbb740081d5fef2e81c29d4b781e70d4f0bb49",
+      "gridDigest": "ce2eaa83aaf5acd42d1a6c82b3c0f13fda3fa18170dc4f57c93d1fcdc4b16b0a",
       "styleDigest": "8046689f8f592433b8678cefc2287bd6af73c0a4a9b3f52cfb27847ed998bc23",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -566,7 +580,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:10.839Z"
     },
@@ -584,7 +599,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--151x40--dark--truecolor--full.grid.json",
-      "gridDigest": "e6ba0cb1f32454c2e45381a9ab04bb43e9e328e328300368fdcdba43f3825ecc",
+      "gridDigest": "b679eb49db8179d515d3fcc53fc5ddc0f3d5508c225918f8e941e431d2d85acb",
       "styleDigest": "2736f912dcd2257d6e5041089cab9f30bb42aed994288032394b1241bd858bc4",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -603,7 +618,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:17.427Z"
     },
@@ -621,7 +637,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--160x50--dark--truecolor--full.grid.json",
-      "gridDigest": "b87380310860578796aa28320a9b953ba2baf706bcad623e58129b4b8e24177f",
+      "gridDigest": "1c65d8532e2a8e3184c708d6995a310e5c4502810e25fd96d0a06b616c1cce9b",
       "styleDigest": "872a2a6150c84c48418adc607eec99f3e5ba07e0ca79849824110d561c846346",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -640,7 +656,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:24.149Z"
     },
@@ -677,7 +694,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:18:32.999Z"
     },
@@ -714,7 +732,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:18:52.370Z"
     },
@@ -751,7 +770,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:11.559Z"
     },
@@ -788,7 +808,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:30.780Z"
     },
@@ -825,7 +846,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:02.068Z"
     },
@@ -862,7 +884,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:47.148Z"
     },
@@ -899,7 +922,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:53.723Z"
     },
@@ -936,7 +960,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:13.683Z"
     },
@@ -973,7 +998,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:20.255Z"
     },
@@ -1010,7 +1036,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:26.619Z"
     },
@@ -1047,7 +1074,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:00.574Z"
     },
@@ -1084,7 +1112,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:50.269Z"
     },
@@ -1121,7 +1150,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:03.407Z"
     },
@@ -1158,7 +1188,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:14.327Z"
     },
@@ -1195,7 +1226,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:27.016Z"
     },
@@ -1232,7 +1264,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:38.251Z"
     },
@@ -1269,7 +1302,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:07.548Z"
     },
@@ -1287,7 +1321,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "d5ee2e4aaa0b7d6956747338eadbb740081d5fef2e81c29d4b781e70d4f0bb49",
+      "gridDigest": "ce2eaa83aaf5acd42d1a6c82b3c0f13fda3fa18170dc4f57c93d1fcdc4b16b0a",
       "styleDigest": "8046689f8f592433b8678cefc2287bd6af73c0a4a9b3f52cfb27847ed998bc23",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1306,7 +1340,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:14.165Z"
     },
@@ -1324,7 +1359,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--151x40--dark--truecolor--full.grid.json",
-      "gridDigest": "e6ba0cb1f32454c2e45381a9ab04bb43e9e328e328300368fdcdba43f3825ecc",
+      "gridDigest": "b679eb49db8179d515d3fcc53fc5ddc0f3d5508c225918f8e941e431d2d85acb",
       "styleDigest": "2736f912dcd2257d6e5041089cab9f30bb42aed994288032394b1241bd858bc4",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1343,7 +1378,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:20.817Z"
     },
@@ -1361,7 +1397,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--160x50--dark--truecolor--full.grid.json",
-      "gridDigest": "b87380310860578796aa28320a9b953ba2baf706bcad623e58129b4b8e24177f",
+      "gridDigest": "1c65d8532e2a8e3184c708d6995a310e5c4502810e25fd96d0a06b616c1cce9b",
       "styleDigest": "872a2a6150c84c48418adc607eec99f3e5ba07e0ca79849824110d561c846346",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1380,7 +1416,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:27.388Z"
     },
@@ -1417,7 +1454,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:18:42.479Z"
     },
@@ -1454,7 +1492,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:02.022Z"
     },
@@ -1491,7 +1530,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:21.161Z"
     },
@@ -1528,7 +1568,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:19:40.321Z"
     },
@@ -1565,7 +1606,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:20:47.634Z"
     },
@@ -1602,7 +1644,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:23:07.063Z"
     },
@@ -1639,7 +1682,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:20.385Z"
     },
@@ -1676,7 +1720,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:31.156Z"
     },
@@ -1713,7 +1758,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:22:43.879Z"
     },
@@ -1750,7 +1796,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:55.199Z"
     },
@@ -1787,7 +1834,8 @@
         " *(?:⇧|shift\\+)← concourse *",
         "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
-        "row:gate [✓◓✕·]"
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-09-22T14:21:07.920Z"
     }

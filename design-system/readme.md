@@ -21,7 +21,10 @@ The live visual target is **`live/manifest.json`**
 `dist/mercury.mjs` in a PTY, SHA-bound to the source commit and build tree that
 painted them.
 
-- Generate / refresh: `bun run scripts/ui/generate-visual-baseline.ts`
+- Generate / refresh: `bun run scripts/ui/generate-visual-baseline.ts` — a
+  stored grid the fresh capture matches under the masks is kept as it is, so
+  a refresh rewrites only what a change moved; a capture the emulator refuses
+  as never-ready is retried once with a doubled budget, and the retry is named
 - Compare a change: `… --check` (reports the FIRST divergent cell, never a
   loose threshold)
 - Gate: `scripts/ui/prove-visual-manifest.ts` (manifest ↔ grid self-consistency)
