@@ -1,6 +1,6 @@
 import { parseJSONL } from '../utils/json.js'
 import { recordToEntry } from './entryCodec.js'
-import { validateRecord } from './validate.js'
+import { bodyShapeIssue, validateRecord } from './validate.js'
 
 export type MalformedLine = { line: number; snippet: string }
 export type InvalidShape = { index: number; kind: string; reason: string }
@@ -90,6 +90,15 @@ function classifyInvalid(values: unknown[]): { valid: unknown[]; invalid: Invali
           .slice(0, 3)
           .map(x => `${x.path}: ${x.message}`)
           .join('; ')}`,
+      })
+      continue
+    }
+    const body = bodyShapeIssue(validated.record)
+    if (body !== null) {
+      invalid.push({
+        index: i,
+        kind: 'body-invalid',
+        reason: `record body failed its shape: ${body.path}: ${body.message}`,
       })
       continue
     }
