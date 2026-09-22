@@ -2564,7 +2564,7 @@ export function ConcourseScreen({
           <ModalContext.Provider value={{ rows: geo.mainRows, columns: cols, scrollRef: null }}>
             <MercurySessionModelPicker
               currentModel={sessionRows.find(r => r.sessionId === rowPick.sessionId)?.modelId}
-              currentEffort={undefined}
+              currentEffort={snapshot.peek?.sessionId === rowPick.sessionId ? snapshot.context.effortLabel : undefined}
               onSelect={(id, label) => {
                 const target = rowPick
                 setRowPick(null)

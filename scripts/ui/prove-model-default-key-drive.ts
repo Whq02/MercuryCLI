@@ -7,7 +7,13 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const argAfter = (flag: string): string | undefined => {
+  const at = process.argv.indexOf(flag)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+const BIN = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
+const FRAMES = argAfter('--frames')
+const CASE = argAfter('--case')
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 const DEAD = 'http://127.0.0.1:9'
@@ -166,6 +172,7 @@ const boardSends: Send[] = [
   { requireAwait: true, awaitText: 'n new session', awaitStableTicks: 3, mark: 'board', data: 'm' },
 ]
 
+if (CASE === undefined) {
 section('§1 the concourse: the door row names the pair, the bottom row names m, m opens the picker, a pick writes the default')
 {
   const home = seededHome('board')
@@ -402,6 +409,39 @@ section('§8 the board with sessions keeps the new-session line as its first row
   const afterPick = settingsOf(home)
   check("the session row's pick is the session's own: the default door still reads Opus 5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('CHOOSE A MODEL')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
+}
+
+}
+
+if (CASE === undefined || CASE === 'session-effort') {
+  section('the session picker reads the selected session effort, not the saved default')
+  for (const [cols, rows] of [[120, 40], [178, 51]]) {
+    const home = seededHome(`session-effort-${cols}`, { effortLevel: 'high' })
+    const c = capture(`session-effort-${cols}`, home, [], [
+      { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, data: SHIFT_RIGHT },
+      { requireAwait: true, awaitText: 'coordinator model', awaitSettleTicks: 3, data: TAB },
+      { requireAwait: true, awaitText: 'n new session', awaitSettleTicks: 3, data: 'n' },
+      { requireAwait: true, awaitText: 'contract?', awaitSettleTicks: 2, data: ESC },
+      { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: `${ESC}[1;2D` },
+      { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },
+      { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
+      { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },
+      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 5, mark: 'opened', data: RIGHT },
+      { afterPrevTicks: 12, data: '', mark: 'after-arrow' },
+    ], { cols, rows, total: 600, ready: ['CHOOSE A MODEL'] })
+    const opened = c.marks.get('opened') ?? []
+    const after = c.marks.get('after-arrow') ?? []
+    check(`${cols}x${rows}: the drive delivered every send`, c.status === 0, `exit ${c.status}`)
+    check(`${cols}x${rows}: the session picker opens on low`, opened.some(l => l.includes('[low]')), opened.filter(l => l.includes('effort')).join(' | '))
+    check(`${cols}x${rows}: the session ladder carries no supercode`, opened.length > 0 && !opened.some(l => l.includes('supercode')))
+    check(`${cols}x${rows}: the next arrow advances from low to medium`, after.some(l => l.includes('[medium]')), after.filter(l => l.includes('effort')).join(' | '))
+    check(`${cols}x${rows}: the saved default remains high`, settingsOf(home).effortLevel === 'high')
+    if (FRAMES !== undefined) {
+      mkdirSync(FRAMES, { recursive: true })
+      writeFileSync(join(FRAMES, `session-effort-${cols}x${rows}.json`), readFileSync(join(ROOT, `session-effort-${cols}.json`)))
+      for (const [mark, lines] of c.marks) writeFileSync(join(FRAMES, `session-effort-${cols}x${rows}-${mark}.txt`), lines.join('\n') + '\n')
+    }
+  }
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })
