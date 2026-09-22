@@ -144,6 +144,19 @@ export const FileWriteTool = buildTool({
     if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
       return { result: true as const }
     }
+    let isDirectory = false
+    try {
+      isDirectory = getFsImplementation().statSync(expandedPath).isDirectory()
+    } catch {
+      isDirectory = false
+    }
+    if (isDirectory) {
+      return {
+        result: false as const,
+        message: `The path is a directory, not a file: ${input.file_path}`,
+        errorCode: 2,
+      }
+    }
     return { result: true as const }
   },
   async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
