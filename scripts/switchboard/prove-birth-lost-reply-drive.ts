@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -23,7 +24,7 @@ const KEEP = process.argv.includes('--keep')
 const KEYLESS = process.argv.includes('--keyless')
 const STANDIN = join(HERE, 'lost-reply-standin.ts')
 const BUN = process.env.BUN ?? process.execPath
-const WORLD_ROOT = '/private/tmp/mw'
+const WORLD_ROOT = tmpdir()
 const SCENES = ['relay', 'lose-after-write', 'lose-before-write', 'hold-reply'] as const
 type Scene = (typeof SCENES)[number]
 if (!SCENES.includes(SCENE as Scene)) {
