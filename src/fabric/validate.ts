@@ -164,9 +164,59 @@ const recordSchema = z
   })
   .strict()
 
+const list = z.array(z.unknown())
+const objectList = z.array(z.looseObject({}))
+
+const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
+  task_reminder: z.looseObject({ content: objectList }),
+  diagnostics: z.looseObject({
+    files: z.array(z.looseObject({ uri: z.string(), diagnostics: z.array(z.looseObject({ range: z.looseObject({ start: z.looseObject({}) }) })) })),
+  }),
+  invoked_skills: z.looseObject({ skills: objectList }),
+  relevant_memories: z.looseObject({ memories: objectList }),
+  nested_memory: z.looseObject({ content: z.looseObject({}) }),
+  selected_lines_in_ide: z.looseObject({ content: z.string() }),
+  queued_command: z.looseObject({ prompt: z.union([z.string(), objectList]) }),
+  teammate_mailbox: z.looseObject({ messages: z.array(z.looseObject({ text: z.string() })) }),
+  agent_roster: z.looseObject({ rows: z.array(z.looseObject({ agents: objectList.nullish() })) }),
+  hook_additional_context: z.looseObject({ content: list }),
+  hook_blocking_error: z.looseObject({ blockingError: z.looseObject({}) }),
+  deferred_tools_delta: z.looseObject({ addedLines: list, removedNames: list }),
+  agent_listing_delta: z.looseObject({ addedLines: list, removedTypes: list }),
+  mcp_instructions_delta: z.looseObject({ addedBlocks: list, removedNames: list }),
+  harness_map_delta: z.looseObject({ added: list, removed: list }),
+}
+
+const NOTICE_BODY_SHAPES: Record<string, z.ZodType> = {
+  stop_hook_summary: z.looseObject({ hookInfos: list, hookErrors: list }),
+  memory_saved: z.looseObject({ writtenPaths: z.array(z.string()) }),
+  permission_retry: z.looseObject({ commands: list }),
+}
+
+export const BODY_SHAPE_KINDS = {
+  attachment: Object.keys(ATTACHMENT_BODY_SHAPES),
+  notice: Object.keys(NOTICE_BODY_SHAPES),
+} as const
+
 export type ValidationIssue = {
   path: string
   message: string
+}
+
+export function bodyShapeIssue(record: MercuryRecord): ValidationIssue | null {
+  const p = record.payload
+  const owner =
+    p.kind === 'attachment'
+      ? { shape: ATTACHMENT_BODY_SHAPES[p.attachmentType], name: `attachment ${p.attachmentType}` }
+      : p.kind === 'notice'
+        ? { shape: NOTICE_BODY_SHAPES[p.noticeKind], name: `notice ${p.noticeKind}` }
+        : null
+  if (owner === null || owner.shape === undefined) return null
+  const parsed = owner.shape.safeParse(p.fields)
+  if (parsed.success) return null
+  const first = parsed.error.issues[0]
+  const at = first === undefined || first.path.length === 0 ? '' : `.${first.path.map(String).join('.')}`
+  return { path: `${owner.name}${at}`, message: first?.message ?? 'body failed its shape' }
 }
 
 export type ValidationResult =
