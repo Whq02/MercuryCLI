@@ -9,7 +9,6 @@ import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'
 import { mercuryBlenderEnabled } from '../../services/ide/blenderProject.js'
 import { mercuryAsepriteEnabled } from '../../services/aseprite/asepriteApp.js'
 import { isLspToolCatalogEnabled } from '../../services/lsp/mercuryLsp.js'
-import { themisActive, themisLevel } from '../../substrate/themis/level.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { dynamicWorkflowsEnabled } from '../../tools/WorkflowTool/workflowEnablement.js'
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
@@ -138,9 +137,6 @@ export function computeHarnessMapLines(): string[] {
       : null,
     mnemeEnabled()
       ? '- Topic memory (MNEME) is ARMED: the mneme_* tools maintain long-term topic documents beside auto-memory — prefer them for durable facts/decisions. Record with mneme_observe (findable IMMEDIATELY via mneme_grep, even before consolidation); when a fact CHANGES, use mneme_correct (supersede by seq — never record a contradicting duplicate); mneme_retire marks a fact no longer current.'
-      : null,
-    themisActive()
-      ? `- THEMIS control plane is ACTIVE (${themisLevel()}): deterministic policy checks run against tool calls; a THEMIS denial is policy, not tool failure.`
       : null,
     crewEnabled() ? '- Crews: /teammates manages named crew workers.' : null,
   ]

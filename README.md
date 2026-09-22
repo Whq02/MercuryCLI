@@ -424,7 +424,6 @@ Available commands include:
   service includes a compilation gate, captures, frame statistics, settled
   profiles, job queue access, cancellation and results by ID. See
   [docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md).
-- **`mercury themis`**: run THEMIS integrity tools.
 - **`mercury show <image>`**: display an image in the terminal.
 - **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
   update release archives. See [Install](#install).
@@ -451,10 +450,9 @@ Available commands include:
 - **Diagnostics.** The doctor and `/health` produce a report backed by
   diagnostic evidence, with a `certified`, `caution` or `fault` verdict and
   verified fixes. See [docs/HEALTH-CERTIFICATE.md](docs/HEALTH-CERTIFICATE.md).
-- **Trust, permissions and THEMIS.** Workspace trust, permission rules and
-  modes, and the deterministic trust control plane. See
-  [docs/TRUST.md](docs/TRUST.md) and
-  [docs/THEMIS-CONTROL-PLANE.md](docs/THEMIS-CONTROL-PLANE.md).
+- **Trust and permissions.** Workspace trust, permission rules and modes,
+  and the commands every session refuses. See
+  [docs/TRUST.md](docs/TRUST.md).
 - **Apollo Mode.** An initial interview fills in the missing specification,
   then uses it to build a prototype. See
   [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
@@ -500,7 +498,7 @@ table below follows the grouping used by `/help`.
 
 | Domain | Commands |
 | --- | --- |
-| current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
+| current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/note` `/console` `/orient` |

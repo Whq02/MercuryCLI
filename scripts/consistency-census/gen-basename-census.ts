@@ -124,13 +124,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the env-less compile-cache fallback mirrors the three-rung home ladder (projectdirs prover pins it)',
   },
   {
-    test: (f, n) =>
-      (f === 'src/substrate/themis/integrity.ts' || f === 'src/substrate/themis/boot.ts') &&
-      n === 'MERCURY.md',
-    cls: 'owner-internal',
-    why: "the enroll list NAMES Mercury's own committed doc — integrity/drift subject, not a home join",
-  },
-  {
     test: (f, n) => f === 'src/utils/cockpit/repoSurfaceMap.ts' && (n === 'MERCURY.md' || n === 'AGENTS.md'),
     cls: 'owner-internal',
     why: 'the orientation-doc presence probe NAMES the native and neutral guides beside the compat one — existence only, never a content load',
@@ -165,8 +158,7 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
       needle === 'CLAUDE.md' &&
       (f.startsWith('src/services/projectIntel/') ||
         f === 'src/components/memory/MemoryFileSelector.tsx' ||
-        f === 'src/utils/cockpit/repoSurfaceMap.ts' ||
-        f.startsWith('src/substrate/themis/')),
+        f === 'src/utils/cockpit/repoSurfaceMap.ts'),
     cls: 'compat-boundary',
     why: 'CLAUDE.md probed/listed as the compat instruction INPUT at documented discovery/paridade surfaces',
   },

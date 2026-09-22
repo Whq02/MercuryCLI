@@ -44,8 +44,6 @@ import {
   makeWorkflowLedgerHost,
 } from '../../utils/evolution/evolutionLedger.js'
 import { getWorkflowTranscriptDir } from '../../utils/sessionStorage.js'
-import { themisLevel } from '../../substrate/themis/level.js'
-import { makeThemisWorkflowHost } from '../../substrate/themis/workflowHost.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { makeWorkflowCanUseTool } from './workflowPermissionChannel.js'
 import {
@@ -929,7 +927,6 @@ const WorkflowToolDef = {
                   `workflow-run:${runId} · traces: ${runDir}`,
                 )
               : undefined,
-            themis: themisLevel() !== 'off' ? makeThemisWorkflowHost(runId) : undefined,
           },
         )
         batcher.drain()

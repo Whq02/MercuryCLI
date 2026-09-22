@@ -59,7 +59,7 @@ section('§1 the rows — live-class toggles over registered flags, through the 
     const spec = getFlagSpec(env)
     check(`${env} is registered default-on · behavioral · evidenced by this prover · consumed by the owner`, spec?.kind === 'default-on' && spec.tier === 'behavioral' && spec.evidence === 'scripts/switchboard/prove-spawn-switch.ts' && spec.consumer === 'src/services/switchboard/spawnSwitches.ts', j(spec))
   }
-  check('the owner maps each row to its switch and back', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.SPAWN_SWITCH_ENV.workflows === WF && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === 'workflows' && sw.spawnSwitchKindOfEnv('MERCURY_THEMIS') === null)
+  check('the owner maps each row to its switch and back', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.SPAWN_SWITCH_ENV.workflows === WF && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === 'workflows' && sw.spawnSwitchKindOfEnv('MERCURY_CAP_FAILOVER') === null)
   check('the splash carries both rows baked (the menu asset never trails the registry)', src('assets/splash/splash-core.mjs').includes(`"env":"${SUB}"`) && src('assets/splash/splash-core.mjs').includes(`"env":"${WF}"`))
 
   const path = join(HOME, 'boot-env.json')
@@ -77,7 +77,7 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   const snap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'snap', path, env })
   const subRow = snap.rows.find(r => r.env === SUB)
   check("the admission snapshot's sub-agents row: value '0', source profile, class live", subRow?.value === '0' && subRow.source === 'profile' && subRow.applicationClass === 'live', j(subRow))
-  check('a new-session row keeps its class in the snapshot', snap.rows.some(r => r.env === 'MERCURY_THEMIS' && r.applicationClass === 'new-session'))
+  check('a new-session row keeps its class in the snapshot', snap.rows.some(r => r.env === 'MERCURY_CAP_FAILOVER' && r.applicationClass === 'new-session'))
   const record = { settingsSnapshot: snap }
   check("the record's view reads the snapshot row: off, boot menu", j(sw.spawnSwitchOfRecord(record, 'subagents')) === j({ on: false, source: 'boot-menu' }))
 

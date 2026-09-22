@@ -78,7 +78,7 @@ check("doc carries both tier values as the union 'orchestrator' | 'executor'", /
 check('doc names the opt-in gate (registered spelling) + inertness + explicit-model-wins', /routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1/.test(doc) && /names opts\.model outranks its tier/.test(doc))
 check('doctrine section: operator model rule overrides the omit-guidance and bans small-tier agentType pins', /## Mercury workflow authorship doctrine/.test(doc) && /overrides the "leave opts\.model out" default/.test(doc) && /never pick an agentType whose definition pins a small-tier model/.test(doc))
 check('doctrine section: verify-stage contract for non-trivial implementation', /A verify stage belongs to the workflow's shape itself/.test(doc) && /an assertion, not evidence/.test(doc))
-check('doctrine appended unconditionally in getWorkflowToolPrompt (before the gated addenda)', /text \+= AUTHORING_DOCTRINE_SECTION/.test(doc) && doc.indexOf('text += AUTHORING_DOCTRINE_SECTION') !== -1 && doc.indexOf('text += AUTHORING_DOCTRINE_SECTION') < doc.indexOf('if (themisActive())'))
+check('doctrine appended unconditionally in getWorkflowToolPrompt (before the gated addenda)', /text \+= AUTHORING_DOCTRINE_SECTION/.test(doc) && doc.indexOf('text += AUTHORING_DOCTRINE_SECTION') !== -1 && doc.indexOf('text += AUTHORING_DOCTRINE_SECTION') < doc.indexOf('if (evolutionLedgerEnabled())'))
 check('doc teaches executor-tier routing by mechanism, no literal model id', /rides the harness's pinned execution-tier model/.test(doc) && !/claude-[a-z0-9-]+/.test(doc))
 
 section('agentHooks wiring — validate + route BEFORE the resume cache key')

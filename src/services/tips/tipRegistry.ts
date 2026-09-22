@@ -270,16 +270,6 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
-    id: 'themis-mission',
-    cooldownSessions: 20,
-    async content() {
-      return '/themis start opens a bounded mission — named criteria, drift warnings, done only on evidence.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
     id: 'mouse-toggle',
     cooldownSessions: 30,
     async content() {

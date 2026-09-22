@@ -9,7 +9,7 @@
     ".mercury.json"
   ],
   "counts": {
-    "owner-internal": 9,
+    "owner-internal": 7,
     "compat-boundary": 26,
     "baked-mirror": 3
   },
@@ -125,20 +125,6 @@
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
       "cls": "compat-boundary",
       "why": "native-first/compat-second pairing at the markdown/skills/rules discovery surfaces (MERCURY.md law: .mercury native · .claude compat input)"
-    },
-    {
-      "file": "src/substrate/themis/boot.ts",
-      "needle": "MERCURY.md",
-      "excerpt": "'MERCURY.md',",
-      "cls": "owner-internal",
-      "why": "the enroll list NAMES Mercury's own committed doc — integrity/drift subject, not a home join"
-    },
-    {
-      "file": "src/substrate/themis/integrity.ts",
-      "needle": "MERCURY.md",
-      "excerpt": "'MERCURY.md',",
-      "cls": "owner-internal",
-      "why": "the enroll list NAMES Mercury's own committed doc — integrity/drift subject, not a home join"
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",

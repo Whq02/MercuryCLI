@@ -76,7 +76,7 @@ export interface BootMenuSummaryRow {
 export interface BootMenuData {
   entries: BootMenuEntry[]
   selIdx: number
-  summary?: { profile: string; harness: string; integrity: string; integritySet: boolean }
+  summary?: { profile: string; harness: string }
   environment: { model: string; critter: string; critterHue: string | null; dirBase: string; dirTail: string }
   statusRight: string
   legend: string
