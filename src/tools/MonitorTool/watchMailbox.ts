@@ -35,6 +35,11 @@ export function linesOf(text: string): string[] {
   return text.split(/\r?\n/).filter(line => line !== '')
 }
 
+export function wallRecheckDelayMs(wall: WatchWall, nowMs: number): number {
+  const untilReopen = wall.reopensAtMs === undefined ? WALL_RECHECK_MS : wall.reopensAtMs + REOPEN_GRACE_MS - nowMs
+  return Math.max(REOPEN_GRACE_MS, Math.min(WALL_RECHECK_MS, untilReopen))
+}
+
 export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
   let burst: string[] = []
   let held: string[] = []
@@ -65,8 +70,7 @@ export function createWatchMailbox(deps: WatchMailboxDeps): WatchMailbox {
 
   const armRecheck = (wall: WatchWall): void => {
     if (recheckTimer !== null || disposed) return
-    const untilReopen = wall.reopensAtMs === undefined ? WALL_RECHECK_MS : wall.reopensAtMs + REOPEN_GRACE_MS - deps.now()
-    const wait = Math.max(REOPEN_GRACE_MS, Math.min(WALL_RECHECK_MS, untilReopen))
+    const wait = wallRecheckDelayMs(wall, deps.now())
     recheckTimer = deps.setTimer(() => {
       recheckTimer = null
       const now = deps.wall()

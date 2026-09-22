@@ -468,6 +468,13 @@ export function anthropicWindowFact(): AnthropicWindowFact | undefined {
   }
 }
 
+export function anthropicWindowClosedUntil(fact: { status: string; observedAtMs: number; resetsAtMs?: number } | undefined, nowMs: number): number | undefined {
+  if (fact === undefined || fact.status !== 'rejected') return undefined
+  const stated = fact.resetsAtMs !== undefined && Number.isFinite(fact.resetsAtMs) && fact.resetsAtMs > 0 ? fact.resetsAtMs : undefined
+  const until = stated ?? fact.observedAtMs + SEED_DEFAULT_TTL_SECONDS * 1000
+  return until > nowMs ? until : undefined
+}
+
 export function adoptAnthropicWindowFact(fact: unknown): boolean {
   if (typeof fact !== 'object' || fact === null || Array.isArray(fact)) return false
   const f = fact as Partial<AnthropicWindowFact>

@@ -99,6 +99,8 @@ import type {
   StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
 import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
+import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
+import { wallRecheckDelayMs } from '../tools/MonitorTool/watchMailbox.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -120,6 +122,7 @@ import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
+  armLocalWake,
   registerLocalWakeSink,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
@@ -629,6 +632,16 @@ export async function runHeadless(
       const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
       if (settledLaunches.length > 0) {
         logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { reconcileWatchesOnResume } = await import('../tools/MonitorTool/watchReceipts.js')
+      const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const deadWatches = reconcileWatchesOnResume(messages, new Set(Object.keys(getAppState().tasks ?? {})), coerceRestartReason(runnerRestartReason))
+      if (deadWatches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) without a live process — dead-watch notices written`)
       }
     } catch (error) {
       logError(error)
@@ -1594,6 +1607,7 @@ export async function runHeadless(
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
     queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
     settleWindowMs: POLL_INTERVAL_MS,
+    wall: () => sessionLaneWall(),
   })
 
   subscribeToCommandQueue(() => {
@@ -1621,6 +1635,7 @@ export async function runHeadless(
       if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
       if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
       if (inputClosed) return { state: 'gone', why: "the session's input closed" }
+      if (sessionLaneWall().closed) return { state: 'busy' }
       return !sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
     },
     wake: (agentId, notices) => {
@@ -1667,6 +1682,11 @@ export async function runHeadless(
   if (streamingInput) {
     registerLocalWakeSink((prompt: string) => {
       if (inputClosed) return
+      const wall = sessionLaneWall()
+      if (wall.closed) {
+        armLocalWake(Math.ceil(wallRecheckDelayMs(wall, Date.now()) / 1000), prompt)
+        return
+      }
       enqueue({
         value: prompt,
         mode: 'prompt',

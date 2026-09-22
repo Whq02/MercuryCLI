@@ -118,7 +118,7 @@ export const ScheduleWakeupTool = buildTool({
         op: 'add',
         schedule: {
           when: { kind: 'at', atMs: nextWakeInstantMs(clamped, nowMs), spelling: `in ~${clamped}s` },
-          action: { kind: 'fire', prompt: fired },
+          action: { kind: 'fire', prompt: fired, onParked: 'queue' },
           ...(safeReason !== undefined ? { note: safeReason } : {}),
         },
       })
