@@ -105,6 +105,7 @@ export type UsageFactsV1 = {
     secondary?: OpenaiObservedBandV1
   }
   anthropicWindow?: AnthropicWindowFactV1
+  openaiWindow?: OpenaiWindowFactV1
 }
 
 export type OpenaiObservedBandV1 = {
@@ -120,6 +121,12 @@ export type AnthropicWindowFactV1 = {
   owner: string
   resetsAtMs?: number
   claim?: string
+}
+
+export type OpenaiWindowFactV1 = {
+  source: 'chatgpt-subscription' | 'api-key'
+  resetsAtMs: number
+  observedAtMs: number
 }
 
 export type SeatIdentityV1 = {

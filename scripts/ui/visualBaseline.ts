@@ -53,6 +53,8 @@ export const LIVE_DIR = join(import.meta.dir, '..', '..', 'design-system', 'live
 export const GRIDS_DIR = join(LIVE_DIR, 'grids')
 export const MANIFEST_PATH = join(LIVE_DIR, 'manifest.json')
 
+export const IDLE_MEASURE_MASK = '│ {2,3}(?:idle|—) +(?=│)'
+
 export const DEFAULT_MASKS = [
   '\\b\\d{2}:\\d{2}:\\d{2}\\b',
   '\\b\\d+[smhd] ago\\b',
@@ -71,6 +73,7 @@ export const DEFAULT_MASKS = [
   'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
   'row:gate [✓◓✕·]',
+  IDLE_MEASURE_MASK,
 ]
 
 export function maskRow(row: string, masks: string[]): string {
@@ -245,4 +248,59 @@ export function readManifest(): VisualManifest | null {
 
 export function readStoredGrid(entry: VisualBaselineEntry): StoredGrid {
   return JSON.parse(readFileSync(join(LIVE_DIR, entry.gridPath), 'utf8')) as StoredGrid
+}
+
+export type CaptureAttemptResult = { status: number | null; stderr: string; stdout: string; grid?: RawGrid }
+
+export type CaptureRefusalKind = 'never-ready' | 'refused'
+
+export function captureRefusalKind(status: number | null, stderr: string): CaptureRefusalKind {
+  return status === 3 || /NEVER-READY/.test(stderr) ? 'never-ready' : 'refused'
+}
+
+export function retryBudgetScale(kind: CaptureRefusalKind, scale: number): number {
+  return kind === 'never-ready' ? scale * 2 : scale
+}
+
+function firstLineOf(text: string): string {
+  return text.trim().split('\n')[0] ?? text
+}
+
+export function captureRetryLine(id: string, attempt: number, reason: string, nextScale: number): string {
+  return `↻ ${id} — attempt ${attempt} refused (${firstLineOf(reason)}); retrying once at budget scale ${nextScale}`
+}
+
+export function runCaptureAttempts(
+  id: string,
+  run: (attempt: number, budgetScale: number) => CaptureAttemptResult,
+  judge: (grid: RawGrid) => { ok: boolean; reason: string },
+  opts: { baseScale: number; attempts?: number; log?: (line: string) => void },
+): { grid: RawGrid; stdout: string; attempts: number } {
+  const attempts = opts.attempts ?? 2
+  const reasons: string[] = []
+  let scale = opts.baseScale
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const res = run(attempt, scale)
+    let reason: string
+    let kind: CaptureRefusalKind
+    if (res.status !== 0 || res.grid === undefined) {
+      reason = res.stderr.trim() !== '' ? res.stderr : `vshot failed (status ${res.status ?? 'timeout'})`
+      kind = captureRefusalKind(res.status, res.stderr)
+    } else {
+      const verdict = judge(res.grid)
+      if (verdict.ok) return { grid: res.grid, stdout: res.stdout, attempts: attempt }
+      reason = verdict.reason
+      kind = 'refused'
+    }
+    reasons.push(`attempt ${attempt}: ${firstLineOf(reason)}`)
+    if (attempt < attempts) {
+      scale = retryBudgetScale(kind, scale)
+      opts.log?.(captureRetryLine(id, attempt, reason, scale))
+    }
+  }
+  throw new Error(`[${id}] capture rejected after ${attempts} attempts — ${reasons.join(' · then ')}`)
+}
+
+export function storedGridStands(stored: StoredGrid | null, fresh: StoredGrid, masks: string[]): boolean {
+  return stored !== null && firstDivergence(stored, fresh, masks) === null
 }
