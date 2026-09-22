@@ -684,7 +684,8 @@ usage window are held by the watch and delivered together, as one notice,
 on the first turn after the window reopens; ticks that arrive within a
 fifth of a second of each other fold into one notice. A monitor armed
 without `persistent` ends at its deadline with one notice that says how to
-arm it again.
+arm it again. A headless run whose input closes ends every monitor with the
+seat, persistent or not: a watch never outlives the session that armed it.
 
 An agent idle with unread notices past the deadline is nudged. The session's
 own main thread is woken through its queue with a line, in Mercury's words,
