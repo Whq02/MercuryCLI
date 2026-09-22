@@ -50,6 +50,7 @@ section('(b) opt-in (MERCURY_ANTISYC_ALWAYS_ON=1) ⇒ the mechanistic clause')
   check('it is the mechanistic convert-to-verify lever (not a bare "be honest")', /convert it into a verifying check/i.test(clause) && /earned by evidence, not offered as a reflex/i.test(clause))
   check('it is positioned as ADDITIVE — sharpens, never softens, disagreement', /sharpens — never softens/i.test(clause) && /honest disagreement/i.test(clause))
   check('it carries an <honesty-discipline> tag (a distinct, greppable section)', clause.includes('<honesty-discipline>'))
+  check('the lever runs under the evidence condition: recorded evidence that still applies is the check; recheck on change, gap or contradiction; memory is not verification', /recorded evidence that still applies to the current state is that check/.test(clause) && /relevant state changed, evidence is missing or stale, or new evidence contradicts it/.test(clause) && /Memory alone is not verification/.test(clause))
 }
 
 section('(c) live env re-read — toggling off mid-session truly disengages')
