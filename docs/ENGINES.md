@@ -527,7 +527,9 @@ another, so the refusal for a reached window names the account it belongs to,
 when it was seen, and the reset it knows. That verdict lapses at the reset the
 reply named — or after a bounded span when the reply named none — so a
 delegated agent is not refused after the window has reset, and the next reply
-that says allowed clears it at once. An expired sign-in is reported as an
+that says allowed clears it at once. A reply speaks for the moment its request
+began, so a reply that started before the refusal cannot clear it, however late
+it ends; only a reply that began after the refusal does. An expired sign-in is reported as an
 expired sign-in, never as a used-up window: the delegation refusal, the chat's
 notice and the doctor speak the one sign-in line (sign in again with
 `/logins anthropic`), and an authentication failure never sets the limit

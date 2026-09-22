@@ -1405,7 +1405,7 @@ async function* queryModel(
       // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
       const resp = streamResponse as unknown as Response | undefined
       if (resp) {
-        extractQuotaStatusFromHeaders(resp.headers)
+        extractQuotaStatusFromHeaders(resp.headers, start)
       }
     } catch (streamingError) {
       clearStreamIdleTimers()
