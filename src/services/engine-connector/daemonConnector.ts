@@ -58,6 +58,7 @@ import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
+import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
@@ -411,6 +412,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private displayRows: Array<{ row: Message; anchor: number }> = []
   private echoRows = new Map<string, Message>()
   private sends: SeatSend[] = []
+  private arrivalSeq = 0
+  private sendSeq = new Map<string, number>()
+  private tailSeq: number | null = null
+  private tailSinceMs = 0
+  private rowsAfterTail = 0
   private textRetiredRowUuids = new Set<string>()
   private retainedSend: { text: string; id: string } | null = null
   private interrupting = false
@@ -533,6 +539,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailStore.dropSettled()
     this.tailStore.setMessageId(null)
     this.tailStore.setPhase(null)
+    this.tailSeq = null
     this.tailAtMs = -1
     this.liveTurnChars = 0
     this.liveTurnOutputTokens = null
@@ -595,7 +602,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
     if (tail.atMs === this.tailAtMs && tail.text === this.tailStore.read()) return
     this.tailAtMs = tail.atMs
-    const text = tail.text
+    const id = typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null
+    const landed = id !== null && tail.text !== null && computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown
+    const text = landed ? null : tail.text
+    if (text !== null && this.tailStore.read() === null) {
+      this.arrivalSeq += 2
+      this.tailSeq = this.arrivalSeq
+      this.tailSinceMs = typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : tail.atMs
+    }
     this.tailStore.setMessageId(typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null)
     this.tailStore.setPhase(tail.phase === 'commentary' || tail.phase === 'final_answer' ? tail.phase : null)
     this.tailStore.update(() => text)
@@ -870,6 +884,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.rawRecords = merge.records
       if (chain.rewound) this.releaseDisplayRowsPast(chain.since)
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
+      this.releaseTail()
       this.reconcileSends()
       this.paint()
       this.recomputeLive()
@@ -968,7 +983,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (this.sends.some(s => s.clientMessageId === key)) continue
       const atMs = Date.now()
       const heldSinceMs = typeof facts.atMs === 'number' && facts.atMs < atMs ? facts.atMs : atMs
+      if (this.noticeStands(entry.value, heldSinceMs)) continue
       this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: heldSinceMs, state: 'queued', mode: 'prompt' }]
+      this.stampArrival(key, heldSinceMs)
       this.echoRows.set(key, createNoticeRow(entry.value, atMs))
       connectorTrace({ ev: 'notice', sid: this.record.sessionId, state: 'queued' })
       born = true
@@ -1108,12 +1125,34 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return true
   }
 
+  private stampArrival(clientMessageId: string, seenAtMs?: number): void {
+    const before = this.tailSeq !== null && seenAtMs !== undefined && seenAtMs < this.tailSinceMs
+    this.arrivalSeq += 2
+    this.sendSeq.set(clientMessageId, before ? (this.tailSeq as number) - 1 : this.arrivalSeq)
+  }
+
+  private noticeStands(value: string, notBeforeMs: number): boolean {
+    for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
+      if (noticeRowLanded(this.rawRecords[i]!, value, notBeforeMs)) return true
+    }
+    return false
+  }
+
   private paint(): void {
     const echoes: Message[] = []
+    const afterTail: Message[] = []
+    const live = new Set<string>()
     for (const s of this.sends) {
+      live.add(s.clientMessageId)
       const row = this.echoRows.get(s.clientMessageId)
-      if (row !== undefined) echoes.push(row)
+      if (row === undefined) continue
+      const seq = this.sendSeq.get(s.clientMessageId) ?? 0
+      if (this.tailSeq !== null && seq > this.tailSeq) afterTail.push(row)
+      else echoes.push(row)
     }
+    for (const key of this.sendSeq.keys()) if (!live.has(key)) this.sendSeq.delete(key)
+    echoes.push(...afterTail)
+    this.rowsAfterTail = afterTail.length
     const kept = projectOperatorRewinds(this.rawRecords)
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
     if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null) {
@@ -1463,6 +1502,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     submitTrace('connector-deliver', expanded, { mode, clientMessageId })
     const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, source: { text, mode, pastedContents: pastes } }
     this.sends = [...this.sends.filter(s => s.clientMessageId !== clientMessageId), send]
+    this.stampArrival(clientMessageId)
     this.paint()
     emitAll(this.liveListeners, 'live')
     const settle = (state: 'delivered' | 'held' | 'refused' | 'failed', detail?: string): SendReceiptV1 => {
@@ -2034,6 +2074,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   tail(): StreamingTailStore {
     return this.tailStore
+  }
+
+  tailAnchor(): number {
+    return this.painted.length - this.rowsAfterTail
+  }
+
+  private releaseTail(): void {
+    const ids = this.tailStore.readIds()
+    if (ids.current === null && ids.settled === null) return
+    const release = computeTailRelease(this.rawRecords, ids)
+    if (!release.publishedShown && !release.settledShown) return
+    if (release.publishedShown) this.tailStore.reset(null)
+    this.tailStore.dropSettled()
+    this.tailSeq = null
   }
 
   status(): SeatStatusV1 {

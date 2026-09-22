@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import { Box, Text } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
@@ -40,7 +39,6 @@ import {
   findLastCompactBoundaryIndex,
   shouldShowUserMessage,
 } from '../utils/messages.js'
-import { computeTailRelease } from '../utils/messages/tailRetirement.js'
 import type {
   StreamingThinking,
   StreamingToolUse,
@@ -110,6 +108,10 @@ const RENDER_CAP = 200
 const RENDER_CAP_STEP = 50
 const TRANSCRIPT_TRUNCATE = 30
 const LIVE_REASONING_LINGER_MS = 30_000
+const EMPTY_ROWS: readonly WireMessage[] = []
+const EMPTY_NORMALIZED: NormalizedMessage[] = []
+const EMPTY_SYNTHETIC: Array<{ streaming: StreamingToolUse; uuid: ReturnType<typeof deriveUUID> }> = []
+const EMPTY_COMPOSITION: TranscriptComposition = { collapsed: [], lookups: buildMessageLookups([], []), truncated: false, hiddenCount: 0 }
 
 export type SliceAnchor = { uuid: string; idx: number } | null
 
@@ -186,6 +188,7 @@ type MessagesProps = {
   hidePastReasoning?: boolean
   streamingTail?: StreamingTailStore | null
   streamingTextSuppressed?: boolean
+  tailAnchor?: number
   isBriefOnly?: boolean
   unseenDivider?: UnseenDivider
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
@@ -198,6 +201,152 @@ type MessagesProps = {
   ownsCursor?: boolean
   cursorNavRef?: React.MutableRefObject<MessageActionsNav | null>
   renderRange?: readonly [number, number]
+}
+
+type TranscriptComposition = {
+  collapsed: RenderableMessage[]
+  lookups: ReturnType<typeof buildMessageLookups>
+  truncated: boolean
+  hiddenCount: number
+}
+
+function composeTranscript(input: {
+  normalized: NormalizedMessage[]
+  syntheticStreamingRows: Array<{ streaming: StreamingToolUse; uuid: ReturnType<typeof deriveUUID> }>
+  verbose: boolean
+  fullscreen: boolean
+  isTranscriptMode: boolean
+  truncateTranscript: boolean
+  tools: Tools
+  isBriefOnly: boolean
+  inProgressToolUseIDs: Set<string>
+}): TranscriptComposition {
+  const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, isBriefOnly, inProgressToolUseIDs } = input
+  let working: NormalizedMessage[] = normalized
+  if (!verbose && !fullscreen) {
+    const boundary = findLastCompactBoundaryIndex(working)
+    if (boundary > 0) {
+      working = working.filter(
+        (message, index) =>
+          index >= boundary ||
+          (message as { isSnipped?: boolean }).isSnipped === true,
+      )
+    }
+  }
+
+  working = working.filter(message => {
+    if (message.type === 'progress') return false
+    if (message.type === 'attachment' && isNullRenderingAttachment(message)) {
+      return false
+    }
+    if (message.type === 'system' && isNullRenderingSystemRow(message)) {
+      return false
+    }
+    if (
+      message.type === 'user' &&
+      !shouldShowUserMessage(message, isTranscriptMode)
+    ) {
+      return false
+    }
+    return true
+  })
+
+  const synthetic: NormalizedMessage[] = syntheticStreamingRows.map(
+    ({ streaming, uuid }) => ({
+      type: 'assistant',
+      uuid,
+      timestamp: new Date().toISOString(),
+      requestId: undefined,
+      isVirtual: true,
+      message: {
+        id: uuid,
+        container: null,
+        role: 'assistant',
+        type: 'message',
+        model: '<streaming>',
+        content: [streaming.contentBlock],
+        stop_reason: null,
+        stop_sequence: null,
+        context_management: null,
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation: null,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+          inference_geo: null,
+          iterations: null,
+          output_tokens_details: null,
+          server_tool_use: null,
+          service_tier: null,
+          speed: null,
+        },
+      },
+    }),
+  )
+  working = reorderMessagesInUI(
+    working as Parameters<typeof reorderMessagesInUI>[0],
+    synthetic as Parameters<typeof reorderMessagesInUI>[1],
+  ) as typeof working
+
+  const preBriefLength = working.length
+  const briefToolNames = [BRIEF_TOOL_NAME, LEGACY_BRIEF_TOOL_NAME, SEND_USER_FILE_TOOL_NAME].filter(
+    name => findToolByName(tools, name) !== undefined,
+  )
+  if (briefToolNames.length > 0) {
+    if (isTranscriptMode) {
+    } else if (isBriefOnly) {
+      working = filterForBriefTool(
+        working as Parameters<typeof filterForBriefTool>[0],
+        briefToolNames,
+      ) as typeof working
+    } else {
+      working = dropTextInBriefTurns(
+        working as Parameters<typeof dropTextInBriefTurns>[0],
+        briefToolNames,
+      ) as typeof working
+    }
+  }
+
+  let truncated = false
+  let hiddenCount = 0
+  if (truncateTranscript) {
+    truncated = working.length > TRANSCRIPT_TRUNCATE
+    hiddenCount = preBriefLength - TRANSCRIPT_TRUNCATE
+    if (truncated) {
+      working = working.slice(-TRANSCRIPT_TRUNCATE)
+    }
+  }
+  const postTruncation = working
+
+  let collapsed: RenderableMessage[] = applyGrouping(
+    postTruncation as Parameters<typeof applyGrouping>[0],
+    tools,
+    verbose,
+  ).messages as RenderableMessage[]
+  collapsed = injectTurnReceipts(collapsed, getMercuryTempDir())
+  collapsed = collapseReadSearchGroups(
+    collapsed as Parameters<typeof collapseReadSearchGroups>[0],
+    tools,
+    inProgressToolUseIDs,
+  ) as RenderableMessage[]
+  collapsed = collapseTeammateShutdowns(
+    collapsed as Parameters<typeof collapseTeammateShutdowns>[0],
+  ) as RenderableMessage[]
+  collapsed = collapseHookSummaries(
+    collapsed as Parameters<typeof collapseHookSummaries>[0],
+  ) as RenderableMessage[]
+  collapsed = collapseBackgroundBashNotifications(
+    collapsed as Parameters<typeof collapseBackgroundBashNotifications>[0],
+    verbose,
+  ) as RenderableMessage[]
+
+  const lookups = buildMessageLookups(
+    normalized,
+    postTruncation as Parameters<typeof buildMessageLookups>[1],
+  )
+
+  return { collapsed, lookups, truncated, hiddenCount }
 }
 
 function MessagesInner({
@@ -220,6 +369,7 @@ function MessagesInner({
   hidePastReasoning = false,
   streamingTail = null,
   streamingTextSuppressed = false,
+  tailAnchor,
   isBriefOnly = false,
   unseenDivider,
   scrollRef,
@@ -248,9 +398,20 @@ function MessagesInner({
   )
   const virtualised = Boolean(scrollRef) && virtualEffective && isFullscreenActive()
 
+  const anchor = tailAnchor === undefined ? messages.length : Math.min(Math.max(0, tailAnchor), messages.length)
+  const [beforeTail, afterTail] = useMemo(
+    (): [readonly WireMessage[], readonly WireMessage[]] =>
+      anchor >= messages.length ? [messages, EMPTY_ROWS] : [messages.slice(0, anchor), messages.slice(anchor)],
+    [messages, anchor],
+  )
+
   const normalized = useMemo(
-    () => normalizeMessages(messages).filter(isNotEmptyMessage),
-    [messages],
+    () => normalizeMessages(beforeTail as WireMessage[]).filter(isNotEmptyMessage),
+    [beforeTail],
+  )
+  const normalizedAfter = useMemo(
+    () => (afterTail.length === 0 ? EMPTY_NORMALIZED : normalizeMessages(afterTail as WireMessage[]).filter(isNotEmptyMessage)),
+    [afterTail],
   )
 
   const syntheticStreamingRows = useMemo(() => {
@@ -277,152 +438,25 @@ function MessagesInner({
   const truncateTranscript =
     isTranscriptMode && !showAllInTranscript && !virtualised
 
-  const derived = useMemo(() => {
-    let working: NormalizedMessage[] = normalized
-    if (!verbose && !fullscreen) {
-      const boundary = findLastCompactBoundaryIndex(working)
-      if (boundary > 0) {
-        working = working.filter(
-          (message, index) =>
-            index >= boundary ||
-            (message as { isSnipped?: boolean }).isSnipped === true,
-        )
-      }
-    }
-
-    working = working.filter(message => {
-      if (message.type === 'progress') return false
-      if (message.type === 'attachment' && isNullRenderingAttachment(message)) {
-        return false
-      }
-      if (message.type === 'system' && isNullRenderingSystemRow(message)) {
-        return false
-      }
-      if (
-        message.type === 'user' &&
-        !shouldShowUserMessage(message, isTranscriptMode)
-      ) {
-        return false
-      }
-      return true
-    })
-
-    const synthetic: NormalizedMessage[] = syntheticStreamingRows.map(
-      ({ streaming, uuid }) => ({
-        type: 'assistant',
-        uuid,
-        timestamp: new Date().toISOString(),
-        requestId: undefined,
-        isVirtual: true,
-        message: {
-          id: uuid,
-          container: null,
-          role: 'assistant',
-          type: 'message',
-          model: '<streaming>',
-          content: [streaming.contentBlock],
-          stop_reason: null,
-          stop_sequence: null,
-          context_management: null,
-          usage: {
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_creation: null,
-            cache_creation_input_tokens: 0,
-            cache_read_input_tokens: 0,
-            inference_geo: null,
-            iterations: null,
-            output_tokens_details: null,
-            server_tool_use: null,
-            service_tier: null,
-            speed: null,
-          },
-        },
-      }),
-    )
-    working = reorderMessagesInUI(
-      working as Parameters<typeof reorderMessagesInUI>[0],
-      synthetic as Parameters<typeof reorderMessagesInUI>[1],
-    ) as typeof working
-
-    const preBriefLength = working.length
-    const briefToolNames = [BRIEF_TOOL_NAME, LEGACY_BRIEF_TOOL_NAME, SEND_USER_FILE_TOOL_NAME].filter(
-      name => findToolByName(tools, name) !== undefined,
-    )
-    if (briefToolNames.length > 0) {
-      if (isTranscriptMode) {
-      } else if (isBriefOnly) {
-        working = filterForBriefTool(
-          working as Parameters<typeof filterForBriefTool>[0],
-          briefToolNames,
-        ) as typeof working
-      } else {
-        working = dropTextInBriefTurns(
-          working as Parameters<typeof dropTextInBriefTurns>[0],
-          briefToolNames,
-        ) as typeof working
-      }
-    }
-
-    let truncated = false
-    let hiddenCount = 0
-    if (truncateTranscript) {
-      truncated = working.length > TRANSCRIPT_TRUNCATE
-      hiddenCount = preBriefLength - TRANSCRIPT_TRUNCATE
-      if (truncated) {
-        working = working.slice(-TRANSCRIPT_TRUNCATE)
-      }
-    }
-    const postTruncation = working
-
-    let collapsed: RenderableMessage[] = applyGrouping(
-      postTruncation as Parameters<typeof applyGrouping>[0],
-      tools,
-      verbose,
-    ).messages as RenderableMessage[]
-    collapsed = injectTurnReceipts(collapsed, getMercuryTempDir())
-    collapsed = collapseReadSearchGroups(
-      collapsed as Parameters<typeof collapseReadSearchGroups>[0],
-      tools,
-      inProgressToolUseIDs,
-    ) as RenderableMessage[]
-    collapsed = collapseTeammateShutdowns(
-      collapsed as Parameters<typeof collapseTeammateShutdowns>[0],
-    ) as RenderableMessage[]
-    collapsed = collapseHookSummaries(
-      collapsed as Parameters<typeof collapseHookSummaries>[0],
-    ) as RenderableMessage[]
-    collapsed = collapseBackgroundBashNotifications(
-      collapsed as Parameters<typeof collapseBackgroundBashNotifications>[0],
-      verbose,
-    ) as RenderableMessage[]
-
-    const lookups = buildMessageLookups(
-      normalized,
-      postTruncation as Parameters<typeof buildMessageLookups>[1],
-    )
-
-    return { collapsed, lookups, truncated, hiddenCount }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed
-  }, [
-    verbose,
-    normalized,
-    isTranscriptMode,
-    syntheticStreamingRows,
-    truncateTranscript,
-    tools,
-    isBriefOnly,
-    fullscreen,
-    inProgressToolUseIDs,
-  ])
-
+  const derived = useMemo(
+    () => composeTranscript({ normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, isBriefOnly, inProgressToolUseIDs }),
+    [verbose, normalized, isTranscriptMode, syntheticStreamingRows, truncateTranscript, tools, isBriefOnly, fullscreen, inProgressToolUseIDs],
+  )
+  const derivedAfter = useMemo(
+    () =>
+      normalizedAfter.length === 0
+        ? EMPTY_COMPOSITION
+        : composeTranscript({ normalized: normalizedAfter, syntheticStreamingRows: EMPTY_SYNTHETIC, verbose, fullscreen, isTranscriptMode, truncateTranscript: false, tools, isBriefOnly, inProgressToolUseIDs }),
+    [verbose, normalizedAfter, isTranscriptMode, tools, isBriefOnly, fullscreen, inProgressToolUseIDs],
+  )
   const { collapsed, lookups, truncated, hiddenCount } = derived
+  const afterRows = derivedAfter.collapsed
 
   const engineForLedger = cockpitEngine()
   useEffect(() => {
     if (engineForLedger === null) return
     engineForLedger.ledger.feed(
-      collapsed.map(message => ({
+      [...collapsed, ...afterRows].map(message => ({
         uuid: message.uuid,
         kind: message.type,
         turnHead: isTurnBoundary(message as Parameters<typeof isTurnBoundary>[0]),
@@ -431,7 +465,7 @@ function MessagesInner({
         ),
       })),
     )
-  }, [engineForLedger, collapsed])
+  }, [engineForLedger, collapsed, afterRows])
 
   const anchorRef = useRef<SliceAnchor>(null)
   const { visible, liveReceipt } = useMemo(() => {
@@ -756,12 +790,12 @@ function MessagesInner({
     [conversationId],
   )
 
-  const renderRow = useCallback(
-    (msg_8: RenderableMessage, index: number): React.ReactNode => {
+  const renderRowIn = useCallback(
+    (rows: RenderableMessage[], msg_8: RenderableMessage, index: number): React.ReactNode => {
       const key = expansionKeyOf(msg_8)
       return (
         <NameplateContinuationContext.Provider
-          value={isAssistantContinuationRow(visible, index)}
+          value={isAssistantContinuationRow(rows, index)}
         >
           {
 }
@@ -769,14 +803,14 @@ function MessagesInner({
           <MessageRow
             message={msg_8}
             isUserContinuation={
-              msg_8.type === 'user' && visible[index - 1]?.type === 'user'
+              msg_8.type === 'user' && rows[index - 1]?.type === 'user'
             }
             hasContentAfter={
               msg_8.type === 'collapsed_read_search' &&
               (streamingTail !== null && !streamingTextSuppressed && isLoading
                 ? true
                 : hasContentAfterIndex(
-                    visible,
+                    rows,
                     index,
                     tools,
                     EMPTY_STRING_SET as Set<string>,
@@ -807,7 +841,6 @@ function MessagesInner({
       )
     },
     [
-      visible,
       tools,
       commands,
       verbose,
@@ -828,30 +861,16 @@ function MessagesInner({
       streamingTextSuppressed,
     ],
   )
+  const renderRow = useCallback(
+    (msg: RenderableMessage, index: number): React.ReactNode => renderRowIn(visible, msg, index),
+    [renderRowIn, visible],
+  )
 
   const dividerBeforeIndex = useMemo(() => {
     if (!unseenDivider) return -1
     const prefix = unseenDivider.firstUnseenUuid.slice(0, 24)
     return visible.findIndex(message => message.uuid.startsWith(prefix))
   }, [unseenDivider, visible])
-
-  const subscribeTailBoundary = useCallback(
-    (cb: () => void) => streamingTail?.subscribe(cb) ?? (() => {}),
-    [streamingTail],
-  )
-  const readTailBoundaryKey = useCallback(() => {
-    if (!streamingTail) return ''
-    const ids = streamingTail.readIds()
-    return `${ids.current ?? ''}\x00${ids.settled ?? ''}\x00${streamingTail.readSettled() ?? ''}`
-  }, [streamingTail])
-  const tailBoundaryKey = useSyncExternalStore(subscribeTailBoundary, readTailBoundaryKey)
-  const { publishedShown, settledShown } = useMemo(() => {
-    void tailBoundaryKey
-    return computeTailRelease(
-      visible as unknown as Parameters<typeof computeTailRelease>[0],
-      streamingTail?.readIds() ?? { current: null, settled: null },
-    )
-  }, [visible, streamingTail, tailBoundaryKey])
 
   const tail = (
     <>
@@ -860,8 +879,6 @@ function MessagesInner({
       {streamingTail && !isBriefOnly ? (
         <LiveStreamingTail
           store={streamingTail}
-          settledShown={settledShown}
-          publishedShown={publishedShown}
           textSuppressed={streamingTextSuppressed}
         />
       ) : null}
@@ -876,6 +893,9 @@ function MessagesInner({
 }
       <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
       {liveReceipt !== null ? renderRow(liveReceipt, visible.length) : null}
+      {afterRows.map((message, index) => (
+        <React.Fragment key={itemKey(message)}>{renderRowIn(afterRows, message, index)}</React.Fragment>
+      ))}
     </>
   )
 
@@ -967,6 +987,7 @@ function areMessagesPropsEqual(
   if (prev.trackStickyPrompt !== next.trackStickyPrompt) return false
   if (prev.streamingTail !== next.streamingTail) return false
   if (prev.streamingTextSuppressed !== next.streamingTextSuppressed) return false
+  if (prev.tailAnchor !== next.tailAnchor) return false
   if (prev.toolUseConfirmQueue.length !== next.toolUseConfirmQueue.length) {
     return false
   }

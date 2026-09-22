@@ -114,14 +114,10 @@ const TEXT_FLOWING = 'text-flowing'
 
 export function LiveStreamingTail({
   store,
-  settledShown = false,
-  publishedShown = false,
   textSuppressed = false,
 }: {
   store: StreamingTailStore
   textSuppressed?: boolean
-  settledShown?: boolean
-  publishedShown?: boolean
 }): React.ReactNode {
   fluxMark('render:tail')
   useFluxMountMark('tail')
@@ -148,20 +144,17 @@ export function LiveStreamingTail({
       setLingerExpired(false)
       return
     }
-    if (settledShown) return
     const age = settledSince === null ? 0 : Math.max(0, performance.now() - settledSince)
     const timer = setTimeout(() => setLingerExpired(true), Math.max(0, SETTLE_LINGER_MS - age))
     return () => clearTimeout(timer)
-  }, [settled, settledSince, settledShown])
-  const ghost = settled !== null && !settledShown && !lingerExpired
-  const rawText = textSuppressed
-    ? null
-    : ((publishedShown ? null : published) ?? (ghost ? settled : null))
+  }, [settled, settledSince])
+  const ghost = settled !== null && !lingerExpired
+  const rawText = textSuppressed ? null : (published ?? (ghost ? settled : null))
   useEffect(() => {
-    if (settled !== null && (settledShown || lingerExpired)) store.dropSettled()
-  }, [store, settled, settledShown, lingerExpired])
+    if (settled !== null && lingerExpired) store.dropSettled()
+  }, [store, settled, lingerExpired])
   const phases = store.readPhases()
-  const phase = rawText === null ? null : published !== null && !publishedShown ? phases.current : phases.settled
+  const phase = rawText === null ? null : published !== null ? phases.current : phases.settled
   const ink = phase === 'commentary' ? 'subtle' : undefined
   const engine = cockpitEngine()
   if (engine && rawText) engine.streamBody.update(rawText, Math.max(20, columns - 4))

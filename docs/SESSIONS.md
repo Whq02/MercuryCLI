@@ -731,7 +731,12 @@ line nothing would read leaves the queue. The deadline is
 
 A task notification the chat shows — one the runner took mid-turn, or between
 turns as a plain message — the chat shows once, in its place; it is never
-redrawn under every new message until it ages out.
+redrawn under every new message until it ages out. Its place is where the
+model will read it: a notification or a line of yours that arrives while a
+reply is being written stands below that reply from the moment it appears and
+stays there when the reply settles, and one that arrived before the reply
+began stays above it. A reply's settled row takes the place its live text
+held, once; the live text is never painted beside its own row.
 
 Completions that land while the session waits between turns fold into one
 turn. The runner holds the first for the task poll's second and carries every
