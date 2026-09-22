@@ -15,6 +15,8 @@ import {
 } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig, type AccountInfo } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { getAuthScope } from '../../utils/envUtils.js'
+import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
 import { logError } from '../../utils/log.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { getMercuryUserAgent } from '../../utils/userAgent.js'
@@ -283,28 +285,57 @@ function normalizeProfile(profile: OAuthProfileResponse): {
 }
 
 
-export async function fetchAndStoreUserRoles(accessToken: string): Promise<void> {
+export async function fetchAndStoreUserRoles(
+  accessToken: string,
+  origin?: { account: AccountInfo; authScope: string | undefined; isCurrent: () => boolean; signal?: AbortSignal },
+): Promise<void> {
+  const account = origin?.account ?? getGlobalConfig().oauthAccount
+  if (!account) {
+    throw new Error('No OAuth account is stored; cannot persist user roles')
+  }
+  const { accountUuid, organizationUuid } = account
+  const authScope = origin === undefined ? getAuthScope() : origin.authScope
+  const isCurrent = (stored: AccountInfo | undefined): boolean =>
+    stored !== undefined && stored.accountUuid === accountUuid && stored.organizationUuid === organizationUuid &&
+    getAuthScope() === authScope && (origin?.isCurrent() ?? true) && !origin?.signal?.aborted
+  const ignored = (): void => logForDebugging('OAuth roles response ignored: the account, authentication scope or login changed')
+  if (!isCurrent(getGlobalConfig().oauthAccount)) {
+    ignored()
+    return
+  }
   const config = getOauthConfig()
+  const timeout = apiTimeoutMsOverride() ?? PROFILE_TIMEOUT_MS
   let response: { status: number; statusText: string; data: UserRolesResponse }
   try {
     response = await axios.get<UserRolesResponse>(config.ROLES_URL, {
       headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': getMercuryUserAgent() },
+      timeout,
+      ...(origin?.signal ? { signal: origin.signal } : {}),
     })
   } catch (error) {
+    if (origin?.signal?.aborted) {
+      ignored()
+      return
+    }
     if (error instanceof AxiosError && error.response !== undefined) {
       throw new Error(`Failed to fetch user roles: ${error.response.statusText}`)
     }
-    throw error
+    throw honestDeadlineBreach(error, timeout)
   }
-  const account = getGlobalConfig().oauthAccount
-  if (!account) {
-    throw new Error('No OAuth account is stored; cannot persist user roles')
-  }
-  storeOAuthAccountInfo({
-    ...account,
-    organizationRole: response.data.organization_role,
-    workspaceRole: response.data.workspace_role,
-    organizationName: response.data.organization_name,
+  saveGlobalConfig(current => {
+    if (!isCurrent(current.oauthAccount)) {
+      ignored()
+      return current
+    }
+    return {
+      ...current,
+      oauthAccount: {
+        ...current.oauthAccount!,
+        organizationRole: response.data.organization_role,
+        workspaceRole: response.data.workspace_role,
+        organizationName: response.data.organization_name,
+      },
+    }
   })
 }
 
