@@ -180,9 +180,12 @@ loops.
 `directActivate` for true single-purpose controls; unavailable rows expose no
 affordance) · `NavigablePanes` master-detail boards (standing `sideInfo`
 inspectors + list-level `rowActions`) · `InteractiveDisclosure` transcript
-folds · hierarchical Esc (one layer per press) · hover rides the single
-global owner and paints background only. The estate-wide inventory is closed
-by `scripts/interaction/prove-interaction-coverage.ts`.
+folds · hierarchical Esc (one layer per press) · Home and End reach a
+list's first and last rows, and the mouse wheel moves the highlighted row of
+the list on top (the pickers, every select list) while the transcript
+beneath stays put · hover rides the single global owner and paints
+background only. The estate-wide inventory is closed by
+`scripts/interaction/prove-interaction-coverage.ts`.
 
 ---
 
