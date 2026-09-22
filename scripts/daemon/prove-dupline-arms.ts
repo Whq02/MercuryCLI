@@ -42,6 +42,7 @@ import {
   isResult,
   j,
   makeTally,
+  NODE,
   queueJournal,
   removeWorld,
   REPO,
@@ -364,6 +365,52 @@ if (!existsSync(DIST)) {
       row !== undefined && (row.kind === 'attachment/queued_command' ? row.occurredAt === sent.sentAt && row.sentAt === sent.sentAt : Math.abs(Date.parse(row.occurredAt) - Date.parse(sent.sentAt)) <= CLOCK_TOLERANCE_MS)
     check('each row carries a clock within the tolerance of the clock its line was sent at', clockHolds(returnRow, atReturn) && clockHolds(afterRow, afterReturn), j([returnRow?.kind, returnRow?.occurredAt, atReturn.sentAt, afterRow?.kind, afterRow?.occurredAt, afterReturn.sentAt]))
     await closeWorld(w)
+  }
+
+  if (runs('A9')) {
+    section('A9 a later between-turns line attaches its mentioned file and passes its own context-adding prompt hook')
+    const mention = 'and please read @notes.txt too'
+    const body = 'THE-NOTES-BODY'
+    const hookContext = 'BATCH-HOOK-CONTEXT'
+    const w = await openWorld('batch-mentions', 1, 0, {
+      hold: true,
+      seed: cwd => {
+        writeFileSync(join(cwd, 'notes.txt'), `${body}\n`)
+        const hook = join(cwd, 'prompt-hook.cjs')
+        writeFileSync(hook, [
+          "const fs = require('node:fs')",
+          "const input = JSON.parse(fs.readFileSync(0, 'utf8'))",
+          `fs.appendFileSync(${JSON.stringify(join(cwd, 'hook-prompts.jsonl'))}, JSON.stringify(input.prompt) + '\\n')`,
+          `if (input.prompt === ${JSON.stringify(mention)}) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: ${JSON.stringify(hookContext)} } }))`,
+        ].join('\n'))
+        writeFileSync(join(cwd, '..', 'settings.json'), JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${JSON.stringify(NODE)} ${JSON.stringify(hook)}` }] }] } }))
+      },
+    })
+    try {
+      const before = w.runner.frames.length
+      w.runner.send(user(AGENT_TURN_ASK, UT))
+      const held = await waitWire(w.fx.wire, 'the final answer held before the batch', x => x.kind === 'held', bound(60_000))
+      const first = send(w, RETURN_LINE, 1)
+      const second = send(w, mention, 2)
+      const queued = await queuedBoth(w, [RETURN_LINE, mention], bound(20_000))
+      check('both prompts wait after the last tool boundary, before the answer is released', held !== null && queued && w.fx.wire().every(x => x.kind !== 'released'))
+      writeFileSync(w.holdFile!, '')
+      const request = await waitWire(w.fx.wire, 'the batch request with the later mention', x => x.kind === 'request' && (x.counts?.[mention] ?? 0) > 0, bound(60_000))
+      const result = await w.runner.waitFor('the batch answer', x => isResult(x) && String(x.result ?? '').includes(mention), bound(60_000), before)
+      check('the batch settles with one answer', result !== null && result.is_error !== true, j(result))
+      check('the session reads both prompts once in one request and in send order', request?.counts?.[RETURN_LINE] === 1 && request?.counts?.[mention] === 1 && (request.firstAt?.[RETURN_LINE] ?? -1) < (request.firstAt?.[mention] ?? -1), j(request?.counts))
+      check('the later mention supplies its file body to the real request', request?.counts?.[body] === 1, j(request?.counts))
+      check('the later prompt supplies its hook context to the real request', request?.counts?.[hookContext] === 1, j(request?.counts))
+      const hookPrompts = readFileSync(join(w.home, 'repo', 'hook-prompts.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line) as string)
+      check('the prompt hook sees each batch line separately, once and in order', j(hookPrompts.filter(line => line.includes(RETURN_LINE) || line.includes(mention))) === j([RETURN_LINE, mention]), j(hookPrompts))
+      const carriers = await settled(w, [RETURN_LINE, mention], bound(10_000), cs => [RETURN_LINE, mention].every(word => cs.some(row => row.word === word && inMainFile(row))))
+      const firstRows = carriers.filter(row => row.word === RETURN_LINE && inMainFile(row))
+      const secondRows = carriers.filter(row => row.word === mention && inMainFile(row))
+      check('both prompts keep separate transcript rows, identities and send order', firstRows.length === 1 && secondRows.length === 1 && firstRows[0]?.uuid === first.uuid && secondRows[0]?.uuid === second.uuid && Number(firstRows[0]?.ordinal) < Number(secondRows[0]?.ordinal), briefly(carriers))
+      exportWorld('batch-mentions', w.home, { 'hook-prompts.jsonl': hookPrompts.map(line => JSON.stringify(line)).join('\n') + '\n' })
+    } finally {
+      await closeWorld(w)
+    }
   }
 }
 
