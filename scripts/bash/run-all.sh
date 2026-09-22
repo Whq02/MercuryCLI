@@ -10,6 +10,7 @@
 # gate-watch: src/utils/secureStorage/macOsKeychainStorage.ts src/tasks/LocalWorkflowTask/*
 # gate-watch: src/services/workshop/pythonRuntime.ts src/services/workshop/pythonRunnerSource.ts
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
+# gate-watch: src/utils/collapseBackgroundBashNotifications*
 # gate-watch: src/utils/worktree.ts src/utils/projectStoreAdoption.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
@@ -46,6 +47,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-snapshot-path.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-cwd-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-cwd-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-tool-seams.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-tool-seams.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-exit-code.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-background-exit-code.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-exit-code-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-exit-code-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-empty-command-refused.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-empty-command-refused.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record-of-sub-agent-launch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record-of-sub-agent-launch.ts" "$__t" "$__rc"

@@ -79,7 +79,7 @@ export function shellNoticeOf(msg: RenderableMessage): ShellNotice | null {
 }
 
 function titleOf(detail: string): string {
-  const m = /^("[^"]*") (?:completed|failed|was stopped)(.*)$/.exec(detail)
+  const m = /^("[^"]*") (?:completed|ended|failed|was stopped)(.*)$/.exec(detail)
   return m ? `${m[1]}${m[2] ?? ''}` : detail
 }
 
