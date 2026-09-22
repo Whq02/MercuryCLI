@@ -12,14 +12,12 @@ const saved = {
   workflows: process.env.MERCURY_WORKFLOWS,
   godot: process.env.MERCURY_GODOT,
   mneme: process.env.MERCURY_MNEME,
-  themis: process.env.MERCURY_THEMIS,
 }
 delete process.env.MERCURY_HARNESS_MAP
 delete process.env.MERCURY_TABULA
 delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_MNEME
-delete process.env.MERCURY_THEMIS
 
 const { getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
   await import('../../src/utils/cockpit/harnessMap.js')
@@ -46,25 +44,14 @@ check(
 )
 check('opt-in Godot NOT advertised when off', on !== null && !on.includes('Godot'))
 check('opt-in MNEME NOT advertised when off', on !== null && !on.includes('MNEME'))
-check('default-on THEMIS advertised at enforce in the default map', on !== null && on.includes('THEMIS control plane is ACTIVE (enforce)'))
-
-resetHarnessMapForTest()
-process.env.MERCURY_THEMIS = 'off'
-const themisOff = getHarnessMapSection()
-check('explicit THEMIS off ⇒ not advertised', themisOff !== null && !themisOff.includes('THEMIS'))
-delete process.env.MERCURY_THEMIS
-
 resetHarnessMapForTest()
 process.env.MERCURY_GODOT = '1'
 process.env.MERCURY_MNEME = '1'
-process.env.MERCURY_THEMIS = 'warn'
 const armedMap = getHarnessMapSection()
 check('Godot lane advertised when armed', armedMap !== null && armedMap.includes('Godot lanes are ARMED'))
 check('MNEME advertised when armed', armedMap !== null && armedMap.includes('MNEME'))
-check('THEMIS advertised with its level', armedMap !== null && armedMap.includes('THEMIS control plane is ACTIVE (warn)'))
 delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_MNEME
-delete process.env.MERCURY_THEMIS
 resetHarnessMapForTest()
 const reprimed = getHarnessMapSection()
 check('re-primed default map matches first compute', reprimed === on)
@@ -176,7 +163,6 @@ for (const [k, v] of Object.entries({
   MERCURY_WORKFLOWS: saved.workflows,
   MERCURY_GODOT: saved.godot,
   MERCURY_MNEME: saved.mneme,
-  MERCURY_THEMIS: saved.themis,
 })) {
   if (v === undefined) delete process.env[k]
   else process.env[k] = v

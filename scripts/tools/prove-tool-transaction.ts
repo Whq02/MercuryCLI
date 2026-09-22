@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -192,6 +192,15 @@ section('the refusal band — no start, no terminal observation, error results')
   check('deny → the decision message as the error', resultText(out).includes('denied by policy'), resultText(out))
   check('deny → is_error', firstBlock(out)?.is_error === true)
   check('deny → no observations (refused calls never mark)', starts.length === 0 && terminals.length === 0)
+
+  const road = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'tools', 'toolExecution.ts'), 'utf8')
+  const steps = [...road.matchAll(/^  \/\/ (\d+)\. (.*)$/gm)].map(m => `${m[1]} ${m[2]}`)
+  const killAt = steps.findIndex(s => /Capability kill-switch/.test(s))
+  const hooksAt = steps.findIndex(s => /Pre-tool hooks/.test(s))
+  check('the kill-switch step is followed by schema validation — no second operator gate on the road', killAt >= 0 && /Schema validation/.test(steps[killAt + 1] ?? ''), steps.join(' | '))
+  const beforeHooks = road.slice(road.indexOf('// 1. Resolve'), road.indexOf('Pre-tool hooks.'))
+  const kills = [...beforeHooks.matchAll(/kind: '([a-z-]+)'/g)].map(m => m[1])
+  check('the only kill taxonomy before the hooks is the capability gate: the wards (a hook) are the one refusal band between the kill-switch and the permission decision', kills.join(',') === 'capability-gate', kills.join(','))
 }
 
 section('the executed path — start + exactly-once terminal + typed effect')

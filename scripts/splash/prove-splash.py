@@ -287,7 +287,7 @@ home = tempfile.mkdtemp(prefix='splash-menu-home-')
 try:
     raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home})
     plain = STRIP.sub('', raw)
-    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Run discipline (THEMIS)' in plain)
+    check('menu one-shot renders the boot menu', 'boot menu' in plain and 'Debug tool (real debugger)' in plain)
     check('menu footer contract present', 'change (saved)' in raw and 's launch' in raw and 'esc back' in raw)
     lines = vis_lines(raw)
     check('menu fits 100 cols', all(len(l) <= 100 for l in lines), f'max={max(len(l) for l in lines)}')
@@ -298,13 +298,13 @@ try:
           'm menu' not in run_pty(120, 44, {'MERCURY_HOME': home}))
 
     with open(os.path.join(home, 'boot-env.json'), 'w') as f:
-        json.dump({'version': 1, 'savedAt': 'x', 'env': {'MERCURY_THEMIS': 'enforce'}}, f)
+        json.dump({'version': 1, 'savedAt': 'x', 'env': {'MERCURY_COMPUTER_ACCESS': 'permissive'}}, f)
     raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home})
-    check('saved boot-env preloads the selection (enforce shown)', 'enforce' in raw)
+    check('saved boot-env preloads the selection (permissive shown)', 'permissive' in raw)
     os.unlink(os.path.join(home, 'boot-env.json'))
 
-    raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home, 'MERCURY_THEMIS': 'warn'})
-    check('env-pinned row says the real env wins', 'env=warn wins' in raw)
+    raw = run_pty(100, 34, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home, 'MERCURY_COMPUTER_ACCESS': 'permissive'})
+    check('env-pinned row says the real env wins', 'env=permissive wins' in raw)
 
     raw = run_pty(100, 34, {'MERCURY_HOME': home, 'MERCURY_REDUCED_MOTION': '1', **INLINE},
                   send=[(0.6, b'm'), (1.2, b'\r'), (1.8, b's')], oneshot=False)
@@ -354,9 +354,9 @@ try:
     if os.path.exists(saved_path):
         os.unlink(saved_path)
     raw = run_pty(150, 70, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home, 'MERCURY_REDUCED_MOTION': '1'},
-                  send=[(0.7, b'j'), (0.9, b'j'), (2.2, b'\x03')], oneshot=False)
-    check('tall window renders the longest navigated detail UN-clipped (THEMIS)',
-          'Run discipline' in STRIP.sub('', raw) and 'When off' in raw and 'clipped' not in raw and 'the trail continues' not in raw)
+                  send=[(0.7, b'j'), (0.9, b'j'), (1.1, b'j'), (2.2, b'\x03')], oneshot=False)
+    check('tall window renders the longest navigated detail UN-clipped (Sovereign mode)',
+          'Sovereign mode' in STRIP.sub('', raw) and 'When off' in raw and 'clipped' not in raw and 'the trail continues' not in raw)
 
 finally:
     shutil.rmtree(home, ignore_errors=True)
@@ -600,8 +600,7 @@ home4 = tempfile.mkdtemp(prefix='splash-summary-home-')
 try:
     with open(os.path.join(home4, 'boot-env.json'), 'w') as f:
         json.dump({'version': 1, 'env': {
-            'MERCURY_PARTY': '0',
-            'MERCURY_THEMIS': 'enforce'}}, f)
+            'MERCURY_PARTY': '0'}}, f)
 
     def panel_tail(lines, key):
         for l in lines:
@@ -613,15 +612,11 @@ try:
                             'MERCURY_HELM_HOME': '0', 'MERCURY_HELM_CONSOLE': '0'})
     plain_lines = [STRIP.sub('', l) for l in vis_lines(raw)]
     harness_tail = panel_tail(plain_lines, 'Harness')
-    integrity_tail = panel_tail(plain_lines, 'Integrity')
     check('Harness row reflects the saved offs (was: constants)',
           harness_tail is not None
           and 'party' not in harness_tail and 'helm' not in harness_tail
           and 'console' not in harness_tail,
           repr(harness_tail))
-    check('Integrity row reflects the saved THEMIS choice (enforce)',
-          integrity_tail is not None and 'enforce' in integrity_tail,
-          repr(integrity_tail))
     envpin = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home4, 'MERCURY_AUTOPILOT': '1'}
     wide = STRIP.sub('', run_pty(150, 60, envpin))
     classic = STRIP.sub('', run_pty(100, 34, envpin))
