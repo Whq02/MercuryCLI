@@ -479,6 +479,7 @@ export function classify(frames: Frame[], sendTicks: number[], resizeTicks: numb
     const prevCounts = new Map<string, number>()
     for (const b of prev.blocks) prevCounts.set(b.text, (prevCounts.get(b.text) ?? 0) + 1)
     const fresh = (c: Run): boolean => !prev.blocks.some(p => p.text === c.text && Math.abs(p.y - c.y) <= 3)
+    const rewritten = cur.blocks.some(c => prev.blocks.some(p => p.y === c.y && p.text !== c.text && !continues(p.text, c.text) && !continues(c.text, p.text)))
     const unique = cur.blocks.filter(b => counts.get(b.text) === 1)
     for (let i = 0; i < unique.length; i++) {
       for (let j = i + 1; j < unique.length; j++) {
@@ -521,7 +522,7 @@ export function classify(frames: Frame[], sendTicks: number[], resizeTicks: numb
       const gone = prev.blocks[at]!
       if (gone.y <= 1) continue
       if (cur.blocks.some(c => continues(text, c.text))) continue
-      const replaced = cur.blocks.some(c => fresh(c) && c.y >= gone.y - 3 && c.y <= gone.y + gone.rows)
+      const replaced = rewritten || cur.blocks.some(c => fresh(c) && c.y >= gone.y - 3 && c.y <= gone.y + gone.rows)
       if (replaced) continue
       events.push({ kind: 'POP', tick: b.tick, frame: b.frame, row: text, detail: `appeared at tick ${b.tick}, gone by tick ${cur.f.tick}` })
     }
