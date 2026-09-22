@@ -108,6 +108,11 @@ if (typeof stands === 'function') {
   check('the decision is the divergence read the check uses', firstDivergence(held, timing, [...DEFAULT_MASKS]) === null && firstDivergence(held, moved, [...DEFAULT_MASKS]) !== null)
 }
 
+section('§5 whole-frame drive comparisons use the stored masks')
+const critterDrive = readFileSync(join(import.meta.dir, '../critters/prove-critter-mini-drive.ts'), 'utf8')
+check('the critter drive compares compacted captures through the default masks', /firstDivergence\(compact\(a\), compact\(b\), DEFAULT_MASKS\)/.test(critterDrive))
+check('the sprite cell checks remain exact', critterDrive.includes('!sameCell(boot[3 + r]'))
+
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
