@@ -16,7 +16,7 @@ console.log('============================================================')
 console.log(' Grep — the search root reaches ripgrep as its real path, so an anchored glob matches under a symlinked folder')
 console.log('============================================================')
 
-const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
+const { GrepTool, realSearchRoot } = await import('../../src/tools/GrepTool/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const base = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'grep-symlink-')))
 const real = join(base, 'real')
@@ -56,6 +56,23 @@ try {
   const content = (await GrepTool.call({ pattern: 'needle', path: link, glob: '/target.txt', output_mode: 'content' } as never, context)) as { data: { content?: string; numLines?: number } }
   check('a content answer through the anchored glob names the file in the given spelling with its line', typeof content.data.content === 'string' && content.data.content.includes(`${join(link, 'target.txt')}:1:needle at the root`), j(content.data))
   check('the walk finished', [rootViaLink, belowViaLink, plainViaLink].every(a => a.data.incomplete === undefined))
+
+  console.log('\n§4 a decomposed Unicode target keeps its filesystem identity')
+  const unicodeTarget = join(base, 'cafe\u0301')
+  mkdirSync(unicodeTarget)
+  writeFileSync(join(unicodeTarget, 'target.txt'), 'needle in the Unicode target\n')
+  const unicodeLink = join(base, 'unicode-link')
+  symlinkSync(unicodeTarget, unicodeLink)
+  const exactRoot = realpathSync(unicodeLink)
+  check('the real path differs from its NFC spelling', exactRoot !== exactRoot.normalize('NFC'), j(exactRoot))
+  check('the search root is byte-equal to the filesystem answer', Buffer.from(realSearchRoot(unicodeLink)).equals(Buffer.from(exactRoot)), j({ actual: realSearchRoot(unicodeLink), expected: exactRoot }))
+  check('a nonexistent root keeps its given spelling', realSearchRoot(join(base, 'missing')) === join(base, 'missing'))
+  const unicodeFiles = await search({ path: unicodeLink })
+  check('the Unicode search succeeds and spells the answer under the given root', unicodeFiles.data.numFiles === 1 && unicodeFiles.data.filenames[0] === join(unicodeLink, 'target.txt') && unicodeFiles.data.incomplete === undefined, j(unicodeFiles.data))
+  for (const output_mode of ['content', 'count'] as const) {
+    const answer = (await GrepTool.call({ pattern: 'needle', path: unicodeLink, output_mode } as never, context)) as { data: { content?: string; incomplete?: string } }
+    check(`${output_mode} also spells the Unicode answer under the given root`, answer.data.content?.startsWith(`${join(unicodeLink, 'target.txt')}:`) === true && answer.data.incomplete === undefined, j(answer.data))
+  }
 } catch (error) {
   failures++
   console.log(`  [FAIL] the proof threw: ${error instanceof Error ? error.message : String(error)}`)
