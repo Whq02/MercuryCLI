@@ -98,7 +98,8 @@ try {
   check('a brace closing a template interpolation never ends a segment', t3.code.includes('`${[1].map(v => `${v}`)}`var notSplit') , t3.code)
 
   section('§5 the built product: the Eval tool in print mode, the results read off the wire')
-  const DIST = join(ROOT, 'dist', 'mercury.mjs')
+  const distAt = process.argv.indexOf('--dist')
+  const DIST = distAt < 0 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distAt + 1]!)
   const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')
   const nodeBin = existsSync(vendoredNode) ? vendoredNode : Bun.which('node')
   if (!existsSync(DIST) || !nodeBin) {
@@ -115,6 +116,14 @@ try {
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "var fs = require('node:fs'); var repo = '/x'", title: "the record's require cell" }, whenModel: MODEL },
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "crypto.createHash('sha256').update('x').digest('hex')", title: "the record's createHash cell" }, whenModel: MODEL },
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "import { createHash } from 'node:crypto'\ncreateHash('sha256').update('x').digest('hex')", title: 'the fix' }, whenModel: MODEL },
+      ...[
+        '// setup\nconst a = 1\nconst b = 2',
+        'JSON.stringify([typeof a, typeof b])',
+        'const c = 3 // note\nconst d = 4',
+        'JSON.stringify([typeof c, typeof d])',
+        'const splitter = /,\\s*in\\s+/, n = 1',
+        'JSON.stringify([typeof splitter, typeof n])',
+      ].map(code => ({ kind: 'tool_use' as const, name: 'Eval', input: { language: 'js', code, title: 'declaration boundaries' }, whenModel: MODEL })),
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
     ])
@@ -166,7 +175,10 @@ try {
     console.log(`        note: print mode exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
     for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, 160))}`)
     check('the artifact ran the three cells and closed the turn', outcome.exit === 0 && /kernel-words-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-    check('three results reached the model', results.length === 3, String(results.length))
+    check('all nine results reached the model', results.length === 9, String(results.length))
+    check('artifact: a leading comment preserves both declarations', results[4]?.text.includes('["number","number"]') === true, JSON.stringify(results[4]))
+    check('artifact: a trailing comment preserves both declarations', results[6]?.text.includes('["number","number"]') === true, JSON.stringify(results[6]))
+    check('artifact: the regex initializer runs and preserves its bindings', results[7] !== undefined && !results[7].isError && results[8]?.text.includes('["object","number"]') === true, JSON.stringify(results.slice(7)))
     const [req, hash, fix] = results
     check('artifact: the require cell is an error whose words name the ES module fact and the import fix', req !== undefined && req.isError && req.text.includes('require is not defined') && req.text.includes(MODULE_WORDS) && req.text.includes(IMPORT_FIX), JSON.stringify(req))
     check('artifact: …and reports fs and repo as never bound, not as survivors', req !== undefined && /never bound[^:]*: fs, repo/.test(req.text) && !/survived this failed cell: fs/.test(req.text), JSON.stringify(req))

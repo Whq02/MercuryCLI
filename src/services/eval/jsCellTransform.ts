@@ -5,6 +5,7 @@ export interface TransformedCell {
   capturesResult: boolean
 }
 
+const LEADING_TRIVIA = /^(?:\s+|\/\/[^\r\n]*(?:\r?\n|$)|\/\*[\s\S]*?\*\/)*/
 const DECL_KEYWORD = /^(const|let|var)\b/
 const FUNC_DECL = /^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)/
 const CLASS_DECL = /^class\s+([A-Za-z_$][\w$]*)/
@@ -36,15 +37,29 @@ function* topLevelCodePositions(source: string): Generator<number> {
   let depth = 0
   let i = 0
   const n = source.length
-  type Mode = 'code' | 'line' | 'block' | 'single' | 'double' | 'template'
+  type Mode = 'code' | 'line' | 'block' | 'single' | 'double' | 'template' | 'regex'
   let mode: Mode = 'code'
+  let regexClass = false
   const templateDepths: number[] = []
   while (i < n) {
     const c = source[i]!
     const next = i + 1 < n ? source[i + 1]! : ''
     switch (mode) {
       case 'line':
-        if (c === '\n') mode = 'code'
+        if (c === '\n') {
+          mode = 'code'
+          if (depth === 0) yield i
+        }
+        i++
+        continue
+      case 'regex':
+        if (c === '\\') {
+          i += 2
+          continue
+        }
+        if (c === '[') regexClass = true
+        if (c === ']') regexClass = false
+        if (c === '/' && !regexClass || c === '\n') mode = 'code'
         i++
         continue
       case 'block':
@@ -101,6 +116,12 @@ function* topLevelCodePositions(source: string): Generator<number> {
     if (c === '/' && next === '*') {
       mode = 'block'
       i += 2
+      continue
+    }
+    if (c === '/' && /(?:^|[=(:,!&|?;[{}+\-*%^~<>]|\b(?:return|throw|case|yield|await|typeof|void|delete|in|of))\s*$/.test(source.slice(0, i))) {
+      mode = 'regex'
+      regexClass = false
+      i++
       continue
     }
     if (c === "'") {
@@ -268,7 +289,7 @@ function isCapturableExpression(segment: string): boolean {
 }
 
 function directivePrologue(source: string): string {
-  const trivia = /^(?:\s+|\/\/[^\r\n]*(?:\r?\n|$)|\/\*[\s\S]*?\*\/)*/
+  const trivia = LEADING_TRIVIA
   let offset = 0
   let end = 0
   while (offset < source.length) {
@@ -310,15 +331,15 @@ export function transformJsCell(source: string): TransformedCell {
   let capturesResult = false
   for (let i = 0; i < segments.length; i++) {
     let text = segments[i]!.text
-    const trimmed = text.trim()
-    const leading = text.slice(0, text.length - text.trimStart().length)
+    const leading = LEADING_TRIVIA.exec(text)![0]
+    const trimmed = text.slice(leading.length).trim()
     if (trimmed.startsWith('export ')) {
       const afterExport = trimmed.slice('export '.length)
       if (/^(?:const|let|var|function|class|async\s+function)\b/.test(afterExport)) {
         text = leading + afterExport
       }
     }
-    const effective = text.trim()
+    const effective = text.slice(leading.length).trim()
     if (/^import\b/.test(effective)) {
       const rewritten = rewriteImport(effective)
       if (rewritten) {
@@ -352,7 +373,7 @@ export function transformJsCell(source: string): TransformedCell {
     }
     out.push(text)
   }
-  const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n))
+  const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n) && parsesCell(`let ${n};`))
   const persist = unique
     .map(
       n =>
@@ -362,9 +383,18 @@ export function transformJsCell(source: string): TransformedCell {
   const stamp = Math.abs(hashCode(source))
   const save = `__mercuryPersist${stamp}`
   const threw = `__mercuryThrew${stamp}`
-  return {
-    code: `${directivePrologue(source)}\nlet ${save}, ${threw} = false;\ntry {\n${save} = (__mercuryThrew) => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} catch (__mercuryError) { ${threw} = true; throw __mercuryError } finally { ${save}(${threw}); }`,
-    persistedNames: unique,
-    capturesResult,
+  const code = `${directivePrologue(source)}\nlet ${save}, ${threw} = false;\ntry {\n${save} = (__mercuryThrew) => { globalThis.__mercuryPersistedNames = []; ${persist} };\n${out.join('')}\n} catch (__mercuryError) { ${threw} = true; throw __mercuryError } finally { ${save}(${threw}); }`
+  if (!parsesCell(code) && parsesCell(source)) {
+    return { code: source, persistedNames: [], capturesResult: false }
+  }
+  return { code, persistedNames: unique, capturesResult }
+}
+
+function parsesCell(code: string): boolean {
+  try {
+    new Function(`return (async () => {\n${code}\n})`)
+    return true
+  } catch {
+    return false
   }
 }
