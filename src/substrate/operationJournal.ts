@@ -94,42 +94,89 @@ async function publishOp(dir: string, op: DurableOperation): Promise<void> {
   )
 }
 
+const OPERATION_STATES: ReadonlySet<string> = new Set<DurableOperationState>([
+  'prepared',
+  'applying',
+  'committed',
+  'compensating',
+  'aborted',
+])
+const STEP_STATES: ReadonlySet<string> = new Set<DurableOperationStep['state']>([
+  'pending',
+  'applied',
+  'compensated',
+])
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+function isStep(v: unknown): v is DurableOperationStep {
+  return (
+    isRecord(v) &&
+    typeof v.id === 'string' &&
+    typeof v.target === 'string' &&
+    typeof v.state === 'string' &&
+    STEP_STATES.has(v.state)
+  )
+}
+
 function decodeOp(raw: string): DurableOperation | null {
+  let parsed: unknown
   try {
-    const parsed = JSON.parse(raw) as Partial<DurableOperation>
-    if (
-      parsed &&
-      parsed.schema === 1 &&
-      typeof parsed.operationId === 'string' &&
-      typeof parsed.kind === 'string' &&
-      typeof parsed.idempotencyKey === 'string' &&
-      typeof parsed.state === 'string' &&
-      Array.isArray(parsed.steps)
-    ) {
-      return parsed as DurableOperation
-    }
+    parsed = JSON.parse(raw)
   } catch {
+    return null
+  }
+  if (
+    isRecord(parsed) &&
+    parsed.schema === 1 &&
+    typeof parsed.operationId === 'string' &&
+    typeof parsed.ownerKey === 'string' &&
+    typeof parsed.kind === 'string' &&
+    typeof parsed.idempotencyKey === 'string' &&
+    typeof parsed.state === 'string' &&
+    OPERATION_STATES.has(parsed.state) &&
+    Array.isArray(parsed.steps) &&
+    parsed.steps.every(isStep) &&
+    typeof parsed.createdAt === 'string' &&
+    typeof parsed.updatedAt === 'string' &&
+    typeof parsed.writerPid === 'number'
+  ) {
+    return parsed as unknown as DurableOperation
   }
   return null
 }
 
-export async function listJournalOperations(dir: string): Promise<DurableOperation[]> {
+async function scanJournalDir(
+  dir: string,
+): Promise<{ ops: DurableOperation[]; rejected: string[] }> {
   let names: string[]
   try {
     names = await readdir(dir)
   } catch {
-    return []
+    return { ops: [], rejected: [] }
   }
-  const out: DurableOperation[] = []
+  const ops: DurableOperation[] = []
+  const rejected: string[] = []
   for (const name of names) {
     if (!name.startsWith(OP_PREFIX) || !name.endsWith(OP_SUFFIX)) continue
+    let raw: string
     try {
-      const op = decodeOp(await readFile(join(dir, name), 'utf-8'))
-      if (op) out.push(op)
+      raw = await readFile(join(dir, name), 'utf-8')
     } catch {
+      continue
     }
+    const op = decodeOp(raw)
+    if (op) ops.push(op)
+    else rejected.push(name)
   }
-  return out.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  ops.sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
+  return { ops, rejected }
+}
+
+export async function listJournalOperations(dir: string): Promise<DurableOperation[]> {
+  return (await scanJournalDir(dir)).ops
 }
 
 const dirChains = new Map<string, Promise<void>>()
@@ -340,7 +387,12 @@ export async function recoverJournalDir(
     waiting: [],
     unrecoverable: [],
   }
-  const ops = await listJournalOperations(dir)
+  const { ops, rejected } = await scanJournalDir(dir)
+  for (const name of rejected) {
+    summary.scanned++
+    summary.unrecoverable.push(name)
+    logForDebugging(`[journal] ${join(dir, name)} is not a decodable operation record: left in place, reported`)
+  }
   for (const op of ops) {
     summary.scanned++
     if (isTerminal(op.state)) continue

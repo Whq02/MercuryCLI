@@ -15,6 +15,7 @@ import {
   recoverJournalDir,
   runJournaledOperation,
   type DurableOperation,
+  type JournalRecoverySummary,
 } from '../../src/substrate/operationJournal.ts'
 
 let failures = 0
@@ -328,6 +329,76 @@ const wipeMarkers = (work: string) => {
       after.filter(o => o.state === 'committed').length === 3 &&
       after.some(o => o.operationId === 'incomplete-1'),
     `§7 compaction removed ${removed}/5 oldest terminal ops and kept the incomplete one`,
+  )
+}
+
+{
+  const dir = join(tmp, 'j8')
+  const work = join(tmp, 'w8')
+  mkdirSync(work, { recursive: true })
+  const runs = { s1: 0, s2: 0 }
+  const good = await runJournaledOperation({
+    journalDir: dir,
+    ownerKey: 'owner-a',
+    kind: 'relia-two-step',
+    idempotencyKey: 'good-key',
+    steps: markerSteps(work, runs),
+    result: () => ({ made: 2 }),
+  })
+  const base = {
+    schema: 1,
+    ownerKey: 'owner-a',
+    kind: 'relia-two-step',
+    steps: [{ id: 's1', target: 'x', state: 'pending' }],
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    writerPid: 999999,
+  }
+  const undecodable: Record<string, object> = {
+    'op-no-created-at.json': { ...base, operationId: 'no-created-at', idempotencyKey: 'k-no-created-at', state: 'applying' },
+    'op-created-at-number.json': { ...base, operationId: 'created-at-number', idempotencyKey: 'k-created-at-number', state: 'applying', createdAt: 1700000000000 },
+    'op-unknown-state.json': { ...base, operationId: 'unknown-state', idempotencyKey: 'k-unknown-state', state: 'exploded', createdAt: '2026-01-01T00:00:00.000Z' },
+  }
+  const names = Object.keys(undecodable).sort()
+  for (const name of names) writeFileSync(join(dir, name), JSON.stringify(undecodable[name]))
+  let listed: DurableOperation[] | null = null
+  let listError = ''
+  try {
+    listed = await listJournalOperations(dir)
+  } catch (e) {
+    listError = String(e)
+  }
+  ok(
+    listed !== null && listed.length === 1 && listed[0]!.operationId === good.operationId && listed[0]!.state === 'committed',
+    `§8 the read returns the good record alone beside three undecodable files, without throwing (${listError || `${listed?.length ?? 0} record(s)`})`,
+  )
+  let summary: JournalRecoverySummary | null = null
+  let recoverError = ''
+  try {
+    summary = await recoverJournalDir(dir, { 'relia-two-step': { compensate: async () => wipeMarkers(work) } })
+  } catch (e) {
+    recoverError = String(e)
+  }
+  const named = summary ? [...summary.unrecoverable].sort() : []
+  ok(
+    summary !== null &&
+      summary.compensated.length === 0 &&
+      summary.rolledForward.length === 0 &&
+      named.length === 3 &&
+      names.every((n, i) => named[i] === n),
+    `§8 recovery names the three undecodable files and reconciles nothing under them (${recoverError || JSON.stringify(summary)})`,
+  )
+  ok(summary !== null && summary.scanned === 4, `§8 the summary counts every file it scanned (${summary?.scanned ?? 'none'})`)
+  let removed = -1
+  let compactError = ''
+  try {
+    removed = await compactJournalDir(dir, { keepTerminal: 0 })
+  } catch (e) {
+    compactError = String(e)
+  }
+  const kept = names.filter(n => existsSync(join(dir, n)))
+  ok(
+    removed === 1 && kept.length === 3 && !existsSync(join(dir, `op-${good.operationId}.json`)),
+    `§8 compaction removes the one terminal record and none of the undecodable files (${compactError || `removed ${removed}, kept ${kept.length}`})`,
   )
 }
 
