@@ -193,7 +193,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
         const taskId = pickTag(lastUserText, 'task-id')
         if (status === 'failed' && lastUserText.includes(OLD_DOOR) && taskId !== null && state.handResumes < HAND_RESUMES_MAX) {
           state.handResumes++
-          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'SendMessage', { to: taskId, message: 'carry on with the notes report' }) + tail('tool_use')
+          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'SendMessage', { to: taskId, message: 'carry on with the notes report', summary: 'carry on with the notes report' }) + tail('tool_use')
         } else out = textBlock(0, NOTED) + tail('end_turn')
       } else if (lastUserText.includes('overload-drive: launch')) {
         out =
