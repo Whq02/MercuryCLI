@@ -127,7 +127,8 @@ export function classifyModelRefusal(facts: ModelRefusalFacts): ClassifiedModelR
   if (status !== 400 && status !== 403 && status !== 404) return null
   if (classifyAnthropicRefusal({ status, wireText }) !== 'other') return null
   if (classifyCredentialWall(status, wireText) !== undefined) return null
-  if (status === 403 && (errorType === 'authentication_error' || /\b(?:token|credential|authentication|api[- ]?key|x-api-key)\b/i.test(wireText))) return null
+  const credentialFailure = /\b(?:token|credentials?|key)\b[^.{}"]{0,40}?\b(?:expired|invalid|missing|disabled)\b|\b(?:expired|invalid|missing|disabled)\b[^.{}"]{0,40}?\b(?:token|credentials?|key)\b/i.test(wireText)
+  if (status === 403 && (errorType === 'authentication_error' || credentialFailure)) return null
   const id = modelRefusalId(facts.model)
   const base = { id, door: facts.door, words: '', seenAtMs: facts.seenAtMs, status, presented: facts.presented }
   if (id === '' || facts.door.trim() === '') return null

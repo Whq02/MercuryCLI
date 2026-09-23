@@ -54,10 +54,15 @@ check('a subscriber invalid model name on Opus is a tier refusal', refusals.clas
 check('an API key invalid model name is not called a subscription tier', refusals.classifyModelRefusal({ ...facts, wireText: 'invalid model name', subscriber: false }) === null)
 check('a 404 naming the exact model is not served', refusals.classifyModelRefusal({ ...facts, status: 404, errorType: 'not_found_error', wireText: `model: ${MODEL}` })?.kind === 'not-served')
 check('a model-scoped organisation 403 is not served', refusals.classifyModelRefusal({ ...facts, status: 403, errorType: 'permission_error', wireText: `Your organisation is not enabled for ${MODEL}` })?.kind === 'not-served')
+check('a key-scoped model 403 is not a refused credential', refusals.classifyModelRefusal({ ...facts, status: 403, errorType: 'permission_error', wireText: `This API key is not allowed to use ${MODEL}` })?.kind === 'not-served')
 for (const [status, errorType, wireText] of [
   [401, 'authentication_error', `OAuth token revoked for ${MODEL}`],
   [403, 'permission_error', `OAuth token revoked for ${MODEL}`],
   [403, 'authentication_error', `OAuth token expired for ${MODEL}`],
+  [403, 'permission_error', `API key has expired for ${MODEL}`],
+  [403, 'permission_error', `Invalid API key for ${MODEL}`],
+  [403, 'permission_error', `Missing credential for ${MODEL}`],
+  [403, 'permission_error', `Credential disabled while using ${MODEL}`],
   [403, 'permission_error', `API key limit reached for ${MODEL}`],
   [429, 'rate_limit_error', `usage window reached for ${MODEL}`],
   [400, 'invalid_request_error', '`tool_use` ids were found without `tool_result` blocks immediately after'],
@@ -94,6 +99,7 @@ check('a provider request id survives the new sentence', getAssistantMessageFrom
 const unrelated404 = textOf(getAssistantMessageFromError(errorFor(404, 'not_found_error', '/v1/messages was not found'), MODEL))
 check('an unrelated 404 keeps its original row byte for byte', unrelated404 === `There is an issue with the selected model (${MODEL}) — it may not exist or may be inaccessible (HTTP 404, request_id: unknown). Run \`/model\` to pick a different model.`)
 check('a model-specific 403 is not called a sign-in failure', getAssistantMessageFromError(errorFor(403, 'permission_error', `Your organisation is not enabled for ${MODEL}`), MODEL).error === 'invalid_request')
+check('a key-scoped model 403 paints the model refusal rather than asking for sign-in', textOf(getAssistantMessageFromError(errorFor(403, 'permission_error', `This API key is not allowed to use ${MODEL}`), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (403): Opus 5.5 is not served on Anthropic API key (the endpoint answered 403) — pick a listed model with /model.`)
 check('revoked credentials keep their exact row', textOf(getAssistantMessageFromError(errorFor(401, 'authentication_error', 'OAuth access token has been revoked'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX}: Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)`)
 check('tool pairing keeps its exact row', textOf(getAssistantMessageFromError(errorFor(400, 'invalid_request_error', '`tool_use` ids were found without `tool_result` blocks immediately after'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (400): a tool-use concurrency problem left a tool use without its result. Run /rewind to recover from an earlier point.`)
 const auth = await import('../../src/utils/auth.js')
