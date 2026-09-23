@@ -278,7 +278,7 @@ section('§2 the voice law')
   check("a gated tip never speaks; the lesson is the earliest stage among the tips this boot HAS", gated?.id === 'o', gated?.id)
 }
 
-section('§3 the engine speaks on quiet moments and remembers')
+section('§3 the engine stays silent on quiet moments; /companion tip answers its receipt alone')
 {
   const { publishCompanionTurnAt, resetCompanionSignals } = await import('../../src/utils/cockpit/companionSignals.ts')
   const engine = await import('../../src/utils/cockpit/companionEngine.ts')
@@ -296,26 +296,27 @@ section('§3 the engine speaks on quiet moments and remembers')
   now += voice.TIP_BOOT_QUIET_MS + 1_000
   engine.recomputeCompanionForProofs()
   const bootTip = engine.companionEngineSnapshot().quip
-  check('after the boot quiet a session-start tip shows (from the bank)', bootTip?.kind === 'tip' && tipTexts.has(bootTip.text), bootTip?.text)
-  const shown = bank.find(t => t.text === bootTip?.text)
-  check('the first tip a fresh profile hears is a stage-1 lesson', shown?.stage === 1, shown?.id)
-  check('the shown tip is marked seen in the profile', shown !== undefined && profile.seenTipStamps()[shown.id] === now)
+  check('after the boot quiet no session-start tip shows (the critter never speaks)', bootTip === null, bootTip?.text)
+  check('nothing is marked seen in the profile (no tip was shown)', Object.keys(profile.seenTipStamps()).length === 0, Object.keys(profile.seenTipStamps()).join(','))
   now += engine.TIP_MS + 2_000
   engine.recomputeCompanionForProofs()
-  check('the tip expires', engine.companionEngineSnapshot().quip === null)
+  check('still silent past a tip\'s lifetime', engine.companionEngineSnapshot().quip === null)
 
   now += voice.RETURN_AFTER_MS + 60_000
   publishCompanionTurnAt({ turnLive: true, streaming: false, awaitingPermission: false }, now)
   engine.recomputeCompanionForProofs()
   const back = engine.companionEngineSnapshot().quip
-  check('a turn after ten quiet minutes speaks a silence line', back?.kind === 'moment' && words.MOMENT_LINES.silence.includes(back.text), back?.text)
+  check('a turn after ten quiet minutes speaks no silence line', back === null, back?.text)
   publishCompanionTurnAt({ turnLive: false, streaming: false, awaitingPermission: false }, now + 2_000)
   now += 2_000
   engine.recomputeCompanionForProofs()
 
   const onDemand = engine.requestCompanionTip()
   check('/companion tip returns a bank tip', onDemand !== null && tipTexts.has(onDemand), onDemand ?? 'null')
-  check('the on-demand tip shows on the row', engine.companionEngineSnapshot().quip?.text === onDemand)
+  const asked = bank.find(t => t.text === onDemand)
+  check('the asked tip is a stage-1 lesson for a fresh profile', asked?.stage === 1, asked?.id)
+  check('the asked tip is marked seen in the profile', asked !== undefined && profile.seenTipStamps()[asked.id] === now)
+  check('the on-demand tip shows on no row (the receipt alone carries it)', engine.companionEngineSnapshot().quip === null, engine.companionEngineSnapshot().quip?.text)
   unsub()
   engine.setCompanionClockForProofs(null)
 }
