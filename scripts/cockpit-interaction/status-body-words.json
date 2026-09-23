@@ -1,0 +1,17 @@
+[
+  "Session & environment",
+  "  Mercury 1.0.0-beta.18 · runtime tree 052293d7 · daemon running · 1 session on",
+  "  model Fable 5.1 · max effort · context 12% of 1000k · sovereign mode on",
+  "  seats 17 · shell engine system · checkpoints capturing · 0 restore points",
+  "",
+  "Accounts",
+  "  Anthropic     Claude subscription (max) · session 52% · week 49%",
+  "  OpenAI        ChatGPT pro subscription · usage limit reached · resets 30 Sep",
+  "  Z.AI · Moonshot · DeepSeek     API keys (stored, auth-scoped)",
+  "  OpenRouter    OAuth-minted key · Gemini  Google account (OAuth) · Hugging Face  op-hf",
+  "  Custom endpoint · Local        not configured",
+  "",
+  "Connectivity & tools",
+  "  health: no cert — /health · MCP servers — /mcp · skills — /skills",
+  "  workflow idle · trace 17274 · repo"
+]

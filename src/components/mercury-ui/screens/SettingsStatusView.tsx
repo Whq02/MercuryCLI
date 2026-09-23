@@ -1,145 +1,67 @@
 import * as React from 'react'
-import { useModalOrTerminalSize } from '../../../context/modalContext.js'
-import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import { Box, Text } from '../../../ink.js'
-import { FAINT, IVORY, TEAL } from '../../mercuryPalette.js'
-import {
-  Chip,
-  CommandCenter,
-  SectionHeader,
-  StateBadge,
-  WarningBanner,
-} from '../components.js'
-import { displayWidth, GLYPH, padTo } from '../glyphs.js'
-import { paneWindow } from '../paneWindow.js'
-import { useSessionAccent } from '../sessionAccent.js'
-import { useInteractiveList } from '../useInteractiveList.js'
-import { InteractiveRow } from '../InteractiveRow.js'
+import { isTopOverlayNow, useRegisterOverlay } from '../../../context/overlayContext.js'
+import { Box, Text, useInput } from '../../../ink.js'
+import wrapText from '../../../ink/wrap-text.js'
+import { FAINT, IVORY } from '../../mercuryPalette.js'
 
-
-export type StatusFact = { k: string; v: string; tone?: string; note?: string }
+export type StatusFact = { k: string; v: string; tone?: string; note?: string; noteTone?: string; bold?: boolean }
 export type StatusMcp = { tone: string; count: string; label: string }
 
 export function SettingsStatusView({
   onClose,
   facts,
-  retention,
-  mcp,
-  diagnostic,
+  width,
+  rowBudget,
 }: {
   onClose: () => void
   facts: StatusFact[]
-  retention?: StatusFact[]
-  mcp: StatusMcp[]
-  diagnostic?: string
+  width: number
+  rowBudget: number
 }): React.ReactNode {
-  const accent = useSessionAccent().accent
-  const { selectedIndex: sel, note, hints, rowProps } = useInteractiveList({
-    rows: facts,
-    rowId: r => r.k,
-    idNamespace: 'status',
-    onClose,
-    actions: [
-      {
-        key: 'return',
-        hint: 'inspect',
-        run: r => `${r?.k ?? 'fact'}: ${r?.v ?? ''} — live value (snapshot)`,
-      },
-      {
-        key: 'r',
-        hint: 'refresh',
-        run: () => 're-run /status to refresh the snapshot',
-      },
-    ],
+  const inner = Math.max(0, Math.floor(width))
+  const budget = Math.max(0, Math.floor(rowBudget))
+  const lines = React.useMemo(() => facts.flatMap(fact => {
+    const text = fact.v + (fact.note ?? '')
+    let from = 0
+    return wrapText(text, Math.max(1, inner), 'wrap').split('\n').map((line, index) => {
+      const at = text.indexOf(line, from)
+      from = Math.max(from, at + line.length)
+      return { ...fact, key: `${fact.k}:${index}`, line, noteAt: Math.max(0, fact.v.length - at) }
+    })
+  }), [facts, inner])
+  const overflowing = lines.length > budget
+  const capacity = Math.max(1, budget - (overflowing && budget > 1 ? 1 : 0))
+  const last = Math.max(0, lines.length - capacity)
+  const [offset, setOffset] = React.useState(0)
+  const start = Math.min(offset, last)
+  const below = Math.max(0, lines.length - start - capacity)
+  const overlay = useRegisterOverlay('status')
+  useInput((_input, key, event) => {
+    if (overlay !== null && !isTopOverlayNow(overlay)) return
+    if (key.escape) {
+      event.stopImmediatePropagation()
+      onClose()
+    } else if (overflowing && (key.upArrow || key.downArrow)) {
+      event.stopImmediatePropagation()
+      setOffset(current => Math.max(0, Math.min(last, Math.min(current, last) + (key.downArrow ? 1 : -1))))
+    }
   })
-
-  const { columns: termCols, rows: termRows } = useTerminalSize()
-  const availRows = useModalOrTerminalSize({ rows: termRows, columns: termCols }).rows
-  const factWin = paneWindow(facts.length, sel, Math.max(4, availRows - 24))
-  const factLabelW = Math.max(12, ...facts.map(r => displayWidth(r.k) + 1))
-  const retentionLabelW = Math.max(12, ...(retention ?? []).map(r => displayWidth(r.k) + 1))
-
+  if (inner === 0 || budget === 0) return null
   return (
-    <CommandCenter view="status" footer={hints} onClose={onClose} captureInput={false}>
-      <Box marginTop={1} flexDirection="column">
-        <Text>
-          <StateBadge state="live" label="settings · status" />
-          <Text color={FAINT}> · Mercury session snapshot</Text>
-        </Text>
-      </Box>
-
-      {
-}
-      <SectionHeader count={facts.length}>Session &amp; environment</SectionHeader>
-      {factWin.above > 0 ? <Text color={FAINT}>{'  '}↑ {factWin.above} more</Text> : null}
-      {facts.map((r, i) => {
-        if (i < factWin.start || i >= factWin.end) return null
-        return (
-          <InteractiveRow key={r.k} {...rowProps(r, i)}>
-            {
-}
-            <Text wrap="truncate-end">
-              <Text color={i === sel ? accent : FAINT}>{i === sel ? '▸ ' : '  '}</Text>
-              <Text color={FAINT}>{padTo(r.k, factLabelW)}</Text>
-              <Text color={r.tone ?? IVORY}>{r.v}</Text>
-              {r.note ? <Text color={FAINT}> {r.note}</Text> : null}
-            </Text>
-          </InteractiveRow>
-        )
-      })}
-      {factWin.below > 0 ? <Text color={FAINT}>{'  '}↓ {factWin.below} more</Text> : null}
-
-      {
-}
-      {retention && retention.length > 0 ? (
-        <>
-          <SectionHeader count={retention.length}>Retention</SectionHeader>
-          {retention.map(r => (
-            <Text key={r.k} wrap="truncate-end">
-              <Text color={FAINT}>{'  '}{padTo(r.k, retentionLabelW)}</Text>
-              <Text color={r.tone ?? IVORY}>{r.v}</Text>
-              {r.note ? <Text color={FAINT}> {r.note}</Text> : null}
-            </Text>
-          ))}
-        </>
-      ) : null}
-
-      <SectionHeader count={mcp.length}>MCP servers</SectionHeader>
-      {mcp.length === 0 ? (
-        <Text color={FAINT}>none configured</Text>
-      ) : (
-        <Box>
-          {mcp.map((m, i) => (
-            <Text key={i}>
-              <Text color={m.tone}>{m.count ? `${m.count} ` : ''}{m.label}</Text>
-              <Text color={FAINT}>{i < mcp.length - 1 ? ' · ' : ''}</Text>
-            </Text>
-          ))}
-          <Text color={FAINT}> · </Text>
-          <Chip tone="accent">/mcp</Chip>
-        </Box>
-      )}
-
-      <SectionHeader>System diagnostics</SectionHeader>
-      {diagnostic ? (
-        <WarningBanner tone="warn" title={diagnostic} />
-      ) : (
-        <Text color={TEAL}>{GLYPH.ok} no issues reported</Text>
-      )}
-
-      {note ? (
-        <Box marginTop={1}>
-          <Text>
-            <StateBadge state="live" label="live" />
-            <Text color={FAINT}> · </Text>
-            <Text color={IVORY}>{note}</Text>
+    <Box width={inner} flexDirection="column" flexShrink={0}>
+      {lines.slice(start, start + capacity).map(row => (
+        <Box key={row.key} height={1} flexShrink={0}>
+          <Text color={row.tone ?? IVORY} bold={row.bold} wrap="truncate-end">
+            {row.line.slice(0, row.noteAt)}
+            <Text color={row.noteTone ?? row.tone ?? FAINT}>{row.line.slice(row.noteAt)}</Text>
           </Text>
         </Box>
-      ) : (
-        <Box marginTop={1}>
-          <Text color={FAINT}>↑↓ move · ↵ inspect · r refresh · esc close</Text>
+      ))}
+      {overflowing && budget > 1 ? (
+        <Box height={1} flexShrink={0}>
+          <Text color={FAINT} wrap="truncate-end">{below > 0 ? `↓ ${below} more` : ''}</Text>
         </Box>
-      )}
-    </CommandCenter>
+      ) : null}
+    </Box>
   )
 }
