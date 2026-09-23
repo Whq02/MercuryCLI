@@ -54,11 +54,9 @@ import {
   controlSessionAgent,
   onSeatLine,
   onSeatSpawned,
-  publishSeatFacts,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
-  seatTurnOpen,
   setSessionEffort,
   setSessionKitDial,
   setSessionModel,
@@ -419,6 +417,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         revive: async sessionId => {
           const out = reviveConcourseWorker(sessionId, 'auto-revive', roster ?? undefined)
+          if (out.outcome === 'applied' && roster !== null) onSeatSpawned(out.runnerId, roster)
           return out.outcome === 'applied' || out.outcome === 'noop'
             ? { ok: true }
             : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
@@ -687,30 +686,9 @@ async function daemonRun(args: string[]): Promise<void> {
                   request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
                 }),
               )
-            if (delivered && hard === true && roster !== null) {
-              const live = roster
-              const runnerId = rec.runnerId
-              setTimeout(() => {
-                const row = live.list().find(j => j.short === runnerId)
-                if (!seatTurnOpen(row)) return
-                // eslint-disable-next-line no-console
-                console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
-                live.kill(runnerId)
-                const t0 = Date.now()
-                const publishWhenGone = (): void => {
-                  const after = live.list().find(j => j.short === runnerId)
-                  if (after !== undefined && !after.outcome && Date.now() - t0 < 5_000) {
-                    setTimeout(publishWhenGone, 100).unref()
-                    return
-                  }
-                  publishSeatFacts(runnerId, undefined, live)
-                }
-                publishWhenGone()
-              }, 1_000).unref()
-            }
             return settle(
               delivered
-                ? { outcome: 'applied' as const, detail: `${hard === true ? 'hard stop' : 'interrupt'} ${rec.runnerId}` }
+                ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` }
                 : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
             )
           }
@@ -810,6 +788,7 @@ async function daemonRun(args: string[]): Promise<void> {
             (fresh.pid === undefined || !isProcessAlive(fresh.pid))
           ) {
             const rev = reviveConcourseWorker(sessionId, by, roster ?? undefined, { allowStopped: true })
+            if (rev.outcome === 'applied' && roster !== null) onSeatSpawned(rev.runnerId, roster)
             return settle(
               rev.outcome === 'applied'
                 ? {

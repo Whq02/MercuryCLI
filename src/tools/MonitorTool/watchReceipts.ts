@@ -116,11 +116,13 @@ export function deadWatchLine(receipt: WatchReceipt, reason?: RunnerRestartReaso
   const ended =
     reason === 'crash'
       ? "the runner's restart after a crash"
-      : reason === 'settings'
-        ? "the runner's restart after a settings change"
-        : reason === 'relaunch'
-          ? "the runner's restart after a relaunch"
-          : "the session's pause"
+      : reason === 'stop'
+        ? "the runner's restart after a stop"
+        : reason === 'settings'
+          ? "the runner's restart after a settings change"
+          : reason === 'relaunch'
+            ? "the runner's restart after a relaunch"
+            : "the session's pause"
   return `[Monitor "${receipt.description}" (task ${receipt.taskId}) did not survive ${ended}: its process ended with the runner, so nothing it would have reported since then is known. Re-arm it by calling Monitor again with the same command if the watch is still wanted.]`
 }
 

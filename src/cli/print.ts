@@ -201,7 +201,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -626,6 +626,50 @@ export async function runHeadless(
       const owner = processMainOwner()
       if (getRunSnapshot(owner) === null) {
         await reconcileOnResume(owner, getCwd())
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const carriedReason = carriedReasonOf(runnerRestartReason)
+      if (carriedReason === 'crash' || carriedReason === 'stop') {
+        const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
+        const carried = await carryRunnerAcrossRestart({
+          reason: carriedReason,
+          messages,
+          getAppState,
+          setAppState,
+          canUseTool: getCanUseToolFn(
+            options.permissionChannel,
+            options.permissionPromptToolName,
+            io,
+            () => getAppState().mcp.tools as Tool[],
+            () => notifySessionStateChanged('requires_action'),
+          ),
+          relaunchContext: async () => {
+            const { toolUseContext } = await buildSideQuestionFallbackParams({
+              tools,
+              commands,
+              mcpClients: [...getAppState().mcp.clients],
+              messages,
+              readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+              getAppState,
+              setAppState,
+              customSystemPrompt: options.systemPrompt,
+              appendSystemPrompt: options.appendSystemPrompt,
+              agents,
+            })
+            return {
+              ...toolUseContext,
+              options: {
+                ...toolUseContext.options,
+                ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
+              },
+            }
+          },
+        })
+        logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
       }
     } catch (error) {
       logError(error)
@@ -2004,6 +2048,7 @@ export async function runHeadless(
           awaitingSessionClaim = false
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
           respondSuccess(requestId, { session_id: sid })
+          if (heldNoticeWaits()) driver.kick()
           return
         }
         case 'set_effort': {
@@ -2085,7 +2130,7 @@ export async function runHeadless(
               projectRoot: getProjectRoot(),
               instructionRoots: getAddedDirectories(),
             },
-            queue: getCommandQueue().map(command => ({
+            queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({
               ...(command.uuid !== undefined ? { uuid: String(command.uuid) } : {}),
               value:
                 typeof command.value === 'string'
@@ -2912,6 +2957,18 @@ export async function runHeadless(
       }
     }
   }
+
+  const heldNoticeWaits = (): boolean =>
+    !sessionInitialized &&
+    isConcourseWorker &&
+    !awaitingSessionClaim &&
+    !inputClosed &&
+    !driver.isRunning() &&
+    getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
+  subscribeToCommandQueue(() => {
+    if (heldNoticeWaits()) driver.kick()
+  })
+  if (heldNoticeWaits()) driver.kick()
 
   const stdinLoop = (async (): Promise<void> => {
     try {

@@ -30,8 +30,8 @@ if (!existsSync(DIST)) {
 const REPLY = 'the reply stands here after its last item'
 const AFTER_WORDS = 'words after the settle'
 const INTERRUPTING = 'interrupting — the request is torn down'
-const HARD_STOPPING = 'stopping — the runner is cut'
-const AGAIN = 'esc again forces a stop'
+const HARD_STOPPING = 'interrupting again — the request is torn down once more'
+const AGAIN = 'esc again re-sends the interrupt'
 
 type Scene = 'fresh' | 'drain'
 type Wire = { kind: string; n?: number; ask?: string; arm?: string; step?: number; shape?: string; at: number }
@@ -237,7 +237,7 @@ async function drive(scene: Scene): Promise<void> {
 
   section(`${scene} — E3: the second esc is a plain interrupt of the new turn`)
   console.log(`  [record] after the second esc: ${at('after-esc-2').includes(INTERRUPTING) ? 'the interrupting rung' : /ready · [^\n]*← back/.test(at('after-esc-2')) ? 'ready (the turn had ended)' : 'neither'}`)
-  check(`${scene}: never the hard stop ("stopping — the runner is cut")`, !at('after-esc-2').includes(HARD_STOPPING) && !at('settled').includes(HARD_STOPPING), tail(at('after-esc-2')))
+  check(`${scene}: never the second-press words ("interrupting again")`, !at('after-esc-2').includes(HARD_STOPPING) && !at('settled').includes(HARD_STOPPING), tail(at('after-esc-2')))
 
   section(`${scene} — E4: the wire: plain interrupts only, no runner cut`)
   check(`${scene}: the applied-ops ledger holds exactly two interrupt rows${scene === 'drain' ? ' (the second press found the drained turn)' : ''}`, interrupts.length === 2, JSON.stringify(ledger))

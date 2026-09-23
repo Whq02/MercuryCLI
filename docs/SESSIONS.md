@@ -262,7 +262,22 @@ on that row for eight seconds in place of its words, then the resting words
 return with the new effort; where the row is not painted (the compact
 layout) the receipt stays a notice under the composer. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
-the row's clock keeps counting for the crew that runs on. While a shell
+the row's clock keeps counting for the crew that runs on. The interrupt ends
+the tool call in flight as well as the request: a tool that answers the
+interrupt within its grace (three quarters of a second) settles with its own
+words, and one that cannot — a browser whose process is gone, a call waiting
+on something that will never answer — is left behind, its result replaced by
+the interrupt's own, and its late answer, if one ever comes, is dropped. A
+second esc while the first is still on its way delivers the interrupt again
+and nothing more: the runner is never signalled, its sub-agents run on, and a
+runner that cannot answer stays busy until you stop it by hand — x on its row
+stops the session, the crew view stops one sub-agent. A stop you ask for is
+recorded on the session as your stop, never as a crash, and a resume after it
+brings the runner back saying so. A turn that fails inside the runner's
+own machinery before it has answered ends as that turn's own error result
+— the words of the failure in the result's errors — and the session lives
+on to read the next line; only a failure after the turn has already
+answered still ends the runner. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background
 tasks and the turn goes on without waiting: the hint row under the composer
 reads `esc interrupt · ⇧b background the command` and the row's tail
@@ -361,9 +376,13 @@ a session transcript: a chat is yours until your own act removes it.
 Every live row is a tile: the NOW cell streams what the session is doing
 right now — the reply's last line, or the tool it is running — and `→`
 opens a peek of the selected row in place. A session's end is a visible
-state: a runner that crashed paints NEEDS YOU with its reason line, the row
-outlives every reconcile, your own next act on the session clears the fact,
-and only your release removes the row. ctrl+x ctrl+x stops the selected
+state: a runner that crashed paints NEEDS YOU with its reason line — the
+exit code and, when the runner said anything as it died, its last words:
+the error its turn ended on, else the last line it wrote to its standard
+error — the row outlives every reconcile, your own next act on the session
+clears the fact, and only your release removes the row. The daemon's log
+carries the same line for every crash, so a runner older than a few minutes
+loses nothing of what it said. ctrl+x ctrl+x stops the selected
 session — the row stays, wearing stopped and the next step — the chord
 again archives it, and a third chord deletes it; typing is never a control,
 so a plain `x` lands in the composer like any other letter. The board's REPO picker
@@ -473,6 +492,20 @@ the recap card says so. Whichever
 door, the whole estate is live behind the chat — the daemon, the board and
 every other running session — and a resume yields, drains, kills, swaps or
 respawns nothing.
+
+A runner that died mid-work — a crash, or a stop you asked for and then
+resumed — comes back carrying what it held. The session's own record keeps
+what the runner had queued and what its background agents had reported:
+each line you typed that the dead runner never read is queued again under
+its own identity and runs as the next turn; an agent that had finished is
+delivered from the notice it left, byte for byte; an agent still working is
+relaunched from its own transcript, told that its files hold the edits it
+made and to read them again before it edits; and only a launch the record
+knows nothing about is reported stopped. One row says what the restart
+carried — `runner restarted after a crash: 2 background agents relaunched, 1
+delivered from their receipts, 0 stopped`, or `runner restarted after a
+stop: …` when you had stopped it. The seat comes back on your next words — a
+resume, a line typed — as before.
 
 ## The preserved-thinking record
 
@@ -688,13 +721,15 @@ nothing newer, each exactly once; a line sent after the fold rides behind
 them. `↑` on an empty composer while a line is held takes it back into the
 composer, the way it does for any queued line.
 
-A queued or held row stands only while the runner holds that line. When the
-runner reports that it no longer does — a runner that restarted after the
-send, whose queue died with it — the row leaves on its own and the hint row
-names the words once ("the runner restarted — “…” not taken; type it
-again"); `↑` on such a row answers "the session did not take “…” — type it
-again" and removes it. A row that stands for a line no runner holds is never
-left on the screen.
+A queued or held row stands only while the runner holds that line. A runner
+that died with the line still queued brings it back when it returns: the
+line is queued again from the session's own record, under its own identity,
+and runs as the next turn. When the runner reports that it no longer holds a
+line the record does not carry either, the row leaves on its own and the
+hint row names the words once ("the runner restarted — “…” not taken; type
+it again"); `↑` on such a row answers "the session did not take “…” — type
+it again" and removes it. A row that stands for a line no runner holds is
+never left on the screen.
 
 The hint row under the composer is where every such receipt or notice
 paints, for its seconds. While one stands it takes the row: the standing
@@ -740,6 +775,15 @@ what it holds waits for its resume.
 A monitor does not outlive the session's runner: on the first turn after a
 resume, one notice per watch that was still armed names it and says how to
 arm it again.
+
+A runner the daemon brought back does not wait for your next words to read
+what its restart queued. A held stop, crash or landing notice — an agent's
+completion or failure, a stop, a watch that ended with the runner, the row
+that counts what the restart carried — and a line of yours queued again
+from the record wake the idle main agent at once: the runner takes them as
+its first turn, in the order they were queued, the settle window still
+folding a burst into one turn. A session hosted by another program that
+sends its own start request keeps waiting for it, as before.
 
 An agent idle with unread notices past the deadline is nudged. The session's
 own main thread is woken through its queue with a line, in Mercury's words,

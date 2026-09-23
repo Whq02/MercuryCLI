@@ -513,5 +513,6 @@ export function createAttachmentMessage(
 
 function sentClockOf(attachment: Attachment): string | null {
   if (attachment.type !== 'queued_command' || attachment.sentAt === undefined) return null
+  if (attachment.commandMode === 'task-notification') return null
   return Number.isFinite(Date.parse(attachment.sentAt)) ? attachment.sentAt : null
 }

@@ -183,10 +183,37 @@ export function errorTextOfResultFrame(line: string): string | undefined {
   return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
 }
 
+export const ERROR_TEXT_CAP = 240
+
 export function errorTextOfParsedResultFrame(frame: Record<string, unknown> | null): string | undefined {
   if (frame === null || frame.type !== 'result' || frame.is_error !== true) return undefined
+  const errors = frame.errors
+  if (frame.result === undefined && Array.isArray(errors)) {
+    const listed = errors
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map(entry => entry.replace(/\s+/g, ' ').trim())
+      .filter(entry => entry !== '')
+    if (listed.length > 0) return listed.join('; ').slice(0, ERROR_TEXT_CAP)
+  }
   const text = typeof frame.result === 'string' ? frame.result : JSON.stringify(frame.result)
-  return (text ?? 'unknown error').slice(0, 240)
+  return (text ?? 'unknown error').slice(0, ERROR_TEXT_CAP)
+}
+
+export const STDERR_TAIL_BYTES = 4096
+
+export function keepStderrTail(tail: Buffer | undefined, chunk: Buffer): Buffer {
+  const joined = Buffer.concat(tail === undefined ? [chunk] : [tail, chunk])
+  return joined.length > STDERR_TAIL_BYTES ? Buffer.from(joined.subarray(joined.length - STDERR_TAIL_BYTES)) : joined
+}
+
+export function lastStderrLine(tail: Buffer | undefined): string | undefined {
+  if (tail === undefined) return undefined
+  const lines = tail.toString('utf8').split('\n')
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!.trim()
+    if (line !== '') return line.slice(0, ERROR_TEXT_CAP)
+  }
+  return undefined
 }
 
 export type WorkerBusyDecision = { busy: boolean; basis: 'turn' | 'turn-capped' | 'delivery-clock' }

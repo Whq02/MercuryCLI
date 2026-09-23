@@ -272,7 +272,7 @@ export function spawnStreamJsonChild(
   )
   const child = spawn(node, argv, {
     cwd: spec.cwd ?? process.cwd(),
-    stdio: ['pipe', 'pipe', 'inherit'],
+    stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
     env,
   })
