@@ -11,7 +11,6 @@ const MUST_RIDE_THE_BEAT = [
   'src/components/CockpitView.tsx',
   'src/components/mercury-ui/components.tsx',
   'src/components/MercuryFullscreen.tsx',
-  'src/components/Settings/Status.tsx',
 ];
 
 for (const file of MUST_RIDE_THE_BEAT) {
