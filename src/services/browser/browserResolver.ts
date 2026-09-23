@@ -221,6 +221,7 @@ export interface BrowserResolution {
 
 export interface BrowserUnavailable {
   state: 'unavailable'
+  source?: 'operator-pin'
   note: string
   remedies: string[]
 }
@@ -241,6 +242,7 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
     }
     return {
       state: 'unavailable',
+      source: 'operator-pin',
       note: `MERCURY_BROWSER_PATH set but ${pin} does not exist — the pin names itself, no silent fallback`,
       remedies: ['fix or unset MERCURY_BROWSER_PATH'],
     }
@@ -264,6 +266,28 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
       'op:"provision" — a consented download of a Chrome-for-Testing build into the managed cache (the ask names the build and disk cost; /browser install is the same road by hand)',
       '/browser install — the operator\'s one-time consent step; a headless request cannot approve the download',
     ],
+  }
+}
+
+export function describeBrowserReadiness(reads?: BrowserResolverReads): { ready: boolean; line: string; detail: string; fix?: string } {
+  const resolution = resolveBrowser(reads)
+  const installed = (reads?.installed ?? detectInstalledBrowsers)()
+  const discovery = installed.map(b => `${b.label} (${b.executablePath}) — not driven: it is your app; the tool drives Chrome for Testing`).join('\n')
+  if (resolution.state === 'ok') {
+    const line = resolution.source === 'operator-pin'
+      ? `operator pin ${resolution.executablePath}`
+      : `drives Chrome for Testing ${resolution.buildId} (managed cache ${(reads?.cacheDir ?? browserCacheDir)()})`
+    return { ready: true, line, detail: [`executable: ${resolution.executablePath}`, discovery].filter(Boolean).join('\n') }
+  }
+  const pinned = resolution.source === 'operator-pin'
+  const apps = installed.length > 0
+    ? `your installed ${installed.map(b => b.label).join(' · ')} ${installed.length === 1 ? 'is' : 'are'} never driven`
+    : 'installed apps are never driven'
+  return {
+    ready: false,
+    line: pinned ? resolution.note : `no managed browser — /browser install downloads Chrome for Testing (150-200 MB); ${apps}`,
+    detail: [resolution.note, discovery, ...resolution.remedies].filter(Boolean).join('\n'),
+    fix: pinned ? 'fix or unset MERCURY_BROWSER_PATH' : '/browser install',
   }
 }
 
