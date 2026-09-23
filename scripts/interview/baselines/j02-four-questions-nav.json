@@ -3,7 +3,7 @@
  "note": "contract journey 2 — four questions, unanswered navigation into review",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-23T01:46:44.526Z",
+ "capturedAt": "2026-09-23T02:18:19.339Z",
  "screens": [
   {
    "atMs": 12200,
@@ -11,9 +11,9 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
-    "TABULA · 0              ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
-    "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  no prompts sent yet   │                                                                                              │",
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-29xiOS · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-YRiFol · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -56,9 +56,9 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
-    "TABULA · 0              ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
-    "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  no prompts sent yet   │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-29xiOS · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-YRiFol · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -101,9 +101,9 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                           new session │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
-    "TABULA · 0              ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
-    "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  no prompts sent yet   │                                                                                              │",
@@ -114,7 +114,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-29xiOS · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-YRiFol · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -146,15 +146,15 @@
     "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
     "SEAT · 0 peers          │ ✶ VIEW                                                                design the cache layer │",
     "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
-    "                        ││                                          ▄▀▀▀▀▀▀▀▄                                         ││",
-    "TABULA · 0              ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
-    "  ✧ no notes — /note    ││                                          ▀▀▀▀▀▀▀▀▀                                         ││",
+    "                        ││  ▄▀▀▀▀▀▀▀▄                                                                                 ││",
+    "TABULA · 0              ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
+    "  ✧ no notes — /note    ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 02:46:23 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 03:17:57 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 02:46:23 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 03:17:57 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -182,22 +182,23 @@
     "",
     "",
     "",
-    " flux-arena-cwd-29xiOS                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-YRiFol                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 17559,
-   "frame-recommit": 40
+   "patches": 18811,
+   "frame-recommit": 38,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 62,
-   "window": 62,
-   "p50": 1.3137919999971928,
-   "p95": 6.314083999999639,
-   "p99": 38.68304199999989,
-   "maxMs": 38.68304199999989
+   "total": 59,
+   "window": 59,
+   "p50": 0.9625419999999849,
+   "p95": 12.506708000000799,
+   "p99": 26.34345799999994,
+   "maxMs": 26.34345799999994
   }
  },
  "requests": [
@@ -232,27 +233,27 @@
  ],
  "sends": [
   {
-   "atMs": 11071.000814437866,
+   "atMs": 10778.757095336914,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12671.000814437866,
+   "atMs": 12378.757095336914,
    "b64": "DQ=="
   },
   {
-   "atMs": 20071.000814437866,
+   "atMs": 19778.757095336914,
    "b64": "CQ=="
   },
   {
-   "atMs": 21071.000814437866,
+   "atMs": 20778.757095336914,
    "b64": "CQ=="
   },
   {
-   "atMs": 22071.000814437866,
+   "atMs": 21778.757095336914,
    "b64": "CQ=="
   },
   {
-   "atMs": 23071.000814437866,
+   "atMs": 22778.757095336914,
    "b64": "CQ=="
   }
  ]
