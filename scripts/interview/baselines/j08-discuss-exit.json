@@ -3,7 +3,7 @@
  "note": "contract journey 8 (baseline defect) — \"Chat about this\" ENDS the interview via onReject(prose); the wire body of request 2 records the flattened feedback shape",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-23T19:48:27.988Z",
+ "capturedAt": "2026-09-23T21:32:13.663Z",
  "screens": [
   {
    "atMs": 13500,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-XZ8ngV · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-ZCRQCE · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-XZ8ngV · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-ZCRQCE · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -107,9 +107,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 20:48:04 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 22:31:49 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 20:48:04 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 22:31:50 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
@@ -137,22 +137,23 @@
     "",
     "Type something first, then Enter to answer with it · ↑/↓ to navigate · ctrl+g to edit in Nano · Esc to cancel",
     "",
-    " flux-arena-cwd-XZ8ngV                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-ZCRQCE                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 14896,
-   "frame-recommit": 58
+   "patches": 14766,
+   "frame-recommit": 59,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 81,
-   "window": 81,
-   "p50": 1.0118339999971795,
-   "p95": 5.932582999999795,
-   "p99": 26.16020800000001,
-   "maxMs": 26.16020800000001
+   "total": 80,
+   "window": 80,
+   "p50": 0.9074579999996786,
+   "p95": 7.74612500000012,
+   "p99": 25.655374999999935,
+   "maxMs": 25.655374999999935
   }
  },
  "requests": [
@@ -187,27 +188,27 @@
  ],
  "sends": [
   {
-   "atMs": 10743.270874023438,
+   "atMs": 10767.997026443481,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12343.270874023438,
+   "atMs": 12367.997026443481,
    "b64": "DQ=="
   },
   {
-   "atMs": 19743.270874023438,
+   "atMs": 19767.99702644348,
    "b64": "G1tC"
   },
   {
-   "atMs": 20543.270874023438,
+   "atMs": 20567.99702644348,
    "b64": "G1tC"
   },
   {
-   "atMs": 21343.270874023438,
+   "atMs": 21367.99702644348,
    "b64": "G1tC"
   },
   {
-   "atMs": 22143.270874023438,
+   "atMs": 22167.99702644348,
    "b64": "DQ=="
   }
  ]
