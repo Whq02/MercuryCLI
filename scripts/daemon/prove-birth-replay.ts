@@ -165,9 +165,94 @@ console.log('\nR8 the source seams: the wire narrows and forwards the key, both 
   const mintAt = door.indexOf('const birthKey = randomUUID()', doorAt)
   const closureAt = door.indexOf('const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(', doorAt)
   check('R8 the door mints ONE key per birth, before the admit closure, so both sends carry it', mintAt !== -1 && closureAt !== -1 && mintAt < closureAt && door.slice(closureAt, door.indexOf('{ timeoutMs: 60_000 }', closureAt)).includes('birthKey,'))
-  check('R8 no other sender carries a birth key', !read('src/services/concourse/coordinatorTools.ts').includes('birthKey') && !read('src/services/concourse/managerMode.ts').includes('birthKey') && !read('src/services/switchboard/hopIntoSession.ts').includes('birthKey'))
+  check("R8 the coordinator's contracted birth carries the launch's own minted id as its key, right behind bornBlank", read('src/services/concourse/coordinatorTools.ts').includes("bornBlank: true,\n        birthKey: clientMessageId,"))
+  check("R8 the manager's lane births carry ONE key per plan entry and lane, hashed (never the colon-joined pair), on the initial start and the walker alike", read('src/services/concourse/managerMode.ts').includes('const birthKey = init.entryId === undefined ? undefined : `mgr-${createHash(\'sha256\').update(`${init.entryId}:${laneIndex}`).digest(\'hex\').slice(0, 40)}`') && read('src/services/concourse/managerMode.ts').includes('...(birthKey !== undefined ? { birthKey } : {})') && read('src/services/concourse/managerMode.ts').includes('{ workspaceRoot, ...init, ...(entryId !== undefined ? { entryId } : {}) }'))
+  check('R8 the hop door carries no birth key', !read('src/services/switchboard/hopIntoSession.ts').includes('birthKey'))
   const docs = read('docs/SESSIONS.md')
   check('R8 the sessions page says a lost answer lands the ↵ in the one session', docs.includes('answers the retry with the session it already holds'))
+}
+
+type AdmitReq = Parameters<ReturnType<typeof sup.makeConcourseAdmitHandler>>[0]
+const forwardedAdmit = (r: Record<string, unknown>): AdmitReq => ({
+  workspaceDir: String(r.workspaceDir),
+  isolation: 'shared',
+  bornBlank: true,
+  ...(typeof r.title === 'string' ? { title: r.title } : {}),
+  ...(typeof r.birthKey === 'string' ? { birthKey: r.birthKey } : {}),
+})
+
+console.log("\nR9 the coordinator's contracted launch: the birth reply lost after the daemon wrote the frame, the SAME request re-sent ⇒ one session, one runner")
+{
+  const w = world(8)
+  const tools = await import('../../src/services/concourse/coordinatorTools.ts')
+  const admitted: Array<string | null> = []
+  let sentKey: unknown
+  const ctx = tools.createCoordinatorToolContext({
+    workspaceRoot: w.ws,
+    by: 'coordinator-test',
+    rpc: async req => {
+      const r = req as Record<string, unknown>
+      if (r.op === 'sessionAdmit') {
+        sentKey = r.birthKey
+        const lost = await w.admit(forwardedAdmit(r))
+        admitted.push(sessionOf(lost))
+        const answered = await w.admit(forwardedAdmit(r))
+        admitted.push(sessionOf(answered))
+        return answered as unknown as Record<string, unknown>
+      }
+      if (r.op === 'sessionDispatch') return { ok: true, state: 'working', sessionId: r.targetSessionId, runnerId: 'r', stateRevision: 2 }
+      return { ok: true, outcome: 'applied' }
+    },
+    readWorkers: async () => ({}),
+  })
+  const launch = tools.coordinatorToolSet().find(d => d.name === 'launch_session')
+  check('R9 the coordinator tool set carries launch_session', launch !== undefined)
+  const out = launch === undefined ? null : (JSON.parse((await launch.run({ task: 'fix the parser', contract: 'scope: the parser only', workflows: false }, ctx)).content) as Record<string, unknown>)
+  check('R9 the admit the coordinator sent named itself with a key the wire admits', typeof sentKey === 'string' && controlServer.isBirthKey(sentKey), text(sentKey))
+  check('R9 the re-sent admit was answered with the SAME session the lost reply had minted', admitted.length === 2 && admitted[0] !== null && admitted[0] === admitted[1], text(admitted))
+  check("R9 the launch result names that one session", out !== null && out.ok === true && out.sessionId === admitted[0], text(out))
+  check('R9 exactly ONE record stands and ONE runner was registered (the retry spawned nothing)', Object.values(w.records()).length === 1 && w.roster.registered.length === 1, text({ records: Object.values(w.records()).map(r => r.birthKey), registered: w.roster.registered.length }))
+}
+
+console.log("\nR10 the manager's lane: the birth reply times out after the daemon wrote the frame, the lane waits, the walker re-births it ⇒ one session, one runner")
+{
+  const w = world(8)
+  const mgr = await import('../../src/services/concourse/managerMode.ts')
+  const plan = mgr.decodeManagerPlan({ goal: 'ship the widget', lanes: [{ title: 'lane A', scope: 'build the parser', deliverables: 'parser.ts green', territory: 'src/parser/**' }], supervision: 'launch-only', state: 'proposed' })
+  check('R10 a one-lane plan decodes', plan !== null)
+  if (plan !== null) {
+    const keys: unknown[] = []
+    const timedOut = async (req: unknown): Promise<Record<string, unknown>> => {
+      const r = req as Record<string, unknown>
+      if (r.op === 'sessionAdmit') {
+        keys.push(r.birthKey)
+        await w.admit(forwardedAdmit(r))
+        return { ok: false, code: 'ETIMEOUT', error: 'timed out' }
+      }
+      return { ok: true, outcome: 'applied' }
+    }
+    const first = await mgr.executeManagerPlan(plan, { workspaceRoot: w.ws, by: 'coordinator-test', rpc: timedOut, entryId: 'entry-lost-reply' })
+    check('R10 the timed-out birth leaves the lane WAITING (no session id, the lane in the waiting set)', first.laneSessionIds[0] === null && text(first.laneWaiting) === '[0]', text(first))
+    check('R10 the daemon holds the frame the reply never reached: one record, one runner', Object.values(w.records()).length === 1 && w.roster.registered.length === 1)
+    mgr._resetManagerSupervisionForTesting()
+    mgr.registerDispatchedManagerPlan({ ...plan, state: 'dispatched', laneSessionIds: first.laneSessionIds, laneWaiting: first.laneWaiting, workspaceRoot: w.ws }, { entryId: 'entry-lost-reply', workspaceRoot: w.ws })
+    const walkerRpc = async (req: unknown): Promise<Record<string, unknown>> => {
+      const r = req as Record<string, unknown>
+      if (r.op === 'sessionAdmit') {
+        keys.push(r.birthKey)
+        return (await w.admit(forwardedAdmit(r))) as unknown as Record<string, unknown>
+      }
+      if (r.op === 'sessionDispatch') return { ok: true, state: 'working' }
+      return { ok: true, outcome: 'applied' }
+    }
+    const startedLane = await mgr.startWaitingManagerLane({ live: 0, ceiling: 4 }, { rpc: walkerRpc, by: 'coordinator-test' }, mkdtempSync(join(SCRATCH, 'conv-')))
+    mgr._resetManagerSupervisionForTesting()
+    check('R10 the walker started the waiting lane', startedLane === 0, text(startedLane))
+    check('R10 both births carried the SAME well-formed key (the entry and the lane, hashed)', keys.length === 2 && typeof keys[0] === 'string' && controlServer.isBirthKey(keys[0]) && keys[0] === keys[1], text(keys))
+    check("R10 the walker's birth met the daemon's replay: STILL one record and one runner (the base birthed a second blank session here)", Object.values(w.records()).length === 1 && w.roster.registered.length === 1, text({ records: Object.values(w.records()).map(r => ({ birthKey: r.birthKey, sessionId: r.sessionId })), registered: w.roster.registered.length }))
+    const other = await mgr.executeManagerPlan(plan, { workspaceRoot: w.ws, by: 'coordinator-test', rpc: walkerRpc, entryId: 'entry-another' })
+    check('R10 another plan entry births its own lane under a different key (the key is per entry and lane, never per title)', other.laneSessionIds[0] !== null && keys.length === 3 && keys[2] !== keys[0] && Object.values(w.records()).length === 2, text({ keys, records: Object.values(w.records()).length }))
+  }
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
