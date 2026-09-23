@@ -143,6 +143,14 @@ section('P. pure plan + apply math')
   })())
   check('P13d two past the end stays out of bounds', !planHunks(content, [{ lines: '1-7', replace: 'x' }]).ok)
   check('P14 insert with range refused', !planHunks(content, [{ lines: '2-3', replace: 'x', insert: 'after' }]).ok)
+  check('P14b …and the refusal names the road: drop the insert flag to replace the range, or give one anchor line', (() => {
+    const p = planHunks(content, [{ lines: '2-3', replace: 'x', insert: 'after' }])
+    return !p.ok && p.message.includes("insert takes a single anchor line, not a range ('2-3') — drop the insert flag to replace lines 2-3, or give one anchor line to insert after")
+  })())
+  check('P14c an insert before a range names the same road with its own direction', (() => {
+    const p = planHunks(content, [{ lines: '1-2', replace: 'x', insert: 'before' }])
+    return !p.ok && p.message.includes('drop the insert flag to replace lines 1-2, or give one anchor line to insert before')
+  })())
   check('P15 ra window enforced', (() => {
     const ra = mintRangeAnchor('l2\nl3', 2, 2)
     const inWindow = planHunks(content, [{ lines: '3', replace: 'x' }], ra)

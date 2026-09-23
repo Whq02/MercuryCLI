@@ -2,6 +2,7 @@ import Fuse from 'fuse.js'
 
 import type { Command } from '../../commands.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
+import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 
 
@@ -297,7 +298,8 @@ export function applyCommandSuggestion(
   setCursorOffset(formatted.length)
   if (shouldExecute) {
     const takesArguments =
-      command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0
+      (command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0) ||
+      requiresArgument(command)
     if (!takesArguments) {
       onSubmit(formatted, true)
     }

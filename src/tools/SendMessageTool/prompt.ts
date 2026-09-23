@@ -24,6 +24,7 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 
 ## Addressing
 - to: a teammate's name, or "*" to broadcast to every teammate.
+- summary: optional, a 5-10 word preview painted beside the sender's name; a plain message sent without one is previewed by its first line.
 - Broadcast is expensive — its cost is linear in the team size — so use it only when everyone genuinely needs the message. Otherwise send to the one teammate who does.
 
 ## How communication works

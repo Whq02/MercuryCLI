@@ -513,6 +513,13 @@ table below follows the grouping used by `/help`.
 and copying. The preference is saved and appears in `/config` as Mouse
 capture.
 
+A skill whose argument hint opens with a required part (`<…>` —
+`/update-config`, `/debug`, `/app-proof` and the like) answers with its
+one-line description and its usage when sent bare, and starts no turn; a
+skill with no required argument (`/simplify`, `/loop`) runs at once. In the
+typeahead, Enter on such a skill leaves the composer at `/name ` for the
+argument instead of sending it.
+
 ## Reporting a problem
 
 Run `/bug <what happened>` inside Mercury to preview a report before filing

@@ -96,6 +96,7 @@ export function registerUpdateConfigSkill(): void {
     name: 'update-config',
     description:
       'Use this skill for any change to Mercury settings files: permission rules ("allow X"), environment variables ("set X=Y"), MCP server enablement, extension settings, and every event-driven automation ("whenever X, do Y" — that is a hook, and only a hook configured in settings actually executes). Also the place for hook troubleshooting. Simple interactive knobs like theme or model belong to the /config panel instead.',
+    argumentHint: '<the change: allow X · set X=Y · enable server Y · whenever X do Y>',
     allowedTools: ['Read'],
     getPromptForCommand: async args => {
       const trimmed = args.trim()

@@ -8,6 +8,8 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { builtinCommands, commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
+import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
+import { bareUsageLine, requiresArgument } from '../../skills/argumentHint.js'
 import { generateCommandSuggestions } from '../suggestions/commandSuggestions.js'
 import { concourseOffSentence } from '../../context/surfaceRoute.js'
 import { markTransitionStart } from '../observability/frictionStopwatch.js'
@@ -75,9 +77,14 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
 }
 
 export function unknownCommandLine(name: string, commands: Command[]): string {
+  const registered = findCommand([...builtinCommands()], name)
+  if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
-    const top = generateCommandSuggestions(`/${name}`, commands)[0]
+    const byNameAlone = commands
+      .filter(command => command.type !== 'prompt' && command.isHidden !== true)
+      .map(command => ({ ...command, description: '' }) as Command)
+    const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
     const meta = top?.metadata as Command | undefined
     if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
   } catch {
@@ -121,6 +128,9 @@ export function unavailableCommandLine(real: Command): string {
   }
   if (commandOffInPlainWorld(real)) {
     return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
+  }
+  if (real.name === samples.name && !isCommandEnabled(real)) {
+    return SAMPLES_OFF_SENTENCE
   }
   if (getIsNonInteractiveSession()) {
     if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
@@ -624,6 +634,10 @@ export async function processSlashCommand(
         result = await runLocalCommand(command, commandName, args, context, uuid)
         break
       default:
+        if (args.trim() === '' && requiresArgument(command)) {
+          result = answerBareUsage(command as Command & { type: 'prompt' }, args, uuid)
+          break
+        }
         result = await executePromptCommand(
           command as Command & { type: 'prompt' },
           commandName,
@@ -785,6 +799,23 @@ async function runLocalJsxCommand(
   })
 }
 
+
+function answerBareUsage(
+  command: Command & { type: 'prompt' },
+  args: string,
+  uuid?: UUID,
+): ProcessUserInputBaseResult {
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    ...(uuid ? { uuid } : {}),
+  })
+  const text = bareUsageLine(command)
+  return {
+    messages: [echoed, createCommandInputMessage(stdoutWrapped(text))],
+    shouldQuery: false,
+    resultText: text,
+  }
+}
 
 async function runLocalCommand(
   command: Command & { type: 'local' },
