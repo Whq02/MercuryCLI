@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { HookEvent, HookInput } from 'src/entrypoints/agentSdkTypes.js'
 import type { AppState } from '../../state/AppState.js'
-import type { Message } from '../../types/message.js'
+import type { Message, SystemInformationalMessage } from '../../types/message.js'
 import type { Tool } from '../../Tool.js'
 import type { HookCommand } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
@@ -16,11 +16,13 @@ export type FunctionHookContext = {
   tool?: Tool
 }
 
+export type FunctionHookPass = { pass: true; note: SystemInformationalMessage }
+
 export type FunctionHookCallback = (
   messages: Message[],
   signal?: AbortSignal,
   context?: FunctionHookContext,
-) => Promise<boolean | string> | boolean | string
+) => Promise<boolean | string | FunctionHookPass> | boolean | string | FunctionHookPass
 
 export type FunctionHook = {
   type: 'function'

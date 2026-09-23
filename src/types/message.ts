@@ -173,7 +173,7 @@ export type AttachmentMessage<A extends Attachment = Attachment> = {
   attachment: A
 }
 
-export type HookResultMessage = AttachmentMessage | ProgressMessage
+export type HookResultMessage = AttachmentMessage | ProgressMessage | SystemInformationalMessage
 
 
 export type SystemInformationalMessage = {
