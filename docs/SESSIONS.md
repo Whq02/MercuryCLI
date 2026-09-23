@@ -768,6 +768,15 @@ A monitor does not outlive the session's runner: on the first turn after a
 resume, one notice per watch that was still armed names it and says how to
 arm it again.
 
+A runner the daemon brought back does not wait for your next words to read
+what its restart queued. A held stop, crash or landing notice — an agent's
+completion or failure, a stop, a watch that ended with the runner, the row
+that counts what the restart carried — and a line of yours queued again
+from the record wake the idle main agent at once: the runner takes them as
+its first turn, in the order they were queued, the settle window still
+folding a burst into one turn. A session hosted by another program that
+sends its own start request keeps waiting for it, as before.
+
 An agent idle with unread notices past the deadline is nudged. The session's
 own main thread is woken through its queue with a line, in Mercury's words,
 that names how many notices waited, for how long, and each one; the notices

@@ -14,6 +14,7 @@ import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
+import { RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
 import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Agent launched in the background.'
@@ -215,7 +216,7 @@ export const AGENT_RELAUNCH_NOTE =
 
 export type RestartCarryCounts = { relaunched: number; delivered: number; stopped: number }
 
-export const RESTART_CARRY_ROW_PREFIX = 'runner restarted '
+export { RESTART_CARRY_ROW_PREFIX }
 
 export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
   const because = reason === 'stop' ? 'after the turn was cut' : 'after a crash'

@@ -201,7 +201,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -2048,6 +2048,7 @@ export async function runHeadless(
           awaitingSessionClaim = false
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
           respondSuccess(requestId, { session_id: sid })
+          if (heldNoticeWaits()) driver.kick()
           return
         }
         case 'set_effort': {
@@ -2956,6 +2957,18 @@ export async function runHeadless(
       }
     }
   }
+
+  const heldNoticeWaits = (): boolean =>
+    !sessionInitialized &&
+    isConcourseWorker &&
+    !awaitingSessionClaim &&
+    !inputClosed &&
+    !driver.isRunning() &&
+    getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
+  subscribeToCommandQueue(() => {
+    if (heldNoticeWaits()) driver.kick()
+  })
+  if (heldNoticeWaits()) driver.kick()
 
   const stdinLoop = (async (): Promise<void> => {
     try {
