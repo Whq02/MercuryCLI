@@ -1,6 +1,83 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.18
+- Added Claude Opus 5.5 as the default Opus, launched at high effort, with its own cost and effort rows in the pickers
+- Added a directory for every sub-agent: the Agent tool takes the folder a helper works in, a helper isolated in its own worktree can build there, a session's own worktree comes ready to build, a continued helper wakes where it was launched, and a folder outside every trusted workspace is one question rather than a wall (in sovereign mode the answer is yes)
+- Changed how a busy first-party provider is handled: it is retried quietly on a growing wait, a helper that stays refused pauses while Mercury probes once an hour and brings it back by itself, and the parent hears one calm line per helper
+- Changed the watches: a monitor holds what lands while the session's usage window is closed and delivers it together on the first turn after it reopens, a watch that did not survive a pause is named once on resume, every wake into a closed window waits at the session, and a self-paced wake never resumes a session parked on purpose
+- Changed a scheduled wake or a watch to wait for the usage reset the provider states, for OpenAI, Gemini, OpenRouter and Hugging Face as it already did for Anthropic
+- Changed the small critter to sit at the left of the session box, level with the middle of the thinking box however tall the box grows, and the critter no longer speaks
+- Changed the model picker to list each Anthropic model once: the twin rows tagged [1m] are gone, c still switches the context size on the row, and a saved choice with the tag lands on its model's row
+- Changed the board's sign-in rows to open Logins, a late roles reply to enrich only the account that asked, and a family word to take the parent's exact model
+- Changed the session row's effort control to follow the session's settled effort, the Config choice picker to refresh the same live lists as the other pickers, and the default picker to keep a refused save and a launch override visible
+- Changed the default picker to decide on a typed receipt, so a re-worded save notice can never keep it open
+- Changed the model's standing instructions to state each rule once: no preamble on quick work and the approach on substantial work, a security fix inside the authorised scope, evidence reused while it still applies and rechecked when state moves
+- Changed the clearing of stale tool results to Mercury's own rule: every tool's result older than the recent five is a candidate except the operator's own answers, a team brief and the tool-search record, the newest forty thousand tokens of tool output stay, a pass clears nothing unless it saves twenty thousand, and a cleared result whose full output was saved to a file keeps the line that names the file
+- Changed a workflow's stall watch to allow fifteen minutes without progress before an agent is restarted, so a long think or a wait on other agents is not cut short
+- Changed a screen handover (the external editor, a job-control stop, the exit) to wait for the terminal's open query batch, bounded by MERCURY_TERMINAL_QUERY_SETTLE_MS
+- Changed a background shell that ends with a non-zero code to say ended with its code rather than failed
+- Changed a sub-agent's worktree links to split their paths on either separator, so a Windows path is read whole
+- Added a quiet note to the model when a tool joined the session after its first request and is held out of the list until the next compaction
+- Changed every helper to pause on a busy provider and come back by itself, whatever the provider: the probe is one request, and a helper handed over mid-pause takes the same path
+- Changed Claude Opus 5.5's display beta to stay off unless you ask for it
+- Added the refused durable files to the doctor: a store file Mercury will not read is named on the Store quarantines row
+- Fixed two lines sent while a helper was returning landing as one row: each line keeps its own row and identity, every line passes the same checks and attachments as the first, and the model still reads them together
+- Fixed the chat repainting arrivals out of order or twice while a reply streams: every arrival paints once, in the order it arrived, and a late notice never moves a row that has landed
+- Fixed a monitor or task notice painting as your own line with its raw markup, and a late notice pushing the newest reply off the screen: a notice paints as its own dim row with a small plate naming the watch, and the words a reply writes before a tool call stay on screen as their own row
+- Fixed Home, End and the mouse wheel doing nothing in the pickers and the settings lists: Home and End reach a list's ends, the wheel moves the list on top, and the chat beneath no longer scrolls under an open list
+- Fixed a picker's sign-in row opening Logins on the wrong family: the row carries its family in, and escape returns to the picker that opened it
+- Fixed the composer losing its rounded frame after /rename
+- Fixed a session birth admitted twice when the daemon's reply was lost: each ↵ names its birth with one key
+- Fixed an API-key session with an Opus model ending the turn at the third busy refusal, seconds in, before the retries had run: the refusal shows only once the retries are spent, and offers the fallback model when one was named
+- Fixed a helper the parent waited on inline dying on a provider overload with a bare failed result: it pauses and probes like a background helper, its result leads with the pause, and its completion follows as a notification
+- Fixed an agent whose retry budget was spent on an overload dying with a failed notice instead of pausing: it pauses and probes whether it runs in the background or inline
+- Fixed a long reply reopening a usage window a later refusal had closed
+- Fixed a headless run whose input closed never exiting while a watch ran: the watches end with the run
+- Fixed a headless run writing no cost totals at close, so a resume started from zero: the totals are saved and carried
+- Fixed a helper moved to the background streaming nothing tagged to a stream-json consumer: its messages arrive as frames tagged with the call that launched it
+- Fixed the operation journal stopping on a record it could not decode: only whole records load and a file it cannot decode is named, never fatal
+- Fixed a damaged team roster, control ledger, receipt ring, run snapshot or recovery ledger throwing or counting garbage: a file or row that fails its shape is named once and read past, never repaired in place, and the journal removes a file only under its own name
+- Fixed a stored attachment or notice whose body had lost its shape crashing the compaction: the record is thinned and named, and the resume lands
+- Fixed a global config field of the wrong shape silently resetting the whole file: the field is dropped, named on a doctor row, and the rest is read
+- Fixed a daemon whose directory was removed recreating it: it writes nothing more and exits with one line
+- Fixed an Eval cell whose declaration held a comma inside a string, and a Grep root that Unicode normalisation could redirect
+- Fixed an Eval cell losing a declaration after a line comment or a regex initializer, and a valid cell becoming broken code
+- Fixed the first shell command after entering a worktree running in the old checkout
+- Fixed a worktree hop leaving the git watcher on the old checkout, so later session records named the wrong branch
+- Fixed the model reading the git status from the start of the conversation after a compaction: the compaction refreshes it
+- Fixed a continued helper whose recorded folder is gone saying nothing: the message's receipt names the folder and where the helper now runs
+- Fixed an automatic helper resume dropping the note that its recorded folder is gone: the note rides every resume path and the helper's prompt
+- Fixed a resumed sub-agent re-sending a tool roster its record never held, so its cached prefix broke: every conversation that owns a roster writes its first-exchange record and restores it
+- Fixed a model the conversation returned to being served a prompt section computed for another: a keyed section keeps an entry per key
+- Fixed one bad entry in an MCP config emptying the whole list: the bad entry is named once and its neighbours stay
+- Fixed a removed MCP server keeping its needs-sign-in mark when re-added under the same name
+- Fixed an MCP server's tools being announced as removed while the server was still connecting
+- Fixed a file path with a NUL byte ending the turn with no tool result, and a Write to a directory failing inside the call: both answer in words
+- Fixed a refused API-key creation reaching you as a bare status code: the provider's own sentence shows
+- Fixed the extensions board painting a source's raw error bytes, a rewind restoring a truncated snapshot as whole, and PDF page images written two hundred characters deep under the config home
+- Fixed a terminal reply split by the input flush typing its tail into the composer, and F1, F2, F4, Delete, alt+arrows and shifted keys decoding wrong on kitty, st, rxvt and WezTerm
+- Fixed the stash forgetting whether the composer was in shell mode, a draft from the editor or from disk keeping escape bytes and controls, and a selection sent with a refused line being lost
+- Fixed tee and dd writing outside the working directory where a redirection would have asked: both take the same check
+- Fixed the Monitor tool running in bash what the Bash tool refuses: every shell tool declares its command and the refusal check reads it
+- Fixed an agent's recorded description and prompt carrying escape bytes and line breaks into the task list and the notices: the text is clean and bounded
+- Fixed a Read of a named pipe, a socket or a device blocking the session, and the directory watchers handing such a path to the file watcher: both refuse it in words
+- Fixed an empty text block beside other content reaching the wire and being refused
+- Fixed a point-release model id landing on the wrong family name before the registered ids were read
+- Fixed a crew spawn re-sending a creating operation after a lost reply: it retries only a frame that was never sent
+- Fixed a default-effort save saying nothing when MERCURY_EFFORT_LEVEL overrides it for the session: the notice names the override
+- Fixed a headless run whose input closed leaving its background shells running: they end with the run, as its watches do
+- Fixed the thinking verb losing letters when it wrapped under the moving glimmer: the wrapped words keep their letters
+- Fixed warn mode recording nothing: a refuse-list hit under MERCURY_WARDS=warn is recorded where you read it, and the other rules still deny
+- Fixed a command queued at the head of a batch losing its result behind the prompts after it, and a batch sending its context and reminders once per line
+- Fixed a paused helper being swept out of the list before its recovery probe could bring it back
+- Fixed a resumed helper losing the folder it was launched in, its effort setting, or the project definition it was made from
+- Fixed a lost reply to a crew or manager launch admitting a second session: every launch names its birth
+- Fixed a tool call with a malformed block ending the whole turn as a model error: the block is refused alone and the rest of the turn goes on
+- Fixed an Eval cell reading a step operator before a slash as the start of a pattern: the slash is read as division
+- Fixed a stored held-tools note or a deferred-tools change of the wrong shape riding past the compaction: both are checked at the registry
+- Fixed the daemon recreating its own home after it was removed
+
 ## 1.0.0-beta.17
 - Changed the session box to five rows with a small sprite of your creature: the SESSIONS strip under the chat and the roll-up line beside the critter are gone, so the chat has more rows; /critter switches between the small and the full critter, /critter on and /critter off name them, /critter pick chooses the creature, and the choice is kept across boots
 - Changed the session box's title to VIEW: a click on it switches the critter between small and full, the same as /critter
