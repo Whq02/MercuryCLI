@@ -46,7 +46,7 @@ const makeContext = (): unknown => ({
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, teamContext: { teamName: TEAM, leadAgentId: 'lead-fixture' } }),
   setAppState: () => {},
 })
-const LONG_WORDS = 'A ruling from the owner that changes row two and row four of your brief — read the new last section of the lane page before you cut the size switch; in short the switch stays and gains a slash form and the frames add two states'
+const LONG_WORDS = 'A decision that changes the second and the fourth part of the plan — read the new last section of the notes before you cut the size switch; in short the switch stays and gains a slash form and the pictures add two states'
 const THREE_LINES = 'first line of the message\nsecond line with more detail\nthird line'
 
 section('§1 VALIDATION — a plain string without a summary is accepted (RED on the base: "A summary is required for plain string messages.")')
