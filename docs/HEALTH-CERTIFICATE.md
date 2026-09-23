@@ -52,6 +52,18 @@ A fast run certifies these sections (section id · title):
 | `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
+IDENTITY's `Refused models` row sits beside `Client contract`: a model refused
+for a minimum client version, a subscription tier or a model-specific 403/404
+stays visible with the same sentence as the chat and picker. The row warns
+with the model, credential door, cause and time since the refusal; expanding
+it shows the sentence and remedy. A successful request for that model on
+that door clears the refusal, and changing the presented client version
+clears a minimum-version refusal. With no recorded refusal the row reads
+`info`: `no model refused on any door in this session`. The observations are
+shared by the runner, picker and doctor through the current credential home's
+`model-refusals` directory, so a separate doctor can read a recorded refusal
+too; it never makes a provider request to discover one.
+
 RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
 directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
 whom, and the tickets waiting — or the plain word that no lock directory is
@@ -102,14 +114,19 @@ AUTH carries the `Model lists` row: for every provider family Mercury
 carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
 Gemini, Hugging Face), whether each typed id is still served by the live
 model list the product has already read for that family's signed-in source.
-The row never fetches: it reads the catalogue the picker, a chat naming the
-family or a sub-agent launch already cached, so a family nothing has asked
-about reads `no list read in this process`, a family without a credential
-reads `no credential`, a family whose provider publishes no list (Z.AI)
-reads `no live list — typed table dated <date>`, and Anthropic
-reads `no list read` because Mercury reads no Anthropic list. The evidence
-line is `served <n> · not served <m> · lists read <k> of <r>`; the detail
-names one line per family and, beneath a family whose list lacks a typed id,
+The row never fetches: it reads the catalogue already fetched by `/model`,
+`/logins` or a chat naming the family. A family nothing has asked about reads
+`no list read in this process`, a family without a credential reads
+`no credential`, and a family whose provider publishes no list (Z.AI) reads
+`no live list — typed table dated <date>`. Anthropic follows the same rule:
+its line names the credential door, the served and not-served counts, and
+`list from <age>`; without a read it says `no list read in this process —
+/model or a chat naming the family reads it · <n> typed ids not judged`.
+A failed read instead names the failed door, the endpoint's reason and the
+age; an absent credential reads `Anthropic · no credential · <n> typed ids
+not judged`. The evidence line is `served <n> · not served <m> · lists read
+<k> of 6`; Anthropic is counted among the six readable families, Z.AI is not.
+The detail names one line per family and, beneath a family whose list lacks a typed id,
 the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has
 been read in this process or no signed-in family has a live list, and
