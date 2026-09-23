@@ -45,7 +45,7 @@ const count = (s: string, needle: string): number => s.split(needle).length - 1
 async function drive(scene: Scene): Promise<void> {
   const ask = 'run the long sleep please'
   const arm = 'sleep-tool'
-  const TOOL_ROW = '▰ Bash'
+  const TOOL_ROW = 'Running 1 bash command'
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-esclatch-${scene}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
   const PROBE_KEY = 'sk-ant-esclatch-probe-key'
@@ -100,12 +100,12 @@ async function drive(scene: Scene): Promise<void> {
   const press =
     scene === 'fresh'
       ? [
-          { requireAwait: true, minTick: 10, awaitText: 'running…', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
+          { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
           { afterPrevTicks: 1, data: `${ask}\r`, mark: 'esc-landed' },
           { afterPrevTicks: 5, data: '', mark: 'sent' },
         ]
       : [
-          { requireAwait: true, minTick: 10, awaitText: 'running…', awaitSettleTicks: 6, data: `${ask}\r`, mark: 'tool-running' },
+          { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: `${ask}\r`, mark: 'tool-running' },
           { afterPrevTicks: 10, data: '\x1b', mark: 'queued' },
           { afterPrevTicks: 1, data: '', mark: 'esc-landed' },
           { afterPrevTicks: 5, data: '', mark: 'sent' },
@@ -222,13 +222,13 @@ async function drive(scene: Scene): Promise<void> {
   check(`${scene}: vshot ran the journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
   console.log(`  [record] ${scene}: the capture ended on '${endReason}' at tick ${endedAtTick} (ready text ${JSON.stringify(REPLY)})`)
   check(`${scene}: the capture ended on the scene's ready text, never the budget`, endReason === 'ready', `endReason=${endReason} at tick ${endedAtTick}`)
-  check(`${scene}: the Bash tool was running its sleep, the row wearing "esc interrupts"`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('running…') && /esc interrupts/.test(at('tool-running')), tail(at('tool-running')))
+  check(`${scene}: the Bash tool was running its sleep, the row wearing "esc interrupts"`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('sleep 40') && /esc interrupts/.test(at('tool-running')), tail(at('tool-running')))
   if (scene === 'drain') check(`${scene}: the words typed into the running turn painted QUEUED before the press`, /queued\s+\[sam\] ❯ run the long sleep please/.test(at('queued')), tail(at('queued')))
 
   section(`${scene} — E2: the next turn wears its own phase, never the stale latch`)
   const sleepSteps = wire.filter(c => c.kind === 'anthropic' && c.arm === arm && c.step === 0 && ((c as { tools?: number }).tools ?? 0) > 0)
   check(`${scene}: the second ask earned a fresh sleep turn (the fixture served the sleep twice)`, sleepSteps.length === 2, JSON.stringify(wire.map(c => [c.n, c.arm, c.step])))
-  const nextRunning = (frame: string): boolean => frame.includes(TOOL_ROW) && frame.includes('running…')
+  const nextRunning = (frame: string): boolean => frame.includes(TOOL_ROW) && frame.includes('sleep 40')
   check(`${scene}: the next turn is on screen — its Bash row running${scene === 'drain' ? ' (the drained turn opened the seat\'s edge on the wire)' : ''}`, nextRunning(at('next-turn')), tail(at('next-turn')))
   for (const label of ['next-turn', 'next-turn-late']) {
     const frame = at(label)

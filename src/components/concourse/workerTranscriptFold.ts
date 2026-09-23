@@ -266,15 +266,15 @@ export function deriveTranscriptRows(
       .filter(m => shouldShowUserMessage(m, false)),
     [],
   )
-  const { messages: grouped } = applyGrouping(prepared, tools, false)
-  const collapsed = collapseBackgroundBashNotifications(
-    collapseHookSummaries(collapseTeammateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools))),
-    false,
-  )
   const lookups = buildMessageLookups(normalized, messages)
   const inProgress = new Set<string>()
   for (const id of lookups.toolUseByToolUseID.keys()) {
     if (!lookups.resolvedToolUseIDs.has(id)) inProgress.add(id)
   }
+  const { messages: grouped } = applyGrouping(prepared, tools, false)
+  const collapsed = collapseBackgroundBashNotifications(
+    collapseHookSummaries(collapseTeammateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress))),
+    false,
+  )
   return { collapsed, lookups, inProgress }
 }
