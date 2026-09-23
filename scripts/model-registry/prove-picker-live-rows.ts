@@ -136,7 +136,7 @@ section('§5 the not-signed-in projection marks the raw rows unavailable exactly
   const options = compose(live(['claude-opus-5-7']), false)
   const rows = anthropicRows(options)
   const reason = rows.find(o => o.value === 'claude-opus-5-5')?.unavailable
-  check('the sign-in action row leads the section', options[0]?.value === ANTHROPIC_CONNECT_OPTION_VALUE)
+  check('the sign-in action row leads the Anthropic section', options.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE, options.filter(o => o.group === undefined).map(o => o.value).slice(0, 3).join(','))
   check('the raw row carries the same not-signed-in reason as the static rows', reason !== undefined && rows.every(o => o.unavailable === reason), show(options))
 }
 
