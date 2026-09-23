@@ -135,7 +135,7 @@ function capture(id: string, home: string, cols: number, rows: number, sends: Se
 
 const rowWith = (lines: string[], needle: string): string => lines.find(l => l.includes(needle)) ?? ''
 const settingRow = (lines: string[], label: string): string =>
-  lines.find(l => l.includes(`❯ ${label}`)) ?? lines.filter(l => l.includes(label) && !l.includes(`/ ${label}`)).at(-1) ?? ''
+  lines.find(l => l.includes(`› ${label}`)) ?? lines.filter(l => l.includes(label) && !l.includes(`/ ${label}`)).at(-1) ?? ''
 const valueOf = (lines: string[], label: string): string => {
   const row = settingRow(lines, label)
   return row.slice(row.indexOf(label) + label.length).replace(/│\s*$/, '').trim()
@@ -152,7 +152,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 
-const READY = ['esc revert']
+const READY = ['esc or click outside closes']
 function openConfig(cols: number): Send[] {
   return [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -176,7 +176,7 @@ for (const [cols, rows] of SIZES) {
     { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
-    { requireAwait: true, awaitText: 'esc revert', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
+    { requireAwait: true, awaitText: AGENT_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
   ], { total: 420, ready: READY })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const before = c.marks.get('row-before') ?? []
@@ -213,7 +213,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
     { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
-    { requireAwait: true, awaitText: 'esc revert', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
+    { requireAwait: true, awaitText: TEAMMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
   ], { total: 420, ready: READY })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const before = c.marks.get('row-before') ?? []
