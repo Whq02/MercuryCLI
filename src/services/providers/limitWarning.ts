@@ -2,7 +2,8 @@ import { formatResetTime } from '../../utils/format.js'
 import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
-import { activeSourceUsage, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
+import { activeSourceUsage, bindingWindowOf, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 
 export const FIRST_WARNING_PCT = 80
 export const SECOND_WARNING_PCT = 90
@@ -10,12 +11,11 @@ export const APPROACHING_LIMIT_PCT = FIRST_WARNING_PCT
 export type UsageWarningTier = typeof FIRST_WARNING_PCT | typeof SECOND_WARNING_PCT
 
 export function usageWarningTier(pct: number | undefined): UsageWarningTier | null {
-  if (pct === undefined || !Number.isFinite(pct) || pct < FIRST_WARNING_PCT || pct >= 100) return null
+  if (pct === undefined || !Number.isFinite(pct) || pct < FIRST_WARNING_PCT) return null
   return pct >= SECOND_WARNING_PCT ? SECOND_WARNING_PCT : FIRST_WARNING_PCT
 }
 
 export function usageWindowState(pct: number | undefined): 'allowed' | 'warning' | 'rejected' {
-  if (pct !== undefined && Number.isFinite(pct) && pct >= 100) return 'rejected'
   return usageWarningTier(pct) === null ? 'allowed' : 'warning'
 }
 
@@ -48,7 +48,7 @@ export function usageWarningNoticeText(text: string, pct: number): string {
 
 function warningFacts(provider: string, label: string, pct: number, windowKey: string, windowName: string, resetsAtSeconds?: number): ProviderLimitWarningFacts | null {
   const tier = usageWarningTier(pct)
-  if (tier === null || (resetsAtSeconds !== undefined && resetsAtSeconds * 1000 <= Date.now())) return null
+  if (tier === null) return null
   const reset = formatResetTime(resetsAtSeconds)
   return {
     view: {
@@ -73,7 +73,7 @@ function anthropicWarning(limits: ClaudeAILimits): ProviderLimitWarningFacts | n
       pct: 0,
     } : null
   }
-  if (limits.status === 'rejected' || limits.utilization === undefined || limits.rateLimitType === undefined) return null
+  if (limits.status === 'rejected' || limits.utilization === undefined || limits.rateLimitType === undefined || (limits.resetsAt !== undefined && limits.resetsAt * 1000 <= Date.now())) return null
   return warningFacts('anthropic', providerDisplayName('anthropic'), Math.floor(limits.utilization * 100), limits.rateLimitType, rateLimitWindowName(limits.rateLimitType), limits.resetsAt)
 }
 
@@ -91,7 +91,10 @@ export function providerLimitWarningFacts(opts?: {
   } catch {
     return null
   }
-  const binding = view.binding
+  const now = Date.now()
+  if (view.limited !== undefined && view.limited.resetsAtMs > now) return null
+  const notExpired = (window: UsageWindowView): boolean => window.resetsAtMs === undefined || window.resetsAtMs > now
+  const binding = bindingWindowOf({ ...view, windows: view.windows.filter(notExpired), pools: view.pools.filter(notExpired) }, opts?.model ?? getMainLoopModel())
   const label = view.label
   const word = label.endsWith(' usage') && label !== 'API usage'
     ? label.slice(0, -' usage'.length)
@@ -108,7 +111,7 @@ export function providerLimitWarningFacts(opts?: {
   if (view.shape !== 'subscription-windows') return null
   const limits = reads?.anthropicLimits?.() ?? currentLimits
   if (limits.isUsingOverage) return anthropicWarning(limits)
-  if (limits.status === 'rejected' || (binding?.window.usedPct ?? 0) >= 100) return null
+  if (limits.status === 'rejected' && (limits.resetsAt === undefined || limits.resetsAt * 1000 > now)) return null
   const fromHeaders = anthropicWarning(limits)
   if (fromMeter === null) return fromHeaders
   return fromHeaders !== null && fromHeaders.pct > fromMeter.pct ? fromHeaders : fromMeter

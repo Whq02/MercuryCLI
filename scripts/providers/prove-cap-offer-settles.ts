@@ -50,7 +50,7 @@ section('§A the armed-state owner — an answered offer survives the state/rese
   })
 
   const w1 = cap.observedFamilyWindow('openai', bandWarn(now + 5 * 3600_000, 92))
-  check('the observation arms a warning offer for the openai home', w1.state === 'warning')
+  check('the observation is a words-only warning for the openai home', w1.state === 'warning' && cap.decideCapAction('offer', w1.state).kind === 'none')
 
   check('before the answer the handoff offer is armed', cap.capOfferAnswered('handoff', 'openai') === false)
   cap.noteCapOfferAnswered('handoff', 'openai')
@@ -272,7 +272,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   const walled = cap.observedFamilyWindow('anthropic', { ...reads, anthropic: () => ({ status: 'rejected' as const, observed: true, resetsAtMs: now + 60_000, windowName: 'weekly limit' }) }, { model: FABLE_51 })
   check("a reached window on the wire outranks the pool warning (the latch's own name)", walled.state === 'rejected' && walled.windowName === 'weekly limit')
   const poolFull = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [live('seven_day_fable', 'Fable', 100, poolReset)] }, { model: FABLE_51 })
-  check('a pool at 100% is a reached window (rejected), named by the owner', poolFull.state === 'rejected' && poolFull.windowName === 'Fable limit')
+  check('a pool at 100% is still words only until the wire rejects', poolFull.state === 'warning' && poolFull.windowName === 'Fable limit' && cap.decideCapAction('offer', poolFull.state).kind === 'none')
   const poolStale = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [live('seven_day_fable', 'Fable', 99, now - 1)] }, { model: FABLE_51 })
   check('a pool whose stated reset passed is stale — it never binds', poolStale.state === 'allowed' && poolStale.windowName !== 'Fable limit')
   const openaiSeat = cap.observedFamilyWindow('openai', { now: () => now, openaiActiveSource: () => 'chatgpt-subscription' as const, openaiWall: () => null, openaiBands: () => [{ usedPct: 92, resetsAtMs: now + 5 * 3600_000, windowName: '5h window' }] }, { model: 'gpt-5.6-sol' })

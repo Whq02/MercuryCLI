@@ -29,15 +29,15 @@ console.log('RED on the base: 79% warns and a warning offers a handoff; the two 
 for (const pool of [false, true]) {
   for (const pct of [79, 80, 85, 90, 95, 100]) {
     const facts = warnings.providerLimitWarningFacts({ model: 'fable', reads: reads(pct, pool) })
-    assert.equal(facts?.tier ?? null, pct < 80 || pct >= 100 ? null : pct < 90 ? 80 : 90)
+    assert.equal(facts?.tier ?? null, pct < 80 ? null : pct < 90 ? 80 : 90)
     const fact = observedFamilyWindow('anthropic', {
       now: () => (reset - 604800) * 1000,
       anthropic: () => ({ status: 'allowed', observed: true }),
       anthropicWindows: () => [window(pool ? 36 : pct)],
       anthropicPools: () => pool ? [window(pct, 'seven_day_fable', 'Fable')] : [],
     }, { model: 'fable' })
-    assert.equal(fact.state, pct >= 100 ? 'rejected' : pct >= 80 ? 'warning' : 'allowed')
-    assert.equal(fact.warningTier ?? null, pct < 80 || pct >= 100 ? null : pct < 90 ? 80 : 90)
+    assert.equal(fact.state, pct >= 80 ? 'warning' : 'allowed')
+    assert.equal(fact.warningTier ?? null, pct < 80 ? null : pct < 90 ? 80 : 90)
     if (facts) assert.match(facts.view.text, new RegExp(`^Anthropic: ${pct}% of the ${pool ? 'Fable' : 'weekly'} limit used · resets `))
   }
 }
@@ -121,8 +121,8 @@ for (const family of ['openai', 'moonshot', 'openrouter'] as const) {
       openrouterWall: () => null,
       laneBilling: () => ({ state: 'clear' }),
     })
-    assert.equal(card.state, pct >= 100 ? 'rejected' : pct >= 80 ? 'warning' : 'allowed')
-    assert.equal(facts?.tier ?? null, pct < 80 || pct >= 100 ? null : pct < 90 ? 80 : 90)
+    assert.equal(card.state, pct >= 80 ? 'warning' : 'allowed')
+    assert.equal(facts?.tier ?? null, pct < 80 ? null : pct < 90 ? 80 : 90)
     if (facts) {
       assert.equal(card.warningTier, facts.tier)
       assert.equal(card.windowName, facts.windowName)
@@ -148,7 +148,7 @@ console.log('PASS every percentage family shares the tiers and a source without 
 console.log('RED on the base: changing the percentage text re-notifies within a tier')
 const seen = new Set<string>()
 const emitted: ProviderLimitWarningView[] = []
-for (const pct of [79, 80, 85, 90, 95, 85, 90]) {
+for (const pct of [79, 80, 85, 90, 95, 100, 85, 90]) {
   const warning = warnings.providerLimitWarning({ model: 'fable', reads: reads(pct) })
   if (warnings.takeUsageWarning(seen, warning)) emitted.push(warning!)
 }
@@ -251,3 +251,81 @@ assert.ok(unlabelled.message.includes('x-codex-primary-reset-after-seconds: 3600
 const ambiguous = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600', 'x-codex-secondary-reset-after-seconds': '604800' }))
 assert.equal(ambiguous.resetsAtMs, undefined)
 assert.equal(ambiguous.message, 'Limit reached')
+
+console.log('Compatibility: the separate overage signal never becomes a percentage wall')
+const overageReset = String(Math.floor(Date.now() / 1000) + 60)
+const overage = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed',
+  'anthropic-ratelimit-unified-overage-surpassed-threshold': '0.9',
+  'anthropic-ratelimit-unified-overage-utilization': '1',
+  'anthropic-ratelimit-unified-overage-reset': overageReset,
+}))
+assert.equal(overage.status, 'allowed_warning')
+assert.equal(overage.rateLimitType, 'overage')
+assert.equal(overage.utilization, 1)
+assert.equal(overage.resetsAt, Number(overageReset))
+const overageWithoutPercent = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed',
+  'anthropic-ratelimit-unified-overage-surpassed-threshold': '0.9',
+}))
+assert.equal(overageWithoutPercent.utilization, undefined)
+assert.equal(overageWithoutPercent.status, 'allowed_warning')
+const separateSignals = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed',
+  'anthropic-ratelimit-unified-5h-surpassed-threshold': '0.8',
+  'anthropic-ratelimit-unified-5h-utilization': '0.85',
+  'anthropic-ratelimit-unified-overage-surpassed-threshold': '0.9',
+  'anthropic-ratelimit-unified-overage-utilization': '1',
+}))
+assert.equal(separateSignals.status, 'allowed_warning')
+assert.equal(separateSignals.rateLimitType, 'five_hour')
+const cardSource = readFileSync(new URL('../../src/services/capFailover.ts', import.meta.url), 'utf8')
+assert.ok(cardSource.includes("current.rateLimitType !== 'overage' && current.utilization !== undefined"))
+console.log('PASS the overage decoder keeps its old verdict and does not manufacture a window cap')
+
+const expiredOverage = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed_warning',
+  'anthropic-ratelimit-unified-overage-surpassed-threshold': '0.9',
+  'anthropic-ratelimit-unified-overage-utilization': '1',
+  'anthropic-ratelimit-unified-overage-reset': String(Math.floor(Date.now() / 1000) - 60),
+}))
+assert.equal(expiredOverage.status, 'allowed')
+const fullButAllowed = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed',
+  'anthropic-ratelimit-unified-7d-utilization': '1',
+  'anthropic-ratelimit-unified-7d-reset': String(reset),
+}))
+assert.equal(fullButAllowed.status, 'allowed_warning')
+const wireRejects = computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'rejected',
+  'anthropic-ratelimit-unified-7d-utilization': '0.36',
+  'anthropic-ratelimit-unified-reset': String(reset),
+}))
+assert.equal(wireRejects.status, 'rejected')
+console.log('PASS percentages through 100 stay words only; the wire alone rejects; expired warning resets are quiet')
+
+const expired = Math.floor(Date.now() / 1000) - 60
+const mixedReads = {
+  ...reads(80),
+  anthropicWindows: () => ({
+    fiveHour: { key: '5h' as const, state: 'live' as const, usedPct: 100, resetsAtMs: expired * 1000 },
+    sevenDay: { key: '7d' as const, state: 'live' as const, usedPct: 80, resetsAtMs: reset * 1000 },
+  }),
+  anthropicLimits: () => ({ ...limits, status: 'rejected' as const, utilization: 1, rateLimitType: 'five_hour' as const, resetsAt: expired }),
+}
+const mixedFact = warnings.providerLimitWarningFacts({ model: 'fable', reads: mixedReads })
+const mixedCard = observedFamilyWindow('anthropic', {
+  anthropic: () => ({ status: 'rejected', observed: true, usedPct: 100, resetsAtMs: expired * 1000 }),
+  anthropicWindows: () => [window(100, '5h')].map(w => ({ ...w, resetsAtMs: expired * 1000 })).concat([window(80)]),
+  anthropicPools: () => [],
+}, { model: 'fable' })
+assert.equal(mixedFact?.pct, 80)
+assert.equal(mixedCard.state, 'warning')
+assert.equal(mixedCard.usedPct, 80)
+assert.equal(mixedCard.windowName, mixedFact?.windowName)
+console.log('PASS an expired high band cannot hide a fresh lower band on either warning reader')
+const explicitOpenaiWall = warnings.providerLimitWarningFacts({ model: 'fixture', reads: { ...staleReads,
+  openaiObserved: () => ({ secondary: { usedPct: 100, windowMinutes: 10080, resetsAtMs: reset * 1000, observedAtMs: Date.now() } }),
+  openaiLimited: () => ({ state: 'limited', resetsAtMs: reset * 1000, observedAtMs: Date.now() }),
+} })
+assert.equal(explicitOpenaiWall, null)
