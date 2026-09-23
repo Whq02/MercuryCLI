@@ -15,7 +15,7 @@ I use Mercury to develop Mercury, working with several agents and models
 across long sessions. Keeping track of that work matters to me: what is still
 running, what changed, and what needs a decision.
 
-![One prompt launches two agents, each in its own worktree, and Mercury reports what each changed](docs/media/agents.gif)
+![One prompt on the session concourse launches two sessions, each on its own branch; one asks before it edits, and both land ready to review with what each changed](docs/media/agents.gif)
 
 Mercury is source-available. See [Licence](#licence) for the production-use terms.
 
