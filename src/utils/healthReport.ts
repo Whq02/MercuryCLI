@@ -660,6 +660,20 @@ function standingWindowWords(family: string): string {
   }
 }
 
+export function browserReadinessCheck(reads?: import('../services/browser/browserResolver.js').BrowserResolverReads): CheckSpec {
+  return {
+    id: 'iface-browser',
+    label: 'Browser',
+    depth: 'fast',
+    probe: 'configuration',
+    run: async () => {
+      const { describeBrowserReadiness } = await import('../services/browser/browserResolver.js')
+      const facts = describeBrowserReadiness(reads)
+      return { status: facts.ready ? 'ok' : 'info', evidence: facts.line, detail: facts.detail, ...(facts.fix !== undefined ? { fix: facts.fix } : {}) }
+    },
+  }
+}
+
 export function modelRefusalsCheck(): CheckSpec {
   return {
     id: 'model-refusals',
@@ -2726,6 +2740,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
+        browserReadinessCheck(),
         {
           id: 'iface-voice',
           label: 'Voice input',
