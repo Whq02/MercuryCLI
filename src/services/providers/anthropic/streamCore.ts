@@ -148,6 +148,7 @@ import {
 import { getInitializationStatus } from '../../lsp/manager.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
+import { captureModelRefusalRequest, clearModelRefusal, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
   getAssistantMessageFromError,
@@ -472,6 +473,11 @@ async function* queryModel(
   const previousRequestId = getPreviousRequestIdFromMessages(messages)
 
   const resolvedModel = options.model
+  const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
+  const captureModelRequest = (params: BetaMessageStreamParams): void => {
+    modelRefusalRequest.current = captureModelRefusalRequest(params.model)
+    captureAPIRequest(params, options.querySource)
+  }
 
   const isAgenticQuery =
     options.querySource.startsWith('repl_main_thread') ||
@@ -958,7 +964,7 @@ async function* queryModel(
         start = Date.now()
 
         const params = paramsFromContext(context)
-        captureAPIRequest(params, options.querySource)
+        captureModelRequest(params)
 
         recordPromptState({
           system: params.system as unknown as NeutralSystemBlock[],
@@ -1529,7 +1535,7 @@ async function* queryModel(
           attemptNumber = attempt
           maxOutputTokens = tokens
         },
-        params => captureAPIRequest(params, options.querySource),
+        captureModelRequest,
         streamRequestId,
         streamIdleAborted
           ? { idleMs: STREAM_IDLE_TIMEOUT_MS, model: getPublicModelDisplayName(options.model) ?? options.model }
@@ -1594,7 +1600,7 @@ async function* queryModel(
             attemptNumber = attempt
             maxOutputTokens = tokens
           },
-          params => captureAPIRequest(params, options.querySource),
+          captureModelRequest,
           failedRequestId,
         )
 
@@ -1630,6 +1636,7 @@ async function* queryModel(
         yield getAssistantMessageFromError(error, errorModel, {
           messages,
           messagesForAPI,
+          modelRefusalRequest: modelRefusalRequest.current,
         })
         releaseStreamResources()
         return
@@ -1653,6 +1660,7 @@ async function* queryModel(
       yield getAssistantMessageFromError(error, errorModel, {
         messages,
         messagesForAPI,
+        modelRefusalRequest: modelRefusalRequest.current,
       })
       releaseStreamResources()
       return
@@ -1687,6 +1695,11 @@ async function* queryModel(
       options.querySource === 'sdk')
   ) {
     setLastMainRequestId(streamRequestId)
+  }
+
+  const successfulRequest = modelRefusalRequest.current
+  if (successfulRequest !== undefined) {
+    clearModelRefusal(successfulRequest.id, successfulRequest.door, successfulRequest.home, successfulRequest.presented)
   }
 
   void options.getToolPermissionContext().then(() => {
