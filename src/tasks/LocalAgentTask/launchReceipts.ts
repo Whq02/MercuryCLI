@@ -2,6 +2,7 @@
 import { createTaskStateBase } from '../../Task.js'
 import {
   STATUS_TAG,
+  SUMMARY_TAG,
   TASK_ID_TAG,
   TASK_NOTIFICATION_TAG,
   TOOL_USE_ID_TAG,
@@ -13,7 +14,7 @@ import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
-import { enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
+import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Agent launched in the background.'
 
@@ -207,4 +208,173 @@ export function reconcileBackgroundLaunchesOnResume(
     })
   }
   return orphans
+}
+
+export const AGENT_RELAUNCH_NOTE =
+  "The session's runner restarted while you were working, and you were relaunched from your transcript. Continue from where your transcript ends — the work before the restart stands on disk; do not redo it. Read your own diff (git diff) and read a file again before you edit it: the restart emptied the record of what you had read, so an edit without a fresh read is refused."
+
+export type RestartCarryCounts = { relaunched: number; delivered: number; stopped: number }
+
+export const RESTART_CARRY_ROW_PREFIX = 'runner restarted '
+
+export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
+  const because = reason === 'stop' ? 'after the turn was cut' : 'after a crash'
+  return `${RESTART_CARRY_ROW_PREFIX}${because}: ${counts.relaunched} background agents relaunched, ${counts.delivered} delivered from their receipts, ${counts.stopped} stopped`
+}
+
+export function isRestartCarryRow(text: string): boolean {
+  return text.startsWith(RESTART_CARRY_ROW_PREFIX)
+}
+
+export type QueueLogRow = {
+  operation: string
+  content?: string
+  uuid?: string
+  mode?: string
+  isMeta?: boolean
+  sentAt?: string
+  at?: string
+}
+
+type QueueOperationLine = {
+  type?: unknown
+  operation?: unknown
+  content?: unknown
+  uuid?: unknown
+  mode?: unknown
+  isMeta?: unknown
+  sentAt?: unknown
+  timestamp?: unknown
+  payload?: { kind?: unknown; metaKind?: unknown; fields?: Record<string, unknown> }
+}
+
+function queueLogRowOf(line: string): QueueLogRow | null {
+  if (!line.includes('queue-operation')) return null
+  let row: QueueOperationLine
+  try {
+    row = JSON.parse(line) as QueueOperationLine
+  } catch {
+    return null
+  }
+  const fields: Record<string, unknown> | undefined =
+    row.payload?.kind === 'session-meta' && row.payload.metaKind === 'queue-operation'
+      ? row.payload.fields
+      : row.type === 'queue-operation'
+        ? (row as Record<string, unknown>)
+        : undefined
+  if (fields === undefined || typeof fields.operation !== 'string') return null
+  return {
+    operation: fields.operation,
+    ...(typeof fields.content === 'string' ? { content: fields.content } : {}),
+    ...(typeof fields.uuid === 'string' ? { uuid: fields.uuid } : {}),
+    ...(typeof fields.mode === 'string' ? { mode: fields.mode } : {}),
+    ...(fields.isMeta === true ? { isMeta: true } : {}),
+    ...(typeof fields.sentAt === 'string' ? { sentAt: fields.sentAt } : {}),
+    ...(typeof fields.timestamp === 'string' ? { at: fields.timestamp } : {}),
+  }
+}
+
+export function queueLogRows(lines: Iterable<string>): QueueLogRow[] {
+  const rows: QueueLogRow[] = []
+  for (const line of lines) {
+    const row = queueLogRowOf(line)
+    if (row !== null) rows.push(row)
+  }
+  return rows
+}
+
+const TAKING_OPERATIONS: ReadonlySet<string> = new Set(['dequeue', 'remove', 'pop', 'popAll'])
+
+export function pendingQueueLogRows(rows: readonly QueueLogRow[]): QueueLogRow[] {
+  const pending: QueueLogRow[] = []
+  for (const row of rows) {
+    if (row.operation === 'enqueue') {
+      pending.push(row)
+      continue
+    }
+    if (row.operation === 'popAll') {
+      pending.length = 0
+      continue
+    }
+    if (TAKING_OPERATIONS.has(row.operation)) {
+      if (row.uuid !== undefined) {
+        const at = pending.findIndex(p => p.uuid === row.uuid)
+        if (at >= 0) {
+          pending.splice(at, 1)
+          continue
+        }
+      }
+      pending.shift()
+    }
+  }
+  return pending
+}
+
+export function undeliveredLines(rows: readonly QueueLogRow[]): QueueLogRow[] {
+  return pendingQueueLogRows(rows).filter(row => (row.mode === 'prompt' || row.mode === 'bash') && row.isMeta !== true && typeof row.content === 'string' && row.content.trim() !== '')
+}
+
+export type HeldAgentNotice = {
+  taskId: string
+  status: 'completed' | 'failed' | 'killed'
+  value: string
+  at?: string
+  operatorStop: boolean
+  landedWrites?: string
+}
+
+const HELD_NOTICE_STATUSES: ReadonlySet<string> = new Set(['completed', 'failed', 'killed'])
+
+const NOTICE_BLOCK = new RegExp(`<${TASK_NOTIFICATION_TAG}>[\\s\\S]*?</${TASK_NOTIFICATION_TAG}>`, 'g')
+
+export function heldAgentNotices(lines: Iterable<string>, agentIds: ReadonlySet<string>): Map<string, HeldAgentNotice> {
+  const outcomes = new Map<string, HeldAgentNotice>()
+  const stops = new Map<string, HeldAgentNotice>()
+  const operatorStopWords = agentStopReasonOf(AGENT_STOP_BY_OPERATOR) ?? ''
+  for (const row of queueLogRows(lines)) {
+    if (row.operation !== 'enqueue' || typeof row.content !== 'string' || !row.content.includes(`<${TASK_NOTIFICATION_TAG}>`)) continue
+    const value = row.content
+    const taskId = pickTag(value, TASK_ID_TAG)
+    const status = pickTag(value, STATUS_TAG)
+    if (taskId === undefined || taskId === '' || !agentIds.has(taskId) || status === undefined || !HELD_NOTICE_STATUSES.has(status)) continue
+    const summary = pickTag(value, SUMMARY_TAG) ?? ''
+    const landed = summary.match(/(\d+ file writes? landed: [^—]+)/)
+    const held: HeldAgentNotice = {
+      taskId,
+      status: status as HeldAgentNotice['status'],
+      value,
+      ...(row.sentAt !== undefined ? { at: row.sentAt } : row.at !== undefined ? { at: row.at } : {}),
+      operatorStop: operatorStopWords !== '' && summary.includes(operatorStopWords),
+      ...(landed !== null ? { landedWrites: landed[1]!.trim() } : {}),
+    }
+    if (held.status === 'killed') stops.set(taskId, held)
+    else outcomes.set(taskId, held)
+  }
+  for (const [taskId, held] of stops) {
+    if (!outcomes.has(taskId)) outcomes.set(taskId, held)
+  }
+  return outcomes
+}
+
+export function queuedNoticeIds(messages: readonly Message[]): Set<string> {
+  const ids = new Set<string>()
+  for (const message of messages) {
+    if (message.type !== 'attachment') continue
+    const attachment = message.attachment as unknown as { type?: unknown; prompt?: unknown }
+    if (attachment.type !== 'queued_command') continue
+    for (const notice of textOf(attachment.prompt).match(NOTICE_BLOCK) ?? []) {
+      if (pickTag(notice, STATUS_TAG) === 'resumed') continue
+      const toolUseId = pickTag(notice, TOOL_USE_ID_TAG)
+      const taskId = pickTag(notice, TASK_ID_TAG)
+      if (toolUseId) ids.add(toolUseId)
+      if (taskId) ids.add(taskId)
+    }
+  }
+  return ids
+}
+
+export function settledRecordFor(receipt: BackgroundLaunchReceipt, status: HeldAgentNotice['status'], now: number = Date.now()): LocalAgentTaskState {
+  const { error: _unsaid, ...record } = stoppedRecordFor(receipt, now)
+  void _unsaid
+  return { ...record, status, notified: true }
 }

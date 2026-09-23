@@ -420,6 +420,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         revive: async sessionId => {
           const out = reviveConcourseWorker(sessionId, 'auto-revive', roster ?? undefined)
+          if (out.outcome === 'applied' && roster !== null) onSeatSpawned(out.runnerId, roster)
           return out.outcome === 'applied' || out.outcome === 'noop'
             ? { ok: true }
             : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
@@ -707,6 +708,17 @@ async function daemonRun(args: string[]): Promise<void> {
                     return
                   }
                   publishSeatFacts(runnerId, undefined, live)
+                  if (after === undefined || !after.outcome) return
+                  const cutRecord = readSessionWorkers()[runnerId]
+                  if (cutRecord === undefined || cutRecord.endedAt !== undefined || cutRecord.focusedAt === undefined) return
+                  const revived = reviveConcourseWorker(sessionId, cutBy, live)
+                  if (revived.outcome === 'applied') onSeatSpawned(revived.runnerId, live)
+                  // eslint-disable-next-line no-console
+                  console.error(
+                    revived.outcome === 'applied'
+                      ? `[daemon] hard stop: ${runnerId} relaunched at once for the focused seat (pid ${String(revived.pid ?? '?')}; its runner comes back saying the turn was cut)`
+                      : `[daemon] hard stop: ${runnerId} not relaunched — ${revived.outcome} (${'reason' in revived ? revived.reason : ''})`,
+                  )
                 }
                 publishWhenGone()
               }, 1_000).unref()
@@ -813,6 +825,7 @@ async function daemonRun(args: string[]): Promise<void> {
             (fresh.pid === undefined || !isProcessAlive(fresh.pid))
           ) {
             const rev = reviveConcourseWorker(sessionId, by, roster ?? undefined, { allowStopped: true })
+            if (rev.outcome === 'applied' && roster !== null) onSeatSpawned(rev.runnerId, roster)
             return settle(
               rev.outcome === 'applied'
                 ? {

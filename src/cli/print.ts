@@ -631,6 +631,50 @@ export async function runHeadless(
       logError(error)
     }
     try {
+      const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const carriedReason = carriedReasonOf(runnerRestartReason)
+      if (carriedReason === 'crash' || carriedReason === 'stop') {
+        const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
+        const carried = await carryRunnerAcrossRestart({
+          reason: carriedReason,
+          messages,
+          getAppState,
+          setAppState,
+          canUseTool: getCanUseToolFn(
+            options.permissionChannel,
+            options.permissionPromptToolName,
+            io,
+            () => getAppState().mcp.tools as Tool[],
+            () => notifySessionStateChanged('requires_action'),
+          ),
+          relaunchContext: async () => {
+            const { toolUseContext } = await buildSideQuestionFallbackParams({
+              tools,
+              commands,
+              mcpClients: [...getAppState().mcp.clients],
+              messages,
+              readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+              getAppState,
+              setAppState,
+              customSystemPrompt: options.systemPrompt,
+              appendSystemPrompt: options.appendSystemPrompt,
+              agents,
+            })
+            return {
+              ...toolUseContext,
+              options: {
+                ...toolUseContext.options,
+                ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
+              },
+            }
+          },
+        })
+        logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
       const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
       const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
       if (settledLaunches.length > 0) {
@@ -2085,7 +2129,7 @@ export async function runHeadless(
               projectRoot: getProjectRoot(),
               instructionRoots: getAddedDirectories(),
             },
-            queue: getCommandQueue().map(command => ({
+            queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({
               ...(command.uuid !== undefined ? { uuid: String(command.uuid) } : {}),
               value:
                 typeof command.value === 'string'

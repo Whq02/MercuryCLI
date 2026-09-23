@@ -15,4 +15,8 @@ export type QueueOperationMessage = {
   timestamp: string
   sessionId: SessionId
   content?: string
+  uuid?: string
+  mode?: string
+  isMeta?: boolean
+  sentAt?: string
 }
