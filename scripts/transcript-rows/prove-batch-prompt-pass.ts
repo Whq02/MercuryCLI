@@ -51,13 +51,13 @@ try {
     return blocked.has(prompt) ? 'this line is blocked' : true
   }, 'prompt blocked', { id: 'batch-prompt-spy' })
 
-  const context = () => ({
+  const context = (standingRule?: string) => ({
     options: { commands: table, tools: [], mcpClients: [], isNonInteractiveSession: true },
-    getAppState: () => appState, setAppState, messages: [],
+    getAppState: () => appState, setAppState, messages: [], standingRule,
     abortController: new AbortController(), readFileState: new Map(), setToolJSX: () => {},
   })
-  const run = (values: Array<string | ContentBlockParam[]>, uuids: string[], isMeta = false) => processUserInput({
-    input: values[0]!, mode: 'prompt', setToolJSX: () => {}, context: context() as never,
+  const run = (values: Array<string | ContentBlockParam[]>, uuids: string[], isMeta = false, standingRule?: string) => processUserInput({
+    input: values[0]!, mode: 'prompt', setToolJSX: () => {}, context: context(standingRule) as never,
     messages: [], querySource: 'sdk', uuid: uuids[0], isMeta,
     ...(values.length > 1 ? { batchUuids: uuids, batchTail: values.slice(1).map((value, i) => ({ value, uuid: uuids[i + 1] })) } : {}),
   })
@@ -162,6 +162,17 @@ try {
   const pathHead = '/not-a-command/path'
   const pathBatch = await run([pathHead, 'path follow-up'], ids.slice(0, 2))
   check('a slash-shaped ordinary prompt retains the original batch fold', users(planApiConversation(pathBatch.messages).selected)[0]?.message.content === `${pathHead}\npath follow-up`)
+
+  await (await import('../../src/context.ts')).getUserContext()
+  const standingRule = 'STANDING-RULE-SENTINEL'
+  const contextLines = ['the first context line', 'the next context line', 'the last context line']
+  const contextJoined = await run([contextLines.join('\n')], [ids[0]!], false, standingRule)
+  const contextBatch = await run(contextLines, ids, false, standingRule)
+  for (const kind of ['user_context', 'critical_system_reminder']) {
+    const count = (messages: Message[]) => messages.filter(row => row.type === 'attachment' && row.attachment.type === kind).length
+    check(`the joined control emits one ${kind}`, count(contextJoined.messages) === 1)
+    check(`the batch emits one ${kind}, not one per prompt`, count(contextBatch.messages) === 1, String(count(contextBatch.messages)))
+  }
 } finally {
   process.chdir(originalCwd)
   rmSync(scratch, { recursive: true, force: true })

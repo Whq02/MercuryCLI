@@ -93,6 +93,7 @@ export async function processUserInput(
       const result = await processUserInput({
         ...options,
         input: prompt.value,
+        messages: [...options.messages, ...lead, ...rows, ...remaining],
         uuid,
         batchUuids: undefined,
         batchTail: undefined,
