@@ -62,8 +62,9 @@ export function relativePath(from: string, to: string): string {
   const b = toPosixPath(to)
   const aParts = a.split(posixPath.sep).filter(Boolean)
   const bParts = b.split(posixPath.sep).filter(Boolean)
+  const fold = getPlatform() === 'windows' ? (part?: string) => part?.toLowerCase() : (part?: string) => part
   let i = 0
-  while (i < aParts.length && i < bParts.length && aParts[i] === bParts[i]) i++
+  while (i < aParts.length && i < bParts.length && fold(aParts[i]) === fold(bParts[i])) i++
   const up = aParts.slice(i).map(() => '..')
   const down = bParts.slice(i)
   return [...up, ...down].join('/')
