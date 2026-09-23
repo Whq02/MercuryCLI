@@ -114,6 +114,7 @@ export type AssistantMessage = {
   }
   streamEnd?: StreamEndV1
   busyRecovery?: BusyRecoveryV1
+  busyRefusal?: BusyRefusalV1
   effortAdjusted?: EffortAdjustedV1
 }
 
@@ -231,6 +232,14 @@ export type BusyRecoveryV1 = {
   status?: number
   code?: string
   detail: string
+}
+
+export type BusyRefusalV1 = {
+  provider: string
+  retries: number
+  elapsedMs: number
+  status?: number
+  code?: string
 }
 
 export type SystemBusyRecoveryMessage = {

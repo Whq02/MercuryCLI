@@ -59,12 +59,13 @@ import { getAssistantMessageContentLength } from '../../utils/tokens.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { BackgroundHint } from '../BashTool/UI.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
-import { noteOverloadDeath } from '../../tasks/LocalAgentTask/agentOverload.js'
+import { noteOverloadDeath, overloadDeathNotifies, overloadNoticeWords } from '../../tasks/LocalAgentTask/agentOverload.js'
 import {
   deriveAgentTerminalOutcome,
   emitTaskProgress,
   armBudgetCutResume,
   armOverloadProbe,
+  closeOverloadEpisode,
   overloadEpisodeOf,
   extractPartialResult,
   partialResultEnvelopeBlock,
@@ -274,10 +275,26 @@ export async function runForegroundAgentExecution(
       const finalized = finalizeAgentTool(agentMessages, backgroundedTaskId, metadata)
       const declined =
         finalized.outcome?.status === 'failed' ? finalized.outcome : undefined
+      const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null
+      const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
+      if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
       if (declined) {
         failAsyncAgent(backgroundedTaskId, declined.error, rootSetAppState)
+        if (overload !== null && foregroundTask !== undefined) {
+          armOverloadProbe({
+            taskId: backgroundedTaskId,
+            description,
+            registration: foregroundTask.abortController,
+            toolUseContext,
+            rootSetAppState,
+            model: metadata.resolvedAgentModel,
+            pause: overload.pause,
+            afterDeath: true,
+          })
+        }
       } else {
         completeAgentTask(finalized, rootSetAppState)
+        closeOverloadEpisode(backgroundedTaskId)
       }
 
       let finalMessage = extractTextContent(finalized.content, '\n')
@@ -312,11 +329,13 @@ export async function runForegroundAgentExecution(
       } catch {
       }
 
-      enqueueAgentNotification({
+      const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+      if (notifies) enqueueAgentNotification({
         taskId: backgroundedTaskId,
         description,
         status: declined ? 'failed' : 'completed',
         ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages) } : {}),
+        ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
         setAppState: rootSetAppState,
         finalMessage,
         usage: {
@@ -332,6 +351,7 @@ export async function runForegroundAgentExecution(
       if (error instanceof AbortError) {
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
+        closeOverloadEpisode(backgroundedTaskId)
         const worktreeResult = await cleanupWorktreeIfNeeded()
         await flushSessionStorage()
         const partialResult = extractPartialResult(agentMessages)
@@ -364,6 +384,9 @@ export async function runForegroundAgentExecution(
       }
       const failure = errorMessage(error)
       failAsyncAgent(backgroundedTaskId, failure, rootSetAppState)
+      const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
+      const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
+      if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
       const worktreeResult = await cleanupWorktreeIfNeeded()
       await flushSessionStorage()
       const partialResult = extractPartialResult(agentMessages)
@@ -379,11 +402,13 @@ export async function runForegroundAgentExecution(
         partialText: partialResult,
         usage: { totalTokens: usage.totalTokens, toolUseCount: usage.toolUses, durationMs: usage.durationMs },
       })
-      enqueueAgentNotification({
+      const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
+      if (notifies) enqueueAgentNotification({
         taskId: backgroundedTaskId,
         description,
         status: 'failed',
         error: failure,
+        ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
         finalMessage: partialResult,
         usage,
         landedWrites: landedWritesOf(agentMessages),
@@ -392,6 +417,19 @@ export async function runForegroundAgentExecution(
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
+      if (overload !== null && foregroundTask !== undefined) {
+        armOverloadProbe({
+          taskId: backgroundedTaskId,
+          description,
+          registration: foregroundTask.abortController,
+          toolUseContext,
+          rootSetAppState,
+          model: metadata.resolvedAgentModel,
+          pause: overload.pause,
+          afterDeath: true,
+        })
+        return
+      }
       const budgetCut = recoveryBudgetCutOf(error)
       if (budgetCut !== null && foregroundTask !== undefined) {
         const delayMs = budgetCutResumeDelayMs(budgetCut)

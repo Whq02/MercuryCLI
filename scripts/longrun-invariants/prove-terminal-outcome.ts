@@ -325,6 +325,9 @@ section('§D wiring pins (source locks on the threaded surfaces)')
     fg.includes("status: 'failed' as const,") && fg.includes('error: failureText'))
   check("the foreground settle hands an overload death to the pause-and-probe road a background lane takes (the episode noted, the probe armed, the receipt leading with the pause)",
     fg.includes('overloadPauseOf(agentMessages, metadata.resolvedAgentModel)') && fg.includes('noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))') && fg.includes('armOverloadProbe({') && fg.includes('seatPause = windowPause ?? overload?.pause ?? null'))
+  const detached = fg.slice(fg.indexOf('const continueDetached = async ('), fg.indexOf('// ── The loop ──'))
+  check("the hand-over's declined end reads the overload verdict, arms the probe and gates its notice on the episode; its thrown end reads the 529 budget cut before the blind resume; its stop closes the episode",
+    detached.includes('const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null') && detached.includes('const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)') && detached.split('armOverloadProbe({').length === 3 && detached.split('overloadDeathNotifies(overloadEpisode)').length === 3 && detached.includes('closeOverloadEpisode(backgroundedTaskId)') && detached.indexOf('armOverloadProbe({', detached.indexOf('const budgetCut = recoveryBudgetCutOf(error)')) === -1)
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
   check("in-process teammate: a declined tail reports idleReason 'failed'",
     runner.includes('isSyntheticApiErrorMessage(lastAssistant)') && runner.includes("sendIdleNotificationToLead(identity, 'failed'"))

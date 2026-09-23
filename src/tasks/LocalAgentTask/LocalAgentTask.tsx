@@ -349,6 +349,7 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
   if (last === undefined || last.type !== 'assistant' || !isSyntheticApiErrorMessage(last)) return null
   const asked = typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now() ? last.providerWaitEndsAtMs : undefined
   if (last.error !== 'rate_limit' && asked === undefined) return null
+  if (last.busyRefusal !== undefined && asked === undefined) return null
   const family = providerFamilyOfSetting(model ?? null)
   const window = ((): { resetsAtMs?: number; windowName?: string } => {
     if (last.error !== 'rate_limit') return {}
@@ -382,7 +383,7 @@ function pauseModelWords(model: string | null | undefined): string {
   }
 }
 
-export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: AgentPauseV1; who: string } | null {
+export function overloadPauseOf(messages: readonly Message[], model: string | null | undefined): { pause: AgentPauseV1; who: string; status: number | null } | null {
   let last: Message | undefined
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]!
@@ -394,9 +395,10 @@ export function overloadPauseOf(messages: readonly Message[], model: string | nu
   if (typeof last.providerWaitEndsAtMs === 'number' && last.providerWaitEndsAtMs > Date.now()) return null
   const content = last.message.content
   const text = Array.isArray(content) ? content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join('\n') : ''
-  if (!isOverloadAnswerText(text)) return null
+  if (last.busyRefusal === undefined && !isOverloadAnswerText(text)) return null
+  const status = last.busyRefusal !== undefined ? (last.busyRefusal.status ?? null) : 529
   const who = pauseModelWords(model)
-  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who }
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who, undefined, status) }, who, status }
 }
 
 export function unpauseAgentTask(taskId: string, setAppState: SetAppState, registration?: AbortController): void {

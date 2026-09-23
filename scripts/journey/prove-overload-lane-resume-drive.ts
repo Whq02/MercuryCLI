@@ -45,9 +45,21 @@ const LANE_DONE = 'LANE-DONE'
 const LANE_NAME = 'overload-lane'
 const LANE_MODEL = arg('--lane-model') ?? 'claude-fable-5-1'
 const DOOR = /opus/i.test(LANE_MODEL)
-const INLINE = process.argv.includes('--inline')
+const FAMILY = arg('--family')
+if (FAMILY !== undefined && FAMILY !== 'compat' && FAMILY !== 'zai') {
+  console.error(`✗ --family ${FAMILY}: compat or zai`)
+  process.exit(2)
+}
+const FAMILY_MODEL = FAMILY === 'compat' ? 'compat/fixture-model' : FAMILY === 'zai' ? 'glm-5.2' : undefined
+const FAMILY_STATUS = FAMILY === 'compat' ? 503 : FAMILY === 'zai' ? 429 : 529
+const HANDOVER = process.argv.includes('--handover')
+const INLINE = process.argv.includes('--inline') || HANDOVER
 const BUDGET_CUT = process.argv.includes('--budget-cut')
 const GONE_CWD = process.argv.includes('--gone-cwd')
+if (FAMILY !== undefined && (HANDOVER || GONE_CWD || BUDGET_CUT)) {
+  console.error('✗ --family rides the background shape alone (no --handover, --budget-cut or --gone-cwd)')
+  process.exit(2)
+}
 const SEAT_MARK = 'overload-seat:lane'
 const PROBE_MARK = 'Reply with the single word ready.'
 const OLD_DOOR = 'its work is kept; resume it'
@@ -142,6 +154,46 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
       } catch {
         body = null
       }
+      if (req.method === 'POST' && url.includes('/chat/completions') && FAMILY !== undefined) {
+        const items = itemsOf(body)
+        const users = items.filter(i => i.role === 'user')
+        const userText = users.map(i => textOf(i.content)).join('\n')
+        const now = Date.now()
+        const isProbe = userText.includes(PROBE_MARK) && users.length === 1
+        const isLane = !isProbe && userText.includes(SEAT_MARK)
+        const refuse = (): void => {
+          if (FAMILY === 'zai') {
+            res.writeHead(429, { 'content-type': 'application/json' })
+            res.end(JSON.stringify({ error: { code: '1305', message: 'The service may be temporarily overloaded, please try again later' } }))
+            return
+          }
+          res.writeHead(503, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ error: { type: 'server_error', message: 'the endpoint is overloaded' } }))
+        }
+        const answer = (text: string): void => {
+          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+          res.end(`data: ${JSON.stringify({ choices: [{ delta: { content: text }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } })}\n\ndata: [DONE]\n\n`)
+        }
+        if (isProbe) {
+          const verdict = phase(now, true)
+          hits.push({ lane: 'probe', atMs: now, answer: verdict })
+          if (verdict === 'down') refuse()
+          else answer('ready')
+          return
+        }
+        if (isLane) {
+          laneCalls++
+          if (outageStartedAt === null) outageStartedAt = now
+          const verdict = phase(now, false)
+          hits.push({ lane: 'lane', atMs: now, answer: verdict })
+          if (verdict === 'down') refuse()
+          else answer(LANE_DONE)
+          return
+        }
+        hits.push({ lane: 'other', atMs: now, answer: url })
+        answer('side')
+        return
+      }
       if (req.method !== 'POST' || !url.includes('/v1/messages')) {
         hits.push({ lane: 'other', atMs: Date.now(), answer: url })
         res.writeHead(200, { 'content-type': 'application/json' })
@@ -209,6 +261,7 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
             subagent_type: 'mercury-general',
             ...(INLINE ? {} : { run_in_background: true }),
             ...(laneCwd !== undefined ? { cwd: laneCwd } : {}),
+            ...(FAMILY_MODEL !== undefined ? { model: FAMILY_MODEL } : {}),
           }) + tail('tool_use')
       } else out = textBlock(0, 'side') + tail('end_turn')
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -280,6 +333,8 @@ function driveEnv(home: string, base: string): Record<string, string> {
     MERCURY_OVERLOAD_PROBE_SCALE: PROBE_SCALE,
     MERCURY_MAX_RETRIES: '2',
     ...(BUDGET_CUT ? { MERCURY_RECOVERY_BUDGET_MINUTES: '0.02' } : {}),
+    ...(FAMILY === 'compat' ? { MERCURY_COMPAT_BASE_URL: `${base}/v1`, MERCURY_COMPAT_MODELS: 'fixture-model', MERCURY_COMPAT_LABEL: 'the fixture endpoint', MERCURY_LOCAL_PROBE_TARGETS: 'none' } : {}),
+    ...(FAMILY === 'zai' ? { ZAI_API_KEY: 'fixture-zai-key', MERCURY_ZAI_API_BASE: `${base}/zai`, MERCURY_LOCAL_PROBE_TARGETS: 'none' } : {}),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',
@@ -386,7 +441,7 @@ function parentToolResults(records: Record_[], name: string): string[] {
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 console.log('============================================================')
-console.log(` a lane on the first-party wire meets an overload — ${COLS}×${ROWS}, real bundle, PTY`)
+console.log(` a lane on the ${FAMILY === undefined ? 'first-party' : FAMILY} wire meets an overload${HANDOVER ? ' (handed over by Esc)' : ''} — ${COLS}×${ROWS}, real bundle, PTY`)
 console.log(`  bundle ${BIN}`)
 console.log('============================================================')
 const KEEP = process.env.OVERLOAD_DRIVE_KEEP === '1'
@@ -399,6 +454,8 @@ const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: 'overload-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
 ]
+const ESC_TICKS = BUDGET_CUT ? 3 : 5
+if (HANDOVER) sends.push({ data: '\x1b', afterPrevTicks: ESC_TICKS, mark: 'esc' })
 for (let i = 1; i <= FRAMES; i++) sends.push({ data: '', afterPrevTicks: 10, mark: `w${i}` })
 sends.push({ data: '', afterPrevTicks: 15, mark: 'end' })
 let cap: Capture | null = null
@@ -431,7 +488,7 @@ if (cap !== null) {
   }
   const lane = session === null ? null : laneTranscript(session.dir, session.path)
   const outputs = lane === null ? [] : laneOutputs(lane)
-  const deaths = outputs.filter(o => o.model === '<synthetic>' && /^API Error: 529\b|API overload errors \(529\)/.test(o.text))
+  const deaths = outputs.filter(o => o.model === '<synthetic>' && (FAMILY !== undefined ? /stayed busy through \d+ retr/.test(o.text) : /^API Error: 529\b|API overload errors \(529\)/.test(o.text)))
   const done = outputs.some(o => o.text.includes(LANE_DONE))
   const sendMessages = parentToolUses(parentRecords, 'SendMessage')
   const laneHits = fixture.hits.filter(h => h.lane === 'lane')
@@ -445,20 +502,28 @@ if (cap !== null) {
   for (const n of notices) console.log(`    [${n.status}] ${flat(n.summary ?? '').slice(0, 220)}`)
 
   console.log('\n— §A the lane dies on the overload, pauses, and comes back by itself —')
-  check('A1 the lane met the outage: its first request was cut mid-stream by an overloaded_error and its next ones were refused with HTTP 529', laneHits[0]?.answer === 'mid-stream' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
-  if (BUDGET_CUT) {
-    const firstProbe = probeHits[0]
-    const beforeProbe = firstProbe === undefined ? [] : laneHits.filter(hit => hit.atMs < firstProbe.atMs)
-    check('A2 the shorter retry budget reaches the probe before the full busy ladder is spent', beforeProbe.length >= 2 && beforeProbe.length < 8 && deaths.length === 0, `${beforeProbe.length} requests before the first probe, ${deaths.length} full-ladder deaths`)
+  if (FAMILY !== undefined) {
+    check(`A1 the lane met the outage on the ${FAMILY} wire: its requests were refused with the family's busy answer (HTTP ${FAMILY_STATUS})`, laneHits[0]?.answer === 'down' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
+    check("A2 the lane's own transcript records the death: a synthetic 'stayed busy through' row on the spent ladder", deaths.length >= 1, `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 80)).join(' | ')}`)
   } else {
-    check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+    check('A1 the lane met the outage: its first request was cut mid-stream by an overloaded_error and its next ones were refused with HTTP 529', laneHits[0]?.answer === 'mid-stream' && refused.length >= 2, `${laneHits.map(h => h.answer).join(',')}`)
+    if (BUDGET_CUT) {
+      const firstProbe = probeHits[0]
+      const beforeProbe = firstProbe === undefined ? [] : laneHits.filter(hit => hit.atMs < firstProbe.atMs)
+      check('A2 the shorter retry budget reaches the probe before the full busy ladder is spent', beforeProbe.length >= 2 && beforeProbe.length < 8 && deaths.length === 0, `${beforeProbe.length} requests before the first probe, ${deaths.length} full-ladder deaths`)
+    } else {
+      check(DOOR ? "A2 the lane's own transcript records the death: a synthetic row carrying the door's words on the spent ladder" : "A2 the lane's own transcript records the death: a synthetic 'API Error: 529' row carrying the wire's answer", deaths.length >= 1 && deaths.every(d => (DOOR ? /API overload errors \(529\)/.test(d.text) : /^API Error: 529\b/.test(d.text))), `${deaths.length} deaths: ${deaths.map(d => d.text.slice(0, 60)).join(' | ')}`)
+    }
   }
   check(`A3 the lane finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent (SendMessage uses 0)`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
   check('A4 Mercury probed the provider while the lane was paused, and a probe was answered before the lane resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
+  const probeGaps = probeHits.slice(1).map((hit, i) => hit.atMs - probeHits[i]!.atMs)
+  check('A7 every probe was one request (no two probe requests within 300 ms of each other)', probeHits.length >= 1 && probeGaps.every(gap => gap >= 300), `gaps ${probeGaps.map(g => `${g}ms`).join(',')}`)
   const first = notices[0]
-  if (!INLINE) {
-    check("A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded, Mercury's probing named — never 'failed: API Error' with the resume door", first !== undefined && first.status === 'paused' && /paused — .* is overloaded \(HTTP 529\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers/.test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
-    check("A6 the parent's chat painted that line once during the outage and no 'failed: API Error: 529' line", cap.marks.some(m => m.text.includes('is overloaded (HTTP 529)')) && !cap.marks.some(m => m.text.includes('failed: API Error: 529')) && !cap.text.includes('failed: API Error: 529'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
+  const STATUS_WORDS = `(HTTP ${FAMILY_STATUS})`
+  if (!INLINE || HANDOVER) {
+    check(`A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded ${STATUS_WORDS}, Mercury's probing named — never 'failed: API Error' with the resume door`, first !== undefined && first.status === 'paused' && new RegExp(`paused — .* is overloaded \\(HTTP ${FAMILY_STATUS}\\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers`).test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
+    check(`A6 the parent's chat painted that line once during the outage and no 'failed: API Error' line`, cap.marks.some(m => m.text.includes(`is overloaded ${STATUS_WORDS}`)) && !cap.marks.some(m => m.text.includes('failed: API Error')) && !cap.text.includes('failed: API Error'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
 
     console.log('\n— §B one calm line per lane per outage episode —')
     const completion = notices.findIndex(n => n.status === 'completed')
@@ -477,7 +542,17 @@ if (cap !== null) {
     check("C3 the death row carries the door's words, and the pause road read them as an overload", deaths.length >= 1 && /API overload errors \(529\)/.test(deaths[0]!.text) && probeHits.length >= 1, deaths[0]?.text.slice(0, 80) ?? '(no death)')
   }
 
-  if (INLINE) {
+  if (HANDOVER) {
+    console.log('\n— §H an inline helper handed to the background by Esc takes the same pause-and-probe road —')
+    const results = parentToolResults(parentRecords, 'Agent')
+    const handed = results.some(r => r.includes('Agent launched in the background.') && r.includes('the turn it ran in was interrupted'))
+    check(handed ? 'H0 the Esc landed while the helper ran: the launch receipt says the turn was interrupted and the agent handed to the background' : 'H0 [staging] the Esc did not hand the helper over (retune ESC_TICKS: the receipt must say the turn was interrupted)', handed, results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
+    check("H1 the handed-over helper's first notice is the calm paused line, never the failed line with the resume door", first !== undefined && first.status === 'paused' && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
+    check('H2 no failed notice rode the episode and the completion followed as its own line', !notices.some(n => n.status === 'failed') && notices.some(n => n.status === 'completed'), notices.map(n => n.status).join(','))
+    check(`H3 the helper finished by itself once the provider answered: ${LANE_DONE} with no message from the parent`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
+  }
+
+  if (INLINE && !HANDOVER) {
     console.log('\n— §D an inline helper takes the same pause-and-probe road —')
     const results = parentToolResults(parentRecords, 'Agent')
     check("D1 the helper's tool result leads with the pause — 'paused — provider overloaded', the probing named — never a bare 'Agent execution failed: API Error: 529'", results.length >= 1 && results.some(r => /Agent execution failed: paused — provider overloaded/.test(r) && /Mercury probes it for up to/.test(r)) && !results.some(r => /Agent execution failed: API Error: 529/.test(r)), results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
