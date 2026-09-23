@@ -80,7 +80,7 @@ function runDoctor(deep: boolean): { status: number | null; cert: unknown } {
   return { status: res.status, cert }
 }
 
-type Check = { id: string; status: string; evidence: string }
+type Check = { id: string; status: string; evidence: string; fix?: string }
 function checksOf(cert: unknown, sectionId: string): Check[] {
   const sections = (cert as { sections?: Array<{ id: string; checks: Check[] }> })?.sections ?? []
   return sections.find(s => s.id === sectionId)?.checks ?? []
@@ -208,6 +208,12 @@ const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(unde
   ok(opState('af-b') === 'applying', 'doctor did NOT touch the op (diagnose-only)')
   ok(existsSync(join(teams, 'af-team-b', 'config.json')), 'doctor did NOT touch the half-team')
   ok(undecodableIntact(), 'doctor did NOT touch the undecodable file')
+  const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
+  ok(
+    quarantines?.status === 'warn' && /^1 damaged-store event\(s\) in the last 24h \(1 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place') && !quarantines.evidence.includes('preservation FAILED'),
+    `the same doctor run names the undecodable journal file on the store-quarantines row as one refused event, bytes left in place (the journals check settles first) (${quarantines?.status}: ${quarantines?.evidence})`,
+  )
+  ok(typeof quarantines?.fix === 'string' && !quarantines.fix.includes('quarantined copy') && quarantines.fix.includes('left its bytes in place'), `the row's fix line claims no quarantined copy for bytes left in place (${quarantines?.fix})`)
 }
 
 console.log('— C. daemon boot recovery on the artifact —')
@@ -220,6 +226,11 @@ console.log('— C. daemon boot recovery on the artifact —')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
   ok(row?.status === 'ok', `doctor green after recovery (${row?.evidence})`)
+  const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
+  ok(
+    quarantines?.status === 'warn' && /^3 damaged-store event\(s\) in the last 24h \(3 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place'),
+    `three processes met the file (B's doctor, the daemon boot, this doctor) and each named it once — the per-process law, three rows, the row counting events (${quarantines?.evidence})`,
+  )
   rmSync(undecodablePath)
 }
 
