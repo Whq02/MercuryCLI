@@ -270,8 +270,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.notifyLifecycle(uuid, 'started')
     }
 
-    await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
+    let answered = false
+    const deliver = (message: StdoutMessage): void => {
       if (message.type === 'result') {
+        answered = true
         flushSdkEvents()
         writeOpenEdge()
         if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
@@ -285,6 +287,13 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         ports.enqueueOutput(message)
         if (message.type === 'system' && (message as { subtype?: unknown }).subtype === 'init') writeOpenEdge()
       }
+    }
+
+    await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
+      deliver(message)
+    }).catch((error: unknown) => {
+      if (answered) throw error
+      deliver(ports.onCycleError(error))
     })
 
     for (const uuid of batchUuids) {
