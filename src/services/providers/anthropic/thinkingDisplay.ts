@@ -14,7 +14,7 @@ export interface ThinkingDisplaySetting {
 }
 
 export function resolveThinkingDisplaySetting(raw: string | undefined): ThinkingDisplaySetting {
-  if (raw === undefined || raw.trim() === '') return { display: 'updates', explicit: false }
+  if (raw === undefined || raw.trim() === '') return { display: null, explicit: false }
   const value = raw.trim().toLowerCase()
   if (value === 'updates' || value === '1' || value === 'true') return { display: 'updates', explicit: true }
   if (value === '0' || value === 'off' || value === 'false' || value === 'none' || value === 'omitted') {
