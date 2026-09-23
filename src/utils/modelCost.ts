@@ -121,16 +121,17 @@ function firstPartyPricing(model: string): ResolvedModelPricing {
   const tier = MODEL_COSTS[getCanonicalName(model)]
   if (tier) return { costs: tier, basis: 'recorded' }
   const head = familyHeadOf(model)
-  if (head !== null) {
-    const headTier = MODEL_COSTS[getCanonicalName(ALL_MODEL_CONFIGS[head].firstParty)]
-    if (headTier) return { costs: headTier, basis: 'family-estimate' }
-  }
-  const defaultModel = getDefaultMainLoopModelSetting()
-  if (typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic') {
-    const fallback = MODEL_COSTS[getCanonicalName(defaultModel)]
+  const estimateFrom = head !== null ? ALL_MODEL_CONFIGS[head].firstParty : firstPartyDefaultSetting()
+  if (estimateFrom !== undefined) {
+    const fallback = MODEL_COSTS[getCanonicalName(estimateFrom)]
     if (fallback) return { costs: fallback, basis: 'family-estimate' }
   }
   return { costs: FIRST_PARTY_FALLBACK_TIER, basis: 'family-estimate' }
+}
+
+function firstPartyDefaultSetting(): string | undefined {
+  const defaultModel = getDefaultMainLoopModelSetting()
+  return typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic' ? defaultModel : undefined
 }
 
 function perMtokFromPerToken(perToken: string | undefined): number | undefined {
