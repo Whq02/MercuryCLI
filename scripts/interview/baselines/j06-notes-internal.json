@@ -3,7 +3,7 @@
  "note": "contract journey 6 (internal leg) — notes opened with n, typed, exited with Esc (external editor lands at Wave B)",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-23T17:04:32.558Z",
+ "capturedAt": "2026-09-23T19:47:51.659Z",
  "screens": [
   {
    "atMs": 13800,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-mQEmr2 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-NVnDcS · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-mQEmr2 · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-NVnDcS · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 18:04:10 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:47:29 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 18:04:10 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 20:47:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -149,23 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-mQEmr2                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-NVnDcS                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 15199,
-   "frame-recommit": 36,
-   "tail-publish": 2
+   "patches": 14906,
+   "frame-recommit": 37
   },
   "frames": {
-   "total": 60,
-   "window": 60,
-   "p50": 1.399875000000975,
-   "p95": 7.408750000000055,
-   "p99": 26.98787500000003,
-   "maxMs": 26.98787500000003
+   "total": 59,
+   "window": 59,
+   "p50": 1.173750000000041,
+   "p95": 8.156791999999768,
+   "p99": 27.714208999999983,
+   "maxMs": 27.714208999999983
   }
  },
  "requests": [
@@ -200,23 +199,23 @@
  ],
  "sends": [
   {
-   "atMs": 10761.920928955078,
+   "atMs": 10753.806829452515,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12361.920928955078,
+   "atMs": 12353.806829452515,
    "b64": "DQ=="
   },
   {
-   "atMs": 20361.920928955078,
+   "atMs": 20353.806829452515,
    "b64": "bg=="
   },
   {
-   "atMs": 21361.920928955078,
+   "atMs": 21353.806829452515,
    "b64": "cHJlZmVyIHRoZSBsYXllcmVkIHNoYXBl"
   },
   {
-   "atMs": 23161.920928955078,
+   "atMs": 23153.806829452515,
    "b64": "Gw=="
   }
  ]
