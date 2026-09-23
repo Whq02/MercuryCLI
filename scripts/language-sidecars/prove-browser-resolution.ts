@@ -84,20 +84,27 @@ function makeCacheFixture(buildId: string): string {
     'unavailable names BOTH remedies',
     empty.state === 'unavailable' &&
       empty.remedies.some(r => r.includes('/browser install')) &&
-      empty.remedies.some(r => r.toLowerCase().includes('install chrome')),
+      empty.remedies[0]?.includes('op:"provision"') === true,
     JSON.stringify(empty),
   )
 }
 
 {
+  console.log('RED on the base: installed apps outrank the managed browser; an installed app without a managed build resolves instead of refusing')
   const cache = makeCacheFixture('142.0.7444.0')
-  const r = withEnv({ MERCURY_BROWSER_PATH: undefined, MERCURY_BROWSER_CACHE_DIR: cache }, () => resolveBrowser())
-  const installed = detectInstalledBrowsers()
-  if (installed.length > 0) {
-    check('installed rung beats the managed cache', r.state === 'ok' && r.source === 'installed', JSON.stringify(r))
-  } else {
-    check('managed rung engages when nothing is installed', r.state === 'ok' && r.source === 'managed-cache')
-  }
+  withEnv({ MERCURY_BROWSER_PATH: undefined, MERCURY_BROWSER_NO_DISCOVERY: undefined, MERCURY_BROWSER_CACHE_DIR: cache }, () => {
+    let discoveryReads = 0
+    const installed = () => {
+      discoveryReads++
+      return [{ family: 'chrome' as const, label: 'Google Chrome', executablePath: join(cache, 'operator-app') }]
+    }
+    const r = resolveBrowser({ pin: () => undefined, managed: () => listManagedBrowsers(), installed })
+    check('the managed executable wins even with an installed app available', r.state === 'ok' && r.source === 'managed-cache', JSON.stringify(r))
+    check('resolution never consults installed-app discovery', discoveryReads === 0)
+    const empty = resolveBrowser({ pin: () => undefined, managed: () => [], installed })
+    check('an installed app alone is unavailable, with explicit provision and install remedies', empty.state === 'unavailable' && empty.remedies[0]?.includes('op:"provision"') === true && empty.remedies.some(r => r.includes('/browser install')), JSON.stringify(empty))
+    check('the unavailable road never drives or inspects the operator app', discoveryReads === 0)
+  })
 }
 
 {
