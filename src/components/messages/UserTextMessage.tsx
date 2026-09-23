@@ -32,6 +32,14 @@ import { UserPlanMessage } from './UserPlanMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
 import { UserTeammateMessage } from './UserTeammateMessage.js'
+import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
+
+const NOTICE_COMPLETION_GAP_MS = 60_000
+
+function noticeCompletionClock(sentAt?: string, deliveredAt?: string): string | null {
+  const gap = Date.parse(deliveredAt ?? '') - Date.parse(sentAt ?? '')
+  return Number.isFinite(gap) && gap >= NOTICE_COMPLETION_GAP_MS ? formatClock(sentAt) : null
+}
 
 type Props = {
   addMargin: boolean
@@ -41,6 +49,7 @@ type Props = {
   isTranscriptMode?: boolean
   timestamp?: string
   notice?: boolean
+  noticeSentAt?: string
 }
 
 export function UserTextMessage({
@@ -51,7 +60,10 @@ export function UserTextMessage({
   isTranscriptMode,
   timestamp,
   notice = false,
+  noticeSentAt,
 }: Props): React.ReactNode {
+  const meta = useMessageMeta()
+  const completedAt = meta?.queued ? null : noticeCompletionClock(noticeSentAt, meta?.timestamp)
   if (param.text.trim() === NO_CONTENT_MESSAGE) {
     return null
   }
@@ -119,7 +131,7 @@ export function UserTextMessage({
   }
 
   if (param.text.includes(`<${TASK_NOTIFICATION_TAG}`)) {
-    return <UserAgentNotificationMessage addMargin={addMargin} param={param} />
+    return <UserAgentNotificationMessage addMargin={addMargin} param={param} completedAt={completedAt} />
   }
 
   if (
@@ -139,7 +151,7 @@ export function UserTextMessage({
 
   const noticeBlocks = noticeOfText(param.text, notice)
   if (noticeBlocks !== null) {
-    return <UserNoticeMessage addMargin={addMargin} blocks={noticeBlocks} />
+    return <UserNoticeMessage addMargin={addMargin} blocks={noticeBlocks} completedAt={completedAt} />
   }
 
   return (

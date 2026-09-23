@@ -31,9 +31,11 @@ export function partialResultOf(text: string): string | null {
 export function UserAgentNotificationMessage({
   addMargin,
   param,
+  completedAt,
 }: {
   addMargin?: boolean
   param: TextBlockParam
+  completedAt?: string | null
 }): React.ReactNode {
   const { accent } = useSessionAccent()
   const summary = extractTag(param.text, 'summary')
@@ -46,7 +48,7 @@ export function UserAgentNotificationMessage({
       <Text>
         <NameplateClock />
         <Text color={statusColor(status, accent)}>● </Text>
-        <Text dimColor>{summary}</Text>
+        <Text dimColor>{summary}{completedAt ? ` · completed ${completedAt}` : ''}</Text>
         {folded ? (
           <>
             {' '}
