@@ -99,7 +99,7 @@ section('§1 anthropic: headers + endpoint + pools — precedence, equality, the
   const warning = providerLimitWarning({ model: 'claude-fable-5', reads })
   check(
     "limits ≡ meters: the strip warning names the WORST window in the wire's claim vocabulary (Fable, 99%)",
-    warning !== null && warning.text.startsWith('Anthropic: 99% of Fable limit used'),
+    warning !== null && warning.text.startsWith('Anthropic: 99% of the Fable limit used'),
     warning?.text,
   )
 
@@ -159,8 +159,8 @@ section('§2 openrouter: the credit cap — equality, the warning, the typed fac
   )
   const warning = providerLimitWarning({ model: 'openrouter-fixture', reads })
   check(
-    'limits ≡ meters: the warning speaks the credit cap at 75%',
-    warning !== null && warning.text.startsWith('OpenRouter: 75% of credit cap used'),
+    'limits ≡ meters: the credit cap at 75% stays quiet',
+    warning === null,
     warning?.text,
   )
 }
@@ -190,7 +190,7 @@ section('§3 the Kimi sign-in: managed windows — equality, the warning')
   const warning = providerLimitWarning({ model: 'kimi-fixture', reads })
   check(
     'limits ≡ meters: the warning names the stated window at 90% (Kimi voice)',
-    warning !== null && warning.text.startsWith('Kimi: 90% of 5h window used'),
+    warning !== null && warning.text.startsWith('Kimi: 90% of the 5h window used'),
     warning?.text,
   )
 }
@@ -220,14 +220,14 @@ section('§4 openai subscription: observed bands — equality, the warning')
   const warning = providerLimitWarning({ model: 'gpt-fixture', reads })
   check(
     'limits ≡ meters: the warning names the worst band (82% of 5h window, OpenAI voice)',
-    warning !== null && warning.text.startsWith('OpenAI: 82% of 5h window used'),
+    warning !== null && warning.text.startsWith('OpenAI: 82% of the 5h window used'),
     warning?.text,
   )
 }
 
 section('§5 the coordinator fold: the runner fact wins; null/absent fall through; one producer')
 {
-  const fromRunner = { provider: 'openai', text: 'OpenAI: 82% of 5h window used' }
+  const fromRunner = { provider: 'openai', text: 'OpenAI: 82% of the 5h window used' }
   const local = { provider: 'anthropic', text: 'Anthropic: 71% of session limit used' }
   check(
     "the runner's observation wins; a null runner (sees no warning) and an absent one fall to the local derivation",

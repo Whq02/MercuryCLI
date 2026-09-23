@@ -110,7 +110,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   check('weekly 82% fires', weekly !== null, JSON.stringify(weekly))
   check(
     '…in the ruled grammar with the reset tail',
-    /^Anthropic: 82% of weekly limit used · resets .+$/.test(weekly?.text ?? ''),
+    /^Anthropic: 82% of the weekly limit used · resets .+$/.test(weekly?.text ?? ''),
     weekly?.text ?? '(null)',
   )
 
@@ -127,7 +127,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   })
   check(
     'the FABLE bucket names itself (the sovereign meter reaches the strip)',
-    /^Anthropic: 91% of Fable limit used · resets .+$/.test(fable?.text ?? ''),
+    /^Anthropic: 91% of the Fable limit used · resets .+$/.test(fable?.text ?? ''),
     fable?.text ?? '(null)',
   )
 
@@ -192,7 +192,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   const meter = providerLimitWarning({ model: 'claude-fable-5', reads: meterReads(92) })
   check(
     'the endpoint-fed 7d METER at 92% warns with no header status (the wire vocabulary)',
-    /^Anthropic: 92% of weekly limit used · resets .+$/.test(meter?.text ?? ''),
+    /^Anthropic: 92% of the weekly limit used · resets .+$/.test(meter?.text ?? ''),
     meter?.text ?? '(null)',
   )
   const meterCalm = providerLimitWarning({ model: 'claude-fable-5', reads: meterReads(51) })
@@ -216,7 +216,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   const pool = providerLimitWarning({ model: 'claude-fable-5', reads: poolReads(99) })
   check(
     "the endpoint-fed FABLE pool at 99% warns beside a calm 51% week (the operator's frame)",
-    /^Anthropic: 99% of Fable limit used · resets .+$/.test(pool?.text ?? ''),
+    /^Anthropic: 99% of the Fable limit used · resets .+$/.test(pool?.text ?? ''),
     pool?.text ?? '(null)',
   )
   const poolCalm = providerLimitWarning({ model: 'claude-fable-5', reads: poolReads(40) })
@@ -250,7 +250,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   })
   check(
     "the warning reads the pools off the record with no injection (the strip's own road)",
-    /^Anthropic: 99% of Fable limit used · resets .+$/.test(fromRecord?.text ?? ''),
+    /^Anthropic: 99% of the Fable limit used · resets .+$/.test(fromRecord?.text ?? ''),
     fromRecord?.text ?? '(null)',
   )
   limitsMod.resetLimitsForCredentialSwitch()
@@ -270,11 +270,11 @@ section('§2 — openai: the observed x-codex bands feed the warning')
       openaiLimited: () => ({ state: 'clear' }),
     })
 
-  const wk = providerLimitWarning({ model: 'gpt-5.2', reads: openaiReads(78) })
-  check('the weekly band at 78% fires as OpenAI', wk !== null, JSON.stringify(wk))
+  const wk = providerLimitWarning({ model: 'gpt-5.2', reads: openaiReads(80) })
+  check('the weekly band at 80% fires as OpenAI', wk !== null, JSON.stringify(wk))
   check(
     '…in the ruled grammar (weekly window, reset tail)',
-    /^OpenAI: 78% of weekly window used · resets .+$/.test(wk?.text ?? ''),
+    /^OpenAI: 80% of the weekly window used · resets .+$/.test(wk?.text ?? ''),
     wk?.text ?? '(null)',
   )
   const calm = providerLimitWarning({ model: 'gpt-5.2', reads: openaiReads(42) })
@@ -300,7 +300,7 @@ section('§3 — openrouter: the credit cap approaches (the new tier)')
   check('the capped key at 84% fires as OpenRouter', approaching !== null, JSON.stringify(approaching))
   check(
     '…in the ruled grammar (credit cap; the /key wire states no reset instant ⇒ no tail)',
-    approaching?.text === 'OpenRouter: 84% of credit cap used',
+    approaching?.text === 'OpenRouter: 84% of the credit cap used',
     approaching?.text ?? '(null)',
   )
   const uncapped = providerLimitWarning({
@@ -332,7 +332,7 @@ section('§4 — kimi: the managed account’s stated windows warn as Kimi')
   check('the 5h managed window at 88% fires as Kimi', kimi !== null, JSON.stringify(kimi))
   check(
     '…in the ruled grammar (5h window, reset tail)',
-    /^Kimi: 88% of 5h window used · resets .+$/.test(kimi?.text ?? ''),
+    /^Kimi: 88% of the 5h window used · resets .+$/.test(kimi?.text ?? ''),
     kimi?.text ?? '(null)',
   )
 }
@@ -387,7 +387,7 @@ section('§5 — honest nothing: a wire serving no percent signal warns never')
 
 section('§6 — the law’s constants and the disconnected mute')
 {
-  check('the approaching threshold is the one 70% spelling', APPROACHING_LIMIT_PCT === 70)
+  check('the compatibility threshold names the first warning', APPROACHING_LIMIT_PCT === 80)
   const none = providerLimitWarning({
     model: 'openrouter/qwen/qwen3-coder',
     reads: baseReads({ route: () => 'openrouter', openrouterKeyPresent: () => false }),

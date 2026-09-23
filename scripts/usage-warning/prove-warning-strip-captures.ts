@@ -158,7 +158,7 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '', atTick: 999, awaitText: 'of weekly limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
+        { data: '', atTick: 999, awaitText: 'of the weekly limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
@@ -179,7 +179,7 @@ for (const cols of [100, 120]) {
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip paints the ruled grammar (${cols})`,
-    /Anthropic: 92% of weekly limit used · resets /.test(frame),
+    /Anthropic: 92% of the weekly limit used · resets /.test(frame),
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 92%'), frame.slice(-140))
@@ -210,7 +210,7 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '', atTick: 999, awaitText: 'of Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
+        { data: '', atTick: 999, awaitText: 'of the Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
@@ -233,7 +233,7 @@ for (const cols of [100, 120]) {
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip names the session model's OWN pool, not the calm all-models week (${cols})`,
-    /Anthropic: 99% of Opus limit used · resets /.test(frame) && !/of Fable limit used/.test(frame),
+    /Anthropic: 99% of the Opus limit used · resets /.test(frame) && !/of Fable limit used/.test(frame),
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 99%'), frame.slice(-140))
@@ -295,7 +295,7 @@ for (const cols of [100, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '', atTick: 999, awaitText: 'of credit cap used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
+        { data: '', atTick: 999, awaitText: 'of the credit cap used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'OpenRouter', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
@@ -313,7 +313,7 @@ for (const cols of [100, 120]) {
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip paints the ruled grammar (${cols})`,
-    frame.includes('OpenRouter: 84% of credit cap used'),
+    frame.includes('OpenRouter: 84% of the credit cap used'),
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ OpenRouter: 84%'), frame.slice(-140))

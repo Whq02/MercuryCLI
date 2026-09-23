@@ -115,7 +115,7 @@ section('§2 the binding window is the model\'s own: its family\'s pool, the sha
   }
   check('the pool claim for a model is the owner\'s one rule (fable/mythos · opus · sonnet · none)', limits.weeklyPoolClaimForModel('claude-fable-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-mythos-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-opus-5') === 'seven_day_opus' && limits.weeklyPoolClaimForModel('claude-sonnet-5') === 'seven_day_sonnet' && limits.weeklyPoolClaimForModel('claude-haiku-4-5') === undefined)
   const fable = providerLimitWarning({ model: 'claude-fable-5-1', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
-  check('a Fable session is warned about the Fable week (87%)', /^Anthropic: 87% of Fable limit used · resets /.test(fable?.text ?? ''), fable?.text ?? '(null)')
+  check('a Fable session is warned about the Fable week (87%)', /^Anthropic: 87% of the Fable limit used · resets /.test(fable?.text ?? ''), fable?.text ?? '(null)')
   const sonnet = providerLimitWarning({ model: 'claude-sonnet-5', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
   check('a Sonnet session is NOT warned about the Fable week (its own windows sit at 44 and 20)', sonnet === null, JSON.stringify(sonnet))
   const haiku = providerLimitWarning({ model: 'claude-haiku-4-5-20251001', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
