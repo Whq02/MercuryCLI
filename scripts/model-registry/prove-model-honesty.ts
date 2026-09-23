@@ -64,6 +64,7 @@ const {
   GPT_CONNECT_OPTION_VALUE,
   isCatalogueDoorRow,
   resolvesToExistingOption,
+  stripContext1m,
 } = await import('../../src/utils/model/modelOptions.ts')
 const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
 const { composeCoordinatorModelRegistry } = await import('../../src/services/concourse/coordinatorModels.ts')
@@ -346,8 +347,8 @@ section('§8 inline focus follows the actual model, including aliases')
     if (!statement) throw new Error(`Inline picker declaration missing: ${name}`)
     return statement.getText(source)
   }).join('\n')
-  const evaluate = new Function('initial', 'getModelOptions', 'useMemo', 'isCatalogueDoorRow', 'resolvesToExistingOption', 'getPublicModelDisplayName', ts.transpileModule(`${statements}\nreturn { options, focusDefault }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)
-  const focus = (initial: string, options: ModelOption[]) => evaluate(initial, () => options, (read: () => unknown) => read(), isCatalogueDoorRow, resolvesToExistingOption, getPublicModelDisplayName) as { options: ModelOption[]; focusDefault: string }
+  const evaluate = new Function('initial', 'getModelOptions', 'useMemo', 'isCatalogueDoorRow', 'resolvesToExistingOption', 'getPublicModelDisplayName', 'stripContext1m', ts.transpileModule(`${statements}\nreturn { options, focusDefault }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)
+  const focus = (initial: string, options: ModelOption[]) => evaluate(initial, () => options, (read: () => unknown) => read(), isCatalogueDoorRow, resolvesToExistingOption, getPublicModelDisplayName, stripContext1m) as { options: ModelOption[]; focusDefault: string }
   const credentials = JSON.parse(ANTHROPIC_FIXTURE_CREDS)
   credentials.claudeAiOauth.rateLimitTier = 'default_claude_max_20x'
   writeFileSync(join(home, '.credentials.json'), JSON.stringify(credentials))
@@ -372,6 +373,10 @@ section('§8 inline focus follows the actual model, including aliases')
   const custom = focus('custom-example-model', rows)
   check('an off-catalogue model is appended and focused', custom.focusDefault === 'custom-example-model' && custom.options.length === rows.length + 1)
   check('a matching action is not treated as a model alias', focus(GPT_CONNECT_OPTION_VALUE, rows).focusDefault === GPT_CONNECT_OPTION_VALUE)
+  const literalRows: ModelOption[] = [...rows, { value: 'claude-opus-4-6', label: 'Opus 4.6', description: '' }]
+  const rider = focus('claude-opus-4-6[1m]', literalRows)
+  check("a saved 1M variant of a listed model focuses that model's row (the rider folded), appended nowhere", rider.focusDefault === 'claude-opus-4-6' && rider.options.length === literalRows.length, JSON.stringify({ focus: rider.focusDefault, rows: rider.options.length }))
+  check('the bare id of that model keeps exact focus', focus('claude-opus-4-6', literalRows).focusDefault === 'claude-opus-4-6')
   rmSync(join(home, '.credentials.json'), { force: true })
   clearOAuthTokenCache()
   resetComputedDefaultMemo()

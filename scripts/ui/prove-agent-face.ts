@@ -623,12 +623,14 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
   const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
   const rows = getAgentModelPickerRows([
     { value: 'fable', label: 'Fable', description: '' },
+    { value: 'claude-opus-4-6', label: 'Opus 4.6', description: '', unavailable: 'not signed in — /logins anthropic' },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },
   ] as never)
   t.check('inherit/absent wears nothing', agentModelAvailabilityNote(undefined, rows) === null && agentModelAvailabilityNote('inherit', rows) === null)
   t.check('an unavailable saved model wears its reason', agentModelAvailabilityNote('gpt-6.2', rows) === 'no OpenAI account connected')
   t.check('an available model wears nothing', agentModelAvailabilityNote('fable', rows) === null)
   t.check('an id the catalogue does not know wears nothing (unknown ≠ unavailable)', agentModelAvailabilityNote('compat/mystery', rows) === null)
+  t.check("a saved 1M variant of an unavailable model wears its row's reason (the rider folded onto the row)", agentModelAvailabilityNote('claude-opus-4-6[1m]', rows) === 'not signed in — /logins anthropic' && agentModelAvailabilityNote('claude-opus-4-6', rows) === 'not signed in — /logins anthropic')
   const editorSrc2 = readFileSync(join(repoRoot, 'src/components/agents/studio/StudioEditor.tsx'), 'utf-8')
   const studioSrc2 = readFileSync(join(repoRoot, 'src/components/agents/studio/AgentStudio.tsx'), 'utf-8')
   const faceSrc3 = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
