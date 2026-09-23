@@ -135,6 +135,7 @@ reg(
     'src/components/ScrollKeybindingHandler.tsx',
     'src/components/VirtualMessageList.tsx',
     'src/components/mercury-ui/screens/SettingsStatusView.tsx',
+    'src/components/Settings/Usage.tsx',
   ],
   'scroll-owner',
 )

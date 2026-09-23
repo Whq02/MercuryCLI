@@ -3455,7 +3455,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         { atTick: 70, data: 'provider' },
       ],
       total: 100, cols, rows,
-      chromeMarkers: ['Config', 'Usage'],
+      chromeMarkers: ['Mercury · config'],
     }
   }
   if (name === 'settings-usage-engines') {
@@ -3478,7 +3478,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         { atTick: 36, data: '\r' },
       ],
       total: 80, cols, rows,
-      chromeMarkers: ['Config', 'Usage'],
+      chromeMarkers: ['Mercury · usage'],
     }
   }
   if (name === 'settings-status-signedin') {
@@ -3532,13 +3532,9 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
-      sends: [
-        { atTick: 30, data: '/usage\r' },
-        { atTick: 70, data: '\u001b[D' },
-        { atTick: 76, data: '\u001b[D' },
-      ],
+      sends: [{ atTick: 30, data: '/status\r' }],
       total: 105, cols, rows,
-      chromeMarkers: ['Config', 'Usage'],
+      chromeMarkers: ['Mercury · status'],
     }
   }
   if (
@@ -3633,23 +3629,20 @@ function scenarioInner(name: string, cols: number, rows: number) {
       argv: ['node', BIN],
       sends: [{ atTick: 30, data: '/usage' }, { atTick: 36, data: '\r' }],
       total: 80, cols, rows,
-      chromeMarkers: ['Config', 'Usage'],
+      chromeMarkers: ['Mercury · usage'],
     }
   }
-  if (name === 'settings-usage' || name === 'settings-status-tab') {
+  if (name === 'settings-usage' || name === 'settings-status') {
     writeSyntheticSession('short')
-    const sends = [
-      { atTick: 30, data: '/usage' },
-      { atTick: 36, data: '\r' },
-      ...(name === 'settings-status-tab'
-        ? [{ atTick: 70, data: '\u001b[D' }, { atTick: 76, data: '\u001b[D' }]
-        : []),
-    ]
+    const view = name === 'settings-status' ? 'status' : 'usage'
     return {
       argv: ['node', BIN, '--resume', SID],
-      sends,
-      total: name === 'settings-status-tab' ? 105 : 80, cols, rows,
-      chromeMarkers: ['Config', 'Usage'],
+      sends: [
+        { atTick: 30, data: `/${view}` },
+        { atTick: 36, data: '\r' },
+      ],
+      total: 80, cols, rows,
+      chromeMarkers: [`Mercury · ${view}`],
     }
   }
   if (name === 'router-board') {

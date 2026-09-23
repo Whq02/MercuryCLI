@@ -4,7 +4,7 @@ const config = {
   aliases: ['settings'],
   type: 'local',
   name: 'config',
-  description: 'Open the config panel',
+  description: 'Open the config popup',
   supportsNonInteractive: false,
   seat: 'screen',
   userPrivate: true,
