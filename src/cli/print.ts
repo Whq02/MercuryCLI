@@ -271,7 +271,7 @@ import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
 import { getTeamName, isTeammate } from '../utils/teammate.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
-import { getCwd } from '../utils/cwd.js'
+import { getCwd, runWithoutCwdOverride } from '../utils/cwd.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
 import { runWithWorkload } from '../utils/workloadContext.js'
@@ -1626,6 +1626,7 @@ export async function runHeadless(
     settleWindowMs: POLL_INTERVAL_MS,
     wall: () => sessionLaneWall(),
   })
+  const kickMainThread = (): void => runWithoutCwdOverride(() => driver.kick())
 
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
@@ -1633,7 +1634,7 @@ export async function runHeadless(
       inFlightAbort?.abort()
     }
     if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
-      driver.kick()
+      kickMainThread()
     }
   })
 
@@ -1713,7 +1714,7 @@ export async function runHeadless(
         isMeta: true,
         workload: 'cron',
       })
-      driver.kick()
+      kickMainThread()
     })
   }
 
@@ -1725,7 +1726,7 @@ export async function runHeadless(
       setAppState,
       handledToolUseIds: handledOrphans,
     })
-    if (enqueued) driver.kick()
+    if (enqueued) kickMainThread()
   })
 
   const modelInfos = buildModelCatalogue()
@@ -1862,7 +1863,7 @@ export async function runHeadless(
             setInitJsonSchema(initSchema)
           }
           sessionInitialized = true
-          if (getCommandQueue().length > 0) driver.kick()
+          if (getCommandQueue().length > 0) kickMainThread()
           return
         }
         case 'interrupt': {
@@ -2996,7 +2997,7 @@ export async function runHeadless(
             ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
             ...(typed.priority !== undefined ? { priority: typed.priority } : {}),
           })
-          driver.kick()
+          kickMainThread()
         }
       }
     } finally {
