@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const launchDir = process.cwd()
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'computer-rule-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'computer-rule-proj-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -100,6 +101,7 @@ check('a bundle identifier rule does not match a bare name', !allow.has('app:Saf
 check('nor an executable spelling', !allow.has('app:safari.exe'))
 check('the padded spelling still names the identity', permissionRuleValueFromString(`  ${COMPUTER_TOOL_NAME}(${SAFARI})  `).ruleContent === SAFARI)
 
+process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 if (failures > 0) {

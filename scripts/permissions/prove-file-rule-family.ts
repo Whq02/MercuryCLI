@@ -3,6 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const launchDir = process.cwd()
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'file-rule-family-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'file-rule-family-proj-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -78,6 +79,7 @@ section('§3 COLLISION PRECEDENCE')
   )
 }
 
+process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 if (failures > 0) {
