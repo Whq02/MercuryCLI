@@ -14,6 +14,33 @@ const env = (code: number) => ({ PATH: `${scratch}:${process.env.PATH}`, HOME: s
 let checks = 0
 const check = (label: string, ok: unknown): void => { assert(ok, label); checks++; console.log(`PASS ${label}`) }
 const marks = (text: string) => [...text.matchAll(/^── (.+?)\s+(\d+)s rc=(\d+)$/gm)].map(match => ({ path: match[1]!, code: Number(match[3]) }))
+const globToRegExp = (glob: string): RegExp => {
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
+  return new RegExp(`^${escaped}$`)
+}
+const loopWords = (list: string, present: readonly string[]): number =>
+  list.split(/\s+/).filter(word => word !== '').map(word => {
+    const name = word.replace(/"/g, '').split('/').pop() ?? ''
+    return name.includes('*') || name.includes('?') ? present.filter(file => globToRegExp(name).test(file)).length : 1
+  }).reduce((sum, n) => sum + n, 0)
+const promisedMarks = (runner: string, present: readonly string[]): number => {
+  let promised = 0
+  const loops: number[] = []
+  for (const line of runner.split('\n')) {
+    const loop = /^\s*for\s+\w+\s+in\s+(.+?)\s*(?:;\s*do)?\s*$/.exec(line)
+    if (loop) {
+      loops.push(loopWords(loop[1]!, present))
+      continue
+    }
+    if (/^\s*done\b/.test(line)) {
+      loops.pop()
+      continue
+    }
+    const calls = (line.includes('__t=$SECONDS') ? 1 : 0) + (/^\s*run_proof\s/.test(line) ? 1 : 0)
+    promised += calls * loops.reduce((product, n) => product * n, 1)
+  }
+  return promised
+}
 try {
   const suites = readdirSync(join(root, 'scripts'), { withFileTypes: true }).filter(entry => entry.isDirectory()).flatMap(entry => {
     const path = join(root, 'scripts', entry.name, 'run-all.sh')
@@ -54,32 +81,55 @@ try {
   chmodSync(nodeStub, 0o755)
   writeFileSync(stub, fixture)
   const copiedRunners = new Map<string, string>()
-  for (const [name, count, files] of [
-    ['smoke', 7, []],
-    ['api', 37, []],
-    ['attention', 2, ['prove-fixture.ts', 'journey-fixture.ts']],
-    ['session-graph', 2, ['run-journeys.ts', 'run-sensitivity.ts']],
-    ['golden-journeys', 9, []],
-    ['node-runtime', 11, ['qualify-artifact.sh']],
-    ['splash', 8, []],
-    ['vulcan', 4, ['prove-fixture.ts', 'prove-addon-compiles.sh']],
-    ['blender-bridge', 2, ['prove-fixture.ts', 'regen-bridge.mjs']],
-    ['unity-bridge', 2, ['prove-fixture.ts', 'regen-bridge.mjs']],
-    ['project-services', 4, ['prove-fixture.ts']],
+  console.log('each counted suite\'s expected mark count is read from its runner: one mark per timed command (__t=$SECONDS) or run_proof line, a for loop multiplied by its words with a glob matched against the census\'s own fixture files; every guard in a runner passes in this estate by construction (a dist file, the fixture files, the close-arc switch)')
+  for (const [name, files] of [
+    ['smoke', []],
+    ['api', []],
+    ['attention', ['prove-fixture.ts', 'journey-fixture.ts']],
+    ['session-graph', ['run-journeys.ts', 'run-sensitivity.ts']],
+    ['golden-journeys', []],
+    ['node-runtime', ['qualify-artifact.sh']],
+    ['splash', []],
+    ['vulcan', ['prove-fixture.ts', 'prove-addon-compiles.sh']],
+    ['blender-bridge', ['prove-fixture.ts', 'regen-bridge.mjs']],
+    ['unity-bridge', ['prove-fixture.ts', 'regen-bridge.mjs']],
+    ['project-services', ['prove-fixture.ts']],
   ] as const) {
     const dir = join(estate, 'scripts', name)
     mkdirSync(dir)
     const runner = join(dir, 'run-all.sh')
     copiedRunners.set(name, runner)
-    writeFileSync(runner, readFileSync(join(root, 'scripts', name, 'run-all.sh')))
+    const text = readFileSync(join(root, 'scripts', name, 'run-all.sh'), 'utf8')
+    writeFileSync(runner, text)
     for (const file of files) writeFileSync(join(dir, file), fixture)
+    const count = promisedMarks(text, ['run-all.sh', ...files])
+    check(`${name}: the runner promises at least one mark (${count} read from its own lines)`, count > 0)
     for (const code of [0, 29]) {
       const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch, CONSTELLATION_CLOSE_ARC: '1' }, encoding: 'utf8', timeout: 10000 })
       const rows = marks(result.stdout)
-      check(`${name}: every individual command records code ${code}`, rows.length === count && rows.every(row => row.code === code))
+      check(`${name}: every individual command records code ${code} (${rows.length} of ${count} marks the runner promises)`, rows.length === count && rows.every(row => row.code === code))
       check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))
     }
   }
+  const apiRunner = readFileSync(join(root, 'scripts/api/run-all.sh'), 'utf8')
+  const apiLines = apiRunner.split('\n')
+  const lastCall = apiLines.findLastIndex(line => line.includes('__t=$SECONDS'))
+  const markCall = /prover_mark\s.*$/.exec(apiLines[lastCall] ?? '')?.[0] ?? ''
+  const apiCount = promisedMarks(apiRunner, ['run-all.sh'])
+  const variant = (name: string, replaceLast: (line: string) => string[]): { promised: number; rows: ReturnType<typeof marks> } => {
+    const dir = join(estate, 'scripts', name)
+    mkdirSync(dir)
+    const text = [...apiLines.slice(0, lastCall), ...replaceLast(apiLines[lastCall] ?? ''), ...apiLines.slice(lastCall + 1)].join('\n')
+    writeFileSync(join(dir, 'run-all.sh'), text)
+    const result = spawnSync('bash', [join(dir, 'run-all.sh')], { cwd: estate, env: env(0), encoding: 'utf8', timeout: 10000 })
+    return { promised: promisedMarks(text, ['run-all.sh']), rows: marks(result.stdout) }
+  }
+  const enrolled = variant('api-enrolled', line => [line, line.replace(/prove-[a-z0-9-]+\.ts/g, 'prove-enrolled-later.ts')])
+  check(`enrolling a proof in a runner moves the runner's own count (${apiCount} → ${apiCount + 1}); the census stays green with no table to edit`, lastCall >= 0 && enrolled.promised === apiCount + 1 && enrolled.rows.length === enrolled.promised && enrolled.rows.every(row => row.code === 0))
+  const unmarked = variant('api-unmarked', line => [line.replace(/;\s*prover_mark\s.*$/, '')])
+  check('a timed command that prints no mark is a disagreement the census sees: the marks fall short of the count the runner promises', unmarked.promised === apiCount && unmarked.rows.length === apiCount - 1)
+  const doubled = variant('api-doubled', line => [`${line}; ${markCall}`])
+  check('a mark that prints twice is a disagreement the census sees: the marks exceed the count the runner promises', markCall !== '' && doubled.promised === apiCount && doubled.rows.length === apiCount + 1)
   const refusedApi = spawnSync('bash', [copiedRunners.get('api')!], { cwd: estate, env: { ...env(0), MERCURY_MODEL: 'foreign-fixture' }, encoding: 'utf8', timeout: 10000 })
   check('the API runner refuses foreign environment before any command executes', refusedApi.status === 78 && marks(refusedApi.stdout).length === 0 && !refusedApi.stdout.includes('diagnostic wording'))
   const attentionRed = spawnSync('bash', [copiedRunners.get('attention')!], { cwd: estate, env: { ...env(3), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
