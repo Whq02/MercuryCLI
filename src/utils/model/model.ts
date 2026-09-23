@@ -13,7 +13,13 @@ import {
 import { getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import { resolveAntModel } from './antModels.js'
-import { ALL_MODEL_CONFIGS, newestGenerationKey, type ModelConfig } from './configs.js'
+import {
+  ALL_MODEL_CONFIGS,
+  DECLARED_GENERATION_STEMS,
+  newestGenerationKey,
+  parseFirstPartyGeneration,
+  type ModelConfig,
+} from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
@@ -220,21 +226,8 @@ function canonicalMatch(id: string): string {
   const lowered = id.toLowerCase()
   const declared = DECLARED_CANONICALS.find(config => lowered.endsWith(config.firstParty))
   if (declared !== undefined) return declared.canonical ?? declared.firstParty
-  if (lowered.includes('sonnet-5')) return 'claude-sonnet-5'
-  if (lowered.includes('opus-5-5')) return 'claude-opus-5-5'
-  if (lowered.includes('opus-5')) return 'claude-opus-5'
-  if (lowered.includes('fable-5-1') || lowered.includes('mythos-5-1')) return 'claude-fable-5-1'
-  if (lowered.includes('fable-5') || lowered.includes('mythos-5')) return 'claude-fable-5'
-  if (lowered.includes('opus-4-8') || lowered.includes('opus-4-7') || lowered.includes('opus-4-6')) {
-    return 'claude-opus-4-6'
-  }
-  if (lowered.includes('opus-4-5')) return 'claude-opus-4-5'
-  if (lowered.includes('opus-4-1')) return 'claude-opus-4-1'
-  if (lowered.includes('opus-4')) return 'claude-opus-4'
-  if (lowered.includes('sonnet-4-6')) return 'claude-sonnet-4-6'
-  if (lowered.includes('sonnet-4-5')) return 'claude-sonnet-4-5'
-  if (lowered.includes('sonnet-4')) return 'claude-sonnet-4'
-  if (lowered.includes('haiku-4-5')) return 'claude-haiku-4-5'
+  const generation = parseFirstPartyGeneration(lowered)
+  if (generation !== null) return DECLARED_GENERATION_STEMS.get(generation.stem) ?? generation.stem
   if (lowered.includes('3-7-sonnet')) return 'claude-3-7-sonnet'
   if (lowered.includes('3-5-sonnet')) return 'claude-3-5-sonnet'
   if (lowered.includes('3-5-haiku')) return 'claude-3-5-haiku'
