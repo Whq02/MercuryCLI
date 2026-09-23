@@ -141,7 +141,7 @@ export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewCloc
 }
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
-  if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
+  if (s.hardStopping) return 'interrupting again — the request is torn down once more; x on its row stops the runner'
   if (s.interrupting) return 'interrupting — the request is torn down'
   if (live.inFlight) {
     if (s.wait !== null) {

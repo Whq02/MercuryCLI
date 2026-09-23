@@ -27,19 +27,19 @@ const lr = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
 const q = await import('../../src/input-core/command-queue.ts')
 const { recordTranscript } = await import('../../src/utils/sessionStorage.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.ts')
+const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 
 console.log('============================================================')
 console.log(' the restart carry — the words, the queue log, the journal identity, the seat facts')
 console.log(" red on the base: every check in C1-C5 (the helpers do not exist there), J1-J2 (the journal carries no identity), S1-S2 (the generation restarts at 0, no queueReady)")
 console.log('============================================================')
 
-section('C1 the ruled row: one row, the crash words and the cut words')
+section('C1 the ruled row: one row, the crash words and the stop words')
 {
   const crash = lr.restartCarryRow('crash', { relaunched: 2, delivered: 1, stopped: 0 })
   check('a crash restart names the crash in the ruled shape', crash === 'runner restarted after a crash: 2 background agents relaunched, 1 delivered from their receipts, 0 stopped', crash)
   const stop = lr.restartCarryRow('stop', { relaunched: 3, delivered: 0, stopped: 0 })
-  check("a stop restart says the cut, never a crash: 'after the turn was cut'", stop === 'runner restarted after the turn was cut: 3 background agents relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop)
+  check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background agents relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop)
   check('the row is recognisable by its prefix (the wake reads it)', lr.isRestartCarryRow(crash) && lr.isRestartCarryRow(stop) && !lr.isRestartCarryRow('<task-notification>'))
   check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.AGENT_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && AGENT_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.AGENT_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.AGENT_RELAUNCH_NOTE), lr.AGENT_RELAUNCH_NOTE)
 }
@@ -191,15 +191,20 @@ section('S1-S2 the seat facts: a fresh incarnation across a seat delete and re-c
     } as never
   }, dir)
   const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+  const published = async (after: (facts: { runnerGeneration?: number } | null) => boolean): Promise<void> => {
+    for (let i = 0; i < 100 && !after(readSessionFacts(sid, dir) as { runnerGeneration?: number } | null); i++) await new Promise(r => setTimeout(r, 20))
+  }
   onSeatSpawned(SHORT, roster as never, dir)
   const first = seatGenerationOf(SHORT)
   publishSeatFacts(SHORT, dir, roster as never)
+  await published(facts => facts !== null)
   const skeleton = readSessionFacts(sid, dir) as (Record<string, unknown> & { runnerGeneration?: number; queueReady?: boolean }) | null
   check('S1 the first life is generation 1 and its skeleton facts say the queue is not ready yet (red on the base: no queueReady)', first === 1 && skeleton?.runnerGeneration === 1 && skeleton?.queueReady === false, j(skeleton))
   onSeatSettled(SHORT)
   onSeatSpawned(SHORT, roster as never, dir)
   const second = seatGenerationOf(SHORT)
   publishSeatFacts(SHORT, dir, roster as never)
+  await published(facts => facts?.runnerGeneration === 2)
   const revived = readSessionFacts(sid, dir) as { runnerGeneration?: number } | null
   check('S2 a seat deleted at settle and re-created at the revive is generation 2, never 1 again (red on the base: 1→1, the screen never sees a move)', second === 2 && revived?.runnerGeneration === 2, `generation ${second} · facts ${j(revived?.runnerGeneration)}`)
   check('S2 queueReady turns on the runner\'s first real answer, not before', queueReadinessFacts({ lastAnswer: null }).queueReady === false && queueReadinessFacts({ lastAnswer: {} as never }).queueReady === true)

@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -48,7 +48,7 @@ const configDir = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
 for (const d of [configDir, daemonDir, work]) mkdirSync(d, { recursive: true })
-writeFileSync(join(work, 'README.md'), '# hard stop fixture\n')
+writeFileSync(join(work, 'README.md'), '# second esc fixture\n')
 process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
@@ -59,10 +59,12 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const sup = await import('../../src/daemon/concourseSupervisor.ts')
 
 const LONG_THINK_ASK = 'think long please'
-type Rec = { runnerId: string; sessionId: string; pid?: number; stoppedAt?: number; crash?: { at: number; reason: string; respawning: boolean }; turnCutAt?: number; turnCutBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }
+type Rec = { runnerId: string; sessionId: string; pid?: number; stoppedAt?: number; stoppedBy?: string; stopRequestedAt?: number; crash?: { at: number; reason: string; respawning: boolean }; turnCutAt?: number; turnCutBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }
+type Workers = { workers: Record<string, Rec> }
+const recordsFile = join(daemonDir, 'concourse-workers.json')
 const readRec = (sid: string): Rec | undefined => {
   try {
-    const all = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers: Record<string, Rec> }
+    const all = JSON.parse(readFileSync(recordsFile, 'utf8')) as Workers
     return Object.values(all.workers).find(w => w.sessionId === sid)
   } catch {
     return undefined
@@ -85,6 +87,12 @@ const wire = (): Capture[] =>
     .map(l => JSON.parse(l) as Capture)
 const daemonLogPath = join(SCRATCH, 'daemon.log')
 const daemonLog = (): string => (existsSync(daemonLogPath) ? readFileSync(daemonLogPath, 'utf8') : '')
+const noStamps = (rec: Rec | undefined): boolean => rec !== undefined && rec.turnCutAt === undefined && rec.stoppedAt === undefined && rec.stopRequestedAt === undefined && rec.crash === undefined
+type RosterRow = { short: string; outcome?: string; state?: string }
+const rosterRow = async (short: string | undefined): Promise<RosterRow | undefined> => {
+  const listed = (await daemonControlRpc({ op: 'list' } as never)) as { jobs?: RosterRow[] }
+  return listed.jobs?.find(j => j.short === short)
+}
 
 const fixture = spawn('node', [join(REPO, 'scripts', 'journey', 'switch-fixture-server.ts'), captureFile], { stdio: ['ignore', 'pipe', 'pipe'] })
 const port = await new Promise<number>((resolve, reject) => {
@@ -162,92 +170,109 @@ const openThinking = async (id: string): Promise<{ sid: string; rec: Rec | undef
   await sleep(400)
   return { sid, rec: readRec(sid) }
 }
+const interrupt = async (sid: string, hard: boolean, by = 'operator'): Promise<{ ok?: boolean; outcome?: string; detail?: string }> =>
+  (await daemonControlRpc({ op: 'sessionControl', action: 'interrupt', sessionId: sid, by, ...(hard ? { hard: true } : {}) } as never)) as { ok?: boolean; outcome?: string; detail?: string }
 
-console.log('hard stop — a runner that does not answer is cut within a second; one that answers is never cut')
+console.log('the second esc — the interrupt goes again, the runner is never cut; the stop verb is the cut, recorded as a stop')
+console.log(" red on the base: H2 (the frozen runner was cut a second after the second press), H4 (its record carried the cut stamp or, on the older base, nothing and then a crash), H6's reconcile (a stop-requested runner found dead read as crashed) and H6's reason ('relaunch', never 'stop')")
 try {
   check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
 
-  console.log('\nH1–H4 the frozen runner is cut, the facts fall, the session survives')
-  const a = await openThinking('hardstop-a')
+  console.log('\nH1–H4 the frozen runner: two presses, no signal, then the answer')
+  const a = await openThinking('secondesc-a')
   const pidA = a.rec?.pid
   check('the runner is live and mid-turn', a.rec !== undefined && alive(pidA) && (a.rec.lastTurnSettledAt ?? 0) < (a.rec.lastDeliveryAt ?? 0), JSON.stringify(a.rec))
   if (pidA !== undefined) {
     process.kill(pidA, 'SIGSTOP')
     frozen.add(pidA)
   }
-  const sentAt = Date.now()
-  const reply = (await daemonControlRpc({ op: 'sessionControl', action: 'interrupt', sessionId: a.sid, by: 'operator', hard: true } as never)) as { ok?: boolean; outcome?: string; detail?: string }
-  check("H1 the hard verb answered applied ('hard stop <runner>')", reply.ok === true && reply.outcome === 'applied' && /^hard stop /.test(reply.detail ?? ''), JSON.stringify(reply))
-  const cutNeedle = `hard stop: ${a.rec?.runnerId ?? '?'} still holds its turn a second after the interrupt — cutting the runner`
-  check('the runner still stands 700 ms in (the grace is a full second — a runner that might still answer is not cut early)', await sleep(700).then(() => !daemonLog().includes(cutNeedle) && alive(pidA)))
-  const cutSeen = await untilAsync(() => daemonLog().includes(cutNeedle), 4_000)
-  const cutAt = Date.now()
-  check('H2 the daemon cut the runner (the log names it) within a few seconds of the verb', cutSeen && cutAt - sentAt <= 4_000, `${cutAt - sentAt} ms · ${daemonLog().split('\n').filter(l => l.includes('hard stop')).join(' | ')}`)
+  const first = await interrupt(a.sid, false)
+  const second = await interrupt(a.sid, true)
+  check("the first press answered applied ('interrupt <runner>')", first.ok === true && first.outcome === 'applied' && /^interrupt /.test(first.detail ?? ''), JSON.stringify(first))
+  check("H1 the second press answered applied ('second interrupt <runner>') — a re-delivery, never a hard stop", second.ok === true && second.outcome === 'applied' && /^second interrupt /.test(second.detail ?? ''), JSON.stringify(second))
+  await sleep(3_000)
+  const rowFrozen = await rosterRow(a.rec?.runnerId)
+  check('H2 three seconds on, the frozen runner lives: no signal was sent (red on the base: cut at one second)', alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
+  check('H2 the daemon logged no cut', !/hard stop:|cutting the runner/.test(daemonLog()), daemonLog().split('\n').filter(l => /hard stop|cutting/.test(l)).join(' | '))
+  check('H2 the roster row stays live (no outcome)', rowFrozen !== undefined && rowFrozen.outcome === undefined, JSON.stringify(rowFrozen ?? null))
+  check('H2 the record carries no cut, stop or crash stamp while the runner holds its turn', noStamps(readRec(a.sid)), JSON.stringify(readRec(a.sid)))
+  const closedBefore = wire().filter(c => c.kind === 'anthropic-closed').length
   if (pidA !== undefined) {
     process.kill(pidA, 'SIGCONT')
     frozen.delete(pidA)
   }
-  const died = await untilAsync(() => !alive(pidA), 6_000)
-  check('H2 the thawed runner exits on the SIGTERM (pid dead)', died, `pid ${pidA} alive=${alive(pidA)}`)
-  const listed = (await daemonControlRpc({ op: 'list' } as never)) as { jobs?: Array<{ short: string; outcome?: string }> }
-  const row = listed.jobs?.find(j => j.short === a.rec?.runnerId)
-  check('H2 the roster lists the runner killed', row === undefined || row.outcome === 'killed', JSON.stringify(row ?? null))
-  const factsFell = await untilAsync(() => readFacts(a.sid)?.busy === false, 8_000)
-  check('H3 the seat facts published busy:false once the child was gone', factsFell, JSON.stringify(readFacts(a.sid) ?? null))
-  const after = readRec(a.sid)
-  check('H4 the session survives: no stopped stamp, no crash stamp (a hard stop cuts the turn, never the session)', after !== undefined && after.stoppedAt === undefined && after.crash === undefined, JSON.stringify(after))
-  check('H4 the record says why its runner is gone: the cut stamp names the hard stop (red on the base: no stamp, and the minute reconcile then called it a crash)', after !== undefined && typeof after.turnCutAt === 'number' && after.turnCutAt >= sentAt && typeof after.turnCutBy === 'string', JSON.stringify(after))
-  const cutReason = sup.runnerRestartReasonOf(after ?? {})
-  check("H4 a relaunch of this session names the stop, never a crash (runnerRestartReasonOf answers 'stop')", cutReason === 'stop', cutReason)
+  check('H3 thawed, the runner reads the interrupts and drops its stream', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBefore, 8_000), JSON.stringify(wire().map(c => c.kind)))
+  const transcriptA = join(paths.getProjectDir(work), `${a.sid}.jsonl`)
+  check('H3 its transcript carries the interruption row', await untilAsync(() => existsSync(transcriptA) && readFileSync(transcriptA, 'utf8').includes('Request interrupted by user'), 8_000), transcriptA)
+  check("H3 the seat's facts read idle once the turn is answered", await untilAsync(() => readFacts(a.sid)?.busy === false, 8_000), JSON.stringify(readFacts(a.sid) ?? null))
+  check('H3 the pid lives on — the same runner takes the next words', alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
+  const afterA = readRec(a.sid)
+  check('H4 the record carries no stamp of any kind after it all', noStamps(afterA), JSON.stringify(afterA))
+  check("H4 a relaunch of this session would read 'relaunch' — never 'stop', never 'crash'", sup.runnerRestartReasonOf(afterA ?? {}) === 'relaunch', sup.runnerRestartReasonOf(afterA ?? {}))
 
-  console.log('\nH5 the control — a runner that answers is never cut')
-  const b = await openThinking('hardstop-b')
+  console.log('\nH5 the control — a healthy runner answers the second-press interrupt at once')
+  const b = await openThinking('secondesc-b')
   const pidB = b.rec?.pid
-  const closedBefore = wire().filter(c => c.kind === 'anthropic-closed').length
-  const replyB = (await daemonControlRpc({ op: 'sessionControl', action: 'interrupt', sessionId: b.sid, by: 'operator', hard: true } as never)) as { ok?: boolean; outcome?: string }
-  check('the hard verb applied to the healthy runner', replyB.ok === true && replyB.outcome === 'applied', JSON.stringify(replyB))
-  check('the stream dropped at once (the runner answered the interrupt)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBefore, 3_000))
+  const closedBeforeB = wire().filter(c => c.kind === 'anthropic-closed').length
+  const replyB = await interrupt(b.sid, true)
+  check('the second-press verb applied to the healthy runner', replyB.ok === true && replyB.outcome === 'applied', JSON.stringify(replyB))
+  check('the stream dropped at once (the runner answered the interrupt)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBeforeB, 3_000))
   await sleep(2_000)
-  const cutNeedleB = `hard stop: ${b.rec?.runnerId ?? '?'} still holds`
-  check('two seconds on, the healthy runner lives and no cut was logged for it', alive(pidB) && !daemonLog().includes(cutNeedleB), `pid ${pidB} alive=${alive(pidB)}`)
-  const transcript = join(paths.getProjectDir(work), `${b.sid}.jsonl`)
-  check('its transcript carries the interruption row', existsSync(transcript) && readFileSync(transcript, 'utf8').includes('Request interrupted by user'), transcript)
+  check('two seconds on, the healthy runner lives and nothing was logged as a cut', alive(pidB) && !/hard stop:|cutting the runner/.test(daemonLog()), `pid ${pidB} alive=${alive(pidB)}`)
+  const transcriptB = join(paths.getProjectDir(work), `${b.sid}.jsonl`)
+  check('its transcript carries the interruption row', existsSync(transcriptB) && readFileSync(transcriptB, 'utf8').includes('Request interrupted by user'), transcriptB)
 
-  console.log('\nH6 the focused seat — the operator at the keyboard: the cut runner comes back at once')
-  const c = await openThinking('hardstop-c')
+  console.log('\nH6 the stop verb — the one cut, recorded as a stop; the reconcile never calls it a crash; the resume brings it back')
+  const c = await openThinking('secondesc-c')
   const pidC = c.rec?.pid
-  const focusBy = `operator:${process.pid}`
-  const focused = (await daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId: c.sid, by: focusBy } as never)) as { ok?: boolean; outcome?: string }
-  check('H6 the session is focused (the operator is looking at it)', focused.ok === true && focused.outcome === 'applied' && readRec(c.sid)?.focusedAt !== undefined, JSON.stringify(focused))
-  if (pidC !== undefined) {
-    process.kill(pidC, 'SIGSTOP')
-    frozen.add(pidC)
+  const runnerC = c.rec?.runnerId ?? '?'
+  const stopAt = Date.now()
+  const stopped = (await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: c.sid, by: 'operator' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
+  const snapshot = JSON.parse(readFileSync(recordsFile, 'utf8')) as Workers
+  check('H6 the stop verb applied to the live runner (the kill is dispatched, the exit acknowledges)', stopped.ok === true && stopped.outcome === 'applied', JSON.stringify(stopped))
+  const requested = Object.values(snapshot.workers).find(w => w.sessionId === c.sid)
+  check('H6 the stop request carries the cut stamp, by the operator (red on the base: no stamp)', requested !== undefined && requested.stopRequestedAt !== undefined && typeof requested.turnCutAt === 'number' && requested.turnCutAt >= stopAt && requested.turnCutBy === 'operator', JSON.stringify(requested))
+  check('H6 the killed runner exits', await untilAsync(() => !alive(pidC), 10_000), `pid ${pidC} alive=${alive(pidC)}`)
+  const windowDir = join(SCRATCH, 'reconcile-window')
+  const bareDir = join(SCRATCH, 'reconcile-bare')
+  for (const d of [windowDir, bareDir]) mkdirSync(d, { recursive: true })
+  const windowShape = structuredClone(snapshot)
+  for (const w of Object.values(windowShape.workers)) if (w.sessionId === c.sid) delete w.stoppedAt
+  writeFileSync(join(windowDir, 'concourse-workers.json'), JSON.stringify(windowShape))
+  const bareShape = structuredClone(windowShape)
+  for (const w of Object.values(bareShape.workers)) {
+    if (w.sessionId !== c.sid) continue
+    delete w.turnCutAt
+    delete w.turnCutBy
+    delete w.stopRequestedAt
   }
-  const cutAtC = Date.now()
-  const replyC = (await daemonControlRpc({ op: 'sessionControl', action: 'interrupt', sessionId: c.sid, by: focusBy, hard: true } as never)) as { ok?: boolean; outcome?: string }
-  check('H6 the hard verb applied', replyC.ok === true && replyC.outcome === 'applied', JSON.stringify(replyC))
-  const cutNeedleC = `hard stop: ${c.rec?.runnerId ?? '?'} still holds its turn a second after the interrupt — cutting the runner`
-  check('H6 the frozen runner is cut', await untilAsync(() => daemonLog().includes(cutNeedleC), 4_000))
-  if (pidC !== undefined) {
-    process.kill(pidC, 'SIGCONT')
-    frozen.delete(pidC)
-  }
-  const relaunchNeedle = `hard stop: ${c.rec?.runnerId ?? '?'} relaunched at once for the focused seat`
-  const relaunched = await untilAsync(() => daemonLog().includes(relaunchNeedle), 12_000)
-  check('H6 the daemon relaunches the focused seat the moment the cut runner is gone (red on the base: nothing respawns it until the next words)', relaunched, daemonLog().split('\n').filter(l => l.includes('hard stop')).join(' | '))
+  writeFileSync(join(bareDir, 'concourse-workers.json'), JSON.stringify(bareShape))
+  const windowReceipt = sup.reconcileConcourseWorkers(new Set<string>(), windowDir)
+  const windowAfter = (JSON.parse(readFileSync(join(windowDir, 'concourse-workers.json'), 'utf8')) as Workers).workers[runnerC]
+  check('H6 the reconcile over the stop-requested record with its pid dead reads it stopped, never crashed (red on the base: CRASHED)', !windowReceipt.settled.includes(runnerC) && windowReceipt.live.includes(runnerC) && windowAfter?.crash === undefined && windowAfter?.stoppedAt !== undefined && windowAfter.stoppedBy === 'operator', JSON.stringify({ receipt: windowReceipt, after: windowAfter }))
+  const bareReceipt = sup.reconcileConcourseWorkers(new Set<string>(), bareDir)
+  check('H6 the same record with no stop request and no cut stamp is what the reconcile calls a crash — the stamps are what keep the stop honest', bareReceipt.settled.includes(runnerC), JSON.stringify(bareReceipt))
+  check('H6 the real record acknowledges the stop at the exit: stoppedAt lands, the cut stamp stands, no crash', await untilAsync(() => {
+    const rec = readRec(c.sid)
+    return rec !== undefined && rec.stoppedAt !== undefined && rec.turnCutAt !== undefined && rec.crash === undefined && rec.stopRequestedAt === undefined
+  }, 10_000), JSON.stringify(readRec(c.sid)))
+  check("H6 a relaunch of the stopped session reads 'stop', never 'crash' (red on the base: 'relaunch')", sup.runnerRestartReasonOf(readRec(c.sid) ?? {}) === 'stop', sup.runnerRestartReasonOf(readRec(c.sid) ?? {}))
+  const resumed = (await daemonControlRpc({ op: 'sessionControl', action: 'resume', sessionId: c.sid, by: 'operator' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
+  check('H6 the resume verb brings the stopped session back (revived)', resumed.ok === true && resumed.outcome === 'applied' && /revived/.test(resumed.detail ?? ''), JSON.stringify(resumed))
   const cameBack = await untilAsync(() => {
     const rec = readRec(c.sid)
     return rec?.pid !== undefined && rec.pid !== pidC && alive(rec.pid)
-  }, 12_000)
+  }, 15_000)
   const backRec = readRec(c.sid)
-  check('H6 the record names a new live runner pid within seconds of the cut', cameBack, JSON.stringify({ before: pidC, after: backRec?.pid, ms: Date.now() - cutAtC }))
+  check('H6 the record names a new live runner pid', cameBack, JSON.stringify({ before: pidC, after: backRec?.pid }))
   check('H6 the revived record carries no cut stamp, no stop stamp and no crash stamp (the runner is back)', backRec !== undefined && backRec.turnCutAt === undefined && backRec.stoppedAt === undefined && backRec.crash === undefined, JSON.stringify(backRec))
   const ledger = existsSync(join(daemonDir, 'spawn-ledger.jsonl')) ? readFileSync(join(daemonDir, 'spawn-ledger.jsonl'), 'utf8') : ''
-  const spawnRows = ledger.split('\n').filter(l => l.includes(`"${c.rec?.runnerId ?? '?'}@`) && !l.includes('"event":"exit"'))
-  check('H6 the ledger holds the relaunch as a second spawn row of the same seat', spawnRows.length >= 2, `${spawnRows.length} spawn row(s)`)
+  const spawnRows = ledger.split('\n').filter(l => l.includes(`"${runnerC}@`) && !l.includes('"event":"exit"'))
+  check('H6 the ledger holds the resume as a second spawn row of the same seat', spawnRows.length >= 2, `${spawnRows.length} spawn row(s)`)
+  copyFileSync(recordsFile, join(SCRATCH, 'records-at-end.json'))
 } finally {
   await cleanup()
 }
 
-console.log(failures === 0 ? '\n ✅ HARD STOP CUT — the unanswering runner is cut in a second, the facts fall, the session survives; the answering runner is never cut' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ SECOND ESC — the interrupt goes again and the runner is never cut; the stop verb is the one cut, recorded as a stop' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

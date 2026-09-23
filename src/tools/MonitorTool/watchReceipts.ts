@@ -117,7 +117,7 @@ export function deadWatchLine(receipt: WatchReceipt, reason?: RunnerRestartReaso
     reason === 'crash'
       ? "the runner's restart after a crash"
       : reason === 'stop'
-        ? "the runner's restart after a hard stop"
+        ? "the runner's restart after a stop"
         : reason === 'settings'
           ? "the runner's restart after a settings change"
           : reason === 'relaunch'

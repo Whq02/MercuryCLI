@@ -268,11 +268,12 @@ interrupt within its grace (three quarters of a second) settles with its own
 words, and one that cannot — a browser whose process is gone, a call waiting
 on something that will never answer — is left behind, its result replaced by
 the interrupt's own, and its late answer, if one ever comes, is dropped. A
-second esc while the first is still on its way is the hard stop: the daemon
-delivers the interrupt again and, if the turn is still open a second later,
-cuts the runner itself. The cut is recorded on the session as the operator's
-stop of that turn, never as a crash; the session survives, and the runner
-comes back saying the turn was cut. A turn that fails inside the runner's
+second esc while the first is still on its way delivers the interrupt again
+and nothing more: the runner is never signalled, its sub-agents run on, and a
+runner that cannot answer stays busy until you stop it by hand — x on its row
+stops the session, the crew view stops one sub-agent. A stop you ask for is
+recorded on the session as your stop, never as a crash, and a resume after it
+brings the runner back saying so. A turn that fails inside the runner's
 own machinery before it has answered ends as that turn's own error result
 — the words of the failure in the result's errors — and the session lives
 on to read the next line; only a failure after the turn has already
@@ -492,8 +493,8 @@ door, the whole estate is live behind the chat — the daemon, the board and
 every other running session — and a resume yields, drains, kills, swaps or
 respawns nothing.
 
-A runner that died mid-work — a crash, or the operator's second esc cutting
-a turn — comes back carrying what it held. The session's own record keeps
+A runner that died mid-work — a crash, or a stop you asked for and then
+resumed — comes back carrying what it held. The session's own record keeps
 what the runner had queued and what its background agents had reported:
 each line you typed that the dead runner never read is queued again under
 its own identity and runs as the next turn; an agent that had finished is
@@ -502,10 +503,9 @@ relaunched from its own transcript, told that its files hold the edits it
 made and to read them again before it edits; and only a launch the record
 knows nothing about is reported stopped. One row says what the restart
 carried — `runner restarted after a crash: 2 background agents relaunched, 1
-delivered from their receipts, 0 stopped`, or `runner restarted after the
-turn was cut: …` when the second esc cut it. A seat you are looking at comes
-back the moment the cut runner is gone; an unfocused seat waits for your
-next words, as before.
+delivered from their receipts, 0 stopped`, or `runner restarted after a
+stop: …` when you had stopped it. The seat comes back on your next words — a
+resume, a line typed — as before.
 
 ## The preserved-thinking record
 

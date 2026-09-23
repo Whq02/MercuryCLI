@@ -23,8 +23,8 @@ const focusedSlot = await import('../../src/services/engine-connector/focusedCon
 const { interruptFocusedTurn } = await import('../../src/hooks/useCancelRequest.ts')
 
 console.log('============================================================')
-console.log(' esc paints its receipt once per turn: the second esc names the cut, a third paints nothing')
-console.log(" red on the base: R1's second press painted the same row again (two identical rows one under the other), R3's words do not exist")
+console.log(' esc paints its receipt once per turn: the second and every later esc paint nothing new')
+console.log(" red on the base: R1's second press painted the same row again (two identical rows one under the other); R3's chooser does not exist")
 console.log('============================================================')
 
 type Row = { message?: { content?: unknown }; content?: unknown }
@@ -65,7 +65,7 @@ function fixtureConnector(agents: number) {
   return { connector, rows, state }
 }
 
-section('R1 two esc presses in one turn: the first paints the still-running receipt, the second names the cut — never the same row twice')
+section('R1 three esc presses in one turn: the first paints the still-running receipt, the second and the third paint nothing — never the same row twice')
 {
   const fx = fixtureConnector(3)
   focusedSlot.setFocusedSessionConnector(fx.connector as never)
@@ -75,8 +75,8 @@ section('R1 two esc presses in one turn: the first paints the still-running rece
   const texts = fx.rows.map(textOfRow)
   check('every press reports a running turn (the connector took each)', first && second && third)
   check('the first press paints the still-running receipt, in its words', texts[0] === '3 sub-agents still running — open the crew view (/teammates) and press x twice on its row to stop one', j(texts))
-  check('the second press (the hard stop) paints a receipt that names the cut, not the same row again', texts.length >= 2 && texts[1] !== texts[0] && /^hard stop — the runner is cut if the turn is still open in a second; 3 sub-agents still running come back with it$/.test(texts[1] ?? ''), j(texts))
-  check('a third press paints nothing: two rows for the whole turn, no identical pair', texts.length === 2 && new Set(texts).size === 2, j(texts))
+  check('the second press paints nothing new (no second row, no cut words anywhere)', texts.length === 1 && !texts.some(t => /cut|hard stop/.test(t)), j(texts))
+  check('a third press paints nothing either: one row for the whole turn', texts.length === 1, j(texts))
 }
 
 section('R2 a new turn starts the receipts over; a changed count paints the new count')
@@ -95,9 +95,8 @@ section('R2 a new turn starts the receipts over; a changed count paints the new 
 
 section('R3 the words, pure')
 {
-  check('the cut receipt for agents and a workflow', crew.crewHardStopLine({ agents: 1, teammates: 0, workflows: 1 }) === 'hard stop — the runner is cut if the turn is still open in a second; 1 sub-agent still running · 1 workflow run still running come back with it', String(crew.crewHardStopLine({ agents: 1, teammates: 0, workflows: 1 })))
-  check('no crew, no cut receipt (the status row already says stopping)', crew.crewHardStopLine(0) === null && crew.crewHardStopLine({ agents: 0, teammates: 0, workflows: 0 }) === null)
-  check('the receipt chooser: first press ⇒ still-running line, hard press ⇒ the cut, a repeat ⇒ nothing, no seat facts ⇒ still-running line', crew.interruptReceiptLine(2, null) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: false, hardStopping: false }) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: true, hardStopping: false }) === crew.crewHardStopLine(2) && crew.interruptReceiptLine(2, { interrupting: true, hardStopping: true }) === null)
+  check('no cut receipt exists: the crew owner spells no hard-stop line', !('crewHardStopLine' in crew))
+  check('the receipt chooser: first press ⇒ still-running line, a press over a turn already interrupting ⇒ nothing, no seat facts ⇒ still-running line', crew.interruptReceiptLine(2, null) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: false }) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: true }) === null)
   check('the still-running words are byte-identical', crew.crewStillRunningLine(3) === '3 sub-agents still running — open the crew view (/teammates) and press x twice on its row to stop one')
 }
 

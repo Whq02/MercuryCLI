@@ -47,7 +47,7 @@ section('L1 — the rung law')
   check('interrupting', arity.escRungOf({ inFlight: true, interrupting: true, hardStopping: false }) === 'interrupting')
   check('hard-stopping outranks interrupting', arity.escRungOf({ inFlight: true, interrupting: true, hardStopping: true }) === 'hard-stopping')
   check('the in-flight hint', arity.escRungHint('in-flight') === 'esc interrupts')
-  check('the interrupting hint', arity.escRungHint('interrupting') === 'esc again forces a stop')
+  check('the interrupting hint re-sends, never forces (the runner is never cut)', arity.escRungHint('interrupting') === 'esc again re-sends the interrupt', arity.escRungHint('interrupting'))
   check('nothing to press when idle or hard-stopping', arity.escRungHint('idle') === '' && arity.escRungHint('hard-stopping') === '')
 }
 
@@ -60,11 +60,11 @@ section('L2 — one esc clause per frame, per rung (a message queued during a th
   check('in flight: the clause is the rung hint', inFlight.includes('esc interrupts'), inFlight)
   const interrupting = frame(live('thinking'), status({ interrupting: true }))
   check('interrupting: exactly one esc clause', escClauses(interrupting) === 1, interrupting)
-  check('interrupting: the clause is "esc again forces a stop"', interrupting.includes('esc again forces a stop') && !interrupting.includes('esc again stops'), interrupting)
+  check('interrupting: the clause is "esc again re-sends the interrupt"', interrupting.includes('esc again re-sends the interrupt') && !interrupting.includes('esc again stops') && !interrupting.includes('forces a stop'), interrupting)
   check('interrupting: the state words say the request is torn down', interrupting.includes('interrupting — the request is torn down'), interrupting)
   const hard = frame(live('thinking'), status({ interrupting: true, hardStopping: true }))
-  check('hard-stopping: no esc clause (nothing more to press)', escClauses(hard) === 0, hard)
-  check('hard-stopping: the state words say the runner is cut', hard.includes('stopping — the runner is cut'), hard)
+  check('a second press made: no esc clause (nothing more to press)', escClauses(hard) === 0, hard)
+  check('a second press made: the state words say the interrupt went again and name the stop door — never a cut', hard.includes('interrupting again — the request is torn down once more; x on its row stops the runner') && !/cut/.test(hard), hard)
 }
 
 section('L3 — every state word a running turn can wear keeps to one clause')
