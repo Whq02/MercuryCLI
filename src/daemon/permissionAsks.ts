@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { daemonHomeStands } from './daemonHome.js'
 import { dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs, type InactivityDeadline } from '../utils/deadline.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
@@ -50,7 +51,7 @@ function writeGitInitAsks(map: Record<string, string>): void {
     mkdirSync(dirname(path), { recursive: true })
     const tmp = `${path}.tmp-${process.pid}`
     writeFileSync(tmp, JSON.stringify(map), 'utf8')
-    renameSync(tmp, path)
+    renameWithWin32RetrySync(tmp, path)
   } catch (err) {
     logForDebugging(`[daemon] git-init ask sidecar write failed: ${err}`)
   }

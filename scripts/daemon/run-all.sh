@@ -66,6 +66,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-recall-runner.ts" || { __rc=$?; fa
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-starting-door.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-starting-door.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-send-hops.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-send-hops.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rename-migration.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rename-migration.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-rename-retry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-rename-retry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-wire-answer-whole.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-wire-answer-whole.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-core.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-core.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-adversarial.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-adversarial.ts" "$__t" "$__rc"
