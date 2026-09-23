@@ -1,6 +1,8 @@
 
 
 
+import { stripBOM } from '../utils/jsonRead.js'
+
 function tokenSet(body: string): Set<string> {
   const out = new Set<string>()
   for (const m of body.toLowerCase().matchAll(/[a-z0-9_./-]{2,}/g)) out.add(m[0])
@@ -101,6 +103,7 @@ export function expandSeqRange(spec: string): number[] {
 }
 
 export function parseTopicDoc(raw: string): MnemeTopicDoc | null {
+  raw = stripBOM(raw).replaceAll('\r\n', '\n')
   const fm = raw.match(/^---\n([\s\S]*?)\n---\n?/)
   if (!fm) return null
   const meta: Record<string, string> = {}
