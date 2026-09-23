@@ -102,8 +102,10 @@ export function formatClock(ts?: string): string | null {
 export function NameplateClock(): React.ReactNode {
   const meta = React.useContext(MessageMetaContext)
   if (!meta) return null
-  if (meta.queued) return <Text color={FAINT}>{plateOf(meta)} </Text>
   const clock = formatClock(meta.timestamp)
+  if (meta.queued) {
+    return <Text color={FAINT}>{HELD_PLATE} {meta.heldFor !== 'compaction' && clock ? `since ${clock} ` : ''}</Text>
+  }
   if (!clock) return null
   return <Text color={FAINT}>{clock} </Text>
 }

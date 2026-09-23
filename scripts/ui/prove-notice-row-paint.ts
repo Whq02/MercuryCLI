@@ -78,7 +78,7 @@ const clockOf = (iso: string): string => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true }): Promise<string> {
+async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }): Promise<string> {
   let written = ''
   const stdout = Object.assign(
     new Writable({
@@ -113,8 +113,17 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 {
   const text = monitorBlock('bk1', WATCH, 'event-1')
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
-  check('the queued notice echo wears the queued dress before the plate', frame.includes('queued') && frame.includes(`● monitor · ${WATCH}`) && frame.includes('event-1'), frame.slice(0, 200))
+  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} ● monitor · ${WATCH}`) && !frame.includes('queued') && frame.includes('event-1'), frame.slice(0, 240))
   check('…and never the caret or the wrapper', !frame.includes('❯') && !frame.includes('<monitor'), frame.slice(0, 200))
+}
+{
+  const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: taskNotice('Background command "the build" completed (exit code 0)'), commandMode: 'task-notification' }, addMargin: false, verbose: false })
+  const held = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true })
+  check('RED on the base: a held task completion names the same arrival clock', held.includes(`held since ${clockOf(STAMP)} ● Background command`), held)
+  const taken = await paint(body, { type: 'attachment', timestamp: STAMP })
+  check('a taken task completion keeps its delivered clock with no held plate', taken.includes(`${clockOf(STAMP)} ● Background command`) && !taken.includes('held') && !taken.includes('queued'), taken)
+  const compacting = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true, heldFor: 'compaction' })
+  check('the compaction plate stays unchanged', compacting.includes('held ● Background command') && !compacting.includes('since'), compacting)
 }
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: 'Stop hook blocking error from command "lint": 3 errors', commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
