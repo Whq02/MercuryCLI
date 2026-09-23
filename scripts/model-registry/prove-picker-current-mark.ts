@@ -121,7 +121,8 @@ section('§4 the reason footer wraps a whole sentence, bounded, and stays one li
     check(`[${columns}] every word of the sentence is painted, none truncated`, reason.split(' ').every(word => tail.includes(word)) && tail.includes('not selectable') && !tail.includes('…'), tail)
     const footerLines = body.slice(start).filter(line => /[A-Za-z]/.test(line.replace(/[│╰╯─]/g, ''))).length
     check(`[${columns}] the sentence takes the lines it needs and no more (two to five, plus the keys line)`, footerLines >= 3 && footerLines <= 6, String(footerLines))
-    check(`[${columns}] the panel closes below the footer (the bottom border paints)`, body.some(line => line.includes('╰')) && body.findIndex(line => line.includes('╰')) > start)
+    const bottom = body.map(line => line.includes('╰')).lastIndexOf(true)
+    check(`[${columns}] the panel closes below the footer inside the viewport (the bottom border paints last, within 24 rows)`, bottom > start && bottom === body.length - 1 && body.length <= 24, `bottom=${bottom} start=${start} lines=${body.length}`)
     check(`[${columns}] the current row keeps its current mark while the footer explains the refusal; the other refused row reads unavail`, (rowLine(frame, RAW) ?? '').includes('current') && (rowLine(frame, 'Opus 5.5') ?? '').includes('unavail'), `${rowLine(frame, RAW)} / ${rowLine(frame, 'Opus 5.5')}`)
   }
   const frame = await renderToString(React.createElement(MercuryModelPicker, { models: gated, current: 'claude-opus-5-5', ctxPct: null } as never), 120)
