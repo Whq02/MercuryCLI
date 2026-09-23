@@ -660,6 +660,28 @@ function standingWindowWords(family: string): string {
   }
 }
 
+export function modelRefusalsCheck(): CheckSpec {
+  return {
+    id: 'model-refusals',
+    label: 'Refused models',
+    run: () => {
+      const { standingModelRefusals, modelRefusalFix } =
+        require('../services/providers/anthropic/modelRefusal.js') as typeof import('../services/providers/anthropic/modelRefusal.js')
+      const { renderModelName } = require('./model/model.js') as typeof import('./model/model.js')
+      const refusals = standingModelRefusals()
+      if (refusals.length === 0) return { status: 'info', evidence: 'no model refused on any door in this session' }
+      const now = Date.now()
+      const kinds = { 'contract-floor': 'minimum client version', tier: 'subscription tier', 'not-served': 'not served' }
+      return {
+        status: 'warn',
+        evidence: refusals.map(refusal => `${renderModelName(refusal.id)} · ${refusal.door} · ${kinds[refusal.kind]} · seen ${formatAge(now - refusal.seenAtMs)}`).join('\n'),
+        detail: refusals.map(refusal => refusal.words).join('\n'),
+        fix: [...new Set(refusals.map(refusal => `${modelRefusalFix(refusal)}.`))].join('\n'),
+      }
+    },
+  }
+}
+
 function modelListsCheck(): CheckSpec {
   return {
     id: 'model-lists',
@@ -798,6 +820,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
+        modelRefusalsCheck(),
         {
           id: 'install-provenance',
           label: 'Install provenance',

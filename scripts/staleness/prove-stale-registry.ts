@@ -165,6 +165,7 @@ src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
 src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
 src/services/providers/anthropic/anthropicCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/anthropic/modelRefusal.ts :: modelRefusalCache :: keyed-by-truth
 src/services/providers/deepseek/deepseekCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
