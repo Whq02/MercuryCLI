@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { splitTopLevelSegments, transformJsCell } from '../../src/services/eval/jsCellTransform.js'
 import { check, finish, section } from './lib.js'
@@ -59,6 +60,12 @@ const lexicalCells: Array<[string, string, Record<string, unknown>]> = [
   ['regex comma and keyword', 'const splitter = /,\\s*in\\s+/, n = 1', { splitter: /,\s*in\s+/, n: 1 }],
   ['regex quote and bracket', "const q = /['{},]/; const after = 1", { q: /['{},]/, after: 1 }],
   ['division remains an operator', 'const d = 10 / 2, e = 3 / 4', { d: 5, e: 0.75 }],
+  ['postfix increment then division', 'let i = 3; const half = i++ / 2, after = 1', { i: 4, half: 1.5, after: 1 }],
+  ['postfix decrement then division', 'let n = 8; const rest = n-- / 4, next = 2', { n: 7, rest: 2, next: 2 }],
+  ['postfix in parentheses then division', 'let p = 5; const q = (p++) / 5, r = p++ / 3, s = 9', { p: 7, q: 1, r: 2, s: 9 }],
+  ['a regex after a binary plus still reads as a regex', 'const joined = "a" + /b/.source, more = 1', { joined: 'ab', more: 1 }],
+  ['a regex after an operator keyword still reads as a regex', 'const kind = typeof /a,b/, tail = 2', { kind: 'object', tail: 2 }],
+  ['a regex after a closing brace still reads as a regex', 'let hit = 0\nif (hit === 0) { hit = 1 }\n/x,y/.test("x,y") ? hit++ : hit--\nconst done = hit', { hit: 2, done: 2 }],
   ['block comment punctuation', 'const first = 1 /* , in = } ] ) */, second = 2', { first: 1, second: 2 }],
   ['line comment punctuation', 'const first = 1, second = 2 // , in = } ] )', { first: 1, second: 2 }],
   ['assignment after comment punctuation', 'var first /* = , } ] ) */ = 1, second = 2', { first: 1, second: 2 }],
@@ -77,6 +84,10 @@ for (const [label, source, expected] of lexicalCells) {
   } catch (error) {
     check(`${label}: transformed cell executes`, false, String(error))
   }
+}
+{
+  const scanner = readFileSync(new URL('../../src/services/eval/jsCellTransform.ts', import.meta.url), 'utf8')
+  check('the regex-start decision reads back from the slash (a postfix ++/-- is division) instead of re-scanning the whole prefix at every slash', scanner.includes("if (c === '/' && regexCanStart(source, i))") && !scanner.includes('source.slice(0, i)'))
 }
 
 finish('JS-TRANSFORM')
