@@ -36,8 +36,9 @@ export function pickWin32ExecutableLine(lines: readonly string[]): string | null
 }
 
 function searchDirs(): string[] {
-  const entries = (process.env.PATH ?? '').split(path.delimiter).map(entry => (entry === '' ? '.' : entry))
-  return process.platform === 'win32' ? ['.', ...entries] : entries
+  const entries = (process.env.PATH ?? '').split(path.delimiter)
+  if (process.platform === 'win32') return entries.filter(entry => entry !== '')
+  return entries.map(entry => (entry === '' ? '.' : entry))
 }
 
 function isExecutableFile(candidate: string): boolean {
