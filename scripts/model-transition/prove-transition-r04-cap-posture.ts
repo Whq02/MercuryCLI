@@ -310,7 +310,7 @@ section('§H the ONE per-family window resolver — unknown is a state, a stated
   const anthropicElapsed = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'rejected', observed: true, resetsAtMs: now - 1, windowName: 'weekly limit' }) })
   check("anthropic: the provider's own stated reset moment passing is an OBSERVED reset (allowed, basis stated-reset-elapsed)", anthropicElapsed.state === 'allowed' && anthropicElapsed.basis === 'stated-reset-elapsed')
   const anthropicWarn = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'allowed_warning', observed: true, resetsAtMs: now + 5_000, windowName: 'session limit' }) })
-  check("anthropic: allowed_warning reads the neutral 'warning'", anthropicWarn.state === 'warning' && anthropicWarn.windowName === 'session limit')
+  check('anthropic: a bare allowed_warning never warns without a percentage', anthropicWarn.state === 'allowed' && anthropicWarn.windowName === 'session limit')
   const anthropicFresh = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'allowed', observed: true }) })
   check('anthropic: a fresh allowed observation reads allowed (observed)', anthropicFresh.state === 'allowed' && anthropicFresh.basis === 'observed')
   const openaiNone = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription' })
