@@ -11,7 +11,6 @@ import {
 } from '../../src/components/mercury-ui/CritterArt.js'
 import {
   CRITTERS,
-  markCompactArtFor,
   miniArtFor,
   sleepPoseFor,
   type ArtForm,
@@ -137,7 +136,6 @@ function pupilsOf(frame: string[]): Cell[] {
 
 console.log('— §A the gaze census over the square tier —')
 const SQUARE_SURFACES: Array<[string, (d: CritterDef) => string[]]> = [
-  ['square', d => d.square],
   ['square dock', d => d.squareDock],
 ]
 for (const def of CRITTERS) {
@@ -176,7 +174,7 @@ for (const def of CRITTERS) {
     const restRow = clusters[0]!.rest.r
     const restColGaps = clusters.slice(1).map(cl => cl.rest.c - clusters[0]!.rest.c)
     const squareOpts = { square: true as const }
-    const defForCompose = label === 'square dock' ? { ...def, square: art } : def
+    const defForCompose = def
     const rest = composeCritterFrame(defForCompose, { ...squareOpts, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
     t(`${def.name} ${label}: the rest frame is the authored grid (whole render, no slice)`, rest.art.join('\n') === art.join('\n'))
     const fbad: string[] = []
@@ -212,20 +210,15 @@ function bandRowsOf(art: readonly string[]): number[] {
 type BandEntry = { reason: string; rows: readonly number[] }
 const BAND_ANATOMY: Readonly<Record<string, BandEntry>> = {
   'crab · 13w awake': { reason: "the crab's belly band", rows: [8, 9] },
-  'crab · compact mark': { reason: "the crab's belly band", rows: [4] },
   'crab · 13w sleep': { reason: 'the belly band between the tucked claws', rows: [10] },
   'crab · mini sleep': { reason: 'the belly band between the tucked claws', rows: [4] },
   'jellyfish · 13w awake': { reason: "the jellyfish's lit skirt rim", rows: [6] },
   'jellyfish · mini awake': { reason: "the jellyfish's lit skirt rim", rows: [4] },
-  'jellyfish · compact mark': { reason: "the jellyfish's lit skirt rim", rows: [4] },
   'jellyfish · 13w sleep': { reason: 'the skirt rim on the sunken bell', rows: [7] },
   'jellyfish · mini sleep': { reason: 'the skirt rim on the sunken bell', rows: [4] },
   'clam · 13w awake': { reason: "the clam's mantle band along the opening", rows: [6] },
   'clam · mini awake': { reason: "the clam's mantle band along the opening", rows: [4] },
-  'clam · compact mark': { reason: "the clam's mantle band along the opening", rows: [4] },
-  'jellyfish · square': { reason: "the jellyfish's lit skirt rim (the square tier)", rows: [8, 9] },
   'jellyfish · square dock': { reason: "the jellyfish's lit skirt rim (the square dock)", rows: [4] },
-  'clam · square': { reason: "the clam's mantle band along the opening (the square tier)", rows: [6, 7] },
   'clam · square dock': { reason: "the clam's mantle band along the opening (the square dock)", rows: [4] },
 }
 
@@ -234,8 +227,6 @@ for (const def of CRITTERS) {
   const name = def.name
   gridRoster.push([`${name} · 13w awake`, def.art])
   gridRoster.push([`${name} · mini awake`, miniArtFor(name)])
-  gridRoster.push([`${name} · compact mark`, markCompactArtFor(name)])
-  gridRoster.push([`${name} · square`, def.square])
   gridRoster.push([`${name} · square dock`, def.squareDock])
   for (const form of ['art', 'mini'] as ArtForm[]) {
     const pose = sleepPoseFor({ name }, form)

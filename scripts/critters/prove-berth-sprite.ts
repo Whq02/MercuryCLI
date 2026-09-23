@@ -22,7 +22,7 @@ const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCas
   const home = read('src/components/MercuryHome.tsx')
   const berth = home.slice(home.indexOf('export function PinnedCritterBerth'))
   const berthBody = berth.slice(0, berth.indexOf('\nexport ', 1))
-  t('berth binds the dock grid onto the def', berthBody.includes('square: squareDockArtFor(sa.key)'))
+  t('berth binds no grid over the def', !/square:\s*[A-Za-z]/.test(berthBody))
   t('berth passes square= to AnimatedCritterArt', /AnimatedCritterArt def=\{hover \? hoverDockDef : dockDef\} square \/>/.test(berthBody))
   t('berth pins its slot to the dock height', berthBody.includes('height={SQUARE_DOCK_ART_LINES}'))
   const layout = read('src/components/FullscreenLayout.tsx')

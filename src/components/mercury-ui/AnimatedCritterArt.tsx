@@ -56,7 +56,7 @@ export function AnimatedCritterArt({ def, chunky = false, mini = false, square =
   useSyncExternalStore(subscribeCritterSleep, critterSleepSince, critterSleepSince)
   const asleep =
     critterSleepSince() !== 0 && (!specimen || critterSleepMode() === 'forced')
-  const usingSquare = square && !!def.square && def.square.length > 0
+  const usingSquare = square && def.squareDock.length > 0
   const form = usingSquare ? 'square' : mini ? 'mini' : 'art'
   const rawKeyRef = useRef('')
   const frameDerive = useCallback(() => {
@@ -76,7 +76,7 @@ export function AnimatedCritterArt({ def, chunky = false, mini = false, square =
   const sleepPhase = asleep ? (raw.sleepPhase ?? 0) : null
   const pupil = asleep ? EYE_SHUT : raw.sleepPhase !== null ? EYE_OPEN : raw.pupil
   const swayPhase = effectiveSwayPhase(def, form, asleep, raw.swayPhase)
-  const gazeGrid = usingSquare ? def.square : null
+  const gazeGrid = usingSquare ? def.squareDock : null
   const gazeOn = animate && !asleep && gazeGrid !== null && critterGazeEnabled()
   const boxRef = useRef<DOMElement | null>(null)
   const composedRef = useCallback(
@@ -89,7 +89,7 @@ export function AnimatedCritterArt({ def, chunky = false, mini = false, square =
   const prevGazeKeyRef = useRef('')
   const gazeSampleRef = useRef('')
   const getGazeSnapshot = useCallback((): string => {
-    const grid = usingSquare ? def.square : undefined
+    const grid = usingSquare ? def.squareDock : undefined
     const pointer = getPointerCell()
     const rect = boxRef.current ? nodeCache.get(boxRef.current) : undefined
     const sample = `${getPointerVersion()}|${rect ? `${rect.x},${rect.y}` : '-'}`

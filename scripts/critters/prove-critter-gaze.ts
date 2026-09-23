@@ -190,10 +190,10 @@ for (const def of ALL) {
 
 console.log('— foreign/stale key refusal —')
 {
-  const crabSquare = ALL.find(d => d.name === 'crab')!.square
+  const crabFlat = ALL.find(d => d.name === 'crab')!.art
   const crabKey = gazeKeyForPointer(crab, -40, 2)
   t('crab key is non-empty (fixture sane)', crabKey.length > 0)
-  t('dock key applied to the square grid ⇒ REFUSED (same ref)', applyGazeKey(crabSquare, crabKey) === crabSquare)
+  t('dock key applied to the flat grid ⇒ REFUSED (same ref)', applyGazeKey(crabFlat, crabKey) === crabFlat)
   t('garbage key ⇒ REFUSED', applyGazeKey(crab, 'zz|1') === crab)
   t('out-of-bounds key ⇒ REFUSED', applyGazeKey(crab, '99,99>99,98') === crab)
   t('cross-pair key ⇒ REFUSED', applyGazeKey(crab, '1,7>2,7') === crab)
@@ -250,7 +250,7 @@ console.log('— view + decode wiring (static) —')
   const anim = readFileSync('src/components/mercury-ui/AnimatedCritterArt.tsx', 'utf8')
   t('gaze gated on animate + NOT asleep + a gaze grid (square) + critterGazeEnabled',
     /animate && !asleep && gazeGrid !== null && critterGazeEnabled\(\)/.test(anim) &&
-    /const gazeGrid = usingSquare \? def\.square : null/.test(anim))
+    /const gazeGrid = usingSquare \? def\.squareDock : null/.test(anim))
   t('view threads gazeKey into CritterArt', anim.includes('gazeKey={gazeKey}'))
   const cart = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
   t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(base, gazeKey\)[\s\S]{0,200}heroBlinkRows\(gazed\)/.test(cart))
