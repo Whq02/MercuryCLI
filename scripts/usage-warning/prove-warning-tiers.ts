@@ -7,6 +7,13 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const warnings = await import('../../src/services/providers/limitWarning.ts')
 const { decideCapAction, observedFamilyWindow } = await import('../../src/services/capFailover.ts')
+const tiers = await import('../../src/services/providers/usageTiers.ts')
+assert.equal(warnings.FIRST_WARNING_PCT, tiers.FIRST_WARNING_PCT)
+assert.equal(warnings.SECOND_WARNING_PCT, tiers.SECOND_WARNING_PCT)
+assert.equal(warnings.APPROACHING_LIMIT_PCT, tiers.FIRST_WARNING_PCT)
+assert.equal(warnings.usageWarningTier, tiers.usageWarningTier)
+assert.equal(warnings.usageWindowState, tiers.usageWindowState)
+assert.ok(!/\b(?:import|require)\b/.test(readFileSync(new URL('../../src/services/providers/usageTiers.ts', import.meta.url), 'utf8')))
 
 const reset = Math.floor(Date.now() / 1000) + 604800
 const entry = { id: 'fixture', provider: 'anthropic', kind: 'subscription-oauth', label: 'fixture', custodian: 'anthropic-slots' } as const

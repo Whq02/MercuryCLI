@@ -259,7 +259,7 @@ function headerValue(headers: Headers, name: string): string | undefined {
 type EarlyWarning = ClaudeAILimits
 
 function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): EarlyWarning | null {
-  const { FIRST_WARNING_PCT } = require('./providers/limitWarning.js') as typeof import('./providers/limitWarning.js')
+  const { FIRST_WARNING_PCT } = require('./providers/usageTiers.js') as typeof import('./providers/usageTiers.js')
   let warning: EarlyWarning | null = null
   for (const [abbrev, claim] of [
     ['5h', 'five_hour'],
