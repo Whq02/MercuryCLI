@@ -91,5 +91,8 @@ Samples are off by default. Turn the Boot Menu's `Samples` row on — the
 change reaches new sessions — or set `MERCURY_SAMPLES=1` in the environment
 before the session starts. Off, there is no `mercury.sample` in the Workshop
 bridge, no listener and no `/samples`; the Workshop tool's prompt has no
-line about samples, and nothing else changes. `mercury doctor` and
-`/health` carry a `Samples` row that says which way the switch stands.
+line about samples, and nothing else changes. Typed while off, `/samples`
+answers one line — `/samples is off — MERCURY_SAMPLES=1 turns it on (the
+Boot Menu's Samples row saves it for new sessions)` — and starts nothing.
+`mercury doctor` and `/health` carry a `Samples` row that says which way
+the switch stands.
