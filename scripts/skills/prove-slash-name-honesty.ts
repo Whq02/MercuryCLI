@@ -99,5 +99,31 @@ section('§2 A RETIRED NAME AND A REAL UNKNOWN — /say answers its retired line
   check('a registered, enabled name never resolves as unknown', resolveUnknownSlashName('/model', roster) === undefined && resolveUnknownSlashName('/help', roster) === undefined)
 }
 
+section('§3 THE "CLOSEST" POINTER — a name of the same kind, matched by name alone; never a skill (RED on the base: /theme pointed at /update-config through a description word)')
+{
+  const closestOf = (line: string): string | undefined => /— closest: \/([^ ]+) ·/.exec(line)?.[1]
+  const theme = unknownCommandLine('theme', roster)
+  const themeNear = closestOf(theme)
+  const kindOf = (name: string | undefined): string | undefined => roster.find(command => command.name === name || command.aliases?.includes(name ?? '') === true)?.type
+  check('an unknown name whose only near match is a skill description word gets no skill: /theme never points at /update-config', theme.startsWith('Unknown command: /theme') && themeNear !== 'update-config' && (themeNear === undefined || kindOf(themeNear) !== 'prompt'), theme)
+  const usge = unknownCommandLine('usge', roster)
+  check('a typo of a local command points at it: /usge → /usage', closestOf(usge) === 'usage', usge)
+  const prompts = roster.filter(command => command.type === 'prompt' && command.isHidden !== true)
+  const offered = new Set<string>()
+  for (const command of prompts) {
+    const typo = `${command.name.slice(0, -1)}x`
+    const line = unknownCommandLine(typo, roster)
+    const near = closestOf(line)
+    if (near !== undefined && kindOf(near) === 'prompt') offered.add(`${typo}→${near}`)
+  }
+  check(`a typo of any of the ${prompts.length} skill names is never answered with a skill`, offered.size === 0, [...offered].join(' '))
+  const local = { type: 'local', name: 'usage', description: 'Usage', load: async () => ({ call: async () => ({ type: 'text', value: '' }) }) } as unknown as Command
+  const skill = { type: 'prompt', name: 'samplify', description: 'a skill named like the typo', progressMessage: 'running', contentLength: 0, source: 'bundled', getPromptForCommand: async () => [] } as unknown as Command
+  const synthetic = unknownCommandLine('samplifx', [skill, local])
+  check('the nearest name being a skill offers nothing rather than the skill', closestOf(synthetic) !== 'samplify', synthetic)
+  const frob = unknownCommandLine('frobnicate', roster)
+  check('a name near nothing carries no pointer', closestOf(frob) === undefined, frob)
+}
+
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)
