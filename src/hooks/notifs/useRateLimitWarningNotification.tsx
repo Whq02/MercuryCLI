@@ -9,7 +9,7 @@ import { Text } from '../../ink.js'
 import { useSessionConnector } from '../useSessionConnector.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
-import { preferSessionLimitWarning, providerLimitWarning } from '../../services/providers/limitWarning.js'
+import { preferSessionLimitWarning, providerLimitWarning, takeUsageWarning, usageWarningEmissionKey } from '../../services/providers/limitWarning.js'
 import { getOpenaiObservedVersion, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
 import { getUsingOverageText } from '../../services/rateLimitMessages.js'
 import { getSubscriptionType } from '../../utils/auth.js'
@@ -28,7 +28,7 @@ export function useRateLimitWarningNotification(model: string): void {
   const usageRecordVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const openaiObservedVersion = useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   const overageShownRef = useRef(false)
-  const lastWarningRef = useRef<string | null>(null)
+  const warningKeysRef = useRef(new Set<string>())
 
   useEffect(() => {
     if (getIsRemoteMode()) return
@@ -58,10 +58,9 @@ export function useRateLimitWarningNotification(model: string): void {
         reads: { anthropicLimits: () => limits },
       }),
     )
-    if (warning === null || warning.text === lastWarningRef.current) return
-    lastWarningRef.current = warning.text
+    if (warning === null || !takeUsageWarning(warningKeysRef.current, warning)) return
     addNotification({
-      key: WARNING_KEY,
+      key: `${WARNING_KEY}|${usageWarningEmissionKey(warning)}`,
       priority: 'high',
       jsx: (
         <Text color="warning">

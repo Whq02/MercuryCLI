@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import type { LimitWarningReads } from '../../src/services/providers/limitWarning.ts'
+import type { LimitWarningReads, ProviderLimitWarningView } from '../../src/services/providers/limitWarning.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -144,3 +144,29 @@ for (const family of ['moonshot', 'openrouter'] as const) {
   assert.equal(observedFamilyWindow(family, { percentageWindows: () => [], openrouterWall: () => null, laneBilling: () => ({ state: 'clear' }) }).state, 'unknown')
 }
 console.log('PASS every percentage family shares the tiers and a source without percentages stays quiet')
+
+console.log('RED on the base: changing the percentage text re-notifies within a tier')
+const seen = new Set<string>()
+const emitted: ProviderLimitWarningView[] = []
+for (const pct of [79, 80, 85, 90, 95, 85, 90]) {
+  const warning = warnings.providerLimitWarning({ model: 'fable', reads: reads(pct) })
+  if (warnings.takeUsageWarning(seen, warning)) emitted.push(warning!)
+}
+assert.equal(emitted.length, 2)
+assert.match(emitted[0]!.text, /80%/)
+assert.match(emitted[1]!.text, /90%/)
+assert.notEqual(emitted[0]!.key, emitted[1]!.key)
+const hook = readFileSync(new URL('../../src/hooks/notifs/useRateLimitWarningNotification.tsx', import.meta.url), 'utf8')
+assert.match(hook, /takeUsageWarning\(warningKeysRef\.current, warning\)/)
+assert.match(hook, /key: `\$\{WARNING_KEY\}\|\$\{usageWarningEmissionKey\(warning\)\}`/)
+assert.ok(!hook.includes('warning.text === lastWarningRef.current'))
+console.log('PASS exactly two strip notifications, with crossing text and distinct queue keys')
+
+const { sessionFactsToWire, sessionFactsFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
+const relayed = sessionFactsFromWire(sessionFactsToWire({
+  model: { effective: 'fixture' },
+  usage: { totalCostUSD: 0, limitWarning: emitted[1] },
+  skills: [], mcp: [], permissionMode: 'flow', workspace: {}, queue: [],
+} as never))
+assert.equal((relayed?.usage.limitWarning as ProviderLimitWarningView | null)?.key, emitted[1]!.key)
+console.log('PASS the tier key survives the existing facts codec')
