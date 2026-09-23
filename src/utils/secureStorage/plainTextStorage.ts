@@ -114,6 +114,12 @@ export const plainTextStorage: SecureStorage = {
       if (probe.state === 'unparseable') {
         quarantineUnparseable(path)
       }
+      if (process.platform === 'win32' && probe.state !== 'absent') {
+        try {
+          chmodSync(path, 0o600)
+        } catch {
+        }
+      }
       durableAtomicPublishSync(path, JSON.stringify(data), { mode: 0o600 })
       try {
         chmodSync(path, 0o600)
