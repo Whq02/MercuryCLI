@@ -32,7 +32,7 @@ const ASK = 'run the long sleep please'
 const WORDS = 'the words to take back'
 const REPLY = 'the reply stands here after its last item'
 const REFUSAL = 'already taken — esc interrupts the turn'
-const TOOL_ROW = '▰ Bash'
+const TOOL_ROW = 'Running 1 bash command'
 const UP = '\x1b[A'
 const ESC = '\x1b'
 
@@ -106,7 +106,7 @@ async function drive(scene: Scene): Promise<void> {
   const boot = [
     { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
-    { requireAwait: true, minTick: 10, awaitText: 'running…', awaitSettleTicks: 6, data: `${words}\r`, mark: 'tool-running' },
+    { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: `${words}\r`, mark: 'tool-running' },
   ]
   const rest =
     scene === 'race'
@@ -240,7 +240,7 @@ async function drive(scene: Scene): Promise<void> {
   check(`${scene}: vshot ran the journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
   console.log(`  [record] ${scene}: the capture ended on '${endReason}' at tick ${endedAtTick} (ready text ${JSON.stringify(readyText)})`)
   check(`${scene}: the capture ended on the scene's ready text, never the budget`, endReason === 'ready', `endReason=${endReason} at tick ${endedAtTick}`)
-  check(`${scene}: the Bash tool was running its sleep when the words were typed`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('running…'), tail(at('tool-running')))
+  check(`${scene}: the Bash tool was running its sleep when the words were typed`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('sleep 40'), tail(at('tool-running')))
   check(`${scene}: the words painted as the QUEUED row before the press, the composer empty`, queuedRow(at('queued'), words) && !composerHolds(at('queued'), words) && composerEmpty(at('queued')), tail(at('queued'), 24))
 
   if (scene === 'race') {
@@ -250,7 +250,7 @@ async function drive(scene: Scene): Promise<void> {
     console.log(`  [record] ↑ after the take met: ${refused ? 'the refusal line (taken, still tracked)' : history ? 'history (taken and retired)' : 'neither'}`)
     check(`${scene}: after ↑ the line stays taken — the refusal line with the composer empty, or history once the seat retired it; never the words withdrawn`, refused || history, tail(at('after-up')))
     check(`${scene}: the seat's record holds no withdrawn answer`, !trace.some(e => e.ev === 'withdrawn' && e.withdrawn === true), JSON.stringify(trace.filter(e => e.ev === 'withdrawn')))
-    check(`${scene}: the drained turn is running its own sleep at the press (the words were taken)`, at('after-up').includes('running…') || at('next-turn').includes('running…'), tail(at('next-turn')))
+    check(`${scene}: the drained turn is running its own sleep at the press (the words were taken)`, at('after-up').includes('Running 1 bash command') || at('next-turn').includes('Running 1 bash command'), tail(at('next-turn')))
     section(`${scene} — R3: the wire: the words went once, as the drained turn`)
     check(`${scene}: the fixture served the sleep twice — the ask and the drained turn, never a third`, sleepSteps.length === 2, JSON.stringify(conversation.map(c => [c.n, c.arm, c.step])))
     check(`${scene}: the applied-ops ledger holds two plain interrupts`, interrupts.length === 2 && interrupts.every(r => r.outcome === 'applied' && (r.detail ?? '').startsWith('interrupt ')), JSON.stringify(interrupts))

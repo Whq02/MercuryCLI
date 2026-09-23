@@ -117,7 +117,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const stopSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${SLEEP_ASK}\r` },
-      { requireAwait: true, minTick: 10, awaitText: 'the long sleep', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
+      { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
       { afterPrevTicks: 8, data: '\x1b', mark: 'after-first-esc' },
       { afterPrevTicks: 15, data: `${FIRST}\r`, mark: 'after-second-esc' },
       { afterPrevTicks: 40, data: '/workbench\r', mark: 'after-words' },
@@ -297,7 +297,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const sleepers = (): string => spawnSync('/usr/bin/pgrep', ['-f', `sleep ${'40'}`], { encoding: 'utf8' }).stdout.trim()
     section(`${label} — S1: a forced stop stops the tool, ends the turn typed, and the queue drains`)
     check(`${label}: vshot ran the stop journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
-    check(`${label}: the Bash tool was running its long sleep when esc landed`, /the long sleep/.test(running) && /esc interrupt/.test(running), tail(running))
+    check(`${label}: the Bash tool was running its long sleep when esc landed`, /Running 1 bash command/.test(running) && /sleep 40/.test(running) && /esc interrupt/.test(running), tail(running))
     check(`${label}: after the second esc the strip is back at ready (the turn ended within the grace)`, /ready · [^\n]*← back/.test(secondEsc) || /ready · [^\n]*← back/.test(afterWords), tail(secondEsc))
     check(`${label}: the turn's end is typed — the receipt names the ended tool`, /the interrupt ended Bash — the turn is over/.test(firstEsc) || /the interrupt ended Bash — the turn is over/.test(secondEsc), tail(secondEsc))
     check(`${label}: the sleeping child is dead after the stop`, sleepers() === '', `alive: ${sleepers()}`)
