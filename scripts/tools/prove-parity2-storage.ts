@@ -44,7 +44,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 {
   const resume = readFileSync('src/tools/AgentTool/resumeAgent.ts', 'utf8')
-  t('the resumed transcript is replayed with the new prompt APPENDED', /const promptMessages: Message\[\] = \[\s*\.\.\.cleaned,\s*createUserMessage\(\{ content: prompt \}\),\s*\]/.test(resume))
+  t('the resumed transcript is replayed with the new prompt APPENDED', /const promptMessages: Message\[\] = \[\s*\.\.\.cleaned,\s*createUserMessage\(\{ content: prompt \+ note \}\),\s*\]/.test(resume))
   t('a fork resume takes the frozen rendered system prompt when present', /const rendered = toolUseContext\.renderedSystemPrompt/.test(resume) && /systemPromptOverride = \[\.\.\.rendered\]/.test(resume))
   t('tool-result replacement state is reconstructed for cache stability', /reconstructForSubagentResume\(/.test(resume))
 }
