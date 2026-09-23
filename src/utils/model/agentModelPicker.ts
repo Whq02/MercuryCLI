@@ -2,6 +2,7 @@ import {
   ANTHROPIC_MODEL_GROUP,
   getModelOptions,
   isProviderActionRow,
+  stripContext1m,
   type ModelOption,
 } from './modelOptions.js'
 
@@ -51,7 +52,9 @@ export function agentModelAvailabilityNote(
   rows: AgentModelPickerRow[] = getAgentModelPickerRows(),
 ): string | null {
   if (model === undefined || model === INHERIT) return null
-  const row = rows.find(r => r.value === model)
+  const row =
+    rows.find(r => r.value === model) ??
+    rows.find(r => r.kind === 'model' && stripContext1m(r.value) === stripContext1m(model))
   return row?.unavailable ?? null
 }
 

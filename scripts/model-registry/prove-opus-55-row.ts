@@ -113,7 +113,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check("the family alias row dedups onto the explicit row (one model, one row)", !values.includes('opus') && !values.includes('opus[1m]'), JSON.stringify(values))
   check('Opus 5 stays a selectable literal row labelled Opus 5', rows.find(o => o.value === PREVIOUS)?.label === 'Opus 5' && rows.find(o => o.value === PREVIOUS)?.unavailable === undefined)
   check('a natively-1M row never grows a (1M context) twin: neither Opus 5.5 nor Opus 5', !values.includes(`${ID}[1m]`) && !values.includes(`${PREVIOUS}[1m]`), JSON.stringify(values))
-  check('the suffix-1M previous generations keep their twins', values.includes('claude-opus-4-8[1m]') && values.includes('claude-opus-4-6[1m]'), JSON.stringify(values))
+  check('the suffix-1M previous generations list once each, on the bare id, no twin row', values.includes('claude-opus-4-8') && values.includes('claude-opus-4-6') && !values.some(v => v.includes('[1m]')), JSON.stringify(values))
   check('the previous generations list newest first: Opus 5 before Opus 4.8', at(PREVIOUS) !== -1 && at(PREVIOUS) < at('claude-opus-4-8'), JSON.stringify(values))
   check("the newest row keeps the explicit row's place at the section's end, after Sonnet 5", at(ID) === values.length - 1 && at('claude-sonnet-5') === values.length - 2, JSON.stringify(values))
   check("the spoken spelling 'opus 5.5' resolves to the row", resolveCatalogueSpelling('opus 5.5') === ID && parseUserSpecifiedModel('Opus 5.5') === ID, `${String(resolveCatalogueSpelling('opus 5.5'))} / ${parseUserSpecifiedModel('Opus 5.5')}`)

@@ -62,8 +62,8 @@ t(
   options.some(o => o.value === 'fable'),
 )
 t(
-  'picker offers 1M-context forms',
-  options.some(o => o.value.endsWith('[1m]')),
+  'picker lists one row per model: no [1m] twin row (the typed [1m] forms stay accepted above)',
+  options.every(o => !o.value.endsWith('[1m]')),
 )
 t(
   'picker offers every catalogue row after inherit (no tier is dropped)',
