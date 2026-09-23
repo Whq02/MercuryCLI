@@ -1,7 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
-import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/limitWarning.js'
+import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/usageTiers.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
 

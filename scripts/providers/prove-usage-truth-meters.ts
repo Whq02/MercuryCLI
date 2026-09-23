@@ -35,7 +35,7 @@ const limits = await import('../../src/services/claudeAiLimits.ts')
 const { providerLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
 type Reads = NonNullable<Parameters<typeof owner.activeSourceUsage>[0]>['reads']
 
-const NOW = 1_760_000_000_000
+const NOW = Date.now()
 const MIN = 60_000
 const HOUR = 3_600_000
 const spend = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }

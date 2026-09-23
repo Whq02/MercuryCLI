@@ -5,19 +5,8 @@ import { providerDisplayName } from './routeLaw.js'
 import { activeSourceUsage, bindingWindowOf, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 
-export const FIRST_WARNING_PCT = 80
-export const SECOND_WARNING_PCT = 90
-export const APPROACHING_LIMIT_PCT = FIRST_WARNING_PCT
-export type UsageWarningTier = typeof FIRST_WARNING_PCT | typeof SECOND_WARNING_PCT
-
-export function usageWarningTier(pct: number | undefined): UsageWarningTier | null {
-  if (pct === undefined || !Number.isFinite(pct) || pct < FIRST_WARNING_PCT) return null
-  return pct >= SECOND_WARNING_PCT ? SECOND_WARNING_PCT : FIRST_WARNING_PCT
-}
-
-export function usageWindowState(pct: number | undefined): 'allowed' | 'warning' | 'rejected' {
-  return usageWarningTier(pct) === null ? 'allowed' : 'warning'
-}
+import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
+export { FIRST_WARNING_PCT, SECOND_WARNING_PCT, APPROACHING_LIMIT_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './usageTiers.js'
 
 export interface ProviderLimitWarningView {
   provider: string
