@@ -567,7 +567,7 @@ export function BackgroundTasksDialog({
     if (isLocalAgentTask(detailTask)) {
       const agent = detailTask as LocalAgentTaskState
       return (
-        <CommandCenter
+        <CommandCenter elevated
           view={`agent › ${agent.description !== '' ? agent.description : agent.agentType}`}
           onClose={onDone}
           captureInput={false}
@@ -588,7 +588,7 @@ export function BackgroundTasksDialog({
     if (isInProcessTeammateTask(detailTask)) {
       const teammate = detailTask
       return (
-        <CommandCenter
+        <CommandCenter elevated
           view={`named agent › @${teammate.identity.agentName}`}
           onClose={onDone}
           captureInput={false}
@@ -631,7 +631,7 @@ export function BackgroundTasksDialog({
     if (isDreamTask(detailTask)) {
       const dream = detailTask as DreamTaskState
       return (
-        <CommandCenter view="consolidation" onClose={onDone} captureInput={false}>
+        <CommandCenter elevated view="consolidation" onClose={onDone} captureInput={false}>
           <DreamDetailDialog
             task={dream}
             onDone={onDone}
@@ -653,7 +653,7 @@ export function BackgroundTasksDialog({
       )
     }
     return (
-      <CommandCenter
+      <CommandCenter elevated
         view={`${detailWork.kind} › ${detailWork.name}`}
         onClose={onDone}
         captureInput={false}
@@ -754,7 +754,7 @@ export function BackgroundTasksDialog({
   const anyAgentRunning = agentTasks.some(task => task.status === 'running')
 
   return (
-    <CommandCenter
+    <CommandCenter elevated
       view={summaryEntry ? "activity" : "tasks"}
       subtitle={subtitle}
       onClose={onDone}

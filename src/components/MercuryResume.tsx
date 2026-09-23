@@ -89,7 +89,7 @@ export function MercuryResume({
 
   if (loading) {
     return (
-      <CommandCenter view="resume" onClose={onClose}>
+      <CommandCenter elevated view="resume" onClose={onClose}>
         <Box marginTop={1}>
           <Text color={FAINT}>loading sessions…</Text>
         </Box>
@@ -99,7 +99,7 @@ export function MercuryResume({
 
   if (all.length === 0) {
     return (
-      <CommandCenter view="resume" onClose={onClose}>
+      <CommandCenter elevated view="resume" onClose={onClose}>
         <Box marginTop={1}>
           <EmptyState
             title="no resumable sessions"
@@ -111,7 +111,7 @@ export function MercuryResume({
   }
 
   return (
-    <CommandCenter view="resume" onClose={onClose} captureInput={false} footer="↑↓ move · ↵ resume">
+    <CommandCenter elevated view="resume" onClose={onClose} captureInput={false} footer="↑↓ move · ↵ resume">
       <Box marginTop={1}>
         <Text>
           <StateBadge state="live" label="sessions" />

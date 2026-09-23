@@ -415,6 +415,8 @@ the menu, and `esc` or a click on the chat outside the menu closes it. Inside
 a git repository the menu's second line names the branch and the count of
 changed files, and a changed file carries its mark at the row's right edge.
 The same click outside closes every panel over the chat that `esc` closes.
+It goes back one level, just like `esc`, without selecting text, opening a
+link or pressing anything in the chat beneath it.
 The `filesBox` setting set to false restores the rail as it was, the command
 with it.
 
