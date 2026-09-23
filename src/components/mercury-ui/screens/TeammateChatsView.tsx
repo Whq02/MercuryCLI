@@ -244,7 +244,7 @@ export function TeammateChatsView({
 
   if (!enabled) {
     return (
-      <CommandCenter view="named agents" onClose={onClose} footer="esc close" captureInput={false}>
+      <CommandCenter elevated view="named agents" onClose={onClose} footer="esc close" captureInput={false}>
         <Box marginTop={1} flexDirection="column">
           <Text bold color={accent}>named agents</Text>
           <Text color={FAINT}>crew is disabled (MERCURY_CREW=0) — no named agents can spawn</Text>
@@ -254,7 +254,7 @@ export function TeammateChatsView({
   }
 
   return (
-    <CommandCenter view="named agents" onClose={onClose} footer={footer} captureInput={false}>
+    <CommandCenter elevated view="named agents" onClose={onClose} footer={footer} captureInput={false}>
       <Box marginTop={1} justifyContent="space-between" flexWrap="wrap">
         <Text>
           <Text color={FAINT}>repo </Text>

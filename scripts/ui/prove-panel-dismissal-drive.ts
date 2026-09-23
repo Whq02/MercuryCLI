@@ -39,9 +39,10 @@ const deadProviders = Object.fromEntries([
   'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_UPDATE_API_BASE_URL',
 ].map(key => [key, 'http://127.0.0.1:1']))
 try {
-  for (const [cols, rows] of [[178, 51], [120, 40]]) {
-    for (const panel of ['teammates', 'tasks', 'model']) {
-      const tag = `${panel}-${cols}x${rows}`
+  for (const [cols, rows, noDim] of [[178, 51, false], [120, 40, false], [178, 51, true]] as const) {
+    if (process.argv.includes('--no-dim-only') && !noDim) continue
+    for (const panel of noDim ? ['teammates'] : ['teammates', 'tasks', 'model']) {
+      const tag = `${panel}-${cols}x${rows}${noDim ? '-no-dim' : ''}`
       const world = join(scratch, tag)
       const cwd = join(world, 'cwd')
       const home = join(world, 'config')
@@ -73,7 +74,7 @@ try {
         MERCURY_TABULA_DIR: join(world, 'tabula'), MERCURY_HOME: join(world, 'home'), MERCURY_DOCTOR_STATE_DIR: join(world, 'doctor'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_IDE_SKIP_AUTO_INSTALL: '1', MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
-        MERCURY_DECK_COMPANION: '0', MERCURY_AWAY_SUMMARY: '0', MERCURY_TURN_RECEIPT: '0',
+        MERCURY_DECK_COMPANION: '0', MERCURY_AWAY_SUMMARY: '0', MERCURY_TURN_RECEIPT: '0', MERCURY_RECESS: noDim ? '0' : '1',
       }
       for (const key of ['NODE_ENV', 'MERCURY_DEMO', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN']) delete env[key]
       const child = spawn(driver.python, [captureEngineEntry(driver, root), config], { env, stdio: ['ignore', 'ignore', 'pipe'] })
@@ -95,6 +96,7 @@ try {
       }
       if (code !== 0) continue
       const marks = Object.fromEntries(capture.marks.map(mark => [mark.label, mark.grid]))
+      if (noDim) check(`${tag}: the backdrop is a blank claim, not dimmed chat`, !text(marks.open!).includes('✶ VIEW'))
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))

@@ -73,7 +73,7 @@ export function MercuryConfig({
   )
 
   return (
-    <CommandCenter view="config" onClose={onClose} captureInput={false} footer={isActive ? '↑↓ move · ↵ where to edit' : 'showcase specimen — keys inert'}>
+    <CommandCenter elevated view="config" onClose={onClose} captureInput={false} footer={isActive ? '↑↓ move · ↵ where to edit' : 'showcase specimen — keys inert'}>
       <Box marginTop={1}>
         <Text>
           <StateBadge state="live" label="config index" />

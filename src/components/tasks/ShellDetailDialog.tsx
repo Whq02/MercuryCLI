@@ -225,7 +225,7 @@ export function ShellDetailDialog({
   const truncatedRead = deferredTail.totalBytes > TAIL_BYTES
 
   return (
-    <CommandCenter
+    <CommandCenter elevated
       view={isMonitor ? 'monitor' : 'shell'}
       subtitle={shell.description}
       onClose={onDone}

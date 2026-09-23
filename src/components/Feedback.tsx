@@ -9,6 +9,7 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useRegisterOverlay } from '../context/overlayContext.js'
 import { useInput } from '../ink.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { envDynamic } from '../utils/envDynamic.js'
@@ -402,6 +403,7 @@ export function Feedback({
   kind?: IssueKind
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const surfaceRef = useElevatedSurface()
   const { columns, rows } = useTerminalSize()
   const [form, setForm] = useState<IssueForm | null>(kind !== undefined ? ISSUE_FORMS[kind] : null)
   const [step, setStep] = useState<Step>(kind !== undefined ? 'ask' : 'kind')
@@ -621,6 +623,7 @@ export function Feedback({
 
   return (
     <Box
+      ref={surfaceRef}
       flexDirection="column"
       borderStyle="round"
       borderColor={tokens.borderSubtle}

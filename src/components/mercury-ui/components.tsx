@@ -204,16 +204,20 @@ export function Panel({
   title,
   accentBorder,
   raised = false,
+  elevated = false,
   children,
 }: {
   title?: string
   accentBorder?: boolean
   raised?: boolean
+  elevated?: boolean
   children: React.ReactNode
 }): React.ReactNode {
   const t = useMercuryTokens()
+  const elevatedRef = useElevatedSurface()
   return (
     <Box
+      ref={elevated ? elevatedRef : undefined}
       flexDirection="column"
       borderStyle="single"
       borderColor={accentBorder ? t.accent : t.textMuted}
