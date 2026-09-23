@@ -8,6 +8,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { builtinCommands, commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
+import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../skills/argumentHint.js'
 import { generateCommandSuggestions } from '../suggestions/commandSuggestions.js'
 import { concourseOffSentence } from '../../context/surfaceRoute.js'
@@ -76,6 +77,8 @@ export function resolveUnknownSlashName(input: string, commands: Command[]): str
 }
 
 export function unknownCommandLine(name: string, commands: Command[]): string {
+  const registered = findCommand([...builtinCommands()], name)
+  if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
     const top = generateCommandSuggestions(`/${name}`, commands)[0]
@@ -122,6 +125,9 @@ export function unavailableCommandLine(real: Command): string {
   }
   if (commandOffInPlainWorld(real)) {
     return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
+  }
+  if (real.name === samples.name && !isCommandEnabled(real)) {
+    return SAMPLES_OFF_SENTENCE
   }
   if (getIsNonInteractiveSession()) {
     if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
