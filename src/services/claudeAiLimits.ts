@@ -268,10 +268,10 @@ function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): Early
   ] as const) {
     const threshold = headers.get(`anthropic-ratelimit-unified-${abbrev}-surpassed-threshold`)
     const raw = headerValue(headers, `anthropic-ratelimit-unified-${abbrev}-utilization`)
-    const value = raw !== undefined && raw.trim() !== '' ? raw : threshold
+    const value = raw !== undefined && raw.trim() !== '' ? raw : claim === 'overage' ? undefined : threshold
     const utilization = value !== null && value !== undefined && value.trim() !== '' ? Number(value) : undefined
     if (claim === 'overage') {
-      if (threshold === null) continue
+      if (threshold === null || warning !== null) continue
     } else if (utilization === undefined || !Number.isFinite(utilization) || utilization * 100 < FIRST_WARNING_PCT) {
       continue
     }
@@ -279,7 +279,7 @@ function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): Early
     const resetsAt = resetRaw !== undefined && resetRaw !== '' ? Number(resetRaw) : undefined
     if (resetsAt !== undefined && resetsAt * 1000 <= Date.now()) continue
     const next: EarlyWarning = {
-      status: utilization !== undefined && utilization >= 1 ? 'rejected' : 'allowed_warning',
+      status: 'allowed_warning',
       unifiedRateLimitFallbackAvailable: fallbackAvailable,
       resetsAt,
       rateLimitType: claim,

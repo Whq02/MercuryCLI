@@ -130,7 +130,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && url.endsWith('/responses')) {
       responsesCalls += 1
       record({ kind: 'openai', url, body, call: responsesCalls, at: Date.now() })
-      res.writeHead(200, { 'content-type': 'text/event-stream', ...(process.argv[3] ? {} : usageHeaders(responsesCalls)) })
+      if (!process.argv[3]) {
+        const headers = usageHeaders(responsesCalls)
+        res.writeHead(429, { 'content-type': 'application/json', ...headers })
+        res.end(JSON.stringify({ error: { type: 'usage_limit_reached', message: 'The 5h usage limit has been reached', resets_in_seconds: Number(headers['x-codex-primary-reset-after-seconds']), plan_type: 'fixture' } }))
+        return
+      }
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(responsesSse(responsesCalls === 1 ? GPT_REPLY : GPT_REPLY_AGAIN))
       return
     }

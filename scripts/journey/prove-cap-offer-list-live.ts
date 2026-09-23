@@ -323,7 +323,7 @@ const pool = ONLY.has('pool') ? drive(
   FABLE_51,
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits clear\r', mark: 'observed' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits weekly-limit-reached\r', mark: 'observed' },
     { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\r', mark: 'pool-offer' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 6, awaitSettleTicks: 2, data: 'pick up from fable pls\r', mark: 'settled' },
     { afterPrevTicks: PROBE_GAP, awaitText: ANTHROPIC_OFFER_TITLE, data: '', mark: 'probe' },
@@ -339,7 +339,7 @@ if (pool !== null) {
   check('the offer fired from the fixture usage response alone (no turn ran; the send fired on its await)', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
   const offer = markGrid(p, 'pool-offer')
   check('the card stood when enter was sent', offer.includes(ANTHROPIC_OFFER_TITLE), tail(offer))
-  check('the card names the reached Fable pool, not a percentage warning', offer.includes('the Anthropic Fable limit is reached') && !offer.includes('weekly Fable'), tail(offer))
+  check('the card names the rejected weekly window, not the full pool percentage', offer.includes('the Anthropic weekly limit is reached') && !offer.includes('weekly Fable'), tail(offer))
   check('the card lists the two key lanes with the Z.AI row highlighted first', (rowLine(offer, 'Z.AI') ?? '').includes('▸') && rowLine(offer, 'DeepSeek') !== undefined && offer.includes(`⇄ ${ZAI_ROW}`), tail(offer))
 
   section("P2 — ↵ settles on the highlighted row; the next turn dispatches to that lane's wire")

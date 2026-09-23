@@ -496,8 +496,9 @@ The same derivation puts a notice into the context at each threshold, once at
 and reset, and that the provider stops work only when the window is used up.
 At 90% it also advises keeping the work resumable: finish the step in hand,
 commit what is done and write down where it stands. The model decides what to
-do; neither warning holds work, stops a turn or offers a handoff. Only a
-rejected request or a reached window takes the wall's normal road. A resumed
+do; no percentage, even 100%, holds work, stops a turn or offers a handoff.
+Only a rejected request or a provider-stated reached window takes the wall's
+normal road. A resumed
 conversation remembers which thresholds it was told about. A source without
 a percentage gets no window notice. Headless work reads the same notice.
 

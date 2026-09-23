@@ -299,7 +299,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return {
         status: current.status,
         observed: limits.claudeWindowObserved(),
-        ...(current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
+        ...(current.rateLimitType !== 'overage' && current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
         ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
         ...(current.rateLimitType !== undefined
           ? { windowName: limits.getRateLimitDisplayName(current.rateLimitType) }
@@ -367,13 +367,14 @@ function bindingWindowOfSeat(
   model: string | null | undefined,
   windows: () => UsageWindowView[],
   pools: () => UsageWindowView[],
+  now: number,
 ): { window: UsageWindowView; windowName: string } | undefined {
   if (model === null || model === undefined || model.trim() === '') return undefined
   try {
     const { bindingWindowOf } =
       require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
     return bindingWindowOf(
-      { provider: 'anthropic', shape: 'subscription-windows', windows: windows(), pools: pools() },
+      { provider: 'anthropic', shape: 'subscription-windows', windows: windows().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now), pools: pools().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now) },
       model,
     )
   } catch {
@@ -392,7 +393,7 @@ export function observedFamilyWindow(
     const now = r.now()
     if (family === 'anthropic') {
       const a = r.anthropic()
-      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools)
+      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools, now)
       const bindingLive = binding !== undefined && binding.window.usedPct !== undefined &&
         Number.isFinite(binding.window.usedPct) &&
         (binding.window.resetsAtMs === undefined || binding.window.resetsAtMs > now)
