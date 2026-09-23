@@ -272,7 +272,11 @@ second esc while the first is still on its way is the hard stop: the daemon
 delivers the interrupt again and, if the turn is still open a second later,
 cuts the runner itself. The cut is recorded on the session as the operator's
 stop of that turn, never as a crash; the session survives, and the runner
-comes back saying the turn was cut. While a shell
+comes back saying the turn was cut. A turn that fails inside the runner's
+own machinery before it has answered ends as that turn's own error result
+— the words of the failure in the result's errors — and the session lives
+on to read the next line; only a failure after the turn has already
+answered still ends the runner. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background
 tasks and the turn goes on without waiting: the hint row under the composer
 reads `esc interrupt · ⇧b background the command` and the row's tail
