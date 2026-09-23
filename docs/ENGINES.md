@@ -136,8 +136,9 @@ straight twin, since none of those ever wants one; a field that carries
 content or prose — a Write's content, an Edit's new text, a Workshop cell —
 stays exactly as typed, and every other wire carries every byte as typed.
 
-A dispatched sub-agent whose turn ends on the provider's overload (an HTTP
-529 or `overloaded_error` on the Anthropic wire, with no wait stated) is not
+A dispatched sub-agent whose turn ends on the provider's overload — the busy
+refusal above on any road (the Anthropic wire's 529 or `overloaded_error`,
+another provider's spent busy ladder), with no wait stated — is not
 failed: it pauses, its row says why — `paused — provider overloaded ·
 resumes by itself when the provider answers` — its work so far is kept, and
 Mercury probes the provider with one small request at a slow, bounded
@@ -148,8 +149,11 @@ ends. The parent's chat carries one calm line per agent per outage — the
 first pause names the provider and the probing; a later death and the
 resume itself add no line, the agent's row on the crew view carries them —
 and the agent's completion follows as its own line; a message to the agent
-resumes it sooner, and the crew view stops it. A helper the parent waited
-on inline takes the same road: its result to the parent leads with the
+resumes it sooner, and the crew view stops it. The line names the status
+the provider answered with — 529 on the Anthropic wire, 503 elsewhere, none
+when the refusal carried none. A helper the parent waited
+on inline takes the same road, and so does one handed to the background
+mid-turn: its result to the parent leads with the
 pause, the probing brings it back in the background, and its completion
 follows as a notification. If the
 outage outlasts the probing, the row is a failed one again and a message is

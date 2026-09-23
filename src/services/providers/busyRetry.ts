@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { retrySeconds } from '../api/recoveryBudget.js'
-import type { SystemAPIErrorMessage } from '../../types/message.js'
+import type { BusyRefusalV1, SystemAPIErrorMessage } from '../../types/message.js'
 import type { RequestWaitV1 } from './streamIdleBudget.js'
 
 export const BUSY_RETRY_RUNGS_MS: readonly number[] = Object.freeze([1_000, 2_000, 4_000, 8_000, 16_000, 30_000])
@@ -51,6 +51,11 @@ export function openBusyRetryLadder(nowMs: number, scale: number = busyRetryScal
     spentMs: 0,
     waitsMs: [],
   }
+}
+
+export function busyRefusalFact(provider: string, ladder: BusyRetryLadder, fault: { code: string; status?: number; retryable: boolean }, nowMs: number = Date.now()): BusyRefusalV1 | null {
+  if (!isBusyRefusal(fault)) return null
+  return { provider, retries: ladder.waitsMs.length, elapsedMs: nowMs - ladder.startedAtMs, code: fault.code, ...(fault.status !== undefined ? { status: fault.status } : {}) }
 }
 
 export interface BusyRetryStep {

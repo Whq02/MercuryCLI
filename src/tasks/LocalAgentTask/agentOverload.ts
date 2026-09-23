@@ -57,12 +57,16 @@ export function overloadProbeWindowWords(scale: number = overloadProbeScale()): 
   return pauseCountdownWords(Math.round(OVERLOAD_PROBE_WINDOW_MS * scale))
 }
 
-export function overloadPauseWords(who: string, scale: number = overloadProbeScale()): string {
-  return `${who} is overloaded (HTTP 529) — Mercury probes it for up to ${overloadProbeWindowWords(scale)} and resumes the agent when it answers`
+function overloadStatusWords(status: number | null): string {
+  return status === null ? '' : ` (HTTP ${status})`
 }
 
-export function overloadNoticeWords(description: string, who: string, scale: number = overloadProbeScale()): string {
-  return `Agent "${description}" paused — ${who} is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to ${overloadProbeWindowWords(scale)} and resumes the agent by itself when it answers — a message resumes it sooner; the crew view stops it`
+export function overloadPauseWords(who: string, scale: number = overloadProbeScale(), status: number | null = 529): string {
+  return `${who} is overloaded${overloadStatusWords(status)} — Mercury probes it for up to ${overloadProbeWindowWords(scale)} and resumes the agent when it answers`
+}
+
+export function overloadNoticeWords(description: string, who: string, scale: number = overloadProbeScale(), status: number | null = 529): string {
+  return `Agent "${description}" paused — ${who} is overloaded${overloadStatusWords(status)}; its work so far is kept and rides below; Mercury probes the provider for up to ${overloadProbeWindowWords(scale)} and resumes the agent by itself when it answers — a message resumes it sooner; the crew view stops it`
 }
 
 export const AGENT_OVERLOAD_RESUME_NOTE =
