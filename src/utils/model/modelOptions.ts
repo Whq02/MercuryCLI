@@ -26,21 +26,17 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { getContextWindowForModel, has1mContext, modelSupports1M } from './capabilities.js'
+import { modelSupports1M } from './capabilities.js'
 import {
   getBestModel,
-  getDefaultSonnetModel,
   getCanonicalName,
   getMarketingNameForModel,
-  isDefaultOpusNatively1M,
-  isOpus1mMergeEnabled,
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
 import { previousGenerationKeys } from './configs.js'
-import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
 import { isFableAvailable } from './model.js'
@@ -122,16 +118,6 @@ function getOpusFrontierFallbackOption(): ModelOption {
   }
 }
 
-function isNatively1M(id: string): boolean {
-  return getContextWindowForModel(normalizeModelStringForAPI(id)) >= 1_000_000
-}
-
-function suffixedMidRow(): ModelOption | null {
-  if (has1mContext(getDefaultSonnetModel())) return null
-  if (!checkSonnet1mAccess()) return null
-  return aliasRow('sonnet[1m]', '')
-}
-
 function previousGenerationLargeRows(): ModelOption[] {
   const rows: ModelOption[] = []
   const strings = getModelStrings()
@@ -140,23 +126,6 @@ function previousGenerationLargeRows(): ModelOption[] {
     const id = strings[key]
     if (normalizeModelStringForAPI(id) === currentLarge) continue
     rows.push(literalRow(id, ''))
-    if (checkOpus1mAccess() && !isNatively1M(id)) {
-      rows.push(literalRow(withContext1m(id), ''))
-    }
-  }
-  return rows
-}
-
-function largeModelShapeRows(): ModelOption[] {
-  if (isDefaultOpusNatively1M()) {
-    return [aliasRow('opus', '')]
-  }
-  if (isOpus1mMergeEnabled()) {
-    return [aliasRow('opus[1m]', '')]
-  }
-  const rows = [aliasRow('opus', '')]
-  if (checkOpus1mAccess()) {
-    rows.push(aliasRow('opus[1m]', ''))
   }
   return rows
 }
@@ -168,13 +137,8 @@ function premiumSubscriberTierRows(): ModelOption[] {
   if (isFableAvailable()) {
     rows.push(getOpusFrontierFallbackOption())
   }
-  if (!isDefaultOpusNatively1M() && !isOpus1mMergeEnabled() && checkOpus1mAccess()) {
-    rows.push(aliasRow('opus[1m]', ''))
-  }
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('sonnet', ''))
-  const suffixedMid = suffixedMidRow()
-  if (suffixedMid !== null) rows.push(suffixedMid)
   rows.push(aliasRow('haiku', ''))
   return rows
 }
@@ -183,9 +147,8 @@ function standardShapeTierRows(): ModelOption[] {
   const rows: ModelOption[] = []
   rows.push(getFableOption())
   rows.push(...previousGenerationFableRows())
-  const suffixedMid = suffixedMidRow()
-  if (suffixedMid !== null) rows.push(suffixedMid)
-  rows.push(...largeModelShapeRows())
+  rows.push(aliasRow('sonnet', ''))
+  rows.push(aliasRow('opus', ''))
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('haiku', ''))
   return rows
