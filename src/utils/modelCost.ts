@@ -8,6 +8,7 @@ import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gpt
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
 import { getCanonicalName, getDefaultMainLoopModelSetting, type ModelShortName } from './model/model.js'
+import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
 
 export type ModelCosts = {
@@ -119,6 +120,11 @@ const FIRST_PARTY_FALLBACK_TIER: ModelCosts = COST_TIER_5_25
 function firstPartyPricing(model: string): ResolvedModelPricing {
   const tier = MODEL_COSTS[getCanonicalName(model)]
   if (tier) return { costs: tier, basis: 'recorded' }
+  const head = familyHeadOf(model)
+  if (head !== null) {
+    const headTier = MODEL_COSTS[getCanonicalName(ALL_MODEL_CONFIGS[head].firstParty)]
+    if (headTier) return { costs: headTier, basis: 'family-estimate' }
+  }
   const defaultModel = getDefaultMainLoopModelSetting()
   if (typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic') {
     const fallback = MODEL_COSTS[getCanonicalName(defaultModel)]

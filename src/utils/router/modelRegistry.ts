@@ -1,5 +1,6 @@
 import { getContextWindowForModel } from '../context.js'
 import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../model/model.js'
+import { familyDefaultsModel } from '../model/configs.js'
 import { anthropicProviderAdapter } from './providers/anthropic.js'
 import { geminiProviderAdapter } from './providers/gemini.js'
 import { openaiProviderAdapter } from './providers/openai.js'
@@ -63,7 +64,7 @@ function classForCanonical(canonical: string): RouterModelClass | null {
 
 export function classOfModel(model: string | undefined): RouterModelClass | undefined {
   if (!model?.trim()) return undefined
-  return classForCanonical(getCanonicalName(parseUserSpecifiedModel(model.trim()))) ?? undefined
+  return classForCanonical(getCanonicalName(familyDefaultsModel(parseUserSpecifiedModel(model.trim())))) ?? undefined
 }
 
 function defaultExactEffort(modelClass: RouterModelClass): RouteEffortLevel {
@@ -125,7 +126,7 @@ function composeRouterModelSnapshot(): RouterModelSnapshot {
       if (normalizeModelStringForAPI(listed.ref.model).toLowerCase() === wanted) return listed.ref
     }
     if (!statuses[PROVIDER_ADAPTERS.indexOf(anthropicProviderAdapter)]!.available) return null
-    const modelClass = classForCanonical(getCanonicalName(resolved))
+    const modelClass = classForCanonical(getCanonicalName(familyDefaultsModel(resolved)))
     if (!modelClass) return null
     const contextWindow = getContextWindowForModel(resolved)
     const effort = defaultExactEffort(modelClass)
