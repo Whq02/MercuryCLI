@@ -536,7 +536,7 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
 
 t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view never does')
 {
-  const signals = await import('../../src/utils/cockpit/companionSignals.js')
+  const signals = await import('../../src/utils/cockpit/turnSignals.js')
   const aged = (): number => Date.now() - sleep.SLEEP_AFTER_MS * 3
 
   sleep.resetCritterSleepForTests(aged())
@@ -556,12 +556,12 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
   sleep.resetCritterSleepForTests(aged())
   off = sleep.subscribeCritterSleep(() => {})
   t.check('aged-quiet store is asleep again (path-2 baseline)', sleep.isCritterAsleep())
-  signals.publishCompanionTurn({ turnLive: true, streaming: false, awaitingPermission: false })
+  signals.publishTurnSignals({ turnLive: true, streaming: false, awaitingPermission: false })
   t.check('a session TURN wakes it through the published signal edge', !sleep.isCritterAsleep())
-  signals.publishCompanionTurn({ turnLive: false, streaming: false, awaitingPermission: false })
+  signals.publishTurnSignals({ turnLive: false, streaming: false, awaitingPermission: false })
   t.check('the turn END keeps it awake (grace counts from the end stamp)', !sleep.isCritterAsleep())
   off()
-  signals.resetCompanionSignals()
+  signals.resetTurnSignals()
 
   sleep.resetCritterSleepForTests(aged())
   off = sleep.subscribeCritterSleep(() => {})

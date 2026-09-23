@@ -53,7 +53,7 @@ import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
-import { publishCompanionTurn, turnEndedInError } from '../utils/cockpit/companionSignals.js';
+import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
@@ -1464,7 +1464,7 @@ export function REPL({
   }, [submitCount]);
 
   useEffect(() => {
-    publishCompanionTurn({
+    publishTurnSignals({
       turnLive: isLoading,
       streaming: textActive,
       awaitingPermission: toolUseConfirmQueue.length > 0,
