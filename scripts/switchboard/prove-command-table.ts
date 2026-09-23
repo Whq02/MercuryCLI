@@ -173,7 +173,7 @@ function receiptOf(batch: string[]): string {
   check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value)'))
   const clear = read('src/commands/clear/clear.ts')
   check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
-  for (const name of ['accent', 'bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'vim']) {
+  for (const name of ['accent', 'bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'view', 'vim']) {
     check(`C5 /${name} is marked a screen-seat command`, read(`src/commands/${name}/index.ts`).includes("seat: 'screen'"))
   }
 }

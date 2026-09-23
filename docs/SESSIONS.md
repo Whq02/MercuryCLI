@@ -243,9 +243,10 @@ the header above the chat outside the cockpit — and a click on it, or
 The SESSIONS bar along the bottom of the chat — the session tabs, the
 critter's glyph, the model and its effort, the folder and branch, the
 context mark — is off unless you turn it on, so a tall window gives the
-chat its rows. A click on `✶ VIEW` shows it, and a second click hides it
-again; the choice is kept in the settings store (`sessionsBar`) across
-resizes and boots.
+chat its rows. `/view on` shows it and `/view off` hides it, a click on
+`✶ VIEW` flips it the same way, and `/view` alone says which it is; the
+choice is kept in the settings store (`sessionsBar`) across resizes,
+layouts and boots.
 
 The status row above the composer rests on `ready · <model> · <effort>` —
 the session's model and the effort word its chip paints — while the session

@@ -96,7 +96,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: full ? '/critter full\r' : '', mark: 'design' },
+    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: full ? '/view on\r' : '', mark: 'design' },
     { atTick: 999, awaitText: full ? '⊞ SESSIONS' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
     { afterPrevTicks: 3, data: 'show me a pricing table\r' },
     { atTick: 999, awaitText: 'Here it is.', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
