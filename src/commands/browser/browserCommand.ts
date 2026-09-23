@@ -22,12 +22,14 @@ function statusText(): string {
     lines.push(`resolves: UNAVAILABLE — ${r.note}`, ...r.remedies.map(x => `  remedy: ${x}`))
   }
   const installed = detectInstalledBrowsers()
-  lines.push(installed.length ? `installed: ${installed.map(b => b.label).join(' · ')}` : 'installed: none found')
+  lines.push(...(installed.length
+    ? installed.map(b => `installed: ${b.label} (${b.executablePath}) — not driven: it is your app; the tool drives Chrome for Testing`)
+    : ['installed: none found']))
   const managed = listManagedBrowsers()
   lines.push(
     managed.length
       ? `managed cache: ${managed.map(m => `${m.buildId} (${(m.sizeBytes / 1024 / 1024).toFixed(0)} MB)`).join(' · ')}`
-      : 'managed cache: empty',
+      : 'managed cache: empty — /browser install downloads Chrome for Testing once with your consent',
   )
   return lines.join('\n')
 }
