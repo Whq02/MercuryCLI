@@ -1,6 +1,7 @@
 
 import React, {
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from 'react'
@@ -10,6 +11,7 @@ import TextInput from './TextInput.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import { mostRecentSignInFamily } from '../utils/model/computedDefault.js'
 import { useNotifications } from '../context/notifications.js'
 import { useInput } from '../ink.js'
@@ -472,6 +474,10 @@ const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
 
 function ProviderReadinessBlock(): React.ReactNode {
   const tokens = useMercuryTokens()
+  useCatalogueEpoch()
+  useEffect(() => {
+    resolveProviderUsability(undefined, { fetchCatalogues: true })
+  }, [])
   const map = resolveProviderUsability()
   return (
     <Box flexDirection="column">

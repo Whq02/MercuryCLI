@@ -72,7 +72,23 @@ export function anthropicLimitReads(
   }
 }
 
-function liveProviderUsabilityReads(): ProviderUsabilityReads {
+export interface ProviderUsabilityReadOptions {
+  fetchCatalogues?: boolean
+}
+
+function kickAnthropicDoors(): void {
+  try {
+    const { kickAnthropicCatalogue } =
+      require('./anthropic/anthropicCatalogue.js') as typeof import('./anthropic/anthropicCatalogue.js')
+    kickAnthropicCatalogue()
+  } catch {
+    return
+  }
+}
+
+function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): ProviderUsabilityReads {
+  const fetch = opts?.fetchCatalogues === true
+  if (fetch) kickAnthropicDoors()
   return {
     anthropicApiKey: () => {
       try {
@@ -96,7 +112,7 @@ function liveProviderUsabilityReads(): ProviderUsabilityReads {
         require('./credentialWall.js') as typeof import('./credentialWall.js')
       return observedCredentialWall('anthropic') === 'sign-in'
     },
-    gptSeat: () => getGptSeatAvailability(),
+    gptSeat: () => getGptSeatAvailability(fetch ? { fetch: true } : undefined),
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
         require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
@@ -181,8 +197,13 @@ function liveProviderUsabilityReads(): ProviderUsabilityReads {
 }
 
 export function resolveProviderUsability(
-  reads: ProviderUsabilityReads = liveProviderUsabilityReads(),
+  reads?: ProviderUsabilityReads,
+  opts?: ProviderUsabilityReadOptions,
 ): Record<ProviderId, ProviderUsability> {
+  return resolveProviderUsabilityFrom(reads ?? liveProviderUsabilityReads(opts))
+}
+
+function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<ProviderId, ProviderUsability> {
   const subscriber = reads.anthropicSubscriber()
   const key = reads.anthropicApiKey()
   const bearer = reads.anthropicBearerToken?.() ?? false
