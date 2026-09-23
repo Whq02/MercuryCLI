@@ -122,6 +122,46 @@ try {
 
   const metaBatch = await run(plain, ids, true)
   check('the batch preserves the meta flag and permission mode on every prompt', users(metaBatch.messages).length === 3 && users(metaBatch.messages).every(row => row.isMeta === true && row.permissionMode === 'default'))
+
+  const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/utils/messages.ts')
+  const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
+  const { cleanMessagesForLogging } = await import('../../src/utils/sessionStorage/chain.ts')
+  const foldAttachment = createAttachmentMessage({ type: 'hook_additional_context', content: ['FOLD-ATTACHMENT-SENTINEL'], hookName: 'fold-probe', toolUseID: 'fold-probe', hookEvent: 'SessionStart' })
+  table.push({
+    type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
+    load: async () => ({ call: async () => ({
+      type: 'compact', compactionResult: {
+        boundaryMarker: createCompactBoundaryMessage('manual', 0),
+        summaryMessages: [createUserMessage({ content: 'SUMMARY-SENTINEL', isCompactSummary: true })],
+        attachments: [foldAttachment], hookResults: [],
+      },
+    }) }),
+  } as never)
+  table.push({
+    type: 'prompt', name: 'skill-probe', description: 'skill fixture', progressMessage: 'skill fixture', contentLength: 0, source: 'builtin',
+    getPromptForCommand: async () => [{ type: 'text', text: 'SKILL-BODY-SENTINEL' }],
+  } as never)
+  const foldSingle = await run(['/fold-probe'], [ids[0]!])
+  const foldBatch = await run(['/fold-probe', 'FOLLOW-UP-SENTINEL'], ids.slice(0, 2))
+  const compactView = (messages: Message[]) => JSON.stringify(planApiConversation(getMessagesAfterCompactBoundary(messages)).selected)
+  const singleView = compactView(foldSingle.messages)
+  check('a standalone compact keeps its summary visible to the model', singleView.includes('SUMMARY-SENTINEL'))
+  for (const [label, messages] of [['live', foldBatch.messages], ['recorded', cleanMessagesForLogging(foldBatch.messages)]] as const) {
+    const view = compactView(messages)
+    const summaryAt = view.indexOf('SUMMARY-SENTINEL')
+    const followUpAt = view.indexOf('FOLLOW-UP-SENTINEL')
+    check(`${label}: the compact summary precedes the next prompt after the boundary`, summaryAt >= 0 && followUpAt > summaryAt, view)
+  }
+  check('a batched compact preserves its attachment', foldBatch.messages.includes(foldAttachment))
+  check('a batched compact does not virtualize its summary', users(foldBatch.messages).some(row => row.isCompactSummary && row.isVirtual !== true))
+  const boundaryAt = foldBatch.messages.findIndex(row => row.type === 'system' && row.subtype === 'compact_boundary')
+  check('the follow-up row follows the compact boundary', boundaryAt >= 0 && foldBatch.messages.findIndex(row => row.uuid === ids[1]) > boundaryAt)
+  const skillBatch = await run(['/skill-probe', 'SKILL-FOLLOW-UP-SENTINEL'], ids.slice(0, 2))
+  const skillView = JSON.stringify(planApiConversation(skillBatch.messages).selected)
+  check('a skill body precedes the later prompt in a batch', skillView.indexOf('SKILL-BODY-SENTINEL') >= 0 && skillView.indexOf('SKILL-FOLLOW-UP-SENTINEL') > skillView.indexOf('SKILL-BODY-SENTINEL'), skillView)
+  const pathHead = '/not-a-command/path'
+  const pathBatch = await run([pathHead, 'path follow-up'], ids.slice(0, 2))
+  check('a slash-shaped ordinary prompt retains the original batch fold', users(planApiConversation(pathBatch.messages).selected)[0]?.message.content === `${pathHead}\npath follow-up`)
 } finally {
   process.chdir(originalCwd)
   rmSync(scratch, { recursive: true, force: true })
