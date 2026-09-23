@@ -154,6 +154,8 @@ export interface ConcourseWorkerRecordV1 {
   lastAttachGrantAt?: number
   stoppedAt?: number
   stoppedBy?: string
+  turnCutAt?: number
+  turnCutBy?: string
   stopRequestedAt?: number
   stopRequestedBy?: string
   stopRequestedRetired?: ConcourseWorkerRecordV1['retired']
@@ -341,6 +343,27 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
     }, dir)
   } catch {
   }
+}
+
+export function markConcourseWorkerTurnCut(runnerId: string, by: string, dir?: string): boolean {
+  let stamped = false
+  try {
+    updateConcourseWorkers(workers => {
+      const rec = workers[runnerId]
+      if (!rec || rec.endedAt !== undefined) return
+      rec.turnCutAt = Date.now()
+      rec.turnCutBy = by
+      delete rec.crash
+      stamped = true
+    }, dir)
+  } catch {
+    stamped = false
+  }
+  return stamped
+}
+
+export function turnCutStanding(rec: Pick<ConcourseWorkerRecordV1, 'turnCutAt'>): boolean {
+  return rec.turnCutAt !== undefined
 }
 
 export function markConcourseWorkerTurnSettled(runnerId: string, dir?: string): void {
@@ -1419,7 +1442,7 @@ export function reconcileConcourseWorkers(
           }
         }
       }
-      if (rec.attachedAt !== undefined || rec.stoppedAt !== undefined) {
+      if (rec.attachedAt !== undefined || rec.stoppedAt !== undefined || turnCutStanding(rec)) {
         receipt.live.push(rec.runnerId)
         continue
       }
@@ -1694,8 +1717,9 @@ export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sess
   return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
 }
 
-export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash'>): 'crash' | 'relaunch' {
-  return rec.crash !== undefined ? 'crash' : 'relaunch'
+export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt'>): 'crash' | 'stop' | 'relaunch' {
+  if (rec.crash !== undefined) return 'crash'
+  return turnCutStanding(rec) ? 'stop' : 'relaunch'
 }
 
 export function reviveConcourseWorker(
@@ -1779,6 +1803,8 @@ export function reviveConcourseWorker(
     delete w.stoppedAt
     delete w.stoppedBy
     delete w.retired
+    delete w.turnCutAt
+    delete w.turnCutBy
     clearParkedFields(w)
     if (opts?.clearCrash === true) delete w.crash
     if (opts?.modelOverride !== undefined) {
@@ -1802,6 +1828,8 @@ function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   delete rec.stoppedAt
   delete rec.stoppedBy
   delete rec.retired
+  delete rec.turnCutAt
+  delete rec.turnCutBy
   delete rec.crash
   delete rec.pausedAt
   delete rec.pausedBy
@@ -2110,6 +2138,8 @@ function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: string):
   delete rec.stoppedAt
   delete rec.stoppedBy
   delete rec.retired
+  delete rec.turnCutAt
+  delete rec.turnCutBy
   delete rec.pausedAt
   delete rec.pausedBy
   delete rec.attachRequestedAt

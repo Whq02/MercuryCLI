@@ -197,6 +197,62 @@ function interruptResultUpdate(
   }
 }
 
+const TOOL_ABORT_GRACE_MS = 750
+
+class ToolCallAbandonedError extends Error {
+  constructor(toolName: string) {
+    super(`${toolName} did not answer the interrupt within ${TOOL_ABORT_GRACE_MS}ms — the call was abandoned`)
+    this.name = 'ToolCallAbandonedError'
+  }
+}
+
+function settleUnderAbort<T>(
+  call: Promise<T>,
+  signal: AbortSignal,
+  toolName: string,
+  onAbandoned: () => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    let abandoned = false
+    let grace: ReturnType<typeof setTimeout> | undefined
+    const startedAt = Date.now()
+    const finish = (land: () => void): void => {
+      if (settled) return
+      settled = true
+      if (grace !== undefined) clearTimeout(grace)
+      signal.removeEventListener('abort', onAbort)
+      land()
+    }
+    const onAbort = (): void => {
+      if (settled || grace !== undefined) return
+      grace = setTimeout(() => {
+        abandoned = true
+        onAbandoned()
+        finish(() => reject(new ToolCallAbandonedError(toolName)))
+      }, TOOL_ABORT_GRACE_MS)
+    }
+    call.then(
+      value => {
+        if (abandoned) {
+          logForDebugging(`tool ${toolName} answered ${Date.now() - startedAt}ms after its call was abandoned on interrupt — the late result is dropped`)
+          return
+        }
+        finish(() => resolve(value))
+      },
+      (error: unknown) => {
+        if (abandoned) {
+          logForDebugging(`tool ${toolName} failed ${Date.now() - startedAt}ms after its call was abandoned on interrupt — the late error is dropped`)
+          return
+        }
+        finish(() => reject(error))
+      },
+    )
+    if (signal.aborted) onAbort()
+    else signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 function nextImagePasteIds(messages: Message[], count: number): number[] {
   let max = 0
   for (const message of messages) {
@@ -638,19 +694,30 @@ async function runTransactionBody(args: {
       toolUseId: toolUseID,
       userModifiedInput: (decision as { userModified?: boolean }).userModified,
     }
-    result = await tool.call(
-      callInput as never,
-      contextForCall,
-      canUseTool as never,
-      assistantMessage,
-      progress => {
-        push({
-          message: createProgressMessage({
-            toolUseID: progress.toolUseID,
-            parentToolUseID: toolUseID,
-            data: progress.data as never,
-          }),
-        })
+    let callAbandoned = false
+    result = await settleUnderAbort(
+      Promise.resolve(
+        tool.call(
+          callInput as never,
+          contextForCall,
+          canUseTool as never,
+          assistantMessage,
+          progress => {
+            if (callAbandoned) return
+            push({
+              message: createProgressMessage({
+                toolUseID: progress.toolUseID,
+                parentToolUseID: toolUseID,
+                data: progress.data as never,
+              }),
+            })
+          },
+        ),
+      ),
+      signal,
+      tool.name,
+      () => {
+        callAbandoned = true
       },
     )
     durationMs = Date.now() - executionStartedAt
@@ -815,6 +882,11 @@ async function runTransactionBody(args: {
     try {
       addToToolDuration(durationMs)
     } catch {
+    }
+    if (error instanceof ToolCallAbandonedError) {
+      logForDebugging(`tool ${tool.name}: ${error.message}`)
+      push(interruptResultUpdate(toolUseID, sourceUUID))
+      return
     }
     const isInterrupt = isAbortError(error)
     const message = error instanceof Error ? error.message : String(error)

@@ -262,7 +262,17 @@ on that row for eight seconds in place of its words, then the resting words
 return with the new effort; where the row is not painted (the compact
 layout) the receipt stays a notice under the composer. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
-the row's clock keeps counting for the crew that runs on. While a shell
+the row's clock keeps counting for the crew that runs on. The interrupt ends
+the tool call in flight as well as the request: a tool that answers the
+interrupt within its grace (three quarters of a second) settles with its own
+words, and one that cannot — a browser whose process is gone, a call waiting
+on something that will never answer — is left behind, its result replaced by
+the interrupt's own, and its late answer, if one ever comes, is dropped. A
+second esc while the first is still on its way is the hard stop: the daemon
+delivers the interrupt again and, if the turn is still open a second later,
+cuts the runner itself. The cut is recorded on the session as the operator's
+stop of that turn, never as a crash; the session survives, and the runner
+comes back saying the turn was cut. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background
 tasks and the turn goes on without waiting: the hint row under the composer
 reads `esc interrupt · ⇧b background the command` and the row's tail
