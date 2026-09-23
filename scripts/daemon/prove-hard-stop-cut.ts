@@ -47,13 +47,15 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'hardstop-'))
 const configDir = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
-for (const d of [configDir, daemonDir, work]) mkdirSync(d, { recursive: true })
-writeFileSync(join(work, 'README.md'), '# second esc fixture\n')
+const folderOf = (id: string): string => join(SCRATCH, `work-${id}`)
+const folders = ['secondesc-a', 'secondesc-b', 'secondesc-c'].map(folderOf)
+for (const d of [configDir, daemonDir, work, ...folders]) mkdirSync(d, { recursive: true })
+for (const d of [work, ...folders]) writeFileSync(join(d, 'README.md'), '# second esc fixture\n')
 process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-seedFirstRun(configDir, [work])
+seedFirstRun(configDir, [work, ...folders])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const sup = await import('../../src/daemon/concourseSupervisor.ts')
@@ -159,7 +161,7 @@ const openThinking = async (id: string): Promise<{ sid: string; rec: Rec | undef
     op: 'concourseDispatch',
     clientMessageId: id,
     prompt: LONG_THINK_ASK,
-    workspaceDir: work,
+    workspaceDir: folderOf(id),
     title: `Long think ${id}`,
     model: 'claude-opus-5',
     effort: 'high',
@@ -202,7 +204,7 @@ try {
     frozen.delete(pidA)
   }
   check('H3 thawed, the runner reads the interrupts and drops its stream', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBefore, 8_000), JSON.stringify(wire().map(c => c.kind)))
-  const transcriptA = join(paths.getProjectDir(work), `${a.sid}.jsonl`)
+  const transcriptA = join(paths.getProjectDir(folderOf('secondesc-a')), `${a.sid}.jsonl`)
   check('H3 its transcript carries the interruption row', await untilAsync(() => existsSync(transcriptA) && readFileSync(transcriptA, 'utf8').includes('Request interrupted by user'), 8_000), transcriptA)
   check("H3 the seat's facts read idle once the turn is answered", await untilAsync(() => readFacts(a.sid)?.busy === false, 8_000), JSON.stringify(readFacts(a.sid) ?? null))
   check('H3 the pid lives on — the same runner takes the next words', alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
@@ -219,7 +221,7 @@ try {
   check('the stream dropped at once (the runner answered the interrupt)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-closed').length > closedBeforeB, 3_000))
   await sleep(2_000)
   check('two seconds on, the healthy runner lives and nothing was logged as a cut', alive(pidB) && !/hard stop:|cutting the runner/.test(daemonLog()), `pid ${pidB} alive=${alive(pidB)}`)
-  const transcriptB = join(paths.getProjectDir(work), `${b.sid}.jsonl`)
+  const transcriptB = join(paths.getProjectDir(folderOf('secondesc-b')), `${b.sid}.jsonl`)
   check('its transcript carries the interruption row', existsSync(transcriptB) && readFileSync(transcriptB, 'utf8').includes('Request interrupted by user'), transcriptB)
 
   console.log('\nH6 the stop verb — the one cut, recorded as a stop; the reconcile never calls it a crash; the resume brings it back')
