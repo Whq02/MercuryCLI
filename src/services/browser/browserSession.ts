@@ -43,7 +43,14 @@ interface OwnerBrowserState {
   approvedOrigins: Set<string>
   approvedSecretPairings: Set<string>
   checkedActOrigin: { op: string; origin: string } | null
+  goneAt: number | null
 }
+
+export const BROWSER_CLOSE_BOUND_MS = 3_000
+export const BROWSER_PROTOCOL_TIMEOUT_MS = 90_000
+export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
+
+export type CloseOutcome = 'closed' | 'killed' | 'gone'
 
 function killChild(browser: DriverBrowser): void {
   try {
@@ -52,11 +59,34 @@ function killChild(browser: DriverBrowser): void {
   }
 }
 
-async function closeChild(browser: DriverBrowser): Promise<void> {
+export function childGone(browser: DriverBrowser): boolean {
+  if (browser.connected === false) return true
+  const child = browser.process()
+  if (child === null || child === undefined) return false
+  return (child.exitCode ?? null) !== null || (child.signalCode ?? null) !== null
+}
+
+async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
+  if (childGone(browser)) {
+    killChild(browser)
+    return 'gone'
+  }
+  let bound: ReturnType<typeof setTimeout> | undefined
+  const lapse = new Promise<'lapsed'>(resolve => {
+    bound = setTimeout(() => resolve('lapsed'), BROWSER_CLOSE_BOUND_MS)
+  })
   try {
-    await browser.close()
+    const won = await Promise.race([browser.close().then(() => 'closed' as const), lapse])
+    if (won === 'lapsed') {
+      killChild(browser)
+      return 'killed'
+    }
+    return 'closed'
   } catch {
     killChild(browser)
+    return 'killed'
+  } finally {
+    if (bound !== undefined) clearTimeout(bound)
   }
 }
 
@@ -76,6 +106,7 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     approvedOrigins: new Set(),
     approvedSecretPairings: new Set(),
     checkedActOrigin: null,
+    goneAt: null,
   }),
   dispose: async state => {
     state.disposed = true
@@ -158,11 +189,16 @@ export function approvedOriginList(owner: OwnerKey): string[] {
 }
 
 function reapDeadSession(state: OwnerBrowserState): void {
-  if (state.session && !state.session.browser.connected) {
-    state.session = null
-    state.approvedOrigins.clear()
-    state.approvedSecretPairings.clear()
-  }
+  if (state.session && childGone(state.session.browser)) markSessionGone(state, state.session.browser)
+}
+
+function markSessionGone(state: OwnerBrowserState, browser: DriverBrowser): void {
+  if (state.session === null || state.session.browser !== browser) return
+  state.session = null
+  state.approvedOrigins.clear()
+  state.approvedSecretPairings.clear()
+  state.checkedActOrigin = null
+  state.goneAt = Date.now()
 }
 
 export function activeSession(owner: OwnerKey): Session | null {
@@ -170,6 +206,13 @@ export function activeSession(owner: OwnerKey): Session | null {
   if (!state) return null
   reapDeadSession(state)
   return state.session
+}
+
+export function sessionGoneAt(owner: OwnerKey): number | null {
+  const state = ownerStates.peek(owner)
+  if (!state) return null
+  reapDeadSession(state)
+  return state.session === null ? state.goneAt : null
 }
 
 export function driverVersion(): string {
@@ -261,6 +304,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     const browser = await launch({
       executablePath: resolution.executablePath,
       headless: true,
+      protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
       env: subprocessEnv(),
       defaultViewport: { width: 1280, height: 800 },
       downloadBehavior: { policy: 'deny' },
@@ -355,6 +399,8 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
         note: 'the owner was torn down while its browser launch was in flight — the child was closed, nothing is open',
       }
     }
+    state.goneAt = null
+    browser.on('disconnected', () => markSessionGone(state, browser))
     state.session = {
       browser,
       page,
@@ -383,16 +429,26 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
 }
 
 export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
+  const closed = await closeBrowserSessionDetailed(owner)
+  return closed.outcome !== 'none'
+}
+
+export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ outcome: CloseOutcome | 'none' }> {
   const state = ownerStates.peek(owner)
-  if (!state) return false
+  if (!state) return { outcome: 'none' }
   if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
-  if (!state.session) return false
+  if (!state.session) {
+    if (state.goneAt === null) return { outcome: 'none' }
+    state.goneAt = null
+    return { outcome: 'gone' }
+  }
   const session = state.session
-  await closeChild(session.browser)
+  const outcome = await closeChild(session.browser)
   state.session = null
+  state.goneAt = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
-  return true
+  return { outcome }
 }
 
 export function secretPairingKey(ref: string, origin: string): string {
