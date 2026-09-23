@@ -54,7 +54,6 @@ import { addSessionHook } from '../hooks/sessionHooks.js'
 import type { HookMatcher } from '../../schemas/hooks.js'
 import type { HookEvent } from '../../entrypoints/agentSdkTypes.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { noteCompanionSurfaceOpened } from '../cockpit/critterProfile.js'
 import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
 import { parseSlashCommandToolsFromFrontmatter } from '../markdownConfigLoader.js'
 import type {
@@ -597,11 +596,6 @@ export async function processSlashCommand(
       messages: [promptMessage, ...attachmentMessages],
       shouldQuery: true,
     }
-  }
-
-  try {
-    noteCompanionSurfaceOpened(command.name)
-  } catch {
   }
 
   if (command.userInvocable === false) {

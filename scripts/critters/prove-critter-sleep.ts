@@ -28,10 +28,9 @@ t.section('§1 — the sleep derivation (CR-3: agent activity + grace)')
 {
   const T0 = 1_000_000_000
   const past = sleep.SLEEP_AFTER_MS
-  const { BUDDY_FRESH_MS } = await import('../../src/utils/cockpit/buddyState.js')
   t.check(
-    'the grace IS the roster fresh-vs-stale contract (one definition of recent)',
-    sleep.SLEEP_AFTER_MS === BUDDY_FRESH_MS,
+    'the grace is the 45 s fresh-vs-stale window (one definition of recent)',
+    sleep.SLEEP_AFTER_MS === 45_000,
     String(sleep.SLEEP_AFTER_MS),
   )
   t.check('a live turn is active', sleep.signalsActive({ ...quiet, turnLive: true }))
@@ -327,7 +326,7 @@ t.section('§6 — the wiring laws')
   )
 
   for (const [file, label] of [
-    ['src/components/mercury-ui/MiniCritter.tsx', 'the mini companion'],
+    ['src/components/mercury-ui/MiniCritter.tsx', 'the mini critter'],
     ['src/components/CritterSelect.tsx', 'the /critter picker'],
     ['src/components/MercuryHome.tsx', 'the hero + the berth'],
   ] as const) {
@@ -541,48 +540,6 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
     delete process.env['MERCURY_CRITTER_SLEEP']
     sleep.resetCritterSleepForTests()
   }
-}
-
-t.section('§9 — the mood WORD rides the SAME verdict as the art')
-{
-  const eng = await import('../../src/utils/cockpit/companionEngine.js')
-  const signals = await import('../../src/utils/cockpit/companionSignals.js')
-
-  const agree = (): boolean =>
-    (eng.companionEngineSnapshot().mood === 'sleeping') === sleep.isCritterAsleep()
-
-  sleep.resetCritterSleepForTests()
-  eng.resetCompanionEngineForTests()
-  process.env['MERCURY_CRITTER_SLEEP'] = '1'
-  const off = eng.subscribeCompanionEngine(() => {})
-  t.check(
-    'forced-asleep: the art sleeps AND the mood word is sleeping (one truth)',
-    sleep.isCritterAsleep() && eng.companionEngineSnapshot().mood === 'sleeping' && agree(),
-    JSON.stringify({ mood: eng.companionEngineSnapshot().mood, asleep: sleep.isCritterAsleep() }),
-  )
-
-  process.env['MERCURY_CRITTER_SLEEP'] = '0'
-  signals.publishCompanionTurn({ turnLive: true, streaming: false, awaitingPermission: false })
-  t.check(
-    'hard-off + a live turn: awake art, a working word — still agreeing',
-    !sleep.isCritterAsleep() && eng.companionEngineSnapshot().mood === 'working' && agree(),
-    JSON.stringify({ mood: eng.companionEngineSnapshot().mood, asleep: sleep.isCritterAsleep() }),
-  )
-
-  signals.publishCompanionTurn({ turnLive: false, streaming: false, awaitingPermission: false })
-  t.check(
-    "hard-off quiet: the word is idle/done — no private timer can ever say 'sleeping'",
-    !sleep.isCritterAsleep() && eng.companionEngineSnapshot().mood !== 'sleeping' && agree(),
-    eng.companionEngineSnapshot().mood,
-  )
-
-  off()
-  delete process.env['MERCURY_CRITTER_SLEEP']
-  const stats = sleep.critterSleepStatsForProofs()
-  t.check('engine unsubscribe releases the sleep store', stats.listeners === 0, JSON.stringify(stats))
-  sleep.resetCritterSleepForTests()
-  eng.resetCompanionEngineForTests()
-  signals.resetCompanionSignals()
 }
 
 t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view never does')

@@ -1,10 +1,8 @@
 
-import type { BuddyState } from './buddyState.js'
 import {
   CRITTER_COUNT,
   critterAt,
   type CritterDef,
-  type CritterState,
 } from './critterData.js'
 
 export function critterKeyFor(agentId: string, sessionId: string | null | undefined): string {
@@ -31,24 +29,4 @@ export function critterVariantFor(key: string | null | undefined): number {
 
 export function critterForKey(key: string | null | undefined): CritterDef {
   return critterAt(critterVariantFor(key))
-}
-
-export function toCritterState(s: BuddyState): CritterState {
-  switch (s) {
-    case 'thinking':
-    case 'focused':
-      return 'thinking'
-    case 'working':
-      return 'working'
-    case 'blocked':
-    case 'sad':
-      return 'blocked'
-    case 'done':
-      return 'done'
-    case 'sleeping':
-      return 'sleeping'
-    case 'idle':
-    default:
-      return 'idle'
-  }
 }

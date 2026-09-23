@@ -16,7 +16,6 @@ import {
   migrateOrphanedDraft,
 } from '../utils/promptDraft.js'
 import { createSignal } from '../utils/signal.js'
-import { noteCompanionTyping } from '../utils/cockpit/companionEngine.js'
 import { markTypingActivity } from '../utils/cockpit/typingActivity.js'
 import { normalizePastedInput } from './composer-document.js'
 
@@ -78,7 +77,6 @@ function persistDraft(): void {
     mode: draft.mode,
     pastedContents: draft.pastedContents,
   })
-  noteCompanionTyping()
 }
 
 export function flushDrafts(): Promise<void> {

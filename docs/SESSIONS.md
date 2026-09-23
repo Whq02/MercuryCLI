@@ -236,8 +236,7 @@ small sprite sits at the left of the box, the working capsule to its
 right, and level with the capsule's middle however tall the capsule grows
 (the lower of the two middle rows when the capsule has an even number of
 rows): a status that stacks or wraps onto more lines lengthens the capsule
-downwards and the sprite follows its middle. The critter never speaks: no
-line of its own paints beside it, idle or while a turn runs. The
+downwards and the sprite follows its middle. The
 working row keeps its capsule, and the session roll-up and the bar are not
 painted. `/critter on` paints the large critter with the roll-up and the
 bar as before, `/critter off` the small one, and `/critter` alone toggles;

@@ -155,8 +155,7 @@ function runCell(cell: Cell): void {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
     env: {
       ...process.env,
-      MERCURY_FULLSCREEN: '1',      MERCURY_DECK_COMPANION: '0',
-      MERCURY_CONFIG_DIR: home,
+      MERCURY_FULLSCREEN: '1',      MERCURY_CONFIG_DIR: home,
       MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
       MERCURY_LIVE_GLYPHS: '0',

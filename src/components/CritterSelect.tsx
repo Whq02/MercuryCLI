@@ -3,8 +3,6 @@ import { Box, Text, useInput } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { claimHover, releaseHover, useHoverOwner } from './mercury-ui/useHoverOwned.js'
 import { FLAT_ART_LINES, HERO_ART_COLS, HERO_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
-import { companionEngineSnapshot } from '../utils/cockpit/companionEngine.js'
-import { companionQuietPreference, critterProfile, setCompanionQuiet } from '../utils/cockpit/critterProfile.js'
 import { DUNE, FAINT, TEAL } from './mercuryPalette.js'
 import { CommandCenter, SectionHeader } from './mercury-ui/components.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
@@ -52,14 +50,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
           return `trying ${picked?.name ?? 'crab'} — this session only (↵ to keep it)`
         },
         hint: 'try once',
-      },
-      {
-        key: 'm',
-        run: () => {
-          const quiet = setCompanionQuiet(!companionQuietPreference())
-          return quiet ? 'quiet mode ON — poses stay, speech off' : 'quiet mode OFF — the companion may speak again'
-        },
-        hint: 'quiet',
       },
     ],
   })
@@ -144,37 +134,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
           </Text>
         </Box>
       )}
-      {(() => {
-        const focused = ALL_CRITTERS[sel]
-        if (!focused) return null
-        const profile = critterProfile()
-        const snap = companionEngineSnapshot()
-        const reason: Record<string, string> = {
-          working: 'a turn is running',
-          thinking: 'streaming a response',
-          focused: 'deep in a long turn',
-          blocked: 'waiting on you',
-          done: 'just settled a turn',
-          sad: 'the last turn failed',
-          sleeping: 'long idle',
-          idle: 'nothing in flight',
-        }
-        const quiet = companionQuietPreference()
-        return (
-          <Box flexDirection="column" marginTop={1}>
-            <Text>
-              <Text color={focused.accent} bold>{focused.name}</Text>
-            </Text>
-            <Text color={FAINT}>
-              mood {snap.mood} · {reason[snap.mood] ?? snap.mood}
-              {' · '}settles {profile.milestones.settles}
-              {profile.milestones.recoveries > 0 ? ` · recoveries ${profile.milestones.recoveries}` : ''}
-              {profile.recoveredAt ? ' · profile recovered' : ''}
-              {' · '}{quiet ? 'quiet' : 'speaking'}
-            </Text>
-          </Box>
-        )
-      })()}
     </CommandCenter>
   )
 }

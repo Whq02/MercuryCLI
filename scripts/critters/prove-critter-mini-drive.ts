@@ -68,7 +68,7 @@ const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTic
 const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6, data, mark })
 
 type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: number; rows: number }
-async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, companion = false, envPatch: Record<string, string> = {}): Promise<Capture> {
+async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, envPatch: Record<string, string> = {}): Promise<Capture> {
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-cfg.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, DIST], cwd: world.cwd, sends: [faceEnter, ...sends], readyText: readyText === 'ready ·' ? [readyText, '⇧← back'] : [readyText], readySettleTicks: 8, stableTicks: live ? 0 : 4, total: 400, cols, rows, out, resizes }))
@@ -89,7 +89,6 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DECK_COMPANION: companion ? '' : '0',
     MERCURY_AWAY_SUMMARY: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_CRITTER: 'clam',
@@ -252,7 +251,7 @@ try {
   let tintOff = 0
   for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
   check('the rest of the three rows is the box’s own tint (blank cells on the pane ground)', tintOff === 0, `${tintOff} cells off`)
-  check('the companion bubble is silent here (no border glyph beside the sprite)', boot.slice(3, 6).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
+  check('nothing paints beside the idle sprite (no border glyph on its rows)', boot.slice(3, 6).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
 
   console.log('§2 the SESSIONS strip is not painted; its rows belong to the chat')
   check('no row of the frame reads ⊞ SESSIONS', rowWith(boot, '⊞ SESSIONS') === -1, `row ${rowWith(boot, '⊞ SESSIONS')}`)
@@ -349,22 +348,6 @@ try {
     check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
     check(`${cols}×${rows}: the busy sprite keeps the slot's left, its middle on the card's middle`, b.x === left + 3 && b.y === spriteTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${left + 3},${spriteTop(b)}`)
   }
-  console.log('§12 the critter never speaks: /companion tip paints no bubble beside the small sprite')
-  for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
-    const companion = await capture(`companion-${cols}x${rows}`, homeFor(`companion-${cols}`), cols, rows, [
-      onReady('/companion tip\r', 'before-tip'),
-      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '', mark: 'after-tip' },
-    ], 'tip —', [], false, true)
-    const after = companion.marks['after-tip']!
-    const border = text(after)[rowWith(after, '✶ VIEW') + 1]!
-    const left = border.indexOf('╭')
-    const right = border.lastIndexOf('╮')
-    const bounds = boxRows(after, left)
-    const inner = text(after).slice(bounds.top + 1, bounds.bottom)
-    check(`${cols}×${rows}: the tip answers in the receipt row under the berth`, rowWith(after, 'tip —') > bounds.bottom, `receipt row ${rowWith(after, 'tip —')}, berth bottom ${bounds.bottom}`)
-    check(`${cols}×${rows}: the berth stays five rows with no bubble in it`, bounds.bottom - bounds.top === 4 && !inner.some(row => { const at = row.indexOf('╭', left + 1); return at >= 0 && at < right }), `berth ${bounds.top}..${bounds.bottom}`)
-    check(`${cols}×${rows}: the sprite keeps the slot's left column (27 cells)`, after.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(left + 3, left + 12).every(cell => cell.c === '▀')) && inner.every(row => !row.slice(left + 12, right).includes('▀')))
-  }
   console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, 6]]
@@ -389,23 +372,23 @@ try {
     check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
   }
   }
-  console.log('§13 the companion mini keeps its neighbours in place')
+  console.log('§13 the small critter outside the cockpit keeps its neighbours in place')
   for (const cols of [178, 120]) {
-    const inline = await capture(`inline-${cols}x29`, homeFor(`inline-${cols}`), cols, 29, [], 'ready ·', [], false, true, { MERCURY_FULLSCREEN: '0' })
+    const inline = await capture(`inline-${cols}x29`, homeFor(`inline-${cols}`), cols, 29, [], 'ready ·', [], false, { MERCURY_FULLSCREEN: '0' })
     const lines = text(inline.grid)
     const r = lines.findIndex(row => row.includes('▀'.repeat(9)))
     const x = r < 0 ? -1 : lines[r]!.indexOf('▀'.repeat(9))
-    check(`${cols}×29: the inline companion paints its complete three-row sprite`, r >= 0 && lines.slice(r, r + 3).every(row => row.slice(x, x + 9) === '▀'.repeat(9)))
+    check(`${cols}×29: the inline sprite paints its complete three rows`, r >= 0 && lines.slice(r, r + 3).every(row => row.slice(x, x + 9) === '▀'.repeat(9)))
     const flourish = lines.find(row => row.includes('──') && row.includes('▀'.repeat(9))) ?? ''
     const left = flourish.indexOf('──')
     const right = flourish.lastIndexOf('──')
     check(`${cols}×29: the inline sprite is centred between its flourishes`, left >= 0 && right > left && x === Math.round((left + right + 1 - 8) / 2), `sprite ${x}, flourishes ${left}..${right}`)
   }
-  const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: '⇧← back', awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, true, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
+  const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: '⇧← back', awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
   const deckLines = text(deck.grid)
   const deckRow = deckLines.findIndex(row => row.includes('▀'.repeat(9)))
   const deckX = deckRow < 0 ? -1 : deckLines[deckRow]!.indexOf('▀'.repeat(9))
-  check('99×29: the deck companion paints its complete three-row sprite', deckRow >= 0 && deckLines.slice(deckRow, deckRow + 3).every(row => row.slice(deckX, deckX + 9) === '▀'.repeat(9)))
+  check('99×29: the deck dock paints its complete three-row sprite', deckRow >= 0 && deckLines.slice(deckRow, deckRow + 3).every(row => row.slice(deckX, deckX + 9) === '▀'.repeat(9)))
   check('99×29: the deck sprite is centred in its existing thirteen-column slot', deckX === 4, `sprite column ${deckX}`)
 } catch (error) {
   failures++

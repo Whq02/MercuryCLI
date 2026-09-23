@@ -25,7 +25,7 @@ t('berth card is a rounded strong-bordered pin (token role)', card.includes('bor
 t('berth carries the pinned living critter', card.includes('<PinnedCritterBerth />'))
 t('the small critter keeps a thirteen-column slot at the card\'s left (no centring across the row, no widening when alone)', card.includes("width={critterMini ? CR_COLS : undefined}") && !card.includes('alignItems') && !/flexGrow=\{[^}]*berth/.test(card))
 t('the layout centres the small critter on the capsule\'s rows itself (no measured lead, no padding)', card.includes("justifyContent={critterMini ? 'center' : undefined}") && !card.includes('paddingTop') && !/measureElement|berthLead|berthLevel/.test(card))
-t('the berth mounts no speech line beside or under the capsule', !card.includes('BerthCompanionLine') && card.includes('<WorkCapsule'))
+t('the berth is the sprite and the working capsule alone (no speech line, no third mount)', card.includes('<WorkCapsule') && (card.match(/<[A-Z][A-Za-z.]*/g) ?? []).every(tag => ['<Box', '<PinnedCritterBerth', '<WorkCapsule', '<TerminalSizeContext.Provider'].includes(tag)))
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8')
 t('PinnedCritterBerth renders the HERO art (flat only below the named floors)', /export function PinnedCritterBerth[\s\S]{0,4000}<AnimatedCritterArt def=\{hover \? hoverDef : def\} hero=\{heroFits\} square=\{!heroFits\} \/>/.test(home))
 t('berth art rides a fixed bottom-aligned slot per form (a morph swaps pixels, never rows; the small critter has its own three-row slot)', /PinnedCritterBerth[\s\S]{0,4000}height=\{SQUARE_DOCK_ART_LINES\} flexDirection="column" justifyContent="flex-end"[\s\S]{0,800}height=\{heroFits \? HERO_ART_LINES : SQUARE_ART_LINES\}/.test(home))

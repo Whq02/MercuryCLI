@@ -27,7 +27,6 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.js'
 import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterArt.js'
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
-import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { cycleSessionCritter, getSessionAccent, useCritterSize, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
@@ -112,17 +111,16 @@ function MercuryHeroBody(): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const heroHoverId = useId()
   const heroHover = useHoverOwned(heroHoverId)
-  const companionOn = useCompanionEnabled()
   const rawDef = critterDefForKey(sa.key)
   const heroDef = React.useMemo(
     () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
     [rawDef, sa.accent, sa.accentDeep],
   )
   if (rows < HERO_MIN_ROWS || columns < HERO_ART_COLS + 4) {
-    if (companionOn && !isDeckPaneActive() && rows >= 10 && columns >= 40) {
+    if (!isDeckPaneActive() && rows >= 10 && columns >= 40) {
       return (
         <Box paddingX={1} marginTop={1} flexShrink={0} justifyContent="center">
-          <MiniCritter cols={columns} />
+          <MiniCritter />
         </Box>
       )
     }

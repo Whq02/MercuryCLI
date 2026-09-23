@@ -223,8 +223,6 @@ src/utils/blender/bridgeGates.ts :: blendContextCache :: ttl-bounded
 src/utils/bootCardFacts.ts :: catalogedGroundCache :: ttl-bounded
 src/utils/bootCardFacts.ts :: currentCache :: ttl-bounded
 src/utils/caCerts.ts :: cachedResult :: static-for-process
-src/utils/cockpit/companionEngine.ts :: snapshot :: subscription-fed
-src/utils/cockpit/critterProfile.ts :: cached :: static-for-process
 src/utils/cockpit/deviceHeadroom.ts :: cached :: ttl-bounded
 src/utils/cockpit/harnessMap.ts :: memo :: static-for-process
 src/utils/cockpit/repoSurfaceMap.ts :: orientationDocMemo :: static-for-process

@@ -1314,7 +1314,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_CRITTER_IDLE = process.env.MERCURY_CRITTER_IDLE ?? '0'
   process.env.MERCURY_CRITTER_SLEEP = process.env.MERCURY_CRITTER_SLEEP ?? '0'
   process.env.MERCURY_LIVE_CLOCK = process.env.MERCURY_LIVE_CLOCK ?? '0'
-  process.env.MERCURY_DECK_COMPANION = process.env.MERCURY_DECK_COMPANION ?? '0'
   process.env.MERCURY_CC_COMPAT_INSTRUCTIONS = process.env.MERCURY_CC_COMPAT_INSTRUCTIONS ?? 'off'
   process.env.MERCURY_DOCTOR_STATE_DIR = join(tmpdir(), `mercury-render-doctor-${process.pid}`)
   process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
@@ -2925,9 +2924,8 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 60, cols, rows,
     }
   }
-  if (name === 'companion-cockpit' || name === 'companion-deck') {
+  if (name === 'cockpit-short') {
     writeSyntheticSession('short')
-    process.env.MERCURY_DECK_COMPANION = '1'
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [],
@@ -4271,9 +4269,6 @@ export function cleanupScenario(name: string): void {
   }
   if (name === 'cockpit-console' || name === 'tasks-mission') {
     cleanupMissionLedgerFixture()
-  }
-  if (name.startsWith('companion-')) {
-    process.env.MERCURY_DECK_COMPANION = '0'
   }
   for (const store of ['tabula', 'daemon', 'crew', 'teams', 'doctor']) {
     try {
