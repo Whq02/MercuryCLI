@@ -6,6 +6,7 @@ import { z, type ZodType } from 'zod'
 import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
+  getCwdState,
   getMainThreadAgentType,
   getSdkAgentProgressSummariesEnabled,
   getSessionTrustAccepted,
@@ -834,6 +835,7 @@ export const AgentTool = buildTool({
     }
 
     const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam
+    const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)
 
     const effectiveSystemPromptOverride = isFork
       ? systemPromptOverride
@@ -864,7 +866,7 @@ export const AgentTool = buildTool({
           }
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
-      ...(worktreeInfo === undefined && cwdParam !== undefined ? { cwd: cwdParam } : {}),
+      ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
       ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),

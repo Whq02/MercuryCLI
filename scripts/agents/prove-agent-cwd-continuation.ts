@@ -30,7 +30,10 @@ check('a sidecar written without a directory reads none', plain !== null && plai
 
 section('§2 the launch records the directory it resolved')
 const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
-check('the run parameters carry the resolved directory when no worktree is cut', agentTool.includes('...(worktreeInfo === undefined && cwdParam !== undefined ? { cwd: cwdParam } : {})'))
+check('the launch records the named directory or the current override when it differs from the session slot', agentTool.includes('const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)'))
+check('the run parameters carry the recorded directory when no worktree is cut', agentTool.includes('...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {})'))
+check('the execution override keeps the worktree and named-directory precedence', agentTool.includes('const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam') && !agentTool.includes('runWithCwdOverride(launchDirectory'))
+check('the session slot is read through the one bootstrap import, never a second import line', (agentTool.match(/from '\.\.\/\.\.\/bootstrap\/state\.js'/g) ?? []).length === 1 && /import \{[^}]*\bgetCwdState\b[^}]*\} from '\.\.\/\.\.\/bootstrap\/state\.js'/.test(agentTool))
 const runAgent = src('tools', 'AgentTool', 'runAgent.ts')
 check('the run loop accepts it', /worktreePath\?: string\n\s+cwd\?: string/.test(runAgent))
 check("the run loop's sidecar write records it", runAgent.includes('...(cwd ? { cwd } : {}),'))
