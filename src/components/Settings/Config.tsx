@@ -88,7 +88,7 @@ import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 
-const LABEL_CELLS = 44
+const LABEL_CELLS = 36
 
 export const CONFIG_POPUP_WIDTH = 110
 export const CONFIG_POPUP_ROWS = 44

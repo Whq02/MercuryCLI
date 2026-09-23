@@ -97,7 +97,9 @@ section('§1 the frame at 178×51: the page\'s rows, row for row')
     check(`row 40: "↓ ${settings - 34} more" (the rows not shown, from the line's own count ${settings})`, inner(frame.rows[40]!) === `↓ ${settings - 34} more`, inner(frame.rows[40]!))
     check('row 41: blank', inner(frame.rows[41]!) === '')
     check('row 42, the last body row: the hint row verbatim', inner(frame.rows[42]!) === CONFIG_POPUP_HINT, inner(frame.rows[42]!))
-    check('the label column is 44 cells: the value starts at cell 44 of the row', frame.rows[6]!.slice(2 + 44).startsWith('on'), JSON.stringify(frame.rows[6]!.slice(2, 2 + 50)))
+    check('the label column is 36 cells (the mark and a 34-cell label): the value starts at cell 36 of the row, as the page draws it', frame.rows[6]!.slice(2 + 36).startsWith('on') && frame.rows[6]!.slice(2 + 35, 2 + 36) === ' ', JSON.stringify(frame.rows[6]!.slice(2, 2 + 50)))
+    const longest = frame.rows.slice(6, 40).map(row => inner(row)).find(row => row.startsWith('  Respect .gitignore in file picker'))
+    check('the longest label still fits before the value column with one cell to spare', longest !== undefined && longest.slice(36).startsWith('on') && longest.slice(35, 36) === ' ', longest)
     const band = Array.from({ length: 108 }, (_, i) => m.styleAt(frame.left + 1 + i, frame.top + 6)?.bg ?? 'none')
     const outside = [m.styleAt(frame.left, frame.top + 6)?.bg ?? 'none', m.styleAt(frame.left + 109, frame.top + 6)?.bg ?? 'none']
     const unselected = m.styleAt(frame.left + 1, frame.top + 7)?.bg ?? 'none'

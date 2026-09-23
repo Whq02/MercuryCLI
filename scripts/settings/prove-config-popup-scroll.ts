@@ -95,7 +95,7 @@ section('§2 the rendered popup at 178×51, driven through the ink pipeline: eve
   check('the popup painted with the hint row', up)
   await settle(120)
   const innerOf = (line: string): string => Array.from(line).slice(LEFT + 2, LEFT + 108).join('')
-  const labelOf = (row: string): string => row.slice(2, 44).trim()
+  const labelOf = (row: string): string => row.slice(2, 36).trim()
   const readFrame = () => {
     const lines = m.lines()
     const listRows = Array.from({ length: LIST_ROWS }, (_, i) => innerOf(lines[LIST_FIRST + i] ?? ''))
@@ -133,7 +133,7 @@ section('§2 the rendered popup at 178×51, driven through the ink pipeline: eve
   let selectedInside = true
   const detail: string[] = []
   frames.forEach((frame, k) => {
-    const shown = frame.listRows.map(row => (known.has(labelOf(row)) && row.slice(44).trim() !== '' ? labels.indexOf(labelOf(row)) : -1))
+    const shown = frame.listRows.map(row => (known.has(labelOf(row)) && row.slice(36).trim() !== '' ? labels.indexOf(labelOf(row)) : -1))
     const indices = shown.filter(i => i >= 0)
     const warnings = frame.listRows.filter((row, i) => row.trim() !== '' && shown[i] === -1).length
     const off = indices[0] ?? -1
