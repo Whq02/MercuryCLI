@@ -1,75 +1,18 @@
-#!/usr/bin/env bun
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'freshwarn-home-')))
-process.env.NODE_ENV = 'test'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
+import { fixtureReads, buildFacts, model } from '../cockpit-interaction/status-popup-fixture.js'
+const { contextGauge, CONTEXT_FRESH_SESSION_REASON } = await import('../../src/utils/cockpit/contextGauge.js')
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+function check(name: string, ok: boolean): void {
+  if (!ok) failures++
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`)
 }
-const ROOT = join(import.meta.dir, '..', '..')
-
-const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
-enableConfigs()
-const gauge = (await import('../../src/utils/cockpit/contextGauge.ts')) as unknown as {
-  contextGauge: (messages: unknown[], model: string) => { state: string; reason?: string }
-  CONTEXT_FRESH_SESSION_REASON?: string
-}
-
-console.log('§1 the documented state is an exported fact')
-{
-  check(
-    'CONTEXT_FRESH_SESSION_REASON is exported',
-    typeof gauge.CONTEXT_FRESH_SESSION_REASON === 'string',
-  )
-  const fresh = gauge.contextGauge([], 'claude-opus-5')
-  check(
-    'a fresh session reads unavailable with exactly that reason',
-    fresh.state === 'unavailable' && fresh.reason === gauge.CONTEXT_FRESH_SESSION_REASON,
-    `${fresh.state}: ${fresh.reason}`,
-  )
-}
-
-console.log('\n§2 a fresh session composes NO diagnostic banner')
-{
-  const status = (await import('../../src/commands/status/mercuryStatus.tsx')) as unknown as {
-    buildFacts?: (messages: unknown[], model: string) => {
-      facts: Array<{ k: string; v: string }>
-      diagnostic: string | undefined
-    }
-  }
-  check('the composer is exported (buildFacts)', typeof status.buildFacts === 'function')
-  const built = status.buildFacts?.([], 'claude-opus-5')
-  check(
-    'the diagnostic is undefined on the newborn session',
-    built !== undefined && built.diagnostic === undefined,
-    String(built?.diagnostic),
-  )
-  const ctx = built?.facts.find(f => f.k === 'Context')
-  check(
-    'the Context row still names the state neutrally',
-    ctx !== undefined && ctx.v.includes('fresh session'),
-    JSON.stringify(ctx),
-  )
-}
-
-console.log('\n§3 a degraded read still raises the banner (call-shaped)')
-{
-  const src = readFileSync(join(ROOT, 'src', 'commands', 'status', 'mercuryStatus.tsx'), 'utf-8')
-  check(
-    'the gate excludes exactly the documented reason',
-    src.includes("usage.state !== 'live' && usage.reason !== CONTEXT_FRESH_SESSION_REASON"),
-  )
-  check(
-    'the degraded banner text survives for real degradation',
-    src.includes('`Context usage ${usage.reason ?? ' + "'unavailable'}`"),
-  )
-}
-
-console.log(failures === 0 ? '\nprove-fresh-session-no-warn: all green' : `\nprove-fresh-session-no-warn: ${failures} FAILURE(S)`)
-process.exit(failures === 0 ? 0 : 1)
+const fresh = contextGauge([], model)
+check('the owner names a fresh context without a made-up percentage', fresh.state === 'unavailable' && fresh.reason === CONTEXT_FRESH_SESSION_REASON && fresh.data.usedPct === null)
+const built = buildFacts([], model, { ...fixtureReads, context: contextGauge })
+check('buildFacts stays exported and a fresh context raises no diagnostic', built.diagnostic === undefined)
+const row = built.facts.find(f => f.k === 'model')
+check('the page model row keeps the fresh-context note neutrally', row?.v.includes(CONTEXT_FRESH_SESSION_REASON) === true && row.tone === undefined)
+const degraded = buildFacts([], model, { ...fixtureReads, context: () => { throw new Error('read failed') } })
+check('a failed context read is still reported, never hidden as fresh', degraded.diagnostic === 'Context usage unavailable' && degraded.facts.find(f => f.k === 'model')?.v.includes('context unavailable') === true)
+check('a failed read keeps the same row positions', degraded.facts.map(f => f.k).join('|') === built.facts.map(f => f.k).join('|'))
+console.log(`fresh context: ${failures} failures`)
+process.exit(failures ? 1 : 0)
