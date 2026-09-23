@@ -190,6 +190,15 @@ export function restoreCurrent(roots: LayoutRoots, version: string): void {
 
 export type LockResult = { state: 'acquired' } | { state: 'held'; byPid: number | null }
 
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
 export function acquireUpdateLock(roots: LayoutRoots): LockResult {
   const lockDir = join(roots.versionsDir, '.update.lock')
   mkdirSync(roots.versionsDir, { recursive: true })
@@ -200,17 +209,7 @@ export function acquireUpdateLock(roots: LayoutRoots): LockResult {
       return { state: 'acquired' }
     } catch {
       const pid = Number(readPointerFile(join(lockDir, 'pid')))
-      const alive =
-        Number.isFinite(pid) &&
-        pid > 0 &&
-        (() => {
-          try {
-            process.kill(pid, 0)
-            return true
-          } catch {
-            return false
-          }
-        })()
+      const alive = Number.isFinite(pid) && pid > 0 && pidAlive(pid)
       if (alive) return { state: 'held', byPid: pid }
       rmSync(lockDir, { recursive: true, force: true })
     }
@@ -239,20 +238,12 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
   } catch {
     return report
   }
-  const alive = (pid: number): boolean => {
-    try {
-      process.kill(pid, 0)
-      return true
-    } catch {
-      return false
-    }
-  }
   for (const entry of entries) {
     const m = /^\.(?:download-(\d+)|staging-.+-(\d+)|replaced-(.+)-(\d+))$/.exec(entry)
     const tmp = /^(?:current|previous)\.txt\.tmp\.(\d+)$/.exec(entry)
     if (!m && !tmp) continue
     const pid = Number(m ? (m[1] ?? m[2] ?? m[4]) : tmp![1])
-    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid || alive(pid)) continue
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid || pidAlive(pid)) continue
     const full = join(roots.versionsDir, entry)
     if (m?.[3] !== undefined) {
       const versionDir = join(roots.versionsDir, m[3])
