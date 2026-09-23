@@ -6,6 +6,7 @@ import * as lockfile from '../utils/lockfile.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { writeEvolutionRow } from '../utils/evolution/evolutionLedger.js'
 import { parseFrontmatter } from '../utils/frontmatterParser.js'
+import { stripBOM } from '../utils/jsonRead.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { memoryAge, memoryAgeDays } from './memoryAge.js'
 import { durableAtomicPublish } from '../substrate/durablePublish.js'
@@ -754,6 +755,7 @@ async function writeExperienceCardInner(
 export type PromoteDecision = { ok: true } | { ok: false; reason: string }
 
 export function normalizedLesson(markdown: string): string {
+  markdown = stripBOM(markdown).replaceAll('\r\n', '\n')
   let body = markdown
   const fm = markdown.match(/^---\n[\s\S]*?\n---/)
   if (fm) body = markdown.slice(fm[0].length)
