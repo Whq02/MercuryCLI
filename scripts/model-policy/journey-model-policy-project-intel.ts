@@ -5,6 +5,9 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const fixture = resolve(process.argv[2] ?? '')
 if (!fixture || !existsSync(fixture)) {
@@ -156,7 +159,7 @@ const [t1, t2, t3, t4, t5] = turns
 check('T1 fresh default resolves the frontier policy (Fable 5 [1m] init)', !!t1?.initModel?.includes('claude-fable-5'), t1?.initModel)
 check('T1 served by claude-fable-5 (API truth)', t1?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t1?.assistantModels.join(','))
 check('T2 still fable, same session', t2?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t2?.assistantModels.join(','))
-check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m.includes('claude-opus-5')) === true, t3?.assistantModels.join(','))
+check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m === DEFAULT_OPUS) === true, t3?.assistantModels.join(','))
 check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t4?.assistantModels.join(','))
 check('T5 stays on the default', t5?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t5?.assistantModels.join(','))
 check('every turn completed', turns.every(t => t.resultSubtype === 'success'), turns.map(t => t.resultSubtype).join(','))
@@ -169,9 +172,9 @@ console.log('\n=== §8 resume retention ===')
 const resumed = runOnce(['--resume', sid], 'One line: still here?')
 check('resume (no --model) retains the conversation model (fable)', resumed.models.every(m => m.includes('claude-fable-5')) && resumed.models.length > 0, resumed.models.join(','))
 const opusT1 = runOnce(['--session-id', sid2, '--model', 'opus'], 'One line: say ok.')
-check('opus micro-session ran on opus', opusT1.models.every(m => m.includes('claude-opus-5')) && opusT1.models.length > 0, opusT1.models.join(','))
+check('opus micro-session ran on opus', opusT1.models.every(m => m === DEFAULT_OPUS) && opusT1.models.length > 0, opusT1.models.join(','))
 const opusResumed = runOnce(['--resume', sid2], 'One line: say ok again.')
-check('resume retains the OPUS transcript model (§8)', opusResumed.models.every(m => m.includes('claude-opus-5')) && opusResumed.models.length > 0, opusResumed.models.join(','))
+check('resume retains the OPUS transcript model (§8)', opusResumed.models.every(m => m === DEFAULT_OPUS) && opusResumed.models.length > 0, opusResumed.models.join(','))
 
 const receipts = { sid, sid2, turns, perTurnAttached, resumed, opusT1, opusResumed }
 const out = join(fixture, '..', 'crown-journey-receipts.json')

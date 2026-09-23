@@ -5,6 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker, waitUntil } from '../engine-durability/harness.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'agent-face-prove-'))
 
@@ -534,11 +537,11 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     try {
       const pinned = getAgentModelPickerRows([
         { value: 'fastcheap-gw-v1', label: 'Ops haiku', description: 'gateway spelling of the haiku slot' },
-        { value: 'claude-opus-5', label: 'Opus 5', description: 'large' },
+        { value: DEFAULT_OPUS, label: 'Opus 5', description: 'large' },
       ])
       t.check(
         'a row valued as the haiku-slot PIN is offered like any other row',
-        JSON.stringify(pinned.slice(1).map(r => r.value)) === JSON.stringify(['fastcheap-gw-v1', 'claude-opus-5']),
+        JSON.stringify(pinned.slice(1).map(r => r.value)) === JSON.stringify(['fastcheap-gw-v1', DEFAULT_OPUS]),
         pinned.map(r => r.value).join(' · '),
       )
     } finally {
@@ -554,7 +557,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   {
     const { getAgentModel } = await import('../../src/utils/model/agent.js')
     const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.js')
-    const PARENT = 'claude-opus-5'
+    const PARENT = DEFAULT_OPUS
     t.check(
       'every offered model row dispatches deterministically',
       rows.filter(r => r.kind === 'model').every(r => getAgentModel(r.value, PARENT).length > 0),

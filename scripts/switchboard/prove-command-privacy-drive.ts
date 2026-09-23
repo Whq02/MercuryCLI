@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'cmd-privacy-drive-'))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -106,7 +109,7 @@ const run = await runArtifactArena({
       prompt: 'count slowly with sleeps',
       workspaceDir: _cwd,
       title: 'Alpha count',
-      modelKey: 'claude-opus-5',
+      modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never)) as { ok?: boolean; sessionId?: string }
     check('alpha dispatched', a.ok === true, JSON.stringify(a))
@@ -229,7 +232,7 @@ console.log('leg 2 — /halt mid-turn interrupts the running turn (never queues 
         prompt: 'count slowly with sleeps',
         workspaceDir: _cwd,
         title: 'Halt target',
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check('halt target dispatched', h.ok === true, JSON.stringify(h))

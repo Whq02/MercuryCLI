@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, sta
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
@@ -72,7 +75,7 @@ const hoppedLeg = async (
         prompt: 'think for a long while',
         workspaceDir: _cwd,
         title: 'Alpha think',
-        model: 'claude-opus-5',
+        model: DEFAULT_OPUS,
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
