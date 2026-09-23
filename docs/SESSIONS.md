@@ -719,8 +719,9 @@ usage window are held by the watch and delivered together, as one notice,
 on the first turn after the window reopens; ticks that arrive within a
 fifth of a second of each other fold into one notice. A monitor armed
 without `persistent` ends at its deadline with one notice that says how to
-arm it again. A headless run whose input closes ends every monitor with the
-seat, persistent or not: a watch never outlives the session that armed it.
+arm it again. A headless run whose input closes ends every monitor and every
+background shell with the seat, persistent or not: neither outlives the
+session that started it.
 
 Every other notice bound for the session's own thread waits the same way
 while the window is closed — a sub-agent's or a shell's completion — and
