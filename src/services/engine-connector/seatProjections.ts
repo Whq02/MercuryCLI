@@ -83,6 +83,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
   runnerGeneration?: number
+  queueReady?: boolean
   box?: BoxReadingV1
 }
 
