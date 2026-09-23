@@ -1,7 +1,6 @@
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Box, Text } from '../../ink.js'
-import { useTerminalSize } from '../../hooks/useTerminalSize.js'
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Box, Text, measureElement, useInput, type DOMElement } from '../../ink.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
   type RateLimit,
@@ -49,6 +48,13 @@ const WARN_PCT = 70
 const ERROR_PCT = 90
 const FULL_BAR_MIN_WIDTH = 62
 const FULL_BAR_WIDTH = 50
+
+const UsageLayoutContext = createContext<(() => void) | undefined>(undefined)
+
+function useUsageLayout(): void {
+  const measure = useContext(UsageLayoutContext)
+  useLayoutEffect(() => { measure?.() })
+}
 
 export function humanizeUsageError(body: unknown): string | null {
   let parsed: unknown = body
@@ -115,10 +121,9 @@ function Meter({
   maxWidth?: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const { columns } = useTerminalSize()
   const pct = pctOf(limit)
   if (pct === null) return null
-  const available = Math.min(maxWidth ?? columns - 2, 80)
+  const available = Math.max(1, Math.min(maxWidth ?? 80, 80))
   const barWidth = available >= FULL_BAR_MIN_WIDTH ? FULL_BAR_WIDTH : available
   const fill = fillFor(pct, tokens)
   const reset = resetLineOf(limit.resets_at, hideResetTime)
@@ -188,6 +193,7 @@ function ApiKeySlot({
 }
 
 function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourceUsage {
+  useUsageLayout()
   const [, setSample] = useState(0)
   useEffect(() => {
     if (!credentialed) return
@@ -336,6 +342,7 @@ export function usageSectionPlan(families: ProviderFamilyPresence[]): UsageSecti
 
 function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   useCatalogueEpoch()
+  useUsageLayout()
   useEffect(() => {
     void readCatalogueIfPending('openai')
   }, [])
@@ -484,6 +491,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
 
 function HuggingfaceUsageSection(): React.ReactNode {
   useCatalogueEpoch()
+  useUsageLayout()
   useEffect(() => {
     void readCatalogueIfPending('huggingface')
   }, [])
@@ -671,6 +679,7 @@ function markOpenAsked(token: number): boolean {
 }
 
 function AnthropicUsageSection({ width, openToken }: { width?: number; openToken?: number }): React.ReactNode {
+  useUsageLayout()
   const tokens = useMercuryTokens()
   const subscriber = isClaudeAISubscriber()
   const [state, setState] = useState<{
@@ -795,52 +804,108 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
   )
 }
 
-export function Usage({ openToken }: { openToken?: number }): React.ReactNode {
-  const { columns } = useTerminalSize()
-  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
-  const wide = columns >= 120 && plan.length > 1
-  if (!wide) {
-    return (
-      <Box flexDirection="column" gap={1}>
-        {plan.map(section =>
-          section.kind === 'anthropic' ? (
-            <AnthropicUsageSection key={section.id} openToken={openToken} />
-          ) : (
-            <EngineUsageSection key={section.id} section={section} />
-          ),
-        )}
-      </Box>
-    )
+export function usageColumns(width: number, count: number): { perRow: number; colW: number; meterW: number; gap: number } {
+  const inner = Math.max(1, Math.floor(width))
+  const perRow = inner >= 120 ? Math.max(1, Math.min(3, count)) : 1
+  const gap = 4
+  const colW = Math.max(1, Math.floor((inner - gap * (perRow - 1)) / perRow))
+  return { perRow, colW, meterW: Math.max(1, colW - (perRow > 1 ? 4 : 2)), gap }
+}
+
+export function usageWindow(bands: ReadonlyArray<{ height: number; count: number }>, capacity: number, position: number): {
+  offset: number; height: number; endBand: number; previous: number; next: number
+} {
+  const rows = Math.max(0, Math.floor(capacity))
+  const starts: number[] = []
+  let end = 0
+  for (const band of bands) {
+    starts.push(end)
+    end += Math.max(1, band.height) + 1
   }
-  const gap = 2
-  const usable = columns - 6
-  const minColW = 30
-  const perRow = Math.max(1, Math.min(plan.length, Math.floor((usable + gap) / (minColW + gap))))
-  const colW = Math.max(minColW, Math.floor((usable - gap * (perRow - 1)) / perRow))
-  const meterW = colW - 2
+  const viewAt = (offset: number) => {
+    let height = 0
+    let count = 0
+    let endBand = 0
+    for (let index = 0; index < bands.length; index++) {
+      const band = bands[index]!
+      const bottom = starts[index]! + Math.max(1, band.height)
+      if (bottom <= offset) { endBand = index + 1; continue }
+      if (count + band.count > 6 || rows === 0) break
+      const needed = bottom - offset
+      if (count > 0 && needed > rows) break
+      height = Math.min(rows, needed)
+      count += band.count
+      endBand = index + 1
+      if (needed >= rows) break
+    }
+    return { offset, height, endBand }
+  }
+  let current = viewAt(0)
+  let previous = 0
+  let next = 0
+  const target = Math.max(0, Math.floor(position))
+  outer: for (let index = 0; index < bands.length && rows > 0; index++) {
+    const start = starts[index]!
+    const last = start + Math.max(0, bands[index]!.height - rows)
+    for (let offset = start; offset <= last; offset++) {
+      if (offset > target) { next = offset; break outer }
+      previous = current.offset
+      current = viewAt(offset)
+      next = offset
+      if (offset + current.height >= end - 1) break outer
+    }
+  }
+  return { ...current, previous, next }
+}
+
+export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: number; width?: number; rowBudget?: number }): React.ReactNode {
+  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
+  const { perRow, colW, meterW, gap } = usageColumns(width, plan.length)
   const bands: UsageSection[][] = []
   for (let start = 0; start < plan.length; start += perRow) bands.push(plan.slice(start, start + perRow))
+  const contentRef = useRef<DOMElement>(null)
+  const [heights, setHeights] = useState<number[]>([])
+  const [position, setPosition] = useState(0)
+  const measure = useCallback(() => {
+    const next = contentRef.current?.childNodes.map(node => node.nodeName === '#text' ? 0 : Math.ceil(measureElement(node).height)) ?? []
+    setHeights(previous => previous.length === next.length && previous.every((height, index) => height === next[index]) ? previous : next)
+  }, [])
+  useLayoutEffect(measure)
+  const budget = Math.max(0, Math.floor(rowBudget))
+  const footerRows = budget > 1 ? 1 : 0
+  const capacity = budget - footerRows
+  const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
+  useInput((_input, key, event) => {
+    if (!key.upArrow && !key.downArrow) return
+    event.stopImmediatePropagation()
+    setPosition(key.upArrow ? view.previous : view.next)
+  })
+  const below = bands.slice(view.endBand).flat()
+  const more = below.length ? `↓ ${below.length} more · ${below.map(section => section.title.replace(/ usage$/, '')).join(' · ')}` : ''
   return (
-    <Box flexDirection="column">
-      {bands.map((band, bandIndex) => (
-        <Box key={band.map(section => section.id).join('|')} flexDirection="row" marginTop={bandIndex > 0 ? 1 : 0}>
-          {band.map((section, index) => (
-            <Box
-              key={section.id}
-              flexDirection="column"
-              width={colW}
-              flexShrink={0}
-              marginRight={index < band.length - 1 ? gap : 0}
-            >
-              {section.kind === 'anthropic' ? (
-                <AnthropicUsageSection width={meterW} openToken={openToken} />
-              ) : (
-                <EngineUsageSection section={section} width={meterW} />
-              )}
+    <UsageLayoutContext.Provider value={measure}>
+      <Box flexDirection="column" width={Math.max(1, Math.floor(width))} height={budget} flexShrink={0} overflow="hidden">
+        <Box flexDirection="column" height={capacity} flexShrink={0} overflow="hidden">
+          <Box flexDirection="column" height={view.height} flexShrink={0} overflow="hidden">
+            <Box ref={contentRef} flexDirection="column" flexShrink={0} marginTop={-view.offset}>
+              {bands.map((band, bandIndex) => (
+                <Box key={band.map(section => section.id).join('|')} flexDirection="row" flexShrink={0} marginTop={bandIndex > 0 ? 1 : 0}>
+                  {band.map((section, index) => (
+                    <Box key={section.id} flexDirection="column" width={colW} flexShrink={0} marginRight={index < band.length - 1 ? gap : 0}>
+                      {section.kind === 'anthropic' ? (
+                        <AnthropicUsageSection width={meterW} openToken={openToken} />
+                      ) : (
+                        <EngineUsageSection section={section} width={meterW} />
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              ))}
             </Box>
-          ))}
+          </Box>
         </Box>
-      ))}
-    </Box>
+        {footerRows > 0 ? <Box height={1} flexShrink={0}><Text dimColor wrap="truncate-end">{more}</Text></Box> : null}
+      </Box>
+    </UsageLayoutContext.Provider>
   )
 }
