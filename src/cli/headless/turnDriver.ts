@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { StdoutMessage } from '../../entrypoints/sdk/controlTypes.js'
@@ -94,6 +95,7 @@ export type TurnDriver = {
 }
 
 export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
+  const seatContext = AsyncLocalStorage.snapshot()
   let phase: DriverPhase = 'idle'
   let heldBackResult: StdoutMessage | null = null
   let outputClosed = false
@@ -395,7 +397,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     if (phase !== 'idle') {
       return
     }
-    void cycle()
+    seatContext(() => {
+      void cycle()
+    })
   }
 
   return {
