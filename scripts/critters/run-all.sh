@@ -72,5 +72,10 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-square-berths.ts;
 fi
 prover_mark scripts/critters/prove-square-berths.ts "$__t" "$__rc"
 
+__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-small-critter-estate.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
+  fail=1
+fi
+prover_mark scripts/critters/prove-small-critter-estate.ts "$__t" "$__rc"
+
 [ "$fail" -eq 0 ] && echo "✅ critters — hero-art integrity + persistent-hero + gaze + accent-epoch + sleep/flow contracts hold"
 exit "$fail"
