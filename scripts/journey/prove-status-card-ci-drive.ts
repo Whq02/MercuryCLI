@@ -23,7 +23,8 @@ const EMAIL = 'first@fixture.example'
 const ORGANISATION = 'First Org'
 const DEAD = 'http://127.0.0.1:9'
 const FULL_LAYOUT = COLS >= 100 && ROWS >= 26
-const CARD_TITLE = 'Mercury — status'
+const CARD_TITLE = 'Mercury · status'
+const PLAN_LABEL = 'Claude subscription (max)'
 const REFUSAL = 'No credential found'
 const KEY_VARIABLES = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']
 
@@ -304,7 +305,7 @@ console.log('============================================================')
 
 const r = await run()
 const end = r.payload === null ? '' : gridText(r.payload.grid)
-const statusRow = end.split('\n').find(l => /\bAnthropic\b/.test(l) && !l.includes('ANTHROPIC_'))
+const statusRow = end.split('\n').find(l => /\bAnthropic {2,}\S/.test(l) && !l.includes('ANTHROPIC_'))
 record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} · ${r.daemon}`)
 record('the child environment', `CI=true · key variables present: ${r.childKeys.length === 0 ? 'none' : r.childKeys.join(',')}`)
 record('the Anthropic row', JSON.stringify(statusRow?.trim() ?? null))
@@ -316,8 +317,8 @@ if (statusRow === undefined) {
   record('/status', `the Anthropic row is not on this frame at ${COLS}x${ROWS}`)
   check('the card paints with its rows folded and no refusal on it', end.includes(CARD_TITLE) && !end.includes(REFUSAL), tail(end, 16))
 } else {
-  check('the Anthropic row paints the stored account', statusRow.includes(EMAIL), statusRow.trim())
-  check('the row carries the organisation the stored account names, read through the account reader', statusRow.includes(ORGANISATION), statusRow.trim())
+  check("the Anthropic row paints the stored subscription's plan label, read through the presence owner", statusRow.includes(PLAN_LABEL), statusRow.trim())
+  check('the row invents no percent while nothing was read (every provider base dead)', !/\d+%/.test(statusRow) && /session not read · week not read/.test(statusRow), statusRow.trim())
 }
 if (failures > 0 || KEEP) console.log(`[forensics] world kept: ${r.home}`)
 else rmSync(r.home, { recursive: true, force: true })
