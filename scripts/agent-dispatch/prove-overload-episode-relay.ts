@@ -102,5 +102,56 @@ section('§6 a typed overload budget cut takes the probe road without reading it
   check('529 in words alone does not turn another failure into an overload', classify !== undefined && classify({ ...cut, lastStatus: 429, message: 'API Error: 529' }, 'claude-fable-5-1') === null && classify(new Error('API Error: 529'), 'claude-fable-5-1') === null)
 }
 
+section('§7 a paused agent survives eviction until its probe can resume it')
+{
+  const framework = await import('../../src/utils/task/framework.ts')
+  const utils = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+  const { resetCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
+  const store = { state: { tasks: {} as Record<string, Record<string, unknown>>, speculation: { status: 'idle' }, agentNameRegistry: new Map() } }
+  const set = (update: (state: typeof store.state) => typeof store.state) => { store.state = update(store.state) }
+  const sweep = async () => {
+    const batch = await framework.generateTaskAttachments(store.state as never)
+    framework.applyTaskOffsetsAndEvictions(set as never, batch.updatedTaskOffsets, batch.evictedTaskIds)
+  }
+  const paused = { why: 'provider overloaded', words: 'fixture paused' } as const
+  const id = 'paused-sweep-background'
+  const registered = lane.registerAsyncAgent({ agentId: id, description: 'paused fixture', prompt: 'work', setAppState: set as never })
+  lane.failAgentTask(id, OVERLOADED_ROW, set as never, registered.abortController)
+  lane.enqueueAgentNotification({ taskId: id, description: 'paused fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: registered.abortController })
+  process.env.MERCURY_OVERLOAD_PROBE_SCALE = '0.001'
+  let probes = 0
+  let resumed = 0
+  let signalResume!: () => void
+  const resumeReady = new Promise<void>(resolve => { signalResume = resolve })
+  utils.armOverloadProbe({ taskId: id, description: 'paused fixture', registration: registered.abortController, rootSetAppState: set as never, toolUseContext: { options: { tools: [] } } as never, model: 'claude-fable-5-1', pause: paused, afterDeath: true, probe: async () => ++probes >= 2, resume: async () => { resumed++; signalResume() } })
+  store.state.tasks[id]!.evictAfter = Date.now() - 1
+  await sweep()
+  check('the attachment sweep keeps the notified paused row past its old deadline', store.state.tasks[id]?.paused !== undefined)
+  framework.evictTerminalTask(id, set as never)
+  check('eager eviction also keeps the paused row', store.state.tasks[id]?.paused !== undefined)
+  let wait!: ReturnType<typeof setTimeout>
+  await Promise.race([resumeReady, new Promise<void>(resolve => { wait = setTimeout(resolve, 2000) })])
+  clearTimeout(wait)
+  check('the kept row reaches a second probe and resumes exactly once', probes === 2 && resumed === 1, JSON.stringify({ probes, resumed }))
+  lane.unpauseAgentTask(id, set as never, registered.abortController)
+  framework.evictTerminalTask(id, set as never)
+  check('unpausing restores ordinary deadline eviction', store.state.tasks[id] === undefined)
+  utils.closeOverloadEpisode(id)
+  delete process.env.MERCURY_OVERLOAD_PROBE_SCALE
+
+  const foregroundId = 'paused-sweep-foreground'
+  const foreground = lane.registerAgentForeground({ agentId: foregroundId, description: 'handover fixture', prompt: 'work', setAppState: set as never })
+  lane.failAgentTask(foregroundId, OVERLOADED_ROW, set as never, foreground.abortController)
+  lane.enqueueAgentNotification({ taskId: foregroundId, description: 'handover fixture', status: 'failed', statusWord: 'paused', summary: 'fixture paused', setAppState: set as never, controller: foreground.abortController })
+  lane.pauseAgentTask(foregroundId, paused, set as never, foreground.abortController)
+  check('the handover fixture has no retain field', !('retain' in store.state.tasks[foregroundId]!))
+  await sweep()
+  check('a paused row with no retain field survives the sweep', store.state.tasks[foregroundId]?.paused !== undefined)
+  lane.unpauseAgentTask(foregroundId, set as never, foreground.abortController)
+  await sweep()
+  check('the same unpaused retain-less row is evicted', store.state.tasks[foregroundId] === undefined)
+  resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\n✅ overload-episode-relay GREEN' : `\n❌ overload-episode-relay RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)
