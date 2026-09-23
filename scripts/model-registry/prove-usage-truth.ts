@@ -282,13 +282,14 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
     'settings: the honest OpenAI absence line exists (no fabricated meter)',
     usageTab.includes('no usage signal observed from the account source yet'),
   )
+  const { usageColumns } = await import('../../src/components/Settings/Usage.js')
   check(
-    'settings: wide terminals branch to left-to-right columns at 120',
-    usageTab.includes('columns >= 120') && usageTab.includes('flexDirection="row"'),
+    'settings: the popup width chooses three columns or the stacked layout',
+    usageColumns(146, 10).perRow === 3 && usageColumns(116, 10).perRow === 1 && usageTab.includes('flexDirection="row"'),
   )
   check(
-    'settings: meters cap to their column (columns never clip)',
-    usageTab.includes('maxWidth ?? columns - 2'),
+    'settings: meters cap to their popup column without reading the terminal',
+    usageColumns(146, 10).meterW === 42 && usageColumns(146, 10).colW === 46 && !usageTab.includes('useTerminalSize'),
   )
 
   const rail = src('src/components/HelmTelemetryRail.tsx')
