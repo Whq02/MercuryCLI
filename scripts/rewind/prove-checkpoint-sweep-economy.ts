@@ -123,7 +123,7 @@ section('§4 a mode-only change — detected (mode is part of the facts)')
 {
   const f = files[1]!
   const k = names[1]!
-  chmodSync(f, 0o600)
+  chmodSync(f, process.platform === 'win32' ? 0o444 : 0o600)
   const t = await turn()
   const rec = latest()[k]!
   check('a chmod with unchanged bytes and mtime still takes a new version (the old road compared modes too)', rec.version === 2, JSON.stringify(rec))

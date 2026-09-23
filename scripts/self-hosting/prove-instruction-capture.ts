@@ -6,15 +6,16 @@ import { tmpdir } from 'node:os'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cap-home-'))
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
+process.chdir(mkdtempSync(join(tmpdir(), 'cap-cwd-')))
 
 const repo = join(import.meta.dir, '..', '..')
-const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
+const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.js'))
 enableConfigs()
-const writer = await import(`${repo}/src/services/instructions/projectInstructionWriter.js`)
-const { runWithCwdOverride } = await import(`${repo}/src/utils/cwd.js`)
-const { call: rememberCall } = await import(`${repo}/src/commands/remember/remember.js`)
+const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.js'))
+const { runWithCwdOverride } = await import(join(repo, 'src/utils/cwd.js'))
+const { call: rememberCall } = await import(join(repo, 'src/commands/remember/remember.js'))
 const { RecordConventionTool } = await import(
-  `${repo}/src/tools/RecordConventionTool/RecordConventionTool.js`
+  join(repo, 'src/tools/RecordConventionTool/RecordConventionTool.js')
 )
 
 let failures = 0
@@ -154,7 +155,7 @@ check(existsSync(join(virgin, 'MERCURY.md')), 'fixtures on disk where expected (
 
 console.log('BOM-led instruction files')
 {
-  const { parseInstructionFileContent } = await import(`${repo}/src/services/instructions/sourceText.js`)
+  const { parseInstructionFileContent } = await import(join(repo, 'src/services/instructions/sourceText.js'))
   const body = '---\ntitle: x\n---\nThe rule stands.\n'
   const clean = parseInstructionFileContent(body, join(virgin, 'MERCURY.md'), 'Project')
   const bommed = parseInstructionFileContent(String.fromCharCode(0xfeff) + body, join(virgin, 'MERCURY.md'), 'Project')
