@@ -64,7 +64,10 @@ const EXIT_TABLE: Record<string, Exit> = {
   Settings: {
     kind: 'binding',
     action: 'confirm:no',
-    hints: [{ file: 'src/components/Settings/Config.tsx', needles: ['action="confirm:no"', 'fallback="esc"'] }],
+    hints: [
+      { file: 'src/components/Settings/Config.tsx', needles: ["esc or click outside closes'"] },
+      { file: 'src/components/Settings/Settings.tsx', needles: ['cutToWidth(request.hint, inner + 1)'] },
+    ],
   },
   Confirmation: {
     kind: 'binding',
