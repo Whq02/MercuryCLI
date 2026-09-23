@@ -85,5 +85,50 @@ if (process.platform !== 'win32') {
   }
 }
 
+if (typeof watchDirectory === 'function') {
+  const base = mkdtempSync(join(tmpdir(), 'watch-root-error-'))
+  const project = join(base, 'proj')
+  const skills = join(project, '.mercury', 'skills')
+  mkdirSync(skills, { recursive: true })
+  let changes = 0
+  let gone = 0
+  let errors = 0
+  let changesAtGone = -1
+  const watcher = watchDirectory(
+    skills,
+    { recursive: true },
+    () => {
+      changes++
+    },
+    () => {
+      gone++
+      changesAtGone = changes
+    },
+  )
+  watcher.on('error', () => {
+    errors++
+  })
+  const eperm = (): Error => Object.assign(new Error('EPERM: operation not permitted, watch'), { code: 'EPERM', syscall: 'watch' })
+  await sleep(200)
+  rmSync(project, { recursive: true, force: true })
+  watcher.emit('error', eperm())
+  const goneAtError = gone
+  const errorsAtError = errors
+  await sleep(700)
+  watcher.emit('error', eperm())
+  if (process.platform === 'win32') {
+    check('an error on a deleted root reports the root gone at once', goneAtError === 1, `onGone ran ${goneAtError} time(s) at the error`)
+    check('a later error does not report the root gone again', gone === 1, `onGone ran ${gone} time(s)`)
+    check('no change callbacks arrive once the error reported the root gone', changesAtGone >= 0 && changes === changesAtGone, `changes ${changes}, at gone ${changesAtGone}`)
+  } else {
+    check('an error on a deleted root reaches the caller and never reports the root gone', errorsAtError === 1 && gone === 0, `errors ${errorsAtError}, onGone ran ${gone} time(s)`)
+  }
+  watcher.close()
+  try {
+    rmSync(base, { recursive: true, force: true, maxRetries: 3 })
+  } catch {
+  }
+}
+
 console.log(failures === 0 ? '\nALL WATCH-ROOT-GONE CHECKS PASS' : `\n${failures} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
