@@ -51,7 +51,7 @@ process.env.ANTHROPIC_API_KEY = KEY
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
 const STACK_VERB = 'Reading the whole fixture answer before replying'
 const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`
-const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun on the flat grey rock', 100: 'Basking in the warm noon sun' }
+const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun on the rocks', 100: 'Basking in the glow' }
 
 function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : undefined): { configHome: string; cwd: string } {
   const world = join(scratch, name)
