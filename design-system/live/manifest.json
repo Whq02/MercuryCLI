@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "585b7aeb2399bdffc6ed1eff1b94c64253490846",
-  "buildDigest": "d7f82789e26bc9f089d7fa1bc396674243133fb0",
-  "generatedAt": "2026-09-23T16:52:35.715Z",
+  "sourceSha": "c8f36acb5b3d9da66cd58817ea55d67caab358ad",
+  "buildDigest": "42c2d2440f75359dc36256ba8e60502e6ccb0bd9",
+  "generatedAt": "2026-09-23T19:35:51.398Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
