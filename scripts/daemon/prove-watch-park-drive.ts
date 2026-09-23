@@ -132,14 +132,14 @@ const waitWire = async (label: string, test: (w: Wire) => boolean, timeoutMs: nu
 }
 const tailAlive = (): string => {
   try {
-    return execSync(`pgrep -fl ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`).toString().trim()
+    return execSync(`pgrep -fl ${JSON.stringify(`[t]ail -n0 -F ${WATCHED}`)}`).toString().trim()
   } catch {
     return ''
   }
 }
 const reapTail = (): void => {
   try {
-    execSync(`pkill -f ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`)
+    execSync(`pkill -f ${JSON.stringify(`[t]ail -n0 -F ${WATCHED}`)}`)
   } catch {
   }
 }

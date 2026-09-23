@@ -680,7 +680,7 @@ console.log('§S1 the box lock + atomic publish')
   const t1 = Date.now()
   const pastStale = boxMod.setBoxSchedulePaused(contended.ok ? contended.id : '', true, DAEMON_DIR)
   const fast = Date.now() - t1
-  check('S1c a stale holder is broken at once (a crashed writer never wedges the tier)', pastStale === 'applied' && fast < 300, `took=${fast}ms`)
+  check('S1c a stale holder is broken at once (a crashed writer never wedges the tier)', pastStale === 'applied' && fast < waited, `took=${fast}ms against the bounded wait of ${waited}ms`)
   try {
     rmd(lockPath)
   } catch {

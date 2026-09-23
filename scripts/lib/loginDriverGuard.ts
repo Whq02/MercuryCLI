@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs'
+import { lstatSync, readlinkSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
@@ -20,6 +20,9 @@ function canonicalPath(path: string): string {
   try {
     return realpathSync(resolved)
   } catch {
+    try {
+      if (lstatSync(resolved).isSymbolicLink()) return canonicalPath(resolve(dirname(resolved), readlinkSync(resolved)))
+    } catch {}
     const parent = dirname(resolved)
     return parent === resolved ? resolved : join(canonicalPath(parent), basename(resolved))
   }
