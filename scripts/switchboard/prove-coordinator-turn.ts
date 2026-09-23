@@ -220,7 +220,7 @@ t.section('§3 — launch mints durable idempotent identities; the tag grant rid
 t.section('§3b — a CONTRACTED launch rides the manager road: born blank → contract set → the first turn (never admit-and-deliver)')
 {
   const launch = toolByName('launch_session')
-  type Op = { op?: string; action?: string; sessionId?: string; targetSessionId?: string; prompt?: string; bornBlank?: boolean; contract?: { op?: string; text?: string }; by?: string; workspaceDir?: string; clientMessageId?: string; model?: string; title?: string }
+  type Op = { op?: string; action?: string; sessionId?: string; targetSessionId?: string; prompt?: string; bornBlank?: boolean; contract?: { op?: string; text?: string }; by?: string; workspaceDir?: string; clientMessageId?: string; model?: string; title?: string; birthKey?: string }
   const { ctx, calls } = recordingCtx({
     replies: req =>
       req.op === 'sessionAdmit'
@@ -237,6 +237,11 @@ t.section('§3b — a CONTRACTED launch rides the manager road: born blank → c
     'door 1: the BIRTH door — sessionAdmit with bornBlank, the title/model riding, NO words (no prompt on the admit)',
     ops[0]?.op === 'sessionAdmit' && ops[0]?.bornBlank === true && ops[0]?.prompt === undefined && ops[0]?.workspaceDir === root && ops[0]?.title === 'parser' && ops[0]?.model === 'claude-sonnet-5',
     JSON.stringify(ops[0]),
+  )
+  t.check(
+    'door 1 names itself: the birth carries a valid birthKey (8–64 letters, digits, dashes) that IS the launch’s minted id, so a heal that re-sends the admit after a lost reply meets the daemon’s replay, never a second birth',
+    typeof ops[0]?.birthKey === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(ops[0].birthKey) && ops[0].birthKey === ops[2]?.clientMessageId && ops[0].birthKey === json.clientMessageId,
+    JSON.stringify({ birthKey: ops[0]?.birthKey, clientMessageId: ops[2]?.clientMessageId }),
   )
   t.check(
     'door 2: the landed contract verb on the born session, seat-stamped, op set with the agreement’s exact words',
