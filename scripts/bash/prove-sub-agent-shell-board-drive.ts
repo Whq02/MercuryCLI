@@ -61,7 +61,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
-    MERCURY_DECK_COMPANION: '0',
     OPENAI_API_KEY: '',
     BROWSER: '/usr/bin/true',
     SHELL: existsSync('/bin/bash') ? '/bin/bash' : (process.env.SHELL ?? '/bin/sh'),

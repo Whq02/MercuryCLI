@@ -35,7 +35,7 @@ async function capture(cols: number, rows: number): Promise<{ marks: Map<string,
     { atTick: 999, awaitText: FIELD_QUESTION, minTick: 2, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'field' },
   ]
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: ROOT, cols, rows, sends, resizes: [], total: 240, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })

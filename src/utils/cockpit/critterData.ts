@@ -676,8 +676,6 @@ export function critterAt(i: number): CritterDef {
   return CRITTERS[((i % CRITTERS.length) + CRITTERS.length) % CRITTERS.length]!
 }
 
-export type CritterState = 'thinking' | 'working' | 'blocked' | 'done' | 'sleeping' | 'idle'
-
 export const DEFAULT_CRITTER_KEY = 'jellyfish'
 
 const BY_KEY: Record<string, CritterDef> = Object.fromEntries(CRITTERS.map(d => [d.name, d]))

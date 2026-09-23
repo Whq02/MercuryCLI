@@ -23,7 +23,6 @@ import cost from './commands/cost/index.js'
 import crew from './commands/crew/index.js'
 import debrief from './commands/debrief/index.js'
 import halt from './commands/halt/index.js'
-import companion from './commands/companion/index.js'
 import critter from './commands/critter/index.js'
 import bootmenu from './commands/bootmenu/index.js'
 import concourse from './commands/concourse/index.js'
@@ -212,7 +211,6 @@ const COMMANDS = memoize((): Command[] => [
   crew,
   debrief,
   halt,
-  companion,
   critter,
   bootmenu,
   concourse,

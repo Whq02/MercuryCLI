@@ -37,16 +37,6 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-persistent-hero.t
 fi
 prover_mark scripts/critters/prove-persistent-hero.ts "$__t" "$__rc"
 
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-companion-voice.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-companion-voice.ts "$__t" "$__rc"
-
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-companion-fit.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-companion-fit.ts "$__t" "$__rc"
-
 __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-gaze.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
   fail=1
 fi

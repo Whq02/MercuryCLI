@@ -46,7 +46,7 @@ function capture(
   rows = 40,
   settled?: { stableTicks: number; region?: Region },
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('companion-cockpit', cols, rows)
+  const cfg = scenario('cockpit-short', cols, rows)
   cfg.sends = sends
   cfg.total = total
   if (readyText) {
@@ -73,7 +73,7 @@ function capture(
       MERCURY_CHANNEL_ROOM: `hover-${tag}-${process.pid}`,
     },
   })
-  cleanupScenario('companion-cockpit')
+  cleanupScenario('cockpit-short')
   if (res.status !== 0) {
     check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
     return null

@@ -6,7 +6,6 @@ import {
 } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { BUDDY_FRESH_MS } from './buddyState.js'
 import {
   companionTurnSignals,
   subscribeCompanionSignals,
@@ -16,7 +15,7 @@ import { critterFrameKey, swayPhaseAt, type SwayAnchor } from './critterIdle.js'
 import { daemonCrewLivenessSync } from './daemonRosterSnapshot.js'
 import { subscribeUiClock } from './uiClock.js'
 
-export const SLEEP_AFTER_MS = BUDDY_FRESH_MS
+export const SLEEP_AFTER_MS = 45_000
 
 export const SLEEP_CHECK_MS = 30_000
 

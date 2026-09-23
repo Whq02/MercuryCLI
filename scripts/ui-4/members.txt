@@ -5,7 +5,6 @@
 prove-agent-dispatch-engines-journey.ts
 prove-catalogue-expand.ts
 prove-catalogue-gating-tripwire.ts
-prove-companion-render.ts
 prove-ctrl-o-stable.ts
 prove-denied-glyph-split.ts
 prove-diff-spine.ts

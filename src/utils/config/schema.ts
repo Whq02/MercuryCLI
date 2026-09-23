@@ -226,7 +226,6 @@ export type GlobalConfig = {
     [tipId: string]: number
   }
 
-  companionEnabled?: boolean
   defaultProvider?: string
   concourseEnabled?: boolean
   defaultCritter?: string

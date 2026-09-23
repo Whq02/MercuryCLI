@@ -23,7 +23,7 @@ function capture(
   sends: Array<{ atTick: number; data: string }>,
   total: number,
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('companion-cockpit', COLS, ROWS)
+  const cfg = scenario('cockpit-short', COLS, ROWS)
   cfg.sends = sends
   cfg.total = total
   const gridPath = `/tmp/cockpit-ptr-${tag}-${process.pid}.json`
@@ -37,7 +37,7 @@ function capture(
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
   })
-  cleanupScenario('companion-cockpit')
+  cleanupScenario('cockpit-short')
   if (res.status !== 0) {
     check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
     return null

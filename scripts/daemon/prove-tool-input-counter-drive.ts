@@ -156,7 +156,6 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_CONNECTOR_TRACE: join(home, 'connector-trace.jsonl'),
     ANTHROPIC_API_KEY: key,

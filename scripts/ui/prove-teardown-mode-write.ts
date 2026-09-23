@@ -198,7 +198,6 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
         ...process.env,
         MERCURY_CONFIG_DIR: home,
         MERCURY_FULLSCREEN: '1',
-        MERCURY_DECK_COMPANION: '0',
         MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',

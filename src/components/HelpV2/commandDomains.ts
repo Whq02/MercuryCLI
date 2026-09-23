@@ -87,7 +87,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'cockpit', 'home', 'palette', 'critter', 'showcase',
       'color', 'accent', 'fullscreen',
-      'companion', 'appearance',
+      'appearance',
     ],
   },
   {

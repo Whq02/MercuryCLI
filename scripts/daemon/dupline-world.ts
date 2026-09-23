@@ -223,7 +223,6 @@ export function childEnv(runHome: string, port: number): NodeJS.ProcessEnv {
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CONNECTOR_TRACE: join(runHome, 'connector-trace.jsonl'),

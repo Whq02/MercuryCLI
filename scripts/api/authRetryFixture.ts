@@ -99,7 +99,7 @@ export async function authWorld(arm: Arm, retryAfter = '0.001') {
     MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_TURN_RECEIPT: '0', MERCURY_VERIFY_EVIDENCE: '0',
     MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0',
-    MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_DECK_COMPANION: '0',
+    MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
     MERCURY_TERMINAL_TITLE: '0', MERCURY_OPERATOR: 'fixture',
     BROWSER: '/usr/bin/true',
     NODE_OPTIONS: `--require ${JSON.stringify(join(REPO, 'scripts/api/authRetryNetworkFixture.cjs'))}`,
