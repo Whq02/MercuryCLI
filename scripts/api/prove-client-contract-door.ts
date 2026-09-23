@@ -28,6 +28,7 @@ function section(t: string): void {
 
 const {
   ANTHROPIC_CLIENT_CONTRACT_VERSION,
+  ANTHROPIC_CLIENT_CONTRACT_AS_OF,
   describeAnthropicClientContract,
   getAnthropicClientContractVersion,
 } = await import('../../src/constants/oauth.js')
@@ -43,6 +44,7 @@ const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 const { APIError } = await import('@anthropic-ai/sdk')
 
 const CONTRACT = ANTHROPIC_CLIENT_CONTRACT_VERSION
+const AS_OF = ANTHROPIC_CLIENT_CONTRACT_AS_OF
 const textOf = (m: { message: { content: unknown } }): string => {
   const c = m.message.content
   return typeof c === 'string' ? c : JSON.stringify(c)
@@ -50,6 +52,8 @@ const textOf = (m: { message: { content: unknown } }): string => {
 
 section('§1 THE DOOR — the attribution line spells the contract version first')
 check('the constant is a three-part version', /^\d+\.\d+\.\d+$/.test(CONTRACT), CONTRACT)
+check('the constant carries an ISO check date', /^\d{4}-\d{2}-\d{2}$/.test(AS_OF), String(AS_OF))
+check('the describer carries the built-in check date', describeAnthropicClientContract().asOf === AS_OF, JSON.stringify(describeAnthropicClientContract()))
 const line = getAttributionHeader('fp01')
 check('the attribution line is composed', line.startsWith('x-anthropic-billing-header: '), line)
 check('cc_version is the FIRST field (the gate-read position)', line.startsWith(`x-anthropic-billing-header: cc_version=${CONTRACT}.fp01;`), line)
@@ -90,7 +94,7 @@ for (const [label, ua] of agents) {
 const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\0').filter(Boolean)
 const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 {
-  const homes = tracked.filter(p => /ANTHROPIC_CLIENT_CONTRACT_VERSION|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
+  const homes = tracked.filter(p => /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
   const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/errors.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
   check('the contract version has exactly its five declared homes in src (a sixth is a leak)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
   const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
@@ -128,17 +132,17 @@ section('§2b THIRD-PARTY ROUTES — the line has two composers, both first-part
 section('§3 THE OVERRIDE — a three-part version wins live; other shapes are reported')
 process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.300'
 check('the override wins on the attribution line', getAttributionHeader('fp02').startsWith('x-anthropic-billing-header: cc_version=2.1.300.fp02;'), getAttributionHeader('fp02'))
-check('the describer names the override as the source', JSON.stringify(describeAnthropicClientContract()) === JSON.stringify({ presented: '2.1.300', source: 'override' }))
+check('the describer names the override as the source', JSON.stringify(describeAnthropicClientContract()) === JSON.stringify({ presented: '2.1.300', asOf: AS_OF, source: 'override' }))
 process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '  2.1.301 '
 check('surrounding whitespace is trimmed', getAnthropicClientContractVersion() === '2.1.301')
 process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = 'latest'
 {
   const d = describeAnthropicClientContract()
-  check('a non-version override is ignored and reported, never presented', d.presented === CONTRACT && d.source === 'constant' && d.ignoredOverride === 'latest', JSON.stringify(d))
+  check('a non-version override is ignored and reported, never presented', d.presented === CONTRACT && d.asOf === AS_OF && d.source === 'constant' && d.ignoredOverride === 'latest', JSON.stringify(d))
   check('…and the attribution line keeps the constant', getAttributionHeader('fp03').includes(`cc_version=${CONTRACT}.fp03;`))
 }
 process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = ''
-check('an empty override is unset', JSON.stringify(describeAnthropicClientContract()) === JSON.stringify({ presented: CONTRACT, source: 'constant' }))
+check('an empty override is unset', JSON.stringify(describeAnthropicClientContract()) === JSON.stringify({ presented: CONTRACT, asOf: AS_OF, source: 'constant' }))
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 check('unset ⇒ the constant, live (no memo)', getAnthropicClientContractVersion() === CONTRACT)
 {

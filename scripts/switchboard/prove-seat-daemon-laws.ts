@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'daemon-laws-')))
 const home = join(SCRATCH, 'home')
@@ -82,7 +85,7 @@ try {
       prompt: 'tidy the scratch folder',
       workspaceDir: work,
       title: 'Law probe',
-      modelKey: 'claude-opus-5',
+      modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never,
     { timeoutMs: WARM_BOOT_ALLOWANCE_MS },
@@ -110,7 +113,7 @@ try {
     projectLabel: basename(work),
     workspaceId: work,
     home: paths.getProjectDir(work),
-    modelKey: 'claude-opus-5',
+    modelKey: DEFAULT_OPUS,
   }
 
   const connector = await seat.focusDaemonSession(record)
@@ -155,7 +158,7 @@ try {
   check('D5 mcpRoster() answers rows (name + state)', Array.isArray(connector.mcpRoster().clients) && connector.mcpRoster().clients.every(c => typeof c.name === 'string' && typeof c.type === 'string'))
   check('D5 workspace() names the session\'s workspace', connector.workspace().projectRoot === work && connector.workspace().cwd.startsWith(work))
   check('D5 permissionMode() reads the session\'s mode', connector.permissionMode() === 'flow', connector.permissionMode())
-  check('D5 modelFacts() reads the session\'s model', connector.modelFacts().effective === 'claude-opus-5' && connector.modelFacts().pendingSwitch === null)
+  check('D5 modelFacts() reads the session\'s model', connector.modelFacts().effective === DEFAULT_OPUS && connector.modelFacts().pendingSwitch === null)
 
   const sent = await connector.sendWords('say something long please')
   check('D3 sendWords is accepted by an idle session', sent.state === 'accepted', JSON.stringify(sent))
@@ -181,12 +184,12 @@ try {
   check('D4 the same model no-ops', (await connector.setModel('claude-sonnet-5')).state === 'no-op')
   const parkedTurn = await connector.sendWords('stream a parked turn')
   check('D4 a busy turn opens', parkedTurn.state === 'accepted' && (await untilAsync(() => connector.turnActive(), 15_000)))
-  const queuedSwitch = await connector.setModel('claude-opus-5')
+  const queuedSwitch = await connector.setModel(DEFAULT_OPUS)
   check('D4 a mid-turn pick parks as queued (the daemon\'s word)', queuedSwitch.state === 'queued', JSON.stringify(queuedSwitch))
-  check('D4 the pending switch shows in the facts', await untilAsync(() => connector.modelFacts().pendingSwitch?.setting === 'claude-opus-5', 10_000))
-  check('D4 the record parks it', await untilAsync(() => recordOf()?.pendingModelKey === 'claude-opus-5', 10_000))
-  check('D4 the turn\'s end applies it', await untilAsync(() => recordOf()?.modelKey === 'claude-opus-5' && recordOf()?.pendingModelKey === undefined, 30_000), JSON.stringify(recordOf()))
-  check('D4 the facts follow the applied switch', await untilAsync(() => connector.modelFacts().effective === 'claude-opus-5' && connector.modelFacts().pendingSwitch === null, 15_000))
+  check('D4 the pending switch shows in the facts', await untilAsync(() => connector.modelFacts().pendingSwitch?.setting === DEFAULT_OPUS, 10_000))
+  check('D4 the record parks it', await untilAsync(() => recordOf()?.pendingModelKey === DEFAULT_OPUS, 10_000))
+  check('D4 the turn\'s end applies it', await untilAsync(() => recordOf()?.modelKey === DEFAULT_OPUS && recordOf()?.pendingModelKey === undefined, 30_000), JSON.stringify(recordOf()))
+  check('D4 the facts follow the applied switch', await untilAsync(() => connector.modelFacts().effective === DEFAULT_OPUS && connector.modelFacts().pendingSwitch === null, 15_000))
   check(
     'D4 the parked settle paints its transcript note (the daemon receipt drives it)',
     await untilAsync(
@@ -196,7 +199,7 @@ try {
           .some(
             m =>
               (m as { subtype?: string }).subtype === 'model_transition' &&
-              (m as { applied?: string | null }).applied === 'claude-opus-5' &&
+              (m as { applied?: string | null }).applied === DEFAULT_OPUS &&
               (m as { boundary?: string }).boundary === 'turn-boundary',
           ),
       15_000,
