@@ -11,6 +11,20 @@ import { nodeCache } from './node-cache.js'
 
 const registrants = new Set<DOMElement>()
 let target: RecessTransform | null = null
+let outsidePress = false
+
+export function escapeFromOutsidePress(): boolean {
+  return outsidePress
+}
+
+export function dismissByOutsidePress(pressEscape: () => void): void {
+  outsidePress = true
+  try {
+    pressEscape()
+  } finally {
+    outsidePress = false
+  }
+}
 
 export function registerElevatedSurface(el: DOMElement): () => void {
   const token = pushOverlay({ id: 'elevated-surface', modal: true, inputOwner: false })

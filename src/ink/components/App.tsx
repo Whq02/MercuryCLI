@@ -41,7 +41,7 @@ import {
 import { DECRPM_STATUS } from '../input/interpreter.js'
 import instances from '../instances.js'
 import reconciler from '../reconciler.js'
-import { elevatedSurfaceContains, hasElevatedSurface } from '../recessLayer.js'
+import { dismissByOutsidePress, elevatedSurfaceContains, hasElevatedSurface } from '../recessLayer.js'
 import { anyModalOverlayActive } from '../../context/overlayStack.js'
 import {
   extendedKeysReenable,
@@ -663,7 +663,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       }
       m.swallowRelease = true
       m.clickCount = 0
-      app.pressEscape()
+      dismissByOutsidePress(() => app.pressEscape())
       return
     }
     setHoverPointerDown(true)

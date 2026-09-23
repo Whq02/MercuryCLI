@@ -1,14 +1,13 @@
 import type { Command } from '../../commands.js'
-import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
 
 const config = {
   aliases: ['settings'],
-  type: 'local-jsx',
+  type: 'local',
   name: 'config',
   description: 'Open the config panel',
-  get immediate() {
-    return shouldNavCommandBeImmediate()
-  },
+  supportsNonInteractive: false,
+  seat: 'screen',
+  userPrivate: true,
   load: () => import('./config.js'),
 } satisfies Command
 
