@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { isTopOverlayNow, useRegisterOverlay } from '../../../context/overlayContext.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import wrapText from '../../../ink/wrap-text.js'
 import { FAINT, IVORY } from '../../mercuryPalette.js'
@@ -35,9 +34,7 @@ export function SettingsStatusView({
   const [offset, setOffset] = React.useState(0)
   const start = Math.min(offset, last)
   const below = Math.max(0, lines.length - start - capacity)
-  const overlay = useRegisterOverlay('status')
   useInput((_input, key, event) => {
-    if (overlay !== null && !isTopOverlayNow(overlay)) return
     if (key.escape) {
       event.stopImmediatePropagation()
       onClose()

@@ -23,7 +23,7 @@ const DEFAULT_SCENARIOS = [
   'help-commands',
   'keys-escape',
   'settings-config',
-  'settings-status-tab',
+  'settings-status',
   'boot-face',
   'boot-settings',
   'concourse',

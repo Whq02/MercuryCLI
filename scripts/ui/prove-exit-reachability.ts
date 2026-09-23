@@ -272,6 +272,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/concourse/CoordinatorPane.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/permissions/rules/RecentDenialsTab.tsx': 'a tab body inside the permissions dialog — the dialog owns esc',
+    'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
   }
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
@@ -285,6 +286,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
+    'src/components/mercury-ui/screens/SettingsStatusView.tsx': { reason: 'the status popup body; the settings shell prints the hint row its command composes', witness: 'src/commands/status/mercuryStatus.tsx' },
   }
 
   const routeMissing: string[] = []

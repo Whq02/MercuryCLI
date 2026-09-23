@@ -59,7 +59,7 @@ section('mechanism pins')
   check('outside a modal the body renders unbounded (byte-identical inline)', /\{insideModal \? \([\s\S]{0,200}\) : \(\s*children\s*\)\}/.test(shell))
 
   const usage = read('src/components/Settings/Usage.tsx')
-  check('the stacked usage layout owns its spacing (gap, no per-section margin)', usage.includes('<Box flexDirection="column" gap={1}>'))
+  check('the usage bands own their spacing (a row between bands, no per-section margin)', usage.includes('marginTop={bandIndex > 0 ? 1 : 0}'))
   check('no usage section root carries a top margin before its heading', !/marginTop=\{1\}>\s*\n\s*<Text bold>/.test(usage))
 
   const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
