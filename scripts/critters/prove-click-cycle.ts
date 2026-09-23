@@ -57,8 +57,8 @@ console.log('\n§2 every mount hands its pointer seam the one owner')
   const home = readFileSync(join(repo, 'src/components/MercuryHome.tsx'), 'utf8')
   const mini = readFileSync(join(repo, 'src/components/mercury-ui/MiniCritter.tsx'), 'utf8')
   check(
-    'the hero click is the one owner (onClick={cycleSessionCritter})',
-    home.includes('onClick={cycleSessionCritter}'),
+    'the hero mounts the mini row, whose art click is the one owner (onClick={cycleSessionCritter})',
+    home.includes('<MiniCritter />') && mini.includes('onClick={cycleSessionCritter}'),
   )
   check(
     'the berth activate is the one owner (onActivate={cycleSessionCritter})',
@@ -67,8 +67,8 @@ console.log('\n§2 every mount hands its pointer seam the one owner')
   check(
     'the mini art is clickable through the one owner — BOTH mounts (sub-hero row + bare deck dock)',
     /if \(bare\)\s*\{\s*return <BareMiniArt miniDef=\{miniDef\}/.test(mini) &&
-      mini.slice(mini.indexOf('function BareMiniArt'), mini.indexOf('function SpeakingMiniRow')).includes('onClick={cycleSessionCritter}') &&
-      mini.slice(mini.indexOf('function SpeakingMiniRow')).includes('<BareMiniArt miniDef={miniDef} />'),
+      mini.slice(mini.indexOf('function BareMiniArt')).includes('onClick={cycleSessionCritter}') &&
+      mini.slice(0, mini.indexOf('function BareMiniArt')).includes('<BareMiniArt miniDef={miniDef} />'),
   )
   const band = readFileSync(join(repo, 'src/components/CompactIdentityBand.tsx'), 'utf8')
   check(

@@ -119,7 +119,6 @@ function worldEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
     MERCURY_DOCTOR_STATE_DIR: path.join(world.home, 'doctor-state'),

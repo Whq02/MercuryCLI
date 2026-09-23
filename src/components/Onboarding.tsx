@@ -74,7 +74,7 @@ const FITTING_PATCH = {
   ],
 }
 
-function FittingMascot({ rows, cols }: { rows: number; cols: number }): React.ReactNode {
+function FittingMascot({ rows }: { rows: number }): React.ReactNode {
   const accent = useSessionAccent()
   const def = critterDefForKey(accent.key)
   const miniDef = React.useMemo(
@@ -82,9 +82,6 @@ function FittingMascot({ rows, cols }: { rows: number; cols: number }): React.Re
     [def, accent.key],
   )
   if (rows < 29) return null
-  if (rows >= 36 && cols >= 100) {
-    return <AnimatedCritterArt def={def} hero specimen />
-  }
   if (rows >= 32) {
     return <AnimatedCritterArt def={def} specimen />
   }
@@ -145,7 +142,7 @@ function ThemeFitting({
       <Box flexDirection="row">
         {showMascot ? (
           <Box flexShrink={0} marginRight={1}>
-            <FittingMascot rows={rows} cols={columns} />
+            <FittingMascot rows={rows} />
           </Box>
         ) : null}
         <Box flexDirection="column" justifyContent="center">

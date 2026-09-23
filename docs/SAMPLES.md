@@ -37,11 +37,10 @@ font.
 
 ## Opening a sample
 
-In the full layout with the large critter (`/critter on`), a
-sample takes a berth in the SESSIONS bar beside this session — its mark, the
-name the model gave it and its version — and a click opens it in your
-browser; with the small critter (the default) the bar is not painted and
-`/samples` is the road to it. In the compact layout the line under the
+In the full layout with the SESSIONS bar on, a sample takes a berth in the
+bar beside this session — its mark, the name the model gave it and its
+version — and a click opens it in your browser; with the bar off (the
+default) `/samples` is the road to it. In the compact layout the line under the
 composer counts the session's samples (`· 1 sample`), and the detail view
 that line opens lists them; Enter on one opens it. `/samples` lists the
 session's samples, newest first — the name, `v<N>`, the state and when it

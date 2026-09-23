@@ -95,8 +95,6 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   const tips = read('src/services/tips/tipRegistry.ts')
   t.check('the two board tips (concourse · workflows) stay silent in the plain world; the retired seat-board tip is gone', (tips.match(/async isRelevant\(\) \{\n\s+return !chatOnlyBoot\(\)\n\s+\}/g) ?? []).length === 2 && tips.includes("id: 'concourse-board'") && tips.includes("id: 'workflows-board'") && !tips.includes("id: 'party-seats'") && !tips.includes('/party'))
   t.check('the /sessions tip stays in every world (the plain CLI\'s own)', /id: 'sessions-switch',[\s\S]*?async isRelevant\(\) \{\n\s+return true/.test(tips))
-  const bank = read('src/utils/cockpit/companionWords.ts')
-  t.check("the companion's /workflows, /teammates and /fleet tips carry the world gate", bank.includes("'/workflows shows runs, live and past.', 'workflows', fleetWorld)") && bank.includes("'/teammates shows the crew, live.', 'teammates', fleetWorld)") && bank.includes("'/fleet is the command-center for agents.', 'fleet', fleetCenter)") && bank.includes('const fleetWorld = (): boolean => !chatOnlyBoot()') && bank.includes('const fleetCenter = (): boolean => fleetWorld() && isAgentSwarmsEnabled()'))
   const settings = read('src/components/BootSettingsScreen.tsx')
   t.check("the boot settings' 'o' door names the live view in the plain world (hint and legend)", settings.includes("hint: plainWorld ? 'open the live view' : 'open concourse'") && settings.includes("` · o ${plainWorld ? 'live view' : 'concourse'}`"))
   const concourseCmd = read('src/commands/concourse/index.ts')

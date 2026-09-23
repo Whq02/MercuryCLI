@@ -26,7 +26,7 @@ import {
   subscribePromptEmpty,
 } from '../../utils/cockpit/helmFocus.js'
 import { FAINT, IVORY, SECOND } from '../mercuryPalette.js'
-import { useSessionAccent } from './sessionAccent.js'
+import { useSessionAccent, useSessionsBar } from './sessionAccent.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { truncateToWidth } from './glyphs.js'
 import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
@@ -63,8 +63,8 @@ export function SessionTabs({
   cols: number
   framed?: boolean
 }): React.ReactNode {
-  
   const accent = useSessionAccent().accent
+  const barOn = useSessionsBar()
   const tokens = useMercuryTokens()
   const sessionId = getSessionId()
   const scopeKey = `${getProjectRoot() || ''}::${sessionId}`
@@ -121,7 +121,7 @@ export function SessionTabs({
   const concourseLive = routeSurfaceRegistered('concourse') && isFullscreenEnvEnabled()
   const plainWorld = chatOnlyBoot()
   const tabList = others ?? []
-  const railVisible = !(tabList.length === 0 && samples.length === 0 && !concourseLive) && cols >= 70
+  const railVisible = barOn && !(tabList.length === 0 && samples.length === 0 && !concourseLive) && cols >= 70
   const flipTo = (log: LogOption | undefined): void => {
     const id = log !== undefined ? getSessionIdFromLog(log) : undefined
     if (id !== undefined && id !== null) requestCommandDispatch(`/sessiontab ${id}`)

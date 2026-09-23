@@ -3,7 +3,7 @@ import { Box, Text, useTheme } from '../../ink.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../../context/layoutChromeContext.js';
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
-import { critterDefForKey, squareDockArtFor } from '../../utils/cockpit/critterData.js';
+import { critterDefForKey } from '../../utils/cockpit/critterData.js';
 import { resolveMercuryTokens } from '../../utils/mercuryTokens.js';
 import { CritterArt } from '../mercury-ui/CritterArt.js';
 import { rampSegments } from '../mercury-ui/focalRamp.js';
@@ -128,7 +128,6 @@ export function ConcourseHeader({
       ...critterDefForKey(identity.markKey),
       hue: identity.accent,
       hueDeep: identity.accentDeep,
-      square: squareDockArtFor(identity.markKey),
     }),
     [identity.markKey, identity.accent, identity.accentDeep],
   );

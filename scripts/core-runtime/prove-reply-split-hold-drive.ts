@@ -40,7 +40,7 @@ async function runHost(cfg: Record<string, unknown>, tag: string): Promise<{ rep
 const leg = await startLeg('reply-split', [{ kind: 'text', text: 'Finished.' }], null)
 try {
   const debugLog = join(scratch, 'reply-split-debug.log')
-  const env = childEnv(leg, { MERCURY_FULLSCREEN: '0', MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0', MERCURY_CRITTER: 'clam' })
+  const env = childEnv(leg, { MERCURY_FULLSCREEN: '0', MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' })
   const cfg = {
     cols: 120,
     rows: 40,

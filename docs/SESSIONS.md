@@ -229,21 +229,24 @@ leaves every later request of the session, a resumed one included, on the
 OpenAI route as on the Anthropic one.
 
 The session box under the `✶ VIEW` header holds the critter and, while
-a turn runs, the working row in its own capsule beside it. By default the
-small critter sits in a slim box of five rows and the SESSIONS bar is off
-the bottom of the chat, so a tall window gives the chat ten rows more. The
-small sprite sits at the left of the box, the working capsule to its
-right, and level with the capsule's middle however tall the capsule grows
-(the lower of the two middle rows when the capsule has an even number of
-rows): a status that stacks or wraps onto more lines lengthens the capsule
-downwards and the sprite follows its middle. The critter never speaks: no
-line of its own paints beside it, idle or while a turn runs. The
-working row keeps its capsule, and the session roll-up and the bar are not
-painted. `/critter on` paints the large critter with the roll-up and the
-bar as before, `/critter off` the small one, and `/critter` alone toggles;
-a click on `✶ VIEW` toggles it the same way.
-`/critter pick` chooses the creature. The choice is kept in the settings
-store (`critterSize`) across boots.
+a turn runs, the working row in its own capsule beside it: a slim box of
+five rows, the sprite at its left and the capsule to its right, the capsule
+taking the rest of the box's width. The sprite sits level with the
+capsule's middle however tall the capsule grows (the lower of the two
+middle rows when the capsule has an even number of rows): a status that
+stacks or wraps onto more lines lengthens the capsule downwards and the
+sprite follows its middle. The same small sprite is the critter everywhere
+it appears — the box, the SESSIONS bar's glyph, the compact layout's band,
+the header above the chat outside the cockpit — and a click on it, or
+`/critter`, chooses the creature.
+
+The SESSIONS bar along the bottom of the chat — the session tabs, the
+critter's glyph, the model and its effort, the folder and branch, the
+context mark — is off unless you turn it on, so a tall window gives the
+chat its rows. `/view on` shows it and `/view off` hides it, a click on
+`✶ VIEW` flips it the same way, and `/view` alone says which it is; the
+choice is kept in the settings store (`sessionsBar`) across resizes,
+layouts and boots.
 
 The status row above the composer rests on `ready · <model> · <effort>` —
 the session's model and the effort word its chip paints — while the session

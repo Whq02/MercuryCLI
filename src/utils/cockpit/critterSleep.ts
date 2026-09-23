@@ -6,17 +6,12 @@ import {
 } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { BUDDY_FRESH_MS } from './buddyState.js'
-import {
-  companionTurnSignals,
-  subscribeCompanionSignals,
-  type CompanionTurnSignals,
-} from './companionSignals.js'
 import { critterFrameKey, swayPhaseAt, type SwayAnchor } from './critterIdle.js'
 import { daemonCrewLivenessSync } from './daemonRosterSnapshot.js'
+import { subscribeTurnSignals, turnSignals, type TurnSignals } from './turnSignals.js'
 import { subscribeUiClock } from './uiClock.js'
 
-export const SLEEP_AFTER_MS = BUDDY_FRESH_MS
+export const SLEEP_AFTER_MS = 45_000
 
 export const SLEEP_CHECK_MS = 30_000
 
@@ -46,12 +41,12 @@ export function agentsActiveNow(): boolean {
   }
 }
 
-export function signalsActive(s: CompanionTurnSignals): boolean {
+export function signalsActive(s: TurnSignals): boolean {
   return s.turnLive || s.streaming || s.awaitingPermission
 }
 
 export function lastActivityTs(
-  s: CompanionTurnSignals,
+  s: TurnSignals,
   baselineTs: number,
   now: number,
   agents: AgentActivity = NO_AGENTS,
@@ -61,7 +56,7 @@ export function lastActivityTs(
 }
 
 export function isAsleepAt(
-  s: CompanionTurnSignals,
+  s: TurnSignals,
   baselineTs: number,
   now: number,
   agents: AgentActivity = NO_AGENTS,
@@ -123,7 +118,7 @@ function recompute(): void {
       liveNow: agentsActiveNow() || daemonCrewLivenessSync().workersActive,
       lastEventTs: lastAgentEventTs,
     }
-    next = isAsleepAt(companionTurnSignals(), baselineTs, now, agents) ? sleepSince || now : 0
+    next = isAsleepAt(turnSignals(), baselineTs, now, agents) ? sleepSince || now : 0
   }
   if (next !== sleepSince) {
     swayAnchor = { phase: swayPhaseAt(now, sleepSince !== 0, swayAnchor), at: now }
@@ -159,7 +154,7 @@ export function critterLiveFrameKey(now: number = Date.now()): string {
 export function subscribeCritterSleep(cb: () => void): () => void {
   listeners.add(cb)
   if (listeners.size === 1) {
-    unsubSignals = subscribeCompanionSignals(() => recompute())
+    unsubSignals = subscribeTurnSignals(() => recompute())
     unsubExec = subscribeExecutionEvents(ev => {
       const record = 'record' in ev.event ? ev.event.record : undefined
       if (!record || !AGENT_EXECUTION_KINDS.has(record.spec.kind)) return

@@ -7,7 +7,6 @@ import {
   EYE_BG,
   flowDepthFor,
   heroBlinkRows,
-  heroContentBounds,
   PUPIL,
   settleDepthFor,
   settleRows,
@@ -76,7 +75,6 @@ function paintContextKey(
   def: CritterDef,
   legendOverride: Readonly<Record<string, string>> | undefined,
   glowToward: string | undefined,
-  dup: number,
   chunky: boolean,
   gridCols: number,
 ): string {
@@ -84,7 +82,7 @@ function paintContextKey(
   if (legendOverride !== undefined) {
     for (const k of Object.keys(legendOverride)) legend += `${k}=${legendOverride[k]},`
   }
-  return `${def.hue}|${def.hueDeep}|${sleepGlyphsFor(def)}|${legend}|${glowToward ?? ''}|${dup}|${chunky ? 'k' : 'p'}|${gridCols}`
+  return `${def.hue}|${def.hueDeep}|${sleepGlyphsFor(def)}|${legend}|${glowToward ?? ''}|${chunky ? 'k' : 'p'}|${gridCols}`
 }
 
 function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonly number[]): string {
@@ -100,7 +98,6 @@ function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonl
 }
 
 export type CritterFrameOpts = {
-  hero?: boolean
   mini?: boolean
   square?: boolean
   pupil?: string
@@ -110,25 +107,15 @@ export type CritterFrameOpts = {
 }
 
 export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { art: string[]; sleepSlots: number[] } {
-  const { pupil = '●', gazeKey = '', swayPhase = 0, sleepPhase = null, mini = false, hero = false, square = false } = opts
-  const usingHero = hero && !!def.heroArt && def.heroArt.length > 0
-  const usingSquare = !usingHero && square && !!def.square && def.square.length > 0
-  const heroBlink = usingHero && pupil !== '●'
-  const form = usingHero ? 'hero' : usingSquare ? 'square' : mini ? 'mini' : 'art'
+  const { pupil = '●', gazeKey = '', swayPhase = 0, sleepPhase = null, mini = false, square = false } = opts
+  const usingSquare = square && def.squareDock.length > 0
+  const form = usingSquare ? 'square' : mini ? 'mini' : 'art'
   const pose = sleepPhase !== null ? sleepPoseFor(def, form) : null
   const flowDepth = pose ? pose.flow : flowDepthFor(def, form)
   const settleDepth = pose ? 0 : settleDepthFor(def, form)
   let art: string[]
-  if (usingHero) {
-    const gazed = applyGazeKey(pose ? pose.art : def.heroArt!, gazeKey)
-    const blinked = heroBlink ? heroBlinkRows(gazed) : gazed
-    const breathed = pose ? sleepBreathArt(blinked, swayPhase) : blinked
-    const settled = settleRows(breathed, settleDepth, swayPhase)
-    const rows = swayRows(settled, flowDepth, swayPhase)
-    const [cStart, cEnd] = heroContentBounds(rows)
-    art = rows.map(r => r.slice(cStart, cEnd))
-  } else if (usingSquare) {
-    const base = pose ? pose.art : def.square!
+  if (usingSquare) {
+    const base = pose ? pose.art : def.squareDock
     const gazed = applyGazeKey(base, gazeKey)
     const blinked = pupil !== '●' ? heroBlinkRows(gazed) : gazed
     const breathed = pose ? sleepBreathArt(blinked, swayPhase) : blinked
@@ -155,8 +142,6 @@ function CritterArtImpl({
   mini = false,
   square = false,
   chunky = false,
-  hero = false,
-  wide = false,
   legendOverride,
   glowToward,
   lineBg,
@@ -169,15 +154,11 @@ function CritterArtImpl({
   mini?: boolean
   square?: boolean
   chunky?: boolean
-  hero?: boolean
-  wide?: boolean
   legendOverride?: Readonly<Record<string, string>>
   glowToward?: string
   lineBg?: (line: number) => string | undefined
 }): React.ReactNode {
-  const usingHero = hero && !!def.heroArt && def.heroArt.length > 0
-  const { art, sleepSlots } = composeCritterFrame(def, { hero, mini, square, pupil, gazeKey, swayPhase, sleepPhase })
-  const dup = usingHero && wide ? 2 : 1
+  const { art, sleepSlots } = composeCritterFrame(def, { mini, square, pupil, gazeKey, swayPhase, sleepPhase })
   const colorOf = (ch: string | undefined): string | undefined =>
     (ch !== undefined && legendOverride?.[ch]) || cellColor(def, ch)
 
@@ -193,7 +174,7 @@ function CritterArtImpl({
   const lineCount = chunky ? art.length : Math.ceil(art.length / 2)
   const grounds: string[] = []
   for (let i = 0; i < lineCount; i++) grounds.push(lineBg?.(i) ?? '')
-  const context = paintContextKey(def, legendOverride, glowToward, dup, chunky, gridCols)
+  const context = paintContextKey(def, legendOverride, glowToward, chunky, gridCols)
   const cache = frameCacheFor(def, context)
   const frameKey = `${pupil}|${sleepSlots.join(',')}\n${grounds.join('|')}\n${art.join('\n')}`
   const cachedRoot = cache.roots.get(frameKey)
@@ -283,7 +264,7 @@ function CritterArtImpl({
         const zc = paint(SLEEP_CELL, c)
         cells.push(
           <Text key={c} color={zc}>
-            {sleepGlyphAt(def, sleepSlots, c).repeat(dup)}
+            {sleepGlyphAt(def, sleepSlots, c)}
           </Text>,
         )
         continue
@@ -291,23 +272,23 @@ function CritterArtImpl({
       const tc = paint(top, c)
       const bc = paint(bot, c)
       if (!tc && !bc) {
-        cells.push(<Text key={c}>{' '.repeat(dup)}</Text>)
+        cells.push(<Text key={c}> </Text>)
       } else if (tc && bc) {
         cells.push(
           <Text key={c} color={tc} backgroundColor={bc}>
-            {'▀'.repeat(dup)}
+            ▀
           </Text>,
         )
       } else if (tc) {
         cells.push(
           <Text key={c} color={tc}>
-            {'▀'.repeat(dup)}
+            ▀
           </Text>,
         )
       } else {
         cells.push(
           <Text key={c} color={bc}>
-            {'▄'.repeat(dup)}
+            ▄
           </Text>,
         )
       }

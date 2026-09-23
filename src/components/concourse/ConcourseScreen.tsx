@@ -1906,7 +1906,7 @@ export function ConcourseScreen({
       return (
         <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center" overflow="hidden">
           {!isCompact && rows >= 8 && width >= 20 ? (
-            <AnimatedCritterArt def={residentDef} hero specimen />
+            <AnimatedCritterArt def={residentDef} square specimen />
           ) : null}
           <Text color={t.textMuted}>no sessions running</Text>
         </Box>

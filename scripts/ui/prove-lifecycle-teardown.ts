@@ -8,17 +8,13 @@ process.env.MERCURY_CONFIG_DIR = home
 
 const { pushOverlay, popOverlay, anyOverlayActive, resetOverlayStackForTests } = await import('../../src/context/overlayStack.js')
 const { subscribeUiClock, uiClockStatsForProofs } = await import('../../src/utils/cockpit/uiClock.js')
-const { subscribeCompanionEngine, companionEngineStatsForProofs, resetCompanionEngineForTests } = await import('../../src/utils/cockpit/companionEngine.js')
-const { publishCompanionTurn } = await import('../../src/utils/cockpit/companionSignals.js')
 const { saveDraftDebounced, cancelPendingDraftSave, flushDraftSaves } = await import('../../src/utils/promptDraft.js')
-const { switchSession } = await import('../../src/bootstrap/state.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 console.log('prove-lifecycle-teardown')
 
@@ -50,22 +46,6 @@ mark('§2')
   }
   const stats = uiClockStatsForProofs()
   check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, JSON.stringify(stats))
-}
-
-mark('§3')
-{
-  resetCompanionEngineForTests()
-  for (let round = 0; round < 20; round++) {
-    const unsub = subscribeCompanionEngine(() => {})
-    publishCompanionTurn({ turnLive: true, streaming: false, awaitingPermission: false })
-    publishCompanionTurn({ turnLive: false, streaming: false, awaitingPermission: false })
-    if (round % 5 === 0) switchSession(`dddddddd-0000-4000-8000-${String(round).padStart(12, '0')}` as never)
-    unsub()
-  }
-  await sleep(30)
-  const stats = companionEngineStatsForProofs()
-  check('§3 engine fully torn down after 20 cycles + switches', stats.listeners === 0 && !stats.clockArmed && !stats.signalsArmed, JSON.stringify(stats))
-  check('§3 clock buckets stayed empty too', Object.keys(uiClockStatsForProofs()).length === 0)
 }
 
 

@@ -12,11 +12,6 @@ fail=0
 
 [ -x "$BUN" ] || BUN="bun"
 
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-hero-art.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-hero-art.ts "$__t" "$__rc"
-
 
 __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-persist.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
   fail=1
@@ -36,16 +31,6 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-persistent-hero.t
   fail=1
 fi
 prover_mark scripts/critters/prove-persistent-hero.ts "$__t" "$__rc"
-
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-companion-voice.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-companion-voice.ts "$__t" "$__rc"
-
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-companion-fit.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-companion-fit.ts "$__t" "$__rc"
 
 __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-gaze.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
   fail=1
@@ -86,6 +71,11 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-square-berths.ts;
   fail=1
 fi
 prover_mark scripts/critters/prove-square-berths.ts "$__t" "$__rc"
+
+__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-small-critter-estate.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
+  fail=1
+fi
+prover_mark scripts/critters/prove-small-critter-estate.ts "$__t" "$__rc"
 
 [ "$fail" -eq 0 ] && echo "✅ critters — hero-art integrity + persistent-hero + gaze + accent-epoch + sleep/flow contracts hold"
 exit "$fail"

@@ -67,7 +67,6 @@ function drive(tag: string, cols: number, sends: Send[], readyText: string[], to
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
