@@ -84,6 +84,7 @@ import {
 } from '../../utils/teammateMailbox.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
+import { plainMessageSummary } from './summary.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
 
@@ -247,7 +248,7 @@ const inputSchema = lazySchema(() => {
     summary: z
       .string()
       .optional()
-      .describe('A 5-10 word preview of the message; required for plain string messages'),
+      .describe('A 5-10 word preview of the message; optional — a plain message without one is previewed by its first line'),
     message: z.union([
       z.string().describe('A plain message'),
       z.discriminatedUnion('type', variants as never),
@@ -1214,9 +1215,6 @@ export const SendMessageTool = buildTool({
       }
     }
     if (typeof input.message === 'string') {
-      if (!input.summary || input.summary.trim().length === 0) {
-        return { result: false, message: 'A summary is required for plain string messages.', errorCode: 9 }
-      }
       return { result: true }
     }
     if (to === '*') {
@@ -1312,6 +1310,7 @@ export const SendMessageTool = buildTool({
 
     if (typeof message === 'string') {
       const content = message
+      const summary = plainMessageSummary(input.summary, content)
       if (rawTo !== '*') {
         const selfRefusal = selfAddressRefusalText(rawTo)
         if (selfRefusal !== null) {
@@ -1327,9 +1326,9 @@ export const SendMessageTool = buildTool({
           parentAssistantMessage.requestId,
         )
         if (routed !== undefined) return { data: routed }
-        return { data: await sendDirectedPlainMessage(rawTo, content, input.summary, context) }
+        return { data: await sendDirectedPlainMessage(rawTo, content, summary, context) }
       }
-      return { data: await sendBroadcast(content, input.summary, context) }
+      return { data: await sendBroadcast(content, summary, context) }
     }
 
     if (rawTo === '*') {
