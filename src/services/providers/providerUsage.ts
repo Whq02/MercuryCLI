@@ -753,14 +753,17 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
   bands.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0))
   return bands.map(band => {
     const label = usageWindowLabel(band.windowMinutes)
+    const stamp = { observedAtMs: band.observedAtMs, source: 'headers' as const }
+    const horizon = (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(stamp.source)
+    const freshForMs = band.resetsAtMs !== undefined ? Math.min(horizon, band.resetsAtMs - band.observedAtMs - 1) : horizon
     return {
       key: label,
       label,
-      state: 'live' as const,
+      state: usageFreshness({ ...stamp, freshForMs }).state === 'stale' ? 'unavailable' as const : 'live' as const,
       usedPct: band.usedPct!,
       ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
-      observedAtMs: band.observedAtMs,
-      source: 'headers' as const,
+      ...stamp,
+      freshForMs,
     }
   })
 }

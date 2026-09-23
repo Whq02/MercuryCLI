@@ -486,7 +486,10 @@ pool of the model's own family (a Fable week at 87% warns a Fable session and
 never a Sonnet one). A lane that serves no percent-shaped usage signal warns
 never — an absent signal is an absent warning, not a fabricated meter. The engine
 feeders read the same window views the `/usage` popup and the rail meters read,
-so the strip and the meters can never disagree about a percent.
+so the strip and the meters can never disagree about a percent. An OpenAI
+band past its reset, or older than its response freshness horizon, keeps its
+last-read words on the card and meters rather than pretending to be a live
+reading. That stale band does not trigger another warning.
 
 The same derivation puts a notice into the context at each threshold, once at
 80% and once at 90% per window. At 80% it states the provider, percent, window
