@@ -6,7 +6,7 @@ import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'moonshot' | 'local'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'moonshot' | 'local'
 
 export type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -17,6 +17,7 @@ export type CatalogueGateVerdict =
     }
 
 const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
+  anthropic: 'Anthropic',
   huggingface: 'Hugging Face',
   openrouter: 'OpenRouter',
   gemini: 'Gemini',
@@ -31,6 +32,11 @@ export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>)
 
 function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJS.ProcessEnv): boolean {
   switch (family) {
+    case 'anthropic': {
+      const { anthropicCredentialPresence } =
+        require('./providerUsage.js') as typeof import('./providerUsage.js')
+      return anthropicCredentialPresence().credentialed
+    }
     case 'huggingface':
       return resolveHuggingfaceApiKey(env) !== undefined
     case 'openrouter':

@@ -8,6 +8,7 @@ import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gpt
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
 import { getCanonicalName, getDefaultMainLoopModelSetting, type ModelShortName } from './model/model.js'
+import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
 
 export type ModelCosts = {
@@ -119,12 +120,18 @@ const FIRST_PARTY_FALLBACK_TIER: ModelCosts = COST_TIER_5_25
 function firstPartyPricing(model: string): ResolvedModelPricing {
   const tier = MODEL_COSTS[getCanonicalName(model)]
   if (tier) return { costs: tier, basis: 'recorded' }
-  const defaultModel = getDefaultMainLoopModelSetting()
-  if (typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic') {
-    const fallback = MODEL_COSTS[getCanonicalName(defaultModel)]
+  const head = familyHeadOf(model)
+  const estimateFrom = head !== null ? ALL_MODEL_CONFIGS[head].firstParty : firstPartyDefaultSetting()
+  if (estimateFrom !== undefined) {
+    const fallback = MODEL_COSTS[getCanonicalName(estimateFrom)]
     if (fallback) return { costs: fallback, basis: 'family-estimate' }
   }
   return { costs: FIRST_PARTY_FALLBACK_TIER, basis: 'family-estimate' }
+}
+
+function firstPartyDefaultSetting(): string | undefined {
+  const defaultModel = getDefaultMainLoopModelSetting()
+  return typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic' ? defaultModel : undefined
 }
 
 function perMtokFromPerToken(perToken: string | undefined): number | undefined {

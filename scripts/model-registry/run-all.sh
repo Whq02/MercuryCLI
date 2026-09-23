@@ -20,4 +20,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-frontier-wire-laws
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-opus-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-opus-55-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-one-row-per-model.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-one-row-per-model.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-canonical-fold.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-canonical-fold.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-live-rows.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-live-rows.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-family-defaults.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-family-defaults.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-current-mark.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-current-mark.ts "$__t" "$__rc"
 exit "$fail"

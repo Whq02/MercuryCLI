@@ -107,3 +107,63 @@ export const CANONICAL_ID_TO_KEY: Record<string, ModelKey> = Object.fromEntries(
     key,
   ]),
 ) as Record<string, ModelKey>
+
+const CONTEXT_ANNOTATION_RE = /\[(?:[0-9]+m|served)\]/gi
+
+function familyWordOf(id: string): string | undefined {
+  return /^claude-([a-z]+)-\d/.exec(id)?.[1]
+}
+
+const MIRROR_FAMILY_WORDS: Record<string, ModelFamily> = Object.fromEntries(
+  (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[]).flatMap((config): Array<[string, ModelFamily]> => {
+    const word = familyWordOf(config.firstParty)
+    const target = config.canonical === undefined ? undefined : familyWordOf(config.canonical)
+    if (word === undefined || target === undefined || word === target || !(target in FAMILY_GENERATIONS)) return []
+    return [[word, target as ModelFamily]]
+  }),
+)
+
+const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
+
+const FIRST_PARTY_GENERATION_RE = new RegExp(
+  `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:-\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?!\\d))`,
+)
+
+export const DECLARED_GENERATION_STEMS: ReadonlyMap<string, string> = new Map(
+  (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[]).flatMap((config): Array<[string, string]> => {
+    const canonical = config.canonical ?? config.firstParty
+    return [
+      [config.firstParty, canonical],
+      [canonical, canonical],
+    ]
+  }),
+)
+
+export interface FirstPartyGeneration {
+  family: ModelFamily
+  generation: string
+  stem: string
+}
+
+export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | null {
+  const lowered = id.trim().toLowerCase().replace(CONTEXT_ANNOTATION_RE, '')
+  if (lowered.includes('/')) return null
+  const match = FIRST_PARTY_GENERATION_RE.exec(lowered)
+  if (match === null) return null
+  const word = match[1]!
+  const family = (MIRROR_FAMILY_WORDS[word] ?? word) as ModelFamily
+  const generation = match[2]!
+  return { family, generation, stem: `claude-${family}-${generation}` }
+}
+
+export function familyHeadOf(id: string): ModelKey | null {
+  const parsed = parseFirstPartyGeneration(id)
+  if (parsed === null) return null
+  if (DECLARED_GENERATION_STEMS.has(parsed.stem)) return null
+  return newestGenerationKey(parsed.family)
+}
+
+export function familyDefaultsModel(id: string): string {
+  const head = familyHeadOf(id)
+  return head === null ? id : ALL_MODEL_CONFIGS[head].firstParty
+}
