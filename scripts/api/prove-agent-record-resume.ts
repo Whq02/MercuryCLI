@@ -130,6 +130,18 @@ const modelOf = (q: { body: unknown }): string => String((q.body as Body).model 
 const toolsOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).tools ?? []))
 const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ?? []).map(t => t.name).join(',')
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
+function initToolsOf(stdout: string): string[] {
+  for (const line of stdout.split('\n')) {
+    if (!line.includes('"subtype":"init"')) continue
+    try {
+      const row = JSON.parse(line) as { type?: unknown; subtype?: unknown; tools?: unknown }
+      if (row.type === 'system' && row.subtype === 'init' && Array.isArray(row.tools)) return row.tools.map(String)
+    } catch {
+      continue
+    }
+  }
+  return []
+}
 
 const MAIN = 'claude-fable-5-1'
 const SEAT = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -150,6 +162,7 @@ const turns1: ScriptedTurn[] = [
 const fixture1 = await startFixtureApi(turns1, { bindingCheck: true })
 const r1 = await runStreaming(arena, fixture1, {}, ['-p', '--input-format', 'stream-json', '--model', MAIN, '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID], ['launch the seat and carry on', 'and now say noted'], 3_000)
 check('process 1 exits 0 after the launch turn and the follow-up turn', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(-400)}`)
+const initTools1 = initToolsOf(r1.stdout)
 const reqs1 = fixture1.messageRequests()
 const seatReqs1 = reqs1.filter(q => modelOf(q) === SEAT)
 console.log(`  wire order: ${reqs1.map((q, i) => `${i + 1}:${modelOf(q) === SEAT ? 'seat' : 'main'}`).join(' ')}`)
@@ -169,6 +182,7 @@ await fixture1.close()
 section('§2 process 2 — the session resumed with a moved pool; the seat resumed through a message re-sends its first prefix byte for byte')
 let seatReqs2: ReturnType<FixtureApi['messageRequests']> = []
 let mainReqs2: ReturnType<FixtureApi['messageRequests']> = []
+let initTools2: string[] = []
 const mainReqs1 = reqs1.filter(q => modelOf(q) === MAIN)
 if (agentId !== null) {
   const turns2: ScriptedTurn[] = [
@@ -183,6 +197,7 @@ if (agentId !== null) {
   const fixture2 = await startFixtureApi(turns2, { bindingCheck: true })
   const r2 = await runStreaming(arena, fixture2, { MERCURY_TASKS: '1' }, ['-p', '--input-format', 'stream-json', '--model', MAIN, '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--resume', SID], ['message the seat to carry on', 'and now say noted'], 6_000)
   check('process 2 exits 0 after the resume turn and the follow-up turn', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(-400)}`)
+  initTools2 = initToolsOf(r2.stdout)
   const reqs2 = fixture2.messageRequests()
   seatReqs2 = reqs2.filter(q => modelOf(q) === SEAT)
   mainReqs2 = reqs2.filter(q => modelOf(q) === MAIN)
@@ -229,7 +244,9 @@ if (seatReqs1[0] !== undefined && seatReqs2[0] !== undefined) {
   const first = seatReqs1[0]
   const resumed = seatReqs2[0]
   console.log(`  the resumed seat's tools array: ${toolNamesOf(resumed)}`)
-  check('the pool moved between the processes (the task tools joined the resumed session)', toolNamesOf(resumed) !== toolNamesOf(first) || true)
+  const joined = initTools2.filter(t => !initTools1.includes(t))
+  console.log(`  the init rosters: process 1 ${initTools1.length} tool(s), process 2 ${initTools2.length} tool(s); joined in process 2: ${joined.join(',') || '(none)'}`)
+  check('the pool moved between the processes (process 2\'s init roster strictly contains process 1\'s: the task tools joined the resumed session)', initTools1.length > 0 && initTools1.every(t => initTools2.includes(t)) && joined.length > 0, `process 1=${initTools1.join(',')} process 2=${initTools2.join(',')}`)
   check('the resumed seat\'s tools array is byte-identical to its first request\'s (the record re-sent; the joiners held)', toolsOf(resumed) === toolsOf(first), `first=${toolNamesOf(first)} resumed=${toolNamesOf(resumed)}`)
   check('the resumed seat\'s system prompt is byte-identical to its first request\'s', systemOf(resumed) === systemOf(first), `first ${systemOf(first).length} bytes, resumed ${systemOf(resumed).length} bytes`)
 }
