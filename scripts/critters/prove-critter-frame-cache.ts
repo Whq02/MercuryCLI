@@ -22,16 +22,16 @@ const { renderToString, renderToAnsiString } = await import('../../src/utils/sta
 const { CritterArt, critterFrameCacheStatsForProofs } = await import('../../src/components/mercury-ui/CritterArt.js')
 
 type Def = (typeof cd.CRITTERS)[number]
-type Form = 'hero' | 'art' | 'mini'
+type Form = 'square' | 'art' | 'mini'
 type Props = Record<string, unknown>
 type El = { type: unknown; props: { children?: unknown } }
 
 const paint = (CritterArt as unknown as { type: (p: Props) => El }).type
 const linesOf = (root: El): El[] => (root.props.children as El[]) ?? []
-const defFor = (def: Def, form: Form): Def => (form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : def)
-const formProps = (form: Form): Props => ({ hero: form === 'hero', mini: form === 'mini' })
+const defFor = (def: Def, form: Form): Def => (form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : form === 'square' ? { ...def } : def)
+const formProps = (form: Form): Props => ({ square: form === 'square', mini: form === 'mini' })
 const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d])) as Record<string, Def>
-const FORMS: Form[] = ['hero', 'art', 'mini']
+const FORMS: Form[] = ['square', 'art', 'mini']
 const painted = new Map<string, Def>()
 for (const def of cd.CRITTERS) for (const form of FORMS) painted.set(`${def.name}/${form}`, defFor(def, form))
 const pd = (name: string, form: Form): Def => painted.get(`${name}/${form}`)!
@@ -65,36 +65,38 @@ t.section('§1 — root identity: the same inputs hand React the same element')
 
 t.section('§2 — line reuse: only the cells that move are rebuilt')
 {
-  const jelly = pd('jellyfish', 'hero')
-  const rest = paint({ def: jelly, hero: true, swayPhase: 0 })
-  const step = paint({ def: jelly, hero: true, swayPhase: 2 })
+  const jelly = pd('jellyfish', 'art')
+  const rest = paint({ def: jelly, swayPhase: 0 })
+  const step = paint({ def: jelly, swayPhase: 2 })
   const restLines = linesOf(rest)
   const stepLines = linesOf(step)
-  const flowLines = Math.ceil(cd.flowDepthFor(jelly, 'hero') / 2)
+  const flowLines = Math.ceil(cd.flowDepthFor(jelly, 'art') / 2)
   const anchored = restLines.length - flowLines
   const keptAbove = restLines.slice(0, anchored).every((l, i) => l === stepLines[i])
   const movedBelow = restLines.slice(anchored).some((l, i) => l !== stepLines[anchored + i])
-  t.check(`jellyfish/hero: a sway step keeps the ${anchored} anchored lines' element identity`, restLines.length === stepLines.length && keptAbove, `${restLines.length} lines`)
-  t.check('jellyfish/hero: …and rebuilds a moving line (the strands actually move)', movedBelow)
-  t.check('jellyfish/hero: a sway step is a different root (the frame differs)', rest !== step)
-  const lid = paint({ def: jelly, hero: true, swayPhase: 0, pupil: idle.EYE_SHUT })
+  t.check(`jellyfish/art: a sway step keeps the ${anchored} anchored lines' element identity`, restLines.length === stepLines.length && keptAbove, `${restLines.length} lines`)
+  t.check('jellyfish/art: …and rebuilds a moving line (the strands actually move)', movedBelow)
+  t.check('jellyfish/art: a sway step is a different root (the frame differs)', rest !== step)
+  const jellyDock = pd('jellyfish', 'square')
+  const dockRest = paint({ def: jellyDock, square: true, swayPhase: 0 })
+  const lid = paint({ def: jellyDock, square: true, swayPhase: 0, pupil: idle.EYE_SHUT })
   const lidLines = linesOf(lid)
-  const changed = restLines.map((l, i) => (l !== lidLines[i] ? i : -1)).filter(i => i >= 0)
-  const eyeLine = Math.floor(jelly.heroArt!.findIndex(r => r.includes('K')) / 2)
-  t.check(`jellyfish/hero: a blink rebuilds exactly the eye line (${eyeLine})`, changed.length === 1 && changed[0] === eyeLine, changed.join(','))
-  const crab = pd('crab', 'hero')
+  const changed = linesOf(dockRest).map((l, i) => (l !== lidLines[i] ? i : -1)).filter(i => i >= 0)
+  const eyeLine = Math.floor(jellyDock.squareDock.findIndex(r => r.includes('K')) / 2)
+  t.check(`jellyfish/square: a blink rebuilds exactly the eye line (${eyeLine})`, changed.length === 1 && changed[0] === eyeLine, changed.join(','))
+  const crab = pd('crab', 'square')
   const crabRoots = new Set<El>()
-  for (let p = 0; p < cd.SWAY_PHASES; p++) crabRoots.add(paint({ def: crab, hero: true, swayPhase: p }))
-  t.check('crab/hero: every sway phase returns the same root (nothing moves)', crabRoots.size === 1, String(crabRoots.size))
-  const clam = pd('clam', 'hero')
+  for (let p = 0; p < cd.SWAY_PHASES; p++) crabRoots.add(paint({ def: crab, square: true, swayPhase: p }))
+  t.check('crab/square: every sway phase returns the same root (nothing moves)', crabRoots.size === 1, String(crabRoots.size))
+  const clam = pd('clam', 'art')
   const clamRoots = new Set<El>()
-  for (let p = 0; p < cd.SWAY_PHASES; p++) clamRoots.add(paint({ def: clam, hero: true, swayPhase: p }))
-  t.check('clam/hero: the sway cycle alternates between exactly two roots (rest · settled)', clamRoots.size === 2, String(clamRoots.size))
-  const clamRest = paint({ def: clam, hero: true, swayPhase: 0 })
-  const clamSettled = paint({ def: clam, hero: true, swayPhase: 2 })
-  const settleLines = Math.ceil((cd.settleDepthFor(clam, 'hero') + 1) / 2)
+  for (let p = 0; p < cd.SWAY_PHASES; p++) clamRoots.add(paint({ def: clam, swayPhase: p }))
+  t.check('clam/art: the sway cycle alternates between exactly two roots (rest · settled)', clamRoots.size === 2, String(clamRoots.size))
+  const clamRest = paint({ def: clam, swayPhase: 0 })
+  const clamSettled = paint({ def: clam, swayPhase: 2 })
+  const settleLines = Math.ceil((cd.settleDepthFor(clam, 'art') + 1) / 2)
   const clamKept = linesOf(clamRest).slice(settleLines).every((l, i) => l === linesOf(clamSettled)[settleLines + i])
-  t.check(`clam/hero: the settle keeps every line below the valve (${settleLines} lines rebuilt)`, clamKept)
+  t.check(`clam/art: the settle keeps every line below the valve (${settleLines} lines rebuilt)`, clamKept)
 }
 
 t.section('§3 — byte-identity: a hit renders what a miss renders, and what a cache-less render renders')
@@ -107,17 +109,17 @@ t.section('§3 — byte-identity: a hit renders what a miss renders, and what a 
         matrix.push({ name: def.name, form, props: { ...formProps(form), swayPhase: sway, pupil: idle.EYE_SHUT } })
         for (let z = 0; z < cd.SLEEP_PHASES; z++) matrix.push({ name: def.name, form, props: { ...formProps(form), swayPhase: sway, pupil: idle.EYE_SHUT, sleepPhase: z } })
       }
-      if (form === 'hero') {
-        const key = gz.gazeKeyForPointer(def.heroArt!, -40, def.heroArt!.length / 2)
-        matrix.push({ name: def.name, form, props: { hero: true, swayPhase: 0, gazeKey: key } })
-        matrix.push({ name: def.name, form, props: { hero: true, wide: true, swayPhase: 4 } })
-        matrix.push({ name: def.name, form, props: { hero: true, swayPhase: 0, glowToward: '#7fd8c8' } })
-        matrix.push({ name: def.name, form, props: { hero: true, swayPhase: 0, lineBg: (i: number) => (i % 2 ? '#221f1a' : '#1b1916') } })
+      if (form === 'square') {
+        const dock = cd.squareDockArtFor(def.name)
+        const key = gz.gazeKeyForPointer(dock, -40, dock.length / 2)
+        matrix.push({ name: def.name, form, props: { square: true, swayPhase: 0, gazeKey: key } })
+        matrix.push({ name: def.name, form, props: { square: true, swayPhase: 0, glowToward: '#7fd8c8' } })
+        matrix.push({ name: def.name, form, props: { square: true, swayPhase: 0, lineBg: (i: number) => (i % 2 ? '#221f1a' : '#1b1916') } })
       }
       if (form === 'art') matrix.push({ name: def.name, form, props: { chunky: true, swayPhase: 0, pupil: idle.EYE_SHUT, sleepPhase: 2 } })
     }
   }
-  await renderToString(React.createElement(CritterArt, { def: pd('crab', 'hero'), hero: true } as never), 60)
+  await renderToString(React.createElement(CritterArt, { def: pd('crab', 'square'), square: true } as never), 60)
   let same = 0
   let total = 0
   const bad: string[] = []
@@ -149,9 +151,9 @@ t.section('§3 — byte-identity: a hit renders what a miss renders, and what a 
     else bad.push(`${m.name}/${m.form}/${JSON.stringify(m.props)} [miss=hit plain:${missPlain === hitPlain} ansi:${missAnsi === hitAnsi} · cold=hit plain:${coldPlain === hitPlain} ansi:${coldAnsi === hitAnsi} · lens ${missPlain.length}/${hitPlain.length}/${coldPlain.length}]`)
   }
   if (transients.length > 0) console.log(`  note: ${transients.length} transient double frame(s) settled on a re-render — ${transients.slice(0, 3).join(' · ')}`)
-  t.check(`every frame of the matrix renders BYTE-IDENTICAL through a hit, a miss and a cache-less def (${same}/${total}, plain + truecolour ANSI, none empty)`, same === total && total >= 200, bad.slice(0, 6).join(' · '))
+  t.check(`every frame of the matrix renders BYTE-IDENTICAL through a hit, a miss and a cache-less def (${same}/${total}, plain + truecolour ANSI, none empty)`, same === total && total >= 190, bad.slice(0, 6).join(' · '))
   t.check(`transient double frames are rare (at most 5 % of the matrix, two at least — a slower box lands more) — a miss may land two commits in one sync window`, transients.length <= Math.max(2, Math.ceil(total * 0.05)), transients.join(' · '))
-  t.check('the ANSI legs carry colour (the comparison covers fg/bg bytes)', (await renderToAnsiString(React.createElement(CritterArt, { def: pd('crab', 'hero'), hero: true } as never), 60)).includes('\x1b[38;2;'))
+  t.check('the ANSI legs carry colour (the comparison covers fg/bg bytes)', (await renderToAnsiString(React.createElement(CritterArt, { def: pd('crab', 'square'), square: true } as never), 60)).includes('\x1b[38;2;'))
 }
 
 t.section('§4 — bounds: a whole cycle stays under the caps; contexts cold-start past theirs')
@@ -207,13 +209,13 @@ t.section('§5 — the effective sway phase: what the transforms read, and nothi
       }
     }
   }
-  t.check('a negative or out-of-range phase folds like its modulo (total)', cd.effectiveSwayPhase(byName['jellyfish']!, 'hero', false, -1) === H - 1 && cd.effectiveSwayPhase(byName['jellyfish']!, 'hero', false, H + 2) === 2)
+  t.check('a negative or out-of-range phase folds like its modulo (total)', cd.effectiveSwayPhase(byName['jellyfish']!, 'art', false, -1) === H - 1 && cd.effectiveSwayPhase(byName['jellyfish']!, 'art', false, H + 2) === 2)
 }
 
 t.section('§6 — the gaze memos: same object for the same grid, same values as a fresh scan')
 {
   for (const def of cd.CRITTERS) {
-    const art = def.heroArt!
+    const art = def.squareDock
     const a = gz.heroEyeClusters(art)
     const b = gz.heroEyeClusters(art)
     const fresh = gz.heroEyeClusters([...art])
@@ -224,7 +226,7 @@ t.section('§6 — the gaze memos: same object for the same grid, same values as
     const bf = cd.heroContentBounds([...art])
     t.check(`${def.name}: heroContentBounds answers the same tuple for the same grid, the same values for a copy`, ba === bb && ba[0] === bf[0] && ba[1] === bf[1])
   }
-  const crab = byName['crab']!.heroArt!
+  const crab = byName['crab']!.squareDock
   const moved = gz.applyGazeKey(crab, gz.gazeKeyForPointer(crab, -40, crab.length / 2))
   t.check('a gazed grid (a new array) discovers its own clusters — the rest cells differ from the authored grid\'s', moved !== crab && JSON.stringify(gz.heroEyeClusters(moved).map(c => c.rest)) !== JSON.stringify(gz.heroEyeClusters(crab).map(c => c.rest)))
 }
@@ -261,7 +263,7 @@ t.section('§8 — under the REAL clock a still critter never commits a frame id
       await wait(50)
     }
   }
-  for (const [name, form, still] of [['crab', 'hero', true], ['crab', 'mini', true], ['clam', 'hero', false], ['clam', 'art', false]] as Array<[string, Form, boolean]>) {
+  for (const [name, form, still] of [['crab', 'square', true], ['crab', 'mini', true], ['clam', 'square', true], ['clam', 'art', false]] as Array<[string, Form, boolean]>) {
     await openWindow()
     sleep.resetCritterSleepForTests()
     const d = pd(name, form)

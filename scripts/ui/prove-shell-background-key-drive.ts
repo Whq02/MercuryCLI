@@ -96,7 +96,7 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (l
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, ...SOVEREIGN_ARGV], cwd: ROOT, cols: COLS, rows: ROWS, sends, resizes: [], total: 360, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_DECK_COMPANION: '0', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
   const startedAtMs = Date.now()
   const holding = aside === undefined ? null : aside(leg)
   let output = ''

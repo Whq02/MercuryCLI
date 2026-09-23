@@ -223,7 +223,7 @@ export const SettingsSchema = lazySchema(() => {
     prefersReducedMotion: z.boolean().optional(),
     compactWayBack: z.boolean().optional(),
     backgroundKey: z.boolean().optional(),
-    critterSize: z.enum(['mini', 'full']).optional().catch(undefined),
+    sessionsBar: z.boolean().optional().describe('Show the SESSIONS bar along the bottom of the chat (/view on); off unless set'),
     firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
     showClearContextOnStrategyAccept: z.boolean().optional(),
     progressReporting: z.boolean().optional(),

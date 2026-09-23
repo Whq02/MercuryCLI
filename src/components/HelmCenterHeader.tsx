@@ -3,7 +3,7 @@ import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { useSyncExternalStore } from 'react'
 import { Box, Text } from '../ink.js'
 import { getActiveMission } from '../utils/hooks/missionHook.js'
-import { getCritterSize, setCritterSize } from '../utils/cockpit/critterSize.js'
+import { isSessionsBarOn, setSessionsBar } from '../utils/cockpit/sessionsBar.js'
 import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
 import {
   getFocusedSessionConnector,
@@ -59,7 +59,7 @@ export function HelmCenterHeader({ width }: { width: number }): React.ReactNode 
         <InteractiveRow
           id="helm:center:session"
           directActivate
-          onActivate={() => setCritterSize(getCritterSize() === 'mini' ? 'full' : 'mini')}
+          onActivate={() => setSessionsBar(!isSessionsBarOn())}
           height={1}
           flexShrink={0}
         >

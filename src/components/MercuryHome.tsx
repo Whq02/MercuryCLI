@@ -1,7 +1,6 @@
 import { pathTailLabel } from '../utils/pathLabel.js'
 import * as React from 'react'
-import { useContext, useEffect, useId, useMemo, useState } from 'react'
-import { claimHover, releaseHover, useHoverOwned } from './mercury-ui/useHoverOwned.js'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { Box, Text } from '../ink.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
@@ -19,7 +18,7 @@ import {
   type Snapshot,
   type TraceData,
 } from '../utils/cockpit/index.js'
-import { HERO_ART_COLS, HERO_ART_LINES, SQUARE_ART_LINES, SQUARE_DOCK_ART_LINES, critterDefForKey, decideCritterForm, squareDockArtFor, type CritterForm } from '../utils/cockpit/critterData.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
@@ -27,52 +26,28 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.js'
 import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterArt.js'
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
-import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
-import { cycleSessionCritter, getSessionAccent, useCritterSize, useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
+import { deckPaintsDock } from './DeckPane.js'
+import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
+import { branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 
-
-const HERO_MIN_ROWS = 30
-
-export function berthCritterForm(columns: number, rows: number): CritterForm {
-  const rawDef = critterDefForKey(getSessionAccent().key)
-  return decideCritterForm({ columns, rows }, !!rawDef.heroArt?.length)
-}
-
-export function berthCritterCols(columns: number, rows: number): number {
-  const form = berthCritterForm(columns, rows)
-  return form === 'hero' || form === 'premium-compact' ? HERO_ART_COLS : 13
-}
 
 export function PinnedCritterBerth(): React.ReactNode {
   const tok = useMercuryTokens()
   const sa = useSessionAccent()
-  const { columns, rows } = useTerminalSize()
   const rawDef = critterDefForKey(sa.key)
-  const def = React.useMemo(
+  const dockDef = React.useMemo(
     () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
     [rawDef, sa.accent, sa.accentDeep],
-  )
-  const hoverDef = React.useMemo(
-    () => ({ ...def, hue: tok.accentSoft }),
-    [def, tok.accentSoft],
-  )
-  const mini = useCritterSize() === 'mini'
-  const dockDef = React.useMemo(
-    () => ({ ...def, square: squareDockArtFor(sa.key) }),
-    [def, sa.key],
   )
   const hoverDockDef = React.useMemo(
     () => ({ ...dockDef, hue: tok.accentSoft }),
     [dockDef, tok.accentSoft],
   )
-  const form = decideCritterForm({ columns, rows }, !!rawDef.heroArt?.length)
-  const heroFits = form === 'hero' || form === 'premium-compact'
   return (
     <InteractiveRow
       id="berth:critter"
-      width={mini ? Math.max(...dockDef.square.map(row => row.length)) : undefined}
+      width={Math.max(...dockDef.squareDock.map(row => row.length))}
       directActivate
       onActivate={cycleSessionCritter}
       flexDirection="column"
@@ -82,19 +57,9 @@ export function PinnedCritterBerth(): React.ReactNode {
         <Box flexDirection="column" flexShrink={0} justifyContent="center">
           {
 }
-          {mini ? (
-            <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
-              <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
-            </Box>
-          ) : (
-          <Box
-            height={heroFits ? HERO_ART_LINES : SQUARE_ART_LINES}
-            flexDirection="column"
-            justifyContent="flex-end"
-          >
-            <AnimatedCritterArt def={hover ? hoverDef : def} hero={heroFits} square={!heroFits} />
+          <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
+            <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
           </Box>
-          )}
         </Box>
       )}
     </InteractiveRow>
@@ -107,67 +72,11 @@ export function MercuryHero(): React.ReactNode {
 }
 
 function MercuryHeroBody(): React.ReactNode {
-  const tok = useMercuryTokens()
-  const sa = useSessionAccent()
   const { columns, rows } = useTerminalSize()
-  const heroHoverId = useId()
-  const heroHover = useHoverOwned(heroHoverId)
-  const companionOn = useCompanionEnabled()
-  const rawDef = critterDefForKey(sa.key)
-  const heroDef = React.useMemo(
-    () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
-    [rawDef, sa.accent, sa.accentDeep],
-  )
-  if (rows < HERO_MIN_ROWS || columns < HERO_ART_COLS + 4) {
-    if (companionOn && !isDeckPaneActive() && rows >= 10 && columns >= 40) {
-      return (
-        <Box paddingX={1} marginTop={1} flexShrink={0} justifyContent="center">
-          <MiniCritter cols={columns} />
-        </Box>
-      )
-    }
-    return null
-  }
-  const accent = sa.accent
-  const heroCols = HERO_ART_COLS
+  if ((isDeckPaneActive() && deckPaintsDock(columns)) || rows < 10 || columns < 40) return null
   return (
-    <Box flexDirection="column" paddingX={1} marginTop={1} flexShrink={0}>
-      {
-}
-      <Box flexDirection="row" alignItems="flex-end">
-        <Box
-          flexDirection="column"
-          paddingX={2}
-          paddingBottom={1}
-          width={heroCols + 4}
-          alignItems="center"
-          flexShrink={0}
-          onMouseEnter={() => claimHover(heroHoverId)}
-          onMouseLeave={() => releaseHover(heroHoverId)}
-          onClick={cycleSessionCritter}
-        >
-          {
-}
-          <Box height={HERO_ART_LINES} flexDirection="column" justifyContent="flex-end">
-            <AnimatedCritterArt def={heroDef} hero={true} />
-          </Box>
-        </Box>
-      </Box>
-      {
-}
-      {
-}
-      {heroHover ? (
-        <Text>
-          <Text color={sa.accentDeep}>{' ' + GLYPH.mission + '─'}</Text>
-          <Text color={tok.textMuted}>{' click ⇒ next critter '}</Text>
-          <Text color={sa.accentDeep}>{'─'.repeat(Math.max(0, heroCols - 21)) + GLYPH.mission}</Text>
-        </Text>
-      ) : (
-        <Text color={sa.accentDeep}>
-          {' ' + GLYPH.mission + '─'.repeat(heroCols + 2) + GLYPH.mission}
-        </Text>
-      )}
+    <Box paddingX={1} marginTop={1} flexShrink={0} justifyContent="center">
+      <MiniCritter />
     </Box>
   )
 }

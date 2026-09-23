@@ -281,7 +281,6 @@ function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_UPDATE_NOTICE: '0',
     MERCURY_TERMINAL_TITLE: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_DESKTOP_DRIVER: 'none',
     MERCURY_OASIS_BG: '0',
     MERCURY_CONNECTOR_TRACE: join(leg.home, 'connector-trace.jsonl'),

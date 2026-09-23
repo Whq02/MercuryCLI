@@ -45,12 +45,10 @@ import { activeSourceUsage, usageViewIsStale } from '../services/providers/provi
 import { usageAgeTail } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
 import { TrimChip } from './mercury-ui/TrimChip.js'
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
 import { Crab } from './mercury-ui/assets.js'
-import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { ProgressBar, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
@@ -60,12 +58,15 @@ import { STATE_STYLE } from './mercury-ui/theme.js'
 
 const MAX_TASKS = 4
 
+export function deckPaintsDock(cols: number): boolean {
+  return cols < 100
+}
+
 export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tok = useMercuryTokens()
   const { accent: TERRA, accentDeep: CLAW } = useSessionAccent()
   const cols = useTerminalSize().columns
-  const compact = cols < 100
-  const companionOn = useCompanionEnabled()
+  const compact = deckPaintsDock(cols)
   const servedModel = useFocusedServedModel()
   const processModel = useMainLoopModel()
   const rawModel = servedModel ?? processModel
@@ -213,12 +214,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               <Text color={tok.textSecondary}>{model}</Text>
               <EffortChip model={rawModel} />
               <TrimChip />
-              {companionOn ? (
-                <>
-                  <Text color={tok.textMuted}> · </Text>
-                  <DeckCompanionChip />
-                </>
-              ) : null}
               {git !== null ? (
                 <>
                   <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
@@ -237,16 +232,14 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
             </Text>
           )
-          if (!companionOn) return denseRow
           return (
             <Box flexDirection="row">
               <Box flexShrink={0} marginRight={1}>
-                <MiniCritter cols={cols} bare />
+                <MiniCritter bare />
               </Box>
               <Box flexDirection="column" flexGrow={1}>
                 {denseRow}
                 {opsRow}
-                <CompanionSpeechLine />
               </Box>
             </Box>
           )
@@ -264,10 +257,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           <Text color={tok.warning}>-{removed}</Text>
         </Text>
       )}
-
-      {
-}
-      {!compact && companionOn ? <DeckCompanion /> : null}
 
       {
 }
@@ -450,7 +439,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
 
       {
 }
-      {compact && companionOn ? null : opsRow}
+      {compact ? null : opsRow}
 
     </Box>
   )

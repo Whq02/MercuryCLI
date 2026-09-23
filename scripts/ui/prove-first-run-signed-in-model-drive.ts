@@ -54,7 +54,6 @@ function childEnv(home: string, base: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DECK_COMPANION: '0',
     MERCURY_UPDATE_NOTICE: '0',
     MERCURY_CRITTER: 'clam',
     TERM_PROGRAM: 'vscode',

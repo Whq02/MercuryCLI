@@ -85,7 +85,7 @@ function composerCapture(
   total: number,
   early?: { readyText?: string; stableTicks?: number },
 ): string[] | null {
-  const cfg = scenario('companion-cockpit', 120, 40)
+  const cfg = scenario('cockpit-short', 120, 40)
   const gridPath = `/tmp/composer-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/composer-${tag}-cfg-${process.pid}.json`
   writeFileSync(
@@ -108,7 +108,7 @@ function composerCapture(
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
   })
-  cleanupScenario('companion-cockpit')
+  cleanupScenario('cockpit-short')
   if (res.status !== 0) {
     check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
     try {

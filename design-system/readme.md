@@ -206,9 +206,8 @@ that double as session identities. Each owns a hue; the session accent re-tints
 **only identity chrome** (frame border, caret, accent panels) via
 `useSessionAccent()` — the status spine never moves. `/critter` picks,
 `/accent` overrides (explicit beats derived). The hero's pupils track the
-pointer (`MERCURY_CRITTER_GAZE`); the opt-in session companion (`/companion`)
-adds one voice beside one creature — one creature representation per layout
-region, one voice owner globally.
+pointer (`MERCURY_CRITTER_GAZE`) — one creature representation per layout
+region.
 
 ---
 

@@ -30,7 +30,7 @@ import {
   subscribeCritterSleep,
 } from '../../utils/cockpit/critterSleep.js'
 import { lerpHex } from '../../utils/theme.js'
-import { effectiveSwayPhase, heroContentBounds, type CritterDef } from '../../utils/cockpit/critterData.js'
+import { effectiveSwayPhase, type CritterDef } from '../../utils/cockpit/critterData.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'
 import { CritterArt } from './CritterArt.js'
 
@@ -50,15 +50,14 @@ function useIdleAnimation<T extends string | number>(
 const NOOP_SUBSCRIBE = (): (() => void) => () => {}
 const EMPTY_KEY = (): string => ''
 
-export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = false, mini = false, square = false, specimen = false, lineBg }: { def: CritterDef; chunky?: boolean; hero?: boolean; wide?: boolean; mini?: boolean;
+export function AnimatedCritterArt({ def, chunky = false, mini = false, square = false, specimen = false, lineBg }: { def: CritterDef; chunky?: boolean; mini?: boolean;
   square?: boolean;
   specimen?: boolean; lineBg?: (line: number) => string | undefined }): React.ReactNode {
   useSyncExternalStore(subscribeCritterSleep, critterSleepSince, critterSleepSince)
   const asleep =
     critterSleepSince() !== 0 && (!specimen || critterSleepMode() === 'forced')
-  const usingHero = hero && !!def.heroArt && def.heroArt.length > 0
-  const usingSquare = !usingHero && square && !!def.square && def.square.length > 0
-  const form = usingHero ? 'hero' : usingSquare ? 'square' : mini ? 'mini' : 'art'
+  const usingSquare = square && def.squareDock.length > 0
+  const form = usingSquare ? 'square' : mini ? 'mini' : 'art'
   const rawKeyRef = useRef('')
   const frameDerive = useCallback(() => {
     const key = critterLiveFrameKey()
@@ -77,7 +76,7 @@ export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = f
   const sleepPhase = asleep ? (raw.sleepPhase ?? 0) : null
   const pupil = asleep ? EYE_SHUT : raw.sleepPhase !== null ? EYE_OPEN : raw.pupil
   const swayPhase = effectiveSwayPhase(def, form, asleep, raw.swayPhase)
-  const gazeGrid = usingHero ? def.heroArt! : usingSquare ? def.square : null
+  const gazeGrid = usingSquare ? def.squareDock : null
   const gazeOn = animate && !asleep && gazeGrid !== null && critterGazeEnabled()
   const boxRef = useRef<DOMElement | null>(null)
   const composedRef = useCallback(
@@ -90,23 +89,21 @@ export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = f
   const prevGazeKeyRef = useRef('')
   const gazeSampleRef = useRef('')
   const getGazeSnapshot = useCallback((): string => {
-    const grid = usingHero ? def.heroArt : usingSquare ? def.square : undefined
+    const grid = usingSquare ? def.squareDock : undefined
     const pointer = getPointerCell()
     const rect = boxRef.current ? nodeCache.get(boxRef.current) : undefined
     const sample = `${getPointerVersion()}|${rect ? `${rect.x},${rect.y}` : '-'}`
     if (sample === gazeSampleRef.current) return prevGazeKeyRef.current
     let key = ''
     if (pointer && rect && grid) {
-      const dup = usingHero && wide ? 2 : 1
-      const [cStart] = usingHero ? heroContentBounds(grid) : [0]
-      const px = cStart + (pointer.col - rect.x) / dup + 0.5
+      const px = pointer.col - rect.x + 0.5
       const py = (pointer.row - rect.y) * 2 + 1
       key = gazeKeyForPointer(grid, px, py, prevGazeKeyRef.current)
     }
     gazeSampleRef.current = sample
     prevGazeKeyRef.current = key
     return key
-  }, [wide, def, usingHero, usingSquare])
+  }, [def, usingSquare])
   const gazeKey = useSyncExternalStore(
     gazeOn ? subscribePointerCell : NOOP_SUBSCRIBE,
     gazeOn ? getGazeSnapshot : EMPTY_KEY,
@@ -114,14 +111,14 @@ export function AnimatedCritterArt({ def, chunky = false, hero = false, wide = f
   )
   if (!animate) {
     return asleep ? (
-      <CritterArt def={def} pupil={EYE_SHUT} sleepPhase={2} chunky={chunky} hero={hero} wide={wide} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
+      <CritterArt def={def} pupil={EYE_SHUT} sleepPhase={2} chunky={chunky} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
     ) : (
-      <CritterArt def={def} chunky={chunky} hero={hero} wide={wide} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
+      <CritterArt def={def} chunky={chunky} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
     )
   }
   return (
     <Box flexDirection="column" ref={composedRef as never}>
-      <CritterArt def={def} pupil={pupil} gazeKey={gazeKey} swayPhase={swayPhase} sleepPhase={sleepPhase} chunky={chunky} hero={hero} wide={wide} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
+      <CritterArt def={def} pupil={pupil} gazeKey={gazeKey} swayPhase={swayPhase} sleepPhase={sleepPhase} chunky={chunky} mini={mini} square={square} {...(lineBg !== undefined ? { lineBg } : {})} />
     </Box>
   )
 }

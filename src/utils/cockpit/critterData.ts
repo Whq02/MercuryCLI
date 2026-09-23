@@ -2,9 +2,9 @@
 import { CLAW, IVORY, OASIS, TERRA } from '../../components/mercuryPalette.js'
 
 
-export type ArtForm = 'art' | 'hero' | 'mini' | 'square'
+export type ArtForm = 'art' | 'mini' | 'square'
 
-type CoreArtForm = 'art' | 'hero' | 'mini'
+type CoreArtForm = 'art' | 'mini'
 
 export type SleepPose = { art: string[]; flow: number }
 
@@ -14,10 +14,7 @@ export type CritterDef = {
   hueDeep: string
   mark: { pre: string; core: string; post: string }
   art: string[]
-  heroArt?: string[]
   mini: string[]
-  markCompact: string[]
-  square: string[]
   squareDock: string[]
   sleep: Record<CoreArtForm, SleepPose> & Partial<Record<'square', SleepPose>>
   flow?: Partial<Record<ArtForm, number>>
@@ -27,8 +24,6 @@ export type CritterDef = {
 
 
 export const CR_COLS = 13
-
-export const HERO_ART_COLS = 24
 
 
 export const EYE_BG = '#EDE8DD'
@@ -126,27 +121,6 @@ const CRAB_ART: string[] = [
   'C..C.C.C.C..C',
 ]
 
-const CRAB_HERO: string[] = [
-  '......EEE.....EEE.......',
-  '......EKE.....EKE.......',
-  '.......DD.....DD........',
-  '.......DD.....DD........',
-  '.....LLLMMMMMMMMm.CC.CC.',
-  '...LLMMMMMMMMMMMMm.CCC..',
-  '..LMMMMMMMMMMMMMMMM.CC..',
-  '.CCMMMMMMMMMMMMMMMMMC...',
-  'CCC.MMMMMMMMMMMMMMMMm...',
-  'CCC..MMMMMMMMMMMMMMm....',
-  'C.C.mMMMMMMMMMMMMmm.....',
-  '....%%%%%%%%%%%%%%......',
-  '....%%%%%%%%%%%%%%......',
-  '.....DDDDDDDDDDDD.......',
-  '...CC..CC....CC..CC.....',
-  '...CC..CC....CC..CC.....',
-  '...C...C......C...C.....',
-  '..CC..CC......CC..CC....',
-]
-
 const CRAB_MINI: string[] = [
   '...MMMMM...',
   '..MMMMMMM..',
@@ -154,15 +128,6 @@ const CRAB_MINI: string[] = [
   'PMMPMMMPMMP',
   '..M.M.M.M..',
   '.D..D.D..D.',
-]
-
-const CRAB_MARK_COMPACT: string[] = [
-  'P.P.......',
-  'MMM....MM.',
-  '.MMPMMPMM.',
-  '.MMPMMPMM.',
-  '.LLLLLLLL.',
-  '.C.C..C.C.',
 ]
 
 const CRAB_ART_SLEEP: string[] = [
@@ -180,27 +145,6 @@ const CRAB_ART_SLEEP: string[] = [
   'CC.C.C.C.C.CC',
 ]
 
-const CRAB_HERO_SLEEP: string[] = [
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '......LLMMMMMMMMMm......',
-  '....LLMMMMMMMMMMMMm.....',
-  '...LMMmmMMMMMMmmMMMm....',
-  '..mMMMMMMMMMMMMMMMMmm...',
-  '.CCC.mMMMMMMMMMMm..CCC..',
-  'CCCC.mMMMMMMMMMMMm.CCCC.',
-  '.CC..%%%%%%%%%%%%..CC...',
-  '.....DDDDDDDDDDDD.......',
-  '...CC.CC.CC..CC.CC.CC...',
-  '...CC.CC.CC..CC.CC.CC...',
-]
-
 const CRAB_MINI_SLEEP: string[] = [
   '...........',
   '...........',
@@ -208,21 +152,6 @@ const CRAB_MINI_SLEEP: string[] = [
   '.MMmMMMmMM.',
   'CCMLLLLLMCC',
   'C.C.M.M.C.C',
-]
-
-const CRAB_SQUARE: string[] = [
-  '.............',
-  '.............',
-  '.CC.......CC.',
-  '.CCMMMMMMMCC.',
-  '.MEEEMMMEEEM.',
-  '.MEKEMMMEKEM.',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.MLLMMMMMLLM.',
-  '.MMMMMMMMMMM.',
-  '.C.C.C.C.C.C.',
-  '.C.C.C.C.C.C.',
 ]
 
 const CRAB_SQUARE_DOCK: string[] = [
@@ -240,14 +169,10 @@ const CRAB: CritterDef = {
   hueDeep: CLAW,
   mark: { pre: '▖', core: '▟▆▙', post: '▗' },
   art: CRAB_ART,
-  heroArt: CRAB_HERO,
   mini: CRAB_MINI,
-  markCompact: CRAB_MARK_COMPACT,
-  square: CRAB_SQUARE,
   squareDock: CRAB_SQUARE_DOCK,
   sleep: {
     art: { art: CRAB_ART_SLEEP, flow: 0 },
-    hero: { art: CRAB_HERO_SLEEP, flow: 0 },
     mini: { art: CRAB_MINI_SLEEP, flow: 0 },
   },
 }
@@ -267,27 +192,6 @@ const OCTOPUS_ART: string[] = [
   '.C....C....C.',
 ]
 
-const OCTOPUS_HERO: string[] = [
-  '.......LLMMMM...........',
-  '.....LLMMMMMMMMM........',
-  '....LLMMMMMMMMMMm.......',
-  '...LLMMMMMMMMMMMMm......',
-  '..LMMMMMMMMMMMMMMMm.....',
-  '..LMMMMMMMMMMMMMMMm.....',
-  '..MMMMMMMMMMMMMMMMmm....',
-  '..MMMMMMMMMMMMMMMMmm....',
-  '..MMEEEMMMMMMMMEEEmm....',
-  '..MMEKEMMMMMMMMEKEmm....',
-  '..MMMMMMMMMMMMMMMMmm.CC.',
-  '...mMMMMMMMMMMMMmm...CC.',
-  '...MMMMMMMMMMMMMMMM..MM.',
-  '...MM.MM.MM.MM.MM....MM.',
-  '..MM..MM.MM.MM..MM..MM..',
-  '.CM..CM..MM.MM...MC.MM..',
-  '.........MM..MC.........',
-  '........CC..............',
-]
-
 const OCTOPUS_MINI: string[] = [
   '...MMMMM...',
   '..MMMMMMM..',
@@ -295,15 +199,6 @@ const OCTOPUS_MINI: string[] = [
   '.MMPMMMPMM.',
   '.M.M.M.M.M.',
   '.D..D.D..D.',
-]
-
-const OCTOPUS_MARK_COMPACT: string[] = [
-  '..MMMMMM..',
-  '.MMMMMMMM.',
-  '.MMPMMPMM.',
-  '.MMPMMPMM.',
-  '.MMMMMMMM.',
-  'MC.M..M.CM',
 ]
 
 const OCTOPUS_ART_SLEEP: string[] = [
@@ -321,27 +216,6 @@ const OCTOPUS_ART_SLEEP: string[] = [
   '.MC.MC.CM.CM.',
 ]
 
-const OCTOPUS_HERO_SLEEP: string[] = [
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '.......LLMMMMMM.........',
-  '.....LLMMMMMMMMMm.......',
-  '....LMMMMMMMMMMMMm......',
-  '...MMMMMMMMMMMMMMMm.....',
-  '...MMmmMMMMMMMMmmMMm....',
-  '..mMMMMMMMMMMMMMMMMm....',
-  '..MMMMMMMMMMMMMMMMMm....',
-  '..mmmmmmmmmmmmmmmmm.....',
-  '.MM..MM..MM..MM..MM.....',
-  '.CC..CC..CC..CC..CC.....',
-]
-
 const OCTOPUS_MINI_SLEEP: string[] = [
   '...........',
   '...........',
@@ -349,21 +223,6 @@ const OCTOPUS_MINI_SLEEP: string[] = [
   '.MMmMMMmMM.',
   '.MMMMMMMMM.',
   '.MC.MCM.CM.',
-]
-
-const OCTOPUS_SQUARE: string[] = [
-  '.............',
-  '.............',
-  '..MMMMMMMMM..',
-  '.MMMMMMMMMMM.',
-  '.MEEEMMMEEEM.',
-  '.MEKEMMMEKEM.',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.M.M.M.M.M.M.',
-  '.C.C.C.C.C.C.',
 ]
 
 const OCTOPUS_SQUARE_DOCK: string[] = [
@@ -381,17 +240,13 @@ const OCTOPUS: CritterDef = {
   hueDeep: OCTOPUS_HUE_DEEP,
   mark: { pre: '▝', core: '▜▆▛', post: '▘' },
   art: OCTOPUS_ART,
-  heroArt: OCTOPUS_HERO,
   mini: OCTOPUS_MINI,
-  markCompact: OCTOPUS_MARK_COMPACT,
-  square: OCTOPUS_SQUARE,
   squareDock: OCTOPUS_SQUARE_DOCK,
   sleep: {
     art: { art: OCTOPUS_ART_SLEEP, flow: 2 },
-    hero: { art: OCTOPUS_HERO_SLEEP, flow: 2 },
     mini: { art: OCTOPUS_MINI_SLEEP, flow: 2 },
   },
-  flow: { art: 2, hero: 2, mini: 2 },
+  flow: { art: 2, mini: 2 },
 }
 
 const JELLYFISH_ART: string[] = [
@@ -409,27 +264,6 @@ const JELLYFISH_ART: string[] = [
   '.............',
 ]
 
-const JELLYFISH_HERO: string[] = [
-  '.......LLMMMMM..........',
-  '.....LLMMMMMMMMM........',
-  '....LMMMMMMMMMMMm.......',
-  '...LMMMMMMMMMMMMMm......',
-  '...MMEEMMMMMMEEMMm......',
-  '...MMEKMMMMMMEKMMm......',
-  '...mMMMMMMMMMMMMMm......',
-  '...mMMMMMMMMMMMMMm......',
-  '...%%%%%%%%%%%%%%%......',
-  '....M..M..M..M..M.......',
-  '....M..M..M..M..M.......',
-  '....M..C..M..C..M.......',
-  '.....M.C..M..C.M........',
-  '.....C..C.M.C..C........',
-  '........C.M.............',
-  '..........C.............',
-  '.........C..............',
-  '...........C............',
-]
-
 const JELLYFISH_MINI: string[] = [
   '..%%MMMMM..',
   '.MMMMMMMMM.',
@@ -437,15 +271,6 @@ const JELLYFISH_MINI: string[] = [
   '.MEPMMMPEM.',
   '.LLLLLLLLL.',
   '.M.C.M.C.M.',
-]
-
-const JELLYFISH_MARK_COMPACT: string[] = [
-  '..%%MMMM..',
-  '.MMMMMMMM.',
-  '.MEPMMPEM.',
-  '.MEPMMPEM.',
-  '.LLLLLLLL.',
-  '.M.C..C.M.',
 ]
 
 const JELLYFISH_ART_SLEEP: string[] = [
@@ -463,27 +288,6 @@ const JELLYFISH_ART_SLEEP: string[] = [
   '.....C.C.....',
 ]
 
-const JELLYFISH_HERO_SLEEP: string[] = [
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '.......LLMMMMM..........',
-  '.....LLMMMMMMMMM........',
-  '....LMMMMMMMMMMMm.......',
-  '...LMMMMMMMMMMMMMm......',
-  '...MMmmMMMMMMmmMMm......',
-  '...mMMMMMMMMMMMMMm......',
-  '...%%%%%%%%%%%%%%%......',
-  '....M..M..M..M..M.......',
-  '....M..M..M..M..M.......',
-  '.....M....M....M........',
-  '.....M....M....M........',
-  '.....C....M....C........',
-  '..........M.............',
-  '..........C.............',
-]
-
 const JELLYFISH_MINI_SLEEP: string[] = [
   '...........',
   '...........',
@@ -491,21 +295,6 @@ const JELLYFISH_MINI_SLEEP: string[] = [
   '.MEPMMMPEM.',
   '.LLLLLLLLL.',
   '.M.C.M.C.M.',
-]
-
-const JELLYFISH_SQUARE: string[] = [
-  '.............',
-  '.............',
-  '..MMMMMMMMM..',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.MMMMMMMMMMM.',
-  '.MEEEMMMEEEM.',
-  '.MEKEMMMEKEM.',
-  '.%%%%%%%%%%%.',
-  '.%%%%%%%%%%%.',
-  '.M.C.M.M.C.M.',
-  '.M.C.M.M.C.M.',
 ]
 
 const JELLYFISH_SQUARE_DOCK: string[] = [
@@ -523,17 +312,13 @@ const JELLYFISH: CritterDef = {
   hueDeep: JELLYFISH_HUE_DEEP,
   mark: { pre: '▚', core: '▛▀▜', post: '▞' },
   art: JELLYFISH_ART,
-  heroArt: JELLYFISH_HERO,
   mini: JELLYFISH_MINI,
-  markCompact: JELLYFISH_MARK_COMPACT,
-  square: JELLYFISH_SQUARE,
   squareDock: JELLYFISH_SQUARE_DOCK,
   sleep: {
     art: { art: JELLYFISH_ART_SLEEP, flow: 4 },
-    hero: { art: JELLYFISH_HERO_SLEEP, flow: 2 },
     mini: { art: JELLYFISH_MINI_SLEEP, flow: 2 },
   },
-  flow: { art: 4, hero: 8, mini: 2 },
+  flow: { art: 4, mini: 2 },
 }
 
 const CLAM_ART: string[] = [
@@ -549,23 +334,6 @@ const CLAM_ART: string[] = [
   '...CCCCCCC...',
 ]
 
-const CLAM_HERO: string[] = [
-  '.........LLCCLL.........',
-  '.......LLMMCCMMLL.......',
-  '....mMMMCMMCCMMCMMMm....',
-  '..mMMMCMMMCMMCMMMCMMMm..',
-  '..MDMMDMMMDMMDMMMDMMDM..',
-  '...DDDDDDDDDDDDDDDDDD...',
-  '...DDDEEEDDDDDDEEEDDD...',
-  '...DDDEKEDDDDDDEKEDDD...',
-  '..%%%%%%%%%%%%%%%%%%%%..',
-  '..mMCMMMCMMMMMMCMMMCMm..',
-  '..mMMCMMMCMMMMCMMMCMMm..',
-  '...mMMCMMMCMMCMMMCMMm...',
-  '....mMMCMMMCCMMMCMMm....',
-  '.....CCCCCCCCCCCCCC.....',
-]
-
 const CLAM_MINI: string[] = [
   '..LLMCMLL..',
   '.mMMCMCMMm.',
@@ -573,15 +341,6 @@ const CLAM_MINI: string[] = [
   '.DPPDDDPPD.',
   '.%%%%%%%%%.',
   '.MCMMMMMCM.',
-]
-
-const CLAM_MARK_COMPACT: string[] = [
-  '..LMCCML..',
-  '.mMMCCMMm.',
-  '.DPPDDPPD.',
-  '.DPPDDPPD.',
-  '.%%%%%%%%.',
-  '.MCMMMMCM.',
 ]
 
 const CLAM_ART_SLEEP: string[] = [
@@ -597,23 +356,6 @@ const CLAM_ART_SLEEP: string[] = [
   '...CCCCCCC...',
 ]
 
-const CLAM_HERO_SLEEP: string[] = [
-  '........................',
-  '........................',
-  '........................',
-  '........................',
-  '.........LLCCLL.........',
-  '.......LLMMCCMMLL.......',
-  '....mMMMCMMCCMMCMMMm....',
-  '..mMMMCMMMCMMCMMMCMMMm..',
-  '..MMMMmmmCMMMMCmmmMMMM..',
-  '..DDDDDDDDDDDDDDDDDDDD..',
-  '..mMCMMMCMMMMMMCMMMCMm..',
-  '..mMMCMMMCMMMMCMMMCMMm..',
-  '....mMMCMMMCCMMMCMMm....',
-  '.....CCCCCCCCCCCCCC.....',
-]
-
 const CLAM_MINI_SLEEP: string[] = [
   '...........',
   '...........',
@@ -621,21 +363,6 @@ const CLAM_MINI_SLEEP: string[] = [
   '.MmmMCMmmM.',
   '.DDDDDDDDD.',
   '.MCMMMMMCM.',
-]
-
-const CLAM_SQUARE: string[] = [
-  '.............',
-  '.............',
-  '.MMMMMCMMMMM.',
-  '.MDMMDCDMMDM.',
-  '.DEEEDDDEEED.',
-  '.DEKEDDDEKED.',
-  '.%%%%%%%%%%%.',
-  '.%%%%%%%%%%%.',
-  '.MCMMMCMMMCM.',
-  '.MCMMMCMMMCM.',
-  '.CCCCCCCCCCC.',
-  '.CCCCCCCCCCC.',
 ]
 
 const CLAM_SQUARE_DOCK: string[] = [
@@ -653,17 +380,13 @@ const CLAM: CritterDef = {
   hueDeep: CLAM_HUE_DEEP,
   mark: { pre: '▗', core: '▙█▟', post: '▖' },
   art: CLAM_ART,
-  heroArt: CLAM_HERO,
   mini: CLAM_MINI,
-  markCompact: CLAM_MARK_COMPACT,
-  square: CLAM_SQUARE,
   squareDock: CLAM_SQUARE_DOCK,
   sleep: {
     art: { art: CLAM_ART_SLEEP, flow: 0 },
-    hero: { art: CLAM_HERO_SLEEP, flow: 0 },
     mini: { art: CLAM_MINI_SLEEP, flow: 0 },
   },
-  settle: { art: 3, hero: 5, mini: 1 },
+  settle: { art: 3, mini: 1 },
   sleepGlyphs: CLAM_SLEEP_GLYPHS,
 }
 
@@ -675,8 +398,6 @@ export const CRITTER_COUNT = CRITTERS.length
 export function critterAt(i: number): CritterDef {
   return CRITTERS[((i % CRITTERS.length) + CRITTERS.length) % CRITTERS.length]!
 }
-
-export type CritterState = 'thinking' | 'working' | 'blocked' | 'done' | 'sleeping' | 'idle'
 
 export const DEFAULT_CRITTER_KEY = 'jellyfish'
 
@@ -705,14 +426,6 @@ export function isPoolCritterKey(key: string | undefined | null): boolean {
 
 export function miniArtFor(key: string | undefined | null): string[] {
   return BY_KEY[resolvePoolKey(key)]!.mini
-}
-
-export function markCompactArtFor(key: string | undefined | null): string[] {
-  return BY_KEY[resolvePoolKey(key)]!.markCompact.slice()
-}
-
-export function squareArtFor(key: string | undefined | null): string[] {
-  return BY_KEY[resolvePoolKey(key)]!.square
 }
 
 export function squareDockArtFor(key: string | undefined | null): string[] {
@@ -744,41 +457,10 @@ export function heroContentBounds(art: string[]): [number, number] {
   return bounds
 }
 
-export const HERO_ART_LINES: number = CRITTERS.reduce(
-  (max, def) => Math.max(max, Math.ceil((def.heroArt?.length ?? 0) / 2)),
-  0,
-)
-
-export const FLAT_ART_LINES: number = CRITTERS.reduce(
-  (max, def) => Math.max(max, Math.ceil(def.art.length / 2)),
-  0,
-)
-
-export const SQUARE_ART_LINES: number = CRITTERS.reduce(
-  (max, def) => Math.max(max, Math.ceil(def.square.length / 2)),
-  0,
-)
-
 export const SQUARE_DOCK_ART_LINES: number = CRITTERS.reduce(
   (max, def) => Math.max(max, Math.ceil(def.squareDock.length / 2)),
   0,
 )
-
-export type CritterForm = 'hero' | 'premium-compact' | 'mini' | 'none'
-
-export const PREMIUM_COMPACT_MIN_ROWS = 24
-
-export const BERTH_HERO_MIN_ROWS: number = 28 + (HERO_ART_LINES - FLAT_ART_LINES)
-
-export function decideCritterForm(
-  allocated: { columns: number; rows: number },
-  hasHeroArt: boolean,
-): CritterForm {
-  const { columns, rows } = allocated
-  if (columns < CR_COLS + 2) return 'none'
-  if (!hasHeroArt || columns < HERO_ART_COLS + 4) return 'mini'
-  return rows >= BERTH_HERO_MIN_ROWS ? 'hero' : 'mini'
-}
 
 
 export function heroBlinkRows(art: string[]): string[] {

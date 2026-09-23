@@ -26,11 +26,11 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const ALL = [...CRITTERS].filter(d => d.heroArt?.length)
+const ALL = [...CRITTERS]
 
 console.log('— pure core: neutral identity + conservation —')
 for (const def of ALL) {
-  const art = def.heroArt!
+  const art = def.squareDock
   t(`${def.name}: null pointer ⇒ same array ref`, heroGazeRows(art, null, null) === art)
   t(`${def.name}: '' key ⇒ same array ref`, applyGazeKey(art, '') === art)
   const clusters = heroEyeClusters(art)
@@ -67,7 +67,7 @@ for (const def of ALL) {
 }
 
 console.log('— direction correctness (crab) —')
-const crab = ALL.find(d => d.name === 'crab')!.heroArt!
+const crab = ALL.find(d => d.name === 'crab')!.squareDock
 const crabClusters = heroEyeClusters(crab)
 {
   const eyeY = crabClusters[0]!.cy
@@ -95,7 +95,9 @@ const crabClusters = heroEyeClusters(crab)
   const kUp = upCl.cells.filter(c => rowsU[c.r]![c.c] === 'K')
   t('crab up-gaze: pupil on the top pair row', kUp.length === 1 && kUp[0]!.r === upCl.rest.r - 1)
   const farCl = crabClusters[1]!
-  const nearRows = heroGazeRows(crab, upCl.cx, upCl.cy)
+  const faceX = (upCl.cx + farCl.cx) / 2
+  const faceY = (upCl.cy + farCl.cy) / 2
+  const nearRows = heroGazeRows(crab, faceX - (GAZE_DEAD_ZONE + 1), faceY)
   const offsetsOn = (rows: string[]): string[] =>
     crabClusters.map(cl => {
       const k = cl.cells.find(c => rows[c.r]![c.c] === 'K')
@@ -104,13 +106,11 @@ const crabClusters = heroEyeClusters(crab)
   {
     const offs = offsetsOn(nearRows)
     t(
-      'gaze law: pointer ON the left eye moves BOTH pupils, same offset, toward it',
+      'gaze law: a pointer just past the face dead zone on the left moves BOTH pupils, same offset, toward it',
       offs.every(o => o === offs[0] && o !== 'none') && offs[0] !== '0,0' && offs[0]!.endsWith(',-1'),
       offs.join(' | '),
     )
   }
-  const faceX = (upCl.cx + farCl.cx) / 2
-  const faceY = (upCl.cy + farCl.cy) / 2
   const restRows = heroGazeRows(crab, faceX + (GAZE_DEAD_ZONE - 0.5), faceY)
   t(
     'gaze law: a pointer inside the FACE dead zone keeps the authored rest pose',
@@ -174,7 +174,7 @@ console.log('— hysteresis (refinement): boundary drift never jitters —')
 
 console.log('— blink composes over gaze —')
 for (const def of ALL) {
-  const art = def.heroArt!
+  const art = def.squareDock
   const gazed = heroGazeRows(art, -40, art.length / 2)
   const lidded = heroBlinkRows(gazed)
   let leak = false
@@ -190,10 +190,10 @@ for (const def of ALL) {
 
 console.log('— foreign/stale key refusal —')
 {
-  const octo = ALL.find(d => d.name === 'octopus')!.heroArt!
+  const crabFlat = ALL.find(d => d.name === 'crab')!.art
   const crabKey = gazeKeyForPointer(crab, -40, 2)
   t('crab key is non-empty (fixture sane)', crabKey.length > 0)
-  t('crab key applied to octopus ⇒ REFUSED (same ref)', applyGazeKey(octo, crabKey) === octo)
+  t('dock key applied to the flat grid ⇒ REFUSED (same ref)', applyGazeKey(crabFlat, crabKey) === crabFlat)
   t('garbage key ⇒ REFUSED', applyGazeKey(crab, 'zz|1') === crab)
   t('out-of-bounds key ⇒ REFUSED', applyGazeKey(crab, '99,99>99,98') === crab)
   t('cross-pair key ⇒ REFUSED', applyGazeKey(crab, '1,7>2,7') === crab)
@@ -248,12 +248,12 @@ console.log('— view + decode wiring (static) —')
     `guard@${guardIdx} tap@${tapIdx}`,
   )
   const anim = readFileSync('src/components/mercury-ui/AnimatedCritterArt.tsx', 'utf8')
-  t('gaze gated on animate + NOT asleep + a gaze grid (hero OR square) + critterGazeEnabled',
+  t('gaze gated on animate + NOT asleep + a gaze grid (square) + critterGazeEnabled',
     /animate && !asleep && gazeGrid !== null && critterGazeEnabled\(\)/.test(anim) &&
-    /const gazeGrid = usingHero \? def\.heroArt! : usingSquare \? def\.square : null/.test(anim))
+    /const gazeGrid = usingSquare \? def\.squareDock : null/.test(anim))
   t('view threads gazeKey into CritterArt', anim.includes('gazeKey={gazeKey}'))
   const cart = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
-  t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(pose \? pose\.art : def\.heroArt!, gazeKey\)[\s\S]{0,400}heroBlinkRows\(gazed\)/.test(cart))
+  t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(base, gazeKey\)[\s\S]{0,200}heroBlinkRows\(gazed\)/.test(cart))
   const scen = readFileSync('scripts/ui/renderScenarios.ts', 'utf8')
   t('renderScenarios pins MERCURY_CRITTER_GAZE off', scen.includes("process.env.MERCURY_CRITTER_GAZE = process.env.MERCURY_CRITTER_GAZE ?? '0'"))
   const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')

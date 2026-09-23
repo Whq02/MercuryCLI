@@ -456,46 +456,19 @@ section('UI-061..064 — authored chords classified through the live protocol; c
   )
 }
 
-section('VP — one form decision over allocated cells; the 120×30 tier is deliberate')
+section('VP — one sprite for the berth at every allocation; the decision consults no OS name')
 {
-  const { decideCritterForm, BERTH_HERO_MIN_ROWS, PREMIUM_COMPACT_MIN_ROWS, HERO_ART_COLS } =
-    await import('../../src/utils/cockpit/critterData.js')
-  const at = (columns: number, rows: number) => decideCritterForm({ columns, rows }, true)
-  const matrix = [26, 29, 30, 31, 32, 33].map(phys => `${phys}:${at(120, phys - 2)}`)
+  const { SQUARE_DOCK_ART_LINES } = await import('../../src/utils/cockpit/critterData.js')
   check(
-    'VP-05..07: the 26..33 boundary matrix is deterministic — mini through 32, hero at 33 (center 31 = the derived floor); the premium-compact tier is DESIGN-GATED',
-    JSON.stringify(matrix) ===
-      JSON.stringify(['26:mini', '29:mini', '30:mini', '31:mini', '32:mini', '33:hero']),
-    matrix.join(' '),
-  )
-  check(
-    'the derived floor IS 28 + the hero-over-flat slot delta (the audit formula, live from the authored grids)',
-    BERTH_HERO_MIN_ROWS === 31,
-    String(BERTH_HERO_MIN_ROWS),
-  )
-  check(
-    "VP-04 ADJUDICATED (the interview height law at 120×30): the hero slot's extra band rows clip the question card, so 'honestly fits' is FALSE — the form is mini (never a silent fallback); the premium-compact tier awaits its authored mid-height art (design-gated)",
-    at(120, 28) === 'mini',
-    JSON.stringify(at(120, 28)),
-  )
-  check(
-    'VP-08/10: the 172×46 class keeps the full hero; below the compact floor the mini is the honest form',
-    at(172, 44) === 'hero' && at(120, PREMIUM_COMPACT_MIN_ROWS - 1) === 'mini',
-  )
-  check(
-    'width floors: hero width short ⇒ mini; below the mini floor ⇒ none (render nothing, never clip); no heroArt ⇒ mini',
-    at(HERO_ART_COLS + 3, 40) === 'mini' &&
-      at(10, 40) === 'none' &&
-      decideCritterForm({ columns: 120, rows: 40 }, false) === 'mini',
-  )
-  check(
-    'VP-06/11: the decision is PURE (same allocation ⇒ same form; resize replays the table) and consults no OS name',
-    at(120, 28) === at(120, 28) &&
+    'VP-06/11: the berth paints the dock sprite in a fixed slot at every size, and the art module consults no OS name',
+    SQUARE_DOCK_ART_LINES === 3 &&
+      src('src/components/MercuryHome.tsx').includes('height={SQUARE_DOCK_ART_LINES}') &&
       !src('src/utils/cockpit/critterData.ts').includes('process.platform'),
   )
   check(
-    'VP-02: renderer AND width budget consume the ONE decision (both MercuryHome sites)',
-    (src('src/components/MercuryHome.tsx').match(/decideCritterForm\(\{ columns, rows \}/g) ?? []).length === 2,
+    'VP-02: the layout budgets the capsule against the same thirteen-column slot the berth renders in',
+    src('src/components/FullscreenLayout.tsx').includes('width={CR_COLS}') &&
+      src('src/components/FullscreenLayout.tsx').includes('width={sizeVal.columns - 4 - 1 - CR_COLS}'),
   )
 }
 
