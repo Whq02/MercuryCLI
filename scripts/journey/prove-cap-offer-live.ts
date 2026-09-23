@@ -262,7 +262,7 @@ const legSettle = drive(
   section('L2 — the offer paints ONCE: the OpenAI window named, the exact target id')
   const offerGrid = markGrid(p, 'offer')
   check('the offer card stood over the composer when enter was sent', offerGrid.includes(OFFER_TITLE), offerGrid.split('\n').slice(-14).join('\n'))
-  check('the card names the binding window in the wire\'s own words (no second "window")', offerGrid.includes('approaching the OpenAI 5h window') && !offerGrid.includes('5h window window'))
+  check('the card names the reached window in the wire\'s own words', offerGrid.includes('the OpenAI 5h window is reached') && !offerGrid.includes('5h window window'))
   check(`the card offers the exact id the seat persists (⇄ ${TARGET_ID})`, offerGrid.includes(`⇄ ${TARGET_ID}`))
   check('the one true hint line: enter opens the preview, esc stays put', offerGrid.includes('enter opens the transition preview') && offerGrid.includes('stays put'))
 

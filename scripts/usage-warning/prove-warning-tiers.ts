@@ -170,3 +170,30 @@ const relayed = sessionFactsFromWire(sessionFactsToWire({
 } as never))
 assert.equal((relayed?.usage.limitWarning as ProviderLimitWarningView | null)?.key, emitted[1]!.key)
 console.log('PASS the tier key survives the existing facts codec')
+
+console.log('RED on the base: /mock-limits warning-7d 80 is an unknown scenario')
+process.env.MERCURY_MOCK_LIMITS = '1'
+const mockCommand = await import('../../src/commands/mock-limits/mock-limits.ts')
+const mock = await import('../../src/services/mockRateLimits.ts')
+let mockReset: string | undefined
+for (const pct of [79, 80, 85, 90, 100]) {
+  const result = await mockCommand.call(`warning-7d ${pct}`)
+  assert.ok(result.type === 'text' && !result.value.includes('Unknown scenario'))
+  const headers = mock.getMockHeaders()!
+  assert.equal(Number(headers['anthropic-ratelimit-unified-7d-utilization']) * 100, pct)
+  const resetNow = headers['anthropic-ratelimit-unified-7d-reset']
+  if (mockReset !== undefined) assert.equal(resetNow, mockReset)
+  mockReset = resetNow
+}
+const beforeInvalid = mock.getMockHeaders()
+for (const invalid of ['-1', '101', 'NaN', '80 extra']) {
+  const result = await mockCommand.call(`warning-7d ${invalid}`)
+  assert.ok(result.type === 'text' && result.value.includes('0–100'))
+  assert.deepEqual(mock.getMockHeaders(), beforeInvalid)
+}
+mock.setMockRateLimitScenario('clear')
+delete process.env.MERCURY_MOCK_LIMITS
+console.log('PASS the mock road reaches each tier, keeps its window identity and refuses invalid inputs')
+const scenes = readFileSync(new URL('../ui/renderScenarios.ts', import.meta.url), 'utf8')
+assert.ok(scenes.includes("name === 'cap-warning-strip'"))
+assert.ok(scenes.includes('warning-7d 80') && scenes.includes('warning-7d 90'))

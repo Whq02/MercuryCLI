@@ -134,7 +134,7 @@ console.log('============================================================')
 console.log(' warning strip captures — Anthropic + OpenRouter, 100 + 120 cols')
 console.log('============================================================')
 
-for (const cols of [100, 120]) {
+for (const cols of [178, 120]) {
   const { home, workspace } = seedHome()
   writeFileSync(
     join(home, '.credentials.json'),
@@ -170,7 +170,7 @@ for (const cols of [100, 120]) {
       MERCURY_MOCK_LIMITS: '1',
       MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
         five_hour: { utilization: 23, resets_at: new Date(Date.now() + 3600e3).toISOString() },
-        seven_day: { utilization: 92, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
+        seven_day: { utilization: 80, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
       }),
     },
   )
@@ -179,14 +179,14 @@ for (const cols of [100, 120]) {
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip paints the ruled grammar (${cols})`,
-    /Anthropic: 92% of the weekly limit used · resets /.test(frame),
+    /Anthropic: 80% of the weekly limit used · resets /.test(frame),
     frame.slice(-260) || '(no warning frame)',
   )
-  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 92%'), frame.slice(-140))
+  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 80%'), frame.slice(-140))
   check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 
-for (const cols of [100, 120]) {
+for (const cols of [178, 120]) {
   const { home, workspace } = seedHome('claude-opus-5')
   writeFileSync(
     join(home, '.credentials.json'),
@@ -224,7 +224,7 @@ for (const cols of [100, 120]) {
         five_hour: { utilization: 23, resets_at: new Date(Date.now() + 3600e3).toISOString() },
         seven_day: { utilization: 51, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
         seven_day_fable: { utilization: 12, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
-        seven_day_opus: { utilization: 99, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
+        seven_day_opus: { utilization: 90, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
       }),
     },
   )
@@ -233,10 +233,10 @@ for (const cols of [100, 120]) {
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
     `the strip names the session model's OWN pool, not the calm all-models week (${cols})`,
-    /Anthropic: 99% of the Opus limit used · resets /.test(frame) && !/of Fable limit used/.test(frame),
+    /Anthropic: 90% of the Opus limit used · resets /.test(frame) && !/of the Fable limit used/.test(frame),
     frame.slice(-260) || '(no warning frame)',
   )
-  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 99%'), frame.slice(-140))
+  check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 90%'), frame.slice(-140))
   check(`the hints return once the notice clears (${cols})`, text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 
@@ -283,7 +283,7 @@ const server = createServer((req, res) => {
 })
 await new Promise<void>(resolvePort => server.listen(PORT, '127.0.0.1', resolvePort))
 
-for (const cols of [100, 120]) {
+for (const cols of [178, 120]) {
   const { home, workspace } = seedHome('openrouter/nvidia/nemotron-nano-9b-v2:free')
   const { marks, sends, receipts, text } = await capture(
     `openrouter-${cols}`,
