@@ -50,7 +50,7 @@ import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
 import { PinnedCritterBerth, berthCritterCols } from './MercuryHome.js'
 import { useCritterSize } from './mercury-ui/sessionAccent.js'
-import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../utils/cockpit/critterData.js'
+import { CR_COLS } from '../utils/cockpit/critterData.js'
 import { BerthCompanionLine } from './mercury-ui/MiniCritter.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
 import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
@@ -338,15 +338,7 @@ export function FullscreenLayout({
   const { chrome, isCompact } = useLayoutChrome()
   const [compactFooterNotice, setCompactFooterNotice] = useState(0)
   const critterMini = useCritterSize() === 'mini'
-  const berthWorkRef = useRef<DOMElement | null>(null)
-  const [berthWorkRows, setBerthWorkRows] = useState(0)
-  useLayoutEffect(() => {
-    if (!critterMini || berthWorkRef.current === null) return
-    const workRows = measureElement(berthWorkRef.current).height
-    if (workRows !== berthWorkRows) setBerthWorkRows(workRows)
-  })
-  const berthLevel = critterMini && berthWorkRows >= SQUARE_DOCK_ART_LINES
-  const berthLead = berthLevel ? Math.floor((berthWorkRows - SQUARE_DOCK_ART_LINES) / 2) : 0
+  const berthSpeechBelow = critterMini && !!statusBandActive
   const bandRows = isCompact ? compactBandRows(columns, rows) : 0
   const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows - bandRows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, bandRows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
@@ -579,30 +571,28 @@ export function FullscreenLayout({
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (
                       <Box
-                        flexDirection="row"
+                        flexDirection="column"
                         flexShrink={0}
                         width={sizeVal.columns}
                         borderStyle="round"
                         borderColor={t.borderStrong}
                         paddingX={1}
-                        gap={1}
                       >
-                        <Box
-                          flexDirection="column"
-                          flexShrink={0}
-                          width={critterMini ? CR_COLS : undefined}
-                          justifyContent={critterMini ? (berthLevel ? 'flex-start' : 'center') : undefined}
-                          paddingTop={berthLead}
-                        >
-                          <PinnedCritterBerth />
-                        </Box>
-                        <Box
-                          flexDirection="column"
-                          flexGrow={1}
-                          minWidth={0}
-                          justifyContent="center"
-                        >
-                          <Box ref={berthWorkRef} flexDirection="column" flexShrink={0}>
+                        <Box flexDirection="row" gap={1}>
+                          <Box
+                            flexDirection="column"
+                            flexShrink={0}
+                            width={critterMini ? CR_COLS : undefined}
+                            justifyContent={critterMini ? 'center' : undefined}
+                          >
+                            <PinnedCritterBerth />
+                          </Box>
+                          <Box
+                            flexDirection="column"
+                            flexGrow={1}
+                            minWidth={0}
+                            justifyContent="center"
+                          >
                             <WorkCapsule
                               active={!!statusBandActive}
                               width={
@@ -612,9 +602,14 @@ export function FullscreenLayout({
                             >
                               {statusBand}
                             </WorkCapsule>
+                            {berthSpeechBelow ? null : <BerthCompanionLine />}
                           </Box>
-                          <BerthCompanionLine />
                         </Box>
+                        {berthSpeechBelow ? (
+                          <Box paddingLeft={CR_COLS + 1}>
+                            <BerthCompanionLine />
+                          </Box>
+                        ) : null}
                       </Box>
                     ) : null}
                     <TerminalSizeContext.Provider value={transcriptSize}>
