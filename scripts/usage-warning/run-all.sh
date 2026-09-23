@@ -8,7 +8,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
-for suite in prove-provider-limit-warning prove-limit-warning-relay prove-limit-notice-in-context prove-warning-strip-captures prove-usage-pools-captures prove-usage-freshness-captures; do
+for suite in prove-warning-tiers prove-provider-limit-warning prove-limit-warning-relay prove-limit-notice-in-context prove-warning-strip-captures prove-usage-pools-captures prove-usage-freshness-captures; do
   echo "── $suite"
   run_proof "$here/$suite.ts" "$bun" run "$here/$suite.ts"
   rc=$?

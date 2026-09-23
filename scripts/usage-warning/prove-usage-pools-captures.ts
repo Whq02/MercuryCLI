@@ -188,7 +188,7 @@ console.log('============================================================')
   const order = ['5h ', '7d ', 'Fable ', 'Opus ', 'Sonnet '].map(k => lines.findIndex(l => l.includes(k) && new RegExp(`${k.trim()} ${BAR}`).test(l)))
   check('the block reads pair then pools, top to bottom', order.every(i => i >= 0) && order.every((i, n) => n === 0 || i > order[n - 1]!), order.join(','))
   const warning = marks.warning ?? ''
-  check("the strip warning names the session model's OWN pool — the Opus week at 87% — never the Fable week", /87% of Opus limit used/.test(warning) && !/of Fable limit used/.test(warning), warning.split('\n').filter(l => /limit used/.test(l)).join(' | ') || '(no warning frame)')
+  check("the strip warning names the session model's OWN pool — the Opus week at 87% — never the Fable week", /87% of the Opus limit used/.test(warning) && !/of the Fable limit used/.test(warning), warning.split('\n').filter(l => /limit used/.test(l)).join(' | ') || '(no warning frame)')
   check('the hints return once the notice clears', text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
 }
 

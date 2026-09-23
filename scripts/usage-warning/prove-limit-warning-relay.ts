@@ -83,14 +83,14 @@ async function readBack(sessionId: string): Promise<Facts | null> {
 section('§1 — additive on the payload: with the field, without the field')
 {
   projections.publishSessionFacts(
-    factsFor('relay-with', { ...ZERO_USAGE, limitWarning: { provider: 'anthropic', text: 'Anthropic: 91% of Fable limit used' } }),
+    factsFor('relay-with', { ...ZERO_USAGE, limitWarning: { provider: 'anthropic', text: 'Anthropic: 91% of the Fable limit used' } }),
     daemonDir,
   )
   const withFact = await readBack('relay-with')
   check('a facts file published WITH the runner fact reads back', withFact !== null)
   check(
     '…carrying the fact verbatim on the usage readout',
-    withFact?.usage.limitWarning?.provider === 'anthropic' && withFact?.usage.limitWarning?.text === 'Anthropic: 91% of Fable limit used',
+    withFact?.usage.limitWarning?.provider === 'anthropic' && withFact?.usage.limitWarning?.text === 'Anthropic: 91% of the Fable limit used',
     JSON.stringify(withFact?.usage.limitWarning),
   )
   projections.publishSessionFacts(factsFor('relay-null', { ...ZERO_USAGE, limitWarning: null }), daemonDir)
@@ -126,7 +126,7 @@ section('§3 — the precedence law (pure, the owner’s)')
 {
   const { preferSessionLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
   const session = { provider: 'openai', text: 'OpenAI: 78% of weekly window used' }
-  const local = { provider: 'anthropic', text: 'Anthropic: 91% of Fable limit used' }
+  const local = { provider: 'anthropic', text: 'Anthropic: 91% of the Fable limit used' }
   check('a runner fact wins over the screen’s own derivation', preferSessionLimitWarning(session, local) === session)
   check('a runner that sees no warning (null) falls to the screen’s own', preferSessionLimitWarning(null, local) === local)
   check('an absent fact (older runner · no facts yet · the resting slot) falls to the screen’s own', preferSessionLimitWarning(undefined, local) === local)

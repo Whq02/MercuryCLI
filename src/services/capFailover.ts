@@ -1,6 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
+import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/limitWarning.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
 
@@ -29,7 +30,7 @@ export function decideCapAction(posture: CapPosture, state: CapWindowState | Cap
   if (posture === 'off') return { kind: 'none' }
   const window = windowStateOf(state)
   if (window === 'allowed' || window === 'unknown') return { kind: 'none' }
-  if (window === 'warning') return { kind: 'offer', trigger: 'warning' }
+  if (window === 'warning') return { kind: 'none' }
   return posture === 'auto'
     ? { kind: 'auto-handoff', trigger: 'rejected' }
     : { kind: 'offer', trigger: 'rejected' }
@@ -244,6 +245,7 @@ export interface FamilyWindowFact {
   resetsAtMs?: number
   windowName?: string
   usedPct?: number
+  warningTier?: UsageWarningTier
 }
 
 export interface FamilyWindowReads {
@@ -265,7 +267,7 @@ export interface FamilyWindowReads {
   laneBilling?: (family: string) => { state: 'credit-exhausted' | 'clear' }
 }
 
-export const CAP_APPROACHING_PCT = 70
+export const CAP_APPROACHING_PCT = FIRST_WARNING_PCT
 
 function liveFamilyWindowReads(): Required<FamilyWindowReads> {
   return {
@@ -410,8 +412,7 @@ export function observedFamilyWindow(
         return { family, state: 'allowed', basis: 'observed', ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}) }
       })()
       if (!bindingLive || binding === undefined || bindingPct === undefined) return latch
-      const bindingState: CapWindowState =
-        bindingPct >= 100 ? 'rejected' : bindingPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
+      const bindingState = usageWindowState(bindingPct)
       const bindingFact: FamilyWindowFact = {
         family,
         state: bindingState,
@@ -419,6 +420,7 @@ export function observedFamilyWindow(
         ...(binding.window.resetsAtMs !== undefined ? { resetsAtMs: binding.window.resetsAtMs } : {}),
         windowName: binding.windowName,
         usedPct: bindingPct,
+        ...(usageWarningTier(bindingPct) !== null ? { warningTier: usageWarningTier(bindingPct)! } : {}),
       }
       return WINDOW_RANK[bindingFact.state] > WINDOW_RANK[latch.state] ? bindingFact : latch
     }
@@ -431,23 +433,15 @@ export function observedFamilyWindow(
         const live = r.openaiBands().filter(band => band.resetsAtMs === undefined || band.resetsAtMs > now)
         if (live.length === 0) return billingOrUnknown(family, r, unknown)
         const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
-        if (worst.usedPct >= CAP_APPROACHING_PCT) {
-          return {
-            family,
-            state: 'warning',
-            basis: 'observed',
-            ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
-            windowName: worst.windowName,
-            usedPct: worst.usedPct,
-          }
-        }
+        const tier = usageWarningTier(worst.usedPct)
         return {
           family,
-          state: 'allowed',
+          state: usageWindowState(worst.usedPct),
           basis: 'observed',
+          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
           windowName: worst.windowName,
           usedPct: worst.usedPct,
-          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+          ...(tier !== null ? { warningTier: tier } : {}),
         }
       }
       return billingOrUnknown(family, r, unknown)

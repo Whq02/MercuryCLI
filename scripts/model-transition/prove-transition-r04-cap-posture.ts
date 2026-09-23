@@ -44,11 +44,11 @@ section('§A the posture matrix — the default OFFERS; explicit off stays TOTAL
   }
   check('offer × allowed ⇒ none', decideCapAction('offer', 'allowed').kind === 'none')
   const warn = decideCapAction('offer', 'allowed_warning')
-  check('offer × warning ⇒ preemptive OFFER', warn.kind === 'offer' && warn.kind === 'offer' && warn.trigger === 'warning')
+  check('offer × warning stays words only', warn.kind === 'none')
   const rej = decideCapAction('offer', 'rejected')
   check('offer × rejected ⇒ OFFER (never silent)', rej.kind === 'offer' && rej.trigger === 'rejected')
   const autoWarn = decideCapAction('auto', 'allowed_warning')
-  check('auto × warning ⇒ still a VISIBLE offer (never silent preemption)', autoWarn.kind === 'offer')
+  check('auto × warning stays words only', autoWarn.kind === 'none')
   const autoRej = decideCapAction('auto', 'rejected')
   check('auto × rejected ⇒ unattended handoff', autoRej.kind === 'auto-handoff' && autoRej.trigger === 'rejected')
   process.env.MERCURY_CAP_FAILOVER = 'auto'
@@ -72,7 +72,7 @@ section('§B posture-symmetric return — home only on an OBSERVED reset with th
   const autoHome = decideCapReturn('auto', reset, true)
   check('auto ⇒ unattended return at the boundary', autoHome.kind === 'auto-handoff' && autoHome.trigger === 'reset')
   check("decideCapAction reads 'unknown' as nothing to do (no observation is not a wall)", decideCapAction('offer', 'unknown').kind === 'none' && decideCapAction('auto', 'unknown').kind === 'none')
-  check("decideCapAction takes the neutral 'warning' spelling too", decideCapAction('offer', 'warning').kind === 'offer')
+  check("the neutral warning is words only too", decideCapAction('offer', 'warning').kind === 'none')
 }
 
 section('§C the seam — folded shut unarmed, LIVE armed (the r04b revival)')
@@ -134,7 +134,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
     const warn = ingest('warning-7d')
     check(`[${posture}] warning ingests as allowed_warning`, warn.status === 'allowed_warning')
     const a1 = decideCapAction(posture, warn.status as never)
-    check(`[${posture}] warning ⇒ visible offer`, a1.kind === 'offer' && a1.trigger === 'warning')
+    check(`[${posture}] warning stays words only`, a1.kind === 'none')
     const rej = ingest('weekly-limit-reached')
     check(`[${posture}] cap ingests as rejected with a reset time`, rej.status === 'rejected' && typeof rej.resetsAt === 'number')
     const a2 = decideCapAction(posture, rej.status as never)

@@ -475,9 +475,9 @@ it, what did this session spend, where are its limits" — identity from the
 wallet, limits from each lane's observed state, session spend from the one
 provider-neutral ledger partitioned by the routing law.
 
-The approaching-limit warning has one owner and fires for
+The usage warning has one owner and fires at 80% and again at 90% for
 whichever provider the session actually runs on, from that provider's own signals,
-in one grammar — `<provider>: XX% of <window> used[ · resets <t>]`: the Anthropic
+in one grammar — `<provider>: XX% of the <window> used[ · resets <t>]`: the Anthropic
 subscription meters and header states, the OpenAI observed usage bands, the
 OpenRouter per-key credit cap, the Kimi sign-in's managed windows. The window it
 names is the one that binds the session model hardest — on the first-party
@@ -488,16 +488,15 @@ never — an absent signal is an absent warning, not a fabricated meter. The eng
 feeders read the same window views the `/usage` popup and the rail meters read,
 so the strip and the meters can never disagree about a percent.
 
-The same derivation puts one notice into the session's own context when the
-binding window crosses that threshold, so an agent working in the session can
-save its work before the provider stops it. At the next turn boundary — the
-next submission or the next tool round — the model reads the provider and the
-window, the percent used, the reset when the wire stated one, and what to do:
-finish the step in hand, commit what is done, write down where the work stands.
-The notice enters once per window per session and returns only after the window
-has reset and the next one closes in; a resumed session remembers the windows it
-was told about. A lane that serves no usage signal gets no notice, and a
-headless run gets it by the same road. Nothing on the screen changes for it.
+The same derivation puts a notice into the context at each threshold, once at
+80% and once at 90% per window. At 80% it states the provider, percent, window
+and reset, and that the provider stops work only when the window is used up.
+At 90% it also advises keeping the work resumable: finish the step in hand,
+commit what is done and write down where it stands. The model decides what to
+do; neither warning holds work, stops a turn or offers a handoff. Only a
+rejected request or a reached window takes the wall's normal road. A resumed
+conversation remembers which thresholds it was told about. A source without
+a percentage gets no window notice. Headless work reads the same notice.
 
 A usage-window verdict is what a reply's headers or a refusal said, observed
 by the process that made the request. A daemon-hosted chat's requests are its
