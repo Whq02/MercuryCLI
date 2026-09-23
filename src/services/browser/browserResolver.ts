@@ -1,4 +1,3 @@
-
 import { execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
@@ -222,34 +221,33 @@ export interface BrowserResolution {
 
 export interface BrowserUnavailable {
   state: 'unavailable'
+  source?: 'operator-pin'
   note: string
   remedies: string[]
 }
 
-export function resolveBrowser(): BrowserResolution | BrowserUnavailable {
-  const pin = flagEnv('MERCURY_BROWSER_PATH')
+export interface BrowserResolverReads {
+  pin?: () => string | undefined
+  exists?: (file: string) => boolean
+  managed?: () => ManagedBrowser[]
+  installed?: () => InstalledBrowser[]
+  cacheDir?: () => string
+}
+
+export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution | BrowserUnavailable {
+  const pin = (reads?.pin ?? (() => flagEnv('MERCURY_BROWSER_PATH')))()
   if (pin && pin !== '') {
-    if (existsSync(pin)) {
+    if ((reads?.exists ?? existsSync)(pin)) {
       return { state: 'ok', source: 'operator-pin', family: 'chrome', label: `operator pin`, executablePath: pin }
     }
     return {
       state: 'unavailable',
+      source: 'operator-pin',
       note: `MERCURY_BROWSER_PATH set but ${pin} does not exist — the pin names itself, no silent fallback`,
       remedies: ['fix or unset MERCURY_BROWSER_PATH'],
     }
   }
-  const installed = detectInstalledBrowsers()
-  if (installed.length > 0) {
-    const first = installed[0]!
-    return {
-      state: 'ok',
-      source: 'installed',
-      family: first.family,
-      label: first.label,
-      executablePath: first.executablePath,
-    }
-  }
-  const managed = listManagedBrowsers()
+  const managed = (reads?.managed ?? listManagedBrowsers)()
   if (managed.length > 0) {
     const newest = managed[0]!
     return {
@@ -263,11 +261,33 @@ export function resolveBrowser(): BrowserResolution | BrowserUnavailable {
   }
   return {
     state: 'unavailable',
-    note: 'no browser: nothing installed at the standard locations and the managed cache is empty',
+    note: 'no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent',
     remedies: [
       'op:"provision" — a consented download of a Chrome-for-Testing build into the managed cache (the ask names the build and disk cost; /browser install is the same road by hand)',
-      'ask the operator to install Chrome, Edge, Chromium or Brave normally',
+      '/browser install — the operator\'s one-time consent step; a headless request cannot approve the download',
     ],
+  }
+}
+
+export function describeBrowserReadiness(reads?: BrowserResolverReads): { ready: boolean; line: string; detail: string; fix?: string } {
+  const resolution = resolveBrowser(reads)
+  const installed = (reads?.installed ?? detectInstalledBrowsers)()
+  const discovery = installed.map(b => `${b.label} (${b.executablePath}) — not driven: it is your app; the tool drives Chrome for Testing`).join('\n')
+  if (resolution.state === 'ok') {
+    const line = resolution.source === 'operator-pin'
+      ? `operator pin ${resolution.executablePath}`
+      : `drives Chrome for Testing ${resolution.buildId} (managed cache ${(reads?.cacheDir ?? browserCacheDir)()})`
+    return { ready: true, line, detail: [`executable: ${resolution.executablePath}`, discovery].filter(Boolean).join('\n') }
+  }
+  const pinned = resolution.source === 'operator-pin'
+  const apps = installed.length > 0
+    ? `your installed ${installed.map(b => b.label).join(' · ')} ${installed.length === 1 ? 'is' : 'are'} never driven`
+    : 'installed apps are never driven'
+  return {
+    ready: false,
+    line: pinned ? resolution.note : `no managed browser — /browser install downloads Chrome for Testing (150-200 MB); ${apps}`,
+    detail: [resolution.note, discovery, ...resolution.remedies].filter(Boolean).join('\n'),
+    fix: pinned ? 'fix or unset MERCURY_BROWSER_PATH' : '/browser install',
   }
 }
 

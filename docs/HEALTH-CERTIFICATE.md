@@ -64,6 +64,17 @@ shared by the runner, picker and doctor through the current credential home's
 `model-refusals` directory, so a separate doctor can read a recorded refusal
 too; it never makes a provider request to discover one.
 
+INTERFACE's `Browser` row names the executable the Browser tool resolves:
+Chrome for Testing with its build id and managed cache path, or the operator's
+explicit executable pin. Installed Chrome, Edge, Chromium and Brave apps are
+discovered for information only; the tool never selects them automatically.
+With no managed browser, the row reads `info` and names `/browser install`,
+the one-time consented Chrome for Testing download (typically 150-200 MB).
+A broken pin names itself instead of falling through to another browser.
+This is a configuration check: it reads the cache and paths without launching
+a browser, probing its version, or downloading anything. The tool's status
+and `/browser status` show the same resolution and the discovered apps.
+
 RUNTIME's `Device headroom` row is joined by `Box lock`: the coordination
 directory of the box lock (`MERCURY_BOX_LOCK_DIR`), the slots held and by
 whom, and the tickets waiting — or the plain word that no lock directory is

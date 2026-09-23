@@ -258,77 +258,38 @@ function headerValue(headers: Headers, name: string): string | undefined {
 
 type EarlyWarning = ClaudeAILimits
 
-const TIME_RELATIVE_CONFIGS: Array<{
-  claim: RateLimitType
-  abbrev: '5h' | '7d'
-  windowSeconds: number
-  thresholds: Array<{ minUtilization: number; maxElapsedFraction: number }>
-}> = [
-  {
-    claim: 'five_hour',
-    abbrev: '5h',
-    windowSeconds: 18_000,
-    thresholds: [{ minUtilization: 0.9, maxElapsedFraction: 0.72 }],
-  },
-  {
-    claim: 'seven_day',
-    abbrev: '7d',
-    windowSeconds: 604_800,
-    thresholds: [
-      { minUtilization: 0.75, maxElapsedFraction: 0.6 },
-      { minUtilization: 0.5, maxElapsedFraction: 0.35 },
-      { minUtilization: 0.25, maxElapsedFraction: 0.15 },
-    ],
-  },
-]
-
 function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): EarlyWarning | null {
+  const { FIRST_WARNING_PCT } = require('./providers/usageTiers.js') as typeof import('./providers/usageTiers.js')
+  let warning: EarlyWarning | null = null
   for (const [abbrev, claim] of [
     ['5h', 'five_hour'],
     ['7d', 'seven_day'],
     ['overage', 'overage'],
   ] as const) {
     const threshold = headers.get(`anthropic-ratelimit-unified-${abbrev}-surpassed-threshold`)
-    if (threshold === null) continue
-    const utilizationRaw = headerValue(headers, `anthropic-ratelimit-unified-${abbrev}-utilization`)
+    const raw = headerValue(headers, `anthropic-ratelimit-unified-${abbrev}-utilization`)
+    const value = raw !== undefined && raw.trim() !== '' ? raw : claim === 'overage' ? undefined : threshold
+    const utilization = value !== null && value !== undefined && value.trim() !== '' ? Number(value) : undefined
+    if (claim === 'overage') {
+      if (threshold === null || warning !== null) continue
+    } else if (utilization === undefined || !Number.isFinite(utilization) || utilization * 100 < FIRST_WARNING_PCT) {
+      continue
+    }
     const resetRaw = headerValue(headers, `anthropic-ratelimit-unified-${abbrev}-reset`)
-    return {
+    const resetsAt = resetRaw !== undefined && resetRaw !== '' ? Number(resetRaw) : undefined
+    if (resetsAt !== undefined && resetsAt * 1000 <= Date.now()) continue
+    const next: EarlyWarning = {
       status: 'allowed_warning',
       unifiedRateLimitFallbackAvailable: fallbackAvailable,
-      resetsAt: resetRaw !== undefined && resetRaw !== '' ? Number(resetRaw) : undefined,
-      rateLimitType: claim as RateLimitType,
-      utilization:
-        utilizationRaw !== undefined && utilizationRaw !== '' ? Number(utilizationRaw) : undefined,
+      resetsAt,
+      rateLimitType: claim,
+      utilization,
       isUsingOverage: false,
-      surpassedThreshold: threshold === '' ? 0 : Number(threshold),
+      ...(threshold !== null ? { surpassedThreshold: threshold === '' ? 0 : Number(threshold) } : {}),
     }
+    if (warning === null || (next.utilization ?? 0) > (warning.utilization ?? 0)) warning = next
   }
-  const nowSeconds = Date.now() / 1000
-  for (const config of TIME_RELATIVE_CONFIGS) {
-    const utilizationRaw = headers.get(`anthropic-ratelimit-unified-${config.abbrev}-utilization`)
-    const resetRaw = headers.get(`anthropic-ratelimit-unified-${config.abbrev}-reset`)
-    if (utilizationRaw === null || resetRaw === null) continue
-    const utilization = Number(utilizationRaw) || 0
-    const resetsAt = Number(resetRaw) || 0
-    const elapsedFraction = Math.min(
-      1,
-      Math.max(0, (nowSeconds - (resetsAt - config.windowSeconds)) / config.windowSeconds),
-    )
-    const fires = config.thresholds.some(
-      pair => utilization >= pair.minUtilization && elapsedFraction <= pair.maxElapsedFraction,
-    )
-    if (fires) {
-      return {
-        status: 'allowed_warning',
-        unifiedRateLimitFallbackAvailable: fallbackAvailable,
-        resetsAt,
-        rateLimitType: config.claim,
-        utilization,
-        isUsingOverage: false,
-      }
-    }
-  }
-  return null
+  return warning
 }
 
 export function computeNewLimitsFromHeaders(headers: Headers): ClaudeAILimits {

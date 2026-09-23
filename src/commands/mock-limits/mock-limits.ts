@@ -3,7 +3,7 @@ import { extractQuotaStatusFromHeaders } from '../../services/claudeAiLimits.js'
 import {
   getMockStatus,
   getScenarioDescription,
-  setMockEarlyWarning,
+  setMockUsagePercent,
   setMockRateLimitScenario,
   type MockScenario,
 } from '../../services/mockRateLimits.js'
@@ -35,11 +35,11 @@ const WARNING_ALIASES: Record<string, '5h' | '7d'> = {
 }
 
 export async function call(args: string): Promise<LocalCommandResult> {
-  const scenario = args.trim()
+  const [scenario = '', percent, ...extra] = args.trim().split(/\s+/)
   if (!scenario) {
     const lines = SCENARIOS.map(s => `  ${s} — ${getScenarioDescription(s)}`)
     const warnLines = Object.keys(WARNING_ALIASES).map(
-      a => `  ${a} — early-warning threshold surpassed (${WARNING_ALIASES[a]} window, 92%)`,
+      a => `  ${a} [percent 0–100] — ${WARNING_ALIASES[a]} window; use 80 and 90 for the two warnings (default 92)`,
     )
     return {
       type: 'text',
@@ -47,15 +47,18 @@ export async function call(args: string): Promise<LocalCommandResult> {
     }
   }
   if (WARNING_ALIASES[scenario]) {
-    setMockRateLimitScenario('clear')
-    setMockEarlyWarning(WARNING_ALIASES[scenario], 0.92)
+    const pct = percent === undefined ? 92 : Number(percent)
+    if (extra.length > 0 || (percent !== undefined && !/^\d{1,3}$/.test(percent)) || !Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return { type: 'text', value: 'Usage: /mock-limits warning-5h|warning-7d [percent 0–100]' }
+    }
+    setMockUsagePercent(WARNING_ALIASES[scenario], pct)
     extractQuotaStatusFromHeaders(new globalThis.Headers())
     return {
       type: 'text',
-      value: `Mock rate-limit scenario: ${scenario} — early warning (${WARNING_ALIASES[scenario]} window at 92%)\n${getMockStatus()}`,
+      value: `Mock rate-limit scenario: ${scenario} — ${WARNING_ALIASES[scenario]} window at ${pct}%\n${getMockStatus()}`,
     }
   }
-  if (!(SCENARIOS as readonly string[]).includes(scenario)) {
+  if (percent !== undefined || !(SCENARIOS as readonly string[]).includes(scenario)) {
     return {
       type: 'text',
       value: `Unknown scenario '${scenario}'. Run /mock-limits with no argument for the list.`,

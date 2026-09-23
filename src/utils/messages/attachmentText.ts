@@ -1012,7 +1012,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       return [
         createUserMessage({
           content: wrapInSystemReminder(
-            `Usage limit near — ${attachment.text}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`,
+            (require('../../services/providers/limitWarning.js') as typeof import('../../services/providers/limitWarning.js')).usageWarningNoticeText(attachment.text, attachment.pct),
           ),
           isMeta: true,
         }),
