@@ -72,7 +72,7 @@ function cappedHeaders(): Record<string, string> {
 function usageHeaders(call: number): Record<string, string> {
   const first = call === 1
   return {
-    'x-codex-primary-used-percent': first ? '92' : '93',
+    'x-codex-primary-used-percent': '100',
     'x-codex-primary-window-minutes': '300',
     'x-codex-primary-reset-after-seconds': first ? '3600' : '3595',
     'x-codex-secondary-used-percent': '41',

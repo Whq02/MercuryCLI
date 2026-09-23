@@ -313,7 +313,7 @@ const poolEnv = {
   MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
     five_hour: { utilization: 36, resets_at: new Date(Date.now() + 3600_000).toISOString() },
     seven_day: { utilization: 44, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
-    seven_day_fable: { utilization: 87, resets_at: poolResetIso },
+    seven_day_fable: { utilization: 100, resets_at: poolResetIso },
   }),
 }
 const pool = ONLY.has('pool') ? drive(
@@ -339,7 +339,7 @@ if (pool !== null) {
   check('the offer fired from the fixture usage response alone (no turn ran; the send fired on its await)', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
   const offer = markGrid(p, 'pool-offer')
   check('the card stood when enter was sent', offer.includes(ANTHROPIC_OFFER_TITLE), tail(offer))
-  check("the card names the Fable pool in the strip's words — 'approaching the Anthropic Fable limit' — never 'weekly Fable'", offer.includes('approaching the Anthropic Fable limit') && !offer.includes('weekly Fable'), tail(offer))
+  check('the card names the reached Fable pool, not a percentage warning', offer.includes('the Anthropic Fable limit is reached') && !offer.includes('weekly Fable'), tail(offer))
   check('the card lists the two key lanes with the Z.AI row highlighted first', (rowLine(offer, 'Z.AI') ?? '').includes('▸') && rowLine(offer, 'DeepSeek') !== undefined && offer.includes(`⇄ ${ZAI_ROW}`), tail(offer))
 
   section("P2 — ↵ settles on the highlighted row; the next turn dispatches to that lane's wire")
