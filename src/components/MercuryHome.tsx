@@ -26,6 +26,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.js'
 import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterArt.js'
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
+import { deckPaintsDock } from './DeckPane.js'
 import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
@@ -72,7 +73,7 @@ export function MercuryHero(): React.ReactNode {
 
 function MercuryHeroBody(): React.ReactNode {
   const { columns, rows } = useTerminalSize()
-  if (isDeckPaneActive() || rows < 10 || columns < 40) return null
+  if ((isDeckPaneActive() && deckPaintsDock(columns)) || rows < 10 || columns < 40) return null
   return (
     <Box paddingX={1} marginTop={1} flexShrink={0} justifyContent="center">
       <MiniCritter />
