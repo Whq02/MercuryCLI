@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { pinScratchHome } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -86,6 +86,44 @@ section('§2 no local-jsx command mounts the settings shell any more')
   check('the slot mounts the shell from the store', readFileSync(join(REPO, 'src/components/SettingsPopupSlot.tsx'), 'utf8').includes('<Settings key={open} request={request} geometry={geometry} />'))
   const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
   check('the layout mounts the slot over everything (after the modal pane) and on the sequential road', layout.includes('{modalPane}\n              <SettingsPopupSlot overlay={true} />') && layout.includes('{modal ?? null}\n          <SettingsPopupSlot overlay={false} />'))
+}
+
+section('§3 nothing under src/ or scripts/ reads the retired road (the two deleted faces, the tab strip, the old chrome markers)')
+{
+  const files: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') walk(path)
+      } else if (/\.tsx?$/.test(entry.name)) files.push(path)
+    }
+  }
+  walk(join(REPO, 'src'))
+  walk(join(REPO, 'scripts'))
+  const retired = ['src/components/Settings/Status', 'src/commands/status/status'].map(stem => join(REPO, stem))
+  const shellPath = join(REPO, 'src/components/Settings/Settings')
+  const importsOf = (file: string, text: string): string[] =>
+    [...text.matchAll(/(?:from\s*|import\s*\()\s*(['"])([^'"]+)\1/g)].map(match => resolve(dirname(file), match[2]!).replace(/\.(js|ts|tsx)$/, ''))
+  const retiredImporters: string[] = []
+  const tabReaders: string[] = []
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8')
+    const imports = importsOf(file, text)
+    if (imports.some(target => retired.includes(target))) retiredImporters.push(relative(REPO, file))
+    if (imports.includes(shellPath) && /defaultTab|SettingsTabName|<Tabs[\s>]/.test(text)) tabReaders.push(relative(REPO, file))
+  }
+  check('no module under src/ or scripts/ imports Settings/Status.js or commands/status/status.js', retiredImporters.length === 0, retiredImporters.join(', '))
+  check('no module that imports the settings shell reads defaultTab, SettingsTabName or Tabs from it', tabReaders.length === 0, tabReaders.join(', '))
+  const shell = readFileSync(`${shellPath}.tsx`, 'utf8')
+  check('the shell itself mounts no Tabs and takes no defaultTab', !shell.includes('Tabs') && !shell.includes('defaultTab'))
+  const scenarios = readFileSync(join(REPO, 'scripts/ui/renderScenarios.ts'), 'utf8')
+  check("no render scenario pins the tab strip as its chrome markers (['Config', 'Usage'])", !scenarios.includes("chromeMarkers: ['Config', 'Usage']"))
+  check('the settings scenarios pin the popup lockup of their own view', ["chromeMarkers: ['Mercury · config']", "chromeMarkers: ['Mercury · usage']", "chromeMarkers: ['Mercury · status']", 'chromeMarkers: [`Mercury · ${view}`]'].every(marker => scenarios.includes(marker)))
+  check('no scenario walks the retired tab road (a /usage send followed by ← to reach a tab, a settings-status-tab name)', !scenarios.includes('settings-status-tab') && !/data: '\/usage\\r' \},\s*\{ atTick: \d+, data: '\\u001b\[D'/.test(scenarios))
+  const self = join(import.meta.dir, 'prove-settings-popup-commands.ts')
+  const stale = files.filter(file => file !== self && /settings-status-tab/.test(readFileSync(file, 'utf8'))).map(file => relative(REPO, file))
+  check('no reader under scripts/ names the retired settings-status-tab scenario', stale.length === 0, stale.join(', '))
 }
 
 rmSync(HOME, { recursive: true, force: true })
