@@ -768,15 +768,22 @@ export const AgentTool = buildTool({
       }
       const receipt = await settleAgentWorktree({ ...worktreeInfo })
       if (receipt.outcome === 'settled') {
-        void writeAgentMetadata(asAgentId(earlyAgentId), {
-          agentType: agentDef.agentType,
-          model: plan.model,
-          ...(input.description ? { description: input.description } : {}),
-        }).catch(error =>
-          logForDebugging(
-            `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
-          ),
-        )
+        void readAgentMetadata(asAgentId(earlyAgentId))
+          .then(recorded => {
+            const kept = { ...recorded }
+            delete kept.worktreePath
+            return writeAgentMetadata(asAgentId(earlyAgentId), {
+              ...kept,
+              agentType: agentDef.agentType,
+              model: plan.model,
+              ...(input.description ? { description: input.description } : {}),
+            })
+          })
+          .catch(error =>
+            logForDebugging(
+              `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
+            ),
+          )
         return {}
       }
       logForDebugging(

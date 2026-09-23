@@ -310,6 +310,80 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   tally.check('the continuation does not write in the session checkout', !existsSync(join(wfRepo, 'continued.flag')))
 }
 
+{
+  const EFFORT_ASK = 'effort-probe'
+  const EFFORT_PROMPT = 'read your own record'
+  const CONTINUE_EFFORT = 'say where you are now, record'
+  const EFFORT_DESCRIPTION = 'effort-probe'
+  const effortHome = join(scratch, 'home-effort')
+  const effortContinuedFlag = join(scratch, 'effort-continued.flag')
+  const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
+  const readRecord = `for i in $(seq 1 25); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
+  const readSettledRecord = `for i in $(seq 1 50); do ${findRecord}; [ -n "$f" ] && ! grep -q worktreePath "$f" && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
+  let effortId = ''
+  let preSettle = ''
+  let continuedEffortPwd = ''
+  const effortFixture = await startScriptedFixture(req => {
+    const last = req.results[req.results.length - 1]
+    if (req.opening.trim() === EFFORT_PROMPT) {
+      if (req.ask.includes(CONTINUE_EFFORT)) {
+        if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `pwd | tee "${effortContinuedFlag}"`, description: 'where am I now' } }]
+        if (req.step === 1) continuedEffortPwd = firstLine(req.results[0])
+        return [{ type: 'text', text: 'continued' }]
+      }
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: readRecord, description: 'read my own record' } }]
+      if (req.step === 1) preSettle = req.results[0]?.text ?? ''
+      return [{ type: 'text', text: 'agent done' }]
+    }
+    if (req.ask.trim() !== EFFORT_ASK) return [{ type: 'text', text: 'ok' }]
+    switch (req.step) {
+      case 0:
+        return [{ type: 'tool_use', name: 'Agent', input: { description: EFFORT_DESCRIPTION, prompt: EFFORT_PROMPT, isolation: 'worktree', effort: 'max' } }]
+      case 1:
+        seen.effortLaunch = last
+        effortId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
+        return [{ type: 'tool_use', name: 'Bash', input: { command: readSettledRecord, description: 'wait for the settled record' } }]
+      case 2:
+        seen.effortSettled = last
+        return [{ type: 'tool_use', name: 'SendMessage', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
+      case 3:
+        seen.effortContinued = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: `${waitForFile(effortContinuedFlag)}; ${findRecord}; cat "$f" 2>/dev/null || echo no-record`, description: 'wait for the continuation, then read the record again' } }]
+      default:
+        if (req.step === 4) seen.effortAfter = last
+        return [{ type: 'text', text: 'done' }]
+    }
+  })
+  let effortTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+  try {
+    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: 240_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  } finally {
+    await effortFixture.close()
+  }
+  const recordOf = (text: string): Record<string, unknown> | null => {
+    try {
+      return JSON.parse(text.split('\n').find(line => line.startsWith('{')) ?? '') as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  const factsOf = (record: Record<string, unknown> | null): string => record === null ? '' : JSON.stringify(Object.entries(record).filter(([key]) => key !== 'worktreePath' && key !== 'model').sort())
+  const pre = recordOf(preSettle)
+  const post = recordOf(seen.effortSettled?.text ?? '')
+  const after = recordOf(seen.effortAfter?.text ?? '')
+  show('the isolated launch pinned to effort max', seen.effortLaunch, effortTurn)
+  show('the settled record', seen.effortSettled, effortTurn)
+  show('the continuation by message', seen.effortContinued, effortTurn)
+  show('the record after the continuation', seen.effortAfter, effortTurn)
+  tally.section('a settled isolated helper keeps its launch facts and its continuation uses the preserved effort')
+  tally.check('the isolated launch answered and its clean worktree settled (staging)', seen.effortLaunch !== undefined && !seen.effortLaunch.isError && !/Worktree kept/.test(seen.effortLaunch.text) && effortId !== '', seen.effortLaunch?.text.slice(0, 300))
+  tally.check('the helper read its worktree path and effort before settlement (staging)', pre !== null && typeof pre.worktreePath === 'string' && pre.effortOverride === 'max' && typeof pre.effort === 'string', preSettle.slice(0, 300))
+  tally.check('the settled record no longer names the worktree', post !== null && post.worktreePath === undefined, seen.effortSettled?.text.slice(0, 300))
+  tally.check('every other recorded fact survives the clear-write', pre !== null && post !== null && typeof post.model === 'string' && factsOf(post) === factsOf(pre), `before=${factsOf(pre)} after=${factsOf(post)}`)
+  tally.check('the message resumes in the checkout without a gone-worktree note', seen.effortContinued !== undefined && !seen.effortContinued.isError && !/worktree is gone/.test(seen.effortContinued.text) && continuedEffortPwd === repo, `${seen.effortContinued?.text.slice(0, 200)} pwd=${continuedEffortPwd}`)
+  tally.check('the continued helper records the same effort pin and resolved effort', after !== null && after.effortOverride === 'max' && pre !== null && after.effort === pre.effort, `after=${factsOf(after)}`)
+}
+
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)
 tally.finish()

@@ -80,9 +80,18 @@ section('§3 seam ratchets — the consumers actually carry the field')
     'the spawn write persists the effort override when present (runAgent)',
     /effortOverride !== undefined && \{ effortOverride \}/.test(runAgentSrc),
   )
+  const clearWrite = toolSrc.slice(toolSrc.indexOf("if (receipt.outcome === 'settled')"), toolSrc.indexOf('AgentTool: worktree kept (${receipt.outcome})'))
+  check(
+    'the worktree clear-write reads the sidecar and preserves every fact except the settled path',
+    /void readAgentMetadata\(asAgentId\(earlyAgentId\)\)\s*\.then\(recorded => \{\s*const kept = \{ \.\.\.recorded \}\s*delete kept\.worktreePath\s*return writeAgentMetadata\(asAgentId\(earlyAgentId\), \{\s*\.\.\.kept,/.test(clearWrite),
+  )
   check(
     'the worktree clear-write PRESERVES the model (AgentTool — every backend is in-process)',
-    /void writeAgentMetadata\(asAgentId\(earlyAgentId\), \{[\s\S]{0,200}?model: plan\.model/.test(toolSrc),
+    /writeAgentMetadata\(asAgentId\(earlyAgentId\), \{[\s\S]{0,200}?model: plan\.model/.test(clearWrite),
+  )
+  check(
+    'the clear-write removes the path and keeps the launch facts authoritative',
+    clearWrite.indexOf('delete kept.worktreePath') > 0 && clearWrite.indexOf('delete kept.worktreePath') < clearWrite.indexOf('...kept,') && clearWrite.indexOf('...kept,') < clearWrite.indexOf('agentType: agentDef.agentType') && !/worktreePath:/.test(clearWrite),
   )
   check(
     'resume THREADS the persisted model into runAgent (resumeAgent)',
