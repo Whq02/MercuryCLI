@@ -44,6 +44,14 @@ import {
 } from '../../services/providers/gemini/geminiCatalogue.js'
 import { geminiSourceIdentity, resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
+  ANTHROPIC_DOOR_LABELS,
+  anthropicDoors,
+  getCachedAnthropicDoorCatalogue,
+  refreshAnthropicCatalogue,
+  type AnthropicDoor,
+  type AnthropicDoorSnapshot,
+} from '../../services/providers/anthropic/anthropicCatalogue.js'
+import {
   HUGGINGFACE_CONNECT_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
   getCachedHuggingfaceCatalogue,
@@ -197,6 +205,26 @@ const GEMINI_ROAD: CatalogueRoad<GeminiCatalogueSnapshot> = {
   failed: snapshot => snapshot.lastError !== undefined,
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
+
+function anthropicDoorRoad(door: AnthropicDoor): CatalogueRoad<AnthropicDoorSnapshot> {
+  const credential = (): { fingerprint: string } | undefined => anthropicDoors().find(candidate => candidate.door === door)
+  return {
+    family: ANTHROPIC_DOOR_LABELS[door],
+    identity: () => {
+      const found = credential()
+      return found ? `${door}:${found.fingerprint}` : undefined
+    },
+    cached: () => (credential() ? getCachedAnthropicDoorCatalogue(door) : null),
+    refresh: () => (credential() ? refreshAnthropicCatalogue({ door, force: true }).then(snapshots => snapshots[0] ?? null) : Promise.resolve(null)),
+    populated: snapshot => snapshot.models.length > 0,
+    failed: snapshot => snapshot.lastError !== undefined,
+    changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+  }
+}
+
+const ANTHROPIC_SUBSCRIPTION_ROAD = anthropicDoorRoad('subscription')
+const ANTHROPIC_KEY_ROAD = anthropicDoorRoad('api-key')
+const ANTHROPIC_BEARER_ROAD = anthropicDoorRoad('bearer')
 
 const HUGGINGFACE_ROAD: CatalogueRoad<HuggingfaceCatalogueSnapshot> = {
   family: 'Hugging Face',
@@ -510,6 +538,9 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const seatDetail = seatDetailOf
   const handleSlotSwitch = (group: string): string | null => slotSwitchOf(group, () => setSlotVersion(v => v + 1))
   const groupDetails: Record<string, string> = groupDetailsOf(seatDetail)
@@ -819,6 +850,9 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
@@ -909,6 +943,9 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const options = getModelOptions()
   const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   function handleEffort(mode: string): void {
@@ -967,6 +1004,9 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const betas = getSdkBetas()
   const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
   const models: ModelChoice[] = [...(leading ?? []), ...options.map(opt => modelChoiceOf(opt, betas))]
