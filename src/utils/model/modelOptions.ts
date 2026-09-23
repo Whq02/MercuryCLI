@@ -36,7 +36,7 @@ import {
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
-import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
+import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
 import { isFableAvailable } from './model.js'
@@ -707,7 +707,7 @@ export function focusedOptionSupports1m(value: string): boolean {
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModel(stripContext1m(value))
-  const canonical = getCanonicalName(resolved)
+  const canonical = getCanonicalName(familyDefaultsModel(resolved))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return false
   }

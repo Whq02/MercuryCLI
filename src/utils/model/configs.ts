@@ -147,6 +147,7 @@ export interface FirstPartyGeneration {
 
 export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | null {
   const lowered = id.trim().toLowerCase().replace(CONTEXT_ANNOTATION_RE, '')
+  if (lowered.includes('/')) return null
   const match = FIRST_PARTY_GENERATION_RE.exec(lowered)
   if (match === null) return null
   const word = match[1]!

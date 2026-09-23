@@ -14,6 +14,7 @@ import {
   modelSupportsXHighEffort,
 } from './model/capabilities.js'
 import { resolveAntModel } from './model/antModels.js'
+import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 import { isDeepthinkEnabled, sessionThinkingEnabled } from './thinking.js'
 
@@ -563,7 +564,7 @@ export function allLaunchEffortUnpinned(): boolean {
 }
 
 export function isLaunchEffortPinned(model: string): boolean {
-  const lowered = model.toLowerCase()
+  const lowered = familyDefaultsModel(model).toLowerCase()
   const unpins = readUnpins()
   for (const family of LAUNCH_FAMILIES) {
     if (lowered.includes(family.substring)) {
@@ -582,7 +583,7 @@ export function unpinAllLaunchEffort(): void {
 }
 
 export function getLaunchDefaultEffort(model: string): EffortLevel {
-  const lowered = model.toLowerCase()
+  const lowered = familyDefaultsModel(model).toLowerCase()
   for (const family of LAUNCH_FAMILIES) {
     if (lowered.includes(family.substring)) return family.launchDefault
   }
