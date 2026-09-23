@@ -116,29 +116,50 @@ check(
     /activeModel = parseUserSpecifiedModel\(claimedModel\)/.test(printSrc),
   )
   const { existsSync } = await import('node:fs')
-  const { spawnSync } = await import('node:child_process')
+  const { spawn } = await import('node:child_process')
+  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(DIST)) {
     check('dist/mercury.mjs exists (build first — the live leg drives the artifact)', false)
   } else {
     const home = mkdtempSync(join(tmpdir(), 'fold-p-home-'))
-    const run = spawnSync('node', [DIST, '-p', '--model', 'Sonnet 5', 'hi'], {
-      env: {
-        ...process.env,
-        MERCURY_CONFIG_DIR: home,
-        NODE_ENV: undefined,
-        ANTHROPIC_AUTH_TOKEN: 'invalid-fixture-token',
-        ANTHROPIC_API_KEY: undefined,
-        MERCURY_OAUTH_TOKEN: undefined,
-      } as NodeJS.ProcessEnv,
-      encoding: 'utf8',
-      timeout: 90000,
+    const refused = { kind: 'error', status: 401, errorType: 'authentication_error', message: 'invalid x-api-key' } as const
+    const fixture = await startFixtureApi(Array.from({ length: 8 }, () => refused), { messageHeaders: { 'x-should-retry': 'false' } })
+    const run = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(resolvePromise => {
+      const child = spawn('node', [DIST, '-p', '--model', 'Sonnet 5', 'hi'], {
+        env: {
+          ...process.env,
+          MERCURY_CONFIG_DIR: home,
+          NODE_ENV: undefined,
+          ANTHROPIC_BASE_URL: fixture.url,
+          ANTHROPIC_AUTH_TOKEN: 'invalid-fixture-token',
+          ANTHROPIC_API_KEY: undefined,
+          MERCURY_OAUTH_TOKEN: undefined,
+        } as NodeJS.ProcessEnv,
+      })
+      child.stdin.end()
+      let stdout = ''
+      let stderr = ''
+      child.stdout.on('data', d => (stdout += d))
+      child.stderr.on('data', d => (stderr += d))
+      const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+      child.on('close', exit => {
+        clearTimeout(killer)
+        resolvePromise({ exit, stdout, stderr })
+      })
     })
-    const err = `${run.stderr ?? ''}${run.stdout ?? ''}`
+    await fixture.close()
+    const err = `${run.stderr}${run.stdout}`
     check(
       "-p --model 'Sonnet 5' resolves through the fold (reaches auth; never 'no family declares')",
       !err.includes('not a model id any provider family declares') && /Authentication|401|Not logged in|Invalid (API key|credential)/i.test(err),
       err.slice(0, 140).replace(/\s+/g, ' '),
+    )
+    const wireModels = fixture.messageRequests().map(q => String((q.body as { model?: unknown } | null)?.model ?? ''))
+    check(
+      "the folded request reached the loopback 401 fixture carrying the resolved id (claude-sonnet-5 on the wire, never the spelling)",
+      wireModels.length >= 1 && wireModels.includes('claude-sonnet-5') && !wireModels.includes('Sonnet 5'),
+      wireModels.length === 0 ? `no message request reached the fixture (exit=${String(run.exit)})` : wireModels.join(','),
     )
   }
 }
