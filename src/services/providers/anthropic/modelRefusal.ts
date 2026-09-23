@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describeAnthropicClientContract } from '../../../constants/oauth.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { clientContractGateText } from '../../api/clientContractGate.js'
 import { classifyAnthropicRefusal } from '../anthropicRefusal.js'
 import { classifyCredentialWall } from '../credentialWall.js'
 
@@ -41,12 +42,7 @@ export function modelRefusalId(id: string): string {
   return normalizeModelStringForAPI(id).trim().toLowerCase()
 }
 
-export function clientContractGateText(text: string): boolean {
-  return (
-    (text.includes('does not support this model') && text.includes('or newer is required')) ||
-    text.includes('claude_code_version_too_old')
-  )
-}
+export { clientContractGateText }
 
 export function modelRefusalErrorType(error: unknown): string | undefined {
   const body = (error as { error?: { type?: unknown; error?: { type?: unknown } } } | null)?.error
