@@ -1,16 +1,19 @@
 
-import figures from 'figures'
 import React, {
-  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
+import { basename } from 'node:path'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { Box, Text, useInput } from '../../ink.js'
+import { escapeFromOutsidePress } from '../../ink/recessLayer.js'
+import wrapText from '../../ink/wrap-text.js'
+import { getFocusedWorkspaceCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import {
@@ -64,9 +67,9 @@ import {
 } from '../../services/providers/providerUsage.js'
 import { REACHABLE_THEME_SETTINGS } from '../../utils/theme.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
-import { useTabHeaderFocus, useTabsWidth } from '../design-system/Tabs.js'
-import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
-import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
+import { GLYPH } from '../mercury-ui/glyphs.js'
+import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
+import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import { SearchBox } from '../SearchBox.js'
 import { Select } from '../CustomSelect/select.js'
 import { LanguagePicker } from '../LanguagePicker.js'
@@ -86,6 +89,42 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 
 const LABEL_CELLS = 44
+
+export const CONFIG_POPUP_WIDTH = 110
+export const CONFIG_POPUP_ROWS = 44
+export const CONFIG_POPUP_HINT = '↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes'
+export const CONFIG_SEARCH_PLACEHOLDER = 'Search settings…'
+export const CONFIG_LIST_CHROME_ROWS = 3
+export const CONFIG_ROW_MARK = GLYPH.chevronRight
+
+export function configPopupLine(folder: string, settings: number, setByYou: number): string {
+  return `${folder} · ${settings} setting${settings === 1 ? '' : 's'} · ${setByYou} set by you`
+}
+
+export function configPopupFolder(cwd: string = getFocusedWorkspaceCwd()): string {
+  const name = basename(cwd)
+  return name === '' ? cwd : name
+}
+
+export function configMoreRow(hiddenBelow: number): string {
+  return hiddenBelow > 0 ? `↓ ${hiddenBelow} more` : ''
+}
+
+export function configWarningRows(warning: string, width: number): number {
+  return wrapText(`  ${warning}`, Math.max(1, width), 'wrap').split('\n').length
+}
+
+export type ConfigListWindow = { sel: number; off: number; hiddenBelow: number; overflows: boolean }
+
+export function configListWindow(selected: number, offset: number, total: number, windowSize: number): ConfigListWindow {
+  const size = Math.max(1, windowSize)
+  const sel = Math.max(0, Math.min(selected, total - 1))
+  let off = offset
+  if (sel < off) off = sel
+  if (sel >= off + size) off = sel - size + 1
+  off = Math.max(0, Math.min(off, Math.max(0, total - size)))
+  return { sel, off, hiddenBelow: Math.max(0, total - off - size), overflows: total > size }
+}
 
 type SubMenu =
   | 'theme'
@@ -109,6 +148,7 @@ type SettingsItem = {
   change?: (direction: 1 | -1) => void
   open?: SubMenu
   warning?: string
+  setByYou?: boolean
 }
 
 const CHANNEL_LABELS: Record<NotificationChannel, string> = {
@@ -230,24 +270,25 @@ function validated<T extends string>(
 
 export function Config({
   onClose,
+  onLine,
+  onOwnsEscape,
   context,
-  setTabsHidden,
-  onIsSearchModeChange,
+  width,
   contentHeight,
 }: {
   onClose: (result?: unknown) => void
+  onLine?: (line: string) => void
+  onOwnsEscape?: (owns: boolean) => void
   context: LocalJSXCommandContext
-  setTabsHidden: (hidden: boolean) => void
-  onIsSearchModeChange?: (ownsEscape: boolean) => void
-  contentHeight?: number
+  width: number
+  contentHeight: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const setAppState = useSetAppState()
   const appState = useAppState((s: AppState) => s)
   const [themeName, setThemeSetting] = useTheme()
   const themeSetting = useThemeSetting()
-  const { headerFocused, focusHeader } = useTabHeaderFocus()
-  const tabsWidth = useTabsWidth()
+  const pastOpenEvent = useOpenEventGate()
 
   const [version, setVersion] = useState(0)
   const bump = (): void => setVersion(v => v + 1)
@@ -335,8 +376,9 @@ export function Config({
 
   const [subMenu, setSubMenu] = useState<SubMenu | null>(null)
   useEffect(() => {
-    setTabsHidden(subMenu !== null)
-  }, [subMenu, setTabsHidden])
+    onOwnsEscape?.(true)
+    return () => onOwnsEscape?.(false)
+  }, [onOwnsEscape])
   const [thinkingWarning, setThinkingWarning] = useState(false)
 
   const conversationHasAssistantTurn = context.messages.some(
@@ -433,6 +475,7 @@ export function Config({
     searchText: 'seats seat ceiling capacity concurrency sessions sub-agents workflow agents in flight',
     kind: 'enum',
     value: <Text>{seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts)}</Text>,
+    setByYou: seatFacts !== null && seatFacts.source === 'operator',
     warning: seatFacts === null ? 'reading capacity…' : seatWarning !== null ? seatWarning : `a seat is one model call in flight; ${seatFacts.readingSentence} · ←/→ move the ceiling by one · doors: ${SEAT_DOORS}`,
     change: direction => {
       if (seatFacts === null) return
@@ -1003,7 +1046,7 @@ export function Config({
     },
   })
 
-  const [searchMode, setSearchMode] = useState(true)
+  const [searchMode, setSearchMode] = useState(false)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -1020,37 +1063,29 @@ export function Config({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
   }, [query, version, appState, themeSetting, seatFacts])
 
-  const paneHeight = contentHeight ?? 20
-  const windowSize = Math.max(5, paneHeight - 10)
+  const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
+  useLayoutEffect(() => {
+    onLine?.(line)
+  }, [line, onLine])
 
-  const reconcile = useCallback(
-    (nextSelected: number, list: number): { sel: number; off: number } => {
-      const sel = Math.max(0, Math.min(nextSelected, list - 1))
-      let off = offset
-      if (sel < off) off = sel
-      if (sel >= off + windowSize) off = sel - windowSize + 1
-      off = Math.max(0, Math.min(off, Math.max(0, list - windowSize)))
-      return { sel, off }
-    },
-    [offset, windowSize],
-  )
+  const listRows = Math.max(1, contentHeight - CONFIG_LIST_CHROME_ROWS)
+  const windowFor = (index: number): number => {
+    const warning = searchMode ? undefined : filtered[index]?.warning
+    return Math.max(1, listRows - (warning === undefined ? 0 : configWarningRows(warning, width)))
+  }
+  const win = configListWindow(selected, offset, filtered.length, windowFor(Math.max(0, Math.min(selected, filtered.length - 1))))
   useEffect(() => {
-    const fixed = reconcile(selected, filtered.length)
-    if (fixed.sel !== selected) setSelected(fixed.sel)
-    if (fixed.off !== offset) setOffset(fixed.off)
-  }, [filtered.length, reconcile, selected, offset])
+    if (win.sel !== selected) setSelected(win.sel)
+    if (win.off !== offset) setOffset(win.off)
+  }, [win.sel, win.off, selected, offset])
 
   const moveTo = (next: number): void => {
-    const fixed = reconcile(next, filtered.length)
+    const target = Math.max(0, Math.min(next, filtered.length - 1))
+    const fixed = configListWindow(target, offset, filtered.length, windowFor(target))
     setSelected(fixed.sel)
     setOffset(fixed.off)
     setThinkingWarning(false)
   }
-
-  const ownsEscape = searchMode && !headerFocused
-  useEffect(() => {
-    onIsSearchModeChange?.(ownsEscape)
-  }, [ownsEscape, onIsSearchModeChange])
 
   const composeSummary = (): string | undefined => {
     const lines: string[] = [...changesRef.current.values()]
@@ -1071,11 +1106,7 @@ export function Config({
     onClose([composeSummary(), 'Sign in first — /logins opens; the door lists that family once a credential connects'].filter(Boolean).join('\n'))
   }
 
-  const revertAndClose = (): void => {
-    if (!snapshots.dirty) {
-      onClose(undefined)
-      return
-    }
+  const revert = (): void => {
     setThemeSetting(snapshots.theme)
     if (globalTouchedRef.current.size > 0) {
       const motionTouched = globalTouchedRef.current.has('motion')
@@ -1111,23 +1142,46 @@ export function Config({
       isInstructionProfile(restoredProfile) ? restoredProfile : null,
     )
     clearInstructionFileCaches()
+    changesRef.current.clear()
+    snapshots.dirty = false
+    setThinkingWarning(false)
+    bump()
+  }
+
+  const escape = (): void => {
+    if (escapeFromOutsidePress()) {
+      if (snapshots.dirty) revert()
+      onClose(undefined)
+      return
+    }
+    if (searchMode && query !== '') {
+      setQuery('')
+      return
+    }
+    if (searchMode) setSearchMode(false)
+    if (snapshots.dirty) {
+      revert()
+      return
+    }
     onClose(undefined)
+  }
+
+  const activate = (index: number): void => {
+    const item = filtered[index]
+    if (item === undefined) return
+    if (item.kind === 'managed-enum' && item.open !== undefined) setSubMenu(item.open)
+    else item.change?.(1)
   }
 
   useInput(
     (input, key, event) => {
       if (subMenu !== null) return
-      if (headerFocused) return
+      if (key.escape) {
+        event.stopImmediatePropagation()
+        escape()
+        return
+      }
       if (searchMode) {
-        if (key.escape) {
-          event.stopImmediatePropagation()
-          if (query !== '') setQuery('')
-          else {
-            setSearchMode(false)
-            revertAndClose()
-          }
-          return
-        }
         if (key.return || key.downArrow) {
           event.stopImmediatePropagation()
           setSearchMode(false)
@@ -1148,18 +1202,15 @@ export function Config({
           input.charCodeAt(0) !== 0x7f
         ) {
           event.stopImmediatePropagation()
+          if (!pastOpenEvent()) return
           setQuery(q => q + input)
         }
         return
       }
       const item = filtered[selected]
-      if (key.escape) {
-        event.stopImmediatePropagation()
-        revertAndClose()
-        return
-      }
       if (key.return) {
         event.stopImmediatePropagation()
+        if (!pastOpenEvent()) return
         saveAndClose()
         return
       }
@@ -1177,6 +1228,7 @@ export function Config({
       if (key.leftArrow || key.rightArrow || key.tab) {
         if (item === undefined) return
         event.stopImmediatePropagation()
+        if (!pastOpenEvent()) return
         const direction: 1 | -1 = key.leftArrow ? -1 : 1
         if (item.kind === 'managed-enum' && item.open !== undefined) {
           setSubMenu(item.open)
@@ -1187,12 +1239,13 @@ export function Config({
       }
       if (input === ' ') {
         event.stopImmediatePropagation()
-        if (item?.kind === 'managed-enum' && item.open !== undefined) setSubMenu(item.open)
-        else item?.change?.(1)
+        if (!pastOpenEvent()) return
+        activate(selected)
         return
       }
       if (input === '/') {
         event.stopImmediatePropagation()
+        if (!pastOpenEvent()) return
         setSearchMode(true)
         return
       }
@@ -1206,6 +1259,7 @@ export function Config({
         !['j', 'k'].includes(input)
       ) {
         event.stopImmediatePropagation()
+        if (!pastOpenEvent()) return
         setSearchMode(true)
         setQuery(input)
         return
@@ -1307,40 +1361,56 @@ export function Config({
     )
   }
 
-  const visible = filtered.slice(offset, offset + windowSize)
-  const hiddenAbove = offset
-  const hiddenBelow = Math.max(0, filtered.length - offset - windowSize)
-  const width = tabsWidth
+  const visible = filtered.slice(win.off, win.off + windowFor(win.sel))
+  const band = width + 2
 
   return (
-    <Box flexDirection="column" width={width}>
-      <SearchBox
-        query={query}
-        isFocused={searchMode && !headerFocused}
-        isTerminalFocused={true}
-        cursorOffset={query.length}
-        placeholder="Search settings…"
-      />
-      {hiddenAbove > 0 ? (
-        <Text dimColor>↑ {hiddenAbove} more</Text>
-      ) : null}
+    <Box flexDirection="column" width={width} flexShrink={0}>
+      <Box height={1}>
+        <SearchBox
+          query={query}
+          isFocused={searchMode}
+          isTerminalFocused={true}
+          cursorOffset={query.length}
+          placeholder={CONFIG_SEARCH_PLACEHOLDER}
+          borderless={true}
+        />
+      </Box>
+      <Box height={1} />
       {visible.map((item, index) => {
-        const at = offset + index
-        const isSelected = !searchMode && at === selected
+        const at = win.off + index
+        const isSelected = !searchMode && at === win.sel
         return (
-          <Box key={item.id} flexDirection="column">
-            <Box flexDirection="row">
-              <Box width={LABEL_CELLS} flexShrink={0}>
-                <Text
-                  bold={isSelected}
-                  color={isSelected ? tokens.textPrimary : tokens.textSecondary}
-                  wrap="truncate-end"
-                >
-                  {isSelected ? `${figures.pointer} ` : '  '}
-                  {item.label}
-                </Text>
-              </Box>
-              {item.value}
+          <Box key={item.id} flexDirection="column" flexShrink={0}>
+            <Box width={band} marginLeft={-1} marginRight={-1} flexShrink={0}>
+              <InteractiveRow
+                id={`config:row:${item.id}`}
+                selected={isSelected}
+                onSelect={() => {
+                  setSearchMode(false)
+                  moveTo(at)
+                }}
+                onActivate={() => activate(at)}
+                width={band}
+                height={1}
+                flexShrink={0}
+              >
+                <Box width={1} flexShrink={0} />
+                <Box width={LABEL_CELLS} flexShrink={0}>
+                  <Text
+                    bold={isSelected}
+                    color={isSelected ? tokens.textPrimary : tokens.textSecondary}
+                    wrap="truncate-end"
+                  >
+                    {isSelected ? `${CONFIG_ROW_MARK} ` : '  '}
+                    {item.label}
+                  </Text>
+                </Box>
+                <Box flexGrow={1} flexShrink={1} minWidth={0} height={1} overflow="hidden">
+                  {item.value}
+                </Box>
+                <Box width={1} flexShrink={0} />
+              </InteractiveRow>
             </Box>
             {isSelected && item.warning !== undefined ? (
               <Text color={tokens.warning}>{'  '}{item.warning}</Text>
@@ -1348,27 +1418,13 @@ export function Config({
           </Box>
         )
       })}
-      {hiddenBelow > 0 ? (
-        <Text dimColor>↓ {hiddenBelow} more</Text>
-      ) : null}
       {filtered.length === 0 ? (
-        <Text dimColor>no settings match “{query}”</Text>
+        <Box height={1}>
+          <Text color={tokens.textMuted}>no settings match “{query}”</Text>
+        </Box>
       ) : null}
-      <Box marginTop={1}>
-        <Text dimColor>
-          <KeyboardShortcutHint shortcut="↑/↓" action="select" />
-          {' · '}
-          <KeyboardShortcutHint shortcut="←/→" action="change" />
-          {' · '}
-          <KeyboardShortcutHint shortcut="Enter" action="save" />
-          {' · '}
-          <ConfigurableShortcutHint
-            action="confirm:no"
-            context="Settings"
-            fallback="esc"
-            description="revert"
-          />
-        </Text>
+      <Box height={1}>
+        <Text color={tokens.textMuted}>{configMoreRow(win.hiddenBelow)}</Text>
       </Box>
     </Box>
   )
