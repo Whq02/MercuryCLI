@@ -115,9 +115,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 32)
+## Slash routes — transcript prints (local: 33)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/update-notes` · `/vim` · `/voice`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/update-notes` · `/view` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 

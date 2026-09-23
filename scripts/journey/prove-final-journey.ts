@@ -405,7 +405,7 @@ const DRAFT7 = [
   { atTick: 42, data: '\x1b\r' },
   { atTick: 44, data: 'line two of the draft' },
 ]
-const FULL_THEN_DRAFT7 = [{ atTick: 28, data: '/critter full\r' }, ...DRAFT7]
+const FULL_THEN_DRAFT7 = [{ atTick: 28, data: '/view on\r' }, ...DRAFT7]
 let flipOut: string[] | null = null
 let tab7X = -1
 let tab7Y = -1
