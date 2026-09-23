@@ -235,6 +235,16 @@ export function resolveWindowsShell(): string | null {
   return null
 }
 
+export function extractorEnv(shell: string, archivePath: string, destDir: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...subprocessEnv(), MERCURY_UPDATE_ARCHIVE: archivePath, MERCURY_UPDATE_DEST: destDir }
+  if (shell === 'powershell') {
+    for (const key of Object.keys(env)) {
+      if (key.toUpperCase() === 'PSMODULEPATH') delete env[key]
+    }
+  }
+  return env
+}
+
 function extractArchive(archivePath: string, destDir: string, isWindows: boolean): ExtractOutcome {
   mkdirSync(destDir, { recursive: true })
   if (isWindows) {
@@ -246,7 +256,7 @@ function extractArchive(archivePath: string, destDir: string, isWindows: boolean
       execFileSync(
         shell,
         ['-NoProfile', '-NonInteractive', '-Command', 'Expand-Archive -LiteralPath $env:MERCURY_UPDATE_ARCHIVE -DestinationPath $env:MERCURY_UPDATE_DEST -Force'],
-        { windowsHide: true, stdio: 'pipe', timeout: 300_000, env: { ...subprocessEnv(), MERCURY_UPDATE_ARCHIVE: archivePath, MERCURY_UPDATE_DEST: destDir } },
+        { windowsHide: true, stdio: 'pipe', timeout: 300_000, env: extractorEnv(shell, archivePath, destDir) },
       )
       return { state: 'ok' }
     } catch (e) {

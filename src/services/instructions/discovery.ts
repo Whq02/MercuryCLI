@@ -8,6 +8,7 @@ import { getAddedDirectories, getOriginalCwd } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { normalizePathForComparison } from '../../utils/file.js'
+import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FsOperations } from '../../utils/fsOperations.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -49,7 +50,8 @@ export async function safelyReadInstructionFileAsync(
 }> {
   try {
     const fs = getFsImplementation()
-    const rawContent = await fs.readFile(filePath, { encoding: 'utf-8' })
+    const bytes = await fs.readFileBytes(filePath)
+    const rawContent = bytes.toString(detectEncodingForResolvedPath(filePath))
     return parseInstructionFileContent(
       rawContent,
       filePath,

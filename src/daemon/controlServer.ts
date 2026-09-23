@@ -284,11 +284,16 @@ function peerUidRejection(_sock: net.Socket): string | null {
   return null
 }
 
+function removeStaleSocket(sockPath: string): Promise<void> {
+  if (process.platform === 'win32') return Promise.resolve()
+  return unlink(sockPath).catch(() => {})
+}
+
 export async function startControlServer(
   deps: ControlServerDeps,
 ): Promise<ControlServerHandle> {
   const sockPath = controlSockPath()
-  await unlink(sockPath).catch(() => {})
+  await removeStaleSocket(sockPath)
 
   const conns = new Set<net.Socket>()
   const leases = new Map<net.Socket, LeaseClient>()
@@ -348,7 +353,7 @@ export async function startControlServer(
       new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-          if (ownsControlPlaneSync()) void unlink(sockPath).catch(() => {})
+          if (ownsControlPlaneSync()) void removeStaleSocket(sockPath)
           resolve()
         })
       }),
@@ -375,8 +380,7 @@ export async function startControlServer(
             logForDebugging(`[daemon] rebind listen failed (next beat retries): ${err}`)
             resolve()
           })
-          void unlink(sockPath)
-            .catch(() => {})
+          void removeStaleSocket(sockPath)
             .then(() => {
               server.listen(sockPath, () => {
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)

@@ -17,7 +17,10 @@ const dir = mkdtempSync(join(tmpdir(), 'worker-identity-'))
 const stranger = Bun.spawn([process.execPath, '-e', 'setTimeout(() => {}, 30_000)'], { stdout: 'ignore', stderr: 'ignore' })
 const strangerToken = await ownerWatch.getProcessStartTokenAsync(stranger.pid)
 ownerWatch.getProcessStartTokenCachedOrRefresh(stranger.pid)
-await new Promise(resolve => setTimeout(resolve, 400))
+const tokenDeadline = Date.now() + 5_000
+while (ownerWatch.getProcessStartTokenCachedOrRefresh(stranger.pid) === null && Date.now() < tokenDeadline) {
+  await new Promise(resolve => setTimeout(resolve, 25))
+}
 
 const baseRecord = (runnerId: string, extra: Record<string, unknown>): Record<string, unknown> => ({
   runnerId,

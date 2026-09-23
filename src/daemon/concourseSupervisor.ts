@@ -1,11 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from '../utils/crypto.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../utils/model/retainedModel.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { durableAtomicPublishSync, renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { daemonHomeStands } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
@@ -1503,7 +1503,7 @@ export function migrateTranscriptHomeToLaw(rec: {
     const legacyPath = join(getProjectDir(rec.worktreePath), `${rec.sessionId}.jsonl`)
     if (!existsSync(lawPath) && existsSync(legacyPath)) {
       mkdirSync(lawHome, { recursive: true })
-      renameSync(legacyPath, lawPath)
+      renameWithWin32RetrySync(legacyPath, lawPath)
     }
   } catch {
   }

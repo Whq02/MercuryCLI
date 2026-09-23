@@ -42,42 +42,45 @@ const CI_SCRUB_VARS: readonly string[] = [
 
 const BROWSER_SECRET_PREFIX = 'MERCURY_BROWSER_SECRET_'
 
+function nameKey(name: string): string {
+  return process.platform === 'win32' ? name.toUpperCase() : name
+}
+
+function deleteNames(env: NodeJS.ProcessEnv, names: readonly string[]): void {
+  const doomed = new Set(names.map(nameKey))
+  for (const key of Object.keys(env)) {
+    if (doomed.has(nameKey(key))) delete env[key]
+  }
+}
+
 export function subprocessEnv(): NodeJS.ProcessEnv {
   const env = process.env
   const scrubForCI = isEnvTruthy(process.env.MERCURY_SUBPROCESS_ENV_SCRUB)
   const isolateCredentials = isEnvTruthy(process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION)
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
-  const hasOtelVar = Object.keys(env).some(key => key.startsWith('OTEL_'))
-  const hasBrowserSecret = Object.keys(env).some(key => key.startsWith(BROWSER_SECRET_PREFIX))
+  const hasOtelVar = Object.keys(env).some(key => nameKey(key).startsWith('OTEL_'))
+  const hasBrowserSecret = Object.keys(env).some(key => nameKey(key).startsWith(BROWSER_SECRET_PREFIX))
   if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret) {
     return env
   }
 
   const clone: NodeJS.ProcessEnv = { ...env }
-  for (const name of ALWAYS_STRIP_TOKEN_VARS) {
-    delete clone[name]
-  }
+  deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS)
   for (const key of Object.keys(clone)) {
-    if (key.startsWith('OTEL_') || key.startsWith(BROWSER_SECRET_PREFIX)) delete clone[key]
+    const folded = nameKey(key)
+    if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX)) delete clone[key]
   }
   if (isolateCredentials) {
-    for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) {
-      delete clone[name]
-    }
+    deleteNames(clone, ALL_PROVIDER_CREDENTIAL_ENV_VARS)
   }
   if (scrubForCI) {
-    for (const name of CI_SCRUB_VARS) {
-      delete clone[name]
-      delete clone[`INPUT_${name}`]
-    }
+    deleteNames(clone, CI_SCRUB_VARS.flatMap(name => [name, `INPUT_${name}`]))
   }
   return clone
 }
 
 export function languageServerEnv(): NodeJS.ProcessEnv {
   const clone: NodeJS.ProcessEnv = { ...subprocessEnv() }
-  for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) {
-    delete clone[name]
-  }
+  deleteNames(clone, ALL_PROVIDER_CREDENTIAL_ENV_VARS)
   return clone
 }

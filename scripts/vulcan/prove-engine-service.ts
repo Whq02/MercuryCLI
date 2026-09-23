@@ -144,7 +144,7 @@ section('4. tree specs, the user directory per platform, the tree kill and the c
   check('win32 user data: <APPDATA>\\Godot\\app_userdata\\<name>, as the facts list it', winData.slice(-3).join('/') === 'Godot/app_userdata/Voxel Atheltide' && winData[0] === 'C:')
   check('darwin and linux user data paths', userDirMod.engineUserDataPath('/u', 'G', 'darwin') === '/u/Library/Application Support/Godot/app_userdata/G' && userDirMod.engineUserDataPath('/u', 'G', 'linux') === '/u/godot/app_userdata/G')
   const tk = groupMod.win32TaskkillCommand(7400)
-  check('the Windows tree kill is taskkill /PID <wrapper> /T /F through an argv array', tk.file === 'taskkill' && tk.args.join(' ') === '/PID 7400 /T /F')
+  check('the Windows tree kill is System32\\taskkill.exe /PID <wrapper> /T /F through an argv array', tk.file.endsWith('\\System32\\taskkill.exe') && tk.args.join(' ') === '/PID 7400 /T /F', tk.file)
   const exe = 'C:/Users/WHQ/AppData/Local/Programs/Godot/Godot_v4.7.2-stable_mono_win64.exe'
   const consoleExe = 'C:/Users/WHQ/AppData/Local/Programs/Godot/Godot_v4.7.2-stable_mono_win64_console.exe'
   check('on win32 the console wrapper beside the engine carries the output', argvMod.engineConsoleSibling(exe, 'win32', (p: string) => p === consoleExe) === consoleExe && argvMod.engineConsoleSibling(exe, 'win32', () => false) === exe && argvMod.engineConsoleSibling(consoleExe, 'win32', () => true) === consoleExe && argvMod.engineConsoleSibling('/opt/homebrew/bin/godot', 'darwin', () => true) === '/opt/homebrew/bin/godot')

@@ -1,6 +1,6 @@
 
-import { existsSync, realpathSync, type Stats } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { existsSync, realpathSync, watch, type FSWatcher, type Stats, type WatchListener, type WatchOptionsWithStringEncoding } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 
 export type WatchIgnoreRule = (candidatePath: string, stats?: Stats) => boolean
 
@@ -26,4 +26,38 @@ export function resolveWatchRoot(p: string): string {
   } catch {
     return p
   }
+}
+
+export function watchPathKey(p: string): string {
+  if (process.platform !== 'win32') return p
+  const resolved = resolve(p)
+  return join(resolveWatchRoot(dirname(resolved)), basename(resolved)).toLowerCase()
+}
+
+export function watchDirectory(
+  root: string,
+  options: WatchOptionsWithStringEncoding,
+  onChange: WatchListener<string>,
+  onGone: () => void,
+): FSWatcher {
+  let gone = false
+  const watcher = watch(root, options, (event, filename) => {
+    if (gone) return
+    if (process.platform === 'win32' && !existsSync(root)) {
+      gone = true
+      watcher.close()
+      onGone()
+      return
+    }
+    onChange(event, filename)
+  })
+  if (process.platform === 'win32') {
+    watcher.on('error', () => {
+      if (gone || existsSync(root)) return
+      gone = true
+      watcher.close()
+      onGone()
+    })
+  }
+  return watcher
 }

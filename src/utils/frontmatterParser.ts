@@ -39,7 +39,8 @@ function quoteSpecialValues(block: string): string {
   return block
     .split('\n')
     .map(line => {
-      const match = /^([A-Za-z_-]+):\s*(.*)$/.exec(line)
+      const cr = line.endsWith('\r') ? '\r' : ''
+      const match = /^([A-Za-z_-]+):\s*(.*)$/.exec(cr ? line.slice(0, -1) : line)
       if (!match) return line
       const key = match[1] as string
       const value = match[2] as string
@@ -50,7 +51,7 @@ function quoteSpecialValues(block: string): string {
       if (alreadyQuoted) return line
       if (!YAML_SPECIAL.test(value)) return line
       const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-      return `${key}: "${escaped}"`
+      return `${key}: "${escaped}"${cr}`
     })
     .join('\n')
 }

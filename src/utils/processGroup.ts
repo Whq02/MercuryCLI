@@ -1,5 +1,6 @@
 import { execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import { win32 as pathWin32 } from 'node:path'
 
 
 export type ProcessTreeKillReceipt = {
@@ -13,7 +14,10 @@ const REAP_POLL_MS = 40
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 export function win32TaskkillCommand(pid: number): { file: string; args: string[] } {
-  return { file: 'taskkill', args: ['/PID', String(pid), '/T', '/F'] }
+  return {
+    file: pathWin32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'),
+    args: ['/PID', String(pid), '/T', '/F'],
+  }
 }
 
 export function taskkillActedPids(stdout: string): number[] {
@@ -162,6 +166,7 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
 }
 
 async function endWin32Tree(pid: number): Promise<ProcessTreeKillReceipt> {
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {

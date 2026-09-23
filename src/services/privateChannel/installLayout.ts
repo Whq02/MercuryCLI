@@ -190,6 +190,15 @@ export function restoreCurrent(roots: LayoutRoots, version: string): void {
 
 export type LockResult = { state: 'acquired' } | { state: 'held'; byPid: number | null }
 
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
 export function acquireUpdateLock(roots: LayoutRoots): LockResult {
   const lockDir = join(roots.versionsDir, '.update.lock')
   mkdirSync(roots.versionsDir, { recursive: true })
@@ -200,17 +209,7 @@ export function acquireUpdateLock(roots: LayoutRoots): LockResult {
       return { state: 'acquired' }
     } catch {
       const pid = Number(readPointerFile(join(lockDir, 'pid')))
-      const alive =
-        Number.isFinite(pid) &&
-        pid > 0 &&
-        (() => {
-          try {
-            process.kill(pid, 0)
-            return true
-          } catch {
-            return false
-          }
-        })()
+      const alive = Number.isFinite(pid) && pid > 0 && pidAlive(pid)
       if (alive) return { state: 'held', byPid: pid }
       rmSync(lockDir, { recursive: true, force: true })
     }
@@ -239,20 +238,12 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
   } catch {
     return report
   }
-  const alive = (pid: number): boolean => {
-    try {
-      process.kill(pid, 0)
-      return true
-    } catch {
-      return false
-    }
-  }
   for (const entry of entries) {
     const m = /^\.(?:download-(\d+)|staging-.+-(\d+)|replaced-(.+)-(\d+))$/.exec(entry)
     const tmp = /^(?:current|previous)\.txt\.tmp\.(\d+)$/.exec(entry)
     if (!m && !tmp) continue
     const pid = Number(m ? (m[1] ?? m[2] ?? m[4]) : tmp![1])
-    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid || alive(pid)) continue
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid || pidAlive(pid)) continue
     const full = join(roots.versionsDir, entry)
     if (m?.[3] !== undefined) {
       const versionDir = join(roots.versionsDir, m[3])
@@ -266,7 +257,12 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
         }
       }
     }
-    rmSync(full, { recursive: true, force: true })
+    try {
+      removeWithRetry(full, 'sweep-rm', roots.isWindows)
+    } catch (sweepErr) {
+      if (!roots.isWindows) throw sweepErr
+      continue
+    }
     report.removed.push(entry)
   }
   return report
@@ -408,7 +404,13 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
         note: `promote rename failed (${promoteNote}); the previous working copy was restored${retryable ? ' — retry `mercury update`' : ''}`,
       }
     }
-    if (displaced) rmSync(displaced, { recursive: true, force: true })
+    if (displaced) {
+      try {
+        removeWithRetry(displaced, 'displaced-rm', roots.isWindows)
+      } catch (displacedErr) {
+        if (!roots.isWindows) throw displacedErr
+      }
+    }
     return { state: 'installed', versionDir, changed: true }
   } catch (e) {
     rmSync(staging, { recursive: true, force: true })

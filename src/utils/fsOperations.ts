@@ -283,6 +283,7 @@ export function getPathsForPermissionCheck(inputPath: string): string[] {
       const link = fsImpl.readlinkSync(current)
       const target = isAbsolute(link) ? link : resolve(dirname(current), link)
       results.add(target)
+      if (isUncLikePath(target)) return [...results]
       current = target
     }
     const { resolvedPath, isSymlink } = safeResolvePath(fsImpl, path)

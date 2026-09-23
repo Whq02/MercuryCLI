@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const launchDir = process.cwd()
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'grant-persist-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'grant-persist-proj-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -61,6 +62,7 @@ section('§3 THE LABEL')
   check('multi-entry lists keep compact basenames', /paths\.map\(pathDisplayName\)/.test(helpers))
 }
 
+process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 rmSync(OUTSIDE, { recursive: true, force: true })
