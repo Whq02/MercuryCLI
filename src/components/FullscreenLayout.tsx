@@ -9,7 +9,6 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react'
 import { Box, MotionParkContext, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
@@ -53,8 +52,6 @@ import { PinnedCritterBerth, berthCritterCols } from './MercuryHome.js'
 import { useCritterSize } from './mercury-ui/sessionAccent.js'
 import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../utils/cockpit/critterData.js'
 import { BerthCompanionLine } from './mercury-ui/MiniCritter.js'
-import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
-import { companionEngineVersion, subscribeCompanionEngine } from '../utils/cockpit/companionEngine.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
 import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
 import type {
@@ -341,28 +338,18 @@ export function FullscreenLayout({
   const { chrome, isCompact } = useLayoutChrome()
   const [compactFooterNotice, setCompactFooterNotice] = useState(0)
   const critterMini = useCritterSize() === 'mini'
-  const berthSideRef = useRef<DOMElement | null>(null)
   const berthWorkRef = useRef<DOMElement | null>(null)
-  const [berthSideVisible, setBerthSideVisible] = useState(false)
   const [berthWorkRows, setBerthWorkRows] = useState(0)
   useLayoutEffect(() => {
-    if (!critterMini || berthSideRef.current === null) return
-    const visible = measureElement(berthSideRef.current).height > 0
-    if (visible !== berthSideVisible) setBerthSideVisible(visible)
-    const workRows = berthWorkRef.current === null ? 0 : measureElement(berthWorkRef.current).height
+    if (!critterMini || berthWorkRef.current === null) return
+    const workRows = measureElement(berthWorkRef.current).height
     if (workRows !== berthWorkRows) setBerthWorkRows(workRows)
   })
-  const berthAlone = critterMini && !statusBandActive && !berthSideVisible
-  const berthLevel = critterMini && !berthAlone && berthWorkRows >= SQUARE_DOCK_ART_LINES
+  const berthLevel = critterMini && berthWorkRows >= SQUARE_DOCK_ART_LINES
   const berthLead = berthLevel ? Math.floor((berthWorkRows - SQUARE_DOCK_ART_LINES) / 2) : 0
   const bandRows = isCompact ? compactBandRows(columns, rows) : 0
   const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows - bandRows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, bandRows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
-  const companionOn = useCompanionEnabled()
-  const subscribeBerthCompanion = useCallback((listener: () => void) =>
-    cockpit && critterMini && companionOn ? subscribeCompanionEngine(listener) : () => {},
-  [cockpit, critterMini, companionOn])
-  useSyncExternalStore(subscribeBerthCompanion, companionEngineVersion, companionEngineVersion)
   const centerFrame = cockpit
   const plan = railPlan(columns)
   const modalUp = modal !== undefined && modal !== null
@@ -598,14 +585,12 @@ export function FullscreenLayout({
                         borderStyle="round"
                         borderColor={t.borderStrong}
                         paddingX={1}
-                        gap={berthAlone ? 0 : 1}
+                        gap={1}
                       >
                         <Box
                           flexDirection="column"
                           flexShrink={0}
-                          flexGrow={berthAlone ? 1 : 0}
-                          width={critterMini && !berthAlone ? CR_COLS : undefined}
-                          alignItems={critterMini ? 'center' : undefined}
+                          width={critterMini ? CR_COLS : undefined}
                           justifyContent={critterMini ? (berthLevel ? 'flex-start' : 'center') : undefined}
                           paddingTop={berthLead}
                         >
@@ -613,25 +598,22 @@ export function FullscreenLayout({
                         </Box>
                         <Box
                           flexDirection="column"
-                          flexGrow={berthAlone ? 0 : 1}
-                          width={berthAlone ? 0 : undefined}
+                          flexGrow={1}
                           minWidth={0}
                           justifyContent="center"
                         >
-                          <Box ref={berthSideRef} flexDirection="column" flexShrink={0}>
-                            <Box ref={berthWorkRef} flexDirection="column" flexShrink={0}>
-                              <WorkCapsule
-                                active={!!statusBandActive}
-                                width={
-                                  sizeVal.columns - 4 - 1 -
-                                  berthCritterCols(sizeVal.columns, sizeVal.rows)
-                                }
-                              >
-                                {statusBand}
-                              </WorkCapsule>
-                            </Box>
-                            <BerthCompanionLine />
+                          <Box ref={berthWorkRef} flexDirection="column" flexShrink={0}>
+                            <WorkCapsule
+                              active={!!statusBandActive}
+                              width={
+                                sizeVal.columns - 4 - 1 -
+                                berthCritterCols(sizeVal.columns, sizeVal.rows)
+                              }
+                            >
+                              {statusBand}
+                            </WorkCapsule>
                           </Box>
+                          <BerthCompanionLine />
                         </Box>
                       </Box>
                     ) : null}
