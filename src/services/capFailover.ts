@@ -1,6 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
+import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/usageTiers.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
 
@@ -29,7 +30,7 @@ export function decideCapAction(posture: CapPosture, state: CapWindowState | Cap
   if (posture === 'off') return { kind: 'none' }
   const window = windowStateOf(state)
   if (window === 'allowed' || window === 'unknown') return { kind: 'none' }
-  if (window === 'warning') return { kind: 'offer', trigger: 'warning' }
+  if (window === 'warning') return { kind: 'none' }
   return posture === 'auto'
     ? { kind: 'auto-handoff', trigger: 'rejected' }
     : { kind: 'offer', trigger: 'rejected' }
@@ -244,6 +245,8 @@ export interface FamilyWindowFact {
   resetsAtMs?: number
   windowName?: string
   usedPct?: number
+  warningTier?: UsageWarningTier
+  staleWords?: string
 }
 
 export interface FamilyWindowReads {
@@ -253,19 +256,29 @@ export interface FamilyWindowReads {
     observed: boolean
     resetsAtMs?: number
     windowName?: string
+    usedPct?: number
   }
   anthropicWindows?: () => UsageWindowView[]
   anthropicPools?: () => UsageWindowView[]
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
-  openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
+  openaiBands?: () => Array<{
+    usedPct: number
+    resetsAtMs?: number
+    windowName: string
+    state?: UsageWindowView['state']
+    observedAtMs?: number
+    source?: UsageWindowView['source']
+    freshForMs?: number
+  }>
+  percentageWindows?: (family: 'moonshot' | 'openrouter') => UsageWindowView[]
   openrouterWall?: () => { resetsAtMs: number } | null
   geminiWall?: () => { resetsAtMs: number } | null
   huggingfaceWall?: () => { resetsAtMs: number } | null
   laneBilling?: (family: string) => { state: 'credit-exhausted' | 'clear' }
 }
 
-export const CAP_APPROACHING_PCT = 70
+export const CAP_APPROACHING_PCT = FIRST_WARNING_PCT
 
 function liveFamilyWindowReads(): Required<FamilyWindowReads> {
   return {
@@ -286,6 +299,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return {
         status: current.status,
         observed: limits.claudeWindowObserved(),
+        ...(current.rateLimitType !== 'overage' && current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
         ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
         ...(current.rateLimitType !== undefined
           ? { windowName: limits.getRateLimitDisplayName(current.rateLimitType) }
@@ -293,9 +307,9 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       }
     },
     openaiActiveSource: () => {
-      const { resolveOpenaiAccount } =
-        require('./providers/openai/openaiAccounts.js') as typeof import('./providers/openai/openaiAccounts.js')
-      return resolveOpenaiAccount()?.kind
+      const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
+      const entry = activeWalletEntry('openai')
+      return entry === undefined ? undefined : entry.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription'
     },
     openaiWall: source => {
       const { openaiObservedWall } =
@@ -303,22 +317,16 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return openaiObservedWall(source)
     },
     openaiBands: () => {
-      const { openaiObservedUsage } =
-        require('./providers/openai/openaiLimitState.js') as typeof import('./providers/openai/openaiLimitState.js')
-      const { usageWindowLabel } =
-        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      const observed = openaiObservedUsage()
-      const bands: Array<{ usedPct: number; resetsAtMs?: number; windowName: string }> = []
-      for (const band of [observed.primary, observed.secondary]) {
-        if (band === undefined || band.usedPct === undefined) continue
-        const label = usageWindowLabel(band.windowMinutes)
-        bands.push({
-          usedPct: band.usedPct,
-          ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
-          windowName: label === 'wk' ? 'weekly window' : label === 'win' ? 'usage window' : `${label} window`,
-        })
-      }
-      return bands
+      const { openaiObservedWindowViews, usageWindowWord } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return openaiObservedWindowViews().filter(view => view.usedPct !== undefined).map(view => ({
+        ...view,
+        usedPct: view.usedPct!,
+        windowName: usageWindowWord(view),
+      }))
+    },
+    percentageWindows: family => {
+      const { usageForProvider } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return usageForProvider(family).windows
     },
     openrouterWall: () => {
       const { openrouterObservedWall } =
@@ -354,19 +362,19 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
     : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
 }
 
-const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
 
 function bindingWindowOfSeat(
   model: string | null | undefined,
   windows: () => UsageWindowView[],
   pools: () => UsageWindowView[],
+  now: number,
 ): { window: UsageWindowView; windowName: string } | undefined {
   if (model === null || model === undefined || model.trim() === '') return undefined
   try {
     const { bindingWindowOf } =
       require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
     return bindingWindowOf(
-      { provider: 'anthropic', shape: 'subscription-windows', windows: windows(), pools: pools() },
+      { provider: 'anthropic', shape: 'subscription-windows', windows: windows().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now), pools: pools().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now) },
       model,
     )
   } catch {
@@ -385,72 +393,67 @@ export function observedFamilyWindow(
     const now = r.now()
     if (family === 'anthropic') {
       const a = r.anthropic()
-      if (!a.observed) return unknown
-      const windowName = a.windowName ?? 'usage window'
-      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools)
-      const bindingLive =
-        binding !== undefined &&
-        binding.window.usedPct !== undefined &&
+      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools, now)
+      const bindingLive = binding !== undefined && binding.window.usedPct !== undefined &&
+        Number.isFinite(binding.window.usedPct) &&
         (binding.window.resetsAtMs === undefined || binding.window.resetsAtMs > now)
-      const bindingPct = bindingLive ? (binding.window.usedPct as number) : undefined
-      const latch: FamilyWindowFact = ((): FamilyWindowFact => {
-        if (a.status === 'rejected' || a.status === 'allowed_warning') {
-          if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
-            return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
-          }
-          return {
-            family,
-            state: a.status === 'rejected' ? 'rejected' : 'warning',
-            basis: 'observed',
-            ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
-            windowName,
-            ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}),
-          }
-        }
-        return { family, state: 'allowed', basis: 'observed', ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}) }
-      })()
-      if (!bindingLive || binding === undefined || bindingPct === undefined) return latch
-      const bindingState: CapWindowState =
-        bindingPct >= 100 ? 'rejected' : bindingPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
-      const bindingFact: FamilyWindowFact = {
-        family,
-        state: bindingState,
-        basis: 'observed',
-        ...(binding.window.resetsAtMs !== undefined ? { resetsAtMs: binding.window.resetsAtMs } : {}),
-        windowName: binding.windowName,
-        usedPct: bindingPct,
+      if (!a.observed && !bindingLive) return unknown
+      const elapsed = a.resetsAtMs !== undefined && a.resetsAtMs <= now
+      if (a.observed && a.status === 'rejected' && !elapsed) {
+        return { family, state: 'rejected', basis: 'observed', windowName: a.windowName ?? 'usage window', ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}) }
       }
-      return WINDOW_RANK[bindingFact.state] > WINDOW_RANK[latch.state] ? bindingFact : latch
+      const headerPct = a.observed && !elapsed ? a.usedPct : undefined
+      const useBinding = bindingLive && binding !== undefined &&
+        (headerPct === undefined || binding.window.usedPct! >= headerPct)
+      const pct = useBinding ? binding!.window.usedPct : headerPct
+      const resetsAtMs = useBinding ? binding!.window.resetsAtMs : a.resetsAtMs
+      const windowName = useBinding ? binding!.windowName : a.windowName
+      const tier = usageWarningTier(pct)
+      return {
+        family,
+        state: usageWindowState(pct),
+        basis: elapsed && pct === undefined ? 'stated-reset-elapsed' : 'observed',
+        ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+        ...(windowName !== undefined ? { windowName } : {}),
+        ...(pct !== undefined ? { usedPct: pct } : {}),
+        ...(tier !== null ? { warningTier: tier } : {}),
+      }
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()
       if (source === undefined) return unknown
       const wall = r.openaiWall(source)
-      if (wall !== null) return wallFact(family, wall, now, 'usage window')
-      if (source === 'chatgpt-subscription') {
-        const live = r.openaiBands().filter(band => band.resetsAtMs === undefined || band.resetsAtMs > now)
-        if (live.length === 0) return billingOrUnknown(family, r, unknown)
-        const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
-        if (worst.usedPct >= CAP_APPROACHING_PCT) {
-          return {
-            family,
-            state: 'warning',
-            basis: 'observed',
-            ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
-            windowName: worst.windowName,
-            usedPct: worst.usedPct,
-          }
-        }
-        return {
-          family,
-          state: 'allowed',
-          basis: 'observed',
-          windowName: worst.windowName,
-          usedPct: worst.usedPct,
-          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
-        }
+      const bands = (() => {
+        try { return source === 'chatgpt-subscription' ? r.openaiBands().filter(b => Number.isFinite(b.usedPct)) : [] }
+        catch { return [] }
+      })()
+      if (wall !== null) {
+        const matches = bands.filter(b => b.resetsAtMs === wall.resetsAtMs)
+        const matching = matches.length === 1 ? matches[0] : undefined
+        const reached = bands.filter(b => b.usedPct >= 100 && (b.resetsAtMs === undefined || b.resetsAtMs > now))
+        const named = matching ?? (reached.length === 1 ? reached[0] : undefined)
+        return wallFact(family, wall, now, named?.windowName ?? 'usage window')
       }
-      return billingOrUnknown(family, r, unknown)
+      const billing = billingOrUnknown(family, r, unknown)
+      if (billing.state === 'rejected' || source !== 'chatgpt-subscription') return billing
+      const { usageFreshness, usageSourceWords } = require('./providers/usageFreshness.js') as typeof import('./providers/usageFreshness.js')
+      const live = bands.filter(b => b.state !== 'unavailable' && (b.resetsAtMs === undefined || b.resetsAtMs > now) && usageFreshness(b, now).state !== 'stale')
+      if (live.length === 0) {
+        if (bands.length === 0) return billing
+        const latest = bands.reduce((a, b) => (b.observedAtMs ?? 0) > (a.observedAtMs ?? 0) ? b : a)
+        return { ...unknown, staleWords: usageSourceWords(latest, now) ?? 'stale usage read' }
+      }
+      const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
+      const tier = usageWarningTier(worst.usedPct)
+      return {
+        family,
+        state: usageWindowState(worst.usedPct),
+        basis: 'observed',
+        ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+        windowName: worst.windowName,
+        usedPct: worst.usedPct,
+        ...(tier !== null ? { warningTier: tier } : {}),
+      }
     }
     const laneWall =
       family === 'openrouter'
@@ -461,7 +464,25 @@ export function observedFamilyWindow(
             ? r.huggingfaceWall()
             : null
     if (laneWall !== null) return wallFact(family, laneWall, now, 'usage window')
-    return billingOrUnknown(family, r, unknown)
+    const billing = billingOrUnknown(family, r, unknown)
+    if (billing.state === 'rejected') return billing
+    if (family === 'moonshot' || family === 'openrouter') {
+      const { worstLiveWindow, usageWindowWord } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      const worst = worstLiveWindow(r.percentageWindows(family).filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now))
+      if (worst !== null) {
+        const tier = usageWarningTier(worst.usedPct)
+        return {
+          family,
+          state: usageWindowState(worst.usedPct),
+          basis: 'observed',
+          usedPct: worst.usedPct,
+          windowName: usageWindowWord(worst),
+          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+          ...(tier !== null ? { warningTier: tier } : {}),
+        }
+      }
+    }
+    return billing
   } catch {
     return unknown
   }
@@ -516,6 +537,7 @@ export interface CapFailoverCandidateSet {
 }
 
 export function capUsageWords(window: FamilyWindowFact | null, resetText?: string | null): string {
+  if (window?.staleWords !== undefined) return window.staleWords
   if (window === null || window.state === 'unknown') return 'no usage read'
   const name = window.windowName ?? 'usage window'
   if (window.state === 'rejected') {

@@ -132,9 +132,9 @@ section('§5 cap-failover: posture × quota × candidates × return guard')
 {
   const quotas = ['allowed', 'allowed_warning', 'rejected'] as const
   check("posture 'off' is a TOTAL no-op over every quota state", quotas.every(q => decideCapAction('off', q).kind === 'none'))
-  check("'offer' posture: warnings and rejections OFFER, never auto-move", decideCapAction('offer', 'allowed_warning').kind === 'offer' && decideCapAction('offer', 'rejected').kind === 'offer' && decideCapAction('offer', 'allowed').kind === 'none')
+  check("offer asks only at the reached window", decideCapAction('offer', 'allowed_warning').kind === 'none' && decideCapAction('offer', 'rejected').kind === 'offer' && decideCapAction('offer', 'allowed').kind === 'none')
   const auto = decideCapAction('auto', 'rejected')
-  check("'auto' posture hands off unattended ONLY on rejected", auto.kind === 'auto-handoff' && decideCapAction('auto', 'allowed_warning').kind === 'offer')
+  check("'auto' posture hands off unattended ONLY on rejected", auto.kind === 'auto-handoff' && decideCapAction('auto', 'allowed_warning').kind === 'none')
 
   const usability: Record<string, { usable: boolean; blockers: string[] }> = {
     anthropic: { usable: true, blockers: [] },

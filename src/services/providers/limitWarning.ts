@@ -2,13 +2,16 @@ import { formatResetTime } from '../../utils/format.js'
 import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
-import { activeSourceUsage, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
+import { activeSourceUsage, bindingWindowOf, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 
-export const APPROACHING_LIMIT_PCT = 70
+import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
+export { FIRST_WARNING_PCT, SECOND_WARNING_PCT, APPROACHING_LIMIT_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './usageTiers.js'
 
 export interface ProviderLimitWarningView {
   provider: string
   text: string
+  key?: string
 }
 
 export interface ProviderLimitWarningFacts {
@@ -16,6 +19,7 @@ export interface ProviderLimitWarningFacts {
   windowKey: string
   windowName: string
   pct: number
+  tier?: UsageWarningTier
   resetsAtSeconds?: number
 }
 
@@ -23,48 +27,43 @@ export interface LimitWarningReads extends ActiveUsageReads {
   anthropicLimits?: () => ClaudeAILimits
 }
 
-function resetTail(epochSeconds: number | undefined): string {
-  const rendered = formatResetTime(epochSeconds)
-  return rendered !== undefined ? ` · resets ${rendered}` : ''
+export function usageWarningNoticeText(text: string, pct: number): string {
+  if (pct === 0) return `Usage limit near — ${text}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`
+  const fact = `Usage limit near — ${text}. The provider stops this session only when the window is used up.`
+  return usageWarningTier(pct) === SECOND_WARNING_PCT
+    ? `${fact} Keep the work resumable: finish the step in hand; commit what is done and write down where it stands.`
+    : fact
 }
 
-function composeLine(provider: string, pct: number, window: string, resetsAtSeconds?: number): string {
-  return `${provider}: ${pct}% of ${window} used${resetTail(resetsAtSeconds)}`
+function warningFacts(provider: string, label: string, pct: number, windowKey: string, windowName: string, resetsAtSeconds?: number): ProviderLimitWarningFacts | null {
+  const tier = usageWarningTier(pct)
+  if (tier === null) return null
+  const reset = formatResetTime(resetsAtSeconds)
+  return {
+    view: {
+      provider,
+      text: `${label}: ${pct}% of the ${windowName} used${reset !== undefined ? ` · resets ${reset}` : ''}`,
+      key: `${provider}|${windowKey}|${resetsAtSeconds ?? ''}|${tier}`,
+    },
+    windowKey,
+    windowName,
+    pct,
+    tier,
+    ...(resetsAtSeconds !== undefined ? { resetsAtSeconds } : {}),
+  }
 }
 
 function anthropicWarning(limits: ClaudeAILimits): ProviderLimitWarningFacts | null {
-  const provider = providerDisplayName('anthropic')
   if (limits.isUsingOverage) {
-    if (limits.overageStatus === 'allowed_warning') {
-      return {
-        view: {
-          provider: 'anthropic',
-          text: 'Anthropic says this account is close to its extra usage spending limit',
-        },
-        windowKey: 'overage',
-        windowName: 'extra usage spending limit',
-        pct: 0,
-      }
-    }
-    return null
+    return limits.overageStatus === 'allowed_warning' ? {
+      view: { provider: 'anthropic', text: 'Anthropic says this account is close to its extra usage spending limit' },
+      windowKey: 'overage',
+      windowName: 'extra usage spending limit',
+      pct: 0,
+    } : null
   }
-  if (limits.status !== 'allowed_warning') return null
-  if (limits.utilization !== undefined && limits.utilization < APPROACHING_LIMIT_PCT / 100) return null
-  const claim = limits.rateLimitType
-  if (claim === undefined) return null
-  const window = claim === 'overage' ? 'extra usage limit' : rateLimitWindowName(claim)
-  const pct = limits.utilization !== undefined ? Math.floor(limits.utilization * 100) : 0
-  const text =
-    pct > 0
-      ? composeLine(provider, pct, window, limits.resetsAt)
-      : `${provider}: approaching ${window}${resetTail(limits.resetsAt)}`
-  return {
-    view: { provider: 'anthropic', text },
-    windowKey: claim,
-    windowName: window,
-    pct,
-    ...(limits.resetsAt !== undefined ? { resetsAtSeconds: limits.resetsAt } : {}),
-  }
+  if (limits.status === 'rejected' || limits.utilization === undefined || limits.rateLimitType === undefined || (limits.resetsAt !== undefined && limits.resetsAt * 1000 <= Date.now())) return null
+  return warningFacts('anthropic', providerDisplayName('anthropic'), Math.floor(limits.utilization * 100), limits.rateLimitType, rateLimitWindowName(limits.rateLimitType), limits.resetsAt)
 }
 
 export function providerLimitWarningFacts(opts?: {
@@ -81,50 +80,30 @@ export function providerLimitWarningFacts(opts?: {
   } catch {
     return null
   }
-
-  if (view.provider === 'anthropic') {
-    if (view.shape !== 'subscription-windows') return null
-    const limits = reads?.anthropicLimits?.() ?? currentLimits
-    const fromHeaders = anthropicWarning(limits)
-    if (fromHeaders !== null) return fromHeaders
-    const binding = view.binding
-    if (binding === undefined) return null
-    const pct = flooredPct(binding.window)
-    if (pct < APPROACHING_LIMIT_PCT) return null
-    const window = binding.claim !== undefined ? rateLimitWindowName(binding.claim) : binding.windowName
-    const resetsAtSeconds = resetSecondsOf(binding.window)
-    return {
-      view: {
-        provider: 'anthropic',
-        text: composeLine(providerDisplayName('anthropic'), pct, window, resetsAtSeconds),
-      },
-      windowKey: binding.claim ?? binding.window.key,
-      windowName: window,
-      pct,
-      ...(resetsAtSeconds !== undefined ? { resetsAtSeconds } : {}),
-    }
-  }
-
-  const binding = view.binding
-  if (binding === undefined) return null
-  const pct = flooredPct(binding.window)
-  if (pct < APPROACHING_LIMIT_PCT) return null
+  const now = Date.now()
+  if (view.limited !== undefined && view.limited.resetsAtMs > now) return null
+  const notExpired = (window: UsageWindowView): boolean => window.resetsAtMs === undefined || window.resetsAtMs > now
+  const binding = bindingWindowOf({ ...view, windows: view.windows.filter(notExpired), pools: view.pools.filter(notExpired) }, opts?.model ?? getMainLoopModel())
   const label = view.label
-  const word =
-    label.endsWith(' usage') && label !== 'API usage'
-      ? label.slice(0, -' usage'.length)
-      : providerDisplayName(view.provider)
-  const resetsAtSeconds = resetSecondsOf(binding.window)
-  return {
-    view: {
-      provider: view.provider,
-      text: composeLine(word, pct, binding.windowName, resetsAtSeconds),
-    },
-    windowKey: binding.window.key,
-    windowName: binding.windowName,
-    pct,
-    ...(resetsAtSeconds !== undefined ? { resetsAtSeconds } : {}),
-  }
+  const word = label.endsWith(' usage') && label !== 'API usage'
+    ? label.slice(0, -' usage'.length)
+    : providerDisplayName(view.provider)
+  const fromMeter = binding === undefined ? null : warningFacts(
+    view.provider,
+    word,
+    flooredPct(binding.window),
+    binding.claim ?? binding.window.key,
+    binding.claim !== undefined ? rateLimitWindowName(binding.claim) : binding.windowName,
+    resetSecondsOf(binding.window),
+  )
+  if (view.provider !== 'anthropic') return fromMeter
+  if (view.shape !== 'subscription-windows') return null
+  const limits = reads?.anthropicLimits?.() ?? currentLimits
+  if (limits.isUsingOverage) return anthropicWarning(limits)
+  if (limits.status === 'rejected' && (limits.resetsAt === undefined || limits.resetsAt * 1000 > now)) return null
+  const fromHeaders = anthropicWarning(limits)
+  if (fromMeter === null) return fromHeaders
+  return fromHeaders !== null && fromHeaders.pct > fromMeter.pct ? fromHeaders : fromMeter
 }
 
 export function providerLimitWarning(opts?: {
@@ -132,6 +111,23 @@ export function providerLimitWarning(opts?: {
   reads?: LimitWarningReads
 }): ProviderLimitWarningView | null {
   return providerLimitWarningFacts(opts)?.view ?? null
+}
+
+export function usageWarningEmissionKey(warning: ProviderLimitWarningView): string | null {
+  if (warning.key !== undefined) return warning.key
+  const match = /: (\d+)% of (?:the )?(.+)/.exec(warning.text)
+  if (match === null) return `${warning.provider}|${warning.text}`
+  const tier = usageWarningTier(Number(match[1]))
+  return tier === null ? null : `${warning.provider}|${match[2]}|${tier}`
+}
+
+export function takeUsageWarning(seen: Set<string>, warning: ProviderLimitWarningView | null): boolean {
+  if (warning === null) return false
+  const key = usageWarningEmissionKey(warning)
+  if (key === null || seen.has(key)) return false
+  seen.add(key)
+  if (key.endsWith(`|${SECOND_WARNING_PCT}`)) seen.add(`${key.slice(0, key.lastIndexOf('|'))}|${FIRST_WARNING_PCT}`)
+  return true
 }
 
 export function preferSessionLimitWarning(

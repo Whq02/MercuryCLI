@@ -164,6 +164,14 @@ const WARNING_HEADER_KEYS = [
   '7d-surpassed-threshold',
 ] as const
 
+export function setMockUsagePercent(abbrev: '5h' | '7d', pct: number): void {
+  if (!isArmed() || !Number.isFinite(pct) || pct < 0 || pct > 100) return
+  const reset = Number(mockHeaders[`${HEADER_PREFIX}${abbrev}-reset`])
+  const now = nowSeconds()
+  setMockRateLimitScenario('clear')
+  setMockEarlyWarning(abbrev, pct / 100, Number.isFinite(reset) && reset > now ? (reset - now) / 3600 : undefined)
+}
+
 export function setMockEarlyWarning(
   abbrev: '5h' | '7d' | 'overage',
   utilization: number,

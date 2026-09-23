@@ -172,17 +172,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const ask = askOf(body)
       const model = String(body.model ?? '')
       const notices = raw.split(NOTICE_MARK).length - 1
-      const texts = [...raw.matchAll(/Usage limit near [^"\\]{0,200}/g)].map(m => m[0])
+      const texts = [...raw.matchAll(/Usage limit near [^"\\]{0,500}/g)].map(m => m[0])
       const n = hits.length + 1
       hits.push({ n, ask: ask.slice(0, 60), notices, texts, model })
       if (ask.includes('NOTICE-ROAD')) {
         roadStep += 1
-        if (roadStep === 1 || roadStep === 2) return answerGlob(res, n, model, unifiedHeaders('0.85', RESET_ONE, true))
-        if (roadStep === 3) return answerGlob(res, n, model, unifiedHeaders('0.20', RESET_TWO, false))
-        if (roadStep === 4) return answerGlob(res, n, model, unifiedHeaders('0.88', RESET_TWO, true))
-        return answerText(res, n, model, 'the road is walked', unifiedHeaders('0.88', RESET_TWO, true))
+        if (roadStep === 1 || roadStep === 2) return answerGlob(res, n, model, unifiedHeaders('0.80', RESET_ONE, true))
+        if (roadStep === 3) return answerGlob(res, n, model, unifiedHeaders('0.85', RESET_ONE, true))
+        if (roadStep === 4) return answerGlob(res, n, model, unifiedHeaders('0.90', RESET_ONE, true))
+        return answerText(res, n, model, 'the road is walked', unifiedHeaders('0.95', RESET_ONE, true))
       }
-      if (ask.includes('AFTER-ROAD')) return answerText(res, n, model, 'the road is behind us', unifiedHeaders('0.88', RESET_TWO, true))
+      if (ask.includes('AFTER-ROAD')) return answerText(res, n, model, 'the road is behind us', unifiedHeaders('0.95', RESET_ONE, true))
       if (ask.includes('KEY-ROAD')) {
         keyStep += 1
         if (keyStep <= 2) return answerGlob(res, n, model, unifiedHeaders('0.85', RESET_ONE, true))
@@ -265,17 +265,13 @@ try {
   check('the fixture saw the five requests of the road (four tool rounds and the settle)', hits.length >= 5, brief())
   const [h1, h2, h3, h4, h5] = hits
   check('request 1 carries no notice (nothing observed yet)', h1?.notices === 0, brief())
-  check('request 2 carries ONE notice: the round after the 85% headers landed', h2?.notices === 1, brief())
-  check(
-    "the notice names the provider, the window and the percent in the warning's own words",
-    (h2?.texts[0] ?? '').includes('Anthropic: 85% of session limit used') && (h2?.texts[0] ?? '').includes('resets'),
-    j(h2?.texts),
-  )
-  check('the notice says what to do', (h2?.texts[0] ?? '').includes('commit what is done'), j(h2?.texts))
-  check('request 3 carries the same ONE notice: no repeat inside the window', h3?.notices === 1, brief())
-  check('request 4 carries still ONE: the calm window after the reset adds nothing', h4?.notices === 1, brief())
-  check('request 5 carries TWO: the next window closing in fires once more', h5?.notices === 2, brief())
-  check('the second notice carries the new percent', (h5?.texts[1] ?? '').includes('88%'), j(h5?.texts))
+  check('request 2 carries one notice after the first tier', h2?.notices === 1, brief())
+  check('the first notice carries the live fact and reset', (h2?.texts[0] ?? '').includes('Anthropic: 80% of the session limit used') && (h2?.texts[0] ?? '').includes('resets'), j(h2?.texts))
+  check('the first notice gives no instruction to stop', !(h2?.texts[0] ?? '').includes('commit what is done'), j(h2?.texts))
+  check('request 3 carries the same notice', h3?.notices === 1, brief())
+  check('85% adds nothing between tiers', h4?.notices === 1, brief())
+  check('90% adds the second notice in the same window', h5?.notices === 2, brief())
+  check('the second notice carries the resumable-work advice', (h5?.texts[1] ?? '').includes('90%') && (h5?.texts[1] ?? '').includes('commit what is done'), j(h5?.texts))
   check('the transcript keeps the two notice rows', transcriptNoticeRows(subscriberHome) === 2, String(transcriptNoticeRows(subscriberHome)))
 
   section('§2 the resumed seat: the transcript remembers the window, no third notice')

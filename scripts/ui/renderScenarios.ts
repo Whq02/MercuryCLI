@@ -2189,13 +2189,18 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'cap-offer-card' || name === 'cap-offer-rejected') {
-    const trigger =
-      name === 'cap-offer-rejected' ? '/mock-limits weekly-limit-reached\r' : '/mock-limits warning-7d\r'
+  if (name === 'cap-warning-strip' || name === 'cap-offer-rejected') {
     return {
       argv: ['node', BIN],
-      sends: [{ atTick: 30, data: trigger }],
-      total: 60,
+      sends: name === 'cap-offer-rejected'
+        ? [{ atTick: 30, data: '/mock-limits weekly-limit-reached\r' }]
+        : [
+            { atTick: 30, awaitText: '· ready', requireAwait: true, awaitSettleTicks: 2, data: '/mock-limits warning-7d 80\r' },
+            { atTick: 999, awaitText: '80% of the weekly limit used', requireAwait: true, minTick: 2, mark: 'warning-80', data: '' },
+            { atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 2, awaitSettleTicks: 2, data: '/mock-limits warning-7d 90\r' },
+            { atTick: 999, awaitText: '90% of the weekly limit used', requireAwait: true, minTick: 2, mark: 'warning-90', data: '' },
+          ],
+      total: name === 'cap-offer-rejected' ? 60 : 180,
       cols,
       rows,
     }

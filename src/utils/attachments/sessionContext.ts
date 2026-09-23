@@ -81,15 +81,16 @@ const usageLimitNoticed = new Set<string>()
 export function getUsageLimitNoticeAttachment(
   toolUseContext: ToolUseContext,
   messages: readonly unknown[] = [],
+  reads?: NonNullable<Parameters<typeof providerLimitWarningFacts>[0]>['reads'],
 ): Attachment[] {
   let facts: ReturnType<typeof providerLimitWarningFacts>
   try {
-    facts = providerLimitWarningFacts({ model: toolUseContext.options.mainLoopModel })
+    facts = providerLimitWarningFacts({ model: toolUseContext.options.mainLoopModel, ...(reads !== undefined ? { reads } : {}) })
   } catch {
     return []
   }
   if (facts === null) return []
-  const key = `${facts.view.provider}|${facts.windowKey}|${facts.resetsAtSeconds ?? ''}`
+  const key = facts.view.key ?? `${facts.view.provider}|${facts.windowKey}|${facts.resetsAtSeconds ?? ''}`
   if (usageLimitNoticed.has(key) || usageLimitNoticeAlreadyInTranscript(messages, key)) return []
   usageLimitNoticed.add(key)
   return [
