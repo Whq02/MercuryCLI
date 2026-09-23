@@ -8,6 +8,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { builtinCommands, commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
+import { bareUsageLine, requiresArgument } from '../../skills/argumentHint.js'
 import { generateCommandSuggestions } from '../suggestions/commandSuggestions.js'
 import { concourseOffSentence } from '../../context/surfaceRoute.js'
 import { markTransitionStart } from '../observability/frictionStopwatch.js'
@@ -624,6 +625,10 @@ export async function processSlashCommand(
         result = await runLocalCommand(command, commandName, args, context, uuid)
         break
       default:
+        if (args.trim() === '' && requiresArgument(command)) {
+          result = answerBareUsage(command as Command & { type: 'prompt' }, args, uuid)
+          break
+        }
         result = await executePromptCommand(
           command as Command & { type: 'prompt' },
           commandName,
@@ -785,6 +790,23 @@ async function runLocalJsxCommand(
   })
 }
 
+
+function answerBareUsage(
+  command: Command & { type: 'prompt' },
+  args: string,
+  uuid?: UUID,
+): ProcessUserInputBaseResult {
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    ...(uuid ? { uuid } : {}),
+  })
+  const text = bareUsageLine(command)
+  return {
+    messages: [echoed, createCommandInputMessage(stdoutWrapped(text))],
+    shouldQuery: false,
+    resultText: text,
+  }
+}
 
 async function runLocalCommand(
   command: Command & { type: 'local' },

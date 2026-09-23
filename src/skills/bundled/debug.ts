@@ -41,7 +41,7 @@ export function registerDebugSkill(): void {
   registerBundledSkill({
     name: 'debug',
     description: 'Enable debug logging for this session and help diagnose issues',
-    argumentHint: '[issue description]',
+    argumentHint: '<issue description>',
     allowedTools: ['Read', 'Grep', 'Glob'],
     disableModelInvocation: true,
     getPromptForCommand: async args => {
