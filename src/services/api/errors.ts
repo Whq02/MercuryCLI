@@ -11,7 +11,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../utils/messages.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
-import { clientContractGateText, modelRefusalFromError } from '../providers/anthropic/modelRefusal.js'
+import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { ClaudeAILimits, OverageDisabledReason, QuotaStatus } from '../claudeAiLimits.js'
@@ -377,7 +377,7 @@ function extractProviderDetail(
 export function getAssistantMessageFromError(
   error: unknown,
   model: string,
-  _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
+  _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
   const row = composeAssistantMessageFromError(error, model, _context)
   if (row.error === 'authentication_failed' && classifyCredentialWall(statusOf(error), messageOf(error)) !== 'key-limit') return row
@@ -397,7 +397,7 @@ function signInWallAccount(model: string): string | undefined {
 function composeAssistantMessageFromError(
   error: unknown,
   model: string,
-  _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
+  _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
   const message = messageOf(error)
   const status = statusOf(error)
@@ -583,9 +583,10 @@ function composeAssistantMessageFromError(
 
   const modelRefusal =
     (status === 400 || status === 403 || status === 404) && routeOfModel(model) === 'anthropic'
-      ? modelRefusalFromError(error, model)
+      ? modelRefusalFromError(error, model, _context?.modelRefusalRequest)
       : null
   if (modelRefusal !== null) {
+    noteModelRefusal(modelRefusal, _context?.modelRefusalRequest?.home)
     logForDebugging(`[api] model refusal (${modelRefusal.kind}) on ${model} — the wire said: ${message}`)
     const requestId =
       (error as { request_id?: unknown } | null)?.request_id ??

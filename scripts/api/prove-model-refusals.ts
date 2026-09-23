@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -95,11 +95,100 @@ const unrelated404 = textOf(getAssistantMessageFromError(errorFor(404, 'not_foun
 check('an unrelated 404 keeps its original row byte for byte', unrelated404 === `There is an issue with the selected model (${MODEL}) — it may not exist or may be inaccessible (HTTP 404, request_id: unknown). Run \`/model\` to pick a different model.`)
 check('a model-specific 403 is not called a sign-in failure', getAssistantMessageFromError(errorFor(403, 'permission_error', `Your organisation is not enabled for ${MODEL}`), MODEL).error === 'invalid_request')
 check('revoked credentials keep their exact row', textOf(getAssistantMessageFromError(errorFor(401, 'authentication_error', 'OAuth access token has been revoked'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX}: Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)`)
-check('a window keeps its exact row', textOf(getAssistantMessageFromError(errorFor(429, 'rate_limit_error', 'usage window reached'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: usage window reached`)
 check('tool pairing keeps its exact row', textOf(getAssistantMessageFromError(errorFor(400, 'invalid_request_error', '`tool_use` ids were found without `tool_result` blocks immediately after'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (400): a tool-use concurrency problem left a tool use without its result. Run /rewind to recover from an earlier point.`)
 const auth = await import('../../src/utils/auth.js')
 delete process.env.ANTHROPIC_API_KEY
 writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
 auth.clearOAuthTokenCache()
 check('a subscriber tier refusal paints the display model and its own door', textOf(getAssistantMessageFromError(errorFor(400, 'invalid_request_error', 'invalid model name'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (400): ${tier.words}`)
+check('a subscription window keeps its exact row', textOf(getAssistantMessageFromError(errorFor(429, 'rate_limit_error', 'usage window reached'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (429, request rejected): Anthropic says: usage window reached`)
+for (const refusal of refusals.standingModelRefusals()) refusals.clearModelRefusal(refusal.id, refusal.door)
+refusals.noteModelRefusal(tier)
+check('a noted refusal is standing and the picker receives its exact words', refusals.standingModelRefusals().length === 1 && refusals.modelRefusalWords(MODEL) === tier.words)
+check('case, spacing and context annotations share the same refused id', refusals.modelRefusalWords(' CLAUDE-OPUS-5-5[1M] ') === tier.words)
+const newer = { ...tier, words: `${tier.words} newer`, seenAtMs: tier.seenAtMs + 1 }
+refusals.noteModelRefusal(newer)
+refusals.noteModelRefusal(tier)
+check('the newest observation wins, not the last-arriving older observation', refusals.modelRefusalWords(MODEL) === newer.words && refusals.standingModelRefusals().length === 1)
+refusals.clearModelRefusal(MODEL, 'Anthropic API key')
+check('success on another door cannot clear this refusal', refusals.modelRefusalWords(MODEL) === newer.words)
+refusals.clearModelRefusal(MODEL, DOOR)
+check('success on the same id and door clears the observation and words', refusals.standingModelRefusals().length === 0 && refusals.modelRefusalWords(MODEL) === undefined)
+refusals.noteModelRefusal({ ...missing, door: 'Anthropic API key' })
+check('a refusal on another door is recorded without gating the current one', refusals.standingModelRefusals().length === 1 && refusals.modelRefusalWords(MODEL) === undefined)
+refusals.clearModelRefusal(MODEL, 'Anthropic API key')
+refusals.noteModelRefusal(floor!)
+process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.290'
+check('raising the presented contract removes the standing floor from both readers', refusals.standingModelRefusals().length === 0 && refusals.modelRefusalWords(MODEL) === undefined)
+process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.280'
+refusals.clearModelRefusal(MODEL, DOOR)
+const requestDoor = refusals.captureModelRefusalRequest(MODEL)
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+const capturedRow = getAssistantMessageFromError(gate, MODEL, { modelRefusalRequest: requestDoor })
+check('a changed door after dispatch cannot rewrite the refusal attribution', textOf(capturedRow).includes(`on ${DOOR}:`) && refusals.modelRefusalWords(MODEL) === undefined)
+delete process.env.ANTHROPIC_API_KEY
+check('returning to the refused door restores its words', refusals.modelRefusalWords(MODEL) === textOf(capturedRow).replace(`${API_ERROR_MESSAGE_PREFIX} (400): `, ''))
+refusals.clearModelRefusal(MODEL, DOOR)
+refusals.noteModelRefusal(tier)
+const storedDirectory = join(home, 'model-refusals')
+const storedPath = join(storedDirectory, readdirSync(storedDirectory).find(name => name.endsWith('.json'))!)
+const stored = JSON.parse(readFileSync(storedPath, 'utf8'))
+check('the refusal is persisted beneath the auth home with its contract', stored.version === 1 && stored.refusal.presented === '2.1.280' && !readFileSync(storedPath, 'utf8').includes('fixture-access'))
+const externalWrite = (text: string): void => {
+  const temporary = join(storedDirectory, 'fixture.tmp')
+  writeFileSync(temporary, text)
+  renameSync(temporary, storedPath)
+  utimesSync(storedDirectory, new Date(), new Date(Date.now() + 1000))
+}
+externalWrite(JSON.stringify({ version: 1, refusal: { ...floor, seenAtMs: 3000 } }))
+check('another writer publishing a record replaces the directory memo immediately', refusals.modelRefusalWords(MODEL) === floor!.words)
+const sibling = refusals.classifyModelRefusal({ ...facts, model: 'claude-sonnet-5', status: 404, errorType: 'not_found_error', wireText: 'model: claude-sonnet-5' })!
+refusals.noteModelRefusal(sibling)
+check('two back-to-back refusals keep two independent records', refusals.standingModelRefusals().length === 2 && readdirSync(storedDirectory).filter(name => name.endsWith('.json')).length === 2)
+externalWrite('{')
+check('an unreadable record is skipped while the other refusal stays visible', refusals.standingModelRefusals().length === 1 && refusals.modelRefusalWords(MODEL) === undefined && refusals.modelRefusalWords(sibling.id) === sibling.words)
+refusals.noteModelRefusal({ ...tier, seenAtMs: 3001 })
+refusals.clearModelRefusal(MODEL, DOOR)
+check('clearing one record leaves the other refusal intact', refusals.standingModelRefusals().length === 1 && refusals.modelRefusalWords(sibling.id) === sibling.words)
+refusals.clearModelRefusal(sibling.id, DOOR)
+for (let n = 0; n < 15; n++) refusals.noteModelRefusal({ ...tier, id: `claude-fixture-${n}`, seenAtMs: 4000 + n })
+check('reads and writes bound the persisted set to its newest dozen records', refusals.standingModelRefusals().length === 12 && readdirSync(storedDirectory).filter(name => name.endsWith('.json')).length === 12)
+check('a successful publish leaves no temporary record', readdirSync(storedDirectory).every(name => name.endsWith('.json')))
+for (const refusal of refusals.standingModelRefusals()) refusals.clearModelRefusal(refusal.id, refusal.door)
+
+const { queryModelWithStreaming, queryModelWithoutStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const { createUserMessage } = await import('../../src/utils/messages.js')
+const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
+const successFetch = (async () => {
+  const event = (type: string, body: unknown): string => `event: ${type}\ndata: ${JSON.stringify(body)}\n\n`
+  return new Response([
+    event('message_start', { type: 'message_start', message: { id: 'msg_model_success', type: 'message', role: 'assistant', model: MODEL, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } }),
+    event('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+    event('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'answered' } }),
+    event('content_block_stop', { type: 'content_block_stop', index: 0 }),
+    event('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 1 } }),
+    event('message_stop', { type: 'message_stop' }),
+  ].join(''), { headers: { 'content-type': 'text/event-stream' } })
+}) as typeof fetch
+const input = () => ({
+  messages: [createUserMessage({ content: 'Reply with one word.' })], systemPrompt: asSystemPrompt(['Reply briefly.']),
+  thinkingConfig: { type: 'disabled' as const }, tools: [], signal: new AbortController().signal,
+  options: { model: MODEL, fetchOverride: successFetch, querySource: 'agent:refusal-fixture', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
+})
+for (const road of ['streamed', 'collected'] as const) {
+  getAssistantMessageFromError(gate, MODEL)
+  check(`${road}: the error seam itself records a standing refusal`, refusals.modelRefusalWords(MODEL) !== undefined)
+  if (road === 'collected') {
+    const answer = await queryModelWithoutStreaming(input())
+    check('the collected request actually succeeds', !answer.isApiErrorMessage && textOf(answer) === 'answered')
+  } else {
+    let answered = false
+    for await (const item of queryModelWithStreaming(input())) {
+      if (item.type === 'assistant' && !item.isApiErrorMessage && textOf(item) === 'answered') answered = true
+    }
+    check('the streamed request actually succeeds', answered)
+  }
+  check(`${road}: the completed request clears the same id and door`, refusals.standingModelRefusals().length === 0 && refusals.modelRefusalWords(MODEL) === undefined)
+}
 console.log(`Model refusals: ${checks} checks passed`)
