@@ -13,6 +13,7 @@ import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../uti
 import { isNonCustomOpusModel } from '../../utils/model/model.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
+import { clientContractGateText } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { ClaudeAILimits, OverageDisabledReason, QuotaStatus } from '../claudeAiLimits.js'
@@ -210,10 +211,7 @@ export function getRequestTooLargeErrorMessage(): string {
 
 
 export function isClientContractGateText(text: string): boolean {
-  return (
-    (text.includes('does not support this model') && text.includes('or newer is required')) ||
-    text.includes('claude_code_version_too_old')
-  )
+  return clientContractGateText(text)
 }
 
 export function clientContractGateLine(wireText: string, model: string): string {
