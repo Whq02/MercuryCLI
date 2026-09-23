@@ -7,6 +7,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import type { SetAppState } from '../messageQueueManager.js'
+import { createSystemMessage } from '../messages/systemMessages.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
@@ -112,7 +113,7 @@ export function registerWardsHook(
       if (level === 'off') return true
       try {
         const hookInput = context?.hookInput as
-          | { tool_name?: unknown; tool_input?: unknown }
+          | { tool_name?: unknown; tool_input?: unknown; tool_use_id?: unknown }
           | undefined
         if (!hookInput || typeof hookInput.tool_name !== 'string') return true
         const pending: PendingToolCall = {
@@ -124,25 +125,30 @@ export function registerWardsHook(
         }
         pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
         const refusal = evaluateWards(REFUSAL_WARDS, pending)
-        if (!refusal.allow) {
-          const denial = buildWardDenial(refusal, pending.toolName)
-          if (level === 'warn') {
-            logForDebugging(`wards: warn — ${denial}`)
-            return true
+        if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
+        if (denials < WARD_DENIAL_CAP) {
+          const verdict = evaluateWards(rules, pending)
+          if (!verdict.allow) {
+            const denial = buildWardDenial(verdict, pending.toolName)
+            denials++
+            if (denials === WARD_DENIAL_CAP) {
+              logForDebugging(
+                `wards: denial cap (${WARD_DENIAL_CAP}) reached for session ${sessionId} — standing down`,
+              )
+            }
+            return denial
           }
-          return denial
         }
-        if (denials >= WARD_DENIAL_CAP) return true
-        const verdict = evaluateWards(rules, pending)
-        if (verdict.allow) return true
-        const denial = buildWardDenial(verdict, pending.toolName)
-        denials++
-        if (denials === WARD_DENIAL_CAP) {
-          logForDebugging(
-            `wards: denial cap (${WARD_DENIAL_CAP}) reached for session ${sessionId} — standing down`,
-          )
+        if (refusal.allow) return true
+        logForDebugging(`wards: warn — ${buildWardDenial(refusal, pending.toolName)}`)
+        return {
+          pass: true,
+          note: createSystemMessage(
+            `Ward '${refusal.rule.name}' would have blocked this ${pending.toolName} call — matched "${refusal.excerpt}" (${refusal.target}:${refusal.line}); MERCURY_WARDS=warn let it run.`,
+            'warning',
+            typeof hookInput.tool_use_id === 'string' ? hookInput.tool_use_id : undefined,
+          ),
         }
-        return denial
       } catch {
         return true
       }
