@@ -162,6 +162,7 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
 }
 
 async function endWin32Tree(pid: number): Promise<ProcessTreeKillReceipt> {
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
