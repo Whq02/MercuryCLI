@@ -1207,7 +1207,8 @@ process.stdin.on('end', () => process.exit(0))
     {
       const FABLE = 'claude-fable-5-1'
       const SEAT_ALIAS = 'opus'
-      const SEAT = 'claude-opus-5'
+      const { ALL_MODEL_CONFIGS, newestGenerationKey } = await import('../../src/utils/model/configs.ts')
+      const SEAT = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
       const SEAT_DESCRIPTION = 'prefix-seat'
       const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
       const turns: ScriptedTurn[] = [
