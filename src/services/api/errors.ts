@@ -2,7 +2,6 @@ import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthro
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { describeAnthropicClientContract } from '../../constants/oauth.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
 import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
@@ -10,9 +9,9 @@ import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../utils/messages.js'
-import { isNonCustomOpusModel } from '../../utils/model/model.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
+import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { ClaudeAILimits, OverageDisabledReason, QuotaStatus } from '../claudeAiLimits.js'
@@ -210,23 +209,12 @@ export function getRequestTooLargeErrorMessage(): string {
 
 
 export function isClientContractGateText(text: string): boolean {
-  return (
-    (text.includes('does not support this model') && text.includes('or newer is required')) ||
-    text.includes('claude_code_version_too_old')
-  )
+  return clientContractGateText(text)
 }
 
 export function clientContractGateLine(wireText: string, model: string): string {
-  const floor = /version (\d+(?:\.\d+)+) or newer is required/.exec(wireText)?.[1]
-  const read = /(\d+(?:\.\d+)+) does not support this model/.exec(wireText)?.[1]
-  const contract = describeAnthropicClientContract()
-  const source = contract.source === 'override' ? 'from MERCURY_ANTHROPIC_CLIENT_CONTRACT' : 'the built-in constant'
-  return (
-    `${API_ERROR_MESSAGE_PREFIX} (400): the subscription endpoint gates ${model} on a minimum client-contract version: ` +
-    `it read ${read ?? 'an older version'} from this request and requires ${floor ?? 'a newer version'}${floor ? ' or newer' : ''}. ` +
-    `Mercury presents ${contract.presented} (${source}) on that door; ` +
-    `set MERCURY_ANTHROPIC_CLIENT_CONTRACT=${floor ?? '<version>'} (or newer) and restart Mercury to raise it.`
-  )
+  const refusal = modelRefusalFromError({ status: 400, message: wireText }, model)
+  return `${API_ERROR_MESSAGE_PREFIX} (400): ${refusal?.words ?? `${model} was refused — pick another model with /model.`}`
 }
 
 export function getTokenRevokedErrorMessage(): string {
@@ -389,7 +377,7 @@ function extractProviderDetail(
 export function getAssistantMessageFromError(
   error: unknown,
   model: string,
-  _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
+  _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
   const row = composeAssistantMessageFromError(error, model, _context)
   if (row.error === 'authentication_failed' && classifyCredentialWall(statusOf(error), messageOf(error)) !== 'key-limit') return row
@@ -409,7 +397,7 @@ function signInWallAccount(model: string): string | undefined {
 function composeAssistantMessageFromError(
   error: unknown,
   model: string,
-  _context?: { messages?: Message[]; messagesForAPI?: unknown[] },
+  _context?: { messages?: Message[]; messagesForAPI?: unknown[]; modelRefusalRequest?: ModelRefusalRequest | undefined },
 ): AssistantMessage {
   const message = messageOf(error)
   const status = statusOf(error)
@@ -593,24 +581,21 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (
-    isClaudeAISubscriber() &&
-    status === 400 &&
-    message.toLowerCase().includes('invalid model name') &&
-    (isNonCustomOpusModel(model) || model === 'opus')
-  ) {
+  const modelRefusal =
+    (status === 400 || status === 403 || status === 404) && routeOfModel(model) === 'anthropic'
+      ? modelRefusalFromError(error, model, _context?.modelRefusalRequest)
+      : null
+  if (modelRefusal !== null) {
+    noteModelRefusal(modelRefusal, _context?.modelRefusalRequest?.home)
+    logForDebugging(`[api] model refusal (${modelRefusal.kind}) on ${model} — the wire said: ${message}`)
+    const requestId =
+      (error as { request_id?: unknown } | null)?.request_id ??
+      headerValue(errorHeaders(error), 'request-id') ??
+      'unknown'
     return createAssistantAPIErrorMessage({
-      content:
-        'The top-tier model is not available on your subscription tier. If you recently changed plans, run /logout then /logins for the change to take effect.',
+      content: `${API_ERROR_MESSAGE_PREFIX} (${status}): ${modelRefusal.words}`,
       error: 'invalid_request',
-    })
-  }
-
-  if (status === 400 && isClientContractGateText(message)) {
-    logForDebugging(`[api] client-contract gate on ${model} — the wire said: ${message}`)
-    return createAssistantAPIErrorMessage({
-      content: clientContractGateLine(message, model),
-      error: 'invalid_request',
+      ...(status === 404 ? { errorDetails: `HTTP 404 · model: ${model} · request_id: ${String(requestId)}` } : {}),
     })
   }
 
