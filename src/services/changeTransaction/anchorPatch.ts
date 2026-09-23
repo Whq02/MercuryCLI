@@ -344,7 +344,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
           const range = parseRange(tokens[1]!, lineNo, warnings)
           if ('ok' in range) return range
           if (range.end !== range.start) {
-            return err('bad-range', lineNo, `insert takes a single anchor line, not a range`)
+            return err('bad-range', lineNo, `insert takes a single anchor line, not a range — 'replace ${range.start}-${range.end}' rewrites those lines, or 'insert ${range.end}' adds after one line`)
           }
           after = range.start
         }
@@ -370,7 +370,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
           const range = parseRange(tokens[1]!, lineNo, warnings)
           if ('ok' in range) return range
           if (range.end !== range.start) {
-            return err('bad-range', lineNo, `prepend takes a single anchor line, not a range`)
+            return err('bad-range', lineNo, `prepend takes a single anchor line, not a range — 'replace ${range.start}-${range.end}' rewrites those lines, or 'prepend ${range.start}' adds before one line`)
           }
           before = range.start
         }

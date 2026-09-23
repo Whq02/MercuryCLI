@@ -313,6 +313,61 @@ function mapRangesThroughPatch(ranges: readonly LineRange[], hunks: readonly Str
   )
 }
 
+function authoredLinesOf(hunks: readonly StructuredPatchHunk[]): LineRange[] {
+  const ranges: LineRange[] = []
+  for (const hunk of hunks) {
+    let newLine = hunk.newStart
+    for (const text of hunk.lines) {
+      const mark = text[0]
+      if (mark === '+') {
+        const last = ranges[ranges.length - 1]
+        if (last !== undefined && last.end === newLine - 1) last.end = newLine
+        else ranges.push({ start: newLine, end: newLine })
+        newLine++
+      } else if (mark === ' ') {
+        newLine++
+      }
+    }
+  }
+  return ranges
+}
+
+function knowledgeBeforeWrite(
+  context: ToolUseContext,
+  expandedPath: string,
+  displayPath: string,
+  content: string,
+  expectedAnchor: string | undefined,
+  generation: string | null,
+  ledger: ReturnType<typeof seenLinesOf>,
+): LineRange[] {
+  const lastLine = lineCountOf(content)
+  if (lastLine === 0) return []
+  const read = readLinesOf(context.readFileState.get(expandedPath), content, true, generation, ledger)
+  const ranges = [...read.ranges]
+  if (hasText(expectedAnchor) && checkAnchor(expectedAnchor, content, displayPath).ok) {
+    const window = expectedAnchor.startsWith('fa:') ? { start: 1, end: lastLine } : rangeAnchorWindow(expectedAnchor)
+    if (window !== null) ranges.push(window)
+  }
+  return coalesceLineRanges(ranges)
+}
+
+function stampOwnEditAsSeen(
+  owner: ReturnType<typeof ownerFromToolUseContext>,
+  expandedPath: string,
+  known: readonly LineRange[],
+  patch: readonly StructuredPatchHunk[],
+  updatedFile: string,
+): void {
+  const generation = fileGeneration(expandedPath)
+  if (generation === null) return
+  const lastLine = Math.max(1, lineCountOf(updatedFile))
+  const shifted = patch.length === 0 ? [...known] : mapRangesThroughPatch(known, patch, lastLine)
+  for (const range of coalesceLineRanges([...shifted, ...authoredLinesOf(patch)])) {
+    recordSeenLines(owner, expandedPath, generation, range.start, range.end - range.start + 1)
+  }
+}
+
 function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: string, patch: readonly StructuredPatchHunk[], expandedPath: string): string {
   const oneGap = gaps.length === 1 && gaps[0]!.start === gaps[0]!.end
   const unread = `${oneGap ? 'Line' : 'Lines'} ${spellLineRanges(gaps)} did not count as read before this edit`
@@ -1180,6 +1235,10 @@ export const FileEditTool = buildTool({
     const reconciled = fileExists
       ? preserveUntouchedLineEndings(rawBefore, updatedFile, lineEndings)
       : updatedFile
+    const owner = ownerFromToolUseContext(context)
+    const knownBeforeWrite = fileExists
+      ? knowledgeBeforeWrite(context, expandedPath, input.file_path, freshContent, input.expected_anchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
+      : []
     writeTextContent(expandedPath, reconciled, encoding, fileExists ? 'LF' : lineEndings)
 
     const lspManager = getLspServerManager()
@@ -1199,6 +1258,7 @@ export const FileEditTool = buildTool({
       offset: undefined,
       limit: undefined,
     })
+    stampOwnEditAsSeen(owner, expandedPath, knownBeforeWrite, patch, updatedFile)
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
     logFileOperation({

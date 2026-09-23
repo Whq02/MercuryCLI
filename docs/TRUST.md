@@ -74,7 +74,9 @@ and never rides into a session runner.
 A short list of command shapes never runs, whatever the permission mode and
 whether or not anyone is watching: the tool call is refused before any
 permission question, with a sentence in the tool result that names the rule
-and tells the model to surface the refusal rather than rephrase around it.
+and tells the model to surface the refusal rather than rephrase around it;
+the self-daemonizing shape's sentence also names the road it stands in for
+— a long command runs with the Bash tool's `run_in_background` flag.
 The list is the supply-chain shapes — an auto-confirmed `npx -y`, an install
 from a git URL pinned to a commit, `curl … | bash`, a self-daemonizing
 `nohup … &`, a crontab, systemd or autostart install, a write of the global

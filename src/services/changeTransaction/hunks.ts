@@ -111,7 +111,7 @@ export function planHunks(
       continue
     }
     if (h.insert && range.end !== range.start) {
-      refuse(i + 1, h.lines, `hunk ${i + 1}: insert takes a single anchor line, not a range ('${h.lines}')`)
+      refuse(i + 1, h.lines, `hunk ${i + 1}: insert takes a single anchor line, not a range ('${h.lines}') — drop the insert flag to replace lines ${range.start}-${range.end}, or give one anchor line to insert ${h.insert === 'before' ? 'before' : 'after'}`)
       continue
     }
     if (h.insert && h.replace === '') {
