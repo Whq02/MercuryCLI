@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, win32 } from 'node:path'
 import { distProvenance, distProvenanceLine } from '../lib/distProvenance.ts'
 
 const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'treekill-home-'))
@@ -132,7 +132,7 @@ if (process.platform !== 'win32') {
 section('§3 win32 arm — argv array + locale-tolerant receipt counter (unit pins)')
 {
   const { file, args } = win32TaskkillCommand(4242)
-  check('§3 file is taskkill (execFile resolves it, no shell)', file === 'taskkill')
+  check('§3 file is System32\\taskkill.exe by absolute path (no lookup through the launch folder, no shell)', win32.isAbsolute(file) && file.endsWith('\\System32\\taskkill.exe'), file)
   check('§3 argv array is exactly /PID <pid> /T /F', JSON.stringify(args) === JSON.stringify(['/PID', '4242', '/T', '/F']), JSON.stringify(args))
   check('§3 no argv word carries a space (the shell-string poison shape)', args.every(a => !/\s/.test(a)))
   const english = [
