@@ -21,7 +21,7 @@ import {
 import { execAgentHook } from './execAgentHook.js'
 import { execHttpHook } from './execHttpHook.js'
 import { execPromptHook } from './execPromptHook.js'
-import { getSessionHookCallback, type FunctionHook } from './sessionHooks.js'
+import { getSessionHookCallback, type FunctionHook, type FunctionHookPass } from './sessionHooks.js'
 import { getHookDisplayText, retireOnceHookFromSettings } from './hooksSettings.js'
 import { shouldDisableAllHooksIncludingManaged, updateHooksConfigSnapshot } from './hooksConfigSnapshot.js'
 import {
@@ -1045,7 +1045,7 @@ export async function executeFunctionHook({
       }
     }
 
-    const passed = await new Promise<boolean | string>((resolve, reject) => {
+    const passed = await new Promise<boolean | string | FunctionHookPass>((resolve, reject) => {
       const onAbort = () => reject(new Error('Function hook cancelled'))
       abortSignal.addEventListener('abort', onAbort)
 
@@ -1066,6 +1066,13 @@ export async function executeFunctionHook({
       return {
         outcome: 'success',
         hook,
+      }
+    }
+    if (typeof passed === 'object') {
+      return {
+        outcome: 'success',
+        hook,
+        message: passed.note,
       }
     }
     return {

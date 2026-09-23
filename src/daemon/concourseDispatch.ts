@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
+import { recordRefusedDurableFile } from '../substrate/storeRecovery.js'
 import { daemonHomeStands } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
@@ -280,6 +281,7 @@ function nameControlOpLedger(path: string, what: string): void {
   if (namedControlOpLedgers.has(path)) return
   namedControlOpLedgers.add(path)
   logForDebugging(`[daemon] ${path}: ${what}`, { level: 'warn' })
+  void recordRefusedDurableFile({ store: 'concourse-control-ops', path, reason: what })
 }
 
 export function readConcourseControlOps(dir?: string): Record<string, ConcourseControlOpRecordV1> {

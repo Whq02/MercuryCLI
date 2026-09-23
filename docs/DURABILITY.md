@@ -51,8 +51,11 @@ bytes, the bytes are preserved as a bounded, clearly-named quarantine copy
 beside the store, and the recovery is recorded in an append-only ledger
 that `/health` and the UI surface — including whether the mutation resumed
 from the last committed value or from empty. A read that degraded to empty
-is recorded too; the damaged bytes stay in place until quarantined. A ledger
-row the build cannot read as an event is skipped and counted nowhere.
+is recorded too; the damaged bytes stay in place until quarantined. A durable
+file the build refuses to read — a roster, the daemon's control ledger, a
+receipt ring, a journal file, or a row of this ledger itself — is named on
+the same ledger as a refused event, its bytes left exactly in place; a
+process names a file once, however many times it reads it.
 
 ## Deadlines and watchdogs
 

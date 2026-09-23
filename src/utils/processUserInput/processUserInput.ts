@@ -84,6 +84,7 @@ export async function processUserInput(
 
   if (mode === 'prompt' && options.batchTail && options.batchTail.length > 0) {
     const prompts = [{ value: input, uuid: options.uuid }, ...options.batchTail]
+    const lead: ProcessUserInputBaseResult['messages'] = []
     const rows: UserMessage[] = []
     const remaining: ProcessUserInputBaseResult['messages'] = []
     const results: ProcessUserInputBaseResult[] = []
@@ -92,6 +93,7 @@ export async function processUserInput(
       const result = await processUserInput({
         ...options,
         input: prompt.value,
+        messages: [...options.messages, ...lead, ...rows, ...remaining],
         uuid,
         batchUuids: undefined,
         batchTail: undefined,
@@ -105,6 +107,16 @@ export async function processUserInput(
         }),
       })
       results.push(result)
+      const lastBlock = typeof prompt.value === 'string' ? undefined : prompt.value.at(-1)
+      const promptText = typeof prompt.value === 'string' ? prompt.value : lastBlock?.type === 'text' ? lastBlock.text : undefined
+      if (
+        index === 0 && options.skipSlashCommands !== true &&
+        promptText?.startsWith('/') && !result.hookBlocked &&
+        !result.messages.some(message => message.type === 'user' && message.uuid === uuid && message.message.content === promptText)
+      ) {
+        lead.push(...result.messages)
+        continue
+      }
       for (const message of result.messages) {
         if (result.shouldQuery && message.type === 'user' && message.uuid === uuid) {
           rows.push(message)
@@ -120,7 +132,7 @@ export async function processUserInput(
     const blocked = results.filter(result => result.hookBlocked)
     return {
       ...results[0]!,
-      messages: [...rows, ...remaining],
+      messages: [...lead, ...rows, ...remaining],
       shouldQuery,
       ...(blocked.length > 0 && !shouldQuery ? {
         hookBlocked: true,

@@ -1309,12 +1309,11 @@ export async function runHeadless(
     })
   }
 
-  const isWatchTask = (task: unknown): boolean => isLocalShellTask(task) && task.kind === 'monitor'
-  const stopWatchesForClose = async (): Promise<void> => {
-    const watches = getRunningTasks(getAppState()).filter(isWatchTask)
-    if (watches.length === 0) return
-    logForDebugging(`[session-runner] the input closed with ${watches.length} watch(es) running: a watch ends with its seat`)
-    await Promise.all(watches.map(task => killTask(task.id, setAppState).catch(() => undefined)))
+  const stopShellsForClose = async (): Promise<void> => {
+    const shells = getRunningTasks(getAppState()).filter(task => isLocalShellTask(task))
+    if (shells.length === 0) return
+    logForDebugging(`[session-runner] the input closed with ${shells.length} shell task(s) running: every watch and background shell ends with its seat`)
+    await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(() => undefined)))
   }
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
@@ -1410,7 +1409,7 @@ export async function runHeadless(
         injectTeamShutdownPrompt()
         return 'reenter'
       }
-      await stopWatchesForClose()
+      await stopShellsForClose()
       return 'close'
     }
     return 'stay'
@@ -1570,13 +1569,13 @@ export async function runHeadless(
       headlessProfilerStartTurn()
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate' && !(inputClosed && isWatchTask(task))),
+      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate' && !(inputClosed && isLocalShellTask(task))),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate' && !(inputClosed && isWatchTask(task))).length,
+      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate' && !(inputClosed && isLocalShellTask(task))).length,
     onAgentWait: count => {
       io.outbound.enqueue({
         type: 'system',
@@ -3003,7 +3002,7 @@ export async function runHeadless(
     } finally {
       inputClosed = true
       if (!driver.isRunning()) {
-        await stopWatchesForClose()
+        await stopShellsForClose()
         await driver.closeOutputOnce()
       }
     }

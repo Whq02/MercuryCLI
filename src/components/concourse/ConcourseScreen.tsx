@@ -1079,7 +1079,7 @@ export function ConcourseScreen({
           import('../../services/concourse/concourseSnapshot.js'),
         ])
         const ground = await snap.resolveHarnessGround().catch(() => getOriginalCwd())
-        const done = await mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits })
+        const done = await mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits, entryId })
         const dispatched = {
           ...plan,
           state: 'dispatched' as const,

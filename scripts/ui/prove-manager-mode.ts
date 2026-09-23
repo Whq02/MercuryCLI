@@ -129,6 +129,7 @@ type Op = {
   prompt?: string;
   contract?: { op?: string; text?: string };
   clientMessageId?: string;
+  birthKey?: string;
 };
 const twoLanes = mgr.decodeManagerPlan({
   goal: 'ship the widget',
@@ -251,6 +252,34 @@ check('the screen hands the executor the consented arithmetic (fits) — all lan
     screen.includes('runManagerDispatch(ask.entryId, ask.plan, Math.max(0, ask.ceiling - ask.live))'));
 check('the existing snapshot beat drives the start half (no timers; one lane per beat)',
   screen.includes('m.startWaitingManagerLane(counts)'));
+const isBirthKey = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(value);
+const keyedOps: Op[] = [];
+const keyed = await mgr.executeManagerPlan(twoLanes, { workspaceRoot: '/tmp/x', by: 'c', rpc: makeRecorder(keyedOps), entryId: 'entry-keyed' });
+const yesKeys = keyedOps.filter(o => o.op === 'sessionAdmit').map(o => o.birthKey);
+check('with the plan entry named, every lane birth carries a well-formed birthKey, distinct per lane',
+  keyed.laneSessionIds.length === 2 && yesKeys.length === 2 && yesKeys.every(isBirthKey) && yesKeys[0] !== yesKeys[1],
+  JSON.stringify(yesKeys));
+check('the key is a hash, never the entry and lane joined with a colon',
+  yesKeys.every(k => typeof k === 'string' && !k.includes(':') && !k.includes('entry-keyed')), JSON.stringify(yesKeys));
+mgr._resetManagerSupervisionForTesting();
+mgr.registerDispatchedManagerPlan(
+  { ...twoLanes, state: 'dispatched', laneSessionIds: ['sid-1', null], laneWaiting: [1] },
+  { workspaceRoot: '/tmp/x', entryId: 'entry-keyed' },
+);
+const walkerOps: Op[] = [];
+const walkedLane = await mgr.startWaitingManagerLane({ live: 0, ceiling: 4 }, { rpc: makeRecorder(walkerOps), by: 'c' });
+check("the walker's birth for lane 2 carries the SAME key the Yes gave lane 2 (a lost reply replays into one session)",
+  walkedLane === 1 && walkerOps[0]!.op === 'sessionAdmit' && isBirthKey(walkerOps[0]!.birthKey) && walkerOps[0]!.birthKey === yesKeys[1],
+  JSON.stringify({ walker: walkerOps[0]?.birthKey, yes: yesKeys[1] }));
+mgr._resetManagerSupervisionForTesting();
+const otherOps: Op[] = [];
+await mgr.executeManagerPlan(twoLanes, { workspaceRoot: '/tmp/x', by: 'c', rpc: makeRecorder(otherOps), entryId: 'entry-other' });
+check('another plan entry births its lanes under different keys',
+  otherOps.filter(o => o.op === 'sessionAdmit').map(o => o.birthKey).every((k, i) => isBirthKey(k) && k !== yesKeys[i]));
+check('a plan started without an entry id sends no key (the recorder legs above stay keyless, as before)',
+  ops.filter(o => o.op === 'sessionAdmit').every(o => o.birthKey === undefined));
+check('the screen threads the plan entry id into the executor so the Yes and the walker hash the same identity',
+  screen.includes('mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits, entryId })'));
 
 check('a territory-less lane refuses WHOLE at decode (the harmony field is load-bearing)',
   mgr.decodeManagerPlan({ goal: 'g', lanes: [{ title: 't', scope: 's', deliverables: 'd' }] }) === null);

@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { logForDebugging } from '../utils/debug.js'
+import { recordRefusedDurableFile } from './storeRecovery.js'
 import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { durableAtomicPublish, faultPoint } from './durablePublish.js'
@@ -169,13 +170,14 @@ async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; re
     }
     const op = decodeOp(raw)
     if (op === null) {
+      await recordRefusedDurableFile({ store: 'operation-journal', path: join(dir, name), reason: `${join(dir, name)} is not a decodable operation: left in place, reported` })
       rejected.push(name)
       continue
     }
     if (name !== `${OP_PREFIX}${op.operationId}${OP_SUFFIX}`) {
-      logForDebugging(
-        `[journal] ${join(dir, name)} names operation ${op.operationId} under another file name: left in place, reported`,
-      )
+      const reason = `${join(dir, name)} names operation ${op.operationId} under another file name: left in place, reported`
+      logForDebugging(`[journal] ${reason}`)
+      await recordRefusedDurableFile({ store: 'operation-journal', path: join(dir, name), reason })
       rejected.push(name)
       continue
     }

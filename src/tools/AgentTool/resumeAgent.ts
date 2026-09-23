@@ -22,7 +22,7 @@ import {
   runWithAgentContext,
   type SubagentContext,
 } from '../../utils/agentContext.js'
-import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
+import { runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import {
@@ -164,7 +164,7 @@ export async function resumeAgentBackground(args: {
   if (isForkResume) {
     definition = FORK_AGENT
   } else {
-    const definitions = await getAgentDefinitionsWithOverrides(getCwd())
+    const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
     definition =
       definitions.activeAgents.find(
         agent => agent.agentType === meta?.agentType,

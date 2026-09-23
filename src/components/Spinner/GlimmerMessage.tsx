@@ -120,9 +120,11 @@ export function GlimmerMessage({
 
   return (
     <>
-      {before && <Text color={messageColor}>{before}</Text>}
-      <Text color={shimmerColor}>{shim}</Text>
-      {after && <Text color={messageColor}>{after}</Text>}
+      <Text color={messageColor}>
+        {before}
+        <Text color={shimmerColor}>{shim}</Text>
+        {after}
+      </Text>
       <Text color={messageColor}> </Text>
     </>
   )

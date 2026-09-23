@@ -105,6 +105,18 @@ try {
       .split('\n')
       .filter(l => l.includes(path) && l.includes('not decodable'))
     check('the file is named once across three reads', named.length === 1, `${named.length} line(s)`)
+    const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+    const refusedRows = async () => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'concourse-control-ops' && e.path === path)
+    let refused = await refusedRows()
+    for (let i = 0; i < 40 && refused.length < 1; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      refused = await refusedRows()
+    }
+    check(
+      'the file is named ONCE on the recovery ledger in this process — the first refusal of (1), and no second row for the dropped rows of (2) on the same path (the per-path latch the debug line already has), bytes left in place',
+      refused.length === 1 && refused[0]!.reason === 'not decodable as an applied-ops ledger, read as empty' && refused[0]!.quarantinePath === null,
+      `${refused.length} row(s): ${JSON.stringify(refused.map(e => e.reason))}`,
+    )
   }
 
   section('(3) the prune sorts numeric times: the oldest whole row goes, and no row rides a NaN')

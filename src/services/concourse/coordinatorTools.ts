@@ -369,6 +369,7 @@ async function launchUnderContract(
         op: 'sessionAdmit',
         workspaceDir: args.workspaceDir,
         bornBlank: true,
+        birthKey: clientMessageId,
         ...(args.title !== undefined ? { title: args.title } : {}),
         ...(args.model !== undefined ? { model: args.model } : {}),
         ...(args.effort !== undefined ? { effort: args.effort } : {}),

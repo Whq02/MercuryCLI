@@ -11,6 +11,7 @@ import type {
 import type { Tools } from '../../../Tool.js'
 import type {
   AssistantMessage,
+  BusyRefusalV1,
   Message,
   StreamEvent,
   SystemAPIErrorMessage,
@@ -20,7 +21,7 @@ import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typed
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { sleep } from '../../../utils/sleep.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { busyRecoveryDetail, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
@@ -107,12 +108,14 @@ function apiErrorMessage(
   error: NonNullable<AssistantMessage['error']> = 'unknown',
   errorDetails?: string,
   overflow?: OverflowSignal | null,
+  busyRefusal?: BusyRefusalV1 | null,
 ): AssistantMessage {
   return createAssistantAPIErrorMessage({
     content,
     error,
     ...(errorDetails !== undefined ? { errorDetails } : {}),
     ...(overflow !== undefined ? { overflow } : {}),
+    ...(busyRefusal !== undefined ? { busyRefusal } : {}),
   })
 }
 
@@ -297,7 +300,8 @@ export async function* zaiCallModel(
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    if (outcome.retryEligible && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
+    const singleShot = options.querySource === 'overload_probe'
+    if (outcome.retryEligible && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -321,7 +325,7 @@ export async function* zaiCallModel(
       logForDebugging(`[zai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
     const retryable =
-      busy === undefined && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
+      busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
     if (retryable) {
       const delayMs = Math.max(ZAI_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       yield createSystemAPIErrorMessage(
@@ -365,6 +369,7 @@ export async function* zaiCallModel(
         typed,
         outcome.fault.code,
         overflowOf(outcome.fault),
+        busy !== undefined ? busyRefusalFact(ZAI_FAULT_PROFILE.providerLabel, busy.ladder, outcome.fault) : null,
       ),
       outcome.fault.retryAfterMs,
     )

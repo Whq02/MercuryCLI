@@ -28,7 +28,11 @@ export function backfillCloneForYield<M>(
       if (tool?.backfillObservableInput) {
         const originalInput = block['input'] as Record<string, unknown>
         const inputCopy = { ...originalInput }
-        tool.backfillObservableInput(inputCopy)
+        try {
+          tool.backfillObservableInput(inputCopy)
+        } catch {
+          continue
+        }
         const addedFields = Object.keys(inputCopy).some(k => !(k in originalInput))
         if (addedFields) {
           clonedContent ??= [...m.message.content]

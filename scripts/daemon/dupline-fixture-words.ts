@@ -58,6 +58,8 @@ export const WATCHED_WORDS = [
   'THE-NOTES-BODY',
   'BATCH-HOOK-CONTEXT',
   FOLD_LINE,
+  FOLD_SUMMARY_MARK,
+  'the follow-up after the compact',
   CREW_NOTICE,
   DEEPER_DONE,
   FORK_DONE,

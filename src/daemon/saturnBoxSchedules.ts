@@ -109,6 +109,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
       if (code === 'ENOENT') {
+        if (!daemonHomeStands('the box lock', dir)) return body()
         mkdirSync(dirname(lock), { recursive: true })
         continue
       }
