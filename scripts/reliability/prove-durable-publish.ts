@@ -168,7 +168,6 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
     ['src/tools/ToolSearchTool/cooccurPrior.ts', /renameSync\(tmp/],
     ['src/utils/artifacts/store.ts', /await rename\(tmpPath, metaPath\)/],
     ['src/utils/cache/cacheClock.ts', /renameSync\(tmpPath, finalPath\)/],
-    ['src/utils/cockpit/critterProfile.ts', /renameSync\(tmp/],
   ]
   let allClean = true
   for (const [rel, oldFingerprint] of migrated) {
