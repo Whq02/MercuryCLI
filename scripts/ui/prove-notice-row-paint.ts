@@ -78,7 +78,7 @@ const clockOf = (iso: string): string => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true }): Promise<string> {
+async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }): Promise<string> {
   let written = ''
   const stdout = Object.assign(
     new Writable({
@@ -113,8 +113,17 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 {
   const text = monitorBlock('bk1', WATCH, 'event-1')
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
-  check('the queued notice echo wears the queued dress before the plate', frame.includes('queued') && frame.includes(`● monitor · ${WATCH}`) && frame.includes('event-1'), frame.slice(0, 200))
+  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} ● monitor · ${WATCH}`) && !frame.includes('queued') && frame.includes('event-1'), frame.slice(0, 240))
   check('…and never the caret or the wrapper', !frame.includes('❯') && !frame.includes('<monitor'), frame.slice(0, 200))
+}
+{
+  const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: taskNotice('Background command "the build" completed (exit code 0)'), commandMode: 'task-notification' }, addMargin: false, verbose: false })
+  const held = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true })
+  check('RED on the base: a held task completion names the same arrival clock', held.includes(`held since ${clockOf(STAMP)} ● Background command`), held)
+  const taken = await paint(body, { type: 'attachment', timestamp: STAMP })
+  check('a taken task completion keeps its delivered clock with no held plate', taken.includes(`${clockOf(STAMP)} ● Background command`) && !taken.includes('held') && !taken.includes('queued'), taken)
+  const compacting = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true, heldFor: 'compaction' })
+  check('the compaction plate stays unchanged', compacting.includes('held ● Background command') && !compacting.includes('since'), compacting)
 }
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: 'Stop hook blocking error from command "lint": 3 errors', commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
@@ -136,6 +145,34 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: 'a queued line of yours', commandMode: 'prompt' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
   check("a queued line of the operator's keeps the caret", frame.includes('❯ a queued line of yours') && !frame.includes('● notice'), frame.slice(0, 160))
+}
+
+section('the delivery clock names an earlier completion without changing nearby deliveries')
+const sixMinutesEarlier = new Date(Date.parse(STAMP) - 6 * 60_000).toISOString()
+const noticeCases = [
+  taskNotice('Background command "the build" completed (exit code 0)'),
+  taskNotice('Agent "the errand" completed'),
+  taskNotice('Agent "the errand" was stopped').replace('<status>completed</status>', '<status>killed</status>'),
+  monitorBlock('watch', 'the build watch', 'the build finished'),
+  'the saved work is ready',
+  'runner restarted after a crash: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped',
+]
+for (const prompt of noticeCases) {
+  const body = (sentAt?: string) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', ...(sentAt === undefined ? {} : { sentAt }) }, addMargin: false, verbose: false })
+  const before = await paint(body(), { type: 'attachment', timestamp: STAMP })
+  const delayed = await paint(body(sixMinutesEarlier), { type: 'attachment', timestamp: STAMP })
+  check('RED on the base: the delivered notice names its six-minute-earlier completion', delayed.includes(`· completed ${clockOf(sixMinutesEarlier)}`), delayed)
+  check('the row clock remains the delivery, never the completion', delayed.includes(`${clockOf(STAMP)} ●`) && !delayed.includes('held'), delayed)
+  const nearby = await paint(body(new Date(Date.parse(STAMP) - 2000).toISOString()), { type: 'attachment', timestamp: STAMP })
+  check('a two-second gap paints byte-identically to the ordinary notice', nearby === before, nearby)
+  const boundary = await paint(body(new Date(Date.parse(STAMP) - 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
+  check('the second clock starts at exactly one minute', boundary.includes('· completed'), boundary)
+  for (const sentAt of ['not a clock', new Date(Date.parse(STAMP) + 60_000).toISOString()]) {
+    const invalid = await paint(body(sentAt), { type: 'attachment', timestamp: STAMP })
+    check('an invalid or future arrival never invents a completion clock', invalid === before, invalid)
+  }
+  const held = await paint(body(sixMinutesEarlier), { type: 'attachment', timestamp: sixMinutesEarlier, queued: true })
+  check('a waiting notice names its arrival only, never a delivery suffix', held.includes(`held since ${clockOf(sixMinutesEarlier)}`) && !held.includes('· completed'), held)
 }
 
 console.log(`\nprove-notice-row-paint: ${checks} checks, ${failures} failed`)

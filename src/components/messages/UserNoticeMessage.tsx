@@ -10,9 +10,11 @@ const CLOCK_COLUMN = ' '.repeat(9)
 export function UserNoticeMessage({
   addMargin,
   blocks,
+  completedAt,
 }: {
   addMargin?: boolean
   blocks: NoticeBlock[]
+  completedAt?: string | null
 }): React.ReactNode {
   const { accent } = useSessionAccent()
   return (
@@ -22,7 +24,7 @@ export function UserNoticeMessage({
           <Text>
             {index === 0 ? <NameplateClock /> : <Text>{CLOCK_COLUMN}</Text>}
             <Text color={accent}>● </Text>
-            <Text dimColor>{noticePlate(block)}</Text>
+            <Text dimColor>{noticePlate(block)}{index === 0 && completedAt ? ` · completed ${completedAt}` : ''}</Text>
           </Text>
           {block.lines.map((line, at) => (
             <Text key={at} dimColor wrap="wrap">

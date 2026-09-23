@@ -123,6 +123,7 @@ interface SeatSend {
   sentAtMs: number
   state: 'pending' | 'delivered' | 'queued' | 'taken'
   heldFor?: 'compaction'
+  crossedRunner?: true
   mode: 'prompt' | 'bash'
   source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, PastedContent> }
   withdrawing?: true
@@ -1028,11 +1029,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private reconcileQueuedSends(facts: SessionFactsV1): void {
+    if (facts.queueReady === false) return
     const queue = facts.queue ?? []
     if (typeof facts.runnerGeneration === 'number') {
       const moved = this.runnerGeneration !== null && facts.runnerGeneration !== this.runnerGeneration
       this.runnerGeneration = facts.runnerGeneration
       if (moved) {
+        if (this.reconcileSends()) this.paint()
         this.retireSendsLostWithRunner(queue)
         this.retireTextRowsWithRunner()
       }
@@ -1101,6 +1104,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private retireSendsLostWithRunner(queue: SessionFactsV1['queue']): void {
     const listed = new Set<string>()
     for (const entry of queue) if (typeof entry.uuid === 'string') listed.add(entry.uuid)
+    this.sends = this.sends.map(s => s.state === 'queued' && listed.has(s.clientMessageId) ? { ...s, crossedRunner: true as const } : s)
     const lost = this.sends.filter(
       s => s.state === 'queued' && s.withdrawing !== true && !isNoticeKey(s.clientMessageId) && !listed.has(s.clientMessageId),
     )
@@ -1132,7 +1136,22 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.sends.length === 0) return false
     const now = Date.now()
     const landed = new Set<string>()
+    const identityKeys = new Set(this.sends.filter(s => UUID_SHAPE.test(s.clientMessageId)).map(s => s.clientMessageId))
+    for (let i = this.rawRecords.length - 1; i >= 0 && landed.size < identityKeys.size; i--) {
+      const row = this.rawRecords[i]!
+      if (row.type === 'user') {
+        const ids = [row.uuid, ...((row as { batchUuids?: string[] }).batchUuids ?? [])]
+        if (ids.some(id => identityKeys.has(id))) {
+          for (const id of ids) if (identityKeys.has(id)) landed.add(id)
+          this.textRetiredRowUuids.add(row.uuid)
+        }
+      } else if (row.type === 'attachment' && row.attachment.type === 'queued_command') {
+        const id = row.attachment.source_uuid
+        if (id !== undefined && identityKeys.has(id)) landed.add(id)
+      }
+    }
     for (const s of this.sends) {
+      if (landed.has(s.clientMessageId)) continue
       if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
         continue
@@ -1147,34 +1166,21 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         continue
       }
       const idKeyed = UUID_SHAPE.test(s.clientMessageId)
+      if (idKeyed && s.crossedRunner !== true) continue
       for (let i = this.rawRecords.length - 1; i >= 0; i--) {
         const m = this.rawRecords[i]!
-        if (idKeyed) {
-          const rowUuid = (m as { uuid?: string }).uuid
-          if (m.type === 'user' && rowUuid === s.clientMessageId) {
-            landed.add(s.clientMessageId)
-            break
-          }
-          if (m.type === 'user' && ((m as { batchUuids?: string[] }).batchUuids ?? []).includes(s.clientMessageId)) {
-            landed.add(s.clientMessageId)
-            break
-          }
-          const att = (m as { attachment?: { type?: string; source_uuid?: string } }).attachment
-          if (m.type === 'attachment' && att?.type === 'queued_command' && att.source_uuid === s.clientMessageId) {
-            landed.add(s.clientMessageId)
-            break
-          }
-        } else if (m.type === 'user') {
-          const rowUuid = (m as { uuid?: string }).uuid
-          if (rowUuid !== undefined && this.textRetiredRowUuids.has(rowUuid)) continue
-          const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
-          if (!Number.isNaN(ts) && ts + 1000 < s.sentAtMs) continue
-          const text = textOfUserRow(m)
-          if (text !== '' && text.includes(s.text)) {
-            if (rowUuid !== undefined) this.textRetiredRowUuids.add(rowUuid)
-            landed.add(s.clientMessageId)
-            break
-          }
+        if (m.type !== 'user') continue
+        const rowUuid = (m as { uuid?: string }).uuid
+        if (rowUuid !== undefined && this.textRetiredRowUuids.has(rowUuid)) continue
+        const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
+        if (s.crossedRunner === true) {
+          if (!Number.isFinite(ts) || ts < s.sentAtMs || m.isMeta === true) continue
+        } else if (!Number.isNaN(ts) && ts + 1000 < s.sentAtMs) continue
+        const text = textOfUserRow(m)
+        if (text !== '' && (s.crossedRunner === true ? text === s.text : text.includes(s.text))) {
+          if (rowUuid !== undefined) this.textRetiredRowUuids.add(rowUuid)
+          landed.add(s.clientMessageId)
+          break
         }
       }
     }
