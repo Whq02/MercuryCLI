@@ -4,6 +4,7 @@ import {
   type Screen,
   type StylePool,
 } from './cell-grid.js'
+import { popOverlay, pushOverlay } from '../context/overlayStack.js'
 import type { DOMElement } from './dom.js'
 import instances from './instances.js'
 import { nodeCache } from './node-cache.js'
@@ -12,8 +13,10 @@ const registrants = new Set<DOMElement>()
 let target: RecessTransform | null = null
 
 export function registerElevatedSurface(el: DOMElement): () => void {
+  const token = pushOverlay({ id: 'elevated-surface', modal: true, inputOwner: false })
   registrants.add(el)
   return () => {
+    popOverlay(token)
     registrants.delete(el)
     if (target !== null) {
       instances.get(process.stdout)?.invalidatePrevFrame()

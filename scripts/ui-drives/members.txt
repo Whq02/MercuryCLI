@@ -24,3 +24,4 @@ prove-transcript-order-once-drive.ts
 prove-list-home-end-wheel-drive.ts
 prove-notice-rows-drive.ts
 prove-model-picker-one-row-drive.ts
+prove-panel-dismissal-drive.ts
