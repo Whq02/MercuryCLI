@@ -23,3 +23,4 @@ prove-agent-family-drive.ts
 prove-transcript-order-once-drive.ts
 prove-list-home-end-wheel-drive.ts
 prove-notice-rows-drive.ts
+prove-model-picker-one-row-drive.ts
