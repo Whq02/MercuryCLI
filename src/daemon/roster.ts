@@ -27,6 +27,8 @@ import {
   isTurnResultParsedFrame,
   isTurnStartedParsedFrame,
   errorTextOfParsedResultFrame,
+  keepStderrTail,
+  lastStderrLine,
   decideWorkerBusy,
   deriveWireSpec,
   getMaxTurnMs,
@@ -68,6 +70,7 @@ export interface RosterEntry {
 }
 
 const DELIVERED_ID_CAP = 500
+const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
 interface LongLivedSeat {
   spec: StreamJsonChildSpec
@@ -87,6 +90,7 @@ interface LongLivedSeat {
   clearInFlight?: boolean
   spawnGeneration: number
   lastErrorText?: string
+  stderrTail?: Buffer
   stormNotified?: boolean
   running?: { model: string; effort: string }
 }
@@ -565,8 +569,10 @@ export class TaskRoster {
     ll.contextPct = undefined
     ll.lastDeliveredAt = undefined
     ll.clearInFlight = false
+    ll.lastErrorText = undefined
 
     this.drainChildStdout(short, child, ll)
+    this.keepChildStderr(short, child, ll)
     this.superviseChildLife(short, h, ll, child)
     if (ll.spawnGeneration > 1 && this.opts.onChildRelaunched && typeof child.pid === 'number') {
       try {
@@ -603,8 +609,6 @@ export class TaskRoster {
           ).used
           if (pct !== null) ll.contextPct = pct
         }
-        const errText = errorTextOfParsedResultFrame(frame)
-        if (errText) ll.lastErrorText = errText
         if (this.opts.onControlRequest && frame !== null && frame.type === 'control_request') {
           try {
             this.opts.onControlRequest(short, frame)
@@ -625,6 +629,7 @@ export class TaskRoster {
           }
         }
         if (isTurnResultParsedFrame(frame)) {
+          ll.lastErrorText = errorTextOfParsedResultFrame(frame)
           ll.turnActive = false
           ll.turnStartedAt = undefined
           if (short.startsWith('concourse-w')) {
@@ -636,6 +641,22 @@ export class TaskRoster {
         }
       }
       if (tail.length > 1_000_000) tail = tail.slice(-100_000)
+    })
+  }
+
+  private keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void {
+    const generation = ll.spawnGeneration
+    ll.stderrTail = undefined
+    child.stderr?.on('error', error => {
+      logForDebugging(`[daemon] ${short}: error stream closed: ${error}`)
+    })
+    child.stderr?.on('data', (chunk: Buffer) => {
+      try {
+        process.stderr.write(chunk)
+      } catch {
+        logForDebugging(`[daemon] ${short}: stderr write-through failed`)
+      }
+      if (ll.spawnGeneration === generation) ll.stderrTail = keepStderrTail(ll.stderrTail, chunk)
     })
   }
 
@@ -691,13 +712,13 @@ export class TaskRoster {
         ll.respawnTimer.unref?.()
         return
       }
+      const keptText = ll.lastErrorText || lastStderrLine(ll.stderrTail)
       if (
         Date.now() - ll.lastSpawnAt >
         (ll.cfg.healthyResetMs ?? DEFAULT_HEALTHY_RESET_MS)
       ) {
         ll.respawns = 0
         ll.stormNotified = false
-        ll.lastErrorText = undefined
       }
       ll.respawns++
       ll.lifetimeCrashes++
@@ -705,10 +726,14 @@ export class TaskRoster {
       logForDebugging(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})`,
       )
+      // eslint-disable-next-line no-console
+      console.error(
+        `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})${keptText ? ` — ${keptText}` : ''}`,
+      )
       const composeStormNote = (phase: 'forming' | 'degraded'): string =>
         `${GLYPH.warn} ${short} ${phase === 'degraded' ? 'DEGRADED — respawn ceiling hit' : 'respawn loop forming'}: ` +
         `${ll.respawns} fast exit(s) on ${ll.spec.model}@${ll.spec.effort} (exit code ${code ?? 'none'}${signal ? `, signal ${signal}` : ''}). ` +
-        (ll.lastErrorText ? `Last error: ${ll.lastErrorText}` : 'No output before exit.') +
+        (keptText ? `Last error: ${keptText}` : 'No output before exit.') +
         (phase === 'degraded'
           ? ' No further respawns — fix the cause, then re-engage.'
           : ' Still retrying with backoff.')
@@ -724,7 +749,7 @@ export class TaskRoster {
         const exitWords = `exit ${code ?? 'none'}${signal ? ` · signal ${signal}` : ''}`
         const reason =
           detail ??
-          `crashed mid-run (${exitWords})${ll.lastErrorText ? ` — ${ll.lastErrorText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
+          `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
         void import('./concourseSupervisor.js')
           .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
           .catch(() => {})
@@ -754,7 +779,19 @@ export class TaskRoster {
       ll.respawnTimer = setTimeout(() => this.spawnLongLived(short), decision.delayMs)
       ll.respawnTimer.unref?.()
     }
-    child.on('exit', (code, signal) => handleCrash(code, signal))
+    let drainBackstop: ReturnType<typeof setTimeout> | undefined
+    child.on('exit', (code, signal) => {
+      if (ll.intentionalStop || ll.reconfiguring) {
+        handleCrash(code, signal)
+        return
+      }
+      drainBackstop = setTimeout(() => handleCrash(code, signal), EXIT_DRAIN_BACKSTOP_MS)
+      drainBackstop.unref?.()
+    })
+    child.on('close', (code, signal) => {
+      if (drainBackstop !== undefined) clearTimeout(drainBackstop)
+      handleCrash(code, signal)
+    })
     child.on('error', e => {
       logForDebugging(`[daemon] long-lived ${short} spawn/runtime error: ${e}`)
       handleCrash(null, null)

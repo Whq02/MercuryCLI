@@ -371,9 +371,13 @@ a session transcript: a chat is yours until your own act removes it.
 Every live row is a tile: the NOW cell streams what the session is doing
 right now — the reply's last line, or the tool it is running — and `→`
 opens a peek of the selected row in place. A session's end is a visible
-state: a runner that crashed paints NEEDS YOU with its reason line, the row
-outlives every reconcile, your own next act on the session clears the fact,
-and only your release removes the row. ctrl+x ctrl+x stops the selected
+state: a runner that crashed paints NEEDS YOU with its reason line — the
+exit code and, when the runner said anything as it died, its last words:
+the error its turn ended on, else the last line it wrote to its standard
+error — the row outlives every reconcile, your own next act on the session
+clears the fact, and only your release removes the row. The daemon's log
+carries the same line for every crash, so a runner older than a few minutes
+loses nothing of what it said. ctrl+x ctrl+x stops the selected
 session — the row stays, wearing stopped and the next step — the chord
 again archives it, and a third chord deletes it; typing is never a control,
 so a plain `x` lands in the composer like any other letter. The board's REPO picker
