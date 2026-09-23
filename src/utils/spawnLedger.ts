@@ -57,7 +57,8 @@ export function bashAuditPath(): string {
 function appendTrail(path: string, row: unknown): void {
   const { daemonHomeStands } = require('../daemon/daemonHome.js') as typeof import('../daemon/daemonHome.js')
   if (!daemonHomeStands('the spawn ledger')) return
-  mkdirSync(dirname(path), { recursive: true })
+  const { parseWorkerParentPid } = require('../daemon/workerParentWatch.js') as typeof import('../daemon/workerParentWatch.js')
+  if (parseWorkerParentPid() === null) mkdirSync(dirname(path), { recursive: true })
   appendFileSync(path, JSON.stringify(row) + '\n')
 }
 
