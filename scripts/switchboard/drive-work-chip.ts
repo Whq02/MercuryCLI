@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'work-chip-drive-')))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -112,7 +115,7 @@ try {
         prompt: 'say ready',
         workspaceDir: work,
         title: 'Alpha worker',
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'high',
       } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string }
       check('alpha dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
@@ -141,7 +144,7 @@ try {
         projectLabel: basename(work),
         workspaceId: work,
         home: paths.getProjectDir(work),
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
       })
       await connA.attach()
       await connA.setModel('claude-haiku-4-5')
@@ -154,7 +157,7 @@ try {
         prompt: 'just say hi',
         workspaceDir: workB,
         title: 'Beta idle',
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'high',
       } as never)) as { ok?: boolean; sessionId?: string }
       check('beta dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))

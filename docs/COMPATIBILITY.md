@@ -24,7 +24,12 @@ identifiers external services require, enumerated below with their owners.
   vendor's own CLI and gates models on a minimum client version, read as a
   number from the `cc_version` field of the billing attribution line in the
   system prompt (never from the User-Agent). Mercury presents the declared
-  contract version there and nowhere else. When the floor moves,
+  contract version there and nowhere else. Its companion
+  `ANTHROPIC_CLIENT_CONTRACT_AS_OF` records when the built-in version was last
+  checked against the vendor CLI; every release carries a check at least as
+  recent as its release date. The contract describer's `asOf` names that
+  built-in check even when an override supplies the presented version.
+  When the floor moves,
   `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>` raises it without a rebuild;
   the doctor's "Client contract" row shows what is presented; and the gate's
   refusal is reported as what it is — the version read, the version

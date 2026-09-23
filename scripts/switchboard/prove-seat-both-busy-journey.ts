@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bb-journey-')))
 const home = join(SCRATCH, 'home')
@@ -125,7 +128,7 @@ try {
         prompt: 'stream the b chain',
         workspaceDir: cwd,
         title: N,
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check('the board session dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))

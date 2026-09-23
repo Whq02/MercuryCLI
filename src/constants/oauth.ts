@@ -35,11 +35,13 @@ const PRODUCTION_CONFIG: OauthConfig = {
 }
 
 export const ANTHROPIC_CLIENT_CONTRACT_VERSION = '2.1.280'
+export const ANTHROPIC_CLIENT_CONTRACT_AS_OF = '2026-09-23'
 
 const CLIENT_CONTRACT_VERSION_SHAPE = /^\d+\.\d+\.\d+$/
 
 export type AnthropicClientContract = {
   presented: string
+  asOf: string
   source: 'constant' | 'override'
   ignoredOverride?: string
 }
@@ -47,11 +49,12 @@ export type AnthropicClientContract = {
 export function describeAnthropicClientContract(): AnthropicClientContract {
   const raw = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
   const override = raw === undefined ? '' : raw.trim()
-  if (override === '') return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, source: 'constant' }
+  const asOf = ANTHROPIC_CLIENT_CONTRACT_AS_OF
+  if (override === '') return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, asOf, source: 'constant' }
   if (!CLIENT_CONTRACT_VERSION_SHAPE.test(override)) {
-    return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, source: 'constant', ignoredOverride: override }
+    return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, asOf, source: 'constant', ignoredOverride: override }
   }
-  return { presented: override, source: 'override' }
+  return { presented: override, asOf, source: 'override' }
 }
 
 export function getAnthropicClientContractVersion(): string {

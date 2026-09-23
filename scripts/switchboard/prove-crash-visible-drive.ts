@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync } 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'crash-visible-'))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -153,7 +156,7 @@ const run = await runArtifactArena({
       prompt: 'count slowly with sleeps',
       workspaceDir: work,
       title: 'Alpha count',
-      modelKey: 'claude-opus-5',
+      modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
     check('alpha dispatched', a.ok === true, JSON.stringify(a))
@@ -167,7 +170,7 @@ const run = await runArtifactArena({
       prompt: 'count slowly with sleeps too',
       workspaceDir: workB,
       title: 'Beta count',
-      modelKey: 'claude-opus-5',
+      modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
     } as never, { timeoutMs: DISPATCH_DEADLINE_MS })) as { ok?: boolean; sessionId?: string }
     check('beta dispatched (defaulted → the worktree fork)', b.ok === true, JSON.stringify(b))

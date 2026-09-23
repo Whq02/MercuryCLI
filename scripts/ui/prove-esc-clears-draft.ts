@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
@@ -81,7 +84,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
         prompt: 'say something settled',
         workspaceDir: ground,
         title: 'Quiet seat',
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
       } as never, { timeoutMs: WARM_BOOT_ALLOWANCE_MS })) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
