@@ -95,7 +95,7 @@ for (const columns of [120, 178]) {
   check(`[${columns}] exactly one row carries the current mark`, marked.length === 1, JSON.stringify(marked))
   check(`[${columns}] it is the raw row`, marked[0]?.includes(RAW) === true, marked[0])
   const idx = (id: string): number => lines(frame).findIndex(line => line === rowLine(frame, id))
-  check(`[${columns}] the raw row paints right after Opus 5.5, the last of the opus block`, idx(RAW) > idx('Opus 5.5') && idx('Opus 5.5') > idx('Sonnet 5'), `${idx('Sonnet 5')} < ${idx('Opus 5.5')} < ${idx(RAW)}`)
+  check(`[${columns}] the raw row paints right after Opus 5.5, the last of the opus block`, idx('Sonnet 5') >= 0 && idx(RAW) > idx('Opus 5.5') && idx('Opus 5.5') > idx('Sonnet 5'), `${idx('Sonnet 5')} < ${idx('Opus 5.5')} < ${idx(RAW)}`)
   check(`[${columns}] the id line names the raw id as a real model id`, frame.includes(`${RAW} · model IDs are real, never themed`))
   check(`[${columns}] the raw row is selectable (never painted unavail)`, !(rowLine(frame, RAW) ?? '').includes('unavail'))
 }
