@@ -89,6 +89,13 @@ first, edit again with a carried anchor, or read the window the refusal
 names for the rest. A file that changes on disk after the carry refuses
 again, with the lines of the new state.
 
+The Edit tool's own write advances the ledger with it: the lines the model
+had read shift through the edit and the lines it wrote count as seen, at
+the generation the write produced. A later edit of that file therefore
+needs no re-read even when the read cache no longer holds it — a resumed
+agent, a pruned context — while a change made by anyone else still refuses,
+because its generation is neither the read's nor the edit's.
+
 A Read of lines 1–5 followed by a file change and a search showing lines
 6–10 does not establish current knowledge of lines 1–10. The refusal names
 which anchor, generation or ownership/coverage check failed. It counts only
