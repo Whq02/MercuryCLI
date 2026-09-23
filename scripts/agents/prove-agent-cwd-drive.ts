@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
@@ -198,6 +198,117 @@ const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
 tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 tally.check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
 tally.check('no worktree is left behind', git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 1, git(repo, 'worktree', 'list', '--porcelain'))
+
+const firstLine = (r: SeenResult | undefined): string => (r?.text ?? '').split('\n')[0]?.trim() ?? ''
+const waitForFile = (file: string): string => `for i in $(seq 1 150); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
+const sidecarsUnder = (dir: string): string[] => {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) out.push(...sidecarsUnder(full))
+    else if (/^agent-.*\.meta\.json$/.test(entry.name)) out.push(full)
+  }
+  return out
+}
+const sidecarFor = (runHome: string, description: string): Record<string, unknown> | null => {
+  for (const file of sidecarsUnder(join(runHome, 'projects'))) {
+    try {
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+      if (parsed.description === description) return parsed
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+{
+  const WORKER_ASK = 'worker-directory-probe'
+  const WORKER_PROMPT = 'launch a helper without naming a directory'
+  const HELPER_PROMPT = 'say where you were launched'
+  const CONTINUE_HELPER = 'say where you are now, helper'
+  const HELPER_DESCRIPTION = 'worker-directory-probe'
+  const HELPER_NAME = 'directory-helper'
+  const WF_SCRIPT = [
+    "export const meta = { name: 'worker-directory', description: 'an isolated worker launches a helper without a directory', phases: [{ title: 'Work' }] }",
+    "phase('Work')",
+    `return await agent(${JSON.stringify(WORKER_PROMPT)}, { isolation: 'worktree', phase: 'Work' })`,
+  ].join('\n')
+  const wfRepo = join(scratch, 'worker-repo')
+  mkdirSync(wfRepo)
+  git(wfRepo, 'init', '-q', '-b', 'main')
+  writeFileSync(join(wfRepo, 'README.md'), '# directory fixture\n')
+  git(wfRepo, 'add', '-A')
+  git(wfRepo, 'commit', '-q', '-m', 'first')
+  const workerHome = join(scratch, 'home-worker')
+  const firstFlag = join(scratch, 'worker-first.flag')
+  let helperId = ''
+  let firstPwd = ''
+  let resumedPwd = ''
+  const workerFixture = await startScriptedFixture(req => {
+    const last = req.results[req.results.length - 1]
+    if (req.opening.trim().startsWith(WORKER_PROMPT)) {
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
+      if (req.step === 1) {
+        seen.workerLaunch = last
+        helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+      }
+      if (req.step === 2) seen.workerWaited = last
+      return [{ type: 'text', text: 'worker done' }]
+    }
+    if (req.opening.trim() === HELPER_PROMPT) {
+      if (req.ask.includes(CONTINUE_HELPER)) {
+        if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'pwd | tee continued.flag', description: 'where am I now' } }]
+        if (req.step === 1) resumedPwd = firstLine(req.results[0])
+        return [{ type: 'text', text: 'continued' }]
+      }
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `touch helper.mark; pwd | tee "${firstFlag}"`, description: 'where am I' } }]
+      if (req.step === 1) firstPwd = firstLine(req.results[0])
+      return [{ type: 'text', text: 'helper done' }]
+    }
+    if (req.ask.trim() !== WORKER_ASK) return [{ type: 'text', text: 'ok' }]
+    switch (req.step) {
+      case 0:
+        return [{ type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } }]
+      case 1:
+        seen.workerWorkflow = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+      case 2:
+        seen.workerFirst = last
+        if (firstPwd === '') firstPwd = firstLine(last)
+        return [{ type: 'tool_use', name: 'SendMessage', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
+      case 3:
+        seen.workerContinued = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(join(firstPwd, 'continued.flag')), description: 'wait for the continuation' } }]
+      default:
+        if (req.step === 4) seen.workerAfter = last
+        return [{ type: 'text', text: 'done' }]
+    }
+  })
+  let workerTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+  try {
+    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  } finally {
+    await workerFixture.close()
+  }
+  show('the workflow launch', seen.workerWorkflow, workerTurn)
+  show('the isolated worker launches a helper without a named directory', seen.workerLaunch, workerTurn)
+  show('the first helper run', seen.workerFirst, workerTurn)
+  show('the continuation by message', seen.workerContinued, workerTurn)
+  show('the continuation file', seen.workerAfter, workerTurn)
+  const sidecar = sidecarFor(workerHome, HELPER_DESCRIPTION)
+  tally.section('a workflow-launched helper keeps its original worktree on continuation')
+  tally.check('the workflow launched without error (staging)', seen.workerWorkflow !== undefined && !seen.workerWorkflow.isError, seen.workerWorkflow?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
+  tally.check('the worker launched the helper and its receipt named the id (staging)', seen.workerLaunch !== undefined && !seen.workerLaunch.isError && helperId !== '', seen.workerLaunch?.text.slice(0, 300))
+  tally.check('the first helper shell ran in the worker worktree (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
+  tally.check('the helper sidecar records the original directory', sidecar !== null && sidecar.cwd === firstPwd, JSON.stringify(sidecar))
+  tally.check('the message resumed the helper without error', seen.workerContinued !== undefined && !seen.workerContinued.isError, seen.workerContinued?.text.slice(0, 300))
+  tally.check('the resumed shell stays in the worker worktree', resumedPwd !== '' && resumedPwd === firstPwd, `pwd=${resumedPwd} wanted=${firstPwd}`)
+  tally.check('the continuation file lands in the worktree and is read there', firstPwd !== '' && existsSync(join(firstPwd, 'continued.flag')) && firstLine(seen.workerAfter) === firstPwd, seen.workerAfter?.text.slice(0, 200))
+  tally.check('the continuation does not write in the session checkout', !existsSync(join(wfRepo, 'continued.flag')))
+}
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)
