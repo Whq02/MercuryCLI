@@ -83,7 +83,7 @@ export function WorkshopCellCard({
   const stateWord = cell.state === 'timed-out' ? 'timed out' : 'failed'
 
   return (
-    <CommandCenter view="workshop" subtitle={cell.cellId} onClose={onDone} captureInput={false}>
+    <CommandCenter elevated view="workshop" subtitle={cell.cellId} onClose={onDone} captureInput={false}>
       <Box flexDirection="column" tabIndex={-1}>
         <Box flexDirection="row">
           <Box width={LABEL_WIDTH} flexShrink={0}>

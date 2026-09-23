@@ -22,13 +22,13 @@ function files(dir: string): string[] {
 const panels: Record<string, [string, string]> = {
   'command-palette': ['MercuryCommandPalette.tsx', 'elevated CommandCenter'],
   'model-picker': ['MercuryModelPicker.tsx', 'own surface'],
-  'compact-work': ['tasks/BackgroundTasksDialog.tsx', 'modal slot'],
-  'input-atlas': ['MercuryInputAtlas.tsx', 'modal slot'],
-  'config': ['MercuryConfig.tsx', 'modal slot'],
+  'compact-work': ['tasks/BackgroundTasksDialog.tsx', 'own elevated CommandCenter; shell/workshop CommandCenter and workflow Panel cards'],
+  'input-atlas': ['MercuryInputAtlas.tsx', 'elevated CommandCenter'],
+  'config': ['MercuryConfig.tsx', 'elevated CommandCenter'],
   'quick-open': ['MercuryQuickOpen.tsx', 'showcase specimen inside the modal slot'],
   'settings': ['Settings/Settings.tsx', 'own surface'],
-  'search': ['MercurySearch.tsx', 'modal slot'],
-  'resume': ['MercuryResume.tsx', 'modal slot'],
+  'search': ['MercurySearch.tsx', 'elevated CommandCenter'],
+  'resume': ['MercuryResume.tsx', 'elevated CommandCenter'],
   'center:${view}': ['mercury-ui/components.tsx', 'elevated CommandCenter or modal slot'],
   'file-open': ['MercuryFileOpen.tsx', 'elevated CommandCenter'],
   'board': ['mercury-ui/useNavigablePanes.ts', 'hosted navigation, modal slot or route'],
@@ -36,7 +36,7 @@ const panels: Record<string, [string, string]> = {
   'list': ['mercury-ui/useInteractiveList.ts', 'hosted navigation, modal slot or route'],
   'teams-dialog': ['teams/TeamsDialog.tsx', 'Dialog'],
   'content-search': ['MercuryContentSearch.tsx', 'elevated CommandCenter'],
-  'feedback-review': ['Feedback.tsx', 'modal slot'],
+  'feedback-review': ['Feedback.tsx', 'own surface through useElevatedSurface'],
 }
 const exemptions: Record<string, [string, string]> = {
   'surface:${kind}': ['SurfaceRouter.tsx', 'full-screen route, no chat outside its frame'],
@@ -70,14 +70,27 @@ function calls(file: string, name: string): ts.CallExpression[] {
 function jsx(file: string, name: string): (ts.JsxOpeningElement | ts.JsxSelfClosingElement)[] {
   return nodes(source(file), (n): n is ts.JsxOpeningElement | ts.JsxSelfClosingElement => (ts.isJsxOpeningElement(n) || ts.isJsxSelfClosingElement(n)) && n.tagName.getText() === name)
 }
-for (const file of ['FullscreenLayout.tsx', 'FilesMenuSlot.tsx', 'MercuryModelPicker.tsx', 'Settings/Settings.tsx', 'design-system/Dialog.tsx', 'mercury-ui/components.tsx']) {
+for (const file of ['FullscreenLayout.tsx', 'FilesMenuSlot.tsx', 'MercuryModelPicker.tsx', 'Settings/Settings.tsx', 'Feedback.tsx', 'design-system/Dialog.tsx', 'mercury-ui/components.tsx']) {
   const path = `src/components/${file}`
   const refs = calls(path, 'useElevatedSurface').map(call => ts.isVariableDeclaration(call.parent) ? call.parent.name.getText() : '')
   const attached = jsx(path, 'Box').flatMap(box => box.attributes.properties.filter((prop): prop is ts.JsxAttribute => ts.isJsxAttribute(prop) && prop.name.getText() === 'ref'))
   check(`${file} attaches the shared surface seam to its frame`, refs.length > 0 && refs.every(ref => ref !== '' && attached.some(prop => nodes(prop, ts.isIdentifier).some(id => id.text === ref))))
 }
-for (const file of ['mercury-ui/screens/CrewView.tsx', 'tasks/BackgroundTasksDialog.tsx']) {
-  check(`${file} uses the shared command frame`, jsx(`src/components/${file}`, 'CommandCenter').length > 0)
+const ownFrames = [
+  ['src/components/mercury-ui/screens/CrewView.tsx', 'CommandCenter'],
+  ['src/components/mercury-ui/screens/TeammateChatsView.tsx', 'CommandCenter'],
+  ['src/components/MercuryConfig.tsx', 'CommandCenter'],
+  ['src/components/MercurySearch.tsx', 'CommandCenter'],
+  ['src/components/MercuryResume.tsx', 'CommandCenter'],
+  ['src/components/MercuryInputAtlas.tsx', 'CommandCenter'],
+  ['src/components/tasks/BackgroundTasksDialog.tsx', 'CommandCenter'],
+  ['src/components/tasks/ShellDetailDialog.tsx', 'CommandCenter'],
+  ['src/components/tasks/WorkflowDetailDialog.tsx', 'Panel'],
+  ['src/tools/WorkshopTool/WorkshopCellCard.tsx', 'CommandCenter'],
+] as const
+for (const [file, seam] of ownFrames) {
+  const frames = jsx(file, seam)
+  check(`${file} elevates every ${seam} independently of backdrop policy`, frames.length > 0 && frames.every(frame => frame.attributes.properties.some(prop => ts.isJsxAttribute(prop) && prop.name.getText() === 'elevated' && prop.initializer === undefined)))
 }
 for (const file of ['MercuryCommandPalette.tsx', 'MercuryFileOpen.tsx', 'MercuryContentSearch.tsx']) {
   check(`${file} raises its frame outside the modal slot`, jsx(`src/components/${file}`, 'CommandCenter').some(n => n.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText() === 'elevated')))
