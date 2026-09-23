@@ -5,6 +5,7 @@ export interface OverlayEntry {
   readonly token: number
   readonly id: string
   readonly modal: boolean
+  readonly inputOwner?: boolean
   readonly openSeq: number
   readonly onFocusReturn?: () => void
   readonly ownsPageKeys?: boolean
@@ -33,6 +34,7 @@ export function reserveOverlayToken(): number {
 export function pushOverlay(entry: {
   id: string
   modal: boolean
+  inputOwner?: boolean
   token?: number
   onFocusReturn?: () => void
   ownsPageKeys?: boolean
@@ -45,6 +47,7 @@ export function pushOverlay(entry: {
       token,
       id: entry.id,
       modal: entry.modal,
+      inputOwner: entry.inputOwner,
       openSeq: currentInputEventSeq(),
       onFocusReturn: entry.onFocusReturn,
       ownsPageKeys: entry.ownsPageKeys,
@@ -57,10 +60,10 @@ export function pushOverlay(entry: {
 export function popOverlay(token: number): void {
   const idx = stack.findIndex(e => e.token === token)
   if (idx === -1) return
-  const wasTop = idx === stack.length - 1
+  const wasTop = topOverlay()?.token === token
   const entry = stack[idx]!
   stack = [...stack.slice(0, idx), ...stack.slice(idx + 1)]
-  lastPopEventSeq = currentInputEventSeq()
+  if (entry.inputOwner !== false) lastPopEventSeq = currentInputEventSeq()
   bump()
   if (wasTop && entry.onFocusReturn) {
     try {
@@ -94,7 +97,7 @@ export function anyModalOverlayActive(): boolean {
 }
 
 export function topOverlay(): OverlayEntry | null {
-  return stack.length > 0 ? stack[stack.length - 1]! : null
+  return stack.findLast(entry => entry.inputOwner !== false) ?? null
 }
 
 export function topOverlayOwnsPageKeys(): boolean {

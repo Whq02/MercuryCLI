@@ -64,7 +64,9 @@ the same.
 model, status, tokens, elapsed — and the named, long-lived agents the daemon
 keeps for the repository, one color-coded chat each, side by side. There is
 no eager boot spawn: every named agent is an explicit, billed operator act
-through the spawn wizard.
+through the spawn wizard. Esc or a click on the chat outside the Crew view
+closes it; from an opened agent card, either returns to the list first. The
+same rule closes the `/tasks` board. Closing a view never stops its work.
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and
 nothing else: the sub-agents and workflows the turn launched keep running on
