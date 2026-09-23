@@ -37,7 +37,7 @@ const discovery = await import('../../src/utils/router/providerDiscovery.js')
 const ledger = await import('../../src/utils/accounts/signInLedger.ts')
 const { recentSignIns } = await import('../../src/utils/model/computedDefault.ts')
 const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
-const { usageSectionPlan, orderUsageSections } = await import('../../src/components/Settings/Usage.tsx')
+const { usageSectionPlan, orderUsageSections, usageColumns } = await import('../../src/components/Settings/Usage.tsx')
 
 const T = 1_760_000_000_000
 const ids = (sections: ReadonlyArray<{ id: string }>): string[] => sections.map(s => s.id)
@@ -94,8 +94,8 @@ section('§4 the shape: one ledger owner, no rank-by-name, both layouts follow t
   check('the tab reads the recency through the computed default\'s owner (recentSignIns), never a ledger copy', tab.includes("import { recentSignIns } from '../../utils/model/computedDefault.js'") && !tab.includes('readSignInLedger') && !tab.includes('sign-ins.json'))
   check('the first-party-first rank is gone', !tab.includes("section.kind === 'anthropic' ? 0") && !/rank\(a\) - rank\(b\)/.test(tab))
   check('the listing order is applied once, over the catalogue-ordered plan', tab.includes('orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())'))
-  check('the stacked layout walks the ordered plan', tab.includes('{plan.map(section =>'))
-  check('the wide layout bands the ordered plan (the most recent sign-in is the first column)', tab.includes('bands.push(plan.slice(start, start + perRow))'))
+  check('the stacked layout bands the ordered plan one provider at a time', usageColumns(116, 10).perRow === 1 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
+  check('the wide layout bands the same ordered plan three providers at a time', usageColumns(146, 10).perRow === 3 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
   const ledgerSrc = readFileSync(join(ROOT, 'src/utils/accounts/signInLedger.ts'), 'utf8')
   check('the ledger stays the one owner of sign-in times (its file name is spelled there alone)', ledgerSrc.includes("SIGN_IN_LEDGER_FILE = '.sign-ins.json'"))
 }
