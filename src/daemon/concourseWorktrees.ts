@@ -7,6 +7,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../utils/projectConfig.js'
 import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
+import { daemonHomeStands } from './daemonHome.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -215,6 +216,13 @@ export async function ensureWorkerWorktree(
       ok: false,
       code: 'unborn-head',
       error: `no commits yet in ${workspaceId} — one base commit unlocks forking`,
+    }
+  }
+  if (!daemonHomeStands('the worktree root', dir)) {
+    return {
+      ok: false,
+      code: 'worktree-create-failed',
+      error: `the daemon directory ${dirname(workerWorktreeRoot(dir))} is gone — no worktree is carved under it`,
     }
   }
   mkdirSync(workerWorktreeRoot(dir), { recursive: true })

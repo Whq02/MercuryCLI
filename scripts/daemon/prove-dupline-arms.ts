@@ -10,6 +10,7 @@ import {
   doneText,
   FIRST_LINE,
   FOLD_LINE,
+  FOLD_SUMMARY_MARK,
   FOLD_TURN_ASK,
   FORK_DONE,
   FORK_TURN_ASK,
@@ -408,6 +409,35 @@ if (!existsSync(DIST)) {
       const secondRows = carriers.filter(row => row.word === mention && inMainFile(row))
       check('both prompts keep separate transcript rows, identities and send order', firstRows.length === 1 && secondRows.length === 1 && firstRows[0]?.uuid === first.uuid && secondRows[0]?.uuid === second.uuid && Number(firstRows[0]?.ordinal) < Number(secondRows[0]?.ordinal), briefly(carriers))
       exportWorld('batch-mentions', w.home, { 'hook-prompts.jsonl': hookPrompts.map(line => JSON.stringify(line)).join('\n') + '\n' })
+    } finally {
+      await closeWorld(w)
+    }
+  }
+
+  if (runs('A10')) {
+    section('A10 a compact at the head of a queued batch keeps its summary before the following prompt')
+    const followUp = 'the follow-up after the compact'
+    const w = await openWorld('compact-batch', 1, 0, { hold: true })
+    try {
+      const before = w.runner.frames.length
+      w.runner.send(user(AGENT_TURN_ASK, UT))
+      const held = await waitWire(w.fx.wire, 'the final answer held before compact', x => x.kind === 'held', bound(60_000))
+      send(w, '/compact', 1)
+      const sent = send(w, followUp, 2)
+      const queued = await queuedBoth(w, ['/compact', followUp], bound(20_000))
+      check('compact and its follow-up are queued together before the held turn ends', held !== null && queued && w.fx.wire().every(x => x.kind !== 'released'))
+      writeFileSync(w.holdFile!, '')
+      const fold = await waitWire(w.fx.wire, 'the queued compact request', x => x.kind === 'fold', bound(60_000))
+      check('the queued compact actually requests a summary', fold !== null)
+      const postFold = await waitWire(w.fx.wire, 'the first request after compact', x => x.kind === 'request' && fold !== null && Number(x.n) > Number(fold.n), bound(60_000))
+      check('the first request after compact carries the summary and follow-up once each', postFold?.counts?.[FOLD_SUMMARY_MARK] === 1 && postFold?.counts?.[followUp] === 1, describeRequests(requestsOf(w.fx.wire), [FOLD_SUMMARY_MARK, followUp]))
+      check('the summary precedes the follow-up on the wire', (postFold?.firstAt?.[FOLD_SUMMARY_MARK] ?? -1) >= 0 && (postFold?.firstAt?.[followUp] ?? -1) > (postFold?.firstAt?.[FOLD_SUMMARY_MARK] ?? -1), j(postFold?.firstAt))
+      const result = await w.runner.waitFor('the compact batch answer', x => isResult(x) && !String(x.result ?? '').startsWith(doneText(AGENT_TURN_ASK)), bound(60_000), before)
+      check('the compact batch settles without an error', result !== null && result.is_error !== true, j(result))
+      const carriers = await settled(w, [FOLD_SUMMARY_MARK, followUp], bound(10_000), cs => [FOLD_SUMMARY_MARK, followUp].every(word => cs.some(row => row.word === word && inMainFile(row))))
+      const summary = carriers.find(row => row.word === FOLD_SUMMARY_MARK && inMainFile(row))
+      const followUps = carriers.filter(row => row.word === followUp && inMainFile(row))
+      check('the saved follow-up keeps its identity after the compact summary', summary !== undefined && followUps.length === 1 && followUps[0]?.uuid === sent.uuid && Number(followUps[0]?.ordinal) > Number(summary.ordinal), briefly(carriers))
     } finally {
       await closeWorld(w)
     }

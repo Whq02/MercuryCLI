@@ -913,5 +913,62 @@ section('R14 · nothing load-bearing on the partial shapes: an old notice paints
   }
 }
 
+section("R15 · a project-defined agent resumed under another directory's override keeps its kind and its tool restriction — the definitions are the session's, never the resumer's")
+{
+  const { clearAgentDefinitionsCache } = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
+  const { getCwdState, setCwdState, getSessionId } = await import('../../src/bootstrap/state.ts')
+  const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+  const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.ts')
+  const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const { getAgentTranscriptPath, readAgentMetadata, writeAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { asAgentId } = await import('../../src/types/ids.ts')
+  const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+  const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+  const { mkdirSync, realpathSync } = await import('node:fs')
+  const { dirname } = await import('node:path')
+  const project = realpathSync(mkdtempSync(join(tmpdir(), 'launch-receipts-project-')))
+  const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), 'launch-receipts-elsewhere-')))
+  mkdirSync(join(project, '.git'), { recursive: true })
+  mkdirSync(join(project, '.mercury', 'agents'), { recursive: true })
+  writeFileSync(join(project, '.mercury', 'agents', 'probe-kind.md'), '---\nname: probe-kind\ndescription: "a read-only probe of the harbour"\ntools: Read, Grep\n---\n\nYou are the probe: read, never write.\n')
+  const sessionDirectory = getCwdState()
+  setCwdState(project)
+  clearAgentDefinitionsCache()
+  const id = generateTaskId('local_agent')
+  const sessionId = String(getSessionId())
+  let n = 950
+  const encode = (e: unknown): string => JSON.stringify(entryToRecord(e as never, { sessionId, nextOrdinal: () => ordinalOf(++n), observedAt: '2026-01-01T00:00:00.000Z', source: { channel: 'interactive' } } as never))
+  const rows = [
+    { type: 'user', uuid: '00000000-0000-4000-8000-0000000000e1', parentUuid: null, isSidechain: true, agentId: id, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'probe the harbour' } },
+    { type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000e2', parentUuid: '00000000-0000-4000-8000-0000000000e1', isSidechain: true, agentId: id, sessionId, timestamp: '2026-01-01T00:00:00.000Z', message: { id: 'msg_probe', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'probing' }], usage: { input_tokens: 1, output_tokens: 1 } } },
+  ]
+  const transcriptPath = getAgentTranscriptPath(asAgentId(id))
+  mkdirSync(dirname(transcriptPath), { recursive: true })
+  writeFileSync(transcriptPath, rows.map(encode).join('\n') + '\n')
+  await writeAgentMetadata(asAgentId(id), { agentType: 'probe-kind', model: 'claude-fable-5-1' })
+  const store = makeStore()
+  const ctx = makeCtx(store)
+  let refusal = ''
+  try {
+    await runWithCwdOverride(elsewhere, () => resumeAgentBackground({ agentId: id, prompt: 'go on', toolUseContext: ctx }))
+  } catch (error) {
+    refusal = error instanceof Error ? error.message : String(error)
+  }
+  const row = store.get().tasks[id] as { agentType?: string; selectedAgent?: { agentType?: string; source?: string; tools?: string[] } } | undefined
+  killAsyncAgent(id, store.set as never)
+  check('the resume under the override registers the row (no refusal)', refusal === '' && row !== undefined, refusal.slice(0, 200))
+  check("resumed under another directory's override, the row keeps the project-defined kind, never the general agent", row?.agentType === 'probe-kind' && row?.selectedAgent?.agentType === 'probe-kind', JSON.stringify({ agentType: row?.agentType, selected: row?.selectedAgent?.agentType }))
+  check("…with the definition's own tool restriction, read from the session's project definitions", JSON.stringify(row?.selectedAgent?.tools) === '["Read","Grep"]' && row?.selectedAgent?.source === 'projectSettings', JSON.stringify({ tools: row?.selectedAgent?.tools, source: row?.selectedAgent?.source }))
+  const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+  let sidecar = await readAgentMetadata(asAgentId(id))
+  for (let i = 0; i < 40 && sidecar?.description === undefined; i++) {
+    await settle(50)
+    sidecar = await readAgentMetadata(asAgentId(id))
+  }
+  check('…and the sidecar the resume re-persists keeps the kind (a wrong fallback would poison every later resume)', sidecar !== null && sidecar.description !== undefined && sidecar.agentType === 'probe-kind', JSON.stringify(sidecar))
+  setCwdState(sessionDirectory)
+  queue.resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

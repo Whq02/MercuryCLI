@@ -17,6 +17,7 @@ import type {
 import type { Tools } from '../../../Tool.js'
 import type {
   AssistantMessage,
+  BusyRefusalV1,
   Message,
   StreamEvent,
   SystemAPIErrorMessage,
@@ -86,7 +87,7 @@ import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { sleep } from '../../../utils/sleep.js'
-import { busyRecoveryDetail, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -182,6 +183,7 @@ function apiErrorMessage(
   errorDetails?: string,
   overflow?: OverflowSignal | null,
   mediaRefusal?: MediaRefusal | null,
+  busyRefusal?: BusyRefusalV1 | null,
 ): AssistantMessage {
   return createAssistantAPIErrorMessage({
     content,
@@ -189,6 +191,7 @@ function apiErrorMessage(
     ...(errorDetails !== undefined ? { errorDetails } : {}),
     ...(overflow !== undefined ? { overflow } : {}),
     ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
+    ...(busyRefusal !== undefined ? { busyRefusal } : {}),
   })
 }
 
@@ -663,7 +666,8 @@ export async function* openaiCallModel(
     }
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
-    if (outcome.retryEligible && !reissueAtServedWord && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
+    const singleShot = options.querySource === 'overload_probe'
+    if (outcome.retryEligible && !singleShot && !reissueAtServedWord && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
       const step = nextBusyRetry(ladder, askedMs, Date.now())
@@ -688,7 +692,7 @@ export async function* openaiCallModel(
     }
     const retryable =
       !providerWaitIsWindow(askedMs) &&
-      (reissueAtServedWord || (busy === undefined && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
+      (reissueAtServedWord || (busy === undefined && !singleShot && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {
       const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
       yield createSystemAPIErrorMessage(
@@ -766,7 +770,14 @@ export async function* openaiCallModel(
       { status: outcome.fault.status, message: outcome.fault.message },
       requestCarriesInputImage(request),
     )
-    yield apiErrorMessage(busyPrefix(text, outcome.fault, typed), typed, outcome.fault.code, overflowOf(outcome.fault), refusedMedia)
+    yield apiErrorMessage(
+      busyPrefix(text, outcome.fault, typed),
+      typed,
+      outcome.fault.code,
+      overflowOf(outcome.fault),
+      refusedMedia,
+      busy !== undefined ? busyRefusalFact('OpenAI', busy.ladder, outcome.fault) : null,
+    )
     return
   }
 }

@@ -1,4 +1,5 @@
 
+import { createHash } from 'node:crypto'
 import type { CoordinatorRpc, CoordinatorToolDef, CoordinatorToolReceiptV1 } from './coordinatorTools.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 
@@ -352,16 +353,17 @@ async function actingSeat(by: string | undefined): Promise<string> {
 export async function startManagerLane(
   plan: ManagerPlanV1,
   laneIndex: number,
-  init: { workspaceRoot: string; by?: string; rpc?: CoordinatorRpc },
+  init: { workspaceRoot: string; by?: string; rpc?: CoordinatorRpc; entryId?: string },
 ): Promise<ManagerLaneStartV1> {
   const rpc = init.rpc ?? liveRpc
   const by = await actingSeat(init.by)
   const lane = plan.lanes[laneIndex]!
   const receipts: CoordinatorToolReceiptV1[] = []
+  const birthKey = init.entryId === undefined ? undefined : `mgr-${createHash('sha256').update(`${init.entryId}:${laneIndex}`).digest('hex').slice(0, 40)}`
   let born: Record<string, unknown>
   try {
     born = await rpc(
-      { op: 'sessionAdmit', workspaceDir: init.workspaceRoot, title: lane.title, bornBlank: true },
+      { op: 'sessionAdmit', workspaceDir: init.workspaceRoot, title: lane.title, bornBlank: true, ...(birthKey !== undefined ? { birthKey } : {}) },
       { timeoutMs: 30_000 },
     )
   } catch (e) {
@@ -443,7 +445,7 @@ export async function startManagerLane(
 
 export async function executeManagerPlan(
   plan: ManagerPlanV1,
-  init: { workspaceRoot: string; by?: string; rpc?: CoordinatorRpc; fits?: number },
+  init: { workspaceRoot: string; by?: string; rpc?: CoordinatorRpc; fits?: number; entryId?: string },
 ): Promise<ManagerPlanExecutionV1> {
   const fits = Math.max(0, Math.min(plan.lanes.length, init.fits ?? plan.lanes.length))
   const receipts: CoordinatorToolReceiptV1[] = []
@@ -533,7 +535,7 @@ export async function startWaitingManagerLane(
   if (laneIndex === undefined) return null
   startingLane = true
   try {
-    const started = await startManagerLane(supervised.plan, laneIndex, { workspaceRoot, ...init })
+    const started = await startManagerLane(supervised.plan, laneIndex, { workspaceRoot, ...init, ...(entryId !== undefined ? { entryId } : {}) })
     if (started.sessionId === null) {
       if (!started.noSeat) {
         laneRetryAfter.set(laneKey(entryId, laneIndex), now + WAITING_LANE_BACKOFF_MS)

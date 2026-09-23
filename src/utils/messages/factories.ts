@@ -93,6 +93,7 @@ function fabricateAssistantMessage({
   errorDetails,
   overflowSignal,
   mediaRefusal,
+  busyRefusal,
   isVirtual,
   usage = ZERO_USAGE(),
 }: {
@@ -103,6 +104,7 @@ function fabricateAssistantMessage({
   errorDetails?: string
   overflowSignal?: AssistantMessage['overflowSignal']
   mediaRefusal?: AssistantMessage['mediaRefusal']
+  busyRefusal?: AssistantMessage['busyRefusal']
   isVirtual?: true
   usage?: Usage
 }): AssistantMessage {
@@ -128,6 +130,7 @@ function fabricateAssistantMessage({
     errorDetails,
     ...(overflowSignal !== undefined ? { overflowSignal } : {}),
     ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
+    ...(busyRefusal !== undefined ? { busyRefusal } : {}),
     isApiErrorMessage,
     isVirtual,
   }
@@ -161,6 +164,7 @@ export function createAssistantAPIErrorMessage({
   errorDetails,
   overflow,
   mediaRefusal,
+  busyRefusal,
 }: {
   content: string
   apiError?: AssistantMessage['apiError']
@@ -168,6 +172,7 @@ export function createAssistantAPIErrorMessage({
   errorDetails?: string
   overflow?: AssistantMessage['overflowSignal'] | null
   mediaRefusal?: AssistantMessage['mediaRefusal'] | null
+  busyRefusal?: AssistantMessage['busyRefusal'] | null
 }): AssistantMessage {
   return fabricateAssistantMessage({
     content: [
@@ -182,6 +187,7 @@ export function createAssistantAPIErrorMessage({
     errorDetails,
     ...(overflow !== undefined && overflow !== null ? { overflowSignal: overflow } : {}),
     ...(mediaRefusal !== undefined && mediaRefusal !== null ? { mediaRefusal } : {}),
+    ...(busyRefusal !== undefined && busyRefusal !== null ? { busyRefusal } : {}),
   })
 }
 

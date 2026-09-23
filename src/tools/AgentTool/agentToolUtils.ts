@@ -597,7 +597,7 @@ export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfte
 export function overloadBudgetCutOf(error: unknown, model: string): ReturnType<typeof overloadPauseOf> {
   if (recoveryBudgetSpentFactsOf(error)?.lastStatus !== 529) return null
   const who = getMarketingNameForModel(model) ?? model
-  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who }
+  return { pause: { why: 'provider overloaded', words: overloadPauseWords(who) }, who, status: 529 }
 }
 
 const RESUME_AFTER_CUT_FLOOR_MS = 1_000
@@ -1065,7 +1065,7 @@ export async function runAsyncAgentLifecycle(args: {
       ...(overload !== null
         ? {
             statusWord: 'paused',
-            summary: overloadNoticeWords(description, overload.who),
+            summary: overloadNoticeWords(description, overload.who, undefined, overload.status),
           }
         : {}),
       setAppState: rootSetAppState,
@@ -1144,7 +1144,7 @@ export async function runAsyncAgentLifecycle(args: {
       description,
       status: 'failed',
       error: errMsg,
-      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who) } : {}),
+      ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
       finalMessage: partialResult,
       usage,
       landedWrites: landedWritesOf(accumulated),

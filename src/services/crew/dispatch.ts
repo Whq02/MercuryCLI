@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
+import { recordRefusedDurableFile } from '../../substrate/storeRecovery.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -101,14 +102,14 @@ function isDeliveryReceipt(v: unknown): v is DeliveryReceiptV1 {
   )
 }
 
-let droppedReceiptRowsNamed = false
+const droppedReceiptRowsNamed = new Set<string>()
 
 const receiptStore = defineStore<ReceiptFile, [dir?: string]>({
   name: 'crew-dispatch-receipts',
   path: (dir?: string) =>
     join(crewStoreRoot(dir), `receipts-${projectKey()}.json`),
   schemaVersion: 1,
-  decode: raw => {
+  decode: (raw, path) => {
     if (!isRecord(raw)) return null
     const rows = raw.receipts === undefined ? [] : raw.receipts
     const ids = raw.settledIds === undefined ? [] : raw.settledIds
@@ -116,12 +117,11 @@ const receiptStore = defineStore<ReceiptFile, [dir?: string]>({
     const receipts = rows.filter(isDeliveryReceipt)
     const settledIds = ids.filter((id): id is string => typeof id === 'string')
     const dropped = rows.length - receipts.length + ids.length - settledIds.length
-    if (dropped > 0 && !droppedReceiptRowsNamed) {
-      droppedReceiptRowsNamed = true
-      logForDebugging(
-        `[crew-dispatch-receipts] ${dropped} row(s) not decodable as receipts or settled ids: dropped from the read, the rest kept`,
-        { level: 'warn' },
-      )
+    if (dropped > 0 && !droppedReceiptRowsNamed.has(path ?? '')) {
+      droppedReceiptRowsNamed.add(path ?? '')
+      const reason = `${dropped} row(s) not decodable as receipts or settled ids: dropped from the read, the rest kept`
+      logForDebugging(`[crew-dispatch-receipts] ${reason}`, { level: 'warn' })
+      if (path !== undefined) void recordRefusedDurableFile({ store: 'crew-dispatch-receipts', path, reason })
     }
     return { receipts, settledIds }
   },

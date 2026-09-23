@@ -14,6 +14,20 @@ const IMPORT_BARE = /^import\s*(['"])([^'"\n]+)\1\s*;?$/
 const BLOCK_FOLLOWER = /^[ \t]*(?:var|let|const|function|async[ \t]+function|class|import|export)\b/
 const STATEMENT_KEYWORD =
   /^(?:const|let|var|function|class|if|for|while|do|switch|try|throw|return|break|continue|import|export|async\s+function|debugger)\b/
+const REGEX_LEAD_KEYWORD = /^(?:return|throw|case|yield|await|typeof|void|delete|in|of)$/
+
+function regexCanStart(source: string, at: number): boolean {
+  let k = at - 1
+  while (k >= 0 && /\s/.test(source[k]!)) k--
+  if (k < 0) return true
+  const prev = source[k]!
+  if ((prev === '+' || prev === '-') && source[k - 1] === prev) return false
+  if ('=(:,!&|?;[{}+-*%^~<>'.includes(prev)) return true
+  if (!/[\w$]/.test(prev)) return false
+  let start = k
+  while (start > 0 && /[\w$]/.test(source[start - 1]!)) start--
+  return REGEX_LEAD_KEYWORD.test(source.slice(start, k + 1))
+}
 
 interface Segment {
   text: string
@@ -118,7 +132,7 @@ function* topLevelCodePositions(source: string): Generator<number> {
       i += 2
       continue
     }
-    if (c === '/' && /(?:^|[=(:,!&|?;[{}+\-*%^~<>]|\b(?:return|throw|case|yield|await|typeof|void|delete|in|of))\s*$/.test(source.slice(0, i))) {
+    if (c === '/' && regexCanStart(source, i)) {
       mode = 'regex'
       regexClass = false
       i++

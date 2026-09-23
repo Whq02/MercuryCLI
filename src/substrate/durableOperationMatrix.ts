@@ -610,8 +610,8 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
   },
   {
     id: 'store-recovery-ledger',
-    structure: 'recovery/store-recovery.jsonl (quarantine + read-degrade events)',
-    writer: 'quarantineDamagedStore / recordStoreReadDegradation (read path latched per store per process)',
+    structure: 'recovery/store-recovery.jsonl (quarantine + read-degrade + refused events)',
+    writer: 'quarantineDamagedStore / recordStoreReadDegradation (read path latched per store per process) / recordRefusedDurableFile (latched per store and path per process; bytes left in place)',
     bound: 'read tail ≤ MAX_LEDGER_ROWS = 500',
     reaper: 'bounded tail read (writers append; readers bound)',
     preserves: 'the newest 500 events',

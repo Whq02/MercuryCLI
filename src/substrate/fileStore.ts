@@ -110,7 +110,7 @@ export interface StoreConfig<T, A extends unknown[]> {
   name: string
   path: (...args: A) => string
   schemaVersion: number
-  decode: (raw: unknown) => T | null
+  decode: (raw: unknown, path?: string) => T | null
   encode?: (value: T) => unknown
   empty: () => T
   onReadFailure: ReadFailurePolicy
@@ -233,7 +233,7 @@ export function defineStore<T, A extends unknown[] = []>(
     }
     try {
       const parsed = jsonParse(raw) as unknown
-      const value = cfg.decode(parsed)
+      const value = cfg.decode(parsed, path)
       if (value === null) throw new Error(`[${cfg.name}] store failed validation`)
       return {
         result: { state: 'ready', value, revision: revisionFor(parsed, value) },

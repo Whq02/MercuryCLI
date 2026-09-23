@@ -6,6 +6,7 @@ import { z, type ZodType } from 'zod'
 import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
+  getCwdState,
   getMainThreadAgentType,
   getSdkAgentProgressSummariesEnabled,
   getSessionTrustAccepted,
@@ -767,15 +768,22 @@ export const AgentTool = buildTool({
       }
       const receipt = await settleAgentWorktree({ ...worktreeInfo })
       if (receipt.outcome === 'settled') {
-        void writeAgentMetadata(asAgentId(earlyAgentId), {
-          agentType: agentDef.agentType,
-          model: plan.model,
-          ...(input.description ? { description: input.description } : {}),
-        }).catch(error =>
-          logForDebugging(
-            `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
-          ),
-        )
+        void readAgentMetadata(asAgentId(earlyAgentId))
+          .then(recorded => {
+            const kept = { ...recorded }
+            delete kept.worktreePath
+            return writeAgentMetadata(asAgentId(earlyAgentId), {
+              ...kept,
+              agentType: agentDef.agentType,
+              model: plan.model,
+              ...(input.description ? { description: input.description } : {}),
+            })
+          })
+          .catch(error =>
+            logForDebugging(
+              `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
+            ),
+          )
         return {}
       }
       logForDebugging(
@@ -834,6 +842,7 @@ export const AgentTool = buildTool({
     }
 
     const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam
+    const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)
 
     const effectiveSystemPromptOverride = isFork
       ? systemPromptOverride
@@ -864,7 +873,7 @@ export const AgentTool = buildTool({
           }
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
-      ...(worktreeInfo === undefined && cwdParam !== undefined ? { cwd: cwdParam } : {}),
+      ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
       ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),

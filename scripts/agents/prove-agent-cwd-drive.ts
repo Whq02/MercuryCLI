@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
@@ -198,6 +198,191 @@ const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
 tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 tally.check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
 tally.check('no worktree is left behind', git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 1, git(repo, 'worktree', 'list', '--porcelain'))
+
+const firstLine = (r: SeenResult | undefined): string => (r?.text ?? '').split('\n')[0]?.trim() ?? ''
+const waitForFile = (file: string): string => `for i in $(seq 1 150); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
+const sidecarsUnder = (dir: string): string[] => {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) out.push(...sidecarsUnder(full))
+    else if (/^agent-.*\.meta\.json$/.test(entry.name)) out.push(full)
+  }
+  return out
+}
+const sidecarFor = (runHome: string, description: string): Record<string, unknown> | null => {
+  for (const file of sidecarsUnder(join(runHome, 'projects'))) {
+    try {
+      const parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+      if (parsed.description === description) return parsed
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+{
+  const WORKER_ASK = 'worker-directory-probe'
+  const WORKER_PROMPT = 'launch a helper without naming a directory'
+  const HELPER_PROMPT = 'say where you were launched'
+  const CONTINUE_HELPER = 'say where you are now, helper'
+  const HELPER_DESCRIPTION = 'worker-directory-probe'
+  const HELPER_NAME = 'directory-helper'
+  const WF_SCRIPT = [
+    "export const meta = { name: 'worker-directory', description: 'an isolated worker launches a helper without a directory', phases: [{ title: 'Work' }] }",
+    "phase('Work')",
+    `return await agent(${JSON.stringify(WORKER_PROMPT)}, { isolation: 'worktree', phase: 'Work' })`,
+  ].join('\n')
+  const wfRepo = join(scratch, 'worker-repo')
+  mkdirSync(wfRepo)
+  git(wfRepo, 'init', '-q', '-b', 'main')
+  writeFileSync(join(wfRepo, 'README.md'), '# directory fixture\n')
+  git(wfRepo, 'add', '-A')
+  git(wfRepo, 'commit', '-q', '-m', 'first')
+  const workerHome = join(scratch, 'home-worker')
+  const firstFlag = join(scratch, 'worker-first.flag')
+  let helperId = ''
+  let firstPwd = ''
+  let resumedPwd = ''
+  const workerFixture = await startScriptedFixture(req => {
+    const last = req.results[req.results.length - 1]
+    if (req.opening.trim().startsWith(WORKER_PROMPT)) {
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
+      if (req.step === 1) {
+        seen.workerLaunch = last
+        helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+      }
+      if (req.step === 2) seen.workerWaited = last
+      return [{ type: 'text', text: 'worker done' }]
+    }
+    if (req.opening.trim() === HELPER_PROMPT) {
+      if (req.ask.includes(CONTINUE_HELPER)) {
+        if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'pwd | tee continued.flag', description: 'where am I now' } }]
+        if (req.step === 1) resumedPwd = firstLine(req.results[0])
+        return [{ type: 'text', text: 'continued' }]
+      }
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `touch helper.mark; pwd | tee "${firstFlag}"`, description: 'where am I' } }]
+      if (req.step === 1) firstPwd = firstLine(req.results[0])
+      return [{ type: 'text', text: 'helper done' }]
+    }
+    if (req.ask.trim() !== WORKER_ASK) return [{ type: 'text', text: 'ok' }]
+    switch (req.step) {
+      case 0:
+        return [{ type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } }]
+      case 1:
+        seen.workerWorkflow = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+      case 2:
+        seen.workerFirst = last
+        if (firstPwd === '') firstPwd = firstLine(last)
+        return [{ type: 'tool_use', name: 'SendMessage', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
+      case 3:
+        seen.workerContinued = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(join(firstPwd, 'continued.flag')), description: 'wait for the continuation' } }]
+      default:
+        if (req.step === 4) seen.workerAfter = last
+        return [{ type: 'text', text: 'done' }]
+    }
+  })
+  let workerTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+  try {
+    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  } finally {
+    await workerFixture.close()
+  }
+  show('the workflow launch', seen.workerWorkflow, workerTurn)
+  show('the isolated worker launches a helper without a named directory', seen.workerLaunch, workerTurn)
+  show('the first helper run', seen.workerFirst, workerTurn)
+  show('the continuation by message', seen.workerContinued, workerTurn)
+  show('the continuation file', seen.workerAfter, workerTurn)
+  const sidecar = sidecarFor(workerHome, HELPER_DESCRIPTION)
+  tally.section('a workflow-launched helper keeps its original worktree on continuation')
+  tally.check('the workflow launched without error (staging)', seen.workerWorkflow !== undefined && !seen.workerWorkflow.isError, seen.workerWorkflow?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
+  tally.check('the worker launched the helper and its receipt named the id (staging)', seen.workerLaunch !== undefined && !seen.workerLaunch.isError && helperId !== '', seen.workerLaunch?.text.slice(0, 300))
+  tally.check('the first helper shell ran in the worker worktree (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
+  tally.check('the helper sidecar records the original directory', sidecar !== null && sidecar.cwd === firstPwd, JSON.stringify(sidecar))
+  tally.check('the message resumed the helper without error', seen.workerContinued !== undefined && !seen.workerContinued.isError, seen.workerContinued?.text.slice(0, 300))
+  tally.check('the resumed shell stays in the worker worktree', resumedPwd !== '' && resumedPwd === firstPwd, `pwd=${resumedPwd} wanted=${firstPwd}`)
+  tally.check('the continuation file lands in the worktree and is read there', firstPwd !== '' && existsSync(join(firstPwd, 'continued.flag')) && firstLine(seen.workerAfter) === firstPwd, seen.workerAfter?.text.slice(0, 200))
+  tally.check('the continuation does not write in the session checkout', !existsSync(join(wfRepo, 'continued.flag')))
+}
+
+{
+  const EFFORT_ASK = 'effort-probe'
+  const EFFORT_PROMPT = 'read your own record'
+  const CONTINUE_EFFORT = 'say where you are now, record'
+  const EFFORT_DESCRIPTION = 'effort-probe'
+  const effortHome = join(scratch, 'home-effort')
+  const effortContinuedFlag = join(scratch, 'effort-continued.flag')
+  const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
+  const readRecord = `for i in $(seq 1 25); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
+  const readSettledRecord = `for i in $(seq 1 50); do ${findRecord}; [ -n "$f" ] && ! grep -q worktreePath "$f" && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
+  let effortId = ''
+  let preSettle = ''
+  let continuedEffortPwd = ''
+  const effortFixture = await startScriptedFixture(req => {
+    const last = req.results[req.results.length - 1]
+    if (req.opening.trim() === EFFORT_PROMPT) {
+      if (req.ask.includes(CONTINUE_EFFORT)) {
+        if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `pwd | tee "${effortContinuedFlag}"`, description: 'where am I now' } }]
+        if (req.step === 1) continuedEffortPwd = firstLine(req.results[0])
+        return [{ type: 'text', text: 'continued' }]
+      }
+      if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: readRecord, description: 'read my own record' } }]
+      if (req.step === 1) preSettle = req.results[0]?.text ?? ''
+      return [{ type: 'text', text: 'agent done' }]
+    }
+    if (req.ask.trim() !== EFFORT_ASK) return [{ type: 'text', text: 'ok' }]
+    switch (req.step) {
+      case 0:
+        return [{ type: 'tool_use', name: 'Agent', input: { description: EFFORT_DESCRIPTION, prompt: EFFORT_PROMPT, isolation: 'worktree', effort: 'max' } }]
+      case 1:
+        seen.effortLaunch = last
+        effortId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
+        return [{ type: 'tool_use', name: 'Bash', input: { command: readSettledRecord, description: 'wait for the settled record' } }]
+      case 2:
+        seen.effortSettled = last
+        return [{ type: 'tool_use', name: 'SendMessage', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
+      case 3:
+        seen.effortContinued = last
+        return [{ type: 'tool_use', name: 'Bash', input: { command: `${waitForFile(effortContinuedFlag)}; ${findRecord}; cat "$f" 2>/dev/null || echo no-record`, description: 'wait for the continuation, then read the record again' } }]
+      default:
+        if (req.step === 4) seen.effortAfter = last
+        return [{ type: 'text', text: 'done' }]
+    }
+  })
+  let effortTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+  try {
+    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: 240_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  } finally {
+    await effortFixture.close()
+  }
+  const recordOf = (text: string): Record<string, unknown> | null => {
+    try {
+      return JSON.parse(text.split('\n').find(line => line.startsWith('{')) ?? '') as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  const factsOf = (record: Record<string, unknown> | null): string => record === null ? '' : JSON.stringify(Object.entries(record).filter(([key]) => key !== 'worktreePath' && key !== 'model').sort())
+  const pre = recordOf(preSettle)
+  const post = recordOf(seen.effortSettled?.text ?? '')
+  const after = recordOf(seen.effortAfter?.text ?? '')
+  show('the isolated launch pinned to effort max', seen.effortLaunch, effortTurn)
+  show('the settled record', seen.effortSettled, effortTurn)
+  show('the continuation by message', seen.effortContinued, effortTurn)
+  show('the record after the continuation', seen.effortAfter, effortTurn)
+  tally.section('a settled isolated helper keeps its launch facts and its continuation uses the preserved effort')
+  tally.check('the isolated launch answered and its clean worktree settled (staging)', seen.effortLaunch !== undefined && !seen.effortLaunch.isError && !/Worktree kept/.test(seen.effortLaunch.text) && effortId !== '', seen.effortLaunch?.text.slice(0, 300))
+  tally.check('the helper read its worktree path and effort before settlement (staging)', pre !== null && typeof pre.worktreePath === 'string' && pre.effortOverride === 'max' && typeof pre.effort === 'string', preSettle.slice(0, 300))
+  tally.check('the settled record no longer names the worktree', post !== null && post.worktreePath === undefined, seen.effortSettled?.text.slice(0, 300))
+  tally.check('every other recorded fact survives the clear-write', pre !== null && post !== null && typeof post.model === 'string' && factsOf(post) === factsOf(pre), `before=${factsOf(pre)} after=${factsOf(post)}`)
+  tally.check('the message resumes in the checkout without a gone-worktree note', seen.effortContinued !== undefined && !seen.effortContinued.isError && !/worktree is gone/.test(seen.effortContinued.text) && continuedEffortPwd === repo, `${seen.effortContinued?.text.slice(0, 200)} pwd=${continuedEffortPwd}`)
+  tally.check('the continued helper records the same effort pin and resolved effort', after !== null && after.effortOverride === 'max' && pre !== null && after.effort === pre.effort, `after=${factsOf(after)}`)
+}
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)

@@ -207,6 +207,34 @@ section('(decoder) an out-of-shape roster is refused whole, named once, and its 
   await flushDebugLogs()
   const named = readFileSync(DEBUG_LOG, 'utf8').split('\n').filter(l => l.includes('[team-roster]') && l.includes(path))
   check('the refused file is named ONCE in the debug log across every read of it', named.length === 1, `${named.length} line(s)`)
+  const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+  const refusedRowsFor = async (at: string) => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'team-roster' && e.path === at)
+  let refused = await refusedRowsFor(path)
+  for (let i = 0; i < 40 && refused.length < 1; i++) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+    refused = await refusedRowsFor(path)
+  }
+  check(
+    'the refused file is named ONCE on the recovery ledger across every read of every shape (one row per file per process, beside the debug line), bytes left in place',
+    refused.length === 1 && refused[0]!.quarantinePath === null && refused[0]!.reason === `${path} is not a decodable roster: left in place, reported`,
+    `${refused.length} row(s): ${JSON.stringify(refused)}`,
+  )
+  const OTHER = 'shapeless-team-two'
+  const otherPath = getTeamFilePath(OTHER)
+  mkdirSync(dirname(otherPath), { recursive: true })
+  writeFileSync(otherPath, 'not json at all')
+  let thrown = ''
+  try {
+    await readTeamFileAsync(OTHER)
+  } catch (e) {
+    thrown = String(e)
+  }
+  let other = await refusedRowsFor(otherPath)
+  for (let i = 0; i < 40 && other.length < 1; i++) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+    other = await refusedRowsFor(otherPath)
+  }
+  check('bytes that are not JSON are named on the same road under their own path, the callers keeping their existing error handling; the bytes stay', other.length === 1 && readFileSync(otherPath, 'utf8') === 'not json at all', `${other.length} row(s); read ${thrown || 'resolved'}`)
 }
 
 rmSync(TMP, { recursive: true, force: true })

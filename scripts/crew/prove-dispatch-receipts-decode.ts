@@ -91,6 +91,17 @@ try {
       .split('\n')
       .filter(l => l.includes('crew-dispatch-receipts') && l.includes('not decodable'))
     check('the dropped rows are named once across the reads', named.length === 1, `${named.length} line(s)`)
+    const refusedRows = async () => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'crew-dispatch-receipts')
+    let refused = await refusedRows()
+    for (let i = 0; i < 40 && refused.length < 1; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      refused = await refusedRows()
+    }
+    check(
+      'the dropped rows are named once on the recovery ledger under the ring\'s own path, bytes left in place',
+      refused.length === 1 && refused[0]!.path === path && refused[0]!.quarantinePath === null && refused[0]!.reason.startsWith('6 row(s) not decodable as receipts or settled ids'),
+      `${refused.length} row(s): ${JSON.stringify(refused)}`,
+    )
   }
 
   section('(2) a settled id survives the filter: a replay of it is refused by the guard')

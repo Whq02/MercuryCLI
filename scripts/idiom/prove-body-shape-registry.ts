@@ -86,10 +86,19 @@ const ATTACHMENTS: Record<string, Fixture> = {
     bad: [{ label: 'blockingError is text', field: 'blockingError', fields: { hookName: 'h', blockingError: 'e', toolUseID: 't', hookEvent: 'PreToolUse' } }],
   },
   deferred_tools_delta: {
-    good: { addedNames: [], addedLines: ['a'], removedNames: [] },
+    good: { addedNames: [], addedLines: ['a'], removedNames: [], body: 'b' },
     bad: [
       { label: 'addedLines is text', field: 'addedLines', fields: { addedNames: [], addedLines: 'a', removedNames: [] } },
       { label: 'removedNames is a number', field: 'removedNames', fields: { addedNames: [], addedLines: [], removedNames: 5 } },
+      { label: 'addedNames carries a number', field: 'addedNames', fields: { addedNames: [7], addedLines: [], removedNames: [] } },
+      { label: 'body is an object', field: 'body', fields: { addedNames: [], addedLines: [], removedNames: [], body: {} } },
+    ],
+  },
+  held_tools: {
+    good: { names: ['Read'], body: 'b' },
+    bad: [
+      { label: 'names is text', field: 'names', fields: { names: 'Read', body: 'b' } },
+      { label: 'body is missing', field: 'body', fields: { names: ['Read'] } },
     ],
   },
   agent_listing_delta: {

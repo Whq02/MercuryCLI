@@ -76,6 +76,7 @@ export function registerTask(task: TaskState, setAppState: TaskAppStateSetter): 
 }
 
 function retainedEvictionDue(task: TaskState, now: number): boolean {
+  if ('paused' in task && task.paused !== undefined) return false
   if (!('retain' in task)) return true
   const deadline = task.evictAfter
   return deadline !== undefined && deadline <= now

@@ -442,6 +442,7 @@ async function runTransactionBody(args: {
   let stopReason: string | undefined
   let stopped = false
   const additionalContextMessages: Message[] = []
+  const hookNotes: Message[] = []
 
   for await (const item of runPreToolUseHooks(
     tool,
@@ -455,7 +456,8 @@ async function runTransactionBody(args: {
     hookCount++
     switch (item.kind) {
       case 'message':
-        push({ message: item.message })
+        if (item.message.type === 'system') hookNotes.push(item.message)
+        else push({ message: item.message })
         break
       case 'permissionResult':
         hookPermissionResult = item.result
@@ -873,6 +875,7 @@ async function runTransactionBody(args: {
   } finally {
     if (executed && hookDecisionRow !== null) push({ message: hookDecisionRow })
     if (executed && allowanceRow !== null) push({ message: allowanceRow })
+    if (executed) for (const note of hookNotes) push({ message: note })
     if (executed) {
       traceOnce({ durationMs, ok: success })
       try {
