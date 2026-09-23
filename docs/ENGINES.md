@@ -462,8 +462,8 @@ subscription the shared session and weekly windows plus the per-model weekly
 pool of the model's own family (a Fable week at 87% warns a Fable session and
 never a Sonnet one). A lane that serves no percent-shaped usage signal warns
 never — an absent signal is an absent warning, not a fabricated meter. The engine
-feeders read the same window views the settings tab and the rail meters read, so
-the strip and the meters can never disagree about a percent.
+feeders read the same window views the `/usage` popup and the rail meters read,
+so the strip and the meters can never disagree about a percent.
 
 The same derivation puts one notice into the session's own context when the
 binding window crosses that threshold, so an agent working in the session can
@@ -557,21 +557,24 @@ delegated dispatch on the OpenAI route reads that list before it decides. The
 refusal for a reached window names the window that blocks; the state of the
 model list is never named as if it were the block.
 
-`/usage` lists every provider, the signed-in ones first in the order of their
-most recent sign-in — the same sign-in record the computed default reads — and
-each in its own shape: the first-party subscription's rolling windows and
-weekly pools, the OpenAI account's observed bands, a Kimi sign-in's plan
-windows, an OpenRouter key's credit totals and cap, the DeepSeek and Moonshot
-balances, and an honest one-line absence for a lane whose provider publishes
-no usage Mercury can read (Z.AI, Gemini, Hugging Face, a custom endpoint, an
-API key on a subscription lane, a local server). Every API-key slot carries a
-credits line: the provider-stated balance with its feed and age where the
-family exposes one (the DeepSeek and Moonshot balance endpoints, the remaining
-credit under an OpenRouter key cap), and "credits: not reported by the
-provider" where none exists — never a computed spend presented as a balance.
-Every figure is a reader's last observation with its stamp, sampled on the tab
-through one door and dropped the moment the credential it belongs to changes —
-never remembered, never invented.
+`/usage` opens a popup over the chat — 150 columns, centred, three providers
+side by side above 120 columns and stacked below it, six providers in view
+and the rest on `↑↓` scroll with a "↓ n more" row naming them; `esc` or a
+click outside closes it. It lists every provider, the signed-in ones first in
+the order of their most recent sign-in — the same sign-in record the computed
+default reads — and each in its own shape: the first-party subscription's
+rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
+sign-in's plan windows, an OpenRouter key's credit totals and cap, the
+DeepSeek and Moonshot balances, and an honest one-line absence for a lane
+whose provider publishes no usage Mercury can read (Z.AI, Gemini, Hugging
+Face, a custom endpoint, an API key on a subscription lane, a local server).
+Every API-key slot carries a credits line: the provider-stated balance with
+its feed and age where the family exposes one (the DeepSeek and Moonshot
+balance endpoints, the remaining credit under an OpenRouter key cap), and
+"credits: not reported by the provider" where none exists — never a computed
+spend presented as a balance. Every figure is a reader's last observation with
+its stamp, sampled in the popup through one door and dropped the moment the
+credential it belongs to changes — never remembered, never invented.
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
