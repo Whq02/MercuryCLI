@@ -349,23 +349,21 @@ try {
     check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
     check(`${cols}×${rows}: the busy sprite is centred in its owned slot, level with the card's middle row`, b.x === Math.round((left + b.cardLeft - 9) / 2) && b.y === middleRowTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${Math.round((left + b.cardLeft - 9) / 2)},${middleRowTop(b)}`)
   }
-  console.log('§12 a companion bubble owns its space only while painted')
+  console.log('§12 the critter never speaks: /companion tip paints no bubble beside the small sprite')
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const companion = await capture(`companion-${cols}x${rows}`, homeFor(`companion-${cols}`), cols, rows, [
       onReady('/companion tip\r', 'before-tip'),
-      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '/companion off\r', mark: 'speaking' },
-    ], 'companion off —', [], false, true)
-    const speaking = companion.marks.speaking!
-    const border = text(speaking)[rowWith(speaking, '✶ VIEW') + 1]!
+      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '', mark: 'after-tip' },
+    ], 'tip —', [], false, true)
+    const after = companion.marks['after-tip']!
+    const border = text(after)[rowWith(after, '✶ VIEW') + 1]!
     const left = border.indexOf('╭')
-    const bounds = boxRows(speaking, left)
-    const art = speaking.slice(bounds.top + 1, bounds.bottom).flatMap((row, r) => row.flatMap((cell, c) => cell.c === '▀' ? [[c, r + bounds.top + 1]] : []))
-    check(`${cols}×${rows}: the speech bubble stands beside the small sprite`, text(speaking).slice(bounds.top + 1, bounds.bottom).some(row => row.indexOf('╭', left + 1) >= 0) && art.length === 27)
-    check(`${cols}×${rows}: the sprite centres beside the speech bubble`, Math.min(...art.map(cell => cell[0]!)) === left + 4 && Math.min(...art.map(cell => cell[1]!)) === Math.round((bounds.top + bounds.bottom - 2) / 2))
-    const cleared = companion.grid
-    const clearBounds = boxRows(cleared, left)
-    const clearLeft = centeredLeft(cleared)
-    check(`${cols}×${rows}: removing the bubble restores the whole berth to the sprite`, clearBounds.bottom - clearBounds.top === 4 && cleared.slice(clearBounds.top + 1, clearBounds.bottom).every(row => row.slice(clearLeft, clearLeft + 9).every(cell => cell.c === '▀')))
+    const right = border.lastIndexOf('╮')
+    const bounds = boxRows(after, left)
+    const inner = text(after).slice(bounds.top + 1, bounds.bottom)
+    check(`${cols}×${rows}: the tip answers in the receipt row under the berth`, rowWith(after, 'tip —') > bounds.bottom, `receipt row ${rowWith(after, 'tip —')}, berth bottom ${bounds.bottom}`)
+    check(`${cols}×${rows}: the berth stays five rows with no bubble in it`, bounds.bottom - bounds.top === 4 && !inner.some(row => { const at = row.indexOf('╭', left + 1); return at >= 0 && at < right }), `berth ${bounds.top}..${bounds.bottom}`)
+    check(`${cols}×${rows}: the sprite keeps the slot's left column (27 cells)`, after.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(left + 3, left + 12).every(cell => cell.c === '▀')) && inner.every(row => !row.slice(left + 12, right).includes('▀')))
   }
   console.log('§14 the sprite sits level with the thinking box’s middle row however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
