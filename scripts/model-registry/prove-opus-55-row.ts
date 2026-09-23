@@ -208,7 +208,7 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('written by Opus 5.5 stay out of the requests to Opus 5'), show(receiptToOpus5))
 }
 
-section("§4 the notes between tool calls: the request to the row sets thinking.display 'updates' under its beta, on the first-party host unless the operator says so")
+section('§4 thinking.display and its beta ride only when explicitly requested')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { applyThinkingDisplay, resolveThinkingDisplaySetting } = await import('../../src/services/providers/anthropic/thinkingDisplay.ts')
@@ -220,26 +220,31 @@ section("§4 the notes between tool calls: the request to the row sets thinking.
 
   check('the beta token is the vendor\'s', THINKING_DISPLAY_UPDATES_BETA_HEADER === HEADER)
   check('the row narrates in thinking blocks; Opus 5, Fable 5.1 and a carrier row do not (their rows are not this change)', caps.modelNarratesInThinkingBlocks(ID) && caps.modelNarratesInThinkingBlocks(`${ID}[1m]`) && !caps.modelNarratesInThinkingBlocks(PREVIOUS) && !caps.modelNarratesInThinkingBlocks('claude-fable-5-1') && !caps.modelNarratesInThinkingBlocks('openrouter/anthropic/claude-opus-5-5'))
-  check("unset ⇒ updates, not explicit; 'updates' ⇒ explicit; 'off'/'0'/'omitted' ⇒ nothing; an unknown word rides updates", show(resolveThinkingDisplaySetting(undefined)) === show({ display: 'updates', explicit: false }) && show(resolveThinkingDisplaySetting('updates')) === show({ display: 'updates', explicit: true }) && resolveThinkingDisplaySetting('off').display === null && resolveThinkingDisplaySetting('0').display === null && resolveThinkingDisplaySetting('omitted').display === null && show(resolveThinkingDisplaySetting('purple')) === show({ display: 'updates', explicit: true }))
+  check('unset and blank omit the field; explicit updates and the existing off/unknown spellings keep their behavior', [undefined, '', '  '].every(raw => show(resolveThinkingDisplaySetting(raw)) === show({ display: null, explicit: false })) && show(resolveThinkingDisplaySetting('updates')) === show({ display: 'updates', explicit: true }) && resolveThinkingDisplaySetting('off').display === null && resolveThinkingDisplaySetting('0').display === null && resolveThinkingDisplaySetting('omitted').display === null && show(resolveThinkingDisplaySetting('purple')) === show({ display: 'updates', explicit: true }))
   const adaptive = { type: 'adaptive' as const }
   const firstParty = { firstParty: () => true, env: undefined }
   const gateway = { firstParty: () => false, env: undefined }
   let betas: string[] = []
   const onRow = applyThinkingDisplay(ID, adaptive, betas, firstParty)
-  check('unset on the first-party host: the row\'s request carries display updates and the header', show(onRow) === show({ type: 'adaptive', display: 'updates' }) && betas.includes(HEADER), show({ onRow, betas }))
+  check('unset on the first-party host emits neither field nor header', onRow === adaptive && betas.length === 0, show({ onRow, betas }))
   betas = []
   check('unset on a gateway host: nothing rides (the beta may be refused there)', applyThinkingDisplay(ID, adaptive, betas, gateway) === adaptive && betas.length === 0)
   betas = []
   check("an explicit 'updates' rides every host", show(applyThinkingDisplay(ID, adaptive, betas, { firstParty: () => false, env: 'updates' })) === show({ type: 'adaptive', display: 'updates' }) && betas.includes(HEADER))
   betas = []
   check("an explicit 'off' rides nowhere", applyThinkingDisplay(ID, adaptive, betas, { firstParty: () => true, env: 'off' }) === adaptive && betas.length === 0)
+  const firstPartyUpdates = { firstParty: () => true, env: 'updates' }
   betas = []
-  check('Opus 5 and Fable 5.1 requests are byte-identical to before (no field, no header)', applyThinkingDisplay(PREVIOUS, adaptive, betas, firstParty) === adaptive && applyThinkingDisplay('claude-fable-5-1', adaptive, betas, firstParty) === adaptive && betas.length === 0)
+  check('explicit updates emits the field and header on the first-party host', show(applyThinkingDisplay(ID, adaptive, betas, firstPartyUpdates)) === show({ type: 'adaptive', display: 'updates' }) && betas.includes(HEADER))
   betas = []
-  check('no thinking object ⇒ nothing to display (the disabled roads stay untouched)', applyThinkingDisplay(ID, undefined, betas, firstParty) === undefined && betas.length === 0)
+  check('Opus 5 and Fable 5.1 still omit the field under explicit updates', applyThinkingDisplay(PREVIOUS, adaptive, betas, firstPartyUpdates) === adaptive && applyThinkingDisplay('claude-fable-5-1', adaptive, betas, firstPartyUpdates) === adaptive && betas.length === 0)
+  betas = []
+  check('absent or disabled thinking emits no display field under explicit updates', applyThinkingDisplay(ID, undefined, betas, firstPartyUpdates) === undefined && show(applyThinkingDisplay(ID, { type: 'disabled' }, betas, firstPartyUpdates)) === show({ type: 'disabled' }) && betas.length === 0)
   betas = [HEADER]
-  applyThinkingDisplay(ID, adaptive, betas, firstParty)
-  check('the header is admitted once', betas.filter(b => b === HEADER).length === 1)
+  applyThinkingDisplay(ID, adaptive, betas, firstPartyUpdates)
+  check('explicit updates admits the header once', betas.filter(b => b === HEADER).length === 1)
+  betas = []
+  check('an unset request after explicit updates has no remembered field or beta', applyThinkingDisplay(ID, adaptive, betas, firstParty) === adaptive && betas.length === 0)
   check('the fold never mutates the caller\'s thinking object', show(adaptive) === show({ type: 'adaptive' }))
   const stream = readFileSync(join(import.meta.dir, '..', '..', 'src/services/providers/anthropic/streamCore.ts'), 'utf-8')
   const displayAt = stream.indexOf('thinking = applyThinkingDisplay(options.model, thinking, betasParams) as typeof thinking')
