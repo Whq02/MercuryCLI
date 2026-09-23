@@ -1,4 +1,5 @@
 import { formatAge } from '../../utils/healthCertCore.js'
+import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
 export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'gemini' | 'huggingface'
 
@@ -28,7 +29,6 @@ export type ModelListSource =
   | { kind: 'unread'; lastError?: string; lastAttemptAtMs?: number }
   | { kind: 'no-credential' }
   | { kind: 'no-endpoint'; datedAt: string }
-  | { kind: 'not-read' }
   | { kind: 'unreadable'; reason: string }
 
 export interface ModelListFact {
@@ -57,7 +57,7 @@ const NOT_JUDGED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'} 
 const TYPED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'}`
 
 function isReadable(fact: ModelListFact): boolean {
-  return fact.list.kind !== 'no-endpoint' && fact.list.kind !== 'not-read'
+  return fact.list.kind !== 'no-endpoint'
 }
 
 export function modelListFamilyLines(fact: ModelListFact, nowMs: number): string[] {
@@ -79,8 +79,6 @@ export function modelListFamilyLines(fact: ModelListFact, nowMs: number): string
       return [`${fact.name} · no credential · ${NOT_JUDGED(fact.typed.length)}`]
     case 'no-endpoint':
       return [`${head} · no live list — typed table dated ${list.datedAt} · ${TYPED(fact.typed.length)}`]
-    case 'not-read':
-      return [`${fact.name} · no list read (Mercury reads no ${fact.name} list; the release-day check does) · ${TYPED(fact.typed.length)}`]
     case 'unreadable':
       return [`${head} · the cached list could not be read (${list.reason}) · ${NOT_JUDGED(fact.typed.length)}`]
   }
@@ -159,16 +157,37 @@ function anthropicTypedIds(): string[] {
   ]
 }
 
-function anthropicFact(name: string): ModelListFact {
+function anthropicListSource(env: NodeJS.ProcessEnv): ModelListSource {
+  const { anthropicCatalogueDoorStates, anthropicLiveUnion } =
+    require('./anthropic/anthropicCatalogue.js') as typeof import('./anthropic/anthropicCatalogue.js')
+  const doors = anthropicCatalogueDoorStates(env)
+  if (doors.length === 0) return { kind: 'no-credential' }
+  const ready = doors.filter((door): door is Extract<AnthropicDoorState, { state: 'ready' }> => door.state === 'ready')
+  if (ready.length > 0) {
+    return {
+      kind: 'list',
+      ids: anthropicLiveUnion(env).map(row => row.id),
+      fetchedAtMs: Math.max(...ready.map(door => door.fetchedAtMs)),
+    }
+  }
+  const failed = doors.find((door): door is Extract<AnthropicDoorState, { state: 'error' }> => door.state === 'error')
+  if (failed !== undefined) {
+    return { kind: 'unread', lastError: `${failed.label}: ${failed.lastError}`, lastAttemptAtMs: failed.lastAttemptAtMs }
+  }
+  return { kind: 'unread' }
+}
+
+function anthropicFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   return guarded('anthropic', name, anthropicTypedIds, () => {
     const { anthropicCredentialPresence } = require('./providerUsage.js') as typeof import('./providerUsage.js')
     const presence = anthropicCredentialPresence()
+    const list = anthropicListSource(env)
     return {
       family: 'anthropic',
       name,
-      ...(presence.credentialed ? { source: presence.credentialLabel ?? 'Anthropic credential' } : {}),
+      ...(presence.credentialed && list.kind !== 'no-credential' ? { source: presence.credentialLabel ?? 'Anthropic credential' } : {}),
       typed: anthropicTypedIds(),
-      list: { kind: 'not-read' },
+      list,
     }
   })
 }
@@ -258,7 +277,7 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
   return [
-    anthropicFact(name('anthropic')),
+    anthropicFact(name('anthropic'), env),
     openaiFact(name('openai'), env),
     zaiFact(name('zai'), env),
     moonshotFact(name('moonshot'), env),
