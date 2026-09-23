@@ -8,7 +8,6 @@ const React = await import('react')
 const { render } = await import('../../src/ink.js')
 const { SettingsStatusView } = await import('../../src/components/mercury-ui/screens/SettingsStatusView.js')
 const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.js')
-const { pushOverlay, popOverlay, reserveOverlayToken } = await import('../../src/context/overlayStack.js')
 const h = React.createElement
 let failures = 0
 let checks = 0
@@ -73,11 +72,6 @@ if (outputDir) writeFileSync(join(outputDir, 'status-100x30-last.txt'), body.fra
 for (let i = 25; i >= 0; i--) { await body.press('\x1b[A'); inspect(i, 'up') }
 await body.press('\x1b[A')
 inspect(0, 'top clamp')
-const token = reserveOverlayToken()
-pushOverlay({ id: 'fixture-overlay', token, modal: true })
-await body.press('\x1b[B')
-check('a covered body does not scroll behind a newer overlay', body.frame().includes('Fact 00'))
-popOverlay(token)
 await body.press('\x1b')
 await new Promise<void>(done => setTimeout(done, 180))
 check('escape closes through the body owner exactly once', body.closed() === 1, String(body.closed()))
@@ -131,6 +125,8 @@ check('seat setting and checkpoint facts follow their owners', changed.facts.fin
 check('the workflow row follows the focused work owner', changed.facts.find(f => f.k === 'workflow')?.v.startsWith('  workflow running') === true)
 const elsewhere = buildFacts([], model, { ...fixtureReads, telemetry: () => ({ ...fixtureReads.telemetry!(), workflowsDisk: [{ runId: 'external-fixture', status: 'running', ownerPid: process.pid, mtimeMs: Date.now() } as never] }) })
 check('a workflow running elsewhere is not misreported as idle', elsewhere.facts.find(f => f.k === 'workflow')?.v.startsWith('  workflow running elsewhere') === true)
+const view = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/screens/SettingsStatusView.tsx'), 'utf8')
+check('the body registers no overlay of its own and gates no key on the overlay top (the settings shell owns the popup, so its arrows reach the body inside the shell)', !view.includes('useRegisterOverlay') && !view.includes('isTopOverlayNow'))
 const source = readFileSync(join(import.meta.dir, '../../src/commands/status/mercuryStatus.tsx'), 'utf8')
 check('production reads the running artifact and daemon client', source.includes('describeArtifactIdentity(MACRO.VERSION)') && source.includes('getMercuryDaemonStatus()') && source.includes('daemon.controlReachable'))
 check('production reads the live branch and folder', source.includes('gitSnapshot()') && source.includes('branchName') && source.includes('basename(getCwd())'))
