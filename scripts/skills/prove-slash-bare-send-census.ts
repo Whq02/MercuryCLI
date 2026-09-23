@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const ROOT = join(import.meta.dir, '..', '..')
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'bare-census-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'bare-census-proj-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-process.env.MERCURY_BARE = '1'
+delete process.env.MERCURY_BARE
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.BROWSER = '/usr/bin/true'
@@ -47,10 +48,24 @@ const { builtinCommands, getCommands, isCommandEnabled, getCommandName } = await
 const { argumentHintOf, bareSendKindOf, bareUsageLine, requiresArgument } = await import('../../src/skills/argumentHint.ts')
 const { processSlashCommand } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
 type Command = import('../../src/types/command.ts').Command
 
+const SOURCE_ROOT = join(ROOT, 'mercury-skills')
+const generatedFrontmatter = new Map<string, { description?: string; argumentHint?: string }>()
+const asBuilt = (command: Command): Command => {
+  if (command.loadedFrom !== 'bundled') return command
+  const skillMd = join(SOURCE_ROOT, command.name, 'SKILL.md')
+  if (!existsSync(skillMd)) return command
+  const { frontmatter } = parseFrontmatter(readFileSync(skillMd, 'utf8'))
+  const description = typeof frontmatter.description === 'string' && frontmatter.description.trim() !== '' ? frontmatter.description : undefined
+  const argumentHint = typeof frontmatter['argument-hint'] === 'string' && frontmatter['argument-hint'].trim() !== '' ? frontmatter['argument-hint'] : undefined
+  generatedFrontmatter.set(command.name, { description, argumentHint })
+  return { ...command, ...(description !== undefined ? { description } : {}), ...(argumentHint !== undefined ? { argumentHint } : {}) } as Command
+}
+
 initBundledSkills()
-const bundled = getBundledSkills()
+const bundled = getBundledSkills().map(asBuilt)
 const disk = (await getCommands(PROJ)).filter(command => command.loadedFrom !== 'bundled' && command.source !== 'builtin' && ['needs-thing', 'takes-nothing', 'optional-only'].includes(command.name))
 const builtins = [...builtinCommands()]
 const seen = new Set<string>()
@@ -66,6 +81,16 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
   const kinds = new Set(roster.map(command => command.type))
   check('the roster carries the three kinds and no other', [...kinds].every(kind => kind === 'local' || kind === 'local-jsx' || kind === 'prompt'), [...kinds].join(','))
   check('the eighteen bundled skills register', bundled.length === 18, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
+  console.log(`  ${generatedFrontmatter.size} generated skills read their description and hint from mercury-skills/<name>/SKILL.md here, as the build inlines them (a .md import is not text under bun): ${[...generatedFrontmatter.keys()].join(' ')}`)
+  check('the eleven generated skills are the ones with a SKILL.md source', generatedFrontmatter.size === 11 && [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}`).join(' '))
+  const dist = join(ROOT, 'dist', 'mercury.mjs')
+  if (existsSync(dist)) {
+    const built = readFileSync(dist, 'utf8')
+    const missing = [...generatedFrontmatter.entries()].filter(([, fields]) => fields.argumentHint !== undefined && !built.includes(fields.argumentHint)).map(([name]) => name)
+    check('the built bundle carries every generated skill\'s argument hint verbatim', missing.length === 0, missing.join(' '))
+  } else {
+    console.log('  no dist/mercury.mjs beside this tree: the built bundle\'s inlined hints are read at the fold')
+  }
   check('the three fixture disk skills load', disk.length === 3, disk.map(command => command.name).join(' '))
   const width = Math.max(...roster.map(command => getCommandName(command).length))
   const bareWords: Record<string, string> = {
