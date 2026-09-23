@@ -159,10 +159,10 @@ function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   for (let r = top + 1; r < t.length && top >= 0; r++) if (t[r]![left] === '╰') { bottom = r; break }
   return { top, bottom }
 }
-function centeredLeft(g: Grid): number {
+function slotLeft(g: Grid): number {
   const header = rowWith(g, '✶ VIEW')
   const border = text(g)[header + 1] ?? ''
-  return Math.round((border.indexOf('╭') + border.lastIndexOf('╮') - 8) / 2)
+  return border.indexOf('╭') + 3
 }
 
 type Berth = { left: number; right: number; top: number; bottom: number; cardTop: number; cardBottom: number; cardLeft: number; x: number; y: number; cells: number }
@@ -189,7 +189,7 @@ function berthOf(g: Grid): Berth {
   }
 }
 const cardRows = (b: Berth): number => b.cardTop < 0 ? 0 : b.cardBottom - b.cardTop + 1
-const middleRowTop = (b: Berth): number => b.cardTop + Math.floor((cardRows(b) - 3) / 2)
+const spriteTop = (b: Berth): number => b.cardTop + Math.ceil((cardRows(b) - 3) / 2)
 
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
@@ -244,10 +244,10 @@ try {
   check('the header row ✶ VIEW stays at row 1', rowWith(boot, '✶ VIEW') === 1, `row ${rowWith(boot, '✶ VIEW')}`)
   check('the session box is five rows: border at row 2, border at row 6', bx.top === 2 && bx.bottom === 6, `top ${bx.top} bottom ${bx.bottom}`)
   let spriteDiff = 0
-  const bootLeft = centeredLeft(boot)
+  const bootLeft = slotLeft(boot)
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
-  check('the three inner rows carry the band sprite centred in the berth (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
-  check('the centred sprite cells are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀')))
+  check('the three inner rows carry the band sprite at the slot\'s left (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
+  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀')))
   const ground = boot[7]![33]!.bg
   let tintOff = 0
   for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
@@ -293,7 +293,7 @@ try {
   check('the box is five rows under the header', mx.top === midHeader + 1 && mx.bottom === midHeader + 5, `top ${mx.top} bottom ${mx.bottom}`)
   check('no row reads ⊞ SESSIONS', rowWith(midBoot, '⊞ SESSIONS') === -1)
   let midSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![centeredLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![slotLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
   const mfx = boxRows(midFull, midLeft)
   check('/critter at 120×40 flips to the eleven-row box and the strip', mfx.bottom === midHeader + 11 && rowWith(midFull, '⊞ SESSIONS') >= 0, `bottom ${mfx.bottom} strip ${rowWith(midFull, '⊞ SESSIONS')}`)
@@ -301,7 +301,7 @@ try {
 
   console.log('§7 a resize from wide to narrow and back keeps the one sprite')
   let tripDiff = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[3 + r]![centeredLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[3 + r]![slotLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
   check('wide before the resize: the box carries the band’s sprite cells', tripDiff === 0, `${tripDiff} cells differ`)
   let narrowDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripNarrow[r]![2 + col]!, band.grid[r]![2 + col]!)) narrowDiff++
@@ -331,51 +331,49 @@ try {
   check('with full, the SESSIONS bar is back at row 42', rowWith(clickFull, '⊞ SESSIONS') === 42, `row ${rowWith(clickFull, '⊞ SESSIONS')}`)
   check('a second click flips back to the slim five-row box (border at 2, border at 6) and the bar is gone', boxRows(clickMini, 31).top === 2 && boxRows(clickMini, 31).bottom === 6 && rowWith(clickMini, '⊞ SESSIONS') === -1, `top ${boxRows(clickMini, 31).top} bottom ${boxRows(clickMini, 31).bottom}`)
   let clickSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickMini[3 + r]![centeredLeft(clickMini) + col]!, band.grid[r]![2 + col]!)) clickSprite++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickMini[3 + r]![slotLeft(clickMini) + col]!, band.grid[r]![2 + col]!)) clickSprite++
   check('the slim box carries the band’s sprite cells again (27 cells)', clickSprite === 0, `${clickSprite} cells differ`)
   const savedSize = (JSON.parse(readFileSync(join(clickWorld.configHome, 'settings.json'), 'utf8')) as { critterSize?: string }).critterSize
   check('the click saved the size to the settings store (critterSize mini after the second click)', savedSize === 'mini', `critterSize ${String(savedSize)}`)
-  console.log('§11 the small critter centres without moving the working card')
+  console.log('§11 the small critter keeps the slot\'s left and the working card keeps its column')
   for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
     const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
     const border = text(idle)[rowWith(idle, '✶ VIEW') + 1]!
     const left = border.indexOf('╭')
     const bounds = boxRows(idle, left)
-    const at = centeredLeft(idle)
-    check(`${cols}×${rows}: the idle sprite is centred horizontally and vertically`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀')), `expected ${at},${bounds.top + 1}`)
+    const at = slotLeft(idle)
+    check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀')), `expected ${at},${bounds.top + 1}`)
     const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
     const b = berthOf(busy.grid)
     check(`${cols}×${rows}: work paints beside the sprite`, b.cardLeft > left && b.cells === 27, `card ${b.cardLeft}, art cells ${b.cells}`)
     check(`${cols}×${rows}: the card keeps its column`, b.cardLeft === left + 16, `card ${b.cardLeft}, expected ${left + 16}`)
-    check(`${cols}×${rows}: the busy sprite is centred in its owned slot, level with the card's middle row`, b.x === Math.round((left + b.cardLeft - 9) / 2) && b.y === middleRowTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${Math.round((left + b.cardLeft - 9) / 2)},${middleRowTop(b)}`)
+    check(`${cols}×${rows}: the busy sprite keeps the slot's left, its middle on the card's middle`, b.x === left + 3 && b.y === spriteTop(b), `sprite ${b.x},${b.y}; card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), expected ${left + 3},${spriteTop(b)}`)
   }
-  console.log('§12 a companion bubble owns its space only while painted')
+  console.log('§12 the critter never speaks: /companion tip paints no bubble beside the small sprite')
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const companion = await capture(`companion-${cols}x${rows}`, homeFor(`companion-${cols}`), cols, rows, [
       onReady('/companion tip\r', 'before-tip'),
-      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '/companion off\r', mark: 'speaking' },
-    ], 'companion off —', [], false, true)
-    const speaking = companion.marks.speaking!
-    const border = text(speaking)[rowWith(speaking, '✶ VIEW') + 1]!
+      { requireAwait: true, awaitText: 'tip —', awaitSettleTicks: 8, data: '', mark: 'after-tip' },
+    ], 'tip —', [], false, true)
+    const after = companion.marks['after-tip']!
+    const border = text(after)[rowWith(after, '✶ VIEW') + 1]!
     const left = border.indexOf('╭')
-    const bounds = boxRows(speaking, left)
-    const art = speaking.slice(bounds.top + 1, bounds.bottom).flatMap((row, r) => row.flatMap((cell, c) => cell.c === '▀' ? [[c, r + bounds.top + 1]] : []))
-    check(`${cols}×${rows}: the speech bubble stands beside the small sprite`, text(speaking).slice(bounds.top + 1, bounds.bottom).some(row => row.indexOf('╭', left + 1) >= 0) && art.length === 27)
-    check(`${cols}×${rows}: the sprite centres beside the speech bubble`, Math.min(...art.map(cell => cell[0]!)) === left + 4 && Math.min(...art.map(cell => cell[1]!)) === Math.round((bounds.top + bounds.bottom - 2) / 2))
-    const cleared = companion.grid
-    const clearBounds = boxRows(cleared, left)
-    const clearLeft = centeredLeft(cleared)
-    check(`${cols}×${rows}: removing the bubble restores the whole berth to the sprite`, clearBounds.bottom - clearBounds.top === 4 && cleared.slice(clearBounds.top + 1, clearBounds.bottom).every(row => row.slice(clearLeft, clearLeft + 9).every(cell => cell.c === '▀')))
+    const right = border.lastIndexOf('╮')
+    const bounds = boxRows(after, left)
+    const inner = text(after).slice(bounds.top + 1, bounds.bottom)
+    check(`${cols}×${rows}: the tip answers in the receipt row under the berth`, rowWith(after, 'tip —') > bounds.bottom, `receipt row ${rowWith(after, 'tip —')}, berth bottom ${bounds.bottom}`)
+    check(`${cols}×${rows}: the berth stays five rows with no bubble in it`, bounds.bottom - bounds.top === 4 && !inner.some(row => { const at = row.indexOf('╭', left + 1); return at >= 0 && at < right }), `berth ${bounds.top}..${bounds.bottom}`)
+    check(`${cols}×${rows}: the sprite keeps the slot's left column (27 cells)`, after.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(left + 3, left + 12).every(cell => cell.c === '▀')) && inner.every(row => !row.slice(left + 12, right).includes('▀')))
   }
-  console.log('§14 the sprite sits level with the thinking box’s middle row however tall the box grows')
+  console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, 6]]
     for (const [leg, verb, expectedRows] of legs) {
       const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
       const b = berthOf(shot.grid)
       check(`${cols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
-      check(`${cols}×${rows} ${leg}: the sprite’s middle row is the box’s middle row (sprite rows ${middleRowTop(b)}–${middleRowTop(b) + 2})`, b.y === middleRowTop(b), `sprite top ${b.y}, expected ${middleRowTop(b)}`)
-      check(`${cols}×${rows} ${leg}: no sprite row lies beside the box’s bottom border unless the box is three rows`, expectedRows === 3 || b.y + 2 < b.cardBottom, `sprite rows ${b.y}–${b.y + 2}, bottom border ${b.cardBottom}`)
+      check(`${cols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
+      check(`${cols}×${rows} ${leg}: no sprite row lies beside the box’s top border unless the box is three rows`, expectedRows === 3 || b.y > b.cardTop, `sprite rows ${b.y}–${b.y + 2}, top border ${b.cardTop}`)
     }
     const wide = cols + 10
     const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB[cols]!), wide, rows, [
@@ -387,8 +385,8 @@ try {
     console.log(`  ${cols}×${rows} grow: the box is ${cardRows(before)} rows at ${wide} columns and ${cardRows(after)} rows at ${cols} (sprite top ${before.y} → ${after.y})`)
     check(`${cols}×${rows} grow: at ${wide} columns the status fits one line and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
     check(`${cols}×${rows} grow: at ${cols} columns the meta stacks and the box is four rows`, cardRows(after) === 4 && after.cells === 27, `card ${after.cardTop}..${after.cardBottom} (${cardRows(after)} rows), art cells ${after.cells}`)
-    check(`${cols}×${rows} grow: the sprite stays on the box’s top three rows, its middle row on the verb line`, after.y === after.cardTop, `sprite top ${after.y}, card top ${after.cardTop}`)
-    check(`${cols}×${rows} grow: the sprite did not move when the box grew from three rows to four`, before.y === after.y && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
+    check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
+    check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
   }
   }
   console.log('§13 the companion mini keeps its neighbours in place')

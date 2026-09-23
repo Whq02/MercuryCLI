@@ -26,7 +26,7 @@ import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { BigWordmark, Sigil, Wordmark, wordmarkForm } from './mercury-ui/assets.js'
 import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterArt.js'
-import { HeroCompanionBubble, MiniCritter } from './mercury-ui/MiniCritter.js'
+import { MiniCritter } from './mercury-ui/MiniCritter.js'
 import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { cycleSessionCritter, getSessionAccent, useCritterSize, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
@@ -152,19 +152,6 @@ function MercuryHeroBody(): React.ReactNode {
             <AnimatedCritterArt def={heroDef} hero={true} />
           </Box>
         </Box>
-        {
-}
-        {companionOn && columns >= HERO_ART_COLS + 44 && !isDeckPaneActive() ? (
-          <Box
-            height={HERO_ART_LINES}
-            flexDirection="column"
-            justifyContent="center"
-            flexShrink={0}
-            paddingBottom={1}
-          >
-            <HeroCompanionBubble />
-          </Box>
-        ) : null}
       </Box>
       {
 }
