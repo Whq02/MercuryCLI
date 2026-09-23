@@ -37,6 +37,7 @@ section('N2 — the row is the drained row\'s own shape, born queued at its arri
   check('carrying the notice\'s words as its prompt', row.attachment?.prompt === NOTE)
   check('born queued', row.queued === true)
   check('at its arrival clock', row.timestamp === new Date(at).toISOString())
+  check('RED on the base: the notice keeps its arrival separately when the delivery clock changes', row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.sentAt === new Date(at).toISOString())
   check('with an identity of its own', typeof row.uuid === 'string' && row.uuid.length > 0 && row.uuid !== (notices.createNoticeRow(NOTE, at) as { uuid: string }).uuid)
 }
 

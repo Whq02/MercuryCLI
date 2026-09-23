@@ -21,7 +21,7 @@ export function createNoticeRow(value: string, atMs: number): Message {
     type: 'attachment',
     uuid: randomUUID(),
     timestamp: new Date(atMs).toISOString(),
-    attachment: { type: 'queued_command', prompt: value, commandMode: 'task-notification' },
+    attachment: { type: 'queued_command', prompt: value, commandMode: 'task-notification', sentAt: new Date(atMs).toISOString() },
     queued: true,
   } as unknown as Message
 }
