@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -153,7 +156,7 @@ try {
     check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d))
     return d.sessionId ?? ''
   }
-  const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', 'claude-opus-5')
+  const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', DEFAULT_OPUS)
   const sidB = await admit('beta probe', ground, 'reap-drive-beta', 'claude-sonnet-5')
   const liveIds = (): string[] =>
     Object.values(sup.readSessionWorkers(daemonDir))

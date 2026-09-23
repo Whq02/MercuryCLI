@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'seat-needs-you-')))
 const home = join(SCRATCH, 'home')
@@ -107,7 +110,7 @@ try {
         prompt: 'tidy the scratch folder',
         workspaceDir: cwd,
         title: N,
-        modelKey: 'claude-opus-5',
+        modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check('the session dispatched', d.ok === true && d.sessionId !== undefined, JSON.stringify(d))

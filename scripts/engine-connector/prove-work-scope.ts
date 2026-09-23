@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+
+const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'work-scope-')))
 const home = join(SCRATCH, 'home')
@@ -188,7 +191,7 @@ const SID_B = '00000000-0000-4000-8000-00000000000b'
 const SID_C = '00000000-0000-4000-8000-00000000000c'
 const SID_D = '00000000-0000-4000-8000-00000000000d'
 const baseAnswer = {
-  model: { effective: 'claude-opus-5', setting: null },
+  model: { effective: DEFAULT_OPUS, setting: null },
   usage: {
     totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0,
     totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0,
@@ -302,7 +305,7 @@ writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow
 const WORKFLOW_SCRIPT = [
   "export const meta = { name: 'scope-probe', description: 'work-scope pin', phases: [{ title: 'Probe' }] }",
   "phase('Probe')",
-  "const a = await agent('hold the probe open for a while, then reply with the word done', { model: 'claude-opus-5' })",
+  `const a = await agent('hold the probe open for a while, then reply with the word done', { model: ${JSON.stringify(DEFAULT_OPUS)} })`,
   'return { a }',
 ].join('\n')
 
@@ -370,7 +373,7 @@ try {
     return { sessionId: d.sessionId ?? '', runnerId: d.runnerId ?? '' }
   }
 
-  const A = await dispatch2('say ready', 'A', 'claude-opus-5', work)
+  const A = await dispatch2('say ready', 'A', DEFAULT_OPUS, work)
   {
     const root = join(home, 'projects')
     const aReplied = (): boolean => {
@@ -405,7 +408,7 @@ try {
     projectLabel: basename(work),
     workspaceId: title === 'A' ? work : work2,
     home: paths.getProjectDir(title === 'A' ? work : work2),
-    modelKey: title === 'A' ? 'claude-opus-5' : 'claude-sonnet-5',
+    modelKey: title === 'A' ? DEFAULT_OPUS : 'claude-sonnet-5',
   })
   const connA = await seat.focusDaemonSession(recordFor(A.sessionId, A.runnerId, 'A'))
   const rowsA = (): readonly { kind: string; status: string; name: string; phases?: readonly { agents: readonly { state: string }[] }[] }[] => connA.workRoster().rows
