@@ -31,7 +31,7 @@ section('§1 the ready line\'s tail — the second key named only while a shell 
 check('a running shell command: esc interrupts · ⇧b backgrounds · ⇧← back', bar.escBackHint(live(true), status(), true) === keyHintLabel('esc interrupts · ⇧b backgrounds · ⇧← back'), bar.escBackHint(live(true), status(), true))
 check('a plain model call: esc interrupts · ⇧← back, as shipped', bar.escBackHint(live(true), status(), false) === keyHintLabel('esc interrupts · ⇧← back'), bar.escBackHint(live(true), status(), false))
 check('the default reads as shipped (every caller that says nothing about a shell)', bar.escBackHint(live(true), status()) === keyHintLabel('esc interrupts · ⇧← back'))
-check('interrupting: esc again forces a stop · ⇧← back, the background clause gone with the interrupt rung', bar.escBackHint(live(true), status(true), true) === keyHintLabel('esc again forces a stop · ⇧← back'), bar.escBackHint(live(true), status(true), true))
+check('interrupting: esc again re-sends the interrupt · ⇧← back, the background clause gone with the interrupt rung', bar.escBackHint(live(true), status(true), true) === keyHintLabel('esc again re-sends the interrupt · ⇧← back'), bar.escBackHint(live(true), status(true), true))
 check('hard-stopping: ⇧← back alone', bar.escBackHint(live(true), status(true, true), true) === keyHintLabel('⇧← back'))
 check('idle: ⇧← back alone whatever the shell fact says', bar.escBackHint(live(false), status(), true) === keyHintLabel('⇧← back'))
 

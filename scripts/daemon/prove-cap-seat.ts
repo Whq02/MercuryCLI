@@ -342,25 +342,20 @@ try {
   check('the switch back to the Fable row lands in place', swBack.ok === true && swBack.outcome === 'applied', JSON.stringify(swBack))
   check('the record carries the Fable row again', await untilAsync(() => readRec(sid)?.modelKey === 'claude-fable-5-1', 20_000), JSON.stringify(readRec(sid)?.modelKey))
 
-  section('§5 C2 the runner cut by the hard stop: /model respawns it on the requested row')
+  section('§5 C2 the runner killed through the roster (no stop stamp): /model respawns it on the requested row')
   const before5 = mainHits().length
   const held = await say(HOLD_ASK, sid)
   check('the held ask was delivered', held.ok === true, JSON.stringify(held))
   check('the wire holds the reply open', await untilAsync(() => sinceHits(before5).some(h => h.kind === 'anthropic' && h.status === 'held'), 60_000), JSON.stringify(sinceHits(before5)))
   await sleep(400)
   const pidHeld = readRec(sid)?.pid
-  if (pidHeld !== undefined) process.kill(pidHeld, 'SIGSTOP')
-  const hard = await control('interrupt', sid, { hard: true })
-  check('the hard interrupt was delivered', hard.ok === true && hard.outcome === 'applied', JSON.stringify(hard))
-  check('the daemon cut the runner', await untilAsync(() => daemonLog().includes(`hard stop: ${readRec(sid)?.runnerId ?? '?'} still holds its turn`), 10_000), daemonLog().split('\n').slice(-8).join('\n'))
-  if (pidHeld !== undefined) {
-    try {
-      process.kill(pidHeld, 'SIGCONT')
-    } catch {
-    }
-  }
-  check('the cut runner is DEAD', await untilAsync(() => !alive(pidHeld), 10_000), `pid ${pidHeld} alive=${alive(pidHeld)}`)
-  check('the facts fell idle with it', await untilAsync(() => readFacts(sid)?.busy === false, 10_000), JSON.stringify(readFacts(sid)))
+  const runnerHeld = readRec(sid)?.runnerId ?? ''
+  const second = await control('interrupt', sid, { hard: true })
+  await sleep(1_500)
+  check('the second-press interrupt was delivered and the daemon never signalled the runner for it (alive 1.5 s on, no cut line)', second.ok === true && second.outcome === 'applied' && alive(pidHeld) && !/hard stop:/.test(daemonLog()), JSON.stringify({ second, alive: alive(pidHeld) }))
+  const killed = (await daemonControlRpc({ op: 'kill', short: runnerHeld } as never, { timeoutMs: 10_000 })) as { ok?: boolean }
+  check('the roster kill (the raw op — a kill from outside the session verbs) took', killed.ok === true, JSON.stringify(killed))
+  check('the killed runner is DEAD', await untilAsync(() => !alive(pidHeld), 10_000), `pid ${pidHeld} alive=${alive(pidHeld)}`)
   const recCut = readRec(sid)
   check('the record still stands live (no stop stamp — the session survives its runner)', recCut !== undefined && recCut.stoppedAt === undefined && recCut.endedAt === undefined, JSON.stringify(recCut))
   const sw2 = await setModel(sid, 'claude-opus-5')
@@ -372,6 +367,7 @@ try {
     return r !== undefined && r.pid !== undefined && r.pid !== pidHeld && alive(r.pid)
   }, 20_000)
   check('C2 the daemon respawned the runner (a new live pid on the same session)', respawned, JSON.stringify(readRec(sid)))
+  check('the facts read idle once the runner is back', await untilAsync(() => readFacts(sid)?.busy === false, 10_000), JSON.stringify(readFacts(sid)))
   check('C2 the record carries the requested model', readRec(sid)?.modelKey === 'claude-opus-5' && readRec(sid)?.pendingModelKey === undefined, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey }))
   const rowsBefore = transcriptRows(sid).length
   const before5b = mainHits().length

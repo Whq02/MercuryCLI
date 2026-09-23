@@ -24,6 +24,13 @@ class FixtureChild {
   closed = false
   killed = false
   failSetup = false
+  readonly listeners = new Map<string, Array<() => void>>()
+  on(event: string, listener: () => void): this {
+    const list = this.listeners.get(event) ?? []
+    list.push(listener)
+    this.listeners.set(event, list)
+    return this
+  }
   readonly page = {
     url: () => 'about:blank',
     on: () => undefined,

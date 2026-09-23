@@ -17,12 +17,15 @@ import {
   resolveBrowser,
 } from '../../services/browser/browserResolver.js'
 import {
+  BROWSER_CLOSE_BOUND_MS,
+  BROWSER_PROTOCOL_TIMEOUT_MS,
   CONSOLE_RING_CAP,
+  NAVIGATION_CAP_MS,
   activeSession,
   approveWebOrigin,
   approvedOriginList,
   browserSessionCap,
-  closeBrowserSession,
+  closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
   driverVersion,
   ensureBrowserSession,
@@ -33,6 +36,7 @@ import {
   approveSecretPairing,
   screenshotPath,
   secretPairingApproved,
+  sessionGoneAt,
 } from '../../services/browser/browserSession.js'
 import {
   BROWSER_SECRET_REF_GRAMMAR,
@@ -214,6 +218,21 @@ export type Output = {
 }
 
 const NO_SESSION = 'no open session — use op:"open" first'
+const BROWSER_GONE = 'the browser is gone (its process exited) — op:"open" starts a new one'
+
+function noSessionWords(owner: OwnerKey): string {
+  return sessionGoneAt(owner) === null ? NO_SESSION : BROWSER_GONE
+}
+
+export function driverFailureWords(op: string, message: string): string | null {
+  if (/protocolTimeout|timed out\. Increase the 'protocolTimeout'/.test(message)) {
+    return `${op}: the browser did not answer within ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s — its process may be gone; op:"close" ends the session, op:"open" starts a new one`
+  }
+  if (/Target closed|Connection closed|Session closed|Protocol error.*detached|Navigating frame was detached|browser has disconnected/i.test(message)) {
+    return `${op}: the browser is gone (its process exited mid-op) — op:"open" starts a new one`
+  }
+  return null
+}
 
 function preview(text: string, cap = 40): string {
   return text.length > cap ? `${text.slice(0, cap)}…` : text
@@ -540,7 +559,7 @@ op:"extract" (mode: "text"|"tree", selector?, offset?) — the page as readable 
 op:"console" (limit?) — the page's bounded truth ring (last ${CONSOLE_RING_CAP} entries, newest last): console logs (object arguments resolve to JSON with source location), page errors WITH their stack head, NETWORK failures and 4xx/5xx responses as kind "net" (method + path + status — query strings, headers and bodies are never recorded), navigation dividers, and dialogs. "why is this page broken" reads from here. JS dialogs (alert/confirm/prompt) are auto-DISMISSED and beforeunload auto-accepted — a dialog can never wedge the session — and each lands in the ring as kind "dialog" with its text; choosing a dialog's answer is a named deferral.
 op:"info" — current URL, title and the origin's approval state; cheap facts, no side effects.
 op:"screenshot" (fullPage?, selector?, label?) — capture the page, the full scroll height, or ONE element (selector) to a PNG artifact; the path is printed for the operator. The image itself is attached to the result only when your engine takes image input; on a text-only engine the result says the image was NOT sent and names the file (never a silent drop).
-op:"close" — end the session (the browser child is reaped; origin approvals die with the session).
+op:"close" — end the session (the browser child is reaped; origin approvals die with the session). Every op is bounded: a browser that stops answering is given ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s per protocol call and close ${BROWSER_CLOSE_BOUND_MS / 1000}s before its process is ended; a browser whose process has already exited settles every op at once — the result names it and close answers "closed (the browser was already gone)".
 
 SELECTORS: every selector door takes CSS by default, PLUS four forms the bundled driver resolves everywhere: aria/<name>[role="<role>"] (role + accessible name — the exact two fields extract mode:"tree" prints, so a tree line \`button "Save"\` is addressable as aria/Save[role="button"]; interactive tree rows print that token ready to copy; the name match is the EXACT full accessible name), text/<substring> (substring of rendered text), xpath/<expr>, and the >>> deep combinator that pierces shadow roots (my-widget >>> input). Read with extract mode:"tree", then act with the selector the tree handed you — never guess a CSS class on an app you have not read.
 
@@ -815,7 +834,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           const ringMark = s.consoleRing.length
           const response = await s.page.goto(input.url!, {
             waitUntil: input.waitUntil ?? 'load',
-            timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), 90_000),
+            timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
             signal: context.abortController?.signal,
           })
           approveWebOrigin(owner, input.url!)
@@ -844,7 +863,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'click': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -890,7 +909,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'type': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1061,7 +1080,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'scroll': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1090,7 +1109,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'waitFor': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1153,7 +1172,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'back': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1188,7 +1207,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'reload': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1201,7 +1220,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           s.nav.seen = s.nav.seq
           const reloadResponse = await s.page.reload({
             waitUntil: input.waitUntil ?? 'load',
-            timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), 90_000),
+            timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
             signal: context.abortController?.signal,
           })
           const reloadStatus =
@@ -1217,7 +1236,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'select': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1274,7 +1293,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'press': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1304,7 +1323,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'hover': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1334,7 +1353,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'viewport': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1351,12 +1370,12 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'extract': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
           const scope = input.selector ?? 'body'
-          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input)) : null
+          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), context.abortController?.signal) : null
           if ((input.mode ?? 'text') === 'text') {
             const text = root
               ? await root.evaluate(el => (el as HTMLElement).innerText)
@@ -1371,7 +1390,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'console': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1390,7 +1409,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'info': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1412,7 +1431,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         case 'screenshot': {
           const s = activeSession(owner)
           if (!s) {
-            result = NO_SESSION
+            result = noSessionWords(owner)
             outcome = 'failed'
             break
           }
@@ -1444,9 +1463,16 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           break
         }
         case 'close': {
-          const closed = await closeBrowserSession(owner)
-          result = closed ? 'session closed (browser reaped; origin approvals wiped)' : 'no open session'
-          outcome = closed ? 'succeeded' : 'no-change'
+          const closed = await closeBrowserSessionDetailed(owner)
+          result =
+            closed.outcome === 'closed'
+              ? 'session closed (browser reaped; origin approvals wiped)'
+              : closed.outcome === 'killed'
+                ? `session closed — the browser did not answer within ${BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
+                : closed.outcome === 'gone'
+                  ? 'closed (the browser was already gone)'
+                  : 'no open session'
+          outcome = closed.outcome === 'none' ? 'no-change' : 'succeeded'
           break
         }
       }
@@ -1455,7 +1481,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       result =
         e.name === 'AbortError' || context.abortController?.signal.aborted === true
           ? `${input.op} interrupted by the operator — the wait was released, nothing further was done`
-          : `${input.op} failed: ${e.message}`
+          : (driverFailureWords(input.op, String(e.message ?? e)) ?? `${input.op} failed: ${e.message}`)
       outcome = 'failed'
     }
     if (secretInPlay !== null) {

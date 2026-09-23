@@ -231,6 +231,16 @@ export function crewStillRunningLine(
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
+export type InterruptPressFacts = { interrupting: boolean } | null
+
+export function interruptReceiptLine(
+  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+  press: InterruptPressFacts,
+): string | null {
+  if (press?.interrupting === true) return null
+  return crewStillRunningLine(running)
+}
+
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
   const t = facts.tokens
   if (t === null) return null
