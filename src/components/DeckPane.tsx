@@ -58,11 +58,15 @@ import { STATE_STYLE } from './mercury-ui/theme.js'
 
 const MAX_TASKS = 4
 
+export function deckPaintsDock(cols: number): boolean {
+  return cols < 100
+}
+
 export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tok = useMercuryTokens()
   const { accent: TERRA, accentDeep: CLAW } = useSessionAccent()
   const cols = useTerminalSize().columns
-  const compact = cols < 100
+  const compact = deckPaintsDock(cols)
   const servedModel = useFocusedServedModel()
   const processModel = useMainLoopModel()
   const rawModel = servedModel ?? processModel
