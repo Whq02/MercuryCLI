@@ -153,7 +153,7 @@ async function drive(cols: number, rows: number): Promise<void> {
     check(`${tag}: with the small critter (the default) the SESSIONS bar is not painted`, design.length > 0 && !design.some(row => row.includes('⊞ SESSIONS')), JSON.stringify(design.find(row => row.includes('SESSIONS')) ?? ''))
     check(`${tag}: with no sample the SESSIONS bar is the bar of today`, idle.some(row => BAR_TODAY.test(row)), JSON.stringify(idle.find(row => row.includes('SESSIONS')) ?? ''))
     check(`${tag}: the sample takes a berth beside this session: its glyph, its name, its version`, sample.some(row => BAR_WITH_SAMPLE.test(row)), JSON.stringify(sample.find(row => row.includes('SESSIONS')) ?? ''))
-    check(`${tag}: the bar keeps one row and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('SESSIONS')).length === 1)
+    check(`${tag}: the bar keeps one row and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('⊞ SESSIONS')).length === 1, `${idle.length} vs ${sample.length} rows, ${sample.filter(row => row.includes('⊞ SESSIONS')).length} bar rows`)
   } else {
     check(`${tag}: with no sample the count line is the line of today`, LINE_TODAY.test(last(idle)), JSON.stringify(last(idle)))
     check(`${tag}: the count line gains · 1 sample`, LINE_WITH_SAMPLE.test(last(sample)), JSON.stringify(last(sample)))
