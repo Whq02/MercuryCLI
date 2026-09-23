@@ -23,6 +23,7 @@ import {
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { normalizePathForComparison } from '../../utils/file.js'
+import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import { cacheKeys, type FileStateCache } from '../../utils/fileStateCache.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import {
@@ -31,6 +32,7 @@ import {
   type InstructionsLoadReason,
   type InstructionsMemoryType,
 } from '../../utils/hooks.js'
+import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
@@ -802,8 +804,8 @@ export async function seedFileKnowledgeFromInjectedInstructions(
         if (readFileState.has(f.path)) continue
         const known = f.contentDiffersFromDisk ? (f.rawContent ?? null) : f.content
         if (known === null) continue
-        const disk = readFileSync(f.path, 'utf8')
-        if (disk !== known) continue
+        const disk = readFileSync(f.path).toString(detectEncodingForResolvedPath(f.path))
+        if (stripBOM(disk) !== known) continue
         readFileState.set(f.path, {
           content: disk,
           timestamp: Math.floor(statSync(f.path).mtimeMs),

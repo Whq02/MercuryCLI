@@ -3,6 +3,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { stripBOM } from '../utils/jsonRead.js'
 import { getAutoMemPath } from './paths.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
@@ -56,7 +57,7 @@ interface FrontmatterHead {
 
 function readHead(path: string): FrontmatterHead {
   try {
-    const lines = readFileSync(path, 'utf8').split('\n', 40)
+    const lines = stripBOM(readFileSync(path, 'utf8')).replaceAll('\r\n', '\n').split('\n', 40)
     if (lines[0] !== '---') return {}
     const out: FrontmatterHead = {}
     for (const line of lines.slice(1)) {

@@ -16,6 +16,7 @@ import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
+import { stripBOM } from './jsonRead.js'
 import { logError } from './log.js'
 import { recordFileHistorySnapshot } from './sessionStorage.js'
 
@@ -349,6 +350,15 @@ function blobMatchesRecord(blobSize: number, record: FileHistoryBackup): boolean
   return record.sourceSize === undefined || record.sourceSize === blobSize
 }
 
+function cachedSpelling(text: string): string {
+  return stripBOM(text).replaceAll('\r\n', '\n')
+}
+
+function decodeAsCached(bytes: Buffer): string {
+  const encoding = bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf16le' : 'utf8'
+  return cachedSpelling(bytes.toString(encoding))
+}
+
 async function driftedSinceLastTouch(entry: RestoreDriftEntry, filePath: string, current: Buffer): Promise<boolean> {
   let mtime: number
   try {
@@ -358,7 +368,9 @@ async function driftedSinceLastTouch(entry: RestoreDriftEntry, filePath: string,
   }
   if (mtime <= entry.timestamp) return false
   const fullView = (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
-  if (fullView || entry.isPartialView === true) return entry.content !== current.toString('utf8')
+  if (fullView || entry.isPartialView === true) {
+    return entry.content !== current.toString('utf8') && cachedSpelling(entry.content) !== decodeAsCached(current)
+  }
   return true
 }
 

@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { watch, type FSWatcher } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { resolveWatchRoot } from '../utils/watchRoot.js'
+import { resolveWatchRoot, watchDirectory } from '../utils/watchRoot.js'
 import {
   clearCommandsCache,
   getCommands,
@@ -49,7 +49,11 @@ export function useSkillsChange(
     const armFor = (dir: string): void => {
       try {
         if (existsSync(dir)) {
-          const watcher = watch(resolveWatchRoot(dir), { recursive: true }, rescan)
+          const watcher = watchDirectory(resolveWatchRoot(dir), { recursive: true }, rescan, () => {
+            if (!alive) return
+            rescan()
+            armFor(dir)
+          })
           watcher.unref?.()
           watcher.on('error', error =>
             logForDebugging(`skills watcher error: ${error}`),

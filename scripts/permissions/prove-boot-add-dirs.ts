@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 const REPO = path.resolve(import.meta.dir, '../..')
-const BUN = process.env.BUN ?? path.join(process.env.HOME ?? '', '.bun/bin/bun')
+const BUN = process.env.BUN ?? process.execPath
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -45,10 +45,10 @@ writeFileSync(
   DRIVER,
   `
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { enableConfigs } from '${REPO}/src/utils/config/globalConfig.js'
+import { enableConfigs } from ${JSON.stringify(path.join(REPO, 'src/utils/config/globalConfig.js'))}
 enableConfigs()
-const { initializeToolPermissionContext } = await import('${REPO}/src/utils/permissions/permissionSetup.js')
-const { pathInAllowedWorkingPath } = await import('${REPO}/src/utils/permissions/filesystem.js')
+const { initializeToolPermissionContext } = await import(${JSON.stringify(path.join(REPO, 'src/utils/permissions/permissionSetup.js'))})
+const { pathInAllowedWorkingPath } = await import(${JSON.stringify(path.join(REPO, 'src/utils/permissions/filesystem.js'))})
 const init = await initializeToolPermissionContext({
   allowedToolsCli: [],
   disallowedToolsCli: [],

@@ -41,7 +41,7 @@ for (const file of tsFiles(join(ROOT, 'src'))) {
       pollingSites++
       return
     }
-    if (!/chokidar\.watch\(|=\s*watch\(/.test(text)) return
+    if (!/chokidar\.watch\(|=\s*watch\(|\bwatchDirectory\(/.test(text)) return
     sites++
     if (rel.endsWith('skillChangeDetector.ts') && raw.includes('watcherFactory([...targets].map(resolveWatchRoot)')) return
     const window = lines.slice(Math.max(0, i - 24), i + 4).join('\n')

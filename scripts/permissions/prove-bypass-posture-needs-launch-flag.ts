@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const launchDir = process.cwd()
 const HOME = mkdtempSync(join(tmpdir(), 'sovereign-flag-home-'))
 const PROJ = mkdtempSync(join(tmpdir(), 'sovereign-flag-proj-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -92,6 +93,7 @@ section('§3 WIRING')
   )
 }
 
+process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 if (failures > 0) {

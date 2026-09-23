@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
@@ -68,7 +69,7 @@ function registrationPath(home: string, pid: number, id: string): string {
 async function writeAtomic(path: string, body: string): Promise<void> {
   const temp = `${path}.${process.pid}.tmp`
   await writeFile(temp, body, 'utf8')
-  await rename(temp, path)
+  await renameWithWin32Retry(temp, path)
 }
 
 export interface CockpitRegistrationHandle {
