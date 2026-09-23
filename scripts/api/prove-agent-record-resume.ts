@@ -237,6 +237,7 @@ if (lastMain1 !== undefined && firstMain2 !== undefined) {
     }
   }
   console.log(`  the main across the resume (its last request of process 1 against its first of process 2): ${parts.length === 0 ? 'system, tools and the shared rows byte-identical' : `moved in ${parts.join(', ')}`}`)
+  check('the main\'s system prompt is byte-identical across the resume although its pool moved (the sections that name tools ride the first-exchange record; RED where they render from the live pool)', systemOf(lastMain1) === systemOf(firstMain2), parts.join(', '))
   const drops = ((firstMain2.body as { messages?: unknown[] }).messages ?? []).length
   void drops
 }

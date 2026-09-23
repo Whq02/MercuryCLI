@@ -1049,6 +1049,37 @@ process.stdin.on('end', () => process.exit(0))
       await fixture.close()
     }
 
+    const bundleTree = ((): string => {
+      try {
+        return String((JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8')) as { buildTree?: unknown }).buildTree ?? 'unknown').slice(0, 8)
+      } catch {
+        return 'unknown'
+      }
+    })()
+    section(`§6e the resume road — the tool pool moves between two processes (the task tools join the resumed one) and the sections of the system prompt that name tools never rewrite: the "Using your tools" bullets ride the first exchange record (bundle tree ${bundleTree})`)
+    {
+      const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6E-T${n}`, thinking: `pool ${n}` }))
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture)
+      delete arena.env.MERCURY_TASKS
+      const SID = 'c0ffee00-0000-4000-8000-00000000c06e'
+      const r1 = await run(arena, ['-p', 'start the work', ...common, '--session-id', SID])
+      check('§6e turn 1 (the task tools off in this process) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6e the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
+      const sysA = systemTextOf(fixture.messageRequests()[0]!.body as Body)
+      check('§6e the control: the first request named no task tool in its system prompt and carried none in its tools array', !sysA.includes('TaskCreate') && !toolNamesOf(fixture.messageRequests()[0]!.body as Body).includes('TaskCreate'), `taskCreateInSystem=${sysA.includes('TaskCreate')}`)
+      arena.env.MERCURY_TASKS = '1'
+      const r2 = await run(arena, ['-p', 'carry on', ...common, '--resume', SID])
+      check('§6e turn 2 (resumed with the task tools in the pool) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      const reqs = fixture.messageRequests()
+      check('§6e two message requests', reqs.length === 2, String(reqs.length))
+      const sysB = systemTextOf(reqs[1]!.body as Body)
+      check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the "Using your tools" section never gained the work-breakdown bullet`, sysA === sysB && !sysB.includes('Break down and manage work'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}`)
+      check('§6e the resumed bound tools are byte-identical (the task tools the switch now seats are joiners held outside the bound prefix)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
+      check('§6e the API dropped no thinking block on the resumed request', bindingDropsFor(reqs[1]!.body).length === 0, `drops=${j(bindingDropsFor(reqs[1]!.body))}`)
+      await fixture.close()
+    }
+
     section("§7 the six-request proof — two admissions, apollo→flow, sub-agents off, an effort change, then a compaction: the prefix never moves until the fold; every deferral mark and the summariser's array ride frozen")
     {
       const summary = 'S7 SUMMARY needle: the session found the fetch and browser tools, switched to flow, turned sub-agents off and lowered the effort.'
