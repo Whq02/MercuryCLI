@@ -81,7 +81,10 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
   if (registered !== undefined) return unavailableCommandLine(registered)
   let near: string | undefined
   try {
-    const top = generateCommandSuggestions(`/${name}`, commands)[0]
+    const byNameAlone = commands
+      .filter(command => command.type !== 'prompt' && command.isHidden !== true)
+      .map(command => ({ ...command, description: '' }) as Command)
+    const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
     const meta = top?.metadata as Command | undefined
     if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
   } catch {
