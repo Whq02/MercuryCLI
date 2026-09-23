@@ -87,8 +87,8 @@ function kickAnthropicDoors(): void {
 }
 
 function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): ProviderUsabilityReads {
-  const fetch = opts?.fetchCatalogues === true
-  if (fetch) kickAnthropicDoors()
+  const fetchCatalogues = opts?.fetchCatalogues === true
+  if (fetchCatalogues) kickAnthropicDoors()
   return {
     anthropicApiKey: () => {
       try {
@@ -112,7 +112,7 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
         require('./credentialWall.js') as typeof import('./credentialWall.js')
       return observedCredentialWall('anthropic') === 'sign-in'
     },
-    gptSeat: () => getGptSeatAvailability(fetch ? { fetch: true } : undefined),
+    gptSeat: () => getGptSeatAvailability(fetchCatalogues ? { fetch: true } : undefined),
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
         require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
