@@ -231,6 +231,29 @@ export function crewStillRunningLine(
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
+export function crewHardStopLine(
+  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+): string | null {
+  const agents = typeof running === 'number' ? running : running.agents + running.teammates
+  const workflows = typeof running === 'number' ? 0 : running.workflows
+  const parts: string[] = []
+  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running`)
+  if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running`)
+  if (parts.length === 0) return null
+  return `hard stop — the runner is cut if the turn is still open in a second; ${parts.join(' · ')} come back with it`
+}
+
+export type InterruptPressFacts = { interrupting: boolean; hardStopping: boolean } | null
+
+export function interruptReceiptLine(
+  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+  press: InterruptPressFacts,
+): string | null {
+  if (press?.hardStopping === true) return null
+  if (press?.interrupting === true) return crewHardStopLine(running)
+  return crewStillRunningLine(running)
+}
+
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
   const t = facts.tokens
   if (t === null) return null

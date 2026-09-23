@@ -19,7 +19,7 @@ import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapsho
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import type { AgentControlReceiptV1 } from '../services/engine-connector/types.js'
-import { crewStillRunningLine } from '../services/engine-connector/crewFacts.js'
+import { crewStillRunningLine, interruptReceiptLine } from '../services/engine-connector/crewFacts.js'
 import { workCounts } from '../services/engine-connector/workCounts.js'
 import type { Message } from '../types/message.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
@@ -44,8 +44,9 @@ export function backgroundShellNotice(receipt: AgentControlReceiptV1): Notificat
 export function interruptFocusedTurn(): boolean {
   const focused = getFocusedSessionConnector()
   const running = workCounts(focused.workRoster().rows)
+  const press = hasSeatLive(focused) ? focused.status() : null
   if (!focused.interrupt()) return false
-  const line = crewStillRunningLine(running)
+  const line = press === null ? crewStillRunningLine(running) : interruptReceiptLine(running, press)
   if (line !== null) {
     const painter = focused as { addDisplayRow?: (row: Message) => void }
     if (typeof painter.addDisplayRow === 'function') painter.addDisplayRow(createSystemMessage(line, 'warning'))
