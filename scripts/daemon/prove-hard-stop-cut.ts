@@ -56,9 +56,10 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const sup = await import('../../src/daemon/concourseSupervisor.ts')
 
 const LONG_THINK_ASK = 'think long please'
-type Rec = { runnerId: string; sessionId: string; pid?: number; stoppedAt?: number; crash?: unknown; lastDeliveryAt?: number; lastTurnSettledAt?: number }
+type Rec = { runnerId: string; sessionId: string; pid?: number; stoppedAt?: number; crash?: { at: number; reason: string; respawning: boolean }; turnCutAt?: number; turnCutBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }
 const readRec = (sid: string): Rec | undefined => {
   try {
     const all = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers: Record<string, Rec> }
@@ -195,6 +196,9 @@ try {
   check('H3 the seat facts published busy:false once the child was gone', factsFell, JSON.stringify(readFacts(a.sid) ?? null))
   const after = readRec(a.sid)
   check('H4 the session survives: no stopped stamp, no crash stamp (a hard stop cuts the turn, never the session)', after !== undefined && after.stoppedAt === undefined && after.crash === undefined, JSON.stringify(after))
+  check('H4 the record says why its runner is gone: the cut stamp names the hard stop (red on the base: no stamp, and the minute reconcile then called it a crash)', after !== undefined && typeof after.turnCutAt === 'number' && after.turnCutAt >= sentAt && typeof after.turnCutBy === 'string', JSON.stringify(after))
+  const cutReason = sup.runnerRestartReasonOf(after ?? {})
+  check("H4 a relaunch of this session names the stop, never a crash (runnerRestartReasonOf answers 'stop')", cutReason === 'stop', cutReason)
 
   console.log('\nH5 the control — a runner that answers is never cut')
   const b = await openThinking('hardstop-b')

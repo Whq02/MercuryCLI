@@ -37,6 +37,7 @@ import {
   focusConcourseSession,
   grantConcourseWorkflows,
   isNewbornRecord,
+  markConcourseWorkerTurnCut,
   nextLiveCockpitOwner,
   PARK_DRAIN_CUT_REASON,
   parkAllConcourseSessions,
@@ -690,11 +691,13 @@ async function daemonRun(args: string[]): Promise<void> {
             if (delivered && hard === true && roster !== null) {
               const live = roster
               const runnerId = rec.runnerId
+              const cutBy = by
               setTimeout(() => {
                 const row = live.list().find(j => j.short === runnerId)
                 if (!seatTurnOpen(row)) return
                 // eslint-disable-next-line no-console
                 console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
+                markConcourseWorkerTurnCut(runnerId, cutBy)
                 live.kill(runnerId)
                 const t0 = Date.now()
                 const publishWhenGone = (): void => {

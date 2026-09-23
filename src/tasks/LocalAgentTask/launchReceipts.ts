@@ -41,21 +41,26 @@ export interface BackgroundLaunchReceipt {
   launchedAt: number
 }
 
-export type RunnerRestartReason = 'crash' | 'settings' | 'relaunch'
+export type RunnerRestartReason = 'crash' | 'stop' | 'settings' | 'relaunch'
 
 export function coerceRestartReason(value: unknown): RunnerRestartReason | undefined {
-  return value === 'crash' || value === 'settings' || value === 'relaunch' ? value : undefined
+  return value === 'crash' || value === 'stop' || value === 'settings' || value === 'relaunch' ? value : undefined
 }
 
-export function restartStopSummary(description: string, reason?: RunnerRestartReason): string {
-  const because =
-    reason === 'crash'
-      ? ' after a crash'
+export function restartBecause(reason?: RunnerRestartReason): string {
+  return reason === 'crash'
+    ? ' after a crash'
+    : reason === 'stop'
+      ? ' after a hard stop'
       : reason === 'settings'
         ? ' after a settings change'
         : reason === 'relaunch'
           ? ' after a relaunch'
           : ''
+}
+
+export function restartStopSummary(description: string, reason?: RunnerRestartReason): string {
+  const because = restartBecause(reason)
   return `Agent "${recordedDescription(description)}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
