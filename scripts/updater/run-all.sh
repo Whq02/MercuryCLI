@@ -16,7 +16,7 @@ fail=0
 claimed=$(cat scripts/updater-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 
 echo "── RELEASE CHANNEL — updater/installer proofs ──"
-for prover in prove-channel-core prove-status-check-agreement prove-update-provenance prove-update-installer-road prove-install-layout prove-update-cleanup-eperm prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack prove-release-targets prove-gh-timeout-live; do
+for prover in prove-channel-core prove-update-notice-newer prove-status-check-agreement prove-update-provenance prove-update-installer-road prove-install-layout prove-update-cleanup-eperm prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack prove-release-targets prove-gh-timeout-live; do
   if printf '%s\n' "$claimed" | grep -qx "$prover.ts"; then
     echo ""
     echo "· $prover runs with the updater drives (scripts/updater-drives/members.txt)"
