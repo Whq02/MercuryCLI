@@ -232,12 +232,12 @@ The session box under the `✶ VIEW` header holds the critter and, while
 a turn runs, the working row in its own capsule beside it. By default the
 small critter sits in a slim box of five rows and the SESSIONS bar is off
 the bottom of the chat, so a tall window gives the chat ten rows more. The
-small sprite sits at the left of the box, the working capsule or the
-speech bubble to its right, and level with the capsule's middle however
-tall the capsule grows (the lower of the two middle rows when the capsule
-has an even number of rows): a status that stacks or wraps onto more
-lines lengthens the capsule downwards and the sprite follows its middle.
-A speech line that arrives while a turn runs hangs under the capsule. The
+small sprite sits at the left of the box, the working capsule to its
+right, and level with the capsule's middle however tall the capsule grows
+(the lower of the two middle rows when the capsule has an even number of
+rows): a status that stacks or wraps onto more lines lengthens the capsule
+downwards and the sprite follows its middle. The critter never speaks: no
+line of its own paints beside it, idle or while a turn runs. The
 working row keeps its capsule, and the session roll-up and the bar are not
 painted. `/critter on` paints the large critter with the roll-up and the
 bar as before, `/critter off` the small one, and `/critter` alone toggles;

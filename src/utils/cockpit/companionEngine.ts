@@ -4,28 +4,17 @@ import { displayWidth } from '../../components/mercury-ui/glyphs.js'
 import { BUDDY_FRESH_MS, buddyStateFor, type BuddyState } from './buddyState.js'
 import { companionTurnSignals, resetCompanionSignals, subscribeCompanionSignals } from './companionSignals.js'
 import {
-  chooseLine,
   createDeck,
   freshVoiceState,
-  HOLDING_AFTER_MS,
-  LONG_WORK_MS,
-  maySpeak,
-  mayTip,
-  noteSettle,
-  noteSpoken,
   noteTip,
   pickTip,
-  RETURN_AFTER_MS,
-  TIP_BOOT_QUIET_MS,
   type Deck,
-  type Moment,
   type VoiceState,
 } from './companionVoice.js'
-import { MOMENT_LINES, tipBank } from './companionWords.js'
+import { tipBank } from './companionWords.js'
 import { getLiveContextUsage } from './contextUsageLive.js'
 import {
   companionDeckSeed,
-  companionQuietPreference,
   markTipSeen,
   openedSurfaceSet,
   recordCompanionMilestone,
@@ -99,8 +88,6 @@ let unsubSignals: (() => void) | null = null
 let unsubSleep: (() => void) | null = null
 let unsubClock: (() => void) | null = null
 let unsubSwitch: (() => void) | null = null
-let clockCadence: number | null = null
-let lastTypingAt = 0
 let clock: () => number = () => Date.now()
 
 const budgets = new Map<string, number>()
@@ -125,10 +112,7 @@ export function setCompanionSpeechBudget(surface: string, cells: number | null):
 }
 
 export function noteCompanionTyping(): void {
-  const now = clock()
-  lastTypingAt = now
-  if (per.lastActivityAt > 0 && now - per.lastActivityAt >= RETURN_AFTER_MS) per.returnPending = true
-  per.lastActivityAt = now
+  per.lastActivityAt = clock()
 }
 
 function ensureSessionKey(): void {
@@ -145,18 +129,11 @@ function deck(): Deck {
   return per.deck
 }
 
-function desiredCadence(mood: BuddyState, failurePending: boolean): number {
-  if (per.quip || failurePending) return 1_000
-  if ((mood === 'blocked' && !per.holdingSpoken) || !per.bootTipDone || per.returnPending) return 5_000
-  return 30_000
-}
+const CLOCK_CADENCE_MS = 30_000
 
-function armClock(mood: BuddyState, failurePending = false): void {
-  const want = desiredCadence(mood, failurePending)
-  if (clockCadence === want) return
-  unsubClock?.()
-  clockCadence = want
-  unsubClock = subscribeUiClock(want, () => recompute())
+function armClock(): void {
+  if (unsubClock !== null) return
+  unsubClock = subscribeUiClock(CLOCK_CADENCE_MS, () => recompute())
 }
 
 function emit(): void {
@@ -166,23 +143,6 @@ function emit(): void {
     } catch {
     }
   }
-}
-
-function show(text: string, kind: SpeechKind, now: number): void {
-  per.quip = { text, at: now, kind, ttl: kind === 'tip' ? TIP_MS : QUIP_MS }
-}
-
-function speak(moment: Moment, now: number, typing: boolean): boolean {
-  if (companionQuietPreference()) return false
-  if (typing && moment !== 'holding') return false
-  if (!maySpeak(per.voice, moment, now)) return false
-  const pool = MOMENT_LINES[moment].filter(l => fitsCompanionBudget(l))
-  if (pool.length === 0) return false
-  const line = chooseLine(deck(), per.voice, moment, pool)
-  if (line === null) return false
-  show(line, 'moment', now)
-  noteSpoken(per.voice, moment, line, now)
-  return true
 }
 
 function fittingTips(): ReturnType<typeof tipBank> {
@@ -199,22 +159,10 @@ function tipSignals(): { contextPct: number | null; openedSurfaces: ReadonlySet<
   return { contextPct, openedSurfaces: openedSurfaceSet() }
 }
 
-function tryTip(now: number, typing: boolean): boolean {
-  if (companionQuietPreference() || typing) return false
-  if (!mayTip(per.voice, now, per.bootedAt)) return false
-  const tip = pickTip(deck(), per.voice, fittingTips(), seenTipStamps(), tipSignals(), now)
-  if (tip === null) return false
-  show(tip.text, 'tip', now)
-  noteTip(per.voice, tip.text, now)
-  markTipSeen(tip.id, now)
-  return true
-}
-
 function recompute(): void {
   ensureSessionKey()
   const now = clock()
   const sig = companionTurnSignals()
-  const typing = now - lastTypingAt < TYPING_QUIET_MS
 
   const failFresh =
     sig.lastTurnEndedInError &&
@@ -236,17 +184,6 @@ function recompute(): void {
     now,
   )
 
-  let returned = false
-  if (sig.turnStartTs !== null && sig.turnStartTs !== per.lastTurnStartSeen) {
-    per.lastTurnStartSeen = sig.turnStartTs
-    if (per.returnPending || (per.lastActivityAt > 0 && now - per.lastActivityAt >= RETURN_AFTER_MS)) returned = true
-    per.returnPending = false
-    per.lastActivityAt = now
-  } else if (per.returnPending && !typing) {
-    returned = true
-    per.returnPending = false
-  }
-
   if (failFresh) per.sawFailThisTurn = true
   const prev = per.prevMood
   per.prevMood = mood
@@ -256,52 +193,13 @@ function recompute(): void {
     per.sawFailThisTurn = false
   }
 
-  if (returned) {
-    if (!speak('silence', now, typing)) tryTip(now, typing)
-  }
-  if (settled) {
-    const long = (sig.lastTurnDurationMs ?? 0) >= LONG_WORK_MS
-    const spoke = long ? speak('settled-long', now, typing) : false
-    noteSettle(per.voice, spoke)
-    if (long && !spoke) tryTip(now, typing)
-  }
-  if (mood === 'blocked') {
-    if (per.blockedSince === null) {
-      per.blockedSince = now
-      per.holdingSpoken = false
-    }
-    if (!per.holdingSpoken && now - per.blockedSince >= HOLDING_AFTER_MS) {
-      per.holdingSpoken = true
-      speak('holding', now, typing)
-    }
-  } else {
-    per.blockedSince = null
-  }
-  const failurePending = mood === 'sad' && sig.lastTurnErrorTs !== null && per.failureSpokenAt !== sig.lastTurnErrorTs
-  if (failurePending && speak('failure', now, typing)) per.failureSpokenAt = sig.lastTurnErrorTs
-  if (!per.bootTipDone && now - per.bootedAt >= TIP_BOOT_QUIET_MS && !sig.turnLive && !typing) {
-    per.bootTipDone = true
-    if (per.quip === null) tryTip(now, typing)
-  }
-
-  if (per.quip && now - per.quip.at > per.quip.ttl) per.quip = null
-
   const pose = toCritterState(mood)
-  const changed =
-    snapshot.mood !== mood ||
-    snapshot.pose !== pose ||
-    (snapshot.quip?.text ?? null) !== (per.quip?.text ?? null) ||
-    (snapshot.quip?.at ?? 0) !== (per.quip?.at ?? 0)
+  const changed = snapshot.mood !== mood || snapshot.pose !== pose
   if (changed) {
-    snapshot = {
-      mood,
-      pose,
-      quip: per.quip ? { ...per.quip } : null,
-      version: snapshot.version + 1,
-    }
+    snapshot = { mood, pose, quip: null, version: snapshot.version + 1 }
     emit()
   }
-  if (listeners.size > 0) armClock(mood, failurePending)
+  if (listeners.size > 0) armClock()
 }
 
 export function requestCompanionTip(): string | null {
@@ -309,10 +207,8 @@ export function requestCompanionTip(): string | null {
   const now = clock()
   const tip = pickTip(deck(), per.voice, fittingTips(), seenTipStamps(), tipSignals(), now, true)
   if (tip === null) return null
-  show(tip.text, 'tip', now)
   noteTip(per.voice, tip.text, now)
   markTipSeen(tip.id, now)
-  recompute()
   return tip.text
 }
 
@@ -331,7 +227,7 @@ export function subscribeCompanionEngine(cb: () => void): () => void {
     unsubSleep = subscribeCritterSleep(() => recompute())
     unsubSwitch = onSessionSwitch(() => recompute())
     recompute()
-    armClock(snapshot.mood)
+    armClock()
   }
   return () => {
     listeners.delete(cb)
@@ -344,7 +240,6 @@ export function subscribeCompanionEngine(cb: () => void): () => void {
       unsubSwitch = null
       unsubClock?.()
       unsubClock = null
-      clockCadence = null
     }
   }
 }
@@ -381,7 +276,6 @@ export function resetCompanionEngineForTests(): void {
   per = freshSessionState(clock())
   parked.clear()
   sessionKey = ''
-  lastTypingAt = 0
   budgets.clear()
   snapshot = { mood: 'idle', pose: toCritterState('idle'), quip: null, version: snapshot.version + 1 }
   emit()

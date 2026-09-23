@@ -51,7 +51,6 @@ import { FilesMenuSlot } from './FilesMenuSlot.js'
 import { PinnedCritterBerth, berthCritterCols } from './MercuryHome.js'
 import { useCritterSize } from './mercury-ui/sessionAccent.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
-import { BerthCompanionLine } from './mercury-ui/MiniCritter.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
 import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
 import type {
@@ -338,7 +337,6 @@ export function FullscreenLayout({
   const { chrome, isCompact } = useLayoutChrome()
   const [compactFooterNotice, setCompactFooterNotice] = useState(0)
   const critterMini = useCritterSize() === 'mini'
-  const berthSpeechBelow = critterMini && !!statusBandActive
   const bandRows = isCompact ? compactBandRows(columns, rows) : 0
   const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows - bandRows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, bandRows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
@@ -571,45 +569,38 @@ export function FullscreenLayout({
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (
                       <Box
-                        flexDirection="column"
+                        flexDirection="row"
                         flexShrink={0}
                         width={sizeVal.columns}
                         borderStyle="round"
                         borderColor={t.borderStrong}
                         paddingX={1}
+                        gap={1}
                       >
-                        <Box flexDirection="row" gap={1}>
-                          <Box
-                            flexDirection="column"
-                            flexShrink={0}
-                            width={critterMini ? CR_COLS : undefined}
-                            justifyContent={critterMini ? 'center' : undefined}
-                          >
-                            <PinnedCritterBerth />
-                          </Box>
-                          <Box
-                            flexDirection="column"
-                            flexGrow={1}
-                            minWidth={0}
-                            justifyContent="center"
-                          >
-                            <WorkCapsule
-                              active={!!statusBandActive}
-                              width={
-                                sizeVal.columns - 4 - 1 -
-                                berthCritterCols(sizeVal.columns, sizeVal.rows)
-                              }
-                            >
-                              {statusBand}
-                            </WorkCapsule>
-                            {berthSpeechBelow ? null : <BerthCompanionLine />}
-                          </Box>
+                        <Box
+                          flexDirection="column"
+                          flexShrink={0}
+                          width={critterMini ? CR_COLS : undefined}
+                          justifyContent={critterMini ? 'center' : undefined}
+                        >
+                          <PinnedCritterBerth />
                         </Box>
-                        {berthSpeechBelow ? (
-                          <Box paddingLeft={CR_COLS + 1}>
-                            <BerthCompanionLine />
-                          </Box>
-                        ) : null}
+                        <Box
+                          flexDirection="column"
+                          flexGrow={1}
+                          minWidth={0}
+                          justifyContent="center"
+                        >
+                          <WorkCapsule
+                            active={!!statusBandActive}
+                            width={
+                              sizeVal.columns - 4 - 1 -
+                              berthCritterCols(sizeVal.columns, sizeVal.rows)
+                            }
+                          >
+                            {statusBand}
+                          </WorkCapsule>
+                        </Box>
                       </Box>
                     ) : null}
                     <TerminalSizeContext.Provider value={transcriptSize}>

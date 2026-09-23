@@ -84,11 +84,7 @@ section('1. companion gate — env pin > persisted /companion toggle > ON')
   )
   const home2 = src('src', 'components', 'MercuryHome.tsx')
   check('sub-hero mini yields when the deck pane owns the creature', /companionOn && !isDeckPaneActive\(\) && rows >= 10[\s\S]{0,200}<MiniCritter/.test(home2))
-  check('hero mounts the speech bubble behind the gate', /companionOn[\s\S]{0,800}<HeroCompanionBubble \/>/.test(home2))
-  check(
-    'hero bubble yields to the dock voice (one voice on screen)',
-    /companionOn && columns >= HERO_ART_COLS \+ 44 && !isDeckPaneActive\(\)/.test(home2),
-  )
+  check('the hero mounts no speech bubble (the critter never speaks)', !/HeroCompanionBubble/.test(home2))
 }
 
 section('2. companionSignals — edges, dedupe, notify')
@@ -227,16 +223,16 @@ section('6. renderScenarios pins the row off')
   )
 }
 
-section('7. cockpit berth mounts the companion + idle presence')
+section('7. the cockpit berth carries no speech line')
 {
   const mini = src('src', 'components', 'mercury-ui', 'MiniCritter.tsx')
-  check('MiniCritter exports the self-gating BerthCompanionLine', /export function BerthCompanionLine/.test(mini))
   check(
-    'HeroCompanionBubble is SILENT when idle (no name tag beside the critter — operator ruling; the mascot stands alone)',
+    'HeroCompanionBubble paints nothing without a line (no name tag beside the critter — the mascot stands alone)',
     /if \(!line\) \{\s*return null\s*\}/.test(mini) && !/\{c\.critter\.name\}/.test(mini),
   )
   const layout = src('src', 'components', 'FullscreenLayout.tsx')
-  check('FullscreenLayout mounts BerthCompanionLine in the berth card', /<BerthCompanionLine \/>/.test(layout))
+  check('FullscreenLayout mounts no companion line in the berth card (the critter never speaks)', !/BerthCompanionLine/.test(layout))
+  check('the berth card is the pinned critter and the working capsule', /<PinnedCritterBerth \/>[\s\S]{0,900}<WorkCapsule/.test(layout))
 }
 
 console.log('\n============================================================')

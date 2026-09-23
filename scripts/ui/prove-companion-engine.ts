@@ -18,7 +18,6 @@ const {
   noteCompanionTyping,
 } = await import('../../src/utils/cockpit/companionEngine.js')
 const { LONG_WORK_MS, HOLDING_AFTER_MS, VOICE_COOLDOWN_MS } = await import('../../src/utils/cockpit/companionVoice.js')
-const { MOMENT_LINES } = await import('../../src/utils/cockpit/companionWords.js')
 const { setCompanionQuiet } = await import('../../src/utils/cockpit/critterProfile.js')
 const { switchSession } = await import('../../src/bootstrap/state.js')
 
@@ -42,8 +41,6 @@ const turn = (liveMs: number, awaitingPermission = false): void => {
   publishCompanionTurnAt({ turnLive: false, streaming: false, awaitingPermission: false }, now)
   recomputeCompanionForProofs()
 }
-const isSettledLine = (text: string | undefined): boolean => text !== undefined && MOMENT_LINES['settled-long'].includes(text)
-const isHoldingLine = (text: string | undefined): boolean => text !== undefined && MOMENT_LINES.holding.includes(text)
 const { TIP_BOOT_QUIET_MS } = await import('../../src/utils/cockpit/companionVoice.js')
 const settleBoot = (): void => {
   tick(TIP_BOOT_QUIET_MS + 1_000)
@@ -71,11 +68,10 @@ resetCompanionSignals()
   tick(20_000)
   turn(LONG_WORK_MS + 1_000)
   const long = companionEngineSnapshot()
-  check('§2 a LONG settle speaks one settled-long line', long.mood === 'done' && isSettledLine(long.quip?.text), long.quip?.text)
-  const textAtA = long.quip?.text
+  check('§2 a LONG settle is silent too (the critter never speaks; the mood still settled)', long.mood === 'done' && long.quip === null, long.quip?.text)
   unsubB()
   const unsubC = subscribeCompanionEngine(() => {})
-  check('§2 a NEW subscriber (different mount order) sees the SAME line', companionEngineSnapshot().quip?.text === textAtA)
+  check('§2 a NEW subscriber (different mount order) sees the SAME silent snapshot', companionEngineSnapshot() === long && companionEngineSnapshot().quip === null)
   tick(20_000)
   turn(LONG_WORK_MS + 1_000)
   check('§2 the NEXT long settle is silent (consecutive settles never both speak)', companionEngineSnapshot().quip === null, companionEngineSnapshot().quip?.text)
@@ -103,8 +99,7 @@ resetCompanionSignals()
   noteCompanionTyping()
   tick(6_000)
   const held = companionEngineSnapshot()
-  check('§3 past the threshold the hold speaks through typing', held.mood === 'blocked' && isHoldingLine(held.quip?.text), held.quip?.text)
-  const firstHoldAt = held.quip?.at ?? 0
+  check('§3 past the threshold the hold is silent too (the mood reads blocked, no line)', held.mood === 'blocked' && held.quip === null, held.quip?.text)
   publishCompanionTurnAt({ turnLive: true, streaming: false, awaitingPermission: false }, now)
   recomputeCompanionForProofs()
   tick(1_000)
@@ -112,7 +107,7 @@ resetCompanionSignals()
   recomputeCompanionForProofs()
   tick(HOLDING_AFTER_MS + 1_000)
   const again = companionEngineSnapshot()
-  check('§3 a re-hold inside the cooldown adds no second line', (again.quip?.at ?? 0) === firstHoldAt || again.quip === null)
+  check('§3 a re-hold adds no line either', again.mood === 'blocked' && again.quip === null, again.quip?.text)
   unsub()
 }
 
