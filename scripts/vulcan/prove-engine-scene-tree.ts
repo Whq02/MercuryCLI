@@ -184,8 +184,14 @@ if (!executable.resolved) {
     const job = submitted(await realService.submit(profileRequest(real, { settleFrames: 600, sampleFrames: 6000 })))
     const road = await until(() => realService.queryRoad(job.id)?.kind, kind => kind === 'debugger' || kind === 'none', 90_000)
     check('the real headless profile worker connects and says hello', road === 'debugger', road)
-    const answer = await query(real, 'engine_scene_tree', { instance: job.id, depth: 3 })
-    const subject = answer.result?.children?.find((n: any) => n.script === 'res://tests/debugger_hot.gd')
+    const subjectOf = (tree: Awaited<ReturnType<typeof query>>) => tree.result?.children?.find((n: any) => n.script === 'res://tests/debugger_hot.gd')
+    let answer = await query(real, 'engine_scene_tree', { instance: job.id, depth: 3 })
+    const subjectDeadline = Date.now() + 8000
+    while (subjectOf(answer) === undefined && Date.now() < subjectDeadline) {
+      await new Promise(resolve => setTimeout(resolve, 250))
+      answer = await query(real, 'engine_scene_tree', { instance: job.id, depth: 3 })
+    }
+    const subject = subjectOf(answer)
     check('the real engine answers its live scene tree during the measurement boot: the root window, the tour subject with its script, and the bodies it made', answer.ok === true && answer.source === 'engine debugger' && answer.result?.name === 'root' && answer.result.type === 'Window' && subject !== undefined && (subject.children?.some((n: any) => n.type === 'RigidBody2D') || subject.children_count > 0), { root: answer.result?.name, subject: subject && { name: subject.name, script: subject.script, children: subject.children?.length ?? subject.children_count } })
     const version = realService.queryRoad(job.id)
     check('the connected engine is named with its version', version?.kind === 'debugger' && (version.profile.engine as { major?: number })?.major === 4, version?.kind === 'debugger' ? version.profile.engine : version)
