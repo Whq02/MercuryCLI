@@ -114,7 +114,6 @@ reg(
     'src/components/mercury-ui/parity/AccountView.tsx',
     'src/components/mercury-ui/parity/HarnessView.tsx',
     'src/components/mercury-ui/parity/RealmsView.tsx',
-    'src/components/mercury-ui/screens/SettingsStatusView.tsx',
     'src/components/mercury-ui/SessionTabs.tsx',
     'src/components/samples/SamplesListView.tsx',
   ],
@@ -135,6 +134,7 @@ reg(
   [
     'src/components/ScrollKeybindingHandler.tsx',
     'src/components/VirtualMessageList.tsx',
+    'src/components/mercury-ui/screens/SettingsStatusView.tsx',
   ],
   'scroll-owner',
 )

@@ -60,11 +60,10 @@ console.log('A — the retention numbers come from the estate\'s own owners, exa
   check("the sweep's cutoff DERIVES from the one window owner (no second derivation in cleanup.ts)", /Date\.now\(\) - retentionWindowDays\(\)/.test(read('src/utils/cleanup.ts')))
 
   const status = read('src/commands/status/mercuryStatus.tsx')
-  check('/status reads THESE owners (transcriptCensus · recordingsUnderSweep · retentionWindowDays imported)', status.includes('transcriptCensus') && status.includes('recordingsUnderSweep') && status.includes('retentionWindowDays'))
+  check('/status no longer walks the retention estate on open', !status.includes('transcriptCensus') && !status.includes('recordingsUnderSweep') && !status.includes('retentionWindowDays'))
   check('POISON: /status is never a second counter (no directory read of its own)', !/readdir/i.test(status))
-  check("/status speaks the law's words for transcripts (kept for good)", status.includes('kept for good'))
   const view = read('src/components/mercury-ui/screens/SettingsStatusView.tsx')
-  check('the retention block paints on the ONE status surface (its own header, no second surface, no fs in the view)', view.includes('>Retention</SectionHeader>') && !view.includes('node:fs'))
+  check('the snapshot body has no retention block or filesystem reader', !view.includes('Retention') && !view.includes('node:fs'))
 }
 
 console.log("B — the frozen offer is the honest set; the door unlinks exactly it and nothing else")
