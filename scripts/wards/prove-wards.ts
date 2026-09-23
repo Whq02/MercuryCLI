@@ -405,6 +405,10 @@ async function main(): Promise<void> {
     check('the ten moved shapes keep their ids', MOVED.every(n => names.has(n)), MOVED.filter(n => !names.has(n)).join(','))
     check('the six machine-destroying shapes are named', ADDED.every(n => names.has(n)), ADDED.filter(n => !names.has(n)).join(','))
     check('every refusal rule is marked as one and carries a sentence', REFUSAL_WARDS.every(r => r.refusal === true && r.teach.length > 0 && r.skipCommentLines === false))
+    const selfDaemonize = REFUSAL_WARDS.find(r => r.name === 'self-daemonize')
+    check("the self-daemonize refusal names the sanctioned road: a long command runs with the Bash tool's run_in_background flag", selfDaemonize !== undefined && selfDaemonize.teach.includes("a long command runs with the Bash tool's run_in_background flag"), selfDaemonize?.teach)
+    const daemonVerdict = evaluateWards(REFUSAL_WARDS, bash('nohup bash with-box-lock.sh build bun run build.ts > build.log 2>&1 &'))
+    check('…and the denial the model reads carries that road, then the closing sentence', !daemonVerdict.allow && buildWardDenial(daemonVerdict, 'Bash').includes(`run_in_background flag. ${CLOSING}`), daemonVerdict.allow ? 'allowed' : buildWardDenial(daemonVerdict, 'Bash'))
     const shapes: Array<[string, Call]> = [
       ['npm-exec-yes', bash('npx -y unreviewed-pkg --run')],
       ['git-install-sha', bash('pip install git+https://example.com/x/y@deadbeef1234567')],
