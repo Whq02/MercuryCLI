@@ -345,23 +345,6 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
   }
 }
 
-export function markConcourseWorkerTurnCut(runnerId: string, by: string, dir?: string): boolean {
-  let stamped = false
-  try {
-    updateConcourseWorkers(workers => {
-      const rec = workers[runnerId]
-      if (!rec || rec.endedAt !== undefined) return
-      rec.turnCutAt = Date.now()
-      rec.turnCutBy = by
-      delete rec.crash
-      stamped = true
-    }, dir)
-  } catch {
-    stamped = false
-  }
-  return stamped
-}
-
 export function turnCutStanding(rec: Pick<ConcourseWorkerRecordV1, 'turnCutAt'>): boolean {
   return rec.turnCutAt !== undefined
 }
@@ -1442,6 +1425,11 @@ export function reconcileConcourseWorkers(
           }
         }
       }
+      if (rec.stopRequestedAt !== undefined && !rosterLiveShorts.has(rec.runnerId) && !workerPidAlive(rec)) {
+        stampStopped(rec, rec.stopRequestedBy ?? 'daemon:reconcile', rec.stopRequestedRetired)
+        receipt.live.push(rec.runnerId)
+        continue
+      }
       if (rec.attachedAt !== undefined || rec.stoppedAt !== undefined || turnCutStanding(rec)) {
         receipt.live.push(rec.runnerId)
         continue
@@ -2100,6 +2088,8 @@ export function stopConcourseSession(
       if (rec.stopRequestedAt === undefined) {
         rec.stopRequestedAt = Date.now()
         rec.stopRequestedBy = by
+        rec.turnCutAt = rec.stopRequestedAt
+        rec.turnCutBy = by
         if (retired !== undefined) rec.stopRequestedRetired = retired
       }
       out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: false }

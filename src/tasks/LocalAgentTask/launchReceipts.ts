@@ -53,7 +53,7 @@ export function restartBecause(reason?: RunnerRestartReason): string {
   return reason === 'crash'
     ? ' after a crash'
     : reason === 'stop'
-      ? ' after a hard stop'
+      ? ' after a stop'
       : reason === 'settings'
         ? ' after a settings change'
         : reason === 'relaunch'
@@ -219,7 +219,7 @@ export type RestartCarryCounts = { relaunched: number; delivered: number; stoppe
 export { RESTART_CARRY_ROW_PREFIX }
 
 export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
-  const because = reason === 'stop' ? 'after the turn was cut' : 'after a crash'
+  const because = reason === 'stop' ? 'after a stop' : 'after a crash'
   return `${RESTART_CARRY_ROW_PREFIX}${because}: ${counts.relaunched} background agents relaunched, ${counts.delivered} delivered from their receipts, ${counts.stopped} stopped`
 }
 

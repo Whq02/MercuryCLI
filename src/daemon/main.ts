@@ -37,7 +37,6 @@ import {
   focusConcourseSession,
   grantConcourseWorkflows,
   isNewbornRecord,
-  markConcourseWorkerTurnCut,
   nextLiveCockpitOwner,
   PARK_DRAIN_CUT_REASON,
   parkAllConcourseSessions,
@@ -55,11 +54,9 @@ import {
   controlSessionAgent,
   onSeatLine,
   onSeatSpawned,
-  publishSeatFacts,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
-  seatTurnOpen,
   setSessionEffort,
   setSessionKitDial,
   setSessionModel,
@@ -689,43 +686,9 @@ async function daemonRun(args: string[]): Promise<void> {
                   request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
                 }),
               )
-            if (delivered && hard === true && roster !== null) {
-              const live = roster
-              const runnerId = rec.runnerId
-              const cutBy = by
-              setTimeout(() => {
-                const row = live.list().find(j => j.short === runnerId)
-                if (!seatTurnOpen(row)) return
-                // eslint-disable-next-line no-console
-                console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
-                markConcourseWorkerTurnCut(runnerId, cutBy)
-                live.kill(runnerId)
-                const t0 = Date.now()
-                const publishWhenGone = (): void => {
-                  const after = live.list().find(j => j.short === runnerId)
-                  if (after !== undefined && !after.outcome && Date.now() - t0 < 5_000) {
-                    setTimeout(publishWhenGone, 100).unref()
-                    return
-                  }
-                  publishSeatFacts(runnerId, undefined, live)
-                  if (after === undefined || !after.outcome) return
-                  const cutRecord = readSessionWorkers()[runnerId]
-                  if (cutRecord === undefined || cutRecord.endedAt !== undefined || cutRecord.focusedAt === undefined) return
-                  const revived = reviveConcourseWorker(sessionId, cutBy, live)
-                  if (revived.outcome === 'applied') onSeatSpawned(revived.runnerId, live)
-                  // eslint-disable-next-line no-console
-                  console.error(
-                    revived.outcome === 'applied'
-                      ? `[daemon] hard stop: ${runnerId} relaunched at once for the focused seat (pid ${String(revived.pid ?? '?')}; its runner comes back saying the turn was cut)`
-                      : `[daemon] hard stop: ${runnerId} not relaunched — ${revived.outcome} (${'reason' in revived ? revived.reason : ''})`,
-                  )
-                }
-                publishWhenGone()
-              }, 1_000).unref()
-            }
             return settle(
               delivered
-                ? { outcome: 'applied' as const, detail: `${hard === true ? 'hard stop' : 'interrupt'} ${rec.runnerId}` }
+                ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` }
                 : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
             )
           }

@@ -74,7 +74,7 @@ const messages = (...m: Msg[]): never => m as never
   check("a crash restart names the crash", deadWatchLine(receipt, 'crash').includes("did not survive the runner's restart after a crash"), deadWatchLine(receipt, 'crash'))
   check('a settings restart names the settings change', deadWatchLine(receipt, 'settings').includes("did not survive the runner's restart after a settings change"))
   check('a relaunch names the relaunch', deadWatchLine(receipt, 'relaunch').includes("did not survive the runner's restart after a relaunch"))
-  check('a hard stop names the hard stop, never a crash (red on the base: the reason was unknown there)', deadWatchLine(receipt, 'stop').includes("did not survive the runner's restart after a hard stop") && !deadWatchLine(receipt, 'stop').includes('crash'))
+  check('a stop names the stop, never a crash (red on the base: the reason was unknown there)', deadWatchLine(receipt, 'stop').includes("did not survive the runner's restart after a stop") && !deadWatchLine(receipt, 'stop').includes('crash'))
   check('the line is one line', !line.includes('\n'))
   const block = monitorNoticeBlock('t1', DESC, 'x')
   check("the block is the tool's own notification shape", block === `<monitor task="t1" name="${DESC}">\nx\n</monitor>`, block)

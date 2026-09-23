@@ -31,7 +31,7 @@ const DONE_REPLY = 'the finished child left its receipt'
 const RELAUNCH_REPLY = 'the relaunched child finished its work'
 const PARENT_DONE = 'both helpers are launched'
 const CRASH_ROW = 'runner restarted after a crash: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
-const STOP_ROW = 'runner restarted after the turn was cut: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
+const STOP_ROW = 'runner restarted after a stop: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
 const HANG_MS = 600_000
 
 type Block = { type?: string; id?: string; name?: string; input?: { description?: unknown }; tool_use_id?: string; content?: unknown; text?: string }
@@ -194,7 +194,7 @@ cpSync(crashHome, stopHome, { recursive: true })
 cpSync(crashHome, plainHome, { recursive: true })
 
 async function carriedLeg(home: string, reason: 'crash' | 'stop', row: string): Promise<void> {
-  tally.section(reason === 'crash' ? 'a restart after a crash carries everything: the finished one delivered from its receipt, the running one relaunched (its stop notice held back), the operator\'s line re-queued, one row' : 'a restart after a hard stop carries the same, and its row says the turn was cut')
+  tally.section(reason === 'crash' ? 'a restart after a crash carries everything: the finished one delivered from its receipt, the running one relaunched (its stop notice held back), the operator\'s line re-queued, one row' : 'a restart after a stop (the roster killed the runner on a stop road) carries the same, and its row says the stop')
   stage = 'restart'
   const from = queueJournal(join(home, 'projects')).length
   const startedAt = Date.now()

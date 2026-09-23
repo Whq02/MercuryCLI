@@ -75,7 +75,7 @@ export function escRungHint(rung: EscRungV1): string {
     case 'in-flight':
       return 'esc interrupts'
     case 'interrupting':
-      return 'esc again forces a stop'
+      return 'esc again re-sends the interrupt'
     default:
       return ''
   }

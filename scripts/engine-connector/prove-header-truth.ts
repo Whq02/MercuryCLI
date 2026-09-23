@@ -90,7 +90,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, teammates: 0, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 agents')
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
-  check('the hard stop outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'stopping — the runner is cut if the turn is still open in a second')
+  check('the second press outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'interrupting again — the request is torn down once more; x on its row stops the runner')
   const fixed = 2 + stringWidth('a chat') + stringWidth(' · proj') + 3 + 2 + stringWidth('esc interrupts · ⇧← back')
   const both = 'agents thought for 28m · workflow thought for 12m'
   for (const cols of [100, 110, 120]) {
