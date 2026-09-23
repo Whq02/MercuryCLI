@@ -60,3 +60,37 @@ assert.equal(warnings.usageWarningNoticeText('Anthropic: 90% of the weekly limit
 const attachment = readFileSync(new URL('../../src/utils/messages/attachmentText.ts', import.meta.url), 'utf8')
 assert.match(attachment, /usageWarningNoticeText\(attachment\.text, attachment\.pct\)/)
 console.log('PASS warning tiers, words-only postures and one context notice per tier')
+
+console.log('RED on the base: the bare 36% latch beats the quiet meter and the time-relative table remains')
+const { computeNewLimitsFromHeaders } = await import('../../src/services/claudeAiLimits.ts')
+for (const pct of [36, 81]) {
+  const header = {
+    ...limits,
+    status: 'allowed_warning' as const,
+    rateLimitType: 'seven_day' as const,
+    utilization: pct / 100,
+    resetsAt: reset,
+  }
+  const facts = warnings.providerLimitWarningFacts({ model: 'fable', reads: { ...reads(pct), anthropicLimits: () => header } })
+  const card = observedFamilyWindow('anthropic', {
+    anthropic: () => ({ status: header.status, observed: true, usedPct: pct, resetsAtMs: reset * 1000, windowName: 'weekly limit' }),
+    anthropicWindows: () => [window(pct)],
+    anthropicPools: () => [],
+  }, { model: 'fable' })
+  assert.equal(card.state, pct < 80 ? 'allowed' : 'warning')
+  assert.equal(facts !== null, card.state === 'warning')
+  assert.equal(computeNewLimitsFromHeaders(new Headers({
+    'anthropic-ratelimit-unified-status': 'allowed_warning',
+    'anthropic-ratelimit-unified-7d-utilization': String(pct / 100),
+    'anthropic-ratelimit-unified-7d-reset': String(reset),
+    'anthropic-ratelimit-unified-7d-surpassed-threshold': '0.25',
+  })).status, pct < 80 ? 'allowed' : 'allowed_warning')
+}
+assert.equal(computeNewLimitsFromHeaders(new Headers({
+  'anthropic-ratelimit-unified-status': 'allowed_warning',
+  'anthropic-ratelimit-unified-reset': String(reset),
+  'anthropic-ratelimit-unified-representative-claim': 'seven_day',
+})).status, 'allowed')
+const decoder = readFileSync(new URL('../../src/services/claudeAiLimits.ts', import.meta.url), 'utf8')
+assert.ok(!decoder.includes('TIME_RELATIVE_CONFIGS') && !decoder.includes('elapsedFraction'))
+console.log('PASS the card and strip follow the number; a bare warning is quiet')

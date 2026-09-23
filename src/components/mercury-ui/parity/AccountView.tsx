@@ -346,7 +346,7 @@ export function AccountView({
         const ceiling = familySigninCeiling(group.family.id)
         const health = usabilityFor(group.family.id)
         const healthLine =
-          health === undefined || (health.usable && health.limit !== 'allowed_warning')
+          health === undefined || (health.usable && (require('../../../services/capFailover.js') as typeof import('../../../services/capFailover.js')).observedFamilyWindow(group.family.id).state !== 'warning')
             ? null
             : health.usable
               ? 'usage window warning — /usage shows the reset'

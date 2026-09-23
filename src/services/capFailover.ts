@@ -255,6 +255,7 @@ export interface FamilyWindowReads {
     observed: boolean
     resetsAtMs?: number
     windowName?: string
+    usedPct?: number
   }
   anthropicWindows?: () => UsageWindowView[]
   anthropicPools?: () => UsageWindowView[]
@@ -288,6 +289,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return {
         status: current.status,
         observed: limits.claudeWindowObserved(),
+        ...(current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
         ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
         ...(current.rateLimitType !== undefined
           ? { windowName: limits.getRateLimitDisplayName(current.rateLimitType) }
@@ -356,7 +358,6 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
     : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
 }
 
-const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
 
 function bindingWindowOfSeat(
   model: string | null | undefined,
@@ -387,42 +388,31 @@ export function observedFamilyWindow(
     const now = r.now()
     if (family === 'anthropic') {
       const a = r.anthropic()
-      if (!a.observed) return unknown
-      const windowName = a.windowName ?? 'usage window'
       const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools)
-      const bindingLive =
-        binding !== undefined &&
-        binding.window.usedPct !== undefined &&
+      const bindingLive = binding !== undefined && binding.window.usedPct !== undefined &&
+        Number.isFinite(binding.window.usedPct) &&
         (binding.window.resetsAtMs === undefined || binding.window.resetsAtMs > now)
-      const bindingPct = bindingLive ? (binding.window.usedPct as number) : undefined
-      const latch: FamilyWindowFact = ((): FamilyWindowFact => {
-        if (a.status === 'rejected' || a.status === 'allowed_warning') {
-          if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
-            return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
-          }
-          return {
-            family,
-            state: a.status === 'rejected' ? 'rejected' : 'warning',
-            basis: 'observed',
-            ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
-            windowName,
-            ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}),
-          }
-        }
-        return { family, state: 'allowed', basis: 'observed', ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}) }
-      })()
-      if (!bindingLive || binding === undefined || bindingPct === undefined) return latch
-      const bindingState = usageWindowState(bindingPct)
-      const bindingFact: FamilyWindowFact = {
-        family,
-        state: bindingState,
-        basis: 'observed',
-        ...(binding.window.resetsAtMs !== undefined ? { resetsAtMs: binding.window.resetsAtMs } : {}),
-        windowName: binding.windowName,
-        usedPct: bindingPct,
-        ...(usageWarningTier(bindingPct) !== null ? { warningTier: usageWarningTier(bindingPct)! } : {}),
+      if (!a.observed && !bindingLive) return unknown
+      const elapsed = a.resetsAtMs !== undefined && a.resetsAtMs <= now
+      if (a.observed && a.status === 'rejected' && !elapsed) {
+        return { family, state: 'rejected', basis: 'observed', windowName: a.windowName ?? 'usage window', ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}) }
       }
-      return WINDOW_RANK[bindingFact.state] > WINDOW_RANK[latch.state] ? bindingFact : latch
+      const headerPct = a.observed && !elapsed ? a.usedPct : undefined
+      const useBinding = bindingLive && binding !== undefined &&
+        (headerPct === undefined || binding.window.usedPct! >= headerPct)
+      const pct = useBinding ? binding!.window.usedPct : headerPct
+      const resetsAtMs = useBinding ? binding!.window.resetsAtMs : a.resetsAtMs
+      const windowName = useBinding ? binding!.windowName : a.windowName
+      const tier = usageWarningTier(pct)
+      return {
+        family,
+        state: usageWindowState(pct),
+        basis: elapsed && pct === undefined ? 'stated-reset-elapsed' : 'observed',
+        ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+        ...(windowName !== undefined ? { windowName } : {}),
+        ...(pct !== undefined ? { usedPct: pct } : {}),
+        ...(tier !== null ? { warningTier: tier } : {}),
+      }
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()

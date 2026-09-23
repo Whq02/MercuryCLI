@@ -264,7 +264,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   check("…and the window carries the owner's name — 'Fable limit', never 'weekly Fable limit' — with its reset and its utilisation", fableSeat.windowName === 'Fable limit' && fableSeat.resetsAtMs === poolReset && fableSeat.usedPct === 87, JSON.stringify(fableSeat))
   check('the pool warning offers no handoff', cap.decideCapAction('offer', fableSeat.state).kind === 'none')
   const opusSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-opus-5' })
-  check("the same account on an Opus seat reads ALLOWED — the owner binds the highest-used applicable window (the 44% week, not the 20% Opus pool)", opusSeat.state === 'allowed' && opusSeat.usedPct === 44 && opusSeat.windowName === undefined, JSON.stringify(opusSeat))
+  check("the same account on an Opus seat reads ALLOWED — the owner binds the highest-used applicable window (the 44% week, not the 20% Opus pool)", opusSeat.state === 'allowed' && opusSeat.usedPct === 44 && opusSeat.windowName === 'weekly limit', JSON.stringify(opusSeat))
   const haikuSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-haiku-4-5' })
   check('a seat no pool meters reads the shared windows (allowed, the worst shared utilisation on the usage line)', haikuSeat.state === 'allowed' && haikuSeat.usedPct === 44)
   const noModel = cap.observedFamilyWindow('anthropic', reads)
