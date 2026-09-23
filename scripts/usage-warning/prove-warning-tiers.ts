@@ -9,7 +9,7 @@ const warnings = await import('../../src/services/providers/limitWarning.ts')
 const { decideCapAction, observedFamilyWindow } = await import('../../src/services/capFailover.ts')
 
 const reset = Math.floor(Date.now() / 1000) + 604800
-const entry = { id: 'fixture', provider: 'anthropic', kind: 'oauth', label: 'fixture', custodian: 'anthropic-slots' } as const
+const entry = { id: 'fixture', provider: 'anthropic', kind: 'subscription-oauth', label: 'fixture', custodian: 'anthropic-slots' } as const
 const window = (pct: number, key = '7d', label = key) => ({ key, label, state: 'live' as const, usedPct: pct, resetsAtMs: reset * 1000 })
 const limits = { status: 'allowed' as const, isUsingOverage: false, unifiedRateLimitFallbackAvailable: false }
 const reads = (pct: number, pool = false): LimitWarningReads => ({
@@ -197,3 +197,57 @@ console.log('PASS the mock road reaches each tier, keeps its window identity and
 const scenes = readFileSync(new URL('../ui/renderScenarios.ts', import.meta.url), 'utf8')
 assert.ok(scenes.includes("name === 'cap-warning-strip'"))
 assert.ok(scenes.includes('warning-7d 80') && scenes.includes('warning-7d 90'))
+
+console.log('RED on the base: a reset band is live on the panel but absent on the card; a weekly wall reads the primary reset')
+const { capUsageWords } = await import('../../src/services/capFailover.ts')
+const { usageSourceWords } = await import('../../src/services/providers/usageFreshness.ts')
+const now = Date.now()
+const staleReads: LimitWarningReads = {
+  route: () => 'openai', activeEntry: () => ({ ...entry, provider: 'openai', custodian: 'openai-accounts' }),
+  spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+  openaiLimited: () => ({ state: 'clear' }),
+  openaiObserved: () => ({ secondary: { usedPct: 91, windowMinutes: 10080, resetsAtMs: now - 1000, observedAtMs: now - 60000 } }),
+}
+const staleWindows = usage.openaiObservedWindowViews(staleReads)
+assert.equal(staleWindows[0]!.state, 'unavailable')
+const staleBands = staleWindows.map(w => ({ ...w, usedPct: w.usedPct!, windowName: usage.usageWindowWord(w) }))
+const staleCard = observedFamilyWindow('openai', {
+  now: () => now, openaiActiveSource: () => 'chatgpt-subscription', openaiWall: () => null,
+  openaiBands: () => staleBands, laneBilling: () => ({ state: 'clear' }),
+})
+assert.equal(staleCard.state, 'unknown')
+assert.equal(capUsageWords(staleCard), usageSourceWords(staleWindows[0]!, now))
+assert.match(capUsageWords(staleCard), /stale · last read/)
+assert.equal(warnings.providerLimitWarningFacts({ model: 'fixture', reads: staleReads }), null)
+const wallCard = observedFamilyWindow('openai', {
+  now: () => now, openaiActiveSource: () => 'chatgpt-subscription',
+  openaiWall: () => ({ resetsAtMs: now + 604800000 }),
+  openaiBands: () => [{ usedPct: 100, resetsAtMs: now + 604800000, windowName: 'weekly window' }, { usedPct: 20, resetsAtMs: now + 3600000, windowName: '5h window' }],
+})
+assert.equal(wallCard.windowName, 'weekly window')
+const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
+const stated = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'The usage limit has been reached', resets_in_seconds: 604800, plan_type: 'prolite' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600' }))
+assert.equal(stated.code, 'openai-usage_limit_reached')
+assert.equal(stated.message, 'The usage limit has been reached (resets in ~7.0 days · plan: prolite)')
+const weekly = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Weekly usage limit reached', plan_type: 'prolite' } }, new Headers({
+  'x-codex-primary-reset-after-seconds': '3600',
+  'x-codex-primary-window-minutes': '300',
+  'x-codex-secondary-reset-after-seconds': '604800',
+  'x-codex-secondary-window-minutes': '10080',
+}))
+assert.ok(weekly.message.includes('x-codex-secondary-reset-after-seconds: 604800') && weekly.message.includes('plan: prolite'))
+assert.ok((weekly.resetsAtMs ?? 0) >= now + 604800000)
+const cappedSecondary = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'The usage limit has been reached' } }, new Headers({
+  'x-codex-primary-used-percent': '32', 'x-codex-primary-reset-after-seconds': '3600',
+  'x-codex-secondary-used-percent': '100', 'x-codex-secondary-reset-after-seconds': '604800',
+}))
+assert.ok(cappedSecondary.message.includes('x-codex-secondary-reset-after-seconds: 604800'))
+console.log('PASS one stale word on both surfaces and reset facts from the body or matching window')
+
+const spendText = 'Anthropic says this account is close to its extra usage spending limit'
+assert.equal(warnings.usageWarningNoticeText(spendText, 0), `Usage limit near — ${spendText}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`)
+const unlabelled = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600' }))
+assert.ok(unlabelled.message.includes('x-codex-primary-reset-after-seconds: 3600'))
+const ambiguous = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600', 'x-codex-secondary-reset-after-seconds': '604800' }))
+assert.equal(ambiguous.resetsAtMs, undefined)
+assert.equal(ambiguous.message, 'Limit reached')

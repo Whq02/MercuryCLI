@@ -39,6 +39,7 @@ export interface LimitWarningReads extends ActiveUsageReads {
 }
 
 export function usageWarningNoticeText(text: string, pct: number): string {
+  if (pct === 0) return `Usage limit near — ${text}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`
   const fact = `Usage limit near — ${text}. The provider stops this session only when the window is used up.`
   return usageWarningTier(pct) === SECOND_WARNING_PCT
     ? `${fact} Keep the work resumable: finish the step in hand; commit what is done and write down where it stands.`

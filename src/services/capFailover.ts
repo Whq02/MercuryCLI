@@ -246,6 +246,7 @@ export interface FamilyWindowFact {
   windowName?: string
   usedPct?: number
   warningTier?: UsageWarningTier
+  staleWords?: string
 }
 
 export interface FamilyWindowReads {
@@ -261,7 +262,15 @@ export interface FamilyWindowReads {
   anthropicPools?: () => UsageWindowView[]
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
-  openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
+  openaiBands?: () => Array<{
+    usedPct: number
+    resetsAtMs?: number
+    windowName: string
+    state?: UsageWindowView['state']
+    observedAtMs?: number
+    source?: UsageWindowView['source']
+    freshForMs?: number
+  }>
   percentageWindows?: (family: 'moonshot' | 'openrouter') => UsageWindowView[]
   openrouterWall?: () => { resetsAtMs: number } | null
   geminiWall?: () => { resetsAtMs: number } | null
@@ -298,9 +307,9 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       }
     },
     openaiActiveSource: () => {
-      const { resolveOpenaiAccount } =
-        require('./providers/openai/openaiAccounts.js') as typeof import('./providers/openai/openaiAccounts.js')
-      return resolveOpenaiAccount()?.kind
+      const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
+      const entry = activeWalletEntry('openai')
+      return entry === undefined ? undefined : entry.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription'
     },
     openaiWall: source => {
       const { openaiObservedWall } =
@@ -308,22 +317,12 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return openaiObservedWall(source)
     },
     openaiBands: () => {
-      const { openaiObservedUsage } =
-        require('./providers/openai/openaiLimitState.js') as typeof import('./providers/openai/openaiLimitState.js')
-      const { usageWindowLabel } =
-        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      const observed = openaiObservedUsage()
-      const bands: Array<{ usedPct: number; resetsAtMs?: number; windowName: string }> = []
-      for (const band of [observed.primary, observed.secondary]) {
-        if (band === undefined || band.usedPct === undefined) continue
-        const label = usageWindowLabel(band.windowMinutes)
-        bands.push({
-          usedPct: band.usedPct,
-          ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
-          windowName: label === 'wk' ? 'weekly window' : label === 'win' ? 'usage window' : `${label} window`,
-        })
-      }
-      return bands
+      const { openaiObservedWindowViews, usageWindowWord } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return openaiObservedWindowViews().filter(view => view.usedPct !== undefined).map(view => ({
+        ...view,
+        usedPct: view.usedPct!,
+        windowName: usageWindowWord(view),
+      }))
     },
     percentageWindows: family => {
       const { usageForProvider } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
@@ -423,23 +422,37 @@ export function observedFamilyWindow(
       const source = r.openaiActiveSource()
       if (source === undefined) return unknown
       const wall = r.openaiWall(source)
-      if (wall !== null) return wallFact(family, wall, now, 'usage window')
-      if (source === 'chatgpt-subscription') {
-        const live = r.openaiBands().filter(band => band.resetsAtMs === undefined || band.resetsAtMs > now)
-        if (live.length === 0) return billingOrUnknown(family, r, unknown)
-        const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
-        const tier = usageWarningTier(worst.usedPct)
-        return {
-          family,
-          state: usageWindowState(worst.usedPct),
-          basis: 'observed',
-          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
-          windowName: worst.windowName,
-          usedPct: worst.usedPct,
-          ...(tier !== null ? { warningTier: tier } : {}),
-        }
+      const bands = (() => {
+        try { return source === 'chatgpt-subscription' ? r.openaiBands().filter(b => Number.isFinite(b.usedPct)) : [] }
+        catch { return [] }
+      })()
+      if (wall !== null) {
+        const matches = bands.filter(b => b.resetsAtMs === wall.resetsAtMs)
+        const matching = matches.length === 1 ? matches[0] : undefined
+        const reached = bands.filter(b => b.usedPct >= 100 && (b.resetsAtMs === undefined || b.resetsAtMs > now))
+        const named = matching ?? (reached.length === 1 ? reached[0] : undefined)
+        return wallFact(family, wall, now, named?.windowName ?? 'usage window')
       }
-      return billingOrUnknown(family, r, unknown)
+      const billing = billingOrUnknown(family, r, unknown)
+      if (billing.state === 'rejected' || source !== 'chatgpt-subscription') return billing
+      const { usageFreshness, usageSourceWords } = require('./providers/usageFreshness.js') as typeof import('./providers/usageFreshness.js')
+      const live = bands.filter(b => b.state !== 'unavailable' && (b.resetsAtMs === undefined || b.resetsAtMs > now) && usageFreshness(b, now).state !== 'stale')
+      if (live.length === 0) {
+        if (bands.length === 0) return billing
+        const latest = bands.reduce((a, b) => (b.observedAtMs ?? 0) > (a.observedAtMs ?? 0) ? b : a)
+        return { ...unknown, staleWords: usageSourceWords(latest, now) ?? 'stale usage read' }
+      }
+      const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
+      const tier = usageWarningTier(worst.usedPct)
+      return {
+        family,
+        state: usageWindowState(worst.usedPct),
+        basis: 'observed',
+        ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+        windowName: worst.windowName,
+        usedPct: worst.usedPct,
+        ...(tier !== null ? { warningTier: tier } : {}),
+      }
     }
     const laneWall =
       family === 'openrouter'
@@ -523,6 +536,7 @@ export interface CapFailoverCandidateSet {
 }
 
 export function capUsageWords(window: FamilyWindowFact | null, resetText?: string | null): string {
+  if (window?.staleWords !== undefined) return window.staleWords
   if (window === null || window.state === 'unknown') return 'no usage read'
   const name = window.windowName ?? 'usage window'
   if (window.state === 'rejected') {
