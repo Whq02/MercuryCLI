@@ -162,8 +162,16 @@ section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)'
 {
   const messagesSrc = readFileSync(join(import.meta.dir, '../../src/components/Messages.tsx'), 'utf8')
   check(
-    'the normalize memo keys on [messages] only',
-    /useMemo\(\s*\(\) => normalizeMessages\(messages\)\.filter\(isNotEmptyMessage\),\s*\[messages\],?\s*\)/.test(messagesSrc),
+    'the message slices key on [messages, anchor] only',
+    /const \[beforeTail, afterTail\] = useMemo\(\s*\(\)(?::[^=]+)?=>\s*anchor >= messages\.length \? \[messages, EMPTY_ROWS\] : \[messages\.slice\(0, anchor\), messages\.slice\(anchor\)\],\s*\[messages, anchor\],?\s*\)/.test(messagesSrc),
+  )
+  check(
+    'the normalize memo keys on [beforeTail] only',
+    /const normalized = useMemo\(\s*\(\) => normalizeMessages\(beforeTail as WireMessage\[\]\)\.filter\(isNotEmptyMessage\),\s*\[beforeTail\],?\s*\)/.test(messagesSrc),
+  )
+  check(
+    'the tail normalize memo keys on [afterTail] only',
+    /const normalizedAfter = useMemo\(\s*\(\) => \(afterTail\.length === 0 \? EMPTY_NORMALIZED : normalizeMessages\(afterTail as WireMessage\[\]\)\.filter\(isNotEmptyMessage\)\),\s*\[afterTail\],?\s*\)/.test(messagesSrc),
   )
   const norm = await import('../../src/utils/messages/normalize.js')
   const before = norm._normalizePassesForProof
