@@ -191,4 +191,32 @@ for (const road of ['streamed', 'collected'] as const) {
   }
   check(`${road}: the completed request clears the same id and door`, refusals.standingModelRefusals().length === 0 && refusals.modelRefusalWords(MODEL) === undefined)
 }
+const pickerRows = [
+  { id: MODEL, error: gate },
+  { id: 'claude-opus-5', error: errorFor(400, 'invalid_request_error', 'invalid model name') },
+  { id: 'claude-opus-5-7', error: errorFor(404, 'not_found_error', 'model: claude-opus-5-7') },
+]
+for (const row of pickerRows) {
+  const chat = textOf(getAssistantMessageFromError(row.error, row.id))
+  const words = refusals.modelRefusalWords(row.id)
+  check(`${row.id}: the picker seam answers the chat sentence, not a silent absence`, typeof words === 'string' && chat.endsWith(words))
+}
+check('a raw new generation never borrows an older generation refusal', refusals.modelRefusalWords('claude-opus-5-7')?.startsWith('claude-opus-5-7 is not served') && refusals.modelRefusalWords('claude-opus-5-8') === undefined)
+check('a model that has not been refused stays selectable at this seam', refusals.modelRefusalWords('claude-sonnet-5') === undefined)
+const credentialFile = join(home, '.credentials.json')
+const credentialBytes = readFileSync(credentialFile, 'utf8')
+writeFileSync(credentialFile, '{}')
+auth.clearOAuthTokenCache()
+check('with no current door the seam stands aside for the not-signed-in reason', refusals.activeModelRefusalDoor() === undefined && pickerRows.every(row => refusals.modelRefusalWords(row.id) === undefined))
+writeFileSync(credentialFile, credentialBytes)
+auth.clearOAuthTokenCache()
+const scopes = await import('../../src/utils/envUtils.js')
+const otherHome = mkdtempSync(join(home, 'other-auth-'))
+scopes.setAuthScope(otherHome)
+auth.clearOAuthTokenCache()
+check('a different credential home cannot see another home\'s refusals', refusals.standingModelRefusals().length === 0)
+scopes.clearAuthScope()
+auth.clearOAuthTokenCache()
+check('returning to the auth home reads every retained refusal again', refusals.standingModelRefusals().length === pickerRows.length && pickerRows.every(row => refusals.modelRefusalWords(row.id) !== undefined))
+for (const row of pickerRows) refusals.clearModelRefusal(row.id, DOOR)
 console.log(`Model refusals: ${checks} checks passed`)
