@@ -30,9 +30,9 @@ writeFileSync(
     createdAt: Date.now(),
     leadAgentId: 'lead-1',
     members: [
-      { agentId: 'lead-1', name: TEAM_LEAD_NAME },
-      { agentId: 'a-1', name: 'worker-a' },
-      { agentId: 'b-1', name: 'worker-b' },
+      { agentId: 'lead-1', name: TEAM_LEAD_NAME, joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
+      { agentId: 'a-1', name: 'worker-a', joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
+      { agentId: 'b-1', name: 'worker-b', joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
     ],
   }),
 )
