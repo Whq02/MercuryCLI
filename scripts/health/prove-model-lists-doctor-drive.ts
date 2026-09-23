@@ -180,11 +180,11 @@ try {
   const row = rows.find(r => r.id === 'model-lists')
   check('doctor --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
   check('the certificate carries the row "Model lists" in the AUTH section, after the usage rows', row !== undefined && row.label === 'Model lists' && rows.findIndex(r => r.id === 'model-lists') > rows.findIndex(r => r.id === 'usage-openai') && rows.findIndex(r => r.id === 'usage-openai') >= 0, rows.map(r => r.id).join(',').slice(0, 300))
-  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 5', `${row?.status} · ${row?.evidence}`)
+  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 6', `${row?.status} · ${row?.evidence}`)
   const detail = row?.detail ?? ''
   check('the OpenAI line names the signed-in source and the typed count', detail.includes(`OpenAI · ChatGPT pro subscription · no list read in this process — /model or a chat naming the family reads it · ${GPT_DISPLAY_PINS.length} typed ids not judged`), detail)
   check('Z.AI reads its dated typed table (Z.AI publishes no model list)', /Z\.AI · no credential · no live list — typed table dated \d{4}-\d{2}-\d{2} · \d+ typed ids/.test(detail), detail)
-  check('Anthropic reads no list read, naming the release-day check', /Anthropic · no list read \(Mercury reads no Anthropic list; the release-day check does\) · \d+ typed ids/.test(detail), detail)
+  check('Anthropic with the fixture key reads no list read in this process, like every keyed family', /Anthropic · Anthropic API key · no list read in this process — \/model or a chat naming the family reads it · \d+ typed ids not judged/.test(detail), detail)
   check('the families without a credential read not judged, Moonshot among them', /DeepSeek · no credential · \d+ typed ids not judged/.test(detail) && /Gemini · no credential · \d+ typed ids not judged/.test(detail) && /Hugging Face · no credential · \d+ typed ids not judged/.test(detail) && /Moonshot · no credential · \d+ typed ids not judged/.test(detail) && !/Moonshot · [^\n]*typed table dated/.test(detail), detail)
   check('no fix rides an info row', row !== undefined && row.fix === undefined)
   check('the headless doctor fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '))

@@ -30,6 +30,25 @@ Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
 ids stay provider-qualified; the namespace detaches for the wire.
 
+Anthropic's rows are the built-in table — the names, prices, effort ladders
+and capability facts Mercury knows for each generation — joined by the live
+model list of every signed-in door. When `/model` or `/logins` opens, Mercury
+reads the models endpoint once through each credential it holds (a claude.ai
+sign-in with its bearer, an API key, an environment bearer token), never at
+boot and never from a passive reader, and never without a credential or
+while catalogue traffic is switched off. A listed id the table knows changes
+nothing; an id the table does not know paints as one row under its raw id at
+the end of its family's block, selectable, served with its family's newest
+defaults — the cost as an estimate at that row's rates, its effort ladder,
+its window, its launch effort, its wire laws — and with no invented display
+name or knowledge cutoff. A new generation never folds onto an older one:
+`claude-opus-5-7` keeps its own identity while a dated snapshot or a gateway
+spelling of a known generation still reads as that generation. A row the
+lists do not carry stands as before — a list can be partial per door, and a
+door whose list the endpoint refuses is that door's own catalogue error,
+never a fault of the picker. The doctor's Model lists row says what the
+doors this process read serve and what they lack.
+
 DeepSeek's rows come from its live model list. With a DeepSeek key present,
 Mercury reads the provider's models endpoint when the picker composes its
 rows (never without a key, and never while catalogue traffic is switched
@@ -372,8 +391,12 @@ runner reads the account's list for them. That list rides the session's facts
 to the screen, so the rail's figure becomes the list's and the mark goes the
 moment the seat reports it, with no picker opened. The model picker paints
 its cached rows at once and refreshes every signed-in family's list in the
-background on every open, even when that cache is fresh: the GPT, OpenRouter,
-Gemini and Hugging Face catalogues, and the local servers' discovery. The
+background on every open, even when that cache is fresh: the Anthropic list
+through each signed-in door, the GPT, OpenRouter, Gemini and Hugging Face
+catalogues, and the local servers' discovery. The `/logins` card asks for the
+lists its readiness rows read when it opens and repaints them as they land,
+so an OpenAI sign-in on a Claude session reads its catalogue's own state
+there within one refresh instead of "not fetched yet" until `/model` opens. The
 sub-agent and teammate model choices in `/config` refresh the same lists
 when their pickers open. A changed
 list replaces the rows in place, keeps the highlighted model and adds a notice

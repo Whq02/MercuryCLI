@@ -11,6 +11,7 @@ import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { getCanonicalName } from './model.js'
+import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
@@ -73,7 +74,7 @@ export function modelSupportsThinking(model: string): boolean {
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
-  const canonical = getCanonicalName(model)
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
   }
@@ -95,18 +96,18 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
 
 export function modelThinkingAlwaysOn(model: string): boolean {
   if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(model)
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5'
 }
 
 export function modelNarratesInThinkingBlocks(model: string): boolean {
   if (isCarrierShapedId(model)) return false
-  return getCanonicalName(model) === 'claude-opus-5-5'
+  return getCanonicalName(familyDefaultsModel(model)) === 'claude-opus-5-5'
 }
 
 export function modelSupportsForcedToolChoice(model: string): boolean {
   if (isCarrierShapedId(model)) return true
-  const canonical = getCanonicalName(model)
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical !== 'claude-fable-5-1' && canonical !== 'claude-opus-5-5'
 }
 
@@ -123,7 +124,7 @@ export function foldToolChoiceForModel<T extends { type: string }>(
 
 export function modelSupportsStructuredOutputs(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
-  const canonical = getCanonicalName(model)
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
     canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-opus-5') ||
@@ -153,8 +154,8 @@ export function refusesPerMessageEffortRow(errorText: string): boolean {
 
 export function servesPerMessageEffort(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
-  const canonical = getCanonicalName(model)
-  if (perMessageEffortRefused.has(canonical)) return false
+  if (perMessageEffortRefused.has(getCanonicalName(model))) return false
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('claude-fable-5-1') || canonical.includes('claude-mythos-5-1')
 }
 
@@ -300,7 +301,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'local' }
   }
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }
-  const m = model.toLowerCase()
+  const m = familyDefaultsModel(model).toLowerCase()
   if (
     m.includes('sonnet-5') ||
     m.includes('opus-5') ||
@@ -391,7 +392,7 @@ export function modelSupports1M(model: string): boolean {
     return false
   }
   if (isCarrierShapedId(model)) return false
-  const canonical = getCanonicalName(model)
+  const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
     canonical.includes('sonnet-5') ||
     canonical.includes('opus-5') ||
@@ -520,7 +521,7 @@ export function resolveContextWindow(
     })
   }
 
-  const firstPartyCanonical = getCanonicalName(model)
+  const firstPartyCanonical = getCanonicalName(familyDefaultsModel(model))
   if (
     !isCarrierShapedId(model) &&
     (firstPartyCanonical.includes('sonnet-5') ||
@@ -723,7 +724,7 @@ export function getModelMaxOutputTokens(model: string): {
     }
   }
 
-  const m = isCarrierShapedId(model) ? '' : getCanonicalName(model)
+  const m = isCarrierShapedId(model) ? '' : getCanonicalName(familyDefaultsModel(model))
 
   if (m.includes('fable-5')) {
     defaultTokens = 64_000
@@ -898,6 +899,7 @@ export function clearBetasCaches(): void {
 
 export function getModelKnowledgeCutoff(modelId: string): string | null {
   if (isCarrierShapedId(modelId)) return null
+  if (familyHeadOf(modelId) !== null) return null
   if (modelId.includes('claude-opus-5-5')) {
     return 'June 2026'
   }

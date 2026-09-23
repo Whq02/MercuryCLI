@@ -25,6 +25,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
+import { wrapPlain } from './BootHealthScreen.js'
 import type { ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
 import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
 import {
@@ -307,10 +308,15 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     return lines
   }
+  const reasonLines: string[] | null =
+    focusedModel !== undefined && !focusedModel.expand && !isProviderActionRow(focusedModel.id) && focusedModel.gated && focusedModel.gatedReason
+      ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, panelWidth - 4)
+      : null
   const basePaint =
     (compact ? (shedMeters ? 5 : 6) : 10) +
     (pendingNext ? 1 : 0) +
-    (!compact && ctxNotice ? 2 : !compact && notice ? 1 : 0)
+    (!compact && ctxNotice ? 2 : !compact && notice ? 1 : 0) +
+    (!compact && reasonLines !== null ? reasonLines.length - 1 : 0)
   const paintBudget = Math.max(3, availRows - basePaint)
   const win = fitMeasuredWindow(
     totalRows,
@@ -441,7 +447,10 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       ) : null}
       {
 }
-      <Box marginTop={compact ? 0 : 1} display={compact ? 'none' : 'flex'}>
+      <Box marginTop={compact ? 0 : 1} display={compact ? 'none' : 'flex'} flexDirection="column">
+        {reasonLines !== null ? reasonLines.map((line, k) => (
+          <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
+        )) : (
         <Text color={FAINT} wrap="truncate-end">
           {
 }
@@ -452,13 +461,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
             : isProviderActionRow(focusedModel!.id)
             ? 'connect action — ↵ starts the sign-in; not a model'
             : focusedModel!.gated
-              ? focusedModel!.gatedReason
-                ? `${focusedModel!.id} · ${focusedModel!.gatedReason} — not selectable`
-                : `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
+              ? `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
               : focusedModel!.choice !== undefined
                 ? focusedModel!.choice
                 : `${focusedModel!.id} · model IDs are real, never themed`}
         </Text>
+        )}
       </Box>
       {
 }

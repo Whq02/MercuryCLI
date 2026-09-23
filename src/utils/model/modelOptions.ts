@@ -18,7 +18,7 @@ import {
   getOpenrouterModelOptions,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { connectToBrowseReason } from '../../services/providers/catalogueGate.js'
-import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
+import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import {
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceModelOptions,
@@ -36,10 +36,12 @@ import {
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
-import { previousGenerationKeys } from './configs.js'
+import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
 import { isFableAvailable } from './model.js'
+import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
+import type { AnthropicLiveRow } from '../../services/providers/anthropic/anthropicCatalogue.js'
 
 export type ModelOption = {
   value: string
@@ -57,12 +59,82 @@ export const ANTHROPIC_CONNECT_OPTION_VALUE = '__mercury_anthropic_connect__'
 
 export interface ModelOptionReads {
   anthropicCredentialed?: () => boolean
+  anthropicLiveRows?: () => readonly AnthropicLiveRow[]
 }
 
 function liveAnthropicCredentialed(): boolean {
   const { anthropicCredentialPresence } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
   return anthropicCredentialPresence().credentialed
+}
+
+function liveAnthropicRows(): readonly AnthropicLiveRow[] {
+  try {
+    const { anthropicLiveUnion } =
+      require('../../services/providers/anthropic/anthropicCatalogue.js') as typeof import('../../services/providers/anthropic/anthropicCatalogue.js')
+    return anthropicLiveUnion()
+  } catch {
+    return []
+  }
+}
+
+function anthropicFamilyOf(value: string): string | undefined {
+  return parseFirstPartyGeneration(resolveWithSuffix(stripContext1m(value)))?.family
+}
+
+function tableKnows(id: string): boolean {
+  const lowered = id.trim().toLowerCase()
+  if (CANONICAL_ID_TO_KEY[lowered] !== undefined) return true
+  const parsed = parseFirstPartyGeneration(lowered)
+  return parsed !== null && DECLARED_GENERATION_STEMS.has(parsed.stem)
+}
+
+function liveRowDescription(row: AnthropicLiveRow, family: string | undefined): string {
+  const doors = row.doors.join(' and ')
+  const name = row.displayName !== undefined ? ` (the vendor names it "${row.displayName}")` : ''
+  const defaults =
+    family !== undefined
+      ? `served under its raw id with the ${family} family's defaults`
+      : 'served under its raw id; no built-in family declares it, so the generic first-party defaults apply'
+  return `${row.id} — listed live by the ${doors}${name}; not in the built-in table, so it is ${defaults}.`
+}
+
+function mergeAnthropicLiveRows(options: ModelOption[], live: readonly AnthropicLiveRow[]): ModelOption[] {
+  if (live.length === 0) return options
+  const merged = [...options]
+  const isAnthropicModelRow = (option: ModelOption): boolean => option.group === undefined && !isSentinelValue(option.value)
+  const listed = new Set(
+    merged.filter(isAnthropicModelRow).map(option => resolveWithSuffix(stripContext1m(option.value)).toLowerCase()),
+  )
+  for (const row of live) {
+    const id = row.id.trim()
+    const key = id.toLowerCase()
+    if (recognizeModelId(id).kind !== 'first-party' || tableKnows(key) || listed.has(key)) continue
+    listed.add(key)
+    const family = parseFirstPartyGeneration(key)?.family
+    let at = -1
+    for (let index = 0; index < merged.length; index++) {
+      const option = merged[index]!
+      if (!isAnthropicModelRow(option)) continue
+      if (family === undefined || anthropicFamilyOf(option.value) === family) at = index
+    }
+    const raw: ModelOption = {
+      value: id,
+      label: id,
+      description: '',
+      descriptionForModel: liveRowDescription(row, family),
+    }
+    merged.splice(at + 1, 0, raw)
+  }
+  return merged
+}
+
+function withRefusalWords(options: ModelOption[]): ModelOption[] {
+  return options.map(option => {
+    if (option.group !== undefined || isSentinelValue(option.value) || option.unavailable !== undefined) return option
+    const words = modelRefusalWords(stripContext1m(resolveWithSuffix(stripContext1m(option.value))))
+    return words === undefined ? option : { ...option, unavailable: words }
+  })
 }
 
 export function anthropicNotSignedInReason(): string {
@@ -563,6 +635,8 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     })
   }
 
+  options = withRefusalWords(mergeAnthropicLiveRows(options, (reads.anthropicLiveRows ?? liveAnthropicRows)()))
+
   for (const gpt of getQualifiedGptOptions()) {
     pushIfAbsent(options, gpt)
   }
@@ -633,7 +707,7 @@ export function focusedOptionSupports1m(value: string): boolean {
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModel(stripContext1m(value))
-  const canonical = getCanonicalName(resolved)
+  const canonical = getCanonicalName(familyDefaultsModel(resolved))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return false
   }

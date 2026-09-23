@@ -42,4 +42,39 @@ for (const [key, row] of existing) {
 check('the existing mirror point-release alias keeps its specific fold', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1')
 check('a newly declared point release is its own canonical without another substring arm', getCanonicalName(future) === future, getCanonicalName(future))
 check('the synthetic point release still needs its own cost and display declarations', !Object.hasOwn(MODEL_COSTS, future) && getPublicModelDisplayName(future) === null)
+const undeclared: Array<[string, string]> = [
+  ['claude-opus-5-7', 'claude-opus-5-7'],
+  ['claude-sonnet-5-5', 'claude-sonnet-5-5'],
+  ['claude-fable-5-3', 'claude-fable-5-3'],
+  ['claude-haiku-5', 'claude-haiku-5'],
+  ['claude-opus-6', 'claude-opus-6'],
+  ['claude-opus-4-9', 'claude-opus-4-9'],
+  ['claude-sonnet-4-7', 'claude-sonnet-4-7'],
+  ['claude-haiku-4-6', 'claude-haiku-4-6'],
+  ['claude-mythos-5-2', 'claude-fable-5-2'],
+  ['claude-opus-5-7-20270101', 'claude-opus-5-7'],
+  ['CLAUDE-OPUS-5-7[1m]', 'claude-opus-5-7'],
+]
+for (const [id, expected] of undeclared) {
+  check(`an undeclared generation keeps its own stem: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id))
+}
+const dated: Array<[string, string]> = [
+  ['claude-opus-5-20260401', 'claude-opus-5'],
+  ['claude-opus-5-5-20260401', 'claude-opus-5-5'],
+  ['claude-sonnet-5-20260401', 'claude-sonnet-5'],
+  ['claude-fable-5-1-20260401', 'claude-fable-5-1'],
+  ['claude-opus-4-5-20260101', 'claude-opus-4-5'],
+  ['claude-opus-4-8-20260101', 'claude-opus-4-6'],
+  ['claude-opus-4-20990101', 'claude-opus-4'],
+  ['claude-haiku-4-5-20260101', 'claude-haiku-4-5'],
+  ['us.anthropic.claude-opus-5-v1:0', 'claude-opus-5'],
+  ['anthropic.claude-opus-4-8-v1:0', 'claude-opus-4-6'],
+  ['claude-mythos-5-20260401', 'claude-fable-5'],
+]
+for (const [id, expected] of dated) {
+  check(`a dated or gateway spelling of a declared generation folds onto it: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id))
+}
+check('a carrier-shaped undeclared generation keeps the carrier identity', getCanonicalName('openrouter/anthropic/claude-opus-5-7') === 'openrouter/anthropic/claude-opus-5-7')
+check('an id of a family the table does not declare is its own generic canonical', getCanonicalName('claude-zephyr-1') === 'claude-zephyr-1' && getCanonicalName('claude-zephyr-1-20260101') === 'claude-zephyr-1-20260101')
+check('the older naming scheme still folds through its own arms', getCanonicalName('claude-3-7-sonnet-latest') === 'claude-3-7-sonnet' && getCanonicalName('claude-3-5-haiku-latest') === 'claude-3-5-haiku')
 process.exit(failures === 0 ? 0 : 1)

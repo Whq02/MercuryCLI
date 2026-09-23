@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
+import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W, type BootMenuData } from '../../assets/splash/splash-core.mjs';
 import {
@@ -941,6 +942,16 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     if (signInEpoch === mountSignInEpoch.current) return;
     if (given === undefined) setFacts(collectLoginsScreenFacts());
   }, [signInEpoch, given]);
+  const catalogueEpoch = useCatalogueEpoch();
+  const mountCatalogueEpoch = useRef(catalogueEpoch);
+  useEffect(() => {
+    if (given !== undefined) return;
+    resolveProviderUsability(undefined, { fetchCatalogues: true });
+  }, [given]);
+  useEffect(() => {
+    if (catalogueEpoch === mountCatalogueEpoch.current) return;
+    if (given === undefined) setFacts(collectLoginsScreenFacts());
+  }, [catalogueEpoch, given]);
 
   const setAppStateMaybe = useSetAppStateMaybe();
   const postLoginSettle = (): void => {
