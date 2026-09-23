@@ -30,6 +30,7 @@ import type {
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
+import { stripBOM } from '../utils/jsonRead.js'
 import { executePermissionRequestHooks } from '../utils/hooks.js'
 import { logError } from '../utils/log.js'
 import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
@@ -162,7 +163,7 @@ export class StructuredIO {
         buffer += chunk
         let newlineIndex = buffer.indexOf('\n')
         while (newlineIndex >= 0) {
-          const line = buffer.slice(0, newlineIndex)
+          const line = stripBOM(buffer.slice(0, newlineIndex))
           buffer = buffer.slice(newlineIndex + 1)
           if (line.trim().length > 0) {
             const message = await this.#classifyLine(line, true)
@@ -174,7 +175,7 @@ export class StructuredIO {
         yield* this.#takePrepended()
       }
       if (buffer.trim().length > 0) {
-        const message = await this.#classifyLine(buffer, false)
+        const message = await this.#classifyLine(stripBOM(buffer), false)
         yield* this.#takePrepended()
         if (message !== undefined) yield message
       }
