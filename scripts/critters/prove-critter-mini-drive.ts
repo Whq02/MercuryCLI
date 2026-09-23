@@ -51,7 +51,7 @@ process.env.ANTHROPIC_API_KEY = KEY
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
 const STACK_VERB = 'Reading the whole fixture answer before replying'
 const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`
-const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun', 100: 'Basking in the sun' }
+const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun on the flat grey rock', 100: 'Basking in the warm noon sun' }
 
 function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : undefined): { configHome: string; cwd: string } {
   const world = join(scratch, name)
@@ -142,12 +142,29 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
 }
 
 const text = (g: Grid): string[] => g.map(row => row.map(c => c.c).join(''))
+const savedBarOf = (configHome: string): boolean | undefined => {
+  const path = join(configHome, 'settings.json')
+  if (!existsSync(path)) return undefined
+  return (JSON.parse(readFileSync(path, 'utf8')) as { sessionsBar?: boolean }).sessionsBar
+}
 const rowWith = (g: Grid, needle: string): number => text(g).findIndex(line => line.includes(needle))
 const sameCell = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.rev === b.rev
 const compact = (grid: Grid): StoredGrid => compactGrid({ cols: grid[0]?.length ?? 0, rows: grid.length, grid })
 function sameFrame(label: string, a: Grid, b: Grid): void {
   const divergence = firstDivergence(compact(a), compact(b), DEFAULT_MASKS)
   check(label, divergence === null, JSON.stringify(divergence))
+}
+function sameLook(label: string, a: Grid, b: Grid): void {
+  const bottom = paneBottom(b, 30, 147)
+  const regions: Array<[number, number, number, number]> = [[0, 7, 30, 178], [7, bottom, 148, 178], [bottom, 51, 0, 178], [9, 19, 30, 148]]
+  let off = 0
+  let first = ''
+  for (const [r0, r1, c0, c1] of regions) for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
+    if (sameCell(a[r]![c]!, b[r]![c]!)) continue
+    off++
+    if (!first) first = `row ${r} col ${c}: ${JSON.stringify(a[r]![c]!.c)} vs ${JSON.stringify(b[r]![c]!.c)}`
+  }
+  check(label, off === 0 && paneBottom(a, 30, 147) === bottom, `${off} cells differ (${first}); pane bottom ${paneBottom(a, 30, 147)} vs ${bottom}`)
 }
 function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   const t = text(g)
@@ -189,6 +206,32 @@ function berthOf(g: Grid): Berth {
 }
 const cardRows = (b: Berth): number => b.cardTop < 0 ? 0 : b.cardBottom - b.cardTop + 1
 const spriteTop = (b: Berth): number => b.cardTop + Math.ceil((cardRows(b) - 3) / 2)
+
+type Card = { left: number; right: number; top: number; bottom: number; artRows: number; artWidth: number }
+function cardOf(g: Grid, name: string): Card {
+  const t = text(g)
+  const nameRow = rowWith(g, name)
+  const none: Card = { left: -1, right: -1, top: -1, bottom: -1, artRows: 0, artWidth: 0 }
+  if (nameRow < 0) return none
+  const line = t[nameRow]!
+  const at = line.indexOf(name)
+  const left = line.lastIndexOf('│', at)
+  const right = line.indexOf('│', at)
+  let top = -1
+  let bottom = -1
+  for (let r = nameRow - 1; r >= 0; r--) if (t[r]![left] === '╭') { top = r; break }
+  for (let r = nameRow + 1; r < t.length; r++) if (t[r]![left] === '╰') { bottom = r; break }
+  if (left < 0 || right < 0 || top < 0 || bottom < 0) return none
+  let artRows = 0
+  let artWidth = 0
+  for (let r = top + 1; r < bottom; r++) {
+    const run = t[r]!.slice(left + 1, right).match(/[▀▄█]+/g)
+    if (!run) continue
+    artRows++
+    artWidth = Math.max(artWidth, ...run.map(m => m.length))
+  }
+  return { left, right, top, bottom, artRows, artWidth }
+}
 
 function paneBottom(g: Grid, left: number, right: number): number {
   const t = text(g)
@@ -279,14 +322,14 @@ try {
   check('with the bar on the strip sits at row 42 and the pane’s bottom border at row 40', rowWith(bar, '⊞ SESSIONS') === 42 && paneOn === 40, `strip ${rowWith(bar, '⊞ SESSIONS')} pane ${paneOn}`)
   check('the bar carries the critter’s glyph, the model and the effort on its second row', /▗.*▖ │ Opus 5\.5 · ● high/.test(text(bar)[43] ?? ''), JSON.stringify(text(bar)[43]))
   check('the sprite stays the band sprite with the bar on (27 cells at the slot’s left)', bar.slice(3, 6).every(row => row.slice(slotLeft(bar), slotLeft(bar) + 9).every(cell => cell.c === '▀')))
-  sameFrame('/view off after /view on repaints the default look cell for cell', barOff, boot)
+  sameLook('/view off after /view on repaints the default look outside the chat’s own rows (the command receipts and the prompt list are the chat’s)', barOff, boot)
   check('bare /view answers the state in one line under the composer', text(state).some(line => line.includes('SESSIONS bar off — /view on shows it')))
   check('bare /view changes nothing: the bar stays off', rowWith(state, '⊞ SESSIONS') === -1)
   check('/view on again paints the bar at the same rows', rowWith(barAgain, '⊞ SESSIONS') === 42 && paneBottom(barAgain, 30, 147) === 40)
 
   console.log('§5 the choice is kept across boots')
   check('a second boot of the same home lands with the saved bar on', rowWith(secondBoot, '⊞ SESSIONS') === 42 && paneBottom(secondBoot, 30, 147) === 40)
-  sameFrame('/view off on the second boot repaints the default look cell for cell', offAfterSecondBoot, boot)
+  sameLook('/view off on the second boot repaints the default look outside the chat’s own rows', offAfterSecondBoot, boot)
 
   console.log('§6 the same slim box and the same bar at 120×40')
   const midHeader = rowWith(midBoot, '✶ VIEW')
@@ -318,7 +361,7 @@ try {
   check('80×30: the band’s rows 0–2 carry the 80×21 sprite cells (27 cells)', tallDiff === 0, `${tallDiff} cells differ`)
   check('80×30: no half-block art below the three sprite rows', !tallBoot.slice(3, 7).some(row => row.slice(0, 16).some(cell => cell.c === '▀' || cell.c === '▄')))
   check('80×30 after /view on: the band and the sprite are unchanged and no bar row appears', tallBar.slice(0, 4).every((row, r) => row.every((cell, c) => sameCell(cell, tallBoot[r]![c]!))) && rowWith(tallBar, '⊞ SESSIONS') === -1)
-  const tallSaved = (JSON.parse(readFileSync(join(tallHome.configHome, 'settings.json'), 'utf8')) as { sessionsBar?: boolean }).sessionsBar
+  const tallSaved = savedBarOf(tallHome.configHome)
   check('80×30 after /view on: the choice is saved for the wide layout', tallSaved === true, `sessionsBar ${String(tallSaved)}`)
 
   console.log('§9 the 80×21 band is untouched')
@@ -335,7 +378,7 @@ try {
   let clickSprite = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickOff[3 + r]![slotLeft(clickOff) + col]!, band.grid[r]![2 + col]!)) clickSprite++
   check('the box carries the band’s sprite cells throughout (27 cells)', clickSprite === 0, `${clickSprite} cells differ`)
-  const savedBar = (JSON.parse(readFileSync(join(clickWorld.configHome, 'settings.json'), 'utf8')) as { sessionsBar?: boolean }).sessionsBar
+  const savedBar = savedBarOf(clickWorld.configHome)
   check('the click saved the choice to the settings store (sessionsBar false after the second click)', savedBar === false, `sessionsBar ${String(savedBar)}`)
   console.log('§11 the small critter keeps the slot\'s left and the working card keeps its column')
   for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
@@ -353,7 +396,7 @@ try {
   }
   console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, 6]]
+    const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, cols === 120 ? 5 : 6]]
     for (const [leg, verb, expectedRows] of legs) {
       const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
       const b = berthOf(shot.grid)
@@ -374,6 +417,20 @@ try {
     check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
     check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
   }
+  console.log('§12 /critter opens the picker with the small sprite on every card, at 178 and at 60 columns')
+  const pickerWide = await capture('picker-178x51', homeFor('picker-178'), 178, 51, [onReady('/critter\r', 'landing')], 'Session theme')
+  const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
+  for (const [cols, shot, rowsExpected] of [[178, pickerWide, 1], [60, pickerNarrow, 2]] as const) {
+    const cards = ['[1] crab', '[2] octopus', '[3] jellyfish', '[4] clam'].map(name => cardOf(shot.grid, name))
+    check(`${cols} columns: the four cards paint with their names`, cards.every(c => c.top >= 0 && c.bottom > c.top), cards.map(c => `${c.top}..${c.bottom}`).join(' '))
+    check(`${cols} columns: every card is eight rows with three sprite rows and the sprite nine cells wide`, cards.every(c => c.bottom - c.top === 7 && c.artRows === 3 && c.artWidth === 9), cards.map(c => `${c.bottom - c.top + 1} rows, art ${c.artRows}×${c.artWidth}`).join(' · '))
+    check(`${cols} columns: every card is eighteen columns wide`, cards.every(c => c.right - c.left === 17), cards.map(c => `${c.right - c.left + 1}`).join(' '))
+    check(`${cols} columns: the cards sit on ${rowsExpected} row${rowsExpected > 1 ? 's' : ''}`, new Set(cards.map(c => c.top)).size === rowsExpected, [...new Set(cards.map(c => c.top))].join(','))
+    check(`${cols} columns: the landing before /critter carries the box sprite alone`, !text(shot.marks['landing']!).some(line => line.includes('[1] crab')))
+  }
+  const companion = await capture('companion-178x51', homeFor('companion-178'), 178, 51, [onReady('/companion tip\r', 'landing'), { requireAwait: true, awaitText: 'Unknown command', awaitSettleTicks: 6, data: '', mark: 'answer' }], 'Unknown command')
+  check('/companion is no command: the chat answers Unknown command and no tip line paints', rowWith(companion.grid, 'Unknown command: /companion') >= 0 && rowWith(companion.grid, 'tip —') === -1, `row ${rowWith(companion.grid, 'Unknown command: /companion')}`)
+  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 2 && boxRows(companion.grid, 31).bottom === 6 && companion.grid.slice(3, 6).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀')))
   }
   console.log('§13 the small critter outside the cockpit keeps its neighbours in place')
   for (const cols of [178, 120]) {
