@@ -394,7 +394,7 @@ if (cap !== null) {
   const twoAfter = after('two', escAt).length
   check(`K1 both seats kept calling the fixture after esc (one: ${oneAfter}, two: ${twoAfter} calls)`, oneAfter >= 1 && twoAfter >= 1)
   const receipt = rowsWith(m['after-esc'], /sub-agents? still running/)
-  check('K1 the interruption receipt names the running count and the crew view door', receipt.some(r => r.includes('2 sub-agents still running') && r.includes('crew view')), rowsWith(m['after-esc'], /running|interrupt/).map(flat).join(' | ').slice(0, 300))
+  check('K1 the interruption receipt names the running count and the crew view door, exactly once (a second identical row is the double paint)', receipt.filter(r => r.includes('2 sub-agents still running') && r.includes('crew view')).length === 1, rowsWith(m['after-esc'], /running|interrupt/).map(flat).join(' | ').slice(0, 300))
   check('K1 the wait\'s state word carries no esc-stops-them clause', !(m['waiting'] ?? '').includes('esc stops them'))
   const crewRows = (name: string): string[] => rowsWith(m['crew'], name)
   check('K1 the crew view lists both agents as running (the status cell speaks the phase)', crewRows(SEATS.one).some(runs) && crewRows(SEATS.two).some(runs), [...crewRows(SEATS.one), ...crewRows(SEATS.two)].map(flat).join(' | ').slice(0, 300))
