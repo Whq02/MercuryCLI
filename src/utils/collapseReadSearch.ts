@@ -496,7 +496,7 @@ export function collapseReadSearchGroups(
         const info = getToolSearchOrReadInfo(described.toolName, described.firstInput, tools)
         const running = described.members.some(m => inProgressToolUseIDs.has(m.toolUseId))
         const unresolved = described.members.some(m => !settledToolUseIds.has(m.toolUseId))
-        if (info.isCollapsible && (running || unresolved)) {
+        if (info.isCollapsible && unresolved && !running) {
           flush()
           out.push(message)
         } else if (info.isCollapsible) {

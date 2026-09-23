@@ -136,7 +136,7 @@ try {
             { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
             { afterPrevTicks: 4, data: '\r' },
             { data: 'after the clear: run it\r', awaitText: 'new session', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-            { data: '', atTick: 999, awaitText: '▰ Bash', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },
+            { data: '', atTick: 999, awaitText: 'Running 1 bash command', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },
             { data: '', atTick: 999, awaitText: 'CLEARED-TURN-DONE', requireAwait: true, minTick: 4, awaitSettleTicks: 3, mark: 'later' },
           ],
           total: 220,
@@ -187,7 +187,7 @@ try {
         t("clear-then-turn: later in the turn, the old task's words are still nowhere", after.length > 0 && !after.some(r => r.includes(OLD_VERB)))
         const stripRow = (rows: string[]): string => rows.find(r => r.trimStart().startsWith(`${basename(cfg.cwd)} `))?.trim() ?? ''
         t("clear-then-turn: mid-turn, the strip row alone wears the in-flight clause and NO task verb — never the old session's", stripRow(mid) !== '' && /esc interrupts/.test(stripRow(mid)) && !stripRow(mid).includes(OLD_VERB) && !/Reviewing|review/i.test(stripRow(mid)), stripRow(mid) || `no strip row among: ${mid.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
-        t("clear-then-turn: mid-turn, the born session's own tool is on the glass in the product's words (the transcript's Bash row, running)", mid.some(r => r.includes('▰ Bash')) && mid.some(r => r.includes('running…')))
+        t("clear-then-turn: mid-turn, the born session's own tool is on the glass in the product's words (the transcript's Bash row, running)", mid.some(r => r.includes('Running 1 bash command')) && mid.some(r => r.includes('sleep 6')))
         t("clear-then-turn: the turn ended with the fixture's reply on the glass", after.some(r => r.includes('CLEARED-TURN-DONE')))
         if (failures !== 0) {
           console.log('  [frame] mid-turn, whole:')
