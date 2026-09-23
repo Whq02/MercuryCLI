@@ -671,12 +671,9 @@
     "backgroundKey": {
       "type": "boolean"
     },
-    "critterSize": {
-      "type": "string",
-      "enum": [
-        "mini",
-        "full"
-      ]
+    "sessionsBar": {
+      "description": "Show the SESSIONS bar along the bottom of the chat (/view on); off unless set",
+      "type": "boolean"
     },
     "firstRunCards": {
       "description": "Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone",

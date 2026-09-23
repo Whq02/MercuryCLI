@@ -39,27 +39,25 @@ const SESSIONS_LINE = /^(\d+ sessions? on · \d+ monitors? here · \d+ agents? h
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 const cellsAt = (grid: Grid, y: number): Cell[] => grid[y] ?? []
 
-type CritterSize = 'mini' | 'full'
-type Rung = { form: 'none' | 'line' | 'dock' | 'square'; bandRows: number }
+type Rung = { form: 'none' | 'line' | 'dock'; bandRows: number }
 const LADDER_SIZES: ReadonlyArray<readonly [number, number]> = [[90, 31], [80, 26], [80, 25], [80, 24], [80, 21], [80, 20], [80, 14], [82, 19], [82, 17], [82, 14], [40, 13], [40, 10], [20, 31], [120, 40]]
 
-function ladderFor(size: CritterSize): (cols: number, rows: number) => Rung {
-  const home = join(scratch, `ladder-home-${size}`)
+function ladderFor(): (cols: number, rows: number) => Rung {
+  const home = join(scratch, 'ladder-home')
   mkdirSync(home, { recursive: true })
-  if (size === 'full') writeFileSync(join(home, 'settings.json'), JSON.stringify({ critterSize: 'full' }))
   const geometry = pathToFileURL(join(ROOT, 'src', 'components', 'mercury-ui', 'geometry.ts')).href
   const code = `import { compactBandForm, compactBandRows } from ${JSON.stringify(geometry)}\nconsole.log(JSON.stringify(${JSON.stringify(LADDER_SIZES)}.map(([c, r]) => [c, r, compactBandForm(c, r), compactBandRows(c, r)])))`
   const read = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file' } })
   const table = new Map<string, Rung>()
   for (const [c, r, form, bandRows] of JSON.parse(read.stdout.trim().split('\n').pop() || '[]') as Array<[number, number, Rung['form'], number]>) table.set(`${c}x${r}`, { form, bandRows })
-  check(`the band ladder with the ${size === 'mini' ? 'small' : 'large'} critter is read in its own home, ${size === 'mini' ? 'no settings file (absent = the small critter)' : 'a settings file carrying critterSize full'}`, read.status === 0 && table.size === LADDER_SIZES.length && existsSync(join(home, 'settings.json')) === (size === 'full'), `exit=${read.status}; ${read.stderr.slice(-400)}`)
+  check('the band ladder is read in its own home (no settings file)', read.status === 0 && table.size === LADDER_SIZES.length && !existsSync(join(home, 'settings.json')), `exit=${read.status}; ${read.stderr.slice(-400)}`)
   return (cols, rows) => {
     const rung = table.get(`${cols}x${rows}`)
     if (rung === undefined) throw new Error(`no ladder rung for ${cols}x${rows}`)
     return rung
   }
 }
-const ladder = { mini: ladderFor('mini'), full: ladderFor('full') }
+const ladder = ladderFor()
 
 function glyphRows(def: CritterDef, art: string[]): string[] {
   const lines: string[] = []
@@ -81,16 +79,16 @@ function glyphRows(def: CritterDef, art: string[]): string[] {
   return lines
 }
 
-function expectedSprites(form: 'square' | 'dock'): Array<{ name: string; lines: string[] }> {
+function expectedSprites(): Array<{ name: string; lines: string[] }> {
   return CRITTERS.map(def => {
-    const tinted = form === 'dock' ? { ...def, square: squareDockArtFor(def.name) } : def
+    const tinted = { ...def, square: squareDockArtFor(def.name) }
     const { art } = composeCritterFrame(tinted, { square: true, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
     return { name: def.name, lines: glyphRows(tinted, art) }
   })
 }
 
-function spriteMatch(rows: string[], form: 'square' | 'dock'): string {
-  const candidates = expectedSprites(form)
+function spriteMatch(rows: string[]): string {
+  const candidates = expectedSprites()
   for (const candidate of candidates) {
     const width = candidate.lines[0]?.length ?? 0
     const ok = candidate.lines.every((line, i) => (rows[i] ?? '').padEnd(1 + width).slice(1, 1 + width) === line)
@@ -108,25 +106,15 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
   check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(all))
   const modelRows = text.map((line, i) => (line.includes('Opus 5') ? i : -1)).filter(i => i >= 0)
   check(`${tag}: the model appears on exactly one row`, modelRows.length === 1, JSON.stringify(modelRows))
-  if (form === 'square' || form === 'dock') {
+  if (form === 'dock') {
     const artLines = bandRows - 1
-    const critter = spriteMatch(text.slice(0, artLines), form)
-    check(`${tag}: rows 1-${artLines} carry the session critter's ${form} form at column 2`, critter !== '', text.slice(0, artLines).map(l => JSON.stringify(l.slice(0, 16))).join(' '))
+    const critter = spriteMatch(text.slice(0, artLines))
+    check(`${tag}: rows 1-${artLines} carry the session critter's dock form at column 2`, critter !== '', text.slice(0, artLines).map(l => JSON.stringify(l.slice(0, 16))).join(' '))
     check(`${tag}: the rule closes the band on row ${bandRows}`, text[artLines] === '─'.repeat(cols), JSON.stringify(text[artLines] ?? ''))
-    const factsAt = form === 'square' ? 16 : 14
-    const facts = (y: number): string => (text[y] ?? '').slice(factsAt)
-    if (form === 'square') {
-      check(`${tag}: the square's top air row is blank`, text[0] === '')
-      check(`${tag}: row 2 is the lockup and the readiness`, /^✶ Mercury · ● ready$/.test(facts(1)), JSON.stringify(facts(1)))
-      check(`${tag}: row 3 is the model, the effort and the context`, /^Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(2)), JSON.stringify(facts(2)))
-      check(`${tag}: row 4 is the directory, the branch and the tree state`, new RegExp(`^${tree}(?: ⌥ \\S+)?(?: · (?:clean|uncommitted))?$`).test(facts(3)), JSON.stringify(facts(3)))
-      check(`${tag}: row 5 carries no turn count on a fresh session`, facts(4) === '', JSON.stringify(facts(4)))
-      check(`${tag}: row 6 is the critter alone`, facts(5) === '', JSON.stringify(facts(5)))
-    } else {
-      check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), JSON.stringify(facts(0)))
-      check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), JSON.stringify(facts(1)))
-      check(`${tag}: row 3 is the critter alone`, facts(2) === '', JSON.stringify(facts(2)))
-    }
+    const facts = (y: number): string => (text[y] ?? '').slice(14)
+    check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), JSON.stringify(facts(0)))
+    check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), JSON.stringify(facts(1)))
+    check(`${tag}: row 3 is the critter alone`, facts(2) === '', JSON.stringify(facts(2)))
     check(`${tag}: the tree state and the turn count never reach the chip line`, !text.slice(bandRows).some(l => /uncommitted|⤳/.test(l)))
   } else if (form === 'line') {
     check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), JSON.stringify(text[0] ?? ''))
@@ -190,15 +178,15 @@ async function capture(tag: string, cols: number, rows: number, sends: unknown[]
 
 console.log(`chat compact artifacts: ${scratch} (build: ${label}, dist: ${dist})`)
 
-for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, 'mini'], [82, 17, 'mini'], [40, 10, 'mini']] as const) {
-  const tag = size === 'full' ? `chat-idle-${cols}x${rows}-large-critter` : `chat-idle-${cols}x${rows}`
-  const run = await capture(tag, cols, rows, idleSends(cols, rows), size === 'full' ? { settings: { critterSize: 'full' } } : {})
+for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
+  const tag = `chat-idle-${cols}x${rows}`
+  const run = await capture(tag, cols, rows, idleSends(cols, rows), {})
   try {
     check(`${tag}: the boot and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('idle'), `exit=${run.status}; ${run.log}`)
     const idle = run.marks.get('idle')
     if (idle === undefined) continue
     printFrame(`${tag} idle`, textRows(idle.grid))
-    bandChecks(tag, cols, rows, idle.grid, null, ladder[size](cols, rows))
+    bandChecks(tag, cols, rows, idle.grid, null, ladder(cols, rows))
     check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
   } finally {
     await endLeg(run.leg)
@@ -242,7 +230,7 @@ for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, '
     const idle = run.marks.get('idle')
     if (idle !== undefined) {
       printFrame(`${tag} idle`, textRows(idle.grid))
-      bandChecks(`${tag} idle`, 80, 24, idle.grid, 'sovereign', ladder.mini(80, 24))
+      bandChecks(`${tag} idle`, 80, 24, idle.grid, 'sovereign', ladder(80, 24))
       const text = textRows(idle.grid)
       const chipAt = text.findIndex(l => l.startsWith(compactModeChip('sovereign')!.text))
       const cell = cellsAt(idle.grid, chipAt).find(c => c.c === '⊠')
@@ -301,7 +289,7 @@ for (const [cols, rows, size] of [[90, 31, 'mini'], [90, 31, 'full'], [80, 24, '
       const mark = at(l)
       if (mark === undefined) continue
       check(`${tag} ${l}: the mark was taken at ${cols}x${rows}`, mark.cols === cols && mark.rows === rows, `${mark.cols}x${mark.rows}`)
-      if (mark.cols === cols && mark.rows === rows) bandChecks(`${tag} ${l}`, cols, rows, mark.grid, null, ladder.mini(cols, rows))
+      if (mark.cols === cols && mark.rows === rows) bandChecks(`${tag} ${l}`, cols, rows, mark.grid, null, ladder(cols, rows))
     }
     const first = at('full-1')
     const second = at('full-2')
@@ -329,7 +317,7 @@ function chipRowAt(text: string[], rows: number, rung: Rung): number {
 
 function firstFrameChecks(tag: string, cols: number, rows: number, grid: Grid): void {
   const text = textRows(grid)
-  const chipAt = chipRowAt(text, rows, ladder.mini(cols, rows))
+  const chipAt = chipRowAt(text, rows, ladder(cols, rows))
   const expected = compactModeChip('sovereign')!.text
   check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)'))
   check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5\.5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
@@ -377,13 +365,8 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
   check('the chip owner paints nothing for the default mode', compactModeChip('default') === null)
   check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null)
   check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '')
-  const mini = ladder.mini
-  const full = ladder.full
-  check('the band form ladder with the small critter (the default): one dock sprite at every size that paints one', mini(90, 31).form === 'dock' && mini(80, 26).form === 'dock' && mini(80, 25).form === 'dock' && mini(80, 20).form === 'dock' && mini(82, 19).form === 'line' && mini(82, 14).form === 'line' && mini(40, 13).form === 'none' && mini(20, 31).form === 'line')
-  check('the band rows follow the forms with the small critter', mini(90, 31).bandRows === 4 && mini(80, 24).bandRows === 4 && mini(82, 17).bandRows === 2 && mini(40, 10).bandRows === 0)
-  check('the band form ladder with the large critter is the shipped one', full(90, 31).form === 'square' && full(80, 26).form === 'square' && full(80, 25).form === 'dock' && full(80, 20).form === 'dock' && full(82, 19).form === 'line' && full(82, 14).form === 'line' && full(40, 13).form === 'none' && full(20, 31).form === 'line')
-  check('the band rows follow the forms with the large critter', full(90, 31).bandRows === 7 && full(80, 24).bandRows === 4 && full(82, 17).bandRows === 2 && full(40, 10).bandRows === 0)
-  check('the wide compact window is the one place the two ladders part: 90x31 and 80x26 alone', LADDER_SIZES.every(([c, r]) => (mini(c, r).form === full(c, r).form) === !((c === 90 && r === 31) || (c === 80 && r === 26) || (c === 120 && r === 40))))
+  check('the band form ladder: one dock sprite at every size that paints one', ladder(90, 31).form === 'dock' && ladder(80, 26).form === 'dock' && ladder(80, 25).form === 'dock' && ladder(80, 20).form === 'dock' && ladder(82, 19).form === 'line' && ladder(82, 14).form === 'line' && ladder(40, 13).form === 'none' && ladder(20, 31).form === 'line' && ladder(120, 40).form === 'dock')
+  check('the band rows follow the forms', ladder(90, 31).bandRows === 4 && ladder(80, 24).bandRows === 4 && ladder(82, 17).bandRows === 2 && ladder(40, 10).bandRows === 0)
 }
 
 finish('chat-compact')

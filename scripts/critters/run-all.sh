@@ -12,11 +12,6 @@ fail=0
 
 [ -x "$BUN" ] || BUN="bun"
 
-__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-hero-art.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-hero-art.ts "$__t" "$__rc"
-
 
 __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-persist.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
   fail=1

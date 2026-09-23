@@ -96,33 +96,9 @@ function gazeKeyViolations(art: readonly string[], clusters: Cluster[], key: str
 }
 
 
-console.log('— §A1 gaze law (i)/(ii): dense pointer field, every hero grid —')
-const POOL = CRITTERS.filter(d => d.heroArt?.length)
-for (const def of POOL) {
-  const art = def.heroArt!
-  const clusters = heroEyeClusters(art) as Cluster[]
-  const shared = sharedOffsetsOf(clusters)
-  t(`${def.name}: ≥2 eyes with a shared aperture`, clusters.length >= 2 && shared.length >= 1, `eyes=${clusters.length} shared=${shared.length}`)
-  const H = art.length
-  const W = Math.max(...art.map(r => r.length))
-  const prevSeeds = ['', ...shared.map(o => clusters.map(cl => `${cl.rest.r},${cl.rest.c}>${cl.rest.r + o.dr},${cl.rest.c + o.dc}`).join('|'))]
-  let checked = 0
-  const bad: string[] = []
-  for (let py = -8; py <= H + 8; py += 2) {
-    for (let px = -8; px <= W + 8; px += 2) {
-      for (const prev of prevSeeds) {
-        const key = gazeKeyForPointer(art, px, py, prev)
-        checked++
-        const v = gazeKeyViolations(art, clusters, key)
-        if (v.length > 0 && bad.length < 4) bad.push(`@(${px},${py}) prev=${JSON.stringify(prev.slice(0, 12))}: ${v[0]}`)
-      }
-    }
-  }
-  t(`${def.name}: every key over ${checked} pointer×prev samples is lawful`, bad.length === 0, bad.join(' · '))
-}
+const POOL = [...CRITTERS]
 
 
-console.log('— §A2 gaze law (iii): the look cycle moves one step at a time —')
 function walk(art: readonly string[], points: Array<[number | null, number | null]>): { offsets: Offset[]; adjacent: boolean; detail: string } {
   let prev = ''
   let last: Offset = { dr: 0, dc: 0 }
@@ -148,42 +124,7 @@ function walk(art: readonly string[], points: Array<[number | null, number | nul
   return { offsets, adjacent, detail }
 }
 
-for (const def of POOL) {
-  const art = def.heroArt!
-  const clusters = heroEyeClusters(art) as Cluster[]
-  const shared = sharedOffsetsOf(clusters)
-  const has = (dr: number, dc: number): boolean => shared.some(o => o.dr === dr && o.dc === dc)
-  const fx = clusters.reduce((s, c) => s + c.cx, 0) / clusters.length
-  const fy = clusters.reduce((s, c) => s + c.cy, 0) / clusters.length
-  const H = art.length
-  const W = Math.max(...art.map(r => r.length))
-  const descent: Array<[number | null, number | null]> = []
-  for (let py = -10; py <= H + 10; py += 1) descent.push([fx + 0.3, py])
-  descent.push([null, null])
-  const d = walk(art, descent)
-  t(`${def.name}: the descent walks adjacent offsets end to end`, d.adjacent, d.detail)
-  t(
-    `${def.name}: the descent LOOKS — the pupil leaves rest and returns to it`,
-    d.offsets.some(o => o.dr !== 0 || o.dc !== 0) && off(d.offsets[d.offsets.length - 1]!) === '0,0',
-  )
-  const sweepPts: Array<[number | null, number | null]> = []
-  for (let px = -10; px <= W + 10; px += 1) sweepPts.push([px, fy])
-  for (let px = W + 10; px >= -10; px -= 1) sweepPts.push([px, fy])
-  const s = walk(art, sweepPts)
-  t(`${def.name}: the eye-height sweep walks adjacent offsets`, s.adjacent, s.detail)
-  if (has(0, -1))
-    t(`${def.name}: the sweep reaches the full LEFT throw`, s.offsets.some(o => o.dr === 0 && o.dc === -1))
-  const corners: Array<[number | null, number | null]> = [
-    [-12, -12], [W + 12, -12], [W + 12, H + 12], [-12, H + 12],
-    [-12, fy], [W + 12, fy], [-12, fy], [null, null], [W + 12, -12], [null, null],
-  ]
-  const jump: Array<[number | null, number | null]> = corners.flatMap(p => [p, p, p])
-  const j = walk(art, jump)
-  t(`${def.name}: corner teleports land through adjacent steps`, j.adjacent, j.detail)
-}
 
-
-console.log('— §A3 the frame census: every critter × every animation state —')
 function pupilsOf(frame: string[]): Cell[] {
   const out: Cell[] = []
   for (let r = 0; r < frame.length; r++) {
@@ -193,62 +134,8 @@ function pupilsOf(frame: string[]): Cell[] {
   return out
 }
 
-for (const def of POOL) {
-  const art = def.heroArt!
-  const clusters = heroEyeClusters(art) as Cluster[]
-  const shared = sharedOffsetsOf(clusters)
-  const restRows = new Set(clusters.map(cl => cl.rest.r))
-  t(`${def.name}: authored rests share one row (frame law readable)`, restRows.size === 1, [...restRows].join(','))
-  const restRow = clusters[0]!.rest.r
-  const restColGaps = clusters.slice(1).map(cl => cl.rest.c - clusters[0]!.rest.c)
-  const keys = ['', ...shared.map(o => clusters.map(cl => `${cl.rest.r},${cl.rest.c}>${cl.rest.r + o.dr},${cl.rest.c + o.dc}`).join('|'))]
-  let frames = 0
-  const bad: string[] = []
-  for (const key of keys) {
-    const o = offsetOfKey(key)
-    const expDr = o === null || o === 'MIXED' ? 0 : o.dr
-    for (let sway = 0; sway < 8; sway++) {
-      for (const pupil of ['●', '—']) {
-        const { art: frame } = composeCritterFrame(def, { hero: true, pupil, gazeKey: key, swayPhase: sway, sleepPhase: null })
-        frames++
-        const ks = pupilsOf(frame)
-        if (pupil === '—') {
-          if (ks.length !== 0 && bad.length < 4) bad.push(`lid frame sway=${sway} key=${key.slice(0, 12)} still shows ${ks.length} pupils`)
-          continue
-        }
-        if (ks.length !== clusters.length) {
-          if (bad.length < 4) bad.push(`sway=${sway} key=${key.slice(0, 12)}: ${ks.length} pupils for ${clusters.length} eyes`)
-          continue
-        }
-        const sorted = [...ks].sort((a, b) => a.c - b.c)
-        const rowOk = sorted.every(k => k.r === restRow + expDr)
-        const gapOk = sorted.slice(1).every((k, i) => k.c - sorted[0]!.c === restColGaps[i])
-        if ((!rowOk || !gapOk) && bad.length < 4)
-          bad.push(`sway=${sway} key=${key.slice(0, 12)}: pupils at ${sorted.map(k => `${k.r},${k.c}`).join(' ')} (rest row ${restRow}+${expDr}, gaps ${restColGaps.join(',')})`)
-      }
-    }
-  }
-  for (const form of ['hero'] as const) {
-    const pose = sleepPoseFor(def, form)
-    if (!pose) continue
-    for (let sleep = 0; sleep < 3; sleep++) {
-      for (let sway = 0; sway < 8; sway++) {
-        const { art: frame } = composeCritterFrame(def, { hero: true, pupil: '—', gazeKey: '', swayPhase: sway, sleepPhase: sleep })
-        frames++
-        const ks = pupilsOf(frame)
-        if (ks.length !== 0 && bad.length < 4) bad.push(`sleep=${sleep} sway=${sway}: ${ks.length} pupils on a sleeping frame`)
-      }
-    }
-    for (const o of shared) {
-      const key = clusters.map(cl => `${cl.rest.r},${cl.rest.c}>${cl.rest.r + o.dr},${cl.rest.c + o.dc}`).join('|')
-      if (applyGazeKey(pose.art, key) !== pose.art && bad.length < 4) bad.push(`awake key ${key.slice(0, 12)} mutated the ${form} sleep pose`)
-    }
-  }
-  t(`${def.name}: ${frames} composed frames all lawful`, bad.length === 0, bad.join(' · '))
-}
 
-
-console.log('— §A-square: the gaze census over the square tier —')
+console.log('— §A the gaze census over the square tier —')
 const SQUARE_SURFACES: Array<[string, (d: CritterDef) => string[]]> = [
   ['square', d => d.square],
   ['square dock', d => d.squareDock],
@@ -325,20 +212,15 @@ function bandRowsOf(art: readonly string[]): number[] {
 type BandEntry = { reason: string; rows: readonly number[] }
 const BAND_ANATOMY: Readonly<Record<string, BandEntry>> = {
   'crab · 13w awake': { reason: "the crab's belly band", rows: [8, 9] },
-  'crab · hero awake': { reason: "the crab's belly band", rows: [11, 12] },
   'crab · compact mark': { reason: "the crab's belly band", rows: [4] },
   'crab · 13w sleep': { reason: 'the belly band between the tucked claws', rows: [10] },
-  'crab · hero sleep': { reason: 'the belly band under the tucked claw tips', rows: [14] },
   'crab · mini sleep': { reason: 'the belly band between the tucked claws', rows: [4] },
   'jellyfish · 13w awake': { reason: "the jellyfish's lit skirt rim", rows: [6] },
-  'jellyfish · hero awake': { reason: "the jellyfish's lit skirt rim", rows: [8] },
   'jellyfish · mini awake': { reason: "the jellyfish's lit skirt rim", rows: [4] },
   'jellyfish · compact mark': { reason: "the jellyfish's lit skirt rim", rows: [4] },
   'jellyfish · 13w sleep': { reason: 'the skirt rim on the sunken bell', rows: [7] },
-  'jellyfish · hero sleep': { reason: 'the skirt rim on the sunken bell', rows: [10] },
   'jellyfish · mini sleep': { reason: 'the skirt rim on the sunken bell', rows: [4] },
   'clam · 13w awake': { reason: "the clam's mantle band along the opening", rows: [6] },
-  'clam · hero awake': { reason: "the clam's mantle band along the opening", rows: [8] },
   'clam · mini awake': { reason: "the clam's mantle band along the opening", rows: [4] },
   'clam · compact mark': { reason: "the clam's mantle band along the opening", rows: [4] },
   'jellyfish · square': { reason: "the jellyfish's lit skirt rim (the square tier)", rows: [8, 9] },
@@ -351,12 +233,11 @@ const gridRoster: Array<[string, string[] | null]> = []
 for (const def of CRITTERS) {
   const name = def.name
   gridRoster.push([`${name} · 13w awake`, def.art])
-  gridRoster.push([`${name} · hero awake`, def.heroArt ?? null])
   gridRoster.push([`${name} · mini awake`, miniArtFor(name)])
   gridRoster.push([`${name} · compact mark`, markCompactArtFor(name)])
   gridRoster.push([`${name} · square`, def.square])
   gridRoster.push([`${name} · square dock`, def.squareDock])
-  for (const form of ['art', 'hero', 'mini'] as ArtForm[]) {
+  for (const form of ['art', 'mini'] as ArtForm[]) {
     const pose = sleepPoseFor({ name }, form)
     if (pose) gridRoster.push([`${name} · ${form === 'art' ? '13w' : form} sleep`, pose.art])
   }
@@ -409,7 +290,7 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
 }
 
 {
-  const octo = POOL.find(d => d.name === 'octopus')!.heroArt!
+  const octo = POOL.find(d => d.name === 'octopus')!.squareDock
   const octoClusters = heroEyeClusters(octo) as Cluster[]
   let desync: string | null = null
   for (let py = -8; py <= octo.length + 8 && !desync; py++) {
@@ -419,7 +300,7 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
     }
   }
   t('poison: the per-eye sampler DESYNCS the octopus and the census catches it', desync !== null, desync ?? 'no desync found')
-  const clam = POOL.find(d => d.name === 'clam')!.heroArt!
+  const clam = POOL.find(d => d.name === 'clam')!.squareDock
   const clamClusters = heroEyeClusters(clam) as Cluster[]
   let split: string | null = null
   for (let py = -8; py <= clam.length + 8 && !split; py++) {

@@ -48,15 +48,13 @@ check(
 
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8');
 check(
-  'berth art rides a fixed per-form slot (hero/square), bottom-aligned',
-  home.includes('height={heroFits ? HERO_ART_LINES : SQUARE_ART_LINES}') &&
-    /height=\{heroFits \? HERO_ART_LINES : SQUARE_ART_LINES\}[\s\S]{0,120}justifyContent="flex-end"/.test(home),
+  'berth art rides a fixed dock-height slot, bottom-aligned',
+  /height=\{SQUARE_DOCK_ART_LINES\}[\s\S]{0,120}justifyContent="flex-end"/.test(home.slice(home.indexOf('export function PinnedCritterBerth'))),
 );
-const { HERO_ART_LINES, SQUARE_ART_LINES } = await import('../../src/utils/cockpit/critterData.js');
+const { SQUARE_DOCK_ART_LINES } = await import('../../src/utils/cockpit/critterData.js');
 check(
-  `slot constants derive from the grids (hero=${HERO_ART_LINES}, square=${SQUARE_ART_LINES})`,
-  Number.isInteger(HERO_ART_LINES) && HERO_ART_LINES >= 7 &&
-    Number.isInteger(SQUARE_ART_LINES) && SQUARE_ART_LINES >= 6,
+  `the slot constant derives from the grids (dock=${SQUARE_DOCK_ART_LINES})`,
+  Number.isInteger(SQUARE_DOCK_ART_LINES) && SQUARE_DOCK_ART_LINES >= 3,
 );
 
 process.exit(fail);

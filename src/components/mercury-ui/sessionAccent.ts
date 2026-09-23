@@ -14,7 +14,7 @@ import {
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
-import { getCritterSize, subscribeCritterSize, type CritterSize } from '../../utils/cockpit/critterSize.js'
+import { isSessionsBarOn, subscribeSessionsBar } from '../../utils/cockpit/sessionsBar.js'
 
 
 export type Critter = {
@@ -206,8 +206,8 @@ export function useSessionAccent(): Critter {
   return getSessionAccent()
 }
 
-function subscribeCritterSizeLive(onChange: () => void): () => void {
-  const offOwn = subscribeCritterSize(onChange)
+function subscribeSessionsBarLive(onChange: () => void): () => void {
+  const offOwn = subscribeSessionsBar(onChange)
   const offSettings = settingsChangeDetector.subscribe(onChange)
   return () => {
     offOwn()
@@ -215,6 +215,6 @@ function subscribeCritterSizeLive(onChange: () => void): () => void {
   }
 }
 
-export function useCritterSize(): CritterSize {
-  return useSyncExternalStore(subscribeCritterSizeLive, getCritterSize, getCritterSize)
+export function useSessionsBar(): boolean {
+  return useSyncExternalStore(subscribeSessionsBarLive, isSessionsBarOn, isSessionsBarOn)
 }

@@ -25,7 +25,7 @@ console.log('— hero-click morphs persist too (every entry point sticks) —')
 {
   const home = src('src/components/MercuryHome.tsx')
   t('the berth activate rides the one owner', home.includes('onActivate={cycleSessionCritter}'))
-  t('the hero click rides the one owner', home.includes('onClick={cycleSessionCritter}'))
+  t('the hero mounts the mini row, whose art click rides the one owner', home.includes('<MiniCritter />') && src('src/components/mercury-ui/MiniCritter.tsx').includes('onClick={cycleSessionCritter}'))
   const accent = src('src/components/mercury-ui/sessionAccent.ts')
   const cycle = accent.slice(
     accent.indexOf('export function cycleSessionCritter'),
