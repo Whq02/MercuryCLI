@@ -1,7 +1,7 @@
 
 import type { Message } from '../../types/message.js'
 
-export interface CompanionTurnSignals {
+export interface TurnSignals {
   turnLive: boolean
   turnStartTs: number | null
   streaming: boolean
@@ -21,7 +21,7 @@ export function turnEndedInError(records: readonly Message[]): boolean {
   return false
 }
 
-let signals: CompanionTurnSignals = {
+let signals: TurnSignals = {
   turnLive: false,
   turnStartTs: null,
   streaming: false,
@@ -35,16 +35,16 @@ let signals: CompanionTurnSignals = {
 let version = 0
 const listeners = new Set<() => void>()
 
-export function publishCompanionTurn(next: {
+export function publishTurnSignals(next: {
   turnLive: boolean
   streaming: boolean
   awaitingPermission: boolean
   endedInError?: boolean
 }): void {
-  publishCompanionTurnAt(next, Date.now())
+  publishTurnSignalsAt(next, Date.now())
 }
 
-export function publishCompanionTurnAt(
+export function publishTurnSignalsAt(
   next: { turnLive: boolean; streaming: boolean; awaitingPermission: boolean; endedInError?: boolean },
   now: number,
 ): void {
@@ -75,22 +75,22 @@ export function publishCompanionTurnAt(
   for (const cb of listeners) cb()
 }
 
-export function companionTurnSignals(): CompanionTurnSignals {
+export function turnSignals(): TurnSignals {
   return signals
 }
 
-export function getCompanionSignalsVersion(): number {
+export function getTurnSignalsVersion(): number {
   return version
 }
 
-export function subscribeCompanionSignals(cb: () => void): () => void {
+export function subscribeTurnSignals(cb: () => void): () => void {
   listeners.add(cb)
   return () => {
     listeners.delete(cb)
   }
 }
 
-export function resetCompanionSignals(): void {
+export function resetTurnSignals(): void {
   signals = {
     turnLive: false,
     turnStartTs: null,
