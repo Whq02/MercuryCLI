@@ -54,7 +54,6 @@
     "src/utils/artifacts/store.ts",
     "src/utils/bootCardFacts.ts",
     "src/utils/cache/cacheClock.ts",
-    "src/utils/cockpit/critterProfile.ts",
     "src/utils/cockpit/presenceLive.ts",
     "src/utils/debug.ts",
     "src/utils/file.ts",
