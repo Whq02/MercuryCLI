@@ -7,6 +7,7 @@ import { z } from 'zod/v4'
 import { getSessionCreatedTeams } from '../../bootstrap/state.js'
 import { durableAtomicPublish, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { groupCommitLane, type GroupCommitLane } from '../../substrate/groupCommit.js'
+import { recordRefusedDurableFile } from '../../substrate/storeRecovery.js'
 import { logForDebugging } from '../debug.js'
 import { getTeamsDir } from '../envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../errors.js'
@@ -137,15 +138,24 @@ function isTeamFile(v: unknown): v is TeamFile {
 const namedRosterFiles = new Set<string>()
 
 function parseTeamFile(raw: string, path: string): TeamFile | null {
-  const parsed: unknown = JSON.parse(raw)
-  if (isTeamFile(parsed)) return parsed
-  if (!namedRosterFiles.has(path)) {
-    namedRosterFiles.add(path)
-    logForDebugging(`[team-roster] ${path} is not a decodable roster: left in place, reported`, {
-      level: 'warn',
-    })
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    nameRefusedRoster(path)
+    throw error
   }
+  if (isTeamFile(parsed)) return parsed
+  nameRefusedRoster(path)
   return null
+}
+
+function nameRefusedRoster(path: string): void {
+  if (namedRosterFiles.has(path)) return
+  namedRosterFiles.add(path)
+  const reason = `${path} is not a decodable roster: left in place, reported`
+  logForDebugging(`[team-roster] ${reason}`, { level: 'warn' })
+  void recordRefusedDurableFile({ store: 'team-roster', path, reason })
 }
 
 export function readTeamFile(teamName: string): TeamFile | null {

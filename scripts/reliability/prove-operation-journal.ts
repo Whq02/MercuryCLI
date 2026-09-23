@@ -24,6 +24,12 @@ const ok = (cond: boolean, label: string) => {
   if (!cond) failures++
 }
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-journal-'))
+process.env.MERCURY_CONFIG_DIR = join(tmp, 'home')
+mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
+const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
+const { isDebugMode } = await import('../../src/utils/debug.ts')
+const refusedRows = async (): Promise<Array<{ store: string; path: string; reason: string; kind?: string; quarantinePath: string | null }>> =>
+  (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused')
 const BUN = process.execPath
 const CHILD = join(import.meta.dir, 'helpers', 'journalKillChild.ts')
 
@@ -388,6 +394,13 @@ const wipeMarkers = (work: string) => {
     `§8 recovery names the three undecodable files and reconciles nothing under them (${recoverError || JSON.stringify(summary)})`,
   )
   ok(summary !== null && summary.scanned === 4, `§8 the summary counts every file it scanned (${summary?.scanned ?? 'none'})`)
+  ok(isDebugMode() === false, '§8 this proof runs with debug OFF: the naming below is the normal record, not a debug line')
+  const namedOnLedger = (await refusedRows()).filter(row => row.store === 'operation-journal' && names.includes(row.path.slice(dir.length + 1)))
+  ok(
+    namedOnLedger.length === 3 && names.every(n => namedOnLedger.some(row => row.path === join(dir, n) && row.quarantinePath === null && row.reason.includes('left in place, reported'))),
+    `§8 the three undecodable files are each named once on the recovery ledger across the read and the recovery (one row per file per process), bytes left in place (${namedOnLedger.length} row(s))`,
+  )
+  ok(names.every(n => readFileSync(join(dir, n), 'utf8') === JSON.stringify(undecodable[n])), '§8 the undecodable files are byte-identical after being named')
   let removed = -1
   let compactError = ''
   try {
@@ -462,6 +475,12 @@ const wipeMarkers = (work: string) => {
       summary.compensated[0] === 'genuine-applying',
     `§9 recovery names the impostor by its file and compensates the genuine dead-writer op (${JSON.stringify(summary)})`,
   )
+  const impostorRows = (await refusedRows()).filter(row => row.path === impostorFile)
+  ok(
+    impostorRows.length === 1 && impostorRows[0]!.store === 'operation-journal' && impostorRows[0]!.reason.includes('names operation genuine-applying under another file name') && impostorRows[0]!.quarantinePath === null,
+    `§9 the impostor is named once on the recovery ledger across the read, the compaction and the recovery, bytes left in place (${impostorRows.length} row(s))`,
+  )
+  ok(readFileSync(impostorFile, 'utf8') === JSON.stringify(impostor), '§9 the impostor file is byte-identical after being named')
 }
 
 rmSync(tmp, { recursive: true, force: true })

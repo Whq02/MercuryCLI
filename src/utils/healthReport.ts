@@ -3361,6 +3361,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'store-quarantines',
           label: 'Store quarantines',
+          dependsOn: ['durable-journals'],
           run: async () => {
             const { readStoreRecoveryEvents } = await import('../substrate/storeRecovery.js')
             const events = await readStoreRecoveryEvents()
@@ -3374,13 +3375,18 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               const preservation =
                 last.kind === 'read-degrade'
                   ? ', bytes left in place (read-path degrade; the next mutation quarantines them)'
-                  : last.quarantinePath
-                    ? `, bytes preserved at ${last.quarantinePath}`
-                    : ', preservation FAILED (recorded)'
+                  : last.kind === 'refused'
+                    ? ', bytes left in place'
+                    : last.quarantinePath
+                      ? `, bytes preserved at ${last.quarantinePath}`
+                      : ', preservation FAILED (recorded)'
               return {
                 status: 'warn' as const,
                 evidence: `${recent.length} damaged-store event(s) in the last 24h (${events.length} on the ledger) — latest: ${last.store} (${last.reason})${preservation}`,
-                fix: 'A store held unreadable bytes; the runtime kept a quarantined copy and moved on. Recurring events point at disk or crash-loop trouble.',
+                fix:
+                  last.kind === 'refused'
+                    ? 'A durable file did not read as what it should be; the runtime left its bytes in place and read on without it. Repair or remove the file; recurring events point at disk or crash-loop trouble.'
+                    : 'A store held unreadable bytes; the runtime kept a quarantined copy and moved on. Recurring events point at disk or crash-loop trouble.',
               }
             }
             return {

@@ -250,13 +250,28 @@ const counterAt = (p: string) =>
   ]
   writeFileSync(ledger, rows.join('\n') + '\n')
   const events = await readStoreRecoveryEvents()
-  ok(events.length === 2, `§8 the read keeps the two whole rows of eight (${events.length})`)
+  const whole = events.filter(e => e.store === 'proof-store')
+  ok(whole.length === 2, `§8 the read keeps the two whole rows of eight (${whole.length})`)
   ok(
     events.every(
-      e => typeof e.ts === 'string' && typeof e.store === 'string' && (e.kind === undefined || e.kind === 'read-degrade'),
+      e => typeof e.ts === 'string' && typeof e.store === 'string' && (e.kind === undefined || e.kind === 'read-degrade' || e.kind === 'refused'),
     ),
     '§8 every surviving row carries a string time and a known kind',
   )
+  const { isDebugMode } = await import('../../src/utils/debug.ts')
+  ok(isDebugMode() === false, '§8 this proof runs with debug OFF: the naming below is the normal record, not a debug line')
+  const refused = events.filter(e => e.kind === 'refused')
+  ok(
+    refused.length === 1 && refused[0]!.store === 'store-recovery' && refused[0]!.path === ledger && refused[0]!.reason === '6 ledger row(s) not decodable as recovery events: skipped' && refused[0]!.quarantinePath === null && refused[0]!.resumedFrom === 'empty',
+    `§8 the six undecodable rows are named on the ledger itself as one refused row in the same read, bytes left in place (${JSON.stringify(refused)})`,
+  )
+  const afterFirst = readFileSync(ledger, 'utf8')
+  ok(afterFirst.startsWith(rows.join('\n') + '\n') && afterFirst.trimEnd().split('\n').length === 9, '§8 the seeded bytes are unchanged and exactly one row was appended')
+  const appendedLine = afterFirst.trimEnd().split('\n')[8]
+  const appended = appendedLine === undefined ? null : (JSON.parse(appendedLine) as { kind?: string })
+  ok(appended !== null && appended.kind === 'refused', '§8 the appended row decodes back with its kind (the decoder admits refused)')
+  const again = await readStoreRecoveryEvents()
+  ok(again.filter(e => e.kind === 'refused').length === 1 && readFileSync(ledger, 'utf8') === afterFirst, '§8 a second read in the same process names nothing new (the per-process latch)')
 }
 
 rmSync(tmp, { recursive: true, force: true })

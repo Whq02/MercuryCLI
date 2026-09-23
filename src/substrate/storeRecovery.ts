@@ -16,7 +16,7 @@ export interface StoreRecoveryEvent {
   reason: string
   quarantinePath: string | null
   resumedFrom: 'last-good' | 'empty'
-  kind?: 'quarantine' | 'read-degrade'
+  kind?: 'quarantine' | 'read-degrade' | 'refused'
 }
 
 export function storeRecoveryLedgerPath(): string {
@@ -92,7 +92,37 @@ export async function recordStoreReadDegradation(args: {
   }
 }
 
-const STORE_RECOVERY_EVENT_KINDS: ReadonlySet<string> = new Set(['quarantine', 'read-degrade'])
+const refusedNamed = new Set<string>()
+
+export async function recordRefusedDurableFile(args: {
+  store: string
+  path: string
+  reason: string
+}): Promise<StoreRecoveryEvent | null> {
+  const key = `${args.store}\0${args.path}`
+  if (refusedNamed.has(key)) return null
+  refusedNamed.add(key)
+  const event: StoreRecoveryEvent = {
+    ts: new Date().toISOString(),
+    store: args.store,
+    path: args.path,
+    reason: args.reason.slice(0, 300),
+    quarantinePath: null,
+    resumedFrom: 'empty',
+    kind: 'refused',
+  }
+  try {
+    const ledger = storeRecoveryLedgerPath()
+    mkdirSync(dirname(ledger), { recursive: true })
+    await appendFile(ledger, JSON.stringify(event) + '\n', 'utf-8')
+    return event
+  } catch (e) {
+    logForDebugging(`[${args.store}] refused-file ledger append failed: ${e}`)
+    return null
+  }
+}
+
+const STORE_RECOVERY_EVENT_KINDS: ReadonlySet<string> = new Set(['quarantine', 'read-degrade', 'refused'])
 
 function isStoreRecoveryEvent(v: unknown): v is StoreRecoveryEvent {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false
@@ -105,27 +135,31 @@ function isStoreRecoveryEvent(v: unknown): v is StoreRecoveryEvent {
 }
 
 export async function readStoreRecoveryEvents(): Promise<StoreRecoveryEvent[]> {
+  let text: string
   try {
-    const text = await readFile(storeRecoveryLedgerPath(), 'utf-8')
-    const out: StoreRecoveryEvent[] = []
-    let dropped = 0
-    for (const line of text.split('\n')) {
-      if (!line.trim()) continue
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(line)
-      } catch {
-        dropped++
-        continue
-      }
-      if (isStoreRecoveryEvent(parsed)) out.push(parsed)
-      else dropped++
-    }
-    if (dropped > 0) {
-      logForDebugging(`[store-recovery] ${dropped} ledger row(s) not decodable as recovery events: skipped`)
-    }
-    return out.slice(-MAX_LEDGER_ROWS)
+    text = await readFile(storeRecoveryLedgerPath(), 'utf-8')
   } catch {
     return []
   }
+  const out: StoreRecoveryEvent[] = []
+  let dropped = 0
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(line)
+    } catch {
+      dropped++
+      continue
+    }
+    if (isStoreRecoveryEvent(parsed)) out.push(parsed)
+    else dropped++
+  }
+  if (dropped > 0) {
+    const reason = `${dropped} ledger row(s) not decodable as recovery events: skipped`
+    logForDebugging(`[store-recovery] ${reason}`)
+    const named = await recordRefusedDurableFile({ store: 'store-recovery', path: storeRecoveryLedgerPath(), reason })
+    if (named !== null) out.push(named)
+  }
+  return out.slice(-MAX_LEDGER_ROWS)
 }

@@ -118,9 +118,10 @@ writeFileSync(join(listDir, '2.json'), taskBody('2', 2), 'utf8')
 
 const ledger = join(home, 'recovery', 'store-recovery.jsonl')
 mkdirSync(join(home, 'recovery'), { recursive: true })
+const seededTs = new Date().toISOString()
 appendFileSync(
   ledger,
-  JSON.stringify({ ts: new Date().toISOString(), store: 'proof-store', path: '/x', reason: 'seeded', quarantinePath: '/x.damaged', resumedFrom: 'empty' }) + '\n',
+  JSON.stringify({ ts: seededTs, store: 'proof-store', path: '/x', reason: 'seeded', quarantinePath: '/x.damaged', resumedFrom: 'empty' }) + '\n',
   'utf8',
 )
 
@@ -146,8 +147,12 @@ console.log('— boot 1: reconciliation over seeded damage —')
   ok(!existsSync(join(listDir, '1.json')), 'dead-epoch task body reclaimed')
   ok(existsSync(join(listDir, '2.json')), 'current-epoch task body preserved')
   ok(report.deadEpochTasks.removed === 1, `dead-epoch GC counted (${report.deadEpochTasks.removed})`)
-  ok(report.quarantine.recent === 1 && report.quarantine.total === 1, 'quarantine ledger counted (1 recent)')
-  ok(readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 1, 'quarantine ledger not mutated')
+  ok(report.quarantine.recent === 2 && report.quarantine.total === 2, `quarantine ledger counted: the seeded row plus the undecodable journal file named as refused (${report.quarantine.recent} recent, ${report.quarantine.total} total)`)
+  const ledgerLines = readFileSync(ledger, 'utf8').split('\n').filter(Boolean)
+  const seededLine = JSON.stringify({ ts: seededTs, store: 'proof-store', path: '/x', reason: 'seeded', quarantinePath: '/x.damaged', resumedFrom: 'empty' })
+  const refusedLine = ledgerLines[1] === undefined ? null : (JSON.parse(ledgerLines[1]) as { kind?: string; store?: string; path?: string; quarantinePath?: string | null })
+  ok(ledgerLines.length === 2 && ledgerLines[0] === seededLine, 'the seeded quarantine row is byte-identical; exactly one row was appended')
+  ok(refusedLine !== null && refusedLine.kind === 'refused' && refusedLine.store === 'operation-journal' && refusedLine.path === join(journalDir, undecodableName) && refusedLine.quarantinePath === null, `the appended row names the undecodable journal file as refused, bytes left in place (${JSON.stringify(refusedLine)})`)
   ok(report.leaderProjection === null, 'no leader projection for an unrelated session')
   ok(report.errors.length === 0, `no recovery errors (${report.errors.join(' | ') || 'clean'})`)
   ok(report.notes.length === 0, `no coverage notes on a small home (${report.notes.join(' | ') || 'clean'})`)
@@ -179,6 +184,7 @@ console.log('— boot 2: idempotent re-run —')
     report.teamJournal !== null && report.teamJournal.unrecoverable[0] === undecodableName && named !== null && named.tone === 'warn',
     `the undecodable file is named on every boot until it is removed (${named?.text})`,
   )
+  ok(report.quarantine.total === 2 && readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 2, 'the second boot in the same process appends no second refused row for the same file (the per-process latch); the count still reads 2')
   rmSync(join(journalDir, undecodableName))
   orch._resetBootRecoveryForTests()
   const quiet = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
