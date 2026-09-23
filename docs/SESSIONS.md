@@ -540,7 +540,11 @@ already sent moves under the model. A tool that joins later (a connector
 that connects after the first request, a tool a setting turns on) rides
 deferred where the list can carry it that way; otherwise it is held out
 until the next compaction or `/clear`, and the model is told on its next
-turn which tools are held and that they cannot be called yet.
+turn which tools are held and that they cannot be called yet. The parts of
+the system prompt that name tools are kept the same way: a session brought
+back in a new process re-sends them as they were first sent, even when its
+tool list has gained or lost a tool since; the next compaction or `/clear`
+writes them again from the tools it has then.
 
 ## Winding a chat back
 
