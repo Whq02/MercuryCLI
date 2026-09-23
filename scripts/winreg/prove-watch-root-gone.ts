@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -21,7 +21,38 @@ const { watchDirectory } = await import('../../src/utils/watchRoot.ts')
 check('watchRoot exports watchDirectory', typeof watchDirectory === 'function')
 
 if (process.platform !== 'win32') {
-  console.log('  [SKIP] the deleted-root leg is Windows-only: there the watch handle keeps reporting a deleted root')
+  if (typeof watchDirectory === 'function') {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'watch-root-live-')))
+    const project = join(base, 'proj')
+    const skills = join(project, '.mercury', 'skills')
+    mkdirSync(skills, { recursive: true })
+    let changes = 0
+    let gone = 0
+    const watcher = watchDirectory(
+      skills,
+      { recursive: true },
+      () => {
+        changes++
+      },
+      () => {
+        gone++
+      },
+    )
+    watcher.on('error', () => {})
+    await sleep(400)
+    writeFileSync(join(skills, 'SKILL.md'), 'live')
+    const until = Date.now() + 8_000
+    while (changes === 0 && Date.now() < until) await sleep(100)
+    check('an event on a live root reaches onChange', changes > 0, `${changes} change callback(s)`)
+    rmSync(project, { recursive: true, force: true })
+    await sleep(700)
+    check('onGone never fires on POSIX, even once the root is deleted', gone === 0, `onGone ran ${gone} time(s)`)
+    watcher.close()
+    try {
+      rmSync(base, { recursive: true, force: true, maxRetries: 3 })
+    } catch {
+    }
+  }
 } else if (typeof watchDirectory === 'function') {
   const base = mkdtempSync(join(tmpdir(), 'watch-root-gone-'))
   const project = join(base, 'proj')
