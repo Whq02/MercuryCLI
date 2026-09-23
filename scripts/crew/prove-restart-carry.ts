@@ -50,7 +50,7 @@ const envelope = (fields: Record<string, unknown>): string =>
 const raw = (fields: Record<string, unknown>): string => j({ type: 'queue-operation', timestamp: '2026-01-01T00:00:01.000Z', sessionId: 's', ...fields })
 {
   const rows = lr.queueLogRows([
-    envelope({ operation: 'enqueue', content: 'the operator words', uuid: 'u-1', mode: 'prompt', sentAt: '2026-01-01T00:00:00.500Z' }),
+    envelope({ operation: 'enqueue', content: 'the operator words', commandUuid: 'u-1', mode: 'prompt', sentAt: '2026-01-01T00:00:00.500Z' }),
     raw({ operation: 'dequeue' }),
     'not json at all',
     envelope({ operation: 'enqueue', content: '<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n</task-notification>', mode: 'task-notification' }),
@@ -63,21 +63,21 @@ const raw = (fields: Record<string, unknown>): string => j({ type: 'queue-operat
 section('C3 the undelivered lines: what the dying runner still held, by the log alone')
 {
   const rows = lr.queueLogRows([
-    envelope({ operation: 'enqueue', content: 'first words, taken', uuid: 'u-a', mode: 'prompt' }),
+    envelope({ operation: 'enqueue', content: 'first words, taken', commandUuid: 'u-a', mode: 'prompt' }),
     envelope({ operation: 'dequeue' }),
-    envelope({ operation: 'enqueue', content: 'a nudge the runner wrote to itself', uuid: 'u-n', mode: 'prompt', isMeta: true }),
-    envelope({ operation: 'enqueue', content: 'the line typed during the turn', uuid: 'u-b', mode: 'prompt', sentAt: '2026-01-01T00:10:14.655Z' }),
+    envelope({ operation: 'enqueue', content: 'a nudge the runner wrote to itself', commandUuid: 'u-n', mode: 'prompt', isMeta: true }),
+    envelope({ operation: 'enqueue', content: 'the line typed during the turn', commandUuid: 'u-b', mode: 'prompt', sentAt: '2026-01-01T00:10:14.655Z' }),
     envelope({ operation: 'enqueue', content: '<task-notification>\n<task-id>a2</task-id>\n<status>killed</status>\n</task-notification>', mode: 'task-notification' }),
-    envelope({ operation: 'enqueue', content: 'ls -la', uuid: 'u-c', mode: 'bash' }),
+    envelope({ operation: 'enqueue', content: 'ls -la', commandUuid: 'u-c', mode: 'bash' }),
   ])
   const pending = lr.pendingQueueLogRows(rows)
   check('the replay leaves what no dequeue took: the nudge, the line, the notice, the bash line', pending.map(r => r.uuid ?? r.mode).join(',') === 'u-n,u-b,task-notification,u-c', j(pending.map(r => r.uuid ?? r.mode)))
   const lines = lr.undeliveredLines(rows)
   check("the operator's lines are the prompt and bash rows that are not meta and not notices, oldest first", lines.map(r => r.uuid).join(',') === 'u-b,u-c' && lines[0]!.sentAt === '2026-01-01T00:10:14.655Z', j(lines))
   const byIdentity = lr.pendingQueueLogRows(lr.queueLogRows([
-    envelope({ operation: 'enqueue', content: 'one', uuid: 'u-1', mode: 'prompt' }),
-    envelope({ operation: 'enqueue', content: 'two', uuid: 'u-2', mode: 'prompt' }),
-    envelope({ operation: 'pop', content: 'two', uuid: 'u-2', mode: 'prompt' }),
+    envelope({ operation: 'enqueue', content: 'one', commandUuid: 'u-1', mode: 'prompt' }),
+    envelope({ operation: 'enqueue', content: 'two', commandUuid: 'u-2', mode: 'prompt' }),
+    envelope({ operation: 'pop', content: 'two', commandUuid: 'u-2', mode: 'prompt' }),
   ]))
   check('a taking row that names an identity takes that line, not the oldest', byIdentity.length === 1 && byIdentity[0]!.uuid === 'u-1', j(byIdentity))
   const legacy = lr.undeliveredLines(lr.queueLogRows([envelope({ operation: 'enqueue', content: 'an old row with no mode' })]))
