@@ -484,6 +484,21 @@ door, the whole estate is live behind the chat — the daemon, the board and
 every other running session — and a resume yields, drains, kills, swaps or
 respawns nothing.
 
+A runner that died mid-work — a crash, or the operator's second esc cutting
+a turn — comes back carrying what it held. The session's own record keeps
+what the runner had queued and what its background agents had reported:
+each line you typed that the dead runner never read is queued again under
+its own identity and runs as the next turn; an agent that had finished is
+delivered from the notice it left, byte for byte; an agent still working is
+relaunched from its own transcript, told that its files hold the edits it
+made and to read them again before it edits; and only a launch the record
+knows nothing about is reported stopped. One row says what the restart
+carried — `runner restarted after a crash: 2 background agents relaunched, 1
+delivered from their receipts, 0 stopped`, or `runner restarted after the
+turn was cut: …` when the second esc cut it. A seat you are looking at comes
+back the moment the cut runner is gone; an unfocused seat waits for your
+next words, as before.
+
 ## The preserved-thinking record
 
 Each session keeps one small record beside its samples and its computer-use
@@ -698,13 +713,15 @@ nothing newer, each exactly once; a line sent after the fold rides behind
 them. `↑` on an empty composer while a line is held takes it back into the
 composer, the way it does for any queued line.
 
-A queued or held row stands only while the runner holds that line. When the
-runner reports that it no longer does — a runner that restarted after the
-send, whose queue died with it — the row leaves on its own and the hint row
-names the words once ("the runner restarted — “…” not taken; type it
-again"); `↑` on such a row answers "the session did not take “…” — type it
-again" and removes it. A row that stands for a line no runner holds is never
-left on the screen.
+A queued or held row stands only while the runner holds that line. A runner
+that died with the line still queued brings it back when it returns: the
+line is queued again from the session's own record, under its own identity,
+and runs as the next turn. When the runner reports that it no longer holds a
+line the record does not carry either, the row leaves on its own and the
+hint row names the words once ("the runner restarted — “…” not taken; type
+it again"); `↑` on such a row answers "the session did not take “…” — type
+it again" and removes it. A row that stands for a line no runner holds is
+never left on the screen.
 
 The hint row under the composer is where every such receipt or notice
 paints, for its seconds. While one stands it takes the row: the standing

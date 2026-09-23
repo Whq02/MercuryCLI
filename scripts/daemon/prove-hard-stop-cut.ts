@@ -212,6 +212,39 @@ try {
   check('two seconds on, the healthy runner lives and no cut was logged for it', alive(pidB) && !daemonLog().includes(cutNeedleB), `pid ${pidB} alive=${alive(pidB)}`)
   const transcript = join(paths.getProjectDir(work), `${b.sid}.jsonl`)
   check('its transcript carries the interruption row', existsSync(transcript) && readFileSync(transcript, 'utf8').includes('Request interrupted by user'), transcript)
+
+  console.log('\nH6 the focused seat — the operator at the keyboard: the cut runner comes back at once')
+  const c = await openThinking('hardstop-c')
+  const pidC = c.rec?.pid
+  const focusBy = `operator:${process.pid}`
+  const focused = (await daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId: c.sid, by: focusBy } as never)) as { ok?: boolean; outcome?: string }
+  check('H6 the session is focused (the operator is looking at it)', focused.ok === true && focused.outcome === 'applied' && readRec(c.sid)?.focusedAt !== undefined, JSON.stringify(focused))
+  if (pidC !== undefined) {
+    process.kill(pidC, 'SIGSTOP')
+    frozen.add(pidC)
+  }
+  const cutAtC = Date.now()
+  const replyC = (await daemonControlRpc({ op: 'sessionControl', action: 'interrupt', sessionId: c.sid, by: focusBy, hard: true } as never)) as { ok?: boolean; outcome?: string }
+  check('H6 the hard verb applied', replyC.ok === true && replyC.outcome === 'applied', JSON.stringify(replyC))
+  const cutNeedleC = `hard stop: ${c.rec?.runnerId ?? '?'} still holds its turn a second after the interrupt — cutting the runner`
+  check('H6 the frozen runner is cut', await untilAsync(() => daemonLog().includes(cutNeedleC), 4_000))
+  if (pidC !== undefined) {
+    process.kill(pidC, 'SIGCONT')
+    frozen.delete(pidC)
+  }
+  const relaunchNeedle = `hard stop: ${c.rec?.runnerId ?? '?'} relaunched at once for the focused seat`
+  const relaunched = await untilAsync(() => daemonLog().includes(relaunchNeedle), 12_000)
+  check('H6 the daemon relaunches the focused seat the moment the cut runner is gone (red on the base: nothing respawns it until the next words)', relaunched, daemonLog().split('\n').filter(l => l.includes('hard stop')).join(' | '))
+  const cameBack = await untilAsync(() => {
+    const rec = readRec(c.sid)
+    return rec?.pid !== undefined && rec.pid !== pidC && alive(rec.pid)
+  }, 12_000)
+  const backRec = readRec(c.sid)
+  check('H6 the record names a new live runner pid within seconds of the cut', cameBack, JSON.stringify({ before: pidC, after: backRec?.pid, ms: Date.now() - cutAtC }))
+  check('H6 the revived record carries no cut stamp, no stop stamp and no crash stamp (the runner is back)', backRec !== undefined && backRec.turnCutAt === undefined && backRec.stoppedAt === undefined && backRec.crash === undefined, JSON.stringify(backRec))
+  const ledger = existsSync(join(daemonDir, 'spawn-ledger.jsonl')) ? readFileSync(join(daemonDir, 'spawn-ledger.jsonl'), 'utf8') : ''
+  const spawnRows = ledger.split('\n').filter(l => l.includes(`"${c.rec?.runnerId ?? '?'}@`) && !l.includes('"event":"exit"'))
+  check('H6 the ledger holds the relaunch as a second spawn row of the same seat', spawnRows.length >= 2, `${spawnRows.length} spawn row(s)`)
 } finally {
   await cleanup()
 }

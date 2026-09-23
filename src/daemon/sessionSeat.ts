@@ -108,11 +108,16 @@ interface SeatState {
 }
 
 const seats = new Map<string, SeatState>()
+const seatGenerations = new Map<string, number>()
+
+export function seatGenerationOf(short: string): number {
+  return seats.get(short)?.generation ?? seatGenerations.get(short) ?? 0
+}
 
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -458,6 +463,10 @@ function skeletonAnswer(rec: ConcourseWorkerRecordV1): Omit<SessionFactsAnswerV1
   }
 }
 
+export function queueReadinessFacts(seat: Pick<SeatState, 'lastAnswer'>): { queueReady: boolean } {
+  return { queueReady: seat.lastAnswer !== null }
+}
+
 export function publishSeatFacts(short: string, dir?: string, roster?: SeatRosterPort): void {
   const rec = liveRecordByShort(short, dir)
   if (!rec) return
@@ -470,6 +479,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     atMs: Date.now(),
     ...answerRest,
     ...(seat.generation > 0 ? { runnerGeneration: seat.generation } : {}),
+    ...queueReadinessFacts(seat),
     model: {
       effective: seat.lastAnswer?.model.effective ?? rec.modelKey,
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
@@ -862,6 +872,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.generation += 1
+  seatGenerations.set(short, seat.generation)
   seat.heldModel = null
   seat.heldEffort = null
   seat.heldSpawnSwitches = {}
@@ -1499,7 +1510,7 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
   const receipt = `${goneRunnerWords(rec, row)} — restarted on ${name}`
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model respawned: ${rec.runnerId} → ${model} (${receipt})`)
-  publishSeatFacts(rec.runnerId, dir, roster)
+  onSeatSpawned(rec.runnerId, roster, dir)
   return { outcome: 'applied', detail: receipt, respawned: true }
 }
 

@@ -61,13 +61,17 @@ function emitConsumption(kind: QueueConsumptionEvent['kind'], commands: readonly
   }
 }
 
-function logOperation(operation: QueueOperation, content?: string): void {
+function logOperation(operation: QueueOperation, content?: string, identity?: Pick<QueuedCommand, 'uuid' | 'mode' | 'isMeta' | 'sentAt'>): void {
   const queueOp: QueueOperationMessage = {
     type: 'queue-operation',
     operation,
     timestamp: new Date().toISOString(),
     sessionId: getSessionId(),
     ...(content !== undefined && { content }),
+    ...(identity?.uuid !== undefined && { uuid: String(identity.uuid) }),
+    ...(identity?.mode !== undefined && { mode: identity.mode }),
+    ...(identity?.isMeta === true && { isMeta: true }),
+    ...(identity?.sentAt !== undefined && { sentAt: identity.sentAt }),
   }
   void recordQueueOperation(queueOp)
 }
@@ -201,6 +205,7 @@ export function enqueue(command: QueuedCommand): void {
   logOperation(
     'enqueue',
     typeof command.value === 'string' ? command.value : undefined,
+    stamped,
   )
 }
 
@@ -209,6 +214,7 @@ export function enqueuePendingNotification(command: QueuedCommand): void {
     ...command,
     priority: command.priority ?? 'later',
     queueId: mintQueueId(),
+    sentAt: command.sentAt ?? new Date().toISOString(),
   }
   queue.push(stamped)
   commit()
@@ -216,6 +222,7 @@ export function enqueuePendingNotification(command: QueuedCommand): void {
   logOperation(
     'enqueue',
     typeof command.value === 'string' ? command.value : undefined,
+    stamped,
   )
 }
 
@@ -334,7 +341,7 @@ export function popById(uuid: string): PopReceipt {
   if (drainingNow.has(cmd)) return { popped: false, reason: 'taken' }
   queue.splice(idx, 1)
   commit()
-  logOperation('pop', typeof cmd.value === 'string' ? cmd.value : undefined)
+  logOperation('pop', typeof cmd.value === 'string' ? cmd.value : undefined, cmd)
   retireNotices(queuedNoticeKeys([cmd]), 'taken back before a turn read it')
   emitConsumption('popped', [cmd])
   return { popped: true, command: cmd, text: textOfCommand(cmd) }
