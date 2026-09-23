@@ -68,7 +68,7 @@ function logOperation(operation: QueueOperation, content?: string, identity?: Pi
     timestamp: new Date().toISOString(),
     sessionId: getSessionId(),
     ...(content !== undefined && { content }),
-    ...(identity?.uuid !== undefined && { uuid: String(identity.uuid) }),
+    ...(identity?.uuid !== undefined && { commandUuid: String(identity.uuid) }),
     ...(identity?.mode !== undefined && { mode: identity.mode }),
     ...(identity?.isMeta === true && { isMeta: true }),
     ...(identity?.sentAt !== undefined && { sentAt: identity.sentAt }),

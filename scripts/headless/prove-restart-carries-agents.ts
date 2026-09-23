@@ -103,7 +103,8 @@ const port = Number(new URL(fixture.base).port)
 const envFor = (home: string, reason?: string): NodeJS.ProcessEnv => {
   const env = childEnv(home, port)
   delete env.MERCURY_RUNNER_RESTART_REASON
-  return reason === undefined ? env : { ...env, MERCURY_RUNNER_RESTART_REASON: reason }
+  delete env.MERCURY_CONCOURSE_WORKER
+  return reason === undefined ? env : { ...env, MERCURY_RUNNER_RESTART_REASON: reason, MERCURY_CONCOURSE_WORKER: '1' }
 }
 
 tally.section('the first runner launches two background agents, then dies with both still running')
@@ -187,7 +188,7 @@ const queueRecord = (operation: 'enqueue' | 'dequeue', fields: Record<string, un
 const lead = readText(sessionFile!).endsWith('\n') ? '' : '\n'
 appendFileSync(
   sessionFile!,
-  `${lead}${queueRecord('enqueue', { content: heldDone, mode: 'task-notification', sentAt: at })}\n${queueRecord('enqueue', { content: LINE, uuid: LINE_UUID, mode: 'prompt', sentAt: at })}\n${queueRecord('enqueue', { content: heldLiveStop, mode: 'task-notification', sentAt: at })}\n`,
+  `${lead}${queueRecord('enqueue', { content: heldDone, mode: 'task-notification', sentAt: at })}\n${queueRecord('enqueue', { content: LINE, commandUuid: LINE_UUID, mode: 'prompt', sentAt: at })}\n${queueRecord('enqueue', { content: heldLiveStop, mode: 'task-notification', sentAt: at })}\n`,
 )
 tally.check('the seeded rows read back through the queue journal\'s own shape', queueJournal(join(crashHome, 'projects')).filter(r => r.operation === 'enqueue' && (r.content === heldDone || r.content === LINE || r.content === heldLiveStop)).length === 3)
 cpSync(crashHome, stopHome, { recursive: true })
@@ -230,13 +231,15 @@ async function carriedLeg(home: string, reason: 'crash' | 'stop', row: string): 
 await carriedLeg(crashHome, 'crash', CRASH_ROW)
 await carriedLeg(stopHome, 'stop', STOP_ROW)
 
-tally.section('a plain resume keeps its words: both agents get the stop notice, no row, nothing relaunched, nothing re-queued')
+tally.section('a plain resume keeps its words: both agents get the stop notice, no row, nothing relaunched, nothing re-queued (a plain runner drains on its first message — the journal rows land with it)')
 {
   const from = queueJournal(join(plainHome, 'projects')).length
   const startedAt = Date.now()
   const third = bootRunner({ cwd, env: envFor(plainHome), extraArgv: ['--resume', sessionId] })
-  await waitUntil(() => enqueuedAfter(plainHome, from).length >= 2, bound(60_000))
-  await sleep(bound(2_000))
+  third.send(user(QUESTION, randomUUID()))
+  await waitUntil(() => fixture.requests.some(r => r.atMs >= startedAt && !isLive(r) && !isDone(r) && textsOf(r).includes(QUESTION)), bound(60_000))
+  await waitUntil(() => enqueuedAfter(plainHome, from).length >= 2, bound(20_000))
+  await sleep(bound(1_000))
   const plainRows = enqueuedAfter(plainHome, from)
   const plainStop = (agentId: string): boolean => noticesFor(plainRows, agentId, 'killed').some(r => r.content.includes("the session's runner restarted before it finished"))
   tally.check('both agents get the stop notice in the plain words', plainStop(done!.agentId) && plainStop(live!.agentId), JSON.stringify(plainRows.map(r => r.content.slice(0, 160))))

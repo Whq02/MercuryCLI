@@ -241,7 +241,7 @@ type QueueOperationLine = {
   type?: unknown
   operation?: unknown
   content?: unknown
-  uuid?: unknown
+  commandUuid?: unknown
   mode?: unknown
   isMeta?: unknown
   sentAt?: unknown
@@ -267,7 +267,7 @@ function queueLogRowOf(line: string): QueueLogRow | null {
   return {
     operation: fields.operation,
     ...(typeof fields.content === 'string' ? { content: fields.content } : {}),
-    ...(typeof fields.uuid === 'string' ? { uuid: fields.uuid } : {}),
+    ...(typeof fields.commandUuid === 'string' ? { uuid: fields.commandUuid } : {}),
     ...(typeof fields.mode === 'string' ? { mode: fields.mode } : {}),
     ...(fields.isMeta === true ? { isMeta: true } : {}),
     ...(typeof fields.sentAt === 'string' ? { sentAt: fields.sentAt } : {}),
