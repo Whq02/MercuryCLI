@@ -511,6 +511,66 @@ section('L3 BACKFILL — adds-only clones the yield; the ORIGINAL flows to the A
   check('overwrite-only backfill: NO clone — yielded === original', yielded2 === original2)
 }
 
+section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its original input, its siblings keep theirs, and the turn settles through the schema-error road')
+{
+  const strict = {
+    ...(makeTool('EchoTool', { backfill: 'adds' }) as unknown as Record<string, unknown>),
+    backfillObservableInput: (input: Record<string, unknown>) => {
+      if (typeof input.text !== 'string') throw new TypeError('rig: text must be a string')
+      input.rig_added = true
+    },
+  } as never
+  const original = createAssistantMessage({
+    content: [
+      { type: 'tool_use', id: 'tu_bad', name: 'EchoTool', input: { text: 7 } },
+      { type: 'tool_use', id: 'tu_good', name: 'EchoTool', input: { text: 'v' } },
+    ] as never,
+  })
+  let threw: unknown = null
+  let r: RunResult | null = null
+  try {
+    r = record(await run({ tools: [strict], script: [[y(original)], [y(asstText('done'))]] }))
+  } catch (e) {
+    threw = e
+  }
+  check(
+    'a throwing backfill no longer ends the turn as a model error: the turn completes with a second model call (the base landed in the model_error catch with one call and no settlement)',
+    threw === null && r !== null && r.terminal.reason === 'completed' && r.calls.length === 2,
+    JSON.stringify({ threw: String(threw), terminal: r?.terminal, calls: r?.calls.length }),
+  )
+  const yieldedAsst = r?.yields.find(m => (m as AnyMsg).type === 'assistant') as AnyMsg | undefined
+  const yieldedBlocks = ((yieldedAsst?.message as { content?: AnyMsg[] } | undefined)?.content ?? []) as Array<{ id?: string; input?: Record<string, unknown> }>
+  const bad = yieldedBlocks.find(b => b.id === 'tu_bad')
+  const good = yieldedBlocks.find(b => b.id === 'tu_good')
+  check('the malformed block keeps its ORIGINAL input on the yield (nothing backfilled, nothing dropped)', bad !== undefined && bad.input?.text === 7 && !('rig_added' in (bad.input ?? {})), JSON.stringify(bad))
+  check('the valid sibling still carries its backfilled field (the clone is per block)', good?.input?.rig_added === true && good.input.text === 'v', JSON.stringify(good))
+  const results = r === null ? [] : toolResultBlocks(r.yields)
+  check(
+    'the malformed block settles through the existing schema-error tool_result (is_error, InputValidationError) and the sibling ran',
+    results.some(b => b.tool_use_id === 'tu_bad' && b.is_error === true && JSON.stringify(b.content).includes('InputValidationError')) && results.some(b => b.tool_use_id === 'tu_good' && b.is_error !== true && JSON.stringify(b.content).includes('echo:v')),
+    JSON.stringify(results.map(b => ({ id: b.tool_use_id, e: b.is_error, c: JSON.stringify(b.content).slice(0, 80) }))),
+  )
+  check('the API-bound assistant is still the original object (prompt-cache byte identity)', r !== null && r.calls.length > 1 && r.calls[1]!.messages.find(m => (m as AnyMsg).type === 'assistant') === original)
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { backfillCloneForYield } = await import('../../src/run-core/model-lane.ts')
+  const readMessage = createAssistantMessage({
+    content: [
+      { type: 'tool_use', id: 'tu_r1', name: 'Read', input: {} },
+      { type: 'tool_use', id: 'tu_r2', name: 'Read', input: { file_path: 7 } },
+      { type: 'tool_use', id: 'tu_r3', name: 'Read', input: { file_path: '/tmp/rig-notes.md' } },
+    ] as never,
+  })
+  let readThrew: unknown = null
+  let readYield: unknown = null
+  try {
+    readYield = backfillCloneForYield(readMessage, name => (name === 'Read' ? (FileReadTool as never) : undefined))
+  } catch (e) {
+    readThrew = e
+  }
+  const readBlocks = ((readMessage as AnyMsg).message as { content: Array<{ input: Record<string, unknown> }> }).content
+  check('the real Read tool: {} and { file_path: 7 } no longer throw out of the clone decision, and the original inputs stand', readThrew === null && readYield === readMessage && Object.keys(readBlocks[0]!.input).length === 0 && readBlocks[1]!.input.file_path === 7 && readBlocks[2]!.input.file_path === '/tmp/rig-notes.md', String(readThrew))
+}
+
 section('L4 WITHHELD max_output_tokens — nudge recovery ≤3, exact-once surfacing')
 {
   const motError = (): unknown =>
