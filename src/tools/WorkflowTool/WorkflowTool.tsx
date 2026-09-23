@@ -33,6 +33,7 @@ import {
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import {
   getCurrentTurnTokenBudget,
+  getOriginalCwd,
   getSessionId,
   getTurnOutputTokens,
 } from '../../bootstrap/state.js'
@@ -304,7 +305,7 @@ export const outputSchema = lazySchema(() =>
 
 
 function runDirectoryFor(runId: string): string {
-  return path.join(workflowRunsRoot(getCwd()), runId)
+  return path.join(workflowRunsRoot(getOriginalCwd()), runId)
 }
 
 async function persistLaunchState(
