@@ -120,6 +120,23 @@ export function providerLimitWarning(opts?: {
   return providerLimitWarningFacts(opts)?.view ?? null
 }
 
+export function usageWarningEmissionKey(warning: ProviderLimitWarningView): string | null {
+  if (warning.key !== undefined) return warning.key
+  const match = /: (\d+)% of (?:the )?(.+)/.exec(warning.text)
+  if (match === null) return `${warning.provider}|${warning.text}`
+  const tier = usageWarningTier(Number(match[1]))
+  return tier === null ? null : `${warning.provider}|${match[2]}|${tier}`
+}
+
+export function takeUsageWarning(seen: Set<string>, warning: ProviderLimitWarningView | null): boolean {
+  if (warning === null) return false
+  const key = usageWarningEmissionKey(warning)
+  if (key === null || seen.has(key)) return false
+  seen.add(key)
+  if (key.endsWith(`|${SECOND_WARNING_PCT}`)) seen.add(`${key.slice(0, key.lastIndexOf('|'))}|${FIRST_WARNING_PCT}`)
+  return true
+}
+
 export function preferSessionLimitWarning(
   fromSession: ProviderLimitWarningView | null | undefined,
   local: ProviderLimitWarningView | null,
