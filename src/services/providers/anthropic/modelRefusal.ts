@@ -141,7 +141,8 @@ export function classifyModelRefusal(facts: ModelRefusalFacts): ClassifiedModelR
   if (status === 400 && facts.subscriber && wireText.toLowerCase().includes('invalid model name') && /^(?:claude-opus(?:-|$)|opus$)/.test(id)) {
     return withWords({ ...base, kind: 'tier' })
   }
-  const named = (wireText.toLowerCase().match(/[a-z0-9_/-]+(?:\.[a-z0-9_/-]+)*/g) ?? []).includes(id)
+  const spelledIds: string[] = wireText.toLowerCase().match(/[a-z0-9_/-]+(?:\.[a-z0-9_/-]+)*/g) ?? []
+  const named = spelledIds.includes(id)
   if (named && (status === 403 || (status === 404 && errorType === 'not_found_error'))) {
     return withWords({ ...base, kind: 'not-served' })
   }
