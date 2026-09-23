@@ -63,7 +63,9 @@ export function ModelPicker({
     const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !isCatalogueDoorRow(o.value))
     if (
       !resolvesToExistingOption(catalogue, initial) &&
-      !catalogue.some(option => option.value === initial)
+      !catalogue.some(option => option.value === initial) &&
+      !resolvesToExistingOption(catalogue, stripContext1m(initial)) &&
+      !catalogue.some(option => option.value === stripContext1m(initial))
     ) {
       const appended: ModelOption = {
         value: initial,
@@ -78,6 +80,8 @@ export function ModelPicker({
   const focusDefault =
     options.find(option => option.value === initial)?.value ??
     options.find(option => resolvesToExistingOption([option], initial))?.value ??
+    options.find(option => option.value === stripContext1m(initial))?.value ??
+    options.find(option => resolvesToExistingOption([option], stripContext1m(initial)))?.value ??
     options[0]!.value
 
   const [focusedValue, setFocusedValue] = useState(focusDefault)
@@ -88,8 +92,8 @@ export function ModelPicker({
       toPersistableEffort(appStateEffort) ??
       toPersistableEffort(getDefaultEffortForModel(focusDefault)),
   )
-  const [contextToggle, setContextToggle] = useState(() =>
-    initialContextToggle(focusDefault),
+  const [contextToggle, setContextToggle] = useState(
+    () => initialContextToggle(focusDefault) || (initialContextToggle(initial) && focusedOptionSupports1m(focusDefault)),
   )
 
   const focusedModel = stripContext1m(focusedValue)
