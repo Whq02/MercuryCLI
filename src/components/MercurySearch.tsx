@@ -91,7 +91,7 @@ export function MercurySearch({
 
   if (loading) {
     return (
-      <CommandCenter view="search" onClose={onClose}>
+      <CommandCenter elevated view="search" onClose={onClose}>
         <Box marginTop={1}>
           <Text color={FAINT}>searching…</Text>
         </Box>
@@ -100,7 +100,7 @@ export function MercurySearch({
   }
 
   return (
-    <CommandCenter
+    <CommandCenter elevated
       view="search"
       onClose={onClose}
       captureInput={false}

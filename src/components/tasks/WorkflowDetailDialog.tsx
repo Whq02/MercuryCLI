@@ -337,7 +337,7 @@ export function WorkflowDetailDialog({
     >
       {
 }
-      <Panel title="Workflow">
+      <Panel elevated title="Workflow">
         <Box flexDirection="column">
           {}
           <Text>

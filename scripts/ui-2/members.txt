@@ -13,3 +13,5 @@ prove-trust-telemetry.ts
 prove-vshot-ready.ts
 prove-vshot-send-hygiene.ts
 prove-workflow-inline.ts
+prove-panel-dismissal.ts
+prove-panel-dismissal-layers.ts

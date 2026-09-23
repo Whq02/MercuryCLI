@@ -640,7 +640,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       return
     }
     if (isMotion) {
-      props.handleSelectionDrag(col, row)
+      if (!m.swallowRelease) props.handleSelectionDrag(col, row)
       return
     }
     if (selection.isDragging) {
@@ -653,6 +653,17 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       m.refocusedAt = -1
       m.swallowRelease = true
       m.clickCount = 0
+      return
+    }
+    m.swallowRelease = false
+    if (clickOutsideElevatedSurface(col, row)) {
+      if (m.pendingHyperlinkTimer) {
+        clearTimeout(m.pendingHyperlinkTimer)
+        m.pendingHyperlinkTimer = null
+      }
+      m.swallowRelease = true
+      m.clickCount = 0
+      app.pressEscape()
       return
     }
     setHoverPointerDown(true)
@@ -714,20 +725,16 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
 
   const isClick = slop || (!hasSelection(selection) && selection.anchor !== null)
   if (isClick) {
-    if (clickOutsideElevatedSurface(col, row)) {
-      app.pressEscape()
-    } else {
-      const consumed = props.dispatchClick(col, row)
-      if (!consumed) {
-        const url = props.getHyperlinkAt(col, row)
-        const embeddedWebTerminal = process.env.TERM_PROGRAM === 'vscode' || isXtermJs()
-        if (url && !embeddedWebTerminal) {
-          if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
-          m.pendingHyperlinkTimer = setTimeout(() => {
-            m.pendingHyperlinkTimer = null
-            props.openHyperlink(url)
-          }, MULTI_CLICK_WINDOW_MS)
-        }
+    const consumed = props.dispatchClick(col, row)
+    if (!consumed) {
+      const url = props.getHyperlinkAt(col, row)
+      const embeddedWebTerminal = process.env.TERM_PROGRAM === 'vscode' || isXtermJs()
+      if (url && !embeddedWebTerminal) {
+        if (m.pendingHyperlinkTimer) clearTimeout(m.pendingHyperlinkTimer)
+        m.pendingHyperlinkTimer = setTimeout(() => {
+          m.pendingHyperlinkTimer = null
+          props.openHyperlink(url)
+        }, MULTI_CLICK_WINDOW_MS)
       }
     }
   }

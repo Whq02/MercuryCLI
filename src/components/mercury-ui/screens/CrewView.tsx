@@ -198,7 +198,7 @@ export function CrewView({
     const back = (): void => setMode({ view: 'list' })
     const cardFooter = [...doorKeys(facts ?? null), 'esc back'].join(' · ')
     return (
-      <CommandCenter view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
+      <CommandCenter elevated view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
         <Box marginTop={1} flexDirection="column">
           <RosterWorkDetail work={work} now={now} onBack={back} />
           {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
@@ -223,7 +223,7 @@ export function CrewView({
     .join(' · ')
 
   return (
-    <CommandCenter view="crew" subtitle={crewCountLabel(agents)} onClose={onClose} footer={footer} captureInput={false}>
+    <CommandCenter elevated view="crew" subtitle={crewCountLabel(agents)} onClose={onClose} footer={footer} captureInput={false}>
       <Box marginTop={1} flexDirection="column">
         {presence === 'blank' ? (
           <Text color={tokens.textMuted}>no chat is focused — a session's sub-agents list here</Text>
