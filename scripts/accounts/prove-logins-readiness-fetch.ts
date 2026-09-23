@@ -156,7 +156,7 @@ section('§5 the two logins surfaces ask on open and re-read on the epoch (call-
   const face = readFileSync(join(ROOT, 'src/components/BootLoginsScreen.tsx'), 'utf8')
   check('the boot logins face asks on mount and re-reads its facts when the epoch moves', face.includes("import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'") && face.includes('resolveProviderUsability(undefined, { fetchCatalogues: true });') && /catalogueEpoch === mountCatalogueEpoch\.current\) return;\s*if \(given === undefined\) setFacts\(collectLoginsScreenFacts\(\)\);/.test(face))
   const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
-  check('the passive reads bundle never passes fetch and every other caller of the resolver passes no option', usability.includes("gptSeat: () => getGptSeatAvailability(fetch ? { fetch: true } : undefined)") && !/resolveProviderUsability\([^)]*fetchCatalogues/.test(readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')))
+  check('the passive reads bundle never passes fetch and every other caller of the resolver passes no option', usability.includes("gptSeat: () => getGptSeatAvailability(fetchCatalogues ? { fetch: true } : undefined)") && !/resolveProviderUsability\([^)]*fetchCatalogues/.test(readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')))
 }
 
 server.close()
