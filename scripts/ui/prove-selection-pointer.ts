@@ -6,11 +6,10 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-t.section('§1 — the re-pointed nine')
+t.section('§1 — the re-pointed eight (the config popup paints the design page\'s › through GLYPH.chevronRight)')
 {
   const sites: ReadonlyArray<[string, string]> = [
     ['src/components/MessageSelector.tsx', 'focused ? `${figures.pointer} `'],
-    ['src/components/Settings/Config.tsx', 'isSelected ? `${figures.pointer} `'],
     ['src/components/tasks/BackgroundTasksDialog.tsx', 'isSelected ? `${figures.pointer} `'],
     ['src/components/mcp/ElicitationDialog.tsx', 'focused ? `${figures.pointer} `'],
     ['src/components/Spinner/TeammateSpinnerLine.tsx', 'isSelected ? `${figures.pointer} `'],

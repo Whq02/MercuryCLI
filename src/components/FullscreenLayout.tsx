@@ -48,6 +48,7 @@ import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
+import { SettingsPopupSlot } from './SettingsPopupSlot.js'
 import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
@@ -430,6 +431,7 @@ export function FullscreenLayout({
           </Box>
           {overlay ?? null}
           {modal ?? null}
+          <SettingsPopupSlot overlay={false} />
         </Box>
       </PromptOverlayProvider>
     )
@@ -618,6 +620,7 @@ export function FullscreenLayout({
                 {bottomBlock}
               </ScrollChromeContext.Provider>
               {modalPane}
+              <SettingsPopupSlot overlay={true} />
             </Box>
           </MotionParkContext.Provider>
         </CockpitActiveContext.Provider>

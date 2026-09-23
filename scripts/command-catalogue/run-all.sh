@@ -19,4 +19,5 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-feedback-issue-road.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-readme-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-readme-roster.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-unavailable-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unavailable-honesty.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-builtins-unshadowable.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-builtins-unshadowable.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-settings-popup-commands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-settings-popup-commands.ts" "$__t" "$__rc"
 exit $fail
