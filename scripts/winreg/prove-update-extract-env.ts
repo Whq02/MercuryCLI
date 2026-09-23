@@ -23,8 +23,8 @@ if (typeof updateService.extractorEnv === 'function') {
   process.env.PSModulePath = ['pwsh-user-modules', 'pwsh-shared-modules'].join(process.platform === 'win32' ? ';' : ':')
   const legacy = updateService.extractorEnv('powershell', 'archive.zip', 'dest')
   const modern = updateService.extractorEnv('pwsh', 'archive.zip', 'dest')
-  check('Windows PowerShell gets no inherited module path, so it builds its own', spellings(legacy, 'PSModulePath').length === 0, spellings(legacy, 'PSModulePath').join(', '))
-  check('PowerShell 7 keeps the module path it inherited', spellings(modern, 'PSModulePath').length === 1)
+  check('Windows PowerShell gets no module path from the parent, so it builds its own', spellings(legacy, 'PSModulePath').length === 0, spellings(legacy, 'PSModulePath').join(', '))
+  check('PowerShell 7 keeps the module path from the parent', spellings(modern, 'PSModulePath').length === 1)
   check('both carry the archive and the destination', legacy.MERCURY_UPDATE_ARCHIVE === 'archive.zip' && legacy.MERCURY_UPDATE_DEST === 'dest' && modern.MERCURY_UPDATE_ARCHIVE === 'archive.zip')
   check('both keep PATH', spellings(legacy, 'PATH').length === 1 && spellings(modern, 'PATH').length === 1)
   delete process.env.PSModulePath

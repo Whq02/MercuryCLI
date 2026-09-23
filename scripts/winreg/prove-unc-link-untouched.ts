@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -64,15 +64,39 @@ console.log('============================================================')
 console.log(' a symlink to a UNC share and the permission resolution set')
 console.log('============================================================')
 
-fsOps.setFsImplementation(fake as never)
-const remote = fsOps.getPathsForPermissionCheck(REMOTE_LINK)
-const remoteTouched = [...touched]
-const local = fsOps.getPathsForPermissionCheck(LOCAL_LINK)
-fsOps.setOriginalFsImplementation()
+if (process.platform === 'win32') {
+  fsOps.setFsImplementation(fake as never)
+  const remote = fsOps.getPathsForPermissionCheck(REMOTE_LINK)
+  const remoteTouched = [...touched]
+  const local = fsOps.getPathsForPermissionCheck(LOCAL_LINK)
+  fsOps.setOriginalFsImplementation()
 
-check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote))
-check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched))
-check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local))
+  check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote))
+  check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched))
+  check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local))
+} else {
+  const folder = join(PROJ, 'folder')
+  const folderLink = join(PROJ, 'folder-link')
+  mkdirSync(folder)
+  symlinkSync(folder, folderLink)
+  const realpathCalls: string[] = []
+  const counting = new Proxy(real, {
+    get(target, prop, receiver) {
+      const original = Reflect.get(target, prop, receiver)
+      if (typeof original !== 'function') return original
+      return (...args: unknown[]) => {
+        if (prop === 'realpathSync') realpathCalls.push(String(args[0]))
+        return original.apply(target, args)
+      }
+    },
+  })
+  fsOps.setFsImplementation(counting as never)
+  const followed = fsOps.getPathsForPermissionCheck(folderLink)
+  fsOps.setOriginalFsImplementation()
+
+  check('the walk follows a local link: the set holds the link and its target', followed.length === 2 && followed.includes(folderLink) && followed.includes(folder), JSON.stringify(followed))
+  check('realpath is consulted once, on the link itself', realpathCalls.length === 1 && realpathCalls[0] === folderLink, JSON.stringify(realpathCalls))
+}
 
 for (const dir of [PROJ, HOME]) {
   try {

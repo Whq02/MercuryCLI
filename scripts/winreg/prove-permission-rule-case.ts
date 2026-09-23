@@ -13,6 +13,7 @@ mkdirSync(join(USER, '.ssh'), { recursive: true })
 writeFileSync(join(USER, '.ssh', 'id_rsa'), 'k')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.HOME = USER
+process.env.USERPROFILE = USER
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(PROJ)
