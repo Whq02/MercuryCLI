@@ -37,7 +37,7 @@ export function decideQuietCheck(
   if (cache === null || cache.runningVersion !== runningVersion) return { action: 'check' }
   const fresh = nowMs - cache.checkedAtMs >= 0 && nowMs - cache.checkedAtMs < dailyMs
   if (!fresh) return { action: 'check' }
-  if (cache.available !== undefined && cache.available.version !== runningVersion) {
+  if (cache.available !== undefined && newerThanRunning(cache.available.version, runningVersion)) {
     return { action: 'notify-from-cache', available: cache.available }
   }
   return { action: 'skip', reason: 'fresh-and-current' }
@@ -155,12 +155,12 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
     deadline.cancel()
   }
   const checkedAtMs = deps.now()
-  if (outcome.state === 'update-available') {
+  if (outcome.state === 'update-available' && newerThanRunning(outcome.version, deps.runningVersion)) {
     deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, available: { version: outcome.version, tag: outcome.tag }, ...carried })
     deps.notify(updateNoticeText(outcome.version))
     return 'notified'
   }
-  if (outcome.state === 'current' || outcome.state === 'no-releases') {
+  if (outcome.state === 'update-available' || outcome.state === 'current' || outcome.state === 'no-releases') {
     deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, ...carried })
     return 'current'
   }
