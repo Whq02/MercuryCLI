@@ -262,6 +262,7 @@ export interface FamilyWindowReads {
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
   openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
+  percentageWindows?: (family: 'moonshot' | 'openrouter') => UsageWindowView[]
   openrouterWall?: () => { resetsAtMs: number } | null
   geminiWall?: () => { resetsAtMs: number } | null
   huggingfaceWall?: () => { resetsAtMs: number } | null
@@ -323,6 +324,10 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
         })
       }
       return bands
+    },
+    percentageWindows: family => {
+      const { usageForProvider } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return usageForProvider(family).windows
     },
     openrouterWall: () => {
       const { openrouterObservedWall } =
@@ -445,7 +450,25 @@ export function observedFamilyWindow(
             ? r.huggingfaceWall()
             : null
     if (laneWall !== null) return wallFact(family, laneWall, now, 'usage window')
-    return billingOrUnknown(family, r, unknown)
+    const billing = billingOrUnknown(family, r, unknown)
+    if (billing.state === 'rejected') return billing
+    if (family === 'moonshot' || family === 'openrouter') {
+      const { worstLiveWindow, usageWindowWord } = require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      const worst = worstLiveWindow(r.percentageWindows(family).filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now))
+      if (worst !== null) {
+        const tier = usageWarningTier(worst.usedPct)
+        return {
+          family,
+          state: usageWindowState(worst.usedPct),
+          basis: 'observed',
+          usedPct: worst.usedPct,
+          windowName: usageWindowWord(worst),
+          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+          ...(tier !== null ? { warningTier: tier } : {}),
+        }
+      }
+    }
+    return billing
   } catch {
     return unknown
   }

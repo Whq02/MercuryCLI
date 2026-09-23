@@ -94,3 +94,53 @@ assert.equal(computeNewLimitsFromHeaders(new Headers({
 const decoder = readFileSync(new URL('../../src/services/claudeAiLimits.ts', import.meta.url), 'utf8')
 assert.ok(!decoder.includes('TIME_RELATIVE_CONFIGS') && !decoder.includes('elapsedFraction'))
 console.log('PASS the card and strip follow the number; a bare warning is quiet')
+
+console.log('RED on the base: Kimi and OpenRouter percentages have no card arm')
+const usage = await import('../../src/services/providers/providerUsage.ts')
+for (const family of ['openai', 'moonshot', 'openrouter'] as const) {
+  for (const pct of [79, 80, 85, 90, 95, 100]) {
+    const familyReads: LimitWarningReads = {
+      route: () => family,
+      spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+      activeEntry: () => ({ ...entry, provider: 'openai', custodian: 'openai-accounts' }),
+      openaiObserved: () => ({ secondary: { usedPct: pct, windowMinutes: 10080, resetsAtMs: reset * 1000, observedAtMs: Date.now() } }),
+      openaiLimited: () => ({ state: 'clear' }),
+      moonshotAccount: () => ({ kind: 'kimi-oauth' }),
+      kimiManagedUsage: () => ({ observedAtMs: Date.now(), windows: [{ windowMinutes: 300, used: pct, limit: 100, resetsAtMs: reset * 1000 }] }),
+      openrouterKeyPresent: () => true,
+      openrouterObserved: () => ({ usage: { limit: 100, limitRemaining: 100 - pct, observedAtMs: Date.now() } }),
+      openrouterLimited: () => ({ state: 'clear' }),
+    }
+    const facts = warnings.providerLimitWarningFacts({ model: 'fixture', reads: familyReads })
+    const windows = usage.usageForProvider(family, familyReads).windows
+    const card = observedFamilyWindow(family, {
+      openaiActiveSource: () => 'chatgpt-subscription',
+      openaiWall: () => null,
+      openaiBands: () => windows.map(w => ({ usedPct: w.usedPct!, resetsAtMs: w.resetsAtMs, windowName: usage.usageWindowWord(w) })),
+      percentageWindows: () => windows,
+      openrouterWall: () => null,
+      laneBilling: () => ({ state: 'clear' }),
+    })
+    assert.equal(card.state, pct >= 100 ? 'rejected' : pct >= 80 ? 'warning' : 'allowed')
+    assert.equal(facts?.tier ?? null, pct < 80 || pct >= 100 ? null : pct < 90 ? 80 : 90)
+    if (facts) {
+      assert.equal(card.warningTier, facts.tier)
+      assert.equal(card.windowName, facts.windowName)
+      assert.equal(card.usedPct, facts.pct)
+    }
+  }
+}
+for (const family of ['moonshot', 'openrouter'] as const) {
+  const familyReads: LimitWarningReads = {
+    route: () => family,
+    spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+    moonshotAccount: () => ({ kind: 'api-key' }),
+    moonshotBalance: () => null,
+    openrouterKeyPresent: () => true,
+    openrouterObserved: () => ({ usage: null }),
+    openrouterLimited: () => ({ state: 'clear' }),
+  }
+  assert.equal(warnings.providerLimitWarningFacts({ model: 'fixture', reads: familyReads }), null)
+  assert.equal(observedFamilyWindow(family, { percentageWindows: () => [], openrouterWall: () => null, laneBilling: () => ({ state: 'clear' }) }).state, 'unknown')
+}
+console.log('PASS every percentage family shares the tiers and a source without percentages stays quiet')
