@@ -257,7 +257,12 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
         }
       }
     }
-    rmSync(full, { recursive: true, force: true })
+    try {
+      removeWithRetry(full, 'sweep-rm', roots.isWindows)
+    } catch (sweepErr) {
+      if (!roots.isWindows) throw sweepErr
+      continue
+    }
     report.removed.push(entry)
   }
   return report
@@ -399,7 +404,13 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
         note: `promote rename failed (${promoteNote}); the previous working copy was restored${retryable ? ' — retry `mercury update`' : ''}`,
       }
     }
-    if (displaced) rmSync(displaced, { recursive: true, force: true })
+    if (displaced) {
+      try {
+        removeWithRetry(displaced, 'displaced-rm', roots.isWindows)
+      } catch (displacedErr) {
+        if (!roots.isWindows) throw displacedErr
+      }
+    }
     return { state: 'installed', versionDir, changed: true }
   } catch (e) {
     rmSync(staging, { recursive: true, force: true })
