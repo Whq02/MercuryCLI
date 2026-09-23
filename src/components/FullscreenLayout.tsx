@@ -48,8 +48,7 @@ import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
-import { PinnedCritterBerth, berthCritterCols } from './MercuryHome.js'
-import { useCritterSize } from './mercury-ui/sessionAccent.js'
+import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
 import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
@@ -336,7 +335,6 @@ export function FullscreenLayout({
   const terminalRows = rows
   const { chrome, isCompact } = useLayoutChrome()
   const [compactFooterNotice, setCompactFooterNotice] = useState(0)
-  const critterMini = useCritterSize() === 'mini'
   const bandRows = isCompact ? compactBandRows(columns, rows) : 0
   const compactBudget = useMemo(() => isCompact ? compactFrameBudget(columns, rows - bandRows, statusBandActive, compactFooterNotice) : null, [isCompact, columns, rows, bandRows, statusBandActive, compactFooterNotice])
   const cockpit = fullscreen && chrome === 'cockpit'
@@ -580,8 +578,8 @@ export function FullscreenLayout({
                         <Box
                           flexDirection="column"
                           flexShrink={0}
-                          width={critterMini ? CR_COLS : undefined}
-                          justifyContent={critterMini ? 'center' : undefined}
+                          width={CR_COLS}
+                          justifyContent="center"
                         >
                           <PinnedCritterBerth />
                         </Box>
@@ -593,10 +591,7 @@ export function FullscreenLayout({
                         >
                           <WorkCapsule
                             active={!!statusBandActive}
-                            width={
-                              sizeVal.columns - 4 - 1 -
-                              berthCritterCols(sizeVal.columns, sizeVal.rows)
-                            }
+                            width={sizeVal.columns - 4 - 1 - CR_COLS}
                           >
                             {statusBand}
                           </WorkCapsule>

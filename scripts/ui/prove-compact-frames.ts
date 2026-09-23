@@ -16,7 +16,7 @@ console.log(`compact frame artifacts: ${scratch}`)
 const sizes = process.argv.includes('--size')
   ? [process.argv[process.argv.indexOf('--size') + 1]!.split('x').map(Number)]
   : [[90, 31], [80, 24], [82, 17], [120, 24], [60, 16], [40, 10], [99, 26], [100, 25]]
-type Rung = { form: 'none' | 'line' | 'dock' | 'square'; bandRows: number }
+type Rung = { form: 'none' | 'line' | 'dock'; bandRows: number }
 const ladderHome = join(scratch, 'ladder-home')
 mkdirSync(ladderHome, { recursive: true })
 const ladderRead = spawnSync(process.execPath, ['-e', `import { compactBandForm, compactBandRows } from ${JSON.stringify(pathToFileURL(join(ROOT, 'src', 'components', 'mercury-ui', 'geometry.ts')).href)}\nconsole.log(JSON.stringify(${JSON.stringify(sizes)}.map(([c, r]) => [c, r, compactBandForm(c, r), compactBandRows(c, r)])))`], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: ladderHome, MERCURY_CREDENTIAL_STORE: 'file' } })
@@ -55,7 +55,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: no shortcut hint rows`, !/\? for shortcuts|for commands \+ files|ctrl\+t activity|for a new line/.test(joined(frame)))
     const { form, bandRows } = ladder.get(`${cols}x${rows}`) ?? { form: 'none', bandRows: 0 }
     const artRows = frame.slice(0, Math.max(0, bandRows - 1)).filter(line => /[▀▄]{3,}/.test(line)).length
-    check(`${cols}x${rows}: the identity band carries the critter at its ${form} form and nothing else does`, (form === 'square' || form === 'dock' ? artRows >= 2 : artRows === 0) && frame.slice(bandRows).every(line => !/[▀▄]{3,}/.test(line)), `band=${form} artRows=${artRows}`)
+    check(`${cols}x${rows}: the identity band carries the critter at its ${form} form and nothing else does`, (form === 'dock' ? artRows >= 2 : artRows === 0) && frame.slice(bandRows).every(line => !/[▀▄]{3,}/.test(line)), `band=${form} artRows=${artRows}`)
     check(`${cols}x${rows}: the band closes with its rule exactly when a band is up`, bandRows === 0 ? !frame.some(line => /^─+$/.test(line)) : frame[bandRows - 1] === '─'.repeat(cols!), frame[bandRows - 1] ?? '')
     check(`${cols}x${rows}: no miniature mark and no old top band`, !/▚▛▀▜▞|▖▟▆▙▗|▝▜▆▛▘|▗▙█▟▖/.test(joined(frame)))
     check(`${cols}x${rows}: the model lives in the band when a band is up, on the chip line otherwise`, modelRows.length === 1 && (bandRows > 0 ? modelRows[0]! < bandRows - 1 : modelRows[0]! === border - (border === editor ? 1 : 2)), `model=${modelRows[0]} band=${bandRows}`)

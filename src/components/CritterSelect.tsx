@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { claimHover, releaseHover, useHoverOwner } from './mercury-ui/useHoverOwned.js'
-import { FLAT_ART_LINES, HERO_ART_COLS, HERO_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey, squareDockArtFor } from '../utils/cockpit/critterData.js'
 import { DUNE, FAINT, TEAL } from './mercuryPalette.js'
 import { CommandCenter, SectionHeader } from './mercury-ui/components.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
@@ -22,14 +22,18 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
     ALL_CRITTERS.findIndex(c => c.key === getSessionAccent().key),
   )
   const paneCols = useTerminalSize().columns
-  const heroCards = paneCols >= 64
+  const oneRow = paneCols >= 84
+  const dockDefs = React.useMemo(
+    () => ALL_CRITTERS.map(c => ({ ...critterDefForKey(c.key), square: squareDockArtFor(c.key) })),
+    [],
+  )
 
   const nav = useInteractiveList({
     rows: ALL_CRITTERS,
     rowId: c => c.key,
     idNamespace: 'critter',
     initialId: ALL_CRITTERS[activeIndex]?.key,
-    orientation: heroCards ? { grid: { columns: 2 } } : 'horizontal',
+    orientation: oneRow ? 'horizontal' : { grid: { columns: 2 } },
     onClose,
     actions: [
       {
@@ -79,11 +83,11 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
       <Text color={FAINT}>
         pick a critter — it themes the whole harness (frame · deck · headers) · the status spine stays fixed
       </Text>
-      <Box flexDirection="row" flexWrap="wrap" marginTop={1} width={heroCards ? 60 : undefined}>
+      <Box flexDirection="row" flexWrap="wrap" marginTop={1} width={oneRow ? undefined : 38}>
         {ALL_CRITTERS.map((c, i) => {
           const on = i === sel
           const active = c.key === liveActive
-          const def = critterDefForKey(c.key)
+          const def = dockDefs[i]!
           return (
             <Box
               key={c.key}
@@ -93,8 +97,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
               marginBottom={1}
               flexDirection="column"
               alignItems="center"
-              width={heroCards ? HERO_ART_COLS + 4 : undefined}
-              paddingX={heroCards ? 1 : 0}
+              width={18}
               onClick={() => nav.moveTo(i)}
               onMouseEnter={() => claimHover(`${hoverBase}:${i}`)}
               onMouseLeave={() => releaseHover(`${hoverBase}:${i}`)}
@@ -104,13 +107,13 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
               {
 }
               <Box
-                height={heroCards ? HERO_ART_LINES : FLAT_ART_LINES}
+                height={SQUARE_DOCK_ART_LINES}
                 flexDirection="column"
                 justifyContent="flex-end"
               >
-                <AnimatedCritterArt def={def} hero={heroCards} specimen />
+                <AnimatedCritterArt def={def} square specimen />
               </Box>
-              <Box marginTop={heroCards ? 0 : 1}>
+              <Box marginTop={1}>
                 <Text bold color={c.accent}>
                   [{i + 1}] {c.name}
                 </Text>

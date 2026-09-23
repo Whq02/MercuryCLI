@@ -11,8 +11,6 @@ import { EffortChip } from './mercury-ui/EffortChip.js'
 import { FailoverMark } from './mercury-ui/FailoverMark.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import {
-  CR_COLS,
-  SQUARE_ART_LINES,
   SQUARE_DOCK_ART_LINES,
   critterDefForKey,
   squareDockArtFor,
@@ -54,11 +52,6 @@ export function compactBandIdle(inFlight: boolean, landing: boolean): boolean {
   return !inFlight && !landing
 }
 
-export function treeStateWord(git: Snapshot<{ data: GitData }> | null): string | null {
-  if (git === null || git.data.git === null) return null
-  return git.data.git.isClean ? 'clean' : 'uncommitted'
-}
-
 export function CompactIdentityBand(): React.ReactNode {
   const tok = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
@@ -70,9 +63,9 @@ export function CompactIdentityBand(): React.ReactNode {
       ...rawDef,
       hue: sa.accent,
       hueDeep: sa.accentDeep,
-      ...(form === 'dock' ? { square: squareDockArtFor(sa.key) } : {}),
+      square: squareDockArtFor(sa.key),
     }),
-    [rawDef, sa.accent, sa.accentDeep, sa.key, form],
+    [rawDef, sa.accent, sa.accentDeep, sa.key],
   )
   const modelName = useDisplayedSessionModel().compact
   const effectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel)
@@ -95,7 +88,6 @@ export function CompactIdentityBand(): React.ReactNode {
   if (form === 'none') return null
   const dir = pathTailLabel(cwd)
   const branch = git?.data.git?.branchName ?? null
-  const treeState = treeStateWord(git)
   const used = ctx.usedPct
   const ctxColor = used !== null && used >= 90 ? tok.failure : used !== null && used >= 75 ? tok.warning : tok.textSecondary
   const modelFacts = (
@@ -153,35 +145,26 @@ export function CompactIdentityBand(): React.ReactNode {
       </Box>
     )
   }
-  const square = form === 'square'
-  const artLines = square ? SQUARE_ART_LINES : SQUARE_DOCK_ART_LINES
-  const artCols = square ? CR_COLS : def.square.reduce((max, row) => Math.max(max, row.length), 0)
+  const artCols = def.square.reduce((max, row) => Math.max(max, row.length), 0)
   return (
     <Box flexDirection="column" flexShrink={0}>
-      <Box flexDirection="row" height={artLines} flexShrink={0} overflow="hidden">
+      <Box flexDirection="row" height={SQUARE_DOCK_ART_LINES} flexShrink={0} overflow="hidden">
         <Box width={1} flexShrink={0} />
         <Box width={artCols} flexShrink={0} flexDirection="column" justifyContent="flex-end" onClick={cycleSessionCritter}>
           <AnimatedCritterArt def={def} square />
         </Box>
         <Box width={2} flexShrink={0} />
         <Box flexDirection="column" flexGrow={1} minWidth={0}>
-          {square ? <Box height={1} flexShrink={0} /> : null}
-          {identityLine(square ? null : (
+          {identityLine(
             <Text>
               <Text color={tok.textMuted}> · </Text>
               {modelFacts}
-            </Text>
-          ))}
-          {square ? (
-            <Box height={1} flexShrink={0} overflow="hidden">
-              <Text wrap="truncate-end">{modelFacts}</Text>
-            </Box>
-          ) : null}
+            </Text>,
+          )}
           <Box height={1} flexShrink={0} overflow="hidden">
             <Text wrap="truncate-end">
               {placeFacts}
-              {square && treeState !== null ? <Text color={tok.textMuted}> · {treeState}</Text> : null}
-              {!square && turnsFacts !== null ? (
+              {turnsFacts !== null ? (
                 <Text>
                   <Text color={tok.textMuted}> · </Text>
                   {turnsFacts}
@@ -189,11 +172,6 @@ export function CompactIdentityBand(): React.ReactNode {
               ) : null}
             </Text>
           </Box>
-          {square ? (
-            <Box height={1} flexShrink={0} overflow="hidden">
-              {turnsFacts !== null ? <Text wrap="truncate-end">{turnsFacts}</Text> : null}
-            </Box>
-          ) : null}
         </Box>
       </Box>
       {rule}

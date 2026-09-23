@@ -4,7 +4,7 @@ const critter = {
   type: 'local-jsx',
   name: 'critter',
   isEnabled: () => true,
-  description: 'Toggle the critter · on = the full critter, off = the small one · pick chooses the creature',
+  description: 'Choose the session critter',
   load: () => import('./critter.js'),
 } satisfies Command
 

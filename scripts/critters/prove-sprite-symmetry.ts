@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import {
   CRITTERS,
-  HERO_ART_COLS,
   heroContentBounds,
   markCompactArtFor,
   miniArtFor,
@@ -52,36 +51,14 @@ function rowVerdict(row: string, mirror: (c: number) => number): RowVerdict {
 type Gesture = { reason: string; rows: readonly number[] }
 
 const GESTURES: Readonly<Record<string, Gesture>> = {
-  'crab · compact mark': { reason: 'the raised/low claw pose carried down from the hero', rows: [0, 1] },
-  'crab · hero awake': {
-    reason: 'the raised claw (open-out) against the low claw (open-down) — the crab\'s identity gesture',
-    rows: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
-  },
-  'crab · hero sleep': {
-    reason: 'the settled crown (12 wide on a 23-wide shell) and the tucked claws/folded legs sit one column off the awake shell\'s axis',
-    rows: [8, 12, 14, 15, 16, 17],
-  },
-  'octopus · hero awake': {
-    reason: 'one arm raised beside the mantle — the octopus\'s identity gesture (the whole body leans into it, eyes included)',
-    rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
-  },
-  'octopus · hero sleep': {
-    reason: 'the slumped mantle and the coil of arms lean one column off the axis (row 15, the web band\'s falloff, happens to mirror)',
-    rows: [8, 9, 10, 11, 12, 13, 14, 16, 17],
-  },
-  'jellyfish · hero awake': {
-    reason: 'seven strands of genuinely varied length (the trailing tips fall off-axis by design); the eye clusters are translated, not mirrored — the sclera sits outboard on the left eye and inboard on the right (rows 4–5)',
-    rows: [4, 5, 14, 16, 17],
-  },
+  'crab · compact mark': { reason: 'the raised/low claw pose — the crab\'s identity gesture', rows: [0, 1] },
 }
 
 const FULL_MIRROR = new Set<string>([
   'clam · 13w awake',
-  'clam · hero awake',
   'clam · mini awake',
   'clam · compact mark',
   'clam · 13w sleep',
-  'clam · hero sleep',
   'clam · mini sleep',
   'crab · square',
   'crab · square dock',
@@ -137,12 +114,6 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
     const stale = gesture.rows.filter(i => verdicts[i]?.outline && verdicts[i]?.anatomy)
     check(`${name}: no STALE gesture registration (a registered row is still asymmetric)`, stale.length === 0, `rows ${stale.join(',')} mirror now — prune them`)
   }
-  if (kind === 'content') {
-    const contentWidth = e - s
-    const exact = (HERO_ART_COLS - contentWidth) % 2 === 0
-    console.log(`  · ${name}: content width ${contentWidth} in the ${HERO_ART_COLS}-col slot ⇒ ${exact ? 'centres EXACTLY' : `cannot centre exactly (${HERO_ART_COLS - contentWidth} spare columns split ${Math.floor((HERO_ART_COLS - contentWidth) / 2)}/${Math.ceil((HERO_ART_COLS - contentWidth) / 2)}) — named, not fudged`}`)
-    if (FULL_MIRROR.has(name)) check(`${name}: §4 the content width centres EXACTLY in the ${HERO_ART_COLS}-col hero slot`, exact, `${contentWidth} wide`)
-  }
 }
 
 console.log('sprite symmetry — the mirror law over every rest pose, every form')
@@ -151,19 +122,16 @@ check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.len
 for (const def of CRITTERS) {
   const name = def.name
   gridLaw(`${name} · 13w awake`, def.art, 'grid')
-  gridLaw(`${name} · hero awake`, def.heroArt, 'content')
   gridLaw(`${name} · mini awake`, miniArtFor(name), 'grid')
   gridLaw(`${name} · compact mark`, markCompactArtFor(name), 'grid')
   gridLaw(`${name} · square`, def.square, 'grid')
   gridLaw(`${name} · square dock`, def.squareDock, 'grid')
   const artSleep = sleepPoseFor({ name }, 'art')
   if (artSleep) gridLaw(`${name} · 13w sleep`, artSleep.art, 'grid')
-  const heroSleep = sleepPoseFor({ name }, 'hero')
-  if (heroSleep) gridLaw(`${name} · hero sleep`, heroSleep.art, 'content')
   const miniSleep = sleepPoseFor({ name }, 'mini')
   if (miniSleep) gridLaw(`${name} · mini sleep`, miniSleep.art, 'grid')
 }
-check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (13w awake|hero awake|mini awake|compact mark|13w sleep|hero sleep|mini sleep|square|square dock)$/.test(k)), Object.keys(GESTURES).join(' · '))
+check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (13w awake|mini awake|compact mark|13w sleep|mini sleep|square|square dock)$/.test(k)), Object.keys(GESTURES).join(' · '))
 check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')))
 check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')))
 

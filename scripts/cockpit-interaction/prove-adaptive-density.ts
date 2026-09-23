@@ -21,7 +21,7 @@ import {
   subscribeCockpitActivity,
   type ActivityState,
 } from '../../src/utils/cockpit/cockpitActivity.ts'
-import { critterDefForKey, squareArtFor } from '../../src/utils/cockpit/critterData.ts'
+import { critterDefForKey, squareDockArtFor } from '../../src/utils/cockpit/critterData.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()
@@ -242,7 +242,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       }
       return out.filter(r => r.length > 0)
     }
-    const octopusSquare = silhouette(squareArtFor('octopus'))
+    const octopusSquare = silhouette(squareDockArtFor('octopus'))
     const bandMask = (line: string): string => line.replace(/[▀▄█]/g, '#').replace(/[^# ]/g, ' ').trim()
     const wearsSquare = (lines: string[], shape: string[]): boolean => {
       const masks = lines.map(bandMask)
@@ -264,10 +264,10 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       t.check(`${label}: the composer is present`, text.includes('❯'), 'caret')
       t.check(
         compactTier
-          ? `${label}: the identity band paints the critter's square form (the selection is read at the cockpit widths)`
+          ? `${label}: the identity band paints the critter's dock form (the selection is read at the cockpit widths)`
           : `${label}: the SELECTED critter, never a reverted crab`,
         compactTier ? wearsSquare(lines, octopusSquare) : text.includes(octopusMark),
-        compactTier ? `expected the square form ${JSON.stringify(octopusSquare)}` : `expected ${octopusMark}`,
+        compactTier ? `expected the dock form ${JSON.stringify(octopusSquare)}` : `expected ${octopusMark}`,
       )
       t.check(
         `${label}: no line is mainly an ellipsis`,

@@ -5,8 +5,8 @@ import {
   CRITTERS,
   FLAT_ART_LINES,
   SQUARE_ART_LINES,
-  flowDepthFor,
-  heroContentBounds,
+  cellColor,
+  heroBlinkRows,
   sleepSlotCountFor,
   sleepZzzSlots,
   squareArtFor,
@@ -37,18 +37,34 @@ section('§1 geometry — 12×13 squares, 6×11 docks, the slot held')
   }
 }
 
-section('§2 the hero berth is byte-identical — square can never touch it')
+section('§2 the dock grids\' integrity — the one sprite every berth paints')
 {
+  const LEGEND = new Set(['.', 'M', 'm', 'D', 'C', 'L', '%', 'E', 'K'])
   for (const def of CRITTERS) {
-    if (!def.heroArt?.length) continue
-    const hero = composeCritterFrame(def, { hero: true, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
-    const both = composeCritterFrame(def, { hero: true, square: true, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
-    check(`${def.name}: hero wins over a stray square flag (byte-equal frames)`, hero.art.join('\n') === both.art.join('\n'))
-    if (flowDepthFor(def, 'hero') === 0) {
-      const [s, e] = heroContentBounds(def.heroArt)
-      const sliced = def.heroArt.map(r => r.slice(s, e)).join('\n')
-      check(`${def.name}: the still hero's rest frame IS the authored heroArt, content-sliced`, hero.art.join('\n') === sliced)
+    const art = def.squareDock
+    const chars = new Set(art.join(''))
+    check(`${def.name}: legend chars only`, [...chars].every(c => LEGEND.has(c)), [...chars].filter(c => !LEGEND.has(c)).join(''))
+    check(`${def.name}: no control chars`, art.every(r => [...r].every(c => c.codePointAt(0)! >= 0x20)))
+    check(`${def.name}: every non-empty char maps in cellColor`, [...chars].filter(c => c !== '.').every(c => /^#[0-9a-f]{6}$/i.test(cellColor(def, c) ?? '')))
+    check(`${def.name}: has the cream-eye language`, chars.has('E') && chars.has('K'))
+    const nearWhites = new Set<string>()
+    for (const c of chars) {
+      const hex = cellColor(def, c)
+      if (!hex) continue
+      const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))
+      if (Math.min(r!, g!, b!) > 220) nearWhites.add(`${c}:${hex.toLowerCase()}`)
     }
+    check(`${def.name}: near-white = deliberate cream only`, [...nearWhites].every(v => v.startsWith('E:#ede8dd')), [...nearWhites].join(','))
+    const blink = heroBlinkRows(art)
+    check(`${def.name}: blink preserves geometry`, blink.length === art.length && blink.every((r, i) => r.length === art[i]!.length))
+    check(`${def.name}: blink closes every pupil`, !blink.join('').includes('K'))
+    const untouched = art.every((row, i) => {
+      const isEyePair = row.includes('K') || (art[i ^ 1]?.includes('K') ?? false)
+      return isEyePair || blink[i] === row
+    })
+    check(`${def.name}: a blink touches ONLY the eye row-pair`, untouched)
+    const eyeRow = art.findIndex(r => r.includes('K'))
+    check(`${def.name}: the eyes DO close`, eyeRow >= 0 && blink[eyeRow] !== art[eyeRow] && !blink[eyeRow]!.includes('E'), `eye row ${eyeRow}`)
   }
 }
 
@@ -75,12 +91,15 @@ section('§4 the mounts (source locks)')
 {
   const root = join(import.meta.dir, '../../src')
   const home = readFileSync(join(root, 'components/MercuryHome.tsx'), 'utf8')
-  check('the berth renders square on the sub-hero tier', home.includes('square={!heroFits}'))
-  check('the berth slot derives from SQUARE_ART_LINES', /heroFits \? HERO_ART_LINES : SQUARE_ART_LINES/.test(home))
+  const berth = home.slice(home.indexOf('export function PinnedCritterBerth'), home.indexOf('export function MercuryHero'))
+  check('the berth rebinds the 11×6 square-dock grid and renders square', berth.includes('square: squareDockArtFor(sa.key)') && berth.includes('<AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />'))
+  check('the berth slot derives from SQUARE_DOCK_ART_LINES', berth.includes('height={SQUARE_DOCK_ART_LINES}'))
   const mini = readFileSync(join(root, 'components/mercury-ui/MiniCritter.tsx'), 'utf8')
-  check('the dock rebinds the 11×6 square-dock grid', mini.includes('square: squareDockArtFor('))
-  const bare = mini.slice(mini.indexOf('function BareMiniArt'), mini.indexOf('function SpeakingMiniRow'))
-  check('the dock renders the square form through the shared art in both mounts', bare.includes('<AnimatedCritterArt def={miniDef} square />') && /if \(bare\)\s*\{\s*return <BareMiniArt/.test(mini) && mini.slice(mini.indexOf('function SpeakingMiniRow')).includes('<BareMiniArt miniDef={miniDef} />'))
+  check('the mini row rebinds the 11×6 square-dock grid', mini.includes('square: squareDockArtFor('))
+  const bare = mini.slice(mini.indexOf('function BareMiniArt'))
+  check('the dock renders the square form through the shared art in both mounts', bare.includes('<AnimatedCritterArt def={miniDef} square />') && /if \(bare\)\s*\{\s*return <BareMiniArt/.test(mini) && mini.includes('<BareMiniArt miniDef={miniDef} />'))
+  const band = readFileSync(join(root, 'components/CompactIdentityBand.tsx'), 'utf8')
+  check('the compact band rebinds the dock grid and renders square in the dock-height slot', band.includes('square: squareDockArtFor(sa.key)') && band.includes('height={SQUARE_DOCK_ART_LINES}') && band.includes('<AnimatedCritterArt def={def} square />'))
   const anim = readFileSync(join(root, 'components/mercury-ui/AnimatedCritterArt.tsx'), 'utf8')
   check('the animator gazes over the square grid', anim.includes('usingSquare ? def.square'))
 }
