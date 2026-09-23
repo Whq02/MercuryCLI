@@ -10,11 +10,7 @@ import { Wordmark } from './mercury-ui/assets.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
 import { FailoverMark } from './mercury-ui/FailoverMark.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
-import {
-  SQUARE_DOCK_ART_LINES,
-  critterDefForKey,
-  squareDockArtFor,
-} from '../utils/cockpit/critterData.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { pathTailLabel } from '../utils/pathLabel.js'
@@ -59,13 +55,8 @@ export function CompactIdentityBand(): React.ReactNode {
   const sa = useSessionAccent()
   const rawDef = critterDefForKey(sa.key)
   const def = React.useMemo(
-    () => ({
-      ...rawDef,
-      hue: sa.accent,
-      hueDeep: sa.accentDeep,
-      square: squareDockArtFor(sa.key),
-    }),
-    [rawDef, sa.accent, sa.accentDeep, sa.key],
+    () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
+    [rawDef, sa.accent, sa.accentDeep],
   )
   const modelName = useDisplayedSessionModel().compact
   const effectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel)
@@ -145,7 +136,7 @@ export function CompactIdentityBand(): React.ReactNode {
       </Box>
     )
   }
-  const artCols = def.square.reduce((max, row) => Math.max(max, row.length), 0)
+  const artCols = def.squareDock.reduce((max, row) => Math.max(max, row.length), 0)
   return (
     <Box flexDirection="column" flexShrink={0}>
       <Box flexDirection="row" height={SQUARE_DOCK_ART_LINES} flexShrink={0} overflow="hidden">

@@ -18,7 +18,7 @@ import {
   type Snapshot,
   type TraceData,
 } from '../utils/cockpit/index.js'
-import { SQUARE_DOCK_ART_LINES, critterDefForKey, squareDockArtFor } from '../utils/cockpit/critterData.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import { requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
@@ -37,8 +37,8 @@ export function PinnedCritterBerth(): React.ReactNode {
   const sa = useSessionAccent()
   const rawDef = critterDefForKey(sa.key)
   const dockDef = React.useMemo(
-    () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep, square: squareDockArtFor(sa.key) }),
-    [rawDef, sa.accent, sa.accentDeep, sa.key],
+    () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
+    [rawDef, sa.accent, sa.accentDeep],
   )
   const hoverDockDef = React.useMemo(
     () => ({ ...dockDef, hue: tok.accentSoft }),
@@ -47,7 +47,7 @@ export function PinnedCritterBerth(): React.ReactNode {
   return (
     <InteractiveRow
       id="berth:critter"
-      width={Math.max(...dockDef.square.map(row => row.length))}
+      width={Math.max(...dockDef.squareDock.map(row => row.length))}
       directActivate
       onActivate={cycleSessionCritter}
       flexDirection="column"

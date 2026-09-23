@@ -3,13 +3,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   CRITTERS,
-  FLAT_ART_LINES,
-  SQUARE_ART_LINES,
+  SQUARE_DOCK_ART_LINES,
   cellColor,
   heroBlinkRows,
   sleepSlotCountFor,
   sleepZzzSlots,
-  squareArtFor,
   squareDockArtFor,
 } from '../../src/utils/cockpit/critterData.js'
 import { composeCritterFrame } from '../../src/components/mercury-ui/CritterArt.js'
@@ -23,17 +21,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§1 geometry — 12×13 squares, 6×11 docks, the slot held')
+section('§1 geometry — 6×11 docks, the slot held')
 {
-  check('SQUARE_ART_LINES === FLAT_ART_LINES (the berth slot never moved)', SQUARE_ART_LINES === FLAT_ART_LINES, `${SQUARE_ART_LINES} vs ${FLAT_ART_LINES}`)
+  check('SQUARE_DOCK_ART_LINES is the pairer\'s 3 rows (the slot never moves)', SQUARE_DOCK_ART_LINES === 3, String(SQUARE_DOCK_ART_LINES))
   for (const def of CRITTERS) {
-    const sq = def.square
     const dock = def.squareDock
-    check(`${def.name}: square is 12 rows`, sq.length === 12, String(sq.length))
-    check(`${def.name}: square rows uniformly 13 wide`, sq.every(r => r.length === 13), [...new Set(sq.map(r => r.length))].join(','))
     check(`${def.name}: dock is 6 rows`, dock.length === 6, String(dock.length))
     check(`${def.name}: dock rows uniformly 11 wide`, dock.every(r => r.length === 11), [...new Set(dock.map(r => r.length))].join(','))
-    check(`${def.name}: the accessors hand the STABLE record arrays (cache-keyable)`, squareArtFor(def.name) === sq && squareDockArtFor(def.name) === dock)
+    check(`${def.name}: the accessor hands the STABLE record array (cache-keyable)`, squareDockArtFor(def.name) === dock)
   }
 }
 
@@ -68,12 +63,10 @@ section('§2 the dock grids\' integrity — the one sprite every berth paints')
   }
 }
 
-section('§3 sleep air — the glyph ladder fits; lid-only sleep stays a lid')
+section('§3 sleep air — the dock keeps a glyph\'s air; lid-only sleep stays a lid')
 {
   for (const def of CRITTERS) {
     const count = sleepSlotCountFor(def)
-    const berthSlots = sleepZzzSlots(def.square, count)
-    check(`${def.name}: the berth square keeps the FULL ladder's air (${count} slots)`, berthSlots.length === count, `slots [${berthSlots.join(',')}]`)
     const dockSlots = sleepZzzSlots(def.squareDock, count)
     check(`${def.name}: the dock keeps at least one glyph's air`, dockSlots.length >= 1, `slots [${dockSlots.join(',')}]`)
     const lidAwake = composeCritterFrame(def, { square: true, pupil: '—', gazeKey: '', swayPhase: 0, sleepPhase: null })
@@ -92,16 +85,18 @@ section('§4 the mounts (source locks)')
   const root = join(import.meta.dir, '../../src')
   const home = readFileSync(join(root, 'components/MercuryHome.tsx'), 'utf8')
   const berth = home.slice(home.indexOf('export function PinnedCritterBerth'), home.indexOf('export function MercuryHero'))
-  check('the berth rebinds the 11×6 square-dock grid and renders square', berth.includes('square: squareDockArtFor(sa.key)') && berth.includes('<AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />'))
+  check('the berth renders the def\'s dock grid square, no other grid bound', !/square:\s*[A-Za-z]/.test(berth) && berth.includes('<AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />'))
   check('the berth slot derives from SQUARE_DOCK_ART_LINES', berth.includes('height={SQUARE_DOCK_ART_LINES}'))
   const mini = readFileSync(join(root, 'components/mercury-ui/MiniCritter.tsx'), 'utf8')
-  check('the mini row rebinds the 11×6 square-dock grid', mini.includes('square: squareDockArtFor('))
+  check('the mini row binds no grid over the def\'s dock grid', !/square:\s*[A-Za-z]/.test(mini) && mini.includes('height={SQUARE_DOCK_ART_LINES}'))
   const bare = mini.slice(mini.indexOf('function BareMiniArt'))
   check('the dock renders the square form through the shared art in both mounts', bare.includes('<AnimatedCritterArt def={miniDef} square />') && /if \(bare\)\s*\{\s*return <BareMiniArt/.test(mini) && mini.includes('<BareMiniArt miniDef={miniDef} />'))
   const band = readFileSync(join(root, 'components/CompactIdentityBand.tsx'), 'utf8')
-  check('the compact band rebinds the dock grid and renders square in the dock-height slot', band.includes('square: squareDockArtFor(sa.key)') && band.includes('height={SQUARE_DOCK_ART_LINES}') && band.includes('<AnimatedCritterArt def={def} square />'))
+  check('the compact band renders the dock grid square in the dock-height slot', !/square:\s*[A-Za-z]/.test(band) && band.includes('height={SQUARE_DOCK_ART_LINES}') && band.includes('<AnimatedCritterArt def={def} square />'))
   const anim = readFileSync(join(root, 'components/mercury-ui/AnimatedCritterArt.tsx'), 'utf8')
-  check('the animator gazes over the square grid', anim.includes('usingSquare ? def.square'))
+  check('the animator gazes over the dock grid', anim.includes('usingSquare ? def.squareDock'))
+  const painter = readFileSync(join(root, 'components/mercury-ui/CritterArt.tsx'), 'utf8')
+  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : def.squareDock'))
 }
 
 if (failures > 0) {

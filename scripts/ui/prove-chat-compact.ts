@@ -8,7 +8,7 @@ import {
   printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg,
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { CRITTERS, cellColor, squareDockArtFor, type CritterDef } from '../../src/utils/cockpit/critterData.ts'
+import { CRITTERS, cellColor, type CritterDef } from '../../src/utils/cockpit/critterData.ts'
 import { composeCritterFrame } from '../../src/components/mercury-ui/CritterArt.tsx'
 import { LAYOUT_BREAKPOINTS } from '../../src/hooks/useLayoutTier.ts'
 import { compactModeChip, compactSummaryHint } from '../../src/components/mercury-ui/compactModeChip.ts'
@@ -81,9 +81,8 @@ function glyphRows(def: CritterDef, art: string[]): string[] {
 
 function expectedSprites(): Array<{ name: string; lines: string[] }> {
   return CRITTERS.map(def => {
-    const tinted = { ...def, square: squareDockArtFor(def.name) }
-    const { art } = composeCritterFrame(tinted, { square: true, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
-    return { name: def.name, lines: glyphRows(tinted, art) }
+    const { art } = composeCritterFrame(def, { square: true, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
+    return { name: def.name, lines: glyphRows(def, art) }
   })
 }
 

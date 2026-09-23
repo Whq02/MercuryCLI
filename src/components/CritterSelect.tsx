@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { claimHover, releaseHover, useHoverOwner } from './mercury-ui/useHoverOwned.js'
-import { SQUARE_DOCK_ART_LINES, critterDefForKey, squareDockArtFor } from '../utils/cockpit/critterData.js'
+import { SQUARE_DOCK_ART_LINES, critterDefForKey } from '../utils/cockpit/critterData.js'
 import { DUNE, FAINT, TEAL } from './mercuryPalette.js'
 import { CommandCenter, SectionHeader } from './mercury-ui/components.js'
 import { AnimatedCritterArt } from './mercury-ui/AnimatedCritterArt.js'
@@ -23,10 +23,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
   )
   const paneCols = useTerminalSize().columns
   const oneRow = paneCols >= 84
-  const dockDefs = React.useMemo(
-    () => ALL_CRITTERS.map(c => ({ ...critterDefForKey(c.key), square: squareDockArtFor(c.key) })),
-    [],
-  )
+  const dockDefs = React.useMemo(() => ALL_CRITTERS.map(c => critterDefForKey(c.key)), [])
 
   const nav = useInteractiveList({
     rows: ALL_CRITTERS,

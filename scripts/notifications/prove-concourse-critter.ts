@@ -73,15 +73,14 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
   t.check(
     'the header mark derives from the SAME selection owner (the operator-ruled theme-aware set)',
     /useSessionAccent\(\)/.test(header) &&
-      /squareDockArtFor\(identity\.markKey\)/.test(header) &&
+      /critterDefForKey\(identity\.markKey\)/.test(header) &&
       !/critterDefForKey\(\s*['"]jellyfish['"]\s*\)/.test(header),
     'selection-derived mark',
   )
   t.check(
     'the header mounts the square-dock grid through the square form (named row #1)',
-    /square:\s*squareDockArtFor\(identity\.markKey\)/.test(header) &&
-      /<CritterArt def=\{markDef\} square /.test(header) &&
-      !/markCompactArtFor/.test(header),
+    /<CritterArt def=\{markDef\} square /.test(header) &&
+      !/square:\s*[A-Za-z]/.test(header),
     'square-dock mount',
   )
   t.check(
@@ -112,45 +111,7 @@ t.section('§8 — the crab dome eyes are authored art (the pose-aim seam is gon
   t.check('the pose-aim seam stayed deleted (no eyeRowOverride revival)', !/eyeRowOverride/.test(String((cd as Record<string, unknown>)['CRAB_EYE_ROWS'] ?? '')) && (cd as Record<string, unknown>)['CRAB_EYE_ROWS'] === undefined)
 }
 
-t.section('§9 — the theme-aware compact mark SET (CR-3, operator addition)')
-{
-  const MARK_W = 10
-  const MARK_ROWS = 6
-  const marks = cd.CRITTERS.map(d => [d.name, cd.markCompactArtFor(d.name)] as const)
-  for (const [name, art] of marks) {
-    t.check(`${name} mark: ${MARK_W}×${MARK_ROWS} uniform`, art.length === MARK_ROWS && art.every(r => r.length === MARK_W))
-    const def = cd.critterDefForKey(name)
-    const chars = new Set(art.join('').split('').filter(c => c !== '.'))
-    t.check(
-      `${name} mark: every char maps in cellColor`,
-      [...chars].every(c => /^#[0-9a-f]{6}$/i.test(cd.cellColor(def, c) ?? '')),
-      [...chars].join(''),
-    )
-    let iris = false
-    for (let r = 0; r + 1 < art.length; r += 2) {
-      for (let c = 0; c < MARK_W; c++) {
-        if (art[r]![c] === 'P' && art[r + 1]![c] === 'P') iris = true
-      }
-    }
-    t.check(`${name} mark: carries a real iris pair`, iris)
-  }
-  t.check(
-    'the four marks are four DISTINCT silhouettes',
-    new Set(marks.map(([, art]) => art.join('\n'))).size === 4,
-  )
-  t.check(
-    'the mark resolver is bounded — unknown and unset land on the pool default',
-    cd.markCompactArtFor('no-such-creature').join('\n') === cd.markCompactArtFor(cd.DEFAULT_CRITTER_KEY).join('\n') &&
-      cd.markCompactArtFor(undefined).join('\n') === cd.markCompactArtFor(cd.DEFAULT_CRITTER_KEY).join('\n'),
-  )
-  t.check(
-    "the retired 'mantis' spellings resolve to the clam's mark (read-side successor)",
-    cd.markCompactArtFor('mantis').join('\n') === cd.markCompactArtFor('clam').join('\n') &&
-      cd.markCompactArtFor('mantis shrimp').join('\n') === cd.markCompactArtFor('clam').join('\n'),
-  )
-}
-
-t.section('§10 — the header STILL: the square dock at the header, one surface only)')
+t.section('§9 — the header STILL: the square dock at the header, one surface only)')
 {
   process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     (await import('node:path')).join((await import('node:os')).tmpdir(), 'concourse-critter-still-'),
@@ -168,27 +129,17 @@ t.section('§10 — the header STILL: the square dock at the header, one surface
       ...cd.critterDefForKey(def.name),
       hue: def.hue,
       hueDeep: def.hueDeep,
-      square: cd.squareDockArtFor(def.name),
     }
     const still = await renderToString(React.createElement(CritterArt, { def: headerDef, square: true } as never), 60)
-    const dock = await renderToString(React.createElement(CritterArt, { def: { ...cd.critterDefForKey(def.name), hue: def.hue, hueDeep: def.hueDeep, square: cd.squareDockArtFor(def.name) }, square: true } as never), 60)
     const rows = still.split('\n').filter(l => l.length > 0)
-    t.check(`${def.name}: the header mark is the 3-row square-dock still`, rows.length === 3, `${rows.length} rows`)
-    t.check(`${def.name}: header mark ≡ deck dock (one square family, byte-equal plain rows)`, still === dock)
-    const oldMark = await renderToString(React.createElement(CritterArt, { def: { ...cd.critterDefForKey(def.name), art: cd.markCompactArtFor(def.name) } } as never), 60)
-    t.check(`${def.name}: the retired markCompact composition is a DIFFERENT picture`, still !== oldMark)
+    t.check(`${def.name}: the header mark is the 3-row square-dock still`, rows.length === cd.SQUARE_DOCK_ART_LINES, `${rows.length} rows`)
+    const inked = rows.map(r => r.trimEnd().length)
+    const authored = cd.squareDockArtFor(def.name).map(r => r.replace(/\.+$/, '').length)
+    t.check(`${def.name}: the still paints the def's own dock grid (row extents match the authored rows)`, inked.every((w, i) => w === Math.max(authored[2 * i] ?? 0, authored[2 * i + 1] ?? 0)), `${inked.join(',')} vs ${authored.join(',')}`)
     const glowed = await renderToAnsiString(React.createElement(CritterArt, { def: headerDef, square: true, glowToward: '#F2C9A0' } as never), 60)
     const plain = await renderToAnsiString(React.createElement(CritterArt, { def: headerDef, square: true } as never), 60)
     t.check(`${def.name}: the glow ramp still re-inks the art (colour bytes move, glyphs hold)`, glowed !== plain && (await renderToString(React.createElement(CritterArt, { def: headerDef, square: true, glowToward: '#F2C9A0' } as never), 60)) === still)
   }
-  const glob = new Bun.Glob('src/**/*.{ts,tsx}')
-  const readers: string[] = []
-  for await (const p of glob.scan('.')) {
-    if (p.endsWith('utils/cockpit/critterData.ts')) continue
-    const body = await Bun.file(p).text()
-    if (body.includes('markCompactArtFor')) readers.push(p)
-  }
-  t.check('markCompactArtFor has ZERO src readers (the set stays authored, parked)', readers.length === 0, readers.join(', ') || 'none')
 }
 
 t.finish('prove-concourse-critter')

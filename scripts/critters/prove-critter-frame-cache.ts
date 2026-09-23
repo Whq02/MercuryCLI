@@ -28,7 +28,7 @@ type El = { type: unknown; props: { children?: unknown } }
 
 const paint = (CritterArt as unknown as { type: (p: Props) => El }).type
 const linesOf = (root: El): El[] => (root.props.children as El[]) ?? []
-const defFor = (def: Def, form: Form): Def => (form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : form === 'square' ? { ...def, square: cd.squareDockArtFor(def.name) } : def)
+const defFor = (def: Def, form: Form): Def => (form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : form === 'square' ? { ...def } : def)
 const formProps = (form: Form): Props => ({ square: form === 'square', mini: form === 'mini' })
 const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d])) as Record<string, Def>
 const FORMS: Form[] = ['square', 'art', 'mini']
@@ -82,7 +82,7 @@ t.section('§2 — line reuse: only the cells that move are rebuilt')
   const lid = paint({ def: jellyDock, square: true, swayPhase: 0, pupil: idle.EYE_SHUT })
   const lidLines = linesOf(lid)
   const changed = linesOf(dockRest).map((l, i) => (l !== lidLines[i] ? i : -1)).filter(i => i >= 0)
-  const eyeLine = Math.floor(jellyDock.square.findIndex(r => r.includes('K')) / 2)
+  const eyeLine = Math.floor(jellyDock.squareDock.findIndex(r => r.includes('K')) / 2)
   t.check(`jellyfish/square: a blink rebuilds exactly the eye line (${eyeLine})`, changed.length === 1 && changed[0] === eyeLine, changed.join(','))
   const crab = pd('crab', 'square')
   const crabRoots = new Set<El>()

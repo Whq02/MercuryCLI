@@ -13,7 +13,7 @@ import { createCloseChordStage, type CloseChordStage } from '../../services/conc
 import { getPendingChordMirror, subscribePendingChordMirror } from '../../keybindings/pendingChordMirror.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { AnimatedCritterArt } from '../mercury-ui/AnimatedCritterArt.js';
-import { critterDefForKey, squareDockArtFor } from '../../utils/cockpit/critterData.js';
+import { critterDefForKey } from '../../utils/cockpit/critterData.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import type { ConcourseCallbacks, ConcourseRowV1, ConcourseSnapshotV1, ControlNoteState } from './contracts.js';
 import { CONTROL_NOTE_REFUSED_MS, controlNoteOf, stableSelectionFallback, concourseWaitCopy } from './contracts.js';
@@ -1890,7 +1890,6 @@ export function ConcourseScreen({
       ...critterDefForKey(residentAccent.key),
       hue: residentAccent.accent,
       hueDeep: residentAccent.accentDeep,
-      square: squareDockArtFor(residentAccent.key),
     }),
     [residentAccent.key, residentAccent.accent, residentAccent.accentDeep],
   )
