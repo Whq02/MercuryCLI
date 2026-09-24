@@ -35,6 +35,15 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+function closingBraceAfter(src: string, open: number): number {
+  if (open < 0 || src[open] !== '{') return -1
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}' && --depth === 0) return i
+  }
+  return -1
+}
 
 const REAL_USAGE = {
   input_tokens: 100,
@@ -325,7 +334,8 @@ section('§D wiring pins (source locks on the threaded surfaces)')
     fg.includes("status: 'failed' as const,") && fg.includes('error: failureText'))
   check("the foreground settle hands an overload death to the pause-and-probe road a background lane takes (the episode noted, the probe armed, the receipt leading with the pause)",
     fg.includes('overloadPauseOf(agentMessages, metadata.resolvedAgentModel)') && fg.includes('noteOverloadDeath(overloadEpisodeOf(foregroundTask.taskId))') && fg.includes('armOverloadProbe({') && fg.includes('seatPause = windowPause ?? overload?.pause ?? null'))
-  const detached = fg.slice(fg.indexOf('const continueDetached = async ('), fg.indexOf('// ── The loop ──'))
+  const detachedAt = fg.indexOf('const continueDetached = async (')
+  const detached = fg.slice(detachedAt, closingBraceAfter(fg, detachedAt < 0 ? -1 : fg.indexOf('{', detachedAt)) + 1)
   check("the hand-over's declined end reads the overload verdict, arms the probe and gates its notice on the episode; its thrown end reads the 529 budget cut before the blind resume; its stop closes the episode",
     detached.includes('const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null') && detached.includes('const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)') && detached.split('armOverloadProbe({').length === 3 && detached.split('overloadDeathNotifies(overloadEpisode)').length === 3 && detached.includes('closeOverloadEpisode(backgroundedTaskId)') && detached.indexOf('armOverloadProbe({', detached.indexOf('const budgetCut = recoveryBudgetCutOf(error)')) === -1)
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')

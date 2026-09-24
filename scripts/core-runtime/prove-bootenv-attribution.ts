@@ -239,10 +239,8 @@ let parentEnv: NodeJS.ProcessEnv = {}
     'owner: the applier undoes inherited copies before it resolves the file',
     undo > 0 && undo < owner.indexOf('const appliedRows = new Set<string>()'),
   )
-  const resolver = owner.slice(
-    owner.indexOf('export function resolveEffectiveSettingsSnapshot'),
-    owner.indexOf('// ── the CONFIG-BACKED Coordinator row'),
-  )
+  const resolverAt = owner.indexOf('export function resolveEffectiveSettingsSnapshot')
+  const resolver = owner.slice(resolverAt, owner.indexOf('\n}\n', resolverAt))
   check(
     'owner: the snapshot resolver decides a pin through realEnvPin only',
     resolver.includes('realEnvPin(row.env, processEnv)') && !/processEnv\[[^\]]+\]\s*!==\s*undefined/.test(resolver),
