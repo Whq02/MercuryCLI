@@ -9,6 +9,7 @@ import {
   type SettingsPopupGeometry,
   type SettingsPopupRequest,
 } from '../utils/cockpit/settingsPopup.js'
+import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { Settings } from './Settings/Settings.js'
 
 export const SETTINGS_POPUP_CHROME_ROWS = 7
@@ -87,7 +88,11 @@ export function SettingsPopupSlot({
     placement !== null
       ? settingsPopupGeometry(request, placement.columns, terminalRows, placement.left)
       : settingsPopupGeometry(request, columns, terminalRows)
-  const shell = <Settings key={open} request={request} geometry={geometry} />
+  const shell = (
+    <RowErrorBoundary key={open} origin="settings-popup">
+      <Settings key={open} request={request} geometry={geometry} />
+    </RowErrorBoundary>
+  )
   if (!overlay) {
     return (
       <Box marginLeft={geometry.left} width={geometry.width} flexDirection="column" flexShrink={0}>
