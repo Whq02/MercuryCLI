@@ -146,6 +146,7 @@ function MessageInner({
             inProgressToolUseIDs={inProgressToolUseIDs}
             shouldAnimate={shouldAnimate}
             verbose={verbose || isTranscriptMode}
+            isTranscriptMode={isTranscriptMode}
             tools={tools}
             lookups={lookups}
             isActiveGroup={isActiveGroup}
