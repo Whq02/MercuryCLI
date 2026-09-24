@@ -80,6 +80,7 @@ import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammat
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
+import { jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '../../services/jev/jevSetting.js'
 import { jevStatusLine } from '../../services/jev/jevStatus.js'
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
@@ -465,6 +466,7 @@ export function Config({
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
+  const jevStamp = useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   useEffect(() => {
     let active = true
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
@@ -542,7 +544,7 @@ export function Config({
       searchText: 'jev typesafe second opinion jeveval eval tool key allowance pace ceiling sub-agents',
       kind: 'boolean',
       value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
-      warning: [jevStatusLine(), ...jevSettingLines(jevSettings)].join(' · '),
+      warning: [jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings)), ...jevSettingLines(jevSettings)].join(' · '),
       change: () => {
         const next = !jevSettings.enabled
         setJevEnabled(next)
@@ -1082,7 +1084,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting, seatFacts])
+  }, [query, version, appState, themeSetting, seatFacts, jevStamp])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
   useLayoutEffect(() => {

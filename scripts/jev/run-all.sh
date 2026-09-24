@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/services/jev/** src/tools/JevEvalTool/** src/commands/jev/**
 # gate-watch: src/utils/router/providerSecrets.ts src/bootstrap/state.ts
+# gate-watch: src/components/Settings/Jev.tsx src/components/Settings/Usage.tsx src/components/Settings/Config.tsx src/services/engine-connector/seatWire.ts src/services/engine-connector/types.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

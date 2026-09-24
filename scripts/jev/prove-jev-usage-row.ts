@@ -80,9 +80,30 @@ const status = await import('../../src/services/jev/jevStatus.js')
 const keyOwner = await import('../../src/services/jev/jevKey.js')
 const ledger = await import('../../src/services/jev/jevLedger.js')
 const contract = await import('../../src/services/jev/jevContract.js')
+const reader = await import('../../src/services/jev/jevSessionFacts.js')
+const slot = await import('../../src/services/engine-connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
 const { CREDITS_UNREPORTED_WORDS } = await import('../../src/services/providers/providerUsage.js')
 const usage = await import('../../src/components/Settings/Usage.js')
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
+
+const ZERO_USAGE = {
+  totalCostUSD: 0,
+  totalAPIDurationMs: 0,
+  totalDurationMs: 0,
+  totalLinesAdded: 0,
+  totalLinesRemoved: 0,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  totalCacheReadInputTokens: 0,
+  totalCacheCreationInputTokens: 0,
+  hasUnknownModelCost: false,
+}
+const runnerConnector = (): InstanceType<typeof NoSessionConnector> =>
+  Object.assign(new NoSessionConnector(), {
+    sessionId: () => 'proof-session',
+    usage: () => ({ ...ZERO_USAGE, jev: reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus()) }),
+  })
 
 const frames: Array<{ name: string; note: string; lines: string[] }> = []
 function keepFrame(name: string, note: string, m: Mounted): string[] {
@@ -120,10 +141,13 @@ section('§1 the row\'s words and the body\'s rows')
   const rows = usage.usageBodyRows(22)
   check('a 22-row body keeps one footer row and one JEV row, twenty for the providers', rows.footerRows === 1 && rows.jevRows === 1 && rows.capacity === 20, JSON.stringify(rows))
   check('a two-row body keeps the footer and drops the JEV row; a one-row body keeps neither', JSON.stringify(usage.usageBodyRows(2)) === JSON.stringify({ footerRows: 1, jevRows: 0, capacity: 1 }) && JSON.stringify(usage.usageBodyRows(1)) === JSON.stringify({ footerRows: 0, jevRows: 0, capacity: 1 }) && usage.usageBodyRows(0).capacity === 0)
+  const resting = usage.jevUsageRow()
+  check('no chat open: the row names the absence, the allowance, the off headword and the unreported credits — never a count', !slot.hasFocusedSession() && resting === `JEV · Mercury's count: ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, resting)
+  slot.setFocusedSessionConnector(runnerConnector())
   const off = usage.jevUsageRow()
-  check('off, keyless, nothing spent: the row is Mercury\'s count at zero, the allowance, the off headword and the unreported credits', off === `JEV · Mercury's count: $0.00 · 0 calls (0 unconfirmed) · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, off)
+  check('a chat whose runner reports nothing spent, switch off, no key: the row is the session\'s count at zero, the allowance, the off headword and the unreported credits', slot.hasFocusedSession() && off === `JEV · Mercury's count: $0.00 · 0 calls (0 unconfirmed) · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, off)
   check('the credits words are the provider-usage owner\'s spelling', CREDITS_UNREPORTED_WORDS === 'not reported by the provider' && off.endsWith(CREDITS_UNREPORTED_WORDS))
-  check('the headword is the status resolver\'s', off.includes(` · ${status.JEV_STATUS_HEADWORDS[status.jevStatus().kind]} · `))
+  check('the headword is the status resolver\'s, as the runner answered it', off.includes(` · ${status.JEV_STATUS_HEADWORDS[status.jevStatus().kind]} · `))
   check('the row fits the popup\'s 146-cell body', stringWidth(off) <= 146, String(stringWidth(off)))
 }
 
@@ -140,7 +164,8 @@ section('§2 /usage at 178x51 with the switch on, a key stored and spend on the 
   ledger.noteJevAttempt(T0 + 2000)
   ledger.noteJevWireFailure({ kind: 'parse-failed', status: 200, detail: 'not json' }, T0 + 2000, () => 0.5)
   const expected = usage.jevUsageRow()
-  check('on, keyed, spent: the row carries the ledger\'s count, the calls with the unconfirmed one, the allowance and ready', expected === `JEV · Mercury's count: ${contract.jevUsdLabel(ledger.jevLedgerSnapshot().spendUsd)} · 2 calls (1 unconfirmed) · allowance $20.00 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, expected)
+  check('on, keyed, spent: the row carries the session\'s count as its runner answered it, the calls with the unconfirmed one, the allowance and ready', expected === `JEV · Mercury's count: ${contract.jevUsdLabel(ledger.jevLedgerSnapshot().spendUsd)} · 2 calls (1 unconfirmed) · allowance $20.00 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, expected)
+  check('the reader hands the surfaces the runner\'s row, never a local snapshot', reader.jevSessionFacts().state === 'reported' && JSON.stringify(reader.jevSessionFacts()) === JSON.stringify({ state: 'reported', facts: reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus()) }))
   const m = await openUsage()
   const lines = keepFrame('usage-jev-row-178x51', 'the /usage popup (150x29) at 178x51 on the absent-provider fixture with JEV on, a key stored and spend on the ledger: the JEV row above the more row', m)
   const jev = jevLineOf(lines)
@@ -160,7 +185,7 @@ section('§3 the source pins')
 {
   const src = readFileSync(join(REPO, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('the body paints the row from the one reader and takes its rows from usageBodyRows', src.includes('{jevUsageRow()}') && src.includes('usageBodyRows(budget)') && src.includes('CREDITS_UNREPORTED_WORDS'))
-  check('the row reads the owner modules, never a copy of a setting or a spend', src.includes("from '../../services/jev/jevLedger.js'") && src.includes("from '../../services/jev/jevSetting.js'") && src.includes("from '../../services/jev/jevStatus.js'") && !src.includes('typesafeApiKey') && !src.includes('resolveJevApiKey'))
+  check('the row reads the owner modules — the session reader for the count, the settings owner, the headwords — never a copy of a setting, a spend or the cockpit\'s own ledger', src.includes("from '../../services/jev/jevSessionFacts.js'") && src.includes("from '../../services/jev/jevSetting.js'") && src.includes("from '../../services/jev/jevStatus.js'") && !src.includes('jevLedger.js') && !src.includes('jevLedgerSnapshot') && !/\bjevStatus\(/.test(src) && !src.includes('typesafeApiKey') && !src.includes('resolveJevApiKey'))
   const pin = readFileSync(join(REPO, 'scripts/settings/prove-usage-popup.ts'), 'utf8')
   check('the usage popup pin reads the body rows from the owner and keeps its words baseline clear of the JEV row', pin.includes('usageBodyRows(budget).capacity') && pin.includes('!run.startsWith(JEV_USAGE_LABEL)'))
 }
@@ -170,6 +195,7 @@ if (frameDir !== undefined) {
   writeFileSync(join(frameDir, 'usage-index.txt'), index.join('\n') + '\n')
   console.log(`\nframes: ${frames.length} written to ${frameDir}`)
 }
+slot._resetFocusedSessionConnectorForTesting()
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nprove-jev-usage-row: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)
