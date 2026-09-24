@@ -120,7 +120,19 @@ console.log('── a bridged shell call: the facts carry its command and the la
   const shellCell = cell({ cellId: 'cell-js-g1-3', error: 'Error: the command failed, stopping here\n  at cell-js-g1-3.js:2:7', outputTail: [], shellCalls: [{ ordinal: 1, command: SHELL_COMMAND, code: 1, outputTail: ['out-line', 'err-line', '', 'Exited with code 1'] }] })
   const shellFacts = cellCardFactsOf(shellCell, "const r = await mercury.tool('Bash', { command: 'echo out-line; echo err-line >&2; exit 1' })\nif (r.code !== 0) throw new Error('the command failed, stopping here')")
   check('the facts carry the shell calls and name the last one', shellFacts !== null && shellFacts.shellCalls.length === 1 && lastShellCallOf(shellFacts)?.command === SHELL_COMMAND)
-  check('a cell row without the field (an older transcript) yields no shell calls', cellCardFactsOf(cell({}), 'x')?.shellCalls.length === 0)
+  check('a cell row without the field (an older transcript) yields no shell calls', cellCardFactsOf(cell({}), 'x')?.shellCalls?.length === 0)
+  const bareFacts = { cellId: 'fixture-cell', language: 'js' as const, code: '1 / 0', state: 'failed' as const, error: 'fixture error', outputTail: [], durationMs: 1, generation: 1, runtimeKilled: false }
+  let bareThrew = ''
+  let bareLast: unknown = 'unread'
+  try {
+    bareLast = lastShellCallOf(bareFacts as never)
+  } catch (error) {
+    bareThrew = String(error)
+  }
+  check('card facts without a shell-calls field at all (a record written before the field, a fixture) name no last call and never throw', bareThrew === '' && bareLast === undefined && lastShellCallOf({ shellCalls: undefined }) === undefined && lastShellCallOf({ shellCalls: null }) === undefined && lastShellCallOf({ shellCalls: [] }) === undefined, bareThrew)
+  check('…and facts with a shell call still name it', lastShellCallOf({ shellCalls: [{ ordinal: 1, command: 'true', code: 0 }] })?.command === 'true')
+  const bareRow = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage('<tool_use_error>[fixture-cell] failed · 1ms · gen 1\nerror: fixture error</tool_use_error>', { verbose: false, toolUseResult: { cells: [{ ...bareFacts, displays: [], valuePreview: '', nestedCalls: 0 }], result: '' }, input: { cells: [{ language: 'js' as const, code: '1 / 0' }] } })), 120)
+  check('the failed row paints for a cell result without the field: the error and the way to the card, no command line', bareRow.includes('▲ Error: [fixture-cell] failed') && bareRow.includes(cellCardHint('fixture-cell')) && !bareRow.includes('command:'), bareRow.slice(0, 300))
   const plain = cellCardRows(40, { code: 3, error: 5, output: 5, killed: false })
   const withShell = cellCardRows(40, { code: 3, error: 5, output: 5, killed: false, shell: 1 + SHELL_CALL_OUTPUT_LINES })
   check('at 120x40 the shell block takes its rows without clipping the error or the code', withShell.shell === 1 + SHELL_CALL_OUTPUT_LINES && withShell.error === 5 && withShell.code === 3 && withShell.output !== null, JSON.stringify(withShell))
