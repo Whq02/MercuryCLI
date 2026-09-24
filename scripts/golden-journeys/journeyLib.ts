@@ -324,6 +324,7 @@ export const journeyChildEnv = (): NodeJS.ProcessEnv => {
     ...process.env,
     MERCURY_CONFIG_DIR: RUN_HOME,
     ANTHROPIC_API_KEY: PROBE_KEY,
+    MERCURY_NPM_REGISTRY_BASE: 'http://127.0.0.1:1',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
