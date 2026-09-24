@@ -26,7 +26,7 @@ writeFileSync(join(home, '.mercury.json'), JSON.stringify({
   projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
   customApiKeyResponses: { approved: [key.slice(-20)], rejected: [] },
 }))
-writeFileSync(join(home, 'settings.json'), '{}')
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
 writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: {
   idToken: 'fixture-id-token', accessToken: 'fixture-access-token', refreshToken: 'fixture-refresh-token',
   accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86400000,
