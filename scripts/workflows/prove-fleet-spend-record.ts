@@ -47,7 +47,7 @@ section('§1 the pure law')
     usage: { input_tokens: 9, output_tokens: 7, cache_read_input_tokens: 100, cache_creation_input_tokens: 5 },
   })
   check('a settled response folds its four counts and one turn', settled.inputTokens === 9 && settled.outputTokens === 7 && settled.cacheReadTokens === 100 && settled.cacheCreationTokens === 5 && settled.apiTurns === 1 && settled.unsettledTurns === 0, JSON.stringify(settled))
-  check('the spend is the input with the cached prefix counted in, plus the output', workflowUsageSpend(settled) === 121)
+  check('the spend is the fresh input plus the output (16); the cached prefix read and written stays outside it', workflowUsageSpend(settled) === 16, String(workflowUsageSpend(settled)))
   const cut = foldResponseUsage(settled, { stop_reason: null, usage: { input_tokens: 9, output_tokens: 0 } })
   check('a response that ended without a settled usage is one unmeasured turn, its counts never summed', cut.unsettledTurns === 1 && cut.apiTurns === 1 && cut.inputTokens === 9 && cut.outputTokens === 7, JSON.stringify(cut))
   const noUsage = foldResponseUsage(settled, { stop_reason: 'end_turn', usage: null })
@@ -62,7 +62,7 @@ section('§1 the pure law')
   check('the rollup sums the reporting agents and counts the rest', rolled !== undefined && rolled.inputTokens === 18 && rolled.apiTurns === 2 && rolled.unsettledTurns === 1 && rolled.agentsReporting === 2 && rolled.agentsUnreported === 2, JSON.stringify(rolled))
   check('no agent reporting ⇒ no rollup (unknown, not zero)', rollupWorkflowUsage([{}, { usage: null }]) === undefined)
   check('an empty record says nothing yet', !usageSpeaks(EMPTY_WORKFLOW_USAGE) && usageSpeaks(settled) && usageSpeaks({ ...EMPTY_WORKFLOW_USAGE, unsettledTurns: 1 }))
-  check('the words: the spend, and the unmeasured turns beside it', workflowSpendWords(settled, fmt) === '121 spent' && workflowSpendWords(cut, fmt) === '121 spent · 1 turn unmeasured' && workflowSpendWords({ ...cut, unsettledTurns: 2 }, fmt) === '121 spent · 2 turns unmeasured')
+  check('the words: the spend, and the unmeasured turns beside it', workflowSpendWords(settled, fmt) === '16 spent' && workflowSpendWords(cut, fmt) === '16 spent · 1 turn unmeasured' && workflowSpendWords({ ...cut, unsettledTurns: 2 }, fmt) === '16 spent · 2 turns unmeasured', `${workflowSpendWords(settled, fmt)} · ${workflowSpendWords(cut, fmt)}`)
 }
 
 const fixture = await startWorkflowAgentFixture({ port: 34911, gptId: GPT, latencyMs: { anthropic: 600 } })
