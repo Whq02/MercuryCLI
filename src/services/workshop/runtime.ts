@@ -22,6 +22,7 @@ import {
   type WorkshopSampleItem,
 } from './contracts.js'
 import { WORKSHOP_WORKER_SOURCE } from './workerSource.js'
+import { shellCallLedger } from './shellCalls.js'
 import { handleSampleCall } from '../samples/bridge.js'
 import { samplesEnabled } from '../samples/contracts.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
@@ -350,6 +351,7 @@ export async function runWorkshopCell(
     const outputLines: string[] = []
     const displays: WorkshopDisplayItem[] = []
     const samples: WorkshopSampleItem[] = []
+    const shell = shellCallLedger()
     let nestedCalls = 0
     let outstandingRpc = 0
 
@@ -386,6 +388,7 @@ export async function runWorkshopCell(
         ...(samples.length > 0 ? { samples } : {}),
         ...(extras.error ? { error: extras.error } : {}),
         nestedCalls,
+        ...(shell.calls.length > 0 ? { shellCalls: shell.calls.slice() } : {}),
       })
 
       const killAndSettle = (state: 'timed-out' | 'cancelled', why: string): void => {
@@ -458,6 +461,7 @@ export async function runWorkshopCell(
             const id = msg.id
             const kind = String(msg.kind)
             const payload = (msg.payload ?? {}) as Record<string, unknown>
+            const shellCall = shell.open(nestedCalls, kind, payload)
             const dispatch = async (): Promise<unknown> => {
               if (kind === 'inspect') return bridge.inspect(String(payload.ref))
               if (kind === 'tool') return bridge.tool(String(payload.name), payload.input)
@@ -470,15 +474,19 @@ export async function runWorkshopCell(
               throw new Error(`unknown bridge call '${kind}'`)
             }
             void dispatch()
-              .then(value => worker.postMessage({ type: 'rpc-result', id, ok: true, value }))
-              .catch(err =>
+              .then(value => {
+                shell.settle(shellCall, value)
+                worker.postMessage({ type: 'rpc-result', id, ok: true, value })
+              })
+              .catch(err => {
+                shell.refuse(shellCall)
                 worker.postMessage({
                   type: 'rpc-result',
                   id,
                   ok: false,
                   error: err instanceof Error ? err.message : String(err),
-                }),
-              )
+                })
+              })
               .finally(() => {
                 outstandingRpc = Math.max(0, outstandingRpc - 1)
                 if (outstandingRpc === 0 && !settled) armIdle()

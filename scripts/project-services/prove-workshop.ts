@@ -345,6 +345,10 @@ section('B. WorkshopTool — nested transaction, recursion guard, cancel')
   check('B7 a bridged Bash command that exits 1 comes back as { code: 1, stdout: the merged capture, stderr: "" } and the cell runs on',
     b7.data.cells[0].state === 'succeeded' && b7.data.cells[0].valuePreview === "'[1,true,\"\"]'" && b7.data.cells[0].nestedCalls === 1,
     JSON.stringify(b7.data.cells[0]).slice(0, 600))
+  const b7call = (b7.data.cells[0].shellCalls ?? [])[0]
+  check('B7c the cell result records the shell call: its command, its exit code and the last output lines',
+    b7call !== undefined && b7call.ordinal === 1 && b7call.command === 'echo out-line; echo err-line >&2; exit 1' && b7call.code === 1 && Array.isArray(b7call.outputTail) && b7call.outputTail[0] === 'out-line' && b7call.outputTail[1] === 'err-line',
+    JSON.stringify(b7call))
   const ctxShellOk = makeCtx()
   ctxShellOk.options.tools = [FileReadTool, BashTool, WorkshopTool]
   const b7b = await (WorkshopTool as { call: Function }).call(

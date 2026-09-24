@@ -22,6 +22,7 @@ import {
   type WorkshopSampleItem,
 } from './contracts.js'
 import type { WorkshopBridge } from './runtime.js'
+import { shellCallLedger } from './shellCalls.js'
 import { WORKSHOP_PYTHON_RUNNER_SOURCE } from './pythonRunnerSource.js'
 import { handleSampleCall } from '../samples/bridge.js'
 import { samplesEnabled } from '../samples/contracts.js'
@@ -336,6 +337,7 @@ export async function runPythonCell(
     const outputLines: string[] = []
     const displays: WorkshopDisplayItem[] = []
     const samples: WorkshopSampleItem[] = []
+    const shell = shellCallLedger()
     let nestedCalls = 0
     let outstandingRpc = 0
     const timeoutMs = Math.min(cell.timeoutMs ?? DEFAULT_CELL_TIMEOUT_MS, MAX_CELL_TIMEOUT_MS)
@@ -371,6 +373,7 @@ export async function runPythonCell(
         ...(samples.length > 0 ? { samples } : {}),
         ...(extras.error ? { error: extras.error } : {}),
         nestedCalls,
+        ...(shell.calls.length > 0 ? { shellCalls: shell.calls.slice() } : {}),
         compiler: probe.version,
       })
 
@@ -443,6 +446,7 @@ export async function runPythonCell(
             const id = msg.id
             const kind = String(msg.kind)
             const payload = (msg.payload ?? {}) as Record<string, unknown>
+            const shellCall = shell.open(nestedCalls, kind, payload)
             const dispatch = async (): Promise<unknown> => {
               if (kind === 'inspect') return bridge.inspect(String(payload.ref))
               if (kind === 'tool') return bridge.tool(String(payload.name), payload.input)
@@ -455,10 +459,12 @@ export async function runPythonCell(
               throw new Error(`unknown bridge call '${kind}'`)
             }
             void dispatch()
-              .then(value =>
-                child.stdin.write(JSON.stringify({ type: 'rpc-result', id, ok: true, value }) + '\n'),
-              )
-              .catch(err =>
+              .then(value => {
+                shell.settle(shellCall, value)
+                child.stdin.write(JSON.stringify({ type: 'rpc-result', id, ok: true, value }) + '\n')
+              })
+              .catch(err => {
+                shell.refuse(shellCall)
                 child.stdin.write(
                   JSON.stringify({
                     type: 'rpc-result',
@@ -466,8 +472,8 @@ export async function runPythonCell(
                     ok: false,
                     error: err instanceof Error ? err.message : String(err),
                   }) + '\n',
-                ),
-              )
+                )
+              })
               .finally(() => {
                 outstandingRpc = Math.max(0, outstandingRpc - 1)
                 if (outstandingRpc === 0 && !settled) armIdle()

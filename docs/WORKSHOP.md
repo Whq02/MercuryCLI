@@ -51,7 +51,10 @@ line). The card carries the cell's language and title, its code, the whole
 error, the output tail with a count of the lines shown, the duration, the
 generation and the runtime-killed fact; on a short window the code is
 clipped first so the error stays visible, and the output section folds into
-a count on the state line when it has no room. `esc` closes the card, `←`
+a count on the state line when it has no room. When the cell ran a shell
+command through the bridge, the row and the card paint under the error the
+last command with its exit code and the last lines of its output, or the
+command a ward or a permission refused. `esc` closes the card, `←`
 returns to the board. The card reads the cell's own row in the transcript,
 so it stands for the cells this session painted; a succeeded cell opens no
 card.
