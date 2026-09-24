@@ -186,17 +186,22 @@ const lineUnder = (lines: string[], title: string): string => {
   return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
 }
 const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && /\b(current|switch|unavail|next|gated)\b/.test(l))
-async function mountModel(model: string): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; unmount: () => void }> {
-  const stdout = Object.assign(new PassThrough(), { columns: 178, rows: 51 })
+type Band = { columns: number; rows: number; pendingNext?: string }
+async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; unmount: () => void }> {
+  const stdout = Object.assign(new PassThrough(), { columns: band.columns, rows: band.rows })
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), mainLoopModel: model }, () => {})
+  const store = createStore({ ...getDefaultAppState(), mainLoopModel: model, ...(band.pendingNext === undefined ? {} : { pendingModelSwitch: { setting: band.pendingNext } }) }, () => {})
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
+  const settled = (): boolean => {
+    const lines = frame().split('\n')
+    return rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0 && /^\s*╰/.test(lines.at(-1) ?? '')
+  }
   const until = Date.now() + 5000
-  while (Date.now() < until && !(frame().includes(ANTHROPIC_TITLE) && rowAt(frame().split('\n'), renderModelName(DEFAULT_OPUS)) >= 0)) await flush()
+  while (Date.now() < until && !settled()) await flush()
   await flush()
   await flush()
   const press = async (keys: string, expectChange = true): Promise<boolean> => {
@@ -283,9 +288,42 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first r
   check('the walk started on the served default Opus, stopped once per row and ended on a different row', served.focus.startsWith(renderModelName(DEFAULT_OPUS)) && walk.length === total + 1 && last.focus !== first.focus && last.focus !== served.focus, `${served.focus} · ${walk.length - 1} of ${total} · last "${last.focus}"`)
   mounted.unmount()
 }
+
+section('§6 the chrome lines that wrap are paid for: a queued switch, a narrow panel, a long next name and the compact tier all keep the bottom border inside the band')
+{
+  const LONG_NEXT = 'claude-opus-5-7-extended-thinking-long-context-preview'
+  const bands: Array<Band & { label: string }> = [
+    { label: 'queued-178x51', columns: 178, rows: 51, pendingNext: SONNET },
+    { label: 'narrow-50x30', columns: 50, rows: 30 },
+    { label: 'long-next-178x51', columns: 178, rows: 51, pendingNext: LONG_NEXT },
+    { label: 'compact-queued-50x18', columns: 50, rows: 18, pendingNext: SONNET },
+  ]
+  for (const band of bands) {
+    anthropicCatalogue.__resetAnthropicCatalogueForTest()
+    const mounted = await mountModel(DEFAULT_OPUS, band)
+    const frame = mounted.frame()
+    const lines = frame.split('\n')
+    if (frameDir !== undefined) writeFileSync(join(frameDir, `model-${band.label}.txt`), frame + '\n')
+    const bottom = lines.map(l => /^\s*╰/.test(l)).lastIndexOf(true)
+    const widest = Math.max(...lines.map(line => stringWidth(line)))
+    console.log(`  [record] ${band.label}: ${lines.length} lines · bottom border on row ${bottom} · widest ${widest} · band ${band.columns}x${band.rows}`)
+    check(`[${band.label}] the frame fits the band: at most ${band.rows} rows, no line wider than ${band.columns}`, lines.length <= band.rows && widest <= band.columns, `${lines.length} lines · widest ${widest}`)
+    check(`[${band.label}] the bottom border is the last row and sits inside the band`, bottom >= 0 && bottom === lines.length - 1 && bottom < band.rows, `bottom ${bottom} of ${lines.length}`)
+    check(`[${band.label}] the footer keeps its exit word right above the border`, (lines[bottom - 1] ?? '').includes('esc close'), lines[bottom - 1] ?? '')
+    check(`[${band.label}] the current row is on screen`, rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0)
+    if (band.pendingNext !== undefined) {
+      const nextName = band.pendingNext === LONG_NEXT ? LONG_NEXT : renderModelName(band.pendingNext)
+      const inner = (line: string): string => (/^\s*│(.*)│\s*$/.exec(line)?.[1] ?? line).trim()
+      const head = lines.findIndex(l => l.includes(`current ${renderModelName(DEFAULT_OPUS)} `))
+      const spoken = lines.slice(Math.max(0, head), head + 4).map(inner).join(' ')
+      check(`[${band.label}] the queued switch reads whole across its wrapped lines: current, the next name and the settle note, nothing cut`, head >= 0 && spoken.includes(`next ${nextName} · applies when the turn settles`), spoken)
+    }
+    mounted.unmount()
+  }
+}
 globalThis.fetch = realFetch
 
-section('§6 the seam: the header composer\'s credentialed arm')
+section('§7 the seam: the header composer\'s credentialed arm')
 {
   const builder = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/model/mercuryModel.tsx'), 'utf8')
   check("groupDetailsOf answers 'signed in' on the credentialed arm and 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n          ? 'signed in'\n          : anthropicNotSignedInReason()") && !builder.includes("'credential present'"))

@@ -22,7 +22,7 @@ import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
-import { EffortStrip } from './mercury-ui/EffortStrip.js'
+import { EffortStrip, effortStripText } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
 import { wrapPlain } from './BootHealthScreen.js'
@@ -314,11 +314,22 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     focusedModel !== undefined && !focusedModel.expand && !isProviderActionRow(focusedModel.id) && focusedModel.gated && focusedModel.gatedReason
       ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, panelWidth - 4)
       : null
+  const painted = (text: string): number => wrapText(text, panelWidth - 4, 'wrap').split('\n').length
+  const banner = `CHOOSE A MODEL · ${models.filter(m => !m.gated && !m.action && m.choice === undefined).length} AVAILABLE · ${models.filter(m => m.gated).length} GATED`
+  const pendingLine = pendingNext
+    ? [
+        { text: 'current ', color: FAINT },
+        { text: models.find(m => m.id === currentRow)?.name ?? current, color: TEAL },
+        { text: ` ${GLYPH.pending} next `, color: AMBER },
+        { text: models.find(m => m.id === pendingNext)?.name ?? pendingNext, color: AMBER },
+        { text: ' · applies when the turn settles', color: FAINT },
+      ]
+    : null
   const basePaint =
-    (compact ? (shedMeters ? 4 : 5) : 9) +
-    (hasEffort ? 1 : 0) +
-    (pendingNext ? 1 : 0) +
-    (!compact && ctxNotice ? wrapText(ctxNotice, panelWidth - 4, 'wrap').split('\n').length : !compact && notice ? 1 : 0) +
+    (compact ? (shedMeters ? 4 : 5) : 8 + painted(banner)) +
+    (hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0) +
+    (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
+    (!compact && ctxNotice ? painted(ctxNotice) : !compact && notice ? 1 : 0) +
     (!compact && reasonLines !== null ? reasonLines.length - 1 : 0)
   const paintBudget = Math.max(3, availRows - basePaint)
   const windowPaint = (w: PaneWindow): number => {
@@ -345,14 +356,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       <ProductLockup view="model" />
       {
 }
-      {compact ? null : <Text color={FAINT}>CHOOSE A MODEL · {models.filter(m => !m.gated && !m.action && m.choice === undefined).length} AVAILABLE · {models.filter(m => m.gated).length} GATED</Text>}
-      {pendingNext ? (
+      {compact ? null : <Text color={FAINT}>{banner}</Text>}
+      {pendingLine !== null ? (
         <Text>
-          <Text color={FAINT}>current </Text>
-          <Text color={TEAL}>{models.find(m => m.id === currentRow)?.name ?? current}</Text>
-          <Text color={AMBER}>{` ${GLYPH.pending} next `}</Text>
-          <Text color={AMBER}>{models.find(m => m.id === pendingNext)?.name ?? pendingNext}</Text>
-          <Text color={FAINT}> · applies when the turn settles</Text>
+          {pendingLine.map((part, k) => (
+            <Text key={k} color={part.color}>{part.text}</Text>
+          ))}
         </Text>
       ) : null}
       {win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} more</Text> : null}
