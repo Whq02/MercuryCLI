@@ -137,7 +137,7 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", connector.includes("phase === 'waiting' ? workCounts(this.facts?.work ?? [])"))
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
   const repl = read('src/screens/REPL.tsx')
-  check('C7 the status strip and the working strip spell the kinds first, the bare count second', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && repl.includes('workWaitingWords(seatLive.waitingOn)') && repl.includes('crewWaitingWords(seatLive.agentsWaiting)'))
+  check('C7 the status strip and the working strip spell the kinds first, the bare count second', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && repl.includes('withSampleWords(waitingStatusWords(seatLive), focusedSamples)') && !repl.includes('crewWaitingWords('))
   const views = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8')
   check("C6 the work views' presence rides the runner-liveness law", views.includes('runnerRecordAlive(rec, pidAlive)'))
   check('C6 …and trusts endedAt alone nowhere', !views.includes('rec.sessionId === sessionId && rec.endedAt === undefined'))

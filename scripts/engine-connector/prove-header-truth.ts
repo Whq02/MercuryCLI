@@ -141,7 +141,7 @@ section('§4 structure: no timer feeds the title row; the clock is gone; the gly
   check('the row\'s words are statusLine over the crew\'s clock', tag.includes('statusLine(live, status, crew)'))
   check('the crew tick is armed only while a sub-agent runs', tag.includes('useNowTick(crewActive ? 1000 : null)'))
   check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)') && tag.includes('focusedWorkflowRows(rows)'))
-  check('the row omits the words\' separator when there are no words', tag.includes("fitted !== '' ? (") && tag.includes("(line !== '' ? 3 : 0)"))
+  check('the row omits the words\' separator when there are no words', tag.includes("fitted !== '' ? (") && tag.includes("(spoken !== '' ? 3 : 0)"))
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)
