@@ -240,7 +240,7 @@ const list = ONLY.has('list') ? drive(
   'gpt-5.6-sol',
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits clear\r', mark: 'observed' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits weekly-limit-reached\r', mark: 'observed' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 6, awaitSettleTicks: 3, data: '/usage\r', mark: 'usage' },
     { afterPrevTicks: 15, data: '\x1b', mark: 'usage-close' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 6, awaitSettleTicks: 3, data: 'hello sol\r' },
@@ -249,7 +249,7 @@ const list = ONLY.has('list') ? drive(
     { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'down2' },
     { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 3, data: '\x1b[A', mark: 'inert' },
     { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'up1' },
-    { requireAwait: true, awaitText: 'Model switch preview', minTick: 6, awaitSettleTicks: 2, data: '\r', mark: 'preview' },
+    { requireAwait: true, awaitText: 'Set model to', minTick: 6, awaitSettleTicks: 2, data: '', mark: 'preview' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 8, awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'settled' },
     { afterPrevTicks: PROBE_GAP, awaitText: OPENAI_OFFER_TITLE, data: '', mark: 'probe' },
   ],
@@ -284,11 +284,11 @@ if (list !== null) {
   const inert = markGrid(p, 'inert')
   check('↵ on the at-cap row is INERT — the card still stands, no preview opened', inert.includes(OPENAI_OFFER_TITLE) && !inert.includes('Model switch preview'), tail(inert))
 
-  section('L4 — ↑ to a usable row; ↵ opens the preview for THAT row and settles on it')
+  section('L4 — ↑ to a usable row; ↵ settles the highlighted row with lossless history')
   const up1 = markGrid(p, 'up1')
   check('after ↑ the cursor is back on DeepSeek', (rowLine(up1, 'DeepSeek') ?? '').includes('▸'), tail(up1))
   const preview = markGrid(p, 'preview')
-  check('↵ opened the transition preview for the highlighted row (DeepSeek), not the first', preview.includes('Model switch preview') && (preview.includes('DeepSeek') || preview.includes(DEEPSEEK_ROW)) && !preview.includes(ZAI_ROW), tail(preview))
+  check('the refusal-only history settles directly on the highlighted DeepSeek row, not the first', preview.includes('Set model to') && !preview.includes('Model switch preview') && (preview.includes('DeepSeek') || preview.includes(DEEPSEEK_ROW)) && !preview.includes(ZAI_ROW), tail(preview))
   const settledTick = receiptTick(p, 11)
   check('the settlement receipt painted (the pickup send fired on its await)', settledTick > 0, `pickup send at tick ${settledTick}; endReason=${p?.endReason ?? '?'}`)
   const settled = markGrid(p, 'settled')
@@ -334,9 +334,9 @@ if (pool !== null) {
   const p = pool.payload
   const wire = pool.wire
   const finalGrid = p ? gridText(p.grid) : ''
-  section("P1 — the offer fires on the BINDING window (the Fable pool) and names it in the usage owner's words")
+  section('P1 — an explicit weekly rejection arms the offer beside the full Fable pool')
   const offerTick = receiptTick(p, 2)
-  check('the offer fired from the fixture usage response alone (no turn ran; the send fired on its await)', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
+  check('the offer fired from the explicit rejected fixture verdict without a model turn', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
   const offer = markGrid(p, 'pool-offer')
   check('the card stood when enter was sent', offer.includes(ANTHROPIC_OFFER_TITLE), tail(offer))
   check('the card names the rejected weekly window, not the full pool percentage', offer.includes('the Anthropic weekly limit is reached') && !offer.includes('weekly Fable'), tail(offer))
@@ -354,7 +354,7 @@ if (pool !== null) {
   const settledTick = receiptTick(p, 3)
   const probeTick = receiptTick(p, 4)
   check('the offer never re-paints after the settlement (the probe fired on its deadline)', settledTick > 0 && probeTick >= settledTick + PROBE_GAP - 1, `probe at tick ${probeTick} (pickup at ${settledTick}, gap ${PROBE_GAP})`)
-  check('no false way-home card after the switch (the home window is read for the seat\'s own model)', !finalGrid.includes('window reset') && !markGrid(p, 'probe').includes('window reset'), tail(finalGrid, 10))
+  check('no false way-home card after the switch (the home window is read for the seat\'s own model)', !finalGrid.includes('window reset — return?') && !markGrid(p, 'probe').includes('window reset — return?'), tail(finalGrid, 10))
 }
 
 const wireWorld = ONLY.has('wire') || FRAMES !== undefined ? seedWorld('wire', { openaiSubscription: true, claudeSubscription: true, anthropicKeyApproved: false }) : null
@@ -460,8 +460,8 @@ if (wire !== null) {
 
   section('W5 — the wire: one Anthropic turn on the capped route, the GPT turn on the Responses wire, nothing else on the Anthropic wire')
   check('exactly one MAIN Anthropic turn reached the wire, the capped one', capped.length === 1 && !captured.some(c => c.kind === 'anthropic' && isMainTurn(c, 'hello fable')), `kinds=${kinds}`)
-  const gptReplied = [finalGrid, end].some(grid => grid.includes(GPT_REPLY) || grid.includes(GPT_REPLY_AGAIN))
-  check('the GPT turn ran on the Responses wire and its reply painted (the fixture answers a later call with its second sentence)', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && gptReplied, `kinds=${kinds}\n${tail(end, 8)}`)
+  const gptWall = [finalGrid, end].some(grid => grid.includes('GPT work on this source pauses'))
+  check('the GPT turn reached Responses and its explicit provider wall painted', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && gptWall && transcriptCarries(wireWorld!.home, 'openai-usage_limit_reached'), `kinds=${kinds}\n${tail(end, 8)}`)
   check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-capped') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
 }
 
