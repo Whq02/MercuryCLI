@@ -114,6 +114,11 @@
    "reason": "The Godot provider inventory is read by three vulcan proofs (discovery, providers, instance readiness) and by no product module since the readiness rows took their data from the shared presence probe; it moves under scripts/vulcan in 1.0.0-beta.10 or is retired with its proofs."
   },
   {
+   "file": "src/services/wallet/walletIdentity.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The wallet's one identity composer (the line every account surface will paint: the family, the kind word, the credential's own reported account), landed with its law pin scripts/wallet/prove-wallet-identity.ts ahead of the three surfaces that mount it (the /accounts sign-in slots, the Logins chip, the usage summary's account line), which still read the saved address directly; reached from that pin today, from the surfaces once they are re-pointed at the composer."
+  },
+  {
    "file": "src/services/workContexts/workContexts.ts",
    "class": "superseded-unreachable",
    "reason": "The work-context bind/park/cleanup owner behind the WORK/workbench board's LANES verbs, retired in place; the MERCURY_WORK_CONTEXTS_DIR registry row names it as consumer, so the flag is PARKED with it (the reachability manifest records the parking, not a severed flag). Kept for the retire-or-adopt decision on the retire-or-adopt line."
