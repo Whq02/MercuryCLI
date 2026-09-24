@@ -73,7 +73,7 @@ await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' 
 await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 await stub('../../src/components/Settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
 
-const { Usage, usageColumns, usageWindow } = await import('../../src/components/Settings/Usage.js')
+const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageWindow } = await import('../../src/components/Settings/Usage.js')
 const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent, elementScreenTop, elementScreenLeft, wrapText } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
@@ -124,7 +124,7 @@ async function mount(width: number, rowBudget: number, columns: number, openToke
       const clip = area?.childNodes[0] as DOMElement | undefined
       return { height: body?.layoutNode?.getComputedHeight() ?? 0, clip: clip?.layoutNode?.getComputedHeight() ?? 0 }
     },
-    runs: () => root.current ? textRuns(root.current).filter(run => run !== '' && !run.startsWith('↓ ') && !/^[ \u2580-\u259f]+$/u.test(run)) : [],
+    runs: () => root.current ? textRuns(root.current).filter(run => run !== '' && !run.startsWith('↓ ') && !run.startsWith(JEV_USAGE_LABEL) && !/^[ \u2580-\u259f]+$/u.test(run)) : [],
     meters: () => root.current ? textRuns(root.current).filter(run => /^[ \u2580-\u259f]+$/u.test(run)) : [],
     async key(name: string) {
       const event = new InputEvent({ name, sequence: '', ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
@@ -153,7 +153,7 @@ async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, bud
   const expectedStops: number[] = []
   const sizes = board.sizes()
   const perRow = width >= 120 ? 3 : 1
-  const capacity = budget - (budget > 1 ? 1 : 0)
+  const capacity = usageBodyRows(budget).capacity
   let bandTop = 0
   for (let index = 0; index < sizes.length; index += perRow) {
     const height = Math.max(...sizes.slice(index, index + perRow).map(section => section.height))
@@ -216,7 +216,15 @@ for (const fixture of ['absent', 'signed-in']) {
   check(`${fixture}: columns start at exactly 0, 50 and 100`, headings.indexOf('Anthropic usage') === 0 && headings.indexOf('OpenAI usage') === 50 && headings.indexOf('Gemini usage') === 100)
   if (rich) {
     const bars = board.meters()
-    check('the painted meters are 42 cells, including both weekly pools', bars.length === 4 && bars.every(bar => stringWidth(bar) === 42 && board.frame().split('\n').some(line => line.slice(0, 42).padEnd(42) === bar)))
+    const painted = (): string[] => bars.filter(bar => board.frame().split('\n').some(line => line.slice(0, 42).padEnd(42) === bar))
+    const top = painted()
+    check('the four meters are 42 cells and the top frame paints three of them byte-exact (the JEV row costs the viewport one row, so the last weekly pool waits one step below)', bars.length === 4 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3, `${bars.length} bars · ${top.length} painted`)
+    await board.key('down')
+    const stepped = painted()
+    check('one down-step paints the fourth meter, the second weekly pool, at 42 cells too', stepped.length === 4 && bars.every(bar => stepped.includes(bar)), `${stepped.length} painted`)
+    await board.key('up')
+    const back = painted()
+    check('one up-step returns to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted`)
   } else {
     check('six providers at the top leave the exact four names from the design', board.frame().includes('↓ 4 more · Z.AI · OpenRouter · Custom endpoint · Local models'))
   }
@@ -242,7 +250,7 @@ check('a pending read keeps its loading words', delayed.frame().includes('loadin
 releaseRefresh()
 await settle()
 heldRefresh = undefined
-check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === 21 && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'))
+check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'))
 await walk(delayed, 146, 22, 'asynchronous band growth')
 delayed.close()
 for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
