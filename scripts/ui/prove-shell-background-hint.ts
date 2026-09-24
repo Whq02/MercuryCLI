@@ -386,7 +386,7 @@ const hintLines = (lines: string[]): number[] => lines.map((line, index) => (lin
 const rowLine = (lines: string[], marker: string): number => lines.findIndex(line => line.includes(marker))
 const around = (lines: string[], marker: string, span = 4): string => {
   const at = rowLine(lines, marker)
-  return at < 0 ? `(${marker} not painted)` : lines.slice(at, at + span).join(' ⏎ ')
+  return at < 0 ? `(${marker} not painted)` : lines.slice(at, at + span).join(' | ')
 }
 function shellRowShape(name: string, lines: string[], tail: string): void {
   const at = rowLine(lines, RUNNING_ROW)
