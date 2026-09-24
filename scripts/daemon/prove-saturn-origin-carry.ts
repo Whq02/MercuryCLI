@@ -219,5 +219,26 @@ console.log('§5 the tool mints the spelling the row reads back')
   bridge._resetScheduleBridgeForTesting()
 }
 
+console.log('§6 the seatless sink: a wake that fires into a closed usage window waits with the wall\'s own delay and says so once, in the row it finally lands as (red on the base: no step planner exists)')
+try {
+  const { localWakeStep } = await import('../../src/tools/ScheduleWakeupTool/localWake.ts')
+  const { WALL_RECHECK_MS, REOPEN_GRACE_MS } = await import('../../src/tools/MonitorTool/watchMailbox.ts')
+  const facts = { spelling: 'in ~900s', reason: REASON }
+  const first = localWakeStep({ closed: true, reopensAtMs: T0 + 30_000 }, T0, FIRED_AT, undefined, facts)
+  check("a closed window with a known reopen waits until the reopen plus the grace, the wall's own delay", first.step === 'wait' && first.delayMs === 30_000 + REOPEN_GRACE_MS && first.heldSince === FIRED_AT, j(first))
+  const unknown = localWakeStep({ closed: true }, T0, FIRED_AT, undefined, facts)
+  check('a closed window with no reopen waits one recheck', unknown.step === 'wait' && unknown.delayMs === WALL_RECHECK_MS, j(unknown))
+  const again = localWakeStep({ closed: true }, T0 + WALL_RECHECK_MS, FIRED_AT, FIRED_AT, facts)
+  check('a window still closed at the recheck waits again and keeps the first held-since', again.step === 'wait' && again.heldSince === FIRED_AT, j(again))
+  const landed = localWakeStep({ closed: false }, T0 + 2 * WALL_RECHECK_MS, FIRED_AT, FIRED_AT, facts)
+  check('the reopen delivers once, the origin naming the fire, its facts and the one wait', landed.step === 'deliver' && j(landed.origin) === j({ kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, spelling: 'in ~900s', reason: REASON, heldSince: FIRED_AT, heldWhy: 'window' }), j(landed))
+  const open = localWakeStep({ closed: false }, T0, FIRED_AT, undefined, undefined)
+  check('an open window delivers at once with no wait named and no facts invented', open.step === 'deliver' && j(open.origin) === j({ kind: 'saturn', fire: 'wake', firedAt: FIRED_AT }), j(open))
+  const line = rows.saturnFirstLine((landed as { origin: never }).origin, new Date(T0 + 2 * WALL_RECHECK_MS).toISOString())
+  check('and the row says it in one line', line.startsWith('self-paced wake · fifteen-minute cadence · reason: ') && line.endsWith('· the usage window was closed') && line.includes('held since '), line)
+} catch (error) {
+  check('the local wake step planner stands', false, String(error))
+}
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} saturn origin carry: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)
