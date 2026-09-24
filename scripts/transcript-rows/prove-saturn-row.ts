@@ -52,7 +52,7 @@ const clock = (iso: string): string => formatClock(iso)!
 const REASON = 'the row-2 build is running; RUN-OK follows it'
 const WAKE_BODY = 'Check the build log, then answer with the three things that need a ruling, shortest first.'
 const WAKE_TEXT = `[self-paced wake — why you woke: ${REASON}]\n\n${WAKE_BODY}`
-const CRON_BODY = 'Read the overnight lane landings under records/ and give me the three things that need my ruling, shortest first.'
+const CRON_BODY = 'Read the overnight notes under records/ and give me the three things that need my ruling, shortest first.'
 const OPERATOR_LINE = 'take the first two as my defaults'
 const REPLY = 'Three rulings wait, shortest first.'
 const wakeOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, spelling: 'in ~900s', reason: REASON, ...extra })
@@ -178,7 +178,7 @@ for (const columns of [178, 120]) {
   check('another origin is not plated Saturn', !stray.includes(SATURN), stray.slice(0, 120))
 }
 
-section("§2 the neighbours are byte-identical (a guard, green on both trees): the operator's line, Mercury's reply, wave 4's held rows")
+section("§2 the neighbours are byte-identical (a guard, green on both trees): the operator's line, Mercury's reply, the held rows")
 {
   const line = await paintText({ param: { type: 'text', text: OPERATOR_LINE } }, { type: 'user', timestamp: ROW_AT })
   check("the operator's typed line keeps the handle and the caret exactly", line === `${clock(ROW_AT)} ${HANDLE} ${CARET} ${OPERATOR_LINE}`, line)
