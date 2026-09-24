@@ -171,6 +171,18 @@ check('any other refusal is recorded as a refusal, never guessed', jevWireFailur
 check('a refusal that names credit is recognised by phrase family, not spelling', jevRefusalNamesCredit('insufficient credits') && jevRefusalNamesCredit('Your balance is 0') && jevRefusalNamesCredit('please top-up') && jevRefusalNamesCredit('Payment required'))
 check('a refusal that does not name credit is not called credit', !jevRefusalNamesCredit('Not Found') && !jevRefusalNamesCredit('Overloaded') && !jevRefusalNamesCredit(''))
 
+section('§13 a credit refusal holds until the conversation resets or the key changes, never on a timer')
+resetJevLedger()
+const wc = noteJevWireFailure({ kind: 'provider-refused', status: 402, detail: 'insufficient credits' }, T0, mid)
+check('the hold has no end on the clock', wc === Number.MAX_SAFE_INTEGER && jevLedgerSnapshot(T0 + 365 * 24 * 60 * 60_000).holdUntil === Number.MAX_SAFE_INTEGER)
+check('the refusal streak is not touched (it is not an outage)', jevLedgerSnapshot(T0).refusals === 0)
+noteJevKeyChanged()
+check('a new key clears the record and the hold', jevLedgerSnapshot(T0).lastWire === null && jevLedgerSnapshot(T0).holdUntil === 0)
+noteJevWireFailure({ kind: 'provider-refused', status: 402, detail: 'Payment required' }, T0, mid)
+resetJevLedger()
+check('a reset clears it too', jevLedgerSnapshot(T0).holdUntil === 0 && jevLedgerSnapshot(T0).lastWire === null)
+check('a refusal that names no credit still rides the ladder', noteJevWireFailure({ kind: 'provider-refused', status: 418, detail: 'I am a teapot' }, T0, mid) === 30_000)
+
 resetJevLedger()
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)
