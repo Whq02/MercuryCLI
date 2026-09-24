@@ -28,12 +28,27 @@ identifiers external services require, enumerated below with their owners.
   `ANTHROPIC_CLIENT_CONTRACT_AS_OF` records when the built-in version was last
   checked against the vendor CLI; every release carries a check at least as
   recent as its release date. The contract describer's `asOf` names that
-  built-in check even when an override supplies the presented version.
-  When the floor moves,
-  `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>` raises it without a rebuild;
-  the doctor's "Client contract" row shows what is presented; and the gate's
-  refusal is reported as what it is — the version read, the version
-  required, and that override — never as the vendor's updater advice.
+  built-in check for the constant and for an override, and the day it was
+  learned for a learned number. When the floor moves,
+  `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>` raises it without a rebuild
+  and wins over every other source. Between releases Mercury also learns a
+  newer number from the npm registry's `@anthropic-ai/claude-code` latest
+  document (`src/services/api/clientContractLearned.ts`): after the gate
+  refuses the presented number as too old — one read with a 3-second
+  deadline, then one retry of the refused request carrying the learned
+  number — and once a day in the background when a session boots with an
+  Anthropic credential on the first-party host (or with
+  `MERCURY_NPM_REGISTRY_BASE` naming a registry). The learned number is kept
+  in the config home (`client-contract.json`) and presented only while it is
+  newer than the built-in version; at most one registry read goes out per
+  config home in ten minutes, and `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC`
+  keeps every registry read dark. The registry read carries the product
+  User-Agent and nothing else. The doctor's "Client contract" row shows what
+  is presented and where it came from (the constant, a learned number with
+  its day, or the override) and names a failed or unsaved registry read; the
+  gate's refusal is reported as what it is — the version required, what
+  Mercury presented and what the registry read did, and that override —
+  never as the vendor's updater advice.
 - The User-Agent surface (`src/utils/userAgent.ts`, `src/utils/http.ts`) is
   uniform: every Mercury-owned connection presents the product identity,
   `mercury/<version>` — the provider-API agent appends a parenthesised tail
