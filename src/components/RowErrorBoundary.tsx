@@ -7,6 +7,7 @@ import { GLYPH } from './mercury-ui/glyphs.js'
 
 interface Props {
   children: React.ReactNode
+  origin?: NonNullable<Parameters<typeof persistCrashReport>[2]>
 }
 
 interface State {
@@ -25,7 +26,7 @@ export class RowErrorBoundary extends React.Component<Props, State> {
 
   override componentDidCatch(error: unknown, errorInfo: React.ErrorInfo): void {
     logError(error)
-    persistCrashReport(error, errorInfo, 'message-boundary')
+    persistCrashReport(error, errorInfo, this.props.origin ?? 'message-boundary')
   }
 
   override render(): React.ReactNode {
