@@ -102,7 +102,6 @@ import type {
 } from '../entrypoints/sdk/controlTypes.js'
 import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
-import { wallRecheckDelayMs } from '../tools/MonitorTool/watchMailbox.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -127,7 +126,8 @@ import {
   registerLocalWakeSink,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
-import { isSaturnOrigin, type SaturnOrigin } from '../utils/messages/noticeRows.js'
+import { isSaturnOrigin } from '../utils/messages/noticeRows.js'
+import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
 import {
@@ -1743,23 +1743,14 @@ export async function runHeadless(
   })
 
   if (streamingInput) {
-    const deliverLocalWake = (prompt: string, facts: Pick<SaturnOrigin, 'spelling' | 'reason'> | undefined, firedAt: string, heldSince: string | undefined): void => {
+    const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
       if (inputClosed) return
       const nowMs = Date.now()
-      const wall = sessionLaneWall(nowMs)
-      if (wall.closed) {
-        const since = heldSince ?? new Date(nowMs).toISOString()
-        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, since), wallRecheckDelayMs(wall, nowMs))
+      const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
+      if (next.step === 'wait') {
+        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
         recheck.unref?.()
         return
-      }
-      const origin: SaturnOrigin = {
-        kind: 'saturn',
-        fire: 'wake',
-        firedAt,
-        ...(facts?.spelling !== undefined ? { spelling: facts.spelling } : {}),
-        ...(facts?.reason !== undefined ? { reason: facts.reason } : {}),
-        ...(heldSince !== undefined ? { heldSince, heldWhy: 'window' as const } : {}),
       }
       enqueue({
         value: prompt,
@@ -1768,11 +1759,11 @@ export async function runHeadless(
         priority: 'later',
         isMeta: true,
         workload: 'cron',
-        origin,
+        origin: next.origin,
       })
       driver.kick()
     }
-    registerLocalWakeSink((prompt: string, facts?: Pick<SaturnOrigin, 'spelling' | 'reason'>) => {
+    registerLocalWakeSink((prompt: string, facts?: LocalWakeFacts) => {
       deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
     })
   }
