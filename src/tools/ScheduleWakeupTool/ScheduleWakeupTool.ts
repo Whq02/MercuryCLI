@@ -4,6 +4,7 @@ import { cronToHuman } from '../../utils/cron.js'
 import { detectSecrets } from '../../memdir/experienceCards.js'
 import { saturnSecretProseRefusal } from '../../daemon/saturn.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { wakeDelaySpelling } from '../../utils/messages/noticeRows.js'
 import {
   applyWakeReason,
   armLocalWake,
@@ -117,7 +118,7 @@ export const ScheduleWakeupTool = buildTool({
       const submitted = submitSessionScheduleEdit({
         op: 'add',
         schedule: {
-          when: { kind: 'at', atMs: nextWakeInstantMs(clamped, nowMs), spelling: `in ~${clamped}s` },
+          when: { kind: 'at', atMs: nextWakeInstantMs(clamped, nowMs), spelling: wakeDelaySpelling(clamped) },
           action: { kind: 'fire', prompt: fired, onParked: 'queue' },
           ...(safeReason !== undefined ? { note: safeReason } : {}),
         },

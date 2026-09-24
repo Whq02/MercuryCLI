@@ -1037,6 +1037,7 @@ async function daemonRun(args: string[]): Promise<void> {
               workspaceDir: d.workspaceId,
               by: d.by,
               priority: 'later',
+              ...(d.origin !== undefined ? { origin: d.origin } : {}),
               ...(d.parked ? { resumeSessionId: d.sessionId } : { targetSessionId: d.sessionId }),
             })
             return { ok: result.ok, ...(result.error !== undefined ? { detail: result.error } : {}) }
