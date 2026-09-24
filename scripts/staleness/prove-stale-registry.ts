@@ -316,6 +316,7 @@ src/utils/settings/mdm/settings.ts :: mdmCache :: subscription-fed
 src/utils/settings/settingsCache.ts :: parsedFileCache :: invalidator=resetSettingsCache
 src/utils/settings/settingsCache.ts :: perSourceCache :: invalidator=resetSettingsCache
 src/utils/settings/settingsCache.ts :: sessionSettingsCache :: invalidator=resetSettingsCache
+src/utils/settings/snapshot.ts :: lastSessionCache :: keyed-by-truth
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
 src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process

@@ -21,9 +21,16 @@ import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,
 } from '../../state/ephemeralProgressStore.js'
+import {
+  BACKGROUND_MOVED_WORDS,
+  firstRunningShellId,
+  movedToBackgroundByOperator,
+  type ToolUseEntryV1,
+} from '../../services/engine-connector/shellRunning.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { ToolUseLoader } from '../ToolUseLoader.js'
+import { RunningShellBackgroundHint } from './AssistantToolUseMessage.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 
@@ -47,20 +54,20 @@ function counted(verb: string, n: number, noun: string): Fragment {
   }
 }
 
-function memberToolUseIds(group: CollapsedReadSearchGroup): string[] {
-  const ids: string[] = []
+function memberToolUses(group: CollapsedReadSearchGroup): ToolUseEntryV1[] {
+  const entries: ToolUseEntryV1[] = []
   for (const member of group.messages) {
     if (member.type === 'grouped_tool_use') {
       for (const inner of member.messages) {
         const first = inner.message.content[0]
-        if (first && first.type === 'tool_use') ids.push(first.id)
+        if (first && first.type === 'tool_use') entries.push({ id: first.id, name: first.name })
       }
       continue
     }
     const first = member.message.content[0]
-    if (first && first.type === 'tool_use') ids.push(first.id)
+    if (first && first.type === 'tool_use') entries.push({ id: first.id, name: first.name })
   }
-  return ids
+  return entries
 }
 
 export function CollapsedReadSearchContent({
@@ -68,6 +75,7 @@ export function CollapsedReadSearchContent({
   inProgressToolUseIDs,
   shouldAnimate = false,
   verbose = false,
+  isTranscriptMode = false,
   tools,
   lookups,
   isActiveGroup = false,
@@ -76,13 +84,15 @@ export function CollapsedReadSearchContent({
   inProgressToolUseIDs: Set<string>
   shouldAnimate?: boolean
   verbose?: boolean
+  isTranscriptMode?: boolean
   tools: Tools
   lookups: MessageLookups
   isActiveGroup?: boolean
 }): React.ReactNode {
   const fullscreen = isFullscreenEnvEnabled()
   const selectedBg = useSelectedMessageBg()
-  const memberIds = React.useMemo(() => memberToolUseIds(message), [message])
+  const memberEntries = React.useMemo(() => memberToolUses(message), [message])
+  const memberIds = React.useMemo(() => memberEntries.map(entry => entry.id), [memberEntries])
   useEphemeralProgressVersion(memberIds)
   useFluxMountMark('read-group')
 
@@ -103,6 +113,12 @@ export function CollapsedReadSearchContent({
   const anyErrored = memberIds.some(id => lookups.erroredToolUseIDs.has(id))
   const anyDenied = memberIds.some(id => lookups.deniedToolUseIDs.has(id))
   const active = isActiveGroup && memberIds.some(id => inProgressToolUseIDs.has(id))
+  const shellId = active && shouldAnimate && !isTranscriptMode ? firstRunningShellId(memberEntries, inProgressToolUseIDs) : null
+  const movedByOperator = memberIds.some(id =>
+    movedToBackgroundByOperator(
+      (lookups.toolResultByToolUseID.get(id) as { toolUseResult?: unknown } | undefined)?.toolUseResult,
+    ),
+  )
 
   let rawHint: string | null = null
   if (active) {
@@ -358,6 +374,7 @@ export function CollapsedReadSearchContent({
             </Text>
           </Box>
           {resultNode ? <Box paddingLeft={2}>{resultNode}</Box> : null}
+          {entry.id === shellId ? <RunningShellBackgroundHint id={entry.id} /> : null}
         </Box>,
       )
     }
@@ -472,6 +489,12 @@ export function CollapsedReadSearchContent({
           <Text dimColor wrap="wrap">
             {hint}
           </Text>
+        </MessageResponse>
+      ) : null}
+      {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
+      {movedByOperator ? (
+        <MessageResponse height={1}>
+          <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
         </MessageResponse>
       ) : null}
       {!verbose && (message.hookCount ?? 0) > 0 ? (
