@@ -447,7 +447,7 @@ section('§7 the laws over every frame and every file')
   check('the /config row is the Motion construction: the owner\'s words, the owner\'s writer, the touched key for the esc-revert, the status through the session reader', config.includes("id: 'jev'") && config.includes('jevValueWords(jevSettings)') && config.includes('setJevEnabled(next)') && config.includes("globalTouchedRef.current.add('jev')") && config.includes('jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings))') && !config.includes('jevStatusLine()'))
   check('no second writer of the jev key outside the owner', ['src/components/Settings/Jev.tsx', 'src/components/BootSettingsScreen.tsx', 'src/components/Settings/Config.tsx', 'src/commands/jev/jev.tsx'].every(rel => !/saveGlobalConfig\([^)]*jev/.test(readFileSync(join(REPO, rel), 'utf8'))))
   const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
-  check('the popup host mounts on both roads, so /jev is never a dead command inline', layout.includes('<SettingsPopupSlot overlay={false} />') && layout.includes('<SettingsPopupSlot overlay={true} />'))
+  check('the popup host mounts on both roads, so /jev is never a dead command inline', /<SettingsPopupSlot overlay=\{false\}[^>]*\/>/.test(layout) && /<SettingsPopupSlot overlay=\{true\}[^>]*\/>/.test(layout))
 }
 
 if (frameDir !== undefined) {
