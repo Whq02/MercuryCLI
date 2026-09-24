@@ -2,6 +2,7 @@ import os from 'node:os'
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { SATURN_PLATE_NAME } from '../../utils/messages/noticeRows.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
@@ -10,10 +11,10 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 export type MessageRole = 'user' | 'assistant'
 
-export type AttachedAuthor = 'user' | 'coordinator' | 'agent'
+export type AttachedAuthor = 'user' | 'coordinator' | 'agent' | 'saturn'
 
 export function attachedPlateName(author: AttachedAuthor): string {
-  return author === 'agent' ? 'Mercury' : author === 'coordinator' ? 'Coordinator' : userHandle()
+  return author === 'agent' ? 'Mercury' : author === 'coordinator' ? 'Coordinator' : author === 'saturn' ? SATURN_PLATE_NAME : userHandle()
 }
 
 export const AttachedAttributionContext = React.createContext<
@@ -131,7 +132,9 @@ export function TranscriptNameplate(): React.ReactNode {
         ? (paneAccent ?? critter.accent)
         : meta.attachedAuthor === 'coordinator'
           ? TEAL
-          : userBloom
+          : meta.attachedAuthor === 'saturn'
+            ? FAINT
+            : userBloom
   } else {
     name = isAgent ? 'Mercury' : userHandle()
     nameColor = isAgent ? critter.accent : userBloom
