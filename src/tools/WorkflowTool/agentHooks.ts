@@ -566,6 +566,17 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
     return prefix.some(m => (m as { type?: string }).type === 'assistant') ? prefix : null
   }
 
+  function transcriptSeed(messages: unknown[] | undefined): unknown[] | null {
+    if (!messages || messages.length === 0) return null
+    const seed: unknown[] = []
+    for (const m of messages) {
+      const row = m as { type?: string }
+      if (row?.type === 'assistant') break
+      if (row?.type === 'user') seed.push(m)
+    }
+    return seed.length > 0 ? seed : null
+  }
+
   const STALL_RESUME_PROMPT =
     'Your previous turn was cut off by a no-progress timeout (the provider went quiet). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
   const CAP_RESUME_PROMPT =
@@ -831,7 +842,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       continuation?: unknown[],
       modelOverride?: string,
     ): Promise<AttemptReport> => {
-      const agentId = createAgentId()
+      const agentId = (statics.agentId ??= createAgentId())
       const pauseSeam = (ctx as { workflowPause?: WorkflowExecutionPause }).workflowPause
       const releasePauseHold = pauseSeam?.register(agentId)
       onAttemptStarted(agentId)
@@ -1488,12 +1499,15 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         )
         foldIn(report)
         const resumable = cutKind === 'stalled' ? balancedTranscriptPrefix(report.transcript) : null
+        const seed = cutKind === 'stalled' && resumable === null ? transcriptSeed(report.transcript) : null
         report = resumable
           ? await attempt(`${label} (retry ${a})`, a + 1, why, [
               ...resumable,
               createUserMessage({ content: STALL_RESUME_PROMPT }),
             ])
-          : await attempt(`${label} (retry ${a})`, a + 1, why)
+          : seed
+            ? await attempt(`${label} (retry ${a})`, a + 1, why, seed)
+            : await attempt(`${label} (retry ${a})`, a + 1, why)
       }
 
       if (report.skipped) return null
@@ -1756,6 +1770,7 @@ interface CallFrameStatics {
   queuedAt: number
   hasStructuredTool: boolean
   carryover: { tokens: number; toolCalls: number; durationMs: number; usage: WorkflowUsageRollup }
+  agentId?: ReturnType<typeof createAgentId>
 }
 
 function toolInputGlance(input: unknown): string | undefined {
