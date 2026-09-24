@@ -16,7 +16,7 @@ import {
   turnCutOfText,
   turnCutWhy,
 } from '../../utils/messages.js'
-import { noticeOfText } from '../../utils/messages/noticeRows.js'
+import { isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { UserAgentNotificationMessage } from './UserAgentNotificationMessage.js'
@@ -34,11 +34,9 @@ import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
 import { UserTeammateMessage } from './UserTeammateMessage.js'
 import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
 
-const NOTICE_COMPLETION_GAP_MS = 60_000
-
 function noticeCompletionClock(sentAt?: string, deliveredAt?: string): string | null {
   const gap = Date.parse(deliveredAt ?? '') - Date.parse(sentAt ?? '')
-  return Number.isFinite(gap) && gap >= NOTICE_COMPLETION_GAP_MS ? formatClock(sentAt) : null
+  return Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS ? formatClock(sentAt) : null
 }
 
 type Props = {
@@ -50,6 +48,7 @@ type Props = {
   timestamp?: string
   notice?: boolean
   noticeSentAt?: string
+  origin?: unknown
 }
 
 export function UserTextMessage({
@@ -61,6 +60,7 @@ export function UserTextMessage({
   timestamp,
   notice = false,
   noticeSentAt,
+  origin,
 }: Props): React.ReactNode {
   const meta = useMessageMeta()
   const completedAt = meta?.queued ? null : noticeCompletionClock(noticeSentAt, meta?.timestamp)
@@ -78,6 +78,10 @@ export function UserTextMessage({
 
   if (param.text.includes(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) {
     return null
+  }
+
+  if (isSaturnOrigin(origin)) {
+    return <UserNoticeMessage addMargin={addMargin} blocks={[saturnBlockOf(origin, param.text)]} />
   }
 
   if (

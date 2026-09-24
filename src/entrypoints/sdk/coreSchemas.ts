@@ -914,6 +914,10 @@ export const SDKUserMessageSchema = lazySchema(() =>
     priority: z.enum(['now', 'next', 'later']).optional().describe('The queue band a sent line files under while the session is busy'),
     mode: z.enum(['prompt', 'bash', 'task-notification']).optional().describe('How the words run: a prompt, a shell line, or a note addressed to one agent'),
     agent_id: z.string().optional().describe("mode task-notification: the addressed agent's id"),
+    origin: z
+      .looseObject({ kind: z.string() })
+      .optional()
+      .describe("Who sent the words when it was not the operator: a schedule's fire carries kind saturn with the schedule's own facts, and the row plates it [Saturn]"),
   }),
 )
 export const SDKUserMessageReplaySchema = lazySchema(() =>

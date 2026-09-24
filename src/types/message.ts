@@ -5,6 +5,7 @@ import type { OverflowSignal } from '../services/api/overflowSignal.js'
 import type { MediaRefusal } from '../services/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { EffortAdjustedV1 } from '../utils/effort.js'
+import type { SaturnOrigin } from '../utils/messages/noticeRows.js'
 import type { UUID } from 'crypto'
 import type {
   BranchAction,
@@ -46,6 +47,7 @@ export type MessageOrigin =
   | { kind: 'task-notification' }
   | { kind: 'coordinator' }
   | { kind: 'channel'; server: string }
+  | SaturnOrigin
 
 export type CompactMetadata = {
   trigger: 'manual' | 'auto' | 'overflow'
