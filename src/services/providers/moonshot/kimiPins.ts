@@ -80,3 +80,10 @@ export function kimiDisplayName(id: string): string | undefined {
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
+
+export function kimiShortName(id: string): string | undefined {
+  const name = kimiDisplayName(id)
+  if (name === undefined) return undefined
+  const short = name.replace(/^Kimi\s+/, '')
+  return short === '' ? name : short
+}

@@ -71,6 +71,7 @@ export interface CompatCompletedToolCall {
 }
 
 export type CompatStreamEvent =
+  | { type: 'served-model'; model: string }
   | { type: 'reasoning-delta'; text: string }
   | { type: 'text-delta'; text: string }
   | { type: 'tool-call-fragment'; index: number; id?: string; name?: string; argumentsFragment: string }
@@ -246,6 +247,7 @@ export async function* streamCompatChat(
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
   let finished = false
+  let servedSeen: string | undefined
 
   try {
     let response: Response
@@ -406,6 +408,10 @@ export async function* streamCompatChat(
           continue
         }
         for (const event of decodeChunk(parsed, toolAcc)) {
+          if (event.type === 'served-model') {
+            if (event.model === servedSeen) continue
+            servedSeen = event.model
+          }
           if (event.type === 'finish') {
             finished = true
             if (event.reason === 'content_filter' || event.reason === 'insufficient_system_resource') {
@@ -486,6 +492,8 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
 function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>): CompatStreamEvent[] {
   const out: CompatStreamEvent[] = []
   const o = asRecord(parsed)
+  const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
+  if (servedModel !== '') out.push({ type: 'served-model', model: servedModel })
   const errRecord = asRecord(o?.error)
   if (errRecord !== undefined || typeof o?.error === 'string') {
     const message =

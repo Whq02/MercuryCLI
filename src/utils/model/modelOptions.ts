@@ -447,6 +447,11 @@ export interface KeyLanePin {
   observedAt: string
   contextWindow?: number
   listedLive?: boolean
+  servedAs?: { id: string; displayName: string }
+}
+
+export function keyLanePinLabel(pin: Pick<KeyLanePin, 'displayName' | 'servedAs'>): string {
+  return pin.servedAs === undefined ? pin.displayName : `${pin.displayName} · ${pin.servedAs.displayName}`
 }
 
 export interface KeyLaneReads {
@@ -526,9 +531,9 @@ export function keyLaneGroupRows(args: {
   if (args.keyPresent) {
     return args.pins.map(pin => ({
       value: pin.id,
-      label: pin.displayName,
+      label: keyLanePinLabel(pin),
       description: '',
-      descriptionForModel: `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}`,
+      descriptionForModel: `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
       group: args.group,
       ...(pin.contextWindow !== undefined ? { statedContextWindow: pin.contextWindow } : {}),
     }))
