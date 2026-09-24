@@ -85,7 +85,7 @@ section('§2 no local-jsx command mounts the settings shell any more')
   check('the shell keeps its exports (Settings, nextSettingsOpen)', shell.includes('export function Settings(') && shell.includes('export function nextSettingsOpen('))
   check('the slot mounts the shell from the store', readFileSync(join(REPO, 'src/components/SettingsPopupSlot.tsx'), 'utf8').includes('<Settings key={open} request={request} geometry={geometry} />'))
   const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
-  check('the layout mounts the slot over everything (after the modal pane) and on the sequential road', layout.includes('{modalPane}\n              <SettingsPopupSlot overlay={true} />') && layout.includes('{modal ?? null}\n          <SettingsPopupSlot overlay={false} />'))
+  check('the layout mounts the slot over everything (after the modal pane, hosted on the centre column) and on the sequential road', layout.includes('{modalPane}\n              <SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />') && layout.includes('{modal ?? null}\n          <SettingsPopupSlot overlay={false} />'))
 }
 
 section('§3 nothing under src/ or scripts/ reads the retired road (the two deleted faces, the tab strip, the old chrome markers)')

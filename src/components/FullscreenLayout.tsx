@@ -620,7 +620,7 @@ export function FullscreenLayout({
                 {bottomBlock}
               </ScrollChromeContext.Provider>
               {modalPane}
-              <SettingsPopupSlot overlay={true} />
+              <SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />
             </Box>
           </MotionParkContext.Provider>
         </CockpitActiveContext.Provider>
