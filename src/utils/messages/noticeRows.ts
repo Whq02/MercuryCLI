@@ -76,14 +76,15 @@ export function saturnFirstLine(origin: SaturnOrigin, rowStamp?: string): string
     parts.push(origin.scheduleId !== undefined && origin.scheduleId !== '' ? `${SATURN_SCHEDULE_WORD} ${origin.scheduleId}` : SATURN_SCHEDULE_WORD)
     if (origin.spelling !== undefined && origin.spelling !== '') parts.push(lowerFirst(origin.spelling))
   }
-  const fired = clockOf(origin.firedAt)
-  const gap = Date.parse(rowStamp ?? '') - Date.parse(origin.firedAt)
-  if (fired !== null && Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS) parts.push(`fired ${fired}`)
   const held = clockOf(origin.heldSince)
   if (held !== null) {
     const why = origin.heldWhy === 'window' ? ' · the usage window was closed' : origin.heldWhy === 'parked' ? ' · the session was parked' : ''
     parts.push(`held since ${held}${why}`)
+    return parts.join(' · ')
   }
+  const fired = clockOf(origin.firedAt)
+  const gap = Date.parse(rowStamp ?? '') - Date.parse(origin.firedAt)
+  if (fired !== null && Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS) parts.push(`fired ${fired}`)
   return parts.join(' · ')
 }
 
