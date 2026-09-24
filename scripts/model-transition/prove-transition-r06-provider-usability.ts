@@ -77,7 +77,7 @@ section('§D the live bundle reads the OWNING stores')
     'auth.ts · claudeAiLimits.anthropicLimitVerdict · getGptSeatAvailability',
     src.includes("from '../../utils/auth.js'") &&
       src.includes('anthropicLimitVerdict') &&
-      src.includes('getGptSeatAvailability()'),
+      /getGptSeatAvailability\(/.test(src),
   )
 }
 

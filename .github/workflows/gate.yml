@@ -134,6 +134,8 @@ jobs:
       - name: Unpack dist
         run: tar -xzf dist.tar.gz
       - name: Run shard suites (the release class)
+        env:
+          MERCURY_BROWSER_PATH: /usr/bin/google-chrome
         run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 24 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
