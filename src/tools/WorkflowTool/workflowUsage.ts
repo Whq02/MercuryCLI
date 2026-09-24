@@ -1,3 +1,4 @@
+import { getSpentTokensFromUsage } from '../../utils/tokenUsage.js'
 
 export type WorkflowUsageRollup = {
   inputTokens: number
@@ -23,7 +24,7 @@ export const EMPTY_WORKFLOW_USAGE: Readonly<WorkflowUsageRollup> = Object.freeze
 })
 
 export function workflowUsageSpend(u: WorkflowUsageRollup): number {
-  return u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens + u.outputTokens
+  return getSpentTokensFromUsage({ input_tokens: u.inputTokens, output_tokens: u.outputTokens })
 }
 
 export function addWorkflowUsage(a: WorkflowUsageRollup, b: WorkflowUsageRollup): WorkflowUsageRollup {
