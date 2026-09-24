@@ -10,7 +10,7 @@ import {
   jevUsdLabel,
 } from '../../services/jev/jevContract.js'
 import { JEV_KEY_ENV, type JevKeyPresence, jevKeyPresence, jevKeySourceWords, storeJevApiKey } from '../../services/jev/jevKey.js'
-import { type JevLedgerSnapshot, jevLedgerSnapshot } from '../../services/jev/jevLedger.js'
+import { type JevSessionFacts, jevSessionAbsenceShortWords, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import {
   JEV_DEFAULT_ALLOWANCE_USD,
   JEV_DEFAULT_PACE_PER_MINUTE,
@@ -25,7 +25,8 @@ import {
   setJevRequestCeiling,
   setJevSubagents,
 } from '../../services/jev/jevSetting.js'
-import { JEV_STATUS_HEADWORDS, jevStatusLine, resolveJevStatus } from '../../services/jev/jevStatus.js'
+import { JEV_STATUS_HEADWORDS, jevStatusLine } from '../../services/jev/jevStatus.js'
+import type { JevFactsV1 } from '../../services/engine-connector/types.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import { providerSecretsPathForDisplay } from '../../utils/router/providerSecrets.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
@@ -54,22 +55,27 @@ export const JEV_ROW_LABELS: Readonly<Record<JevRowId, string>> = {
   subagents: 'Sub-agents',
 }
 
-export type JevFacts = { settings: JevSettings; key: JevKeyPresence; ledger: JevLedgerSnapshot; status: JevStatus }
+export type JevFacts = { settings: JevSettings; key: JevKeyPresence; session: JevSessionFacts; status: JevStatus }
 
-export function jevFacts(now: number = Date.now()): JevFacts {
+export function jevFacts(session: JevSessionFacts = jevSessionFacts()): JevFacts {
   const settings = readJevSettings()
   const key = jevKeyPresence()
-  const ledger = jevLedgerSnapshot(now)
-  return { settings, key, ledger, status: resolveJevStatus({ settings, key, ledger, now }) }
+  return { settings, key, session, status: jevSessionStatus(session, settings, key) }
 }
 
-export function jevSpendWords(ledger: JevLedgerSnapshot): string {
-  return `spend so far: ${jevUsdLabel(ledger.spendUsd)} · ${ledger.calls} call${ledger.calls === 1 ? '' : 's'} · ${ledger.unconfirmedCharges} unconfirmed`
+export function jevSpendWords(facts: JevFactsV1): string {
+  return `spend so far: ${jevUsdLabel(facts.spendUsd)} · ${facts.calls} call${facts.calls === 1 ? '' : 's'} · ${facts.unconfirmedCharges} unconfirmed`
 }
 
-export function jevLastAnswerWords(ledger: JevLedgerSnapshot): string | null {
-  if (ledger.lastAnsweredAt === null) return null
-  return `last answered ${jevClockLabel(ledger.lastAnsweredAt)}${ledger.lastModel !== null ? ` · ${ledger.lastModel}` : ''}`
+export function jevLastAnswerWords(facts: JevFactsV1): string | null {
+  if (facts.lastAnsweredAtMs === null) return null
+  return `last answered ${jevClockLabel(facts.lastAnsweredAtMs)}${facts.lastModel !== null ? ` · ${facts.lastModel}` : ''}`
+}
+
+export function jevSessionSpendWords(session: JevSessionFacts): string {
+  if (session.state !== 'reported') return jevSessionAbsenceWords(session)
+  const last = jevLastAnswerWords(session.facts)
+  return `${jevSpendWords(session.facts)}${last === null ? '' : ` · ${last}`}`
 }
 
 function settingValue(line: string): string {
@@ -95,10 +101,8 @@ export function jevRowWords(id: JevRowId, facts: JevFacts): string {
       return jevValueWords(facts.settings)
     case 'key':
       return jevKeySourceWords(facts.key)
-    case 'spend': {
-      const last = jevLastAnswerWords(facts.ledger)
-      return `${jevSpendWords(facts.ledger)}${last === null ? '' : ` · ${last}`}`
-    }
+    case 'spend':
+      return jevSessionSpendWords(facts.session)
     case 'allowance':
       return values.allowance
     case 'pace':
@@ -137,7 +141,8 @@ export function jevKeyShortWords(key: JevKeyPresence): string {
 }
 
 export function jevPopupLine(facts: JevFacts = jevFacts()): string {
-  return `switch ${jevValueWords(facts.settings)} · ${jevKeyShortWords(facts.key)} · spend ${jevUsdLabel(facts.ledger.spendUsd)} of ${jevUsdLabel(facts.settings.allowanceUsd)} · ${JEV_STATUS_HEADWORDS[facts.status.kind]}`
+  const spend = facts.session.state === 'reported' ? `spend ${jevUsdLabel(facts.session.facts.spendUsd)} of ${jevUsdLabel(facts.settings.allowanceUsd)}` : `${jevSessionAbsenceShortWords(facts.session)} · allowance ${jevUsdLabel(facts.settings.allowanceUsd)}`
+  return `switch ${jevValueWords(facts.settings)} · ${jevKeyShortWords(facts.key)} · ${spend} · ${JEV_STATUS_HEADWORDS[facts.status.kind]}`
 }
 
 export function nextRung(rungs: readonly number[], current: number, direction: 1 | -1): number {
@@ -204,6 +209,7 @@ export function Jev({
   const tokens = useMercuryTokens()
   const pastOpenEvent = useOpenEventGate()
   useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
+  useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   const [version, setVersion] = useState(0)
   void version
   const bump = (): void => setVersion(v => v + 1)

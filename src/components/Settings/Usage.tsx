@@ -1,5 +1,5 @@
 
-import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text, measureElement, useInput, type DOMElement } from '../../ink.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
@@ -26,9 +26,9 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { jevUsdLabel } from '../../services/jev/jevContract.js'
-import { jevLedgerSnapshot } from '../../services/jev/jevLedger.js'
+import { type JevSessionFacts, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
-import { JEV_STATUS_HEADWORDS, jevStatus } from '../../services/jev/jevStatus.js'
+import { JEV_STATUS_HEADWORDS } from '../../services/jev/jevStatus.js'
 import { usageSourceWords } from '../../services/providers/usageFreshness.js'
 import { activeWalletEntry, walletEntries } from '../../services/wallet/wallet.js'
 import { getGptSeatAvailability } from '../../services/providers/openai/openaiCatalogue.js'
@@ -865,11 +865,11 @@ export function usageWindow(bands: ReadonlyArray<{ height: number; count: number
 
 export const JEV_USAGE_LABEL = "JEV · Mercury's count"
 
-export function jevUsageRow(now: number = Date.now()): string {
+export function jevUsageRow(session: JevSessionFacts = jevSessionFacts()): string {
   const settings = readJevSettings()
-  const ledger = jevLedgerSnapshot(now)
-  const headword = JEV_STATUS_HEADWORDS[jevStatus(undefined, now).kind]
-  return `${JEV_USAGE_LABEL}: ${jevUsdLabel(ledger.spendUsd)} · ${ledger.calls} call${ledger.calls === 1 ? '' : 's'} (${ledger.unconfirmedCharges} unconfirmed) · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${CREDITS_UNREPORTED_WORDS}`
+  const headword = JEV_STATUS_HEADWORDS[jevSessionStatus(session, settings).kind]
+  const count = session.state === 'reported' ? `${jevUsdLabel(session.facts.spendUsd)} · ${session.facts.calls} call${session.facts.calls === 1 ? '' : 's'} (${session.facts.unconfirmedCharges} unconfirmed)` : jevSessionAbsenceWords(session)
+  return `${JEV_USAGE_LABEL}: ${count} · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${CREDITS_UNREPORTED_WORDS}`
 }
 
 export function usageBodyRows(budget: number): { footerRows: number; jevRows: number; capacity: number } {
@@ -894,6 +894,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: 
   useLayoutEffect(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
   const { footerRows, jevRows, capacity } = usageBodyRows(budget)
+  useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return

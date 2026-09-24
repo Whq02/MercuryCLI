@@ -41,11 +41,17 @@ function quoted(detail: string): string {
   return JSON.stringify(clipped)
 }
 
+export function jevSharedStatus(settings: JevSettings, key: JevKeyPresence): JevStatus {
+  if (!settings.enabled) return { kind: 'off', words: 'off — the JEV switch is off; /jev, the JEV row of /config or the JEV row of the Boot Menu turns it on' }
+  if (!key.present) return { kind: 'no-key', words: 'no key — no TypeSafe API key is stored; paste one in /jev (Mercury ships none)' }
+  return { kind: 'ready', words: 'ready' }
+}
+
 export function resolveJevStatus(inputs: JevStatusInputs): JevStatus {
   const { settings, key, ledger, now, agent } = inputs
-  if (!settings.enabled) return { kind: 'off', words: 'off — the JEV switch is off; /jev, the JEV row of /config or the JEV row of the Boot Menu turns it on' }
+  if (!settings.enabled) return jevSharedStatus(settings, key)
   if (agent?.subagent === true && !settings.subagents) return { kind: 'off', words: 'off — JEV is not offered to sub-agents until the sub-agents setting in /jev is on' }
-  if (!key.present) return { kind: 'no-key', words: 'no key — no TypeSafe API key is stored; paste one in /jev (Mercury ships none)' }
+  if (!key.present) return jevSharedStatus(settings, key)
   const wire = ledger.lastWire
   if (wire?.kind === 'invalid-key') {
     return {

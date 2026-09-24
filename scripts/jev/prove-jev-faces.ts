@@ -63,6 +63,9 @@ const status = await import('../../src/services/jev/jevStatus.js')
 const keyOwner = await import('../../src/services/jev/jevKey.js')
 const ledger = await import('../../src/services/jev/jevLedger.js')
 const contract = await import('../../src/services/jev/jevContract.js')
+const reader = await import('../../src/services/jev/jevSessionFacts.js')
+const slot = await import('../../src/services/engine-connector/focusedConnector.js')
+const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
 const secrets = await import('../../src/utils/router/providerSecrets.js')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
 const { CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
@@ -72,6 +75,22 @@ const jevBody = await import('../../src/components/Settings/Jev.js')
 const { BootSettingsScreen, JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, withJevRow } = await import('../../src/components/BootSettingsScreen.js')
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
 
+const ZERO_USAGE = {
+  totalCostUSD: 0,
+  totalAPIDurationMs: 0,
+  totalDurationMs: 0,
+  totalLinesAdded: 0,
+  totalLinesRemoved: 0,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  totalCacheReadInputTokens: 0,
+  totalCacheCreationInputTokens: 0,
+  hasUnknownModelCost: false,
+}
+type JevSessionFacts = import('../../src/services/jev/jevSessionFacts.js').JevSessionFacts
+const runnerFacts = () => reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus())
+const runnerConnector = (): InstanceType<typeof NoSessionConnector> =>
+  Object.assign(new NoSessionConnector(), { sessionId: () => 'proof-session', usage: () => ({ ...ZERO_USAGE, jev: runnerFacts() }) })
 const configFile = join(HOME, '.mercury.json')
 const storedJev = (): Record<string, unknown> | undefined => {
   if (!existsSync(configFile)) return undefined
@@ -198,15 +217,19 @@ check('/jev is a local, screen-seat, user-private command that is unavailable no
   check('the Boot Menu row joins the AGENTS group of the startup table (one header, beside Sub-agents and Workflows)', at > 0 && rows[at - 1]?.group === 'agents' && rows[at]?.group === 'agents' && rows.length === STARTUP_MENU.length + 1, String(at))
   check('the detail width is the SETTING DETAIL text width and every detail line fits it', JEV_BOOT_DETAIL_WIDTH === 41 && jevBootDetailLines().every(line => stringWidth(line) <= JEV_BOOT_DETAIL_WIDTH), jevBootDetailLines().join(' | '))
   const keyStates = [{ present: false }, { present: true, source: 'stored' }, { present: true, source: 'env' }] as const
+  const sessions: JevSessionFacts[] = [{ state: 'reported', facts: { ...runnerFacts(), spendUsd: 199.999999 } }, { state: 'unknown' }, { state: 'no-session' }]
   const widest = contract.JEV_STATUS_KINDS.flatMap(kind =>
-    keyStates.map(key => jevBody.jevPopupLine({ settings: { ...setting.readJevSettings(), allowanceUsd: 200, enabled: true }, key, ledger: ledger.jevLedgerSnapshot(), status: { kind, words: '' } })),
+    keyStates.flatMap(key => sessions.map(session => jevBody.jevPopupLine({ settings: { ...setting.readJevSettings(), allowanceUsd: 200, enabled: true }, key, session, status: { kind, words: '' } }))),
   )
-  check('the summary line fits the popup for every status kind and key state; the hint fits its row', widest.every(line => stringWidth(line) <= JEV_INNER) && stringWidth(jevBody.JEV_POPUP_HINT) <= JEV_INNER + 1, widest.filter(line => stringWidth(line) > JEV_INNER).join(' | '))
+  check('the summary line fits the popup for every status kind, key state and session state (reported, not reported, no chat); the hint fits its row', widest.every(line => stringWidth(line) <= JEV_INNER) && stringWidth(jevBody.JEV_POPUP_HINT) <= JEV_INNER + 1, widest.filter(line => stringWidth(line) > JEV_INNER).join(' | '))
   check('the summary line names the key by presence only, never its long sentence', jevBody.jevKeyShortWords({ present: false }) === 'no key' && jevBody.jevKeyShortWords({ present: true, source: 'stored' }) === 'key stored' && jevBody.jevKeyShortWords({ present: true, source: 'env' }) === `key from ${keyOwner.JEV_KEY_ENV}`)
 }
 
 section('§1 /jev off with no key (frame a)')
 check('a fresh home is off, keyless, with no jev key on disk', setting.jevEnabled() === false && keyOwner.jevKeyPresence().present === false && storedJev() === undefined)
+check('no chat open: the Spend row and the context line say so, the status is the shared reading (off), and no count is claimed', !slot.hasFocusedSession() && jevBody.jevRowWords('spend', jevBody.jevFacts()) === reader.JEV_NO_SESSION_WORDS && jevBody.jevPopupLine() === `switch off · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · allowance $20.00 · off` && jevBody.jevFacts().status.kind === 'off', jevBody.jevPopupLine())
+slot.setFocusedSessionConnector(runnerConnector())
+check('a chat enters the slot whose runner answers its own JEV facts: every ledger-derived word below comes through the connector', slot.hasFocusedSession() && reader.jevSessionFacts().state === 'reported')
 {
   const m = await openJev()
   const lines = keepFrame('jev-off-no-key-178x51', '/jev on a fresh home: the switch off, no key, the ledger at zero; the Switch row selected with its note', m)
@@ -314,11 +337,11 @@ section('§5 /jev on with a stored key and spend on the ledger (frame b); a refu
   ledger.settleJevCall({ input_tokens: 6000, output_tokens: 0 }, 'jev-1.13.0', T0 + 1000)
   ledger.noteJevAttempt(T0 + 2000)
   ledger.noteJevWireFailure({ kind: 'parse-failed', status: 200, detail: 'not json' }, T0 + 2000, () => 0.5)
-  const snap = ledger.jevLedgerSnapshot()
+  const snap = runnerFacts()
   const m = await openJev()
   const lines = keepFrame('jev-on-key-spend-178x51', '/jev with the switch on, a key stored and spend on the ledger (two answered calls, one unconfirmed charge): the Spend row with Mercury\'s count, the last answer and the served model', m)
   const spendWords = jevBody.jevSpendWords(snap)
-  check('the Spend row is the ledger\'s figures: $0.003108 · 2 calls · 1 unconfirmed', spendWords === `spend so far: ${contract.jevUsdLabel(snap.spendUsd)} · 2 calls · 1 unconfirmed` && contract.jevUsdLabel(snap.spendUsd) === '$0.003108' && has(lines, spendWords), spendWords)
+  check('the Spend row is the runner\'s figures: $0.003108 · 2 calls · 1 unconfirmed', spendWords === `spend so far: ${contract.jevUsdLabel(snap.spendUsd)} · 2 calls · 1 unconfirmed` && contract.jevUsdLabel(snap.spendUsd) === '$0.003108' && has(lines, spendWords), spendWords)
   check('the last answer and the served model are on the row', has(lines, `last answered ${contract.jevClockLabel(T0 + 1000)} · jev-1.13.0`))
   check('the row is labelled Mercury\'s count — the provider publishes no balance', has(lines, jevBody.JEV_SPEND_LABEL))
   check('the status is ready and the context line carries the spend against the allowance', has(lines, 'JEV ready') && jevBody.jevPopupLine() === `switch on · key stored · spend ${contract.jevUsdLabel(snap.spendUsd)} of $20.00 · ready` && has(lines, jevBody.jevPopupLine()), jevBody.jevPopupLine())
@@ -416,11 +439,12 @@ section('§7 the laws over every frame and every file')
   const jevSrc = readFileSync(join(REPO, 'src/components/Settings/Jev.tsx'), 'utf8')
   check('the /jev body never reads the key value: only presence, words and the store door', !jevSrc.includes('readStoredTypesafeApiKey') && !jevSrc.includes('resolveJevApiKey') && jevSrc.includes('storeJevApiKey(') && jevSrc.includes('jevKeySourceWords('))
   check('the /jev body holds no copy of a setting: every fact is read from the owner on each render', jevSrc.includes('const facts = jevFacts()') && !/useState<JevSettings>/.test(jevSrc))
+  check('the /jev body reads the ledger-derived facts and the status through the session reader, never its own ledger or resolver', jevSrc.includes("from '../../services/jev/jevSessionFacts.js'") && !jevSrc.includes('jevLedger.js') && !jevSrc.includes('jevLedgerSnapshot') && !jevSrc.includes('resolveJevStatus') && !/\bjevStatus\(/.test(jevSrc))
   const boot = readFileSync(join(REPO, 'src/components/BootSettingsScreen.tsx'), 'utf8')
   check('the Boot Settings face reads and writes through the owner (the Motion precedent)', boot.includes('withJevRow(STARTUP_MENU)') && boot.includes('isJevRow') && boot.includes('setJevEnabled(next)') && boot.includes('jevReceiptWords(settings)') && boot.includes('jevValueWords(jevSettings)') && boot.includes('jevStatusLine()') && boot.includes('jevSettingLines(settings)'))
   check('the Boot Settings face keeps the Seats and Motion rows exactly where the motion pin reads them', /SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow\]/.test(boot))
   const config = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config row is the Motion construction: the owner\'s words, the owner\'s writer, the touched key for the esc-revert', config.includes("id: 'jev'") && config.includes('jevValueWords(jevSettings)') && config.includes('setJevEnabled(next)') && config.includes("globalTouchedRef.current.add('jev')") && config.includes('jevStatusLine()'))
+  check('the /config row is the Motion construction: the owner\'s words, the owner\'s writer, the touched key for the esc-revert, the status through the session reader', config.includes("id: 'jev'") && config.includes('jevValueWords(jevSettings)') && config.includes('setJevEnabled(next)') && config.includes("globalTouchedRef.current.add('jev')") && config.includes('jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings))') && !config.includes('jevStatusLine()'))
   check('no second writer of the jev key outside the owner', ['src/components/Settings/Jev.tsx', 'src/components/BootSettingsScreen.tsx', 'src/components/Settings/Config.tsx', 'src/commands/jev/jev.tsx'].every(rel => !/saveGlobalConfig\([^)]*jev/.test(readFileSync(join(REPO, rel), 'utf8'))))
   const layout = readFileSync(join(REPO, 'src/components/FullscreenLayout.tsx'), 'utf8')
   check('the popup host mounts on both roads, so /jev is never a dead command inline', layout.includes('<SettingsPopupSlot overlay={false} />') && layout.includes('<SettingsPopupSlot overlay={true} />'))
@@ -431,6 +455,7 @@ if (frameDir !== undefined) {
   writeFileSync(join(frameDir, 'index.txt'), index.join('\n') + '\n')
   console.log(`\nframes: ${frames.length} written to ${frameDir}`)
 }
+slot._resetFocusedSessionConnectorForTesting()
 cap._setHeldMachineSeatReadingForTesting(null)
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nprove-jev-faces: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)

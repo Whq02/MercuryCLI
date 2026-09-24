@@ -62,6 +62,9 @@ import {
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
 import { openaiWindowFact } from '../services/providers/openai/openaiWindowFact.js'
 import { laneWindowFact } from '../services/providers/laneWindowFact.js'
+import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
+import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
+import { jevStatus } from '../services/jev/jevStatus.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
@@ -2087,6 +2090,7 @@ export async function runHeadless(
           const openrouterWindow = laneWindowFact('openrouter')
           const huggingfaceWindow = laneWindowFact('huggingface')
           const openaiCatalogue = openaiCatalogueFact()
+          const factsNow = Date.now()
           const answer: SessionFactsAnswerV1 = {
             model: {
               effective: activeModel ?? getMainLoopModel(),
@@ -2114,6 +2118,7 @@ export async function runHeadless(
               ...(geminiWindow !== undefined ? { geminiWindow } : {}),
               ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),
               ...(huggingfaceWindow !== undefined ? { huggingfaceWindow } : {}),
+              jev: jevFactsOf(jevLedgerSnapshot(factsNow), jevStatus(undefined, factsNow)),
             },
             identity: {
               firstPartyApi: is1PApiCustomer(),
