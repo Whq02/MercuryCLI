@@ -186,10 +186,11 @@ const lineUnder = (lines: string[], title: string): string => {
   return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
 }
 const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && /\b(current|switch|unavail|next|gated)\b/.test(l))
-async function mountModel(model: string): Promise<{ frame: () => string; unmount: () => void }> {
+async function mountModel(model: string): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; unmount: () => void }> {
   const stdout = Object.assign(new PassThrough(), { columns: 178, rows: 51 })
   stdout.resume()
-  const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
+  const input: string[] = []
+  const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
   const store = createStore({ ...getDefaultAppState(), mainLoopModel: model }, () => {})
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
@@ -198,7 +199,16 @@ async function mountModel(model: string): Promise<{ frame: () => string; unmount
   while (Date.now() < until && !(frame().includes(ANTHROPIC_TITLE) && rowAt(frame().split('\n'), renderModelName(DEFAULT_OPUS)) >= 0)) await flush()
   await flush()
   await flush()
-  return { frame, unmount: () => instance.unmount() }
+  const press = async (keys: string, expectChange = true): Promise<boolean> => {
+    const before = frame()
+    input.push(keys)
+    stdin.emit('readable')
+    const deadline = Date.now() + (expectChange ? 2000 : 150)
+    while (Date.now() < deadline && frame() === before) await new Promise<void>(resolve => setTimeout(resolve, 20))
+    await new Promise<void>(resolve => setTimeout(resolve, 40))
+    return frame() !== before
+  }
+  return { frame, press, unmount: () => instance.unmount() }
 }
 
 section('§4 the /model surface at 178x51 with a signed-in Anthropic fixture: the header word and the painted order')
@@ -235,9 +245,47 @@ for (const fixture of ['anthropic-key', 'claude-max'] as const) {
   mounted.unmount()
   if (fixture === 'claude-max') signOutMax()
 }
+
+section('§5 the box spans its band whatever the cursor\'s row: from the first row to the last the bottom border is one row, and the more marker keeps the bottom edge of the rows')
+{
+  anthropicCatalogue.__resetAnthropicCatalogueForTest()
+  const total = getModelOptions().length
+  const mounted = await mountModel(DEFAULT_OPUS)
+  const bottomOf = (lines: string[]): number => lines.map(l => l.includes('╰')).lastIndexOf(true)
+  const meterOf = (lines: string[]): number => lines.findIndex(l => /^\s*│ context /.test(l))
+  const markerOf = (lines: string[]): number => lines.findIndex(l => /│\s+↓ \d+ more/.test(l))
+  const aboveOf = (lines: string[]): number => lines.findIndex(l => /│\s+↑ \d+ more/.test(l))
+  const focusOf = (lines: string[]): string => (lines.find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
+  type Stop = { row: number; lines: number; bottom: number; marker: number; above: number; meter: number; focus: string }
+  const walk: Stop[] = []
+  const record = (row: number): void => {
+    const lines = mounted.frame().split('\n')
+    walk.push({ row, lines: lines.length, bottom: bottomOf(lines), marker: markerOf(lines), above: aboveOf(lines), meter: meterOf(lines), focus: focusOf(lines) })
+  }
+  record(-1)
+  check('Home moves the cursor to the first row (the frame repaints)', await mounted.press('\x1b[H'))
+  record(0)
+  let delivered = true
+  for (let row = 1; row < total; row++) {
+    delivered = (await mounted.press('\x1b[B')) && delivered
+    record(row)
+  }
+  check(`every ↓ of the ${total - 1} moved the focus (each keypress repainted)`, delivered)
+  check('End on the last row changes nothing: the walk reached the end of the list', !(await mounted.press('\x1b[F', false)))
+  const first = walk.find(stop => stop.row === 0)!
+  const last = walk.at(-1)!
+  const served = walk[0]!
+  console.log(`  [record] rows ${total} · bottom border rows over the walk: ${[...new Set(walk.map(stop => stop.bottom))].join(',')} · heights: ${[...new Set(walk.map(stop => stop.lines))].join(',')} · first focus "${first.focus}" · last focus "${last.focus}"`)
+  check('the first frame has rows below and none above; the last has rows above and none below (the list overflows both ways)', first.marker >= 0 && first.above === -1 && last.above >= 0 && last.marker === -1, `first ${first.marker}/${first.above} · last ${last.marker}/${last.above}`)
+  check('the bottom border is one row on the served row, on the first row, on the first available row and on the last', new Set(walk.map(stop => stop.bottom)).size === 1, walk.map(stop => `${stop.row}:${stop.bottom}`).join(' '))
+  check('the box spans the 51 rows at every cursor position', walk.every(stop => stop.lines === 51 && stop.bottom === 50), walk.filter(stop => stop.lines !== 51 || stop.bottom !== 50).map(stop => `${stop.row}:${stop.lines}/${stop.bottom}`).join(' '))
+  check('wherever the ↓ marker paints it sits on the bottom edge of the rows, right above the meter block', walk.every(stop => stop.meter >= 0 && (stop.marker === -1 || stop.marker === stop.meter - 2)), walk.filter(stop => stop.meter < 0 || (stop.marker !== -1 && stop.marker !== stop.meter - 2)).map(stop => `${stop.row}:${stop.marker}/${stop.meter}`).join(' '))
+  check('the walk started on the served default Opus, stopped once per row and ended on a different row', served.focus.startsWith(renderModelName(DEFAULT_OPUS)) && walk.length === total + 1 && last.focus !== first.focus && last.focus !== served.focus, `${served.focus} · ${walk.length - 1} of ${total} · last "${last.focus}"`)
+  mounted.unmount()
+}
 globalThis.fetch = realFetch
 
-section('§5 the seam: the header composer\'s credentialed arm')
+section('§6 the seam: the header composer\'s credentialed arm')
 {
   const builder = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/model/mercuryModel.tsx'), 'utf8')
   check("groupDetailsOf answers 'signed in' on the credentialed arm and 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n          ? 'signed in'\n          : anthropicNotSignedInReason()") && !builder.includes("'credential present'"))
