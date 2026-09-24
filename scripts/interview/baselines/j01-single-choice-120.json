@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-24T02:36:07.053Z",
+ "capturedAt": "2026-09-24T03:30:16.802Z",
  "screens": [
   {
    "atMs": 12000,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-mm60Oo · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-kLwgu4 · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 03:35:49 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:29:59 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 03:35:49 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 04:29:59 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
@@ -92,23 +92,23 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-mm60Oo                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-kLwgu4                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12971,
-   "frame-recommit": 31,
+   "patches": 12991,
+   "frame-recommit": 32,
    "tail-publish": 2
   },
   "frames": {
-   "total": 48,
-   "window": 48,
-   "p50": 1.0013750000002801,
-   "p95": 8.268082999999933,
-   "p99": 27.052625000000035,
-   "maxMs": 27.052625000000035
+   "total": 50,
+   "window": 50,
+   "p50": 1.2968330000003334,
+   "p95": 8.373792000000321,
+   "p99": 25.347249999999917,
+   "maxMs": 25.347249999999917
   }
  },
  "requests": [
@@ -143,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 10789.552211761475,
+   "atMs": 10725.143909454346,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12389.552211761475,
+   "atMs": 12325.143909454346,
    "b64": "DQ=="
   }
  ]
