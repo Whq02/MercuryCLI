@@ -79,7 +79,7 @@ function crashIdentity(): {
 export function persistCrashReport(
   error: unknown,
   errorInfo?: { componentStack?: string | null },
-  origin: 'app-root' | 'message-boundary' | 'boot' | 'surface' | 'uncaught-exception' | 'unhandled-rejection' = 'app-root',
+  origin: 'app-root' | 'message-boundary' | 'boot' | 'surface' | 'uncaught-exception' | 'unhandled-rejection' | 'settings-popup' = 'app-root',
 ): void {
   try {
     const dir = crashReportDir()

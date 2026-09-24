@@ -1,10 +1,10 @@
 import { getFocusedSessionConnector, hasFocusedSession, subscribeThroughFocused } from '../engine-connector/focusedConnector.js'
 import type { JevFactsV1 } from '../engine-connector/types.js'
-import type { JevStatus } from './jevContract.js'
+import type { JevStatus, JevStatusKind } from './jevContract.js'
 import { type JevKeyPresence, jevKeyPresence } from './jevKey.js'
 import type { JevLedgerSnapshot } from './jevLedger.js'
 import { type JevSettings, readJevSettings } from './jevSetting.js'
-import { jevSharedStatus } from './jevStatus.js'
+import { JEV_STATUS_HEADWORDS, jevSharedStatus } from './jevStatus.js'
 
 export type JevSessionFacts = { state: 'reported'; facts: JevFactsV1 } | { state: 'unknown' } | { state: 'no-session' }
 
@@ -28,9 +28,43 @@ export function jevFactsOf(ledger: JevLedgerSnapshot, status: JevStatus): JevFac
   }
 }
 
+type Row = Record<string, unknown>
+const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value)
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const pick = (row: Row, internal: string, wire: string): unknown => (internal in row ? row[internal] : row[wire])
+
+export function jevFactsOfRow(value: unknown): JevFactsV1 | undefined {
+  if (!isRow(value)) return undefined
+  const spendUsd = pick(value, 'spendUsd', 'spend_usd')
+  const inputTokens = pick(value, 'inputTokens', 'input_tokens')
+  const unconfirmedCharges = pick(value, 'unconfirmedCharges', 'unconfirmed_charges')
+  const holdUntilMs = pick(value, 'holdUntilMs', 'hold_until_ms')
+  const lastAnsweredAtMs = pick(value, 'lastAnsweredAtMs', 'last_answered_at_ms')
+  const lastModel = pick(value, 'lastModel', 'last_model')
+  const { calls, attempts, refusals, status } = value
+  if (!finite(spendUsd) || !finite(calls) || !finite(attempts) || !finite(inputTokens) || !finite(unconfirmedCharges) || !finite(holdUntilMs) || !finite(refusals)) return undefined
+  const answeredAt = lastAnsweredAtMs === null ? null : finite(lastAnsweredAtMs) ? lastAnsweredAtMs : undefined
+  if (answeredAt === undefined) return undefined
+  const model = lastModel === null ? null : typeof lastModel === 'string' ? lastModel : undefined
+  if (model === undefined) return undefined
+  if (!isRow(status) || typeof status.kind !== 'string' || !Object.hasOwn(JEV_STATUS_HEADWORDS, status.kind) || typeof status.words !== 'string') return undefined
+  return {
+    spendUsd,
+    calls,
+    attempts,
+    inputTokens,
+    unconfirmedCharges,
+    holdUntilMs,
+    refusals,
+    lastAnsweredAtMs: answeredAt,
+    lastModel: model,
+    status: { kind: status.kind as JevStatusKind, words: status.words },
+  }
+}
+
 export function jevSessionFacts(): JevSessionFacts {
   if (!hasFocusedSession()) return { state: 'no-session' }
-  const facts = getFocusedSessionConnector().usage().jev
+  const facts = jevFactsOfRow(getFocusedSessionConnector().usage().jev)
   return facts === undefined ? { state: 'unknown' } : { state: 'reported', facts }
 }
 
