@@ -230,7 +230,7 @@ if (!existsSync(DIST)) {
       tally.check('the late settle of the thawed close is never pushed as a second result', duplicates === 1, `${duplicates} result(s) for ${closeUseId}`)
       const before = runner.frames.length
       runner.send(user(FOLLOW_UP, randomUUID()))
-      const follow = await runner.waitFor('the follow-up result', isResult, bound(60_000), before)
+      const follow = await runner.waitFor('the follow-up result', f => isResult(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
       tally.check('the runner lives and answers the next message', follow !== null && follow.subtype === 'success' && fixture.requests.some(isFollowUp), String(follow?.subtype))
       await runner.stop(bound(15_000))
       const code = await runner.exited

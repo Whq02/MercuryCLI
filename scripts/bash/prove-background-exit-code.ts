@@ -34,6 +34,7 @@ const cwd = join(root, 'work')
 seedScratchHome(runHome, cwd)
 writeFileSync(join(cwd, 'haystack.txt'), 'needle\n')
 const DESCRIPTION = 'benign grep with no match'
+const FOLLOW_UP = 'what happened to the background command?'
 const script: Script = req => {
   if (req.allTexts.some(t => t.includes('Background command'))) return [{ type: 'text', text: 'notice read' }]
   if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'grep -c zzz haystack.txt', description: DESCRIPTION, run_in_background: true } }]
@@ -47,8 +48,8 @@ const first = await runner.waitFor('first result', isResult, bound(60_000))
 tally.check('the launching turn settled', first !== null && first.subtype === 'success', JSON.stringify(first).slice(0, 120))
 await sleep(3_000)
 const after = runner.frames.length
-runner.send(user('what happened to the background command?', randomUUID()))
-const second = await runner.waitFor('the notice-carrying turn', isResult, bound(60_000), after)
+runner.send(user(FOLLOW_UP, randomUUID()))
+const second = await runner.waitFor('the notice-carrying turn', f => isResult(f) && fixture.requests.some(r => r.allTexts.some(t => t.includes(FOLLOW_UP))), bound(60_000), after)
 tally.check('the next input line settled a second turn', second !== null, JSON.stringify(second).slice(0, 120))
 await runner.stop(bound(5_000))
 for (const r of fixture.requests) console.log(`  request ${r.n} step ${r.step} · results ${JSON.stringify(r.results.map(x => ({ isError: x.isError, text: x.text.slice(0, 160) })))} · texts ${JSON.stringify(r.allTexts.map(t => t.slice(0, 120)))}`)
