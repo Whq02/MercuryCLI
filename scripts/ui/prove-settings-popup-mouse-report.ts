@@ -95,6 +95,22 @@ section('§2 the projection: no nameless key shaped like a report ever hands tex
   check('a pasted string of that shape is still the paste', pasted.input === '[<1;2;3M' && pasted.key.isPasted, JSON.stringify(pasted.input))
   const bracket = new InputEvent(interpretKey('['))
   check('a typed [ is still a [', bracket.input === '[', JSON.stringify(bracket.input))
+  const release = new InputEvent(interpretKey('[<0;147;11m'))
+  check('a bare release tail (the lower-case final) projects no text', release.input === '', JSON.stringify(release.input))
+  const cutOneEsc = new InputEvent(interpretKey('\x1b[<35;147;11'))
+  check('a cut report behind one ESC projects no text', cutOneEsc.input === '', JSON.stringify(cutOneEsc.input))
+  for (const literal of ['[<5', '[<12;3', '[<35;147;11', '[<']) {
+    const kept = new InputEvent(interpretKey(literal))
+    check(`bare unfinished text ${JSON.stringify(literal)} is typed text, never a report: it projects itself`, kept.input === literal, JSON.stringify(kept.input))
+  }
+  const hello = new InputEvent(interpretKey('hello'))
+  check('a coalesced word projects itself', hello.input === 'hello', JSON.stringify(hello.input))
+  for (const literal of ['[<5', '[<12;3']) {
+    const fed = drive([literal, null])
+    check(`the decoder hands ${JSON.stringify(literal)} on as one typed key and the projection keeps it whole`, fed.length === 1 && fed[0]!.kind === 'key' && typed(fed) === literal, describe(fed))
+  }
+  const wholeBare = drive(['[<35;147;11M', null])
+  check('a whole bare report in one read is still re-synthesised as the mouse atom, never typed', names(wholeBare).includes('mouse:35@147;11M') && typed(wholeBare) === '', describe(wholeBare))
 }
 
 const React = await import('react')
