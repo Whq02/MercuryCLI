@@ -114,21 +114,21 @@ const openaiUsage = mapOpenaiUsageToAnthropic({ inputTokens: 1000, outputTokens:
       { type: 'text', text: 'the answer' },
     ]),
   )
-  check('§2 a reply with a think and a cached prefix: the context is that reply (1900), the spend the sum (3300) — the think in both', getContextTokensFromTracker(tr) === 1900 && getTokenCountFromTracker(tr) === 3300, JSON.stringify(tr.ledger))
+  check('§2 a reply with a think and a cached prefix: the context is that reply (1900), the spend the sum of fresh input and output (2700) — the think in both, the cached prefix in the context alone', getContextTokensFromTracker(tr) === 1900 && getTokenCountFromTracker(tr) === 2700, JSON.stringify(tr.ledger))
   updateProgressFromMessage(tr, assistant('r3', { input_tokens: 2000, cache_creation_input_tokens: 500, output_tokens: 100 }))
-  check('§2 the next reply: context replaces (2600), spend adds (5900)', getContextTokensFromTracker(tr) === 2600 && getTokenCountFromTracker(tr) === 5900, JSON.stringify(tr.ledger))
+  check('§2 the next reply: context replaces (2600, its cache write inside), spend adds the fresh input and output (4800)', getContextTokensFromTracker(tr) === 2600 && getTokenCountFromTracker(tr) === 4800, JSON.stringify(tr.ledger))
   const snapshot = getProgressUpdate(tr)
   check(
     "§2 the snapshot carries both facts, and its total IS the spend (the SDK's total_tokens)",
-    snapshot.contextTokens === 2600 && snapshot.inputTokens! + snapshot.outputTokens! === 5900 && snapshot.tokenCount === 5900 && snapshot.totalTokens === 5900,
+    snapshot.contextTokens === 2600 && snapshot.inputTokens! + snapshot.outputTokens! === 4800 && snapshot.tokenCount === 4800 && snapshot.totalTokens === 4800,
     JSON.stringify(snapshot),
   )
   const late = assistant('r4', {}) as unknown as { message: { usage: { input_tokens: number; output_tokens: number } } }
   updateProgressFromMessage(tr, late as never)
-  check('§2 a yielded placeholder (no usage yet) changes nothing', getTokenCountFromTracker(tr) === 5900 && getContextTokensFromTracker(tr) === 2600)
+  check('§2 a yielded placeholder (no usage yet) changes nothing', getTokenCountFromTracker(tr) === 4800 && getContextTokensFromTracker(tr) === 2600)
   late.message.usage.input_tokens = 300
   late.message.usage.output_tokens = 700
-  check('§2 the usage that settled after the yield is folded at the next read: spend 6900, context 1000', getTokenCountFromTracker(tr) === 6900 && getContextTokensFromTracker(tr) === 1000, JSON.stringify(tr.ledger))
+  check('§2 the usage that settled after the yield is folded at the next read: spend 5800, context 1000', getTokenCountFromTracker(tr) === 5800 && getContextTokensFromTracker(tr) === 1000, JSON.stringify(tr.ledger))
   const fresh = createProgressTracker()
   check('§2 a fresh tracker: 0 spend, 0 context, no counter on the snapshot', getTokenCountFromTracker(fresh) === 0 && getContextTokensFromTracker(fresh) === 0 && getProgressUpdate(fresh).contextTokens === undefined)
 }
@@ -160,18 +160,18 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
 const ag1 = agents.find(a => a.id === 'ag1')!
 {
   const row = rows.find(r => r.id === 'ag1')!
-  check('§3 the row carries the context (2600) beside the sum (4000)', row.contextTokens === 2600 && row.totalTokens === 4000 && row.inputTokens === 3500 && row.outputTokens === 500, JSON.stringify(row))
-  check('§3 the facts carry both: context 2600, spend 4000', ag1.tokens !== null && ag1.tokens.context === 2600 && ag1.tokens.total === 4000, JSON.stringify(ag1.tokens))
+  check('§3 the row carries the context (2600) beside the sum (3500: fresh in 3000 + out 500, the cache read outside)', row.contextTokens === 2600 && row.totalTokens === 3500 && row.inputTokens === 3000 && row.outputTokens === 500, JSON.stringify(row))
+  check('§3 the facts carry both: context 2600, spend 3500', ag1.tokens !== null && ag1.tokens.context === 2600 && ag1.tokens.total === 3500, JSON.stringify(ag1.tokens))
   check('§3 the default label is the CONTEXT with its word', crew.crewTokensLabel(ag1) === '2.6k context', String(crew.crewTokensLabel(ag1)))
-  check('§3 the spend label is the SUM with its word', crew.crewSpendLabel(ag1) === '4k spent', String(crew.crewSpendLabel(ag1)))
-  check('§3 the breakdown stays the spend\'s halves', crew.crewTokensBreakdown(ag1) === '3.5k in · 500 out', String(crew.crewTokensBreakdown(ag1)))
+  check('§3 the spend label is the SUM with its word', crew.crewSpendLabel(ag1) === '3.5k spent', String(crew.crewSpendLabel(ag1)))
+  check('§3 the breakdown is the spend\'s halves, the fresh input and the output', crew.crewTokensBreakdown(ag1) === '3k in · 500 out', String(crew.crewTokensBreakdown(ag1)))
   check('§3 the row line spells the context', crew.crewRowLine(ag1, t0 + 61_001).includes(' · 2.6k context · '), crew.crewRowLine(ag1, t0 + 61_001))
   const line = crew.crewUsageLine(agents)
-  check('§3 the attribution line is the crew\'s SPEND, with the word', line !== null && line.startsWith('sub-agents 4k spent · 1 agent'), String(line))
+  check('§3 the attribution line is the crew\'s SPEND, with the word', line !== null && line.startsWith('sub-agents 3.5k spent · 1 agent'), String(line))
   const older: WorkRowV1 = { ...row }
   delete (older as { contextTokens?: number }).contextTokens
   const olderFacts = crew.crewAgentFactsOf(older, 'fx-session')!
-  check("§3 an older runner's row (no context on the wire) spells its sum as what it is", olderFacts.tokens?.context === null && crew.crewTokensLabel(olderFacts) === '4k spent', String(crew.crewTokensLabel(olderFacts)))
+  check("§3 an older runner's row (no context on the wire) spells its sum as what it is", olderFacts.tokens?.context === null && crew.crewTokensLabel(olderFacts) === '3.5k spent', String(crew.crewTokensLabel(olderFacts)))
   const totalOnly: WorkRowV1 = { id: 'ag9', kind: 'agent', name: 'old', status: 'running', startTime: t0, totalTokens: 4000 }
   check('§3 a total-only row the same', crew.crewTokensLabel(crew.crewAgentFactsOf(totalOnly, null)!) === '4k spent')
   const fresh = crew.crewAgentFactsOf({ id: 'ag8', kind: 'agent', name: 'fresh', status: 'running', startTime: t0 }, null)!
@@ -224,7 +224,7 @@ console.log('— §5 the surfaces —')
   }
   const card = await paint(React.createElement(RosterWorkDetail, { work: rows[0]!, now: t0 + 61_001, onBack: () => {} }), 100)
   check('§5 the /tasks card paints', !card.startsWith('RENDER FAILED'), card.slice(0, 200))
-  check('§5 the /tasks card names the context and the spend, each with its word, and the halves', card.includes('2.6k context') && card.includes('4k spent') && card.includes('3.5k in · 500 out'), card.replace(/\s+/g, ' ').slice(0, 300))
+  check('§5 the /tasks card names the context and the spend, each with its word, and the halves', card.includes('2.6k context') && card.includes('3.5k spent') && card.includes('3k in · 500 out'), card.replace(/\s+/g, ' ').slice(0, 300))
   check('§5 the /tasks card paints no bare count', !BARE.test(card))
   const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)
   check('§5 the Crew view paints the context with its word', !view.startsWith('RENDER FAILED') && view.includes('2.6k context') && !BARE.test(view), view.replace(/\s+/g, ' ').slice(0, 300))
@@ -247,7 +247,7 @@ console.log('— §5 the surfaces —')
         content: [{ type: 'text', text: 'done' }],
         totalToolUseCount: 1,
         totalDurationMs: 5100,
-        totalTokens: 4000,
+        totalTokens: 3500,
         usage: { input_tokens: 2000, output_tokens: 100, cache_read_input_tokens: 500, cache_creation_input_tokens: 0, server_tool_use: null, service_tier: null, cache_creation: null },
       } as never,
       [],
@@ -255,7 +255,7 @@ console.log('— §5 the surfaces —')
     ),
     100,
   )
-  check('§5 the settled card names the context (2.6k) and the spend (4k), each with its word', settled.includes('2.6k context') && settled.includes('4k spent') && !BARE.test(settled), settled.replace(/\s+/g, ' ').slice(0, 300))
+  check('§5 the settled card names the context (2.6k) and the spend (3.5k), each with its word', settled.includes('2.6k context') && settled.includes('3.5k spent') && !BARE.test(settled), settled.replace(/\s+/g, ' ').slice(0, 300))
   const unreported = await paint(
     ui.renderToolResultMessage(
       { status: 'completed', agentId: 'ag2', agentType: 'mercury-general', content: [{ type: 'text', text: 'done' }], totalToolUseCount: 1, totalDurationMs: 100, totalTokens: 0 } as never,
@@ -284,7 +284,7 @@ console.log("— §6 the Agent tool's result —")
     agentType: 'mercury-general',
     isAsync: false,
   })
-  check("§6 the result's total is the SPEND over the agent's messages (1400 + 2600)", result.totalTokens === 4000, String(result.totalTokens))
+  check("§6 the result's total is the SPEND over the agent's messages (1400 + 2100: the cache read of the second reply outside it)", result.totalTokens === 3500, String(result.totalTokens))
   check("§6 the result's usage is the newest reply — the context's source (2600 by the owner)", result.usage.input_tokens === 2000 && getTokenCountFromUsage(result.usage as never) === 2600, JSON.stringify(result.usage))
 }
 

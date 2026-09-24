@@ -22,6 +22,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
+import { getSpentTokensFromUsage } from '../../utils/tokenUsage.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { consumeAgentMessages, recordAgentMessage } from '../../services/notices/unreadLedger.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
@@ -113,8 +114,8 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   if (!usage) return
   const context = getTokenCountFromUsage(usage as ApiUsage)
   const output = usage.output_tokens ?? 0
-  const input = context - output
-  if (input <= 0 && output <= 0) return
+  const input = getSpentTokensFromUsage(usage as ApiUsage) - output
+  if (context <= 0) return
   const rawModel = (assistant.message as { model?: unknown }).model
   const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
   const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
