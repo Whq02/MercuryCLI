@@ -137,6 +137,10 @@ console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a du
   const cron = originOf(delivered.find(d => d.prompt === CRON_PROMPT))
   check("a cron schedule's delivery carries the cron kind, the fire time, its id and its own spelling, no reason", j(cron) === j({ kind: 'saturn', fire: 'cron', firedAt: FIRED_AT, scheduleId: cronId, spelling: CRON_SPELLING }), j(cron))
   check('the prompt beside the origin is the schedule\'s own words, byte for byte', delivered.every(d => d.prompt === WAKE_PROMPT || d.prompt === CRON_PROMPT))
+  const wakeReceipt = fireReceipts().find(x => x.details.scheduleId === wakeId)
+  check("the fired wake's receipt names the fire time and the reason (red on the base: neither is on it)", wakeReceipt !== undefined && wakeReceipt.details.firedAt === T0 && wakeReceipt.details.note === REASON && wakeReceipt.summary === `fired (in ~900s) · reason: ${REASON}`, j(wakeReceipt))
+  const cronReceipt = fireReceipts().find(x => x.details.scheduleId === cronId)
+  check('a fire without a reason names the fire time and no reason clause', cronReceipt !== undefined && cronReceipt.details.firedAt === T0 && !('note' in cronReceipt.details) && cronReceipt.summary.startsWith('fired') && cronReceipt.summary.includes(`(${CRON_SPELLING})`) && !cronReceipt.summary.includes('reason'), j(cronReceipt))
 }
 
 console.log('§2 a wake held for a parked session replays once with the hold named in its origin')
@@ -163,6 +167,8 @@ console.log('§2 a wake held for a parked session replays once with the hold nam
   check('its origin says since when it waited and why', o !== undefined && o.kind === 'saturn' && o.fire === 'wake' && o.scheduleId === id && o.reason === REASON && o.heldSince === FIRED_AT && o.heldWhy === 'parked', j(o))
   const r4 = await ticker.tickSaturnOnce(ports)
   check('nothing fires twice', r4.fired + r4.replayed + r4.held === 0 && delivered.length === 1, j(r4))
+  const late = fireReceipts().at(-1)
+  check('the late receipt names the fire time and the reason too', late !== undefined && late.details.outcome === 'fired-late' && late.details.firedAt === T0 && late.details.note === REASON && late.summary.endsWith(` · reason: ${REASON}`), j(late))
 }
 
 console.log('§3 a wake held by a closed usage window replays at the reopen with the window named')
