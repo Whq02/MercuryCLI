@@ -18,6 +18,15 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
+function closingBraceAfter(src: string, open: number): number {
+  if (open < 0 || src[open] !== '{') return -1
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}' && --depth === 0) return i
+  }
+  return -1
+}
 
 const sock = await import('../../src/daemon/controlSocket.ts')
 const server = await import('../../src/daemon/controlServer.ts')
@@ -218,7 +227,8 @@ console.log('B the owners spell the law')
   for (const field of ['branchName?: string', 'mainHolderTitle?: string', 'modelId?: string', 'modelDisplayName?: string', 'effort?: string', 'note?: string', 'kitSource?:', 'liveHop?: true', 'presetName?: string', 'presetNote?: string']) {
     check(`the reply union's admit member declares ${field.split('?')[0]}`, admitMember.includes(field))
   }
-  const failMember = protocolSrc.slice(protocolSrc.indexOf('ok: false\n      code: DaemonErrorCode'), protocolSrc.indexOf('/** Flat snapshot the `status` op returns'))
+  const failAt = protocolSrc.indexOf('ok: false\n      code: DaemonErrorCode')
+  const failMember = protocolSrc.slice(failAt, closingBraceAfter(protocolSrc, failAt < 0 ? -1 : protocolSrc.lastIndexOf('{', failAt)))
   for (const field of ['heldReason?: string', 'heldByTitle?: string', 'moves?: Array<{ verb: string; label: string }>', 'refusal?: string', 'state?: string', 'stateRevision?: number']) {
     check(`the reply union's failure member declares ${field.split('?')[0]}`, failMember.includes(field))
   }

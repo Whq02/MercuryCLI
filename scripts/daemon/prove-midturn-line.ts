@@ -23,6 +23,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+const TURN_MS = 40_000
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'midturn-line-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -263,8 +264,8 @@ if (!existsSync(DIST)) {
 
   section('R1 the runner is up')
   send(user('hello there', U0))
-  const init = await waitFor('the init frame', isInit, 40_000)
-  const first = await waitFor('the first turn', isResult, 40_000)
+  const init = await waitFor('the init frame', isInit, TURN_MS)
+  const first = await waitFor('the first turn', isResult, TURN_MS)
   check('the first turn answered', first !== null && init !== null, stderrText.split('\n').slice(-5).join(' | '))
   const sessionId = String(init?.session_id ?? '')
 
@@ -272,7 +273,7 @@ if (!existsSync(DIST)) {
   const beforeThree = lines.length
   const wireBefore = wire().length
   send(user(THREE_ROUNDS_ASK, UT))
-  const r1 = await waitWire('round one', w => w.kind === 'request' && w.arm === 'three' && w.step === 0 && w.n > wireBefore, 30_000)
+  const r1 = await waitWire('round one', w => w.kind === 'request' && w.arm === 'three' && w.step === 0 && w.n > wireBefore, TURN_MS * 3 / 4)
   check("round one's request went out", r1 !== null, stderrText.split('\n').slice(-5).join(' | '))
   const T1 = new Date(Date.now() - 90_000).toISOString()
   const T2 = new Date(Date.parse(T1) + 1_000).toISOString()
@@ -282,17 +283,17 @@ if (!existsSync(DIST)) {
   await sleep(300)
   const duringRoundOne = await queueOf('facts-round-one')
   check("the runner's queue holds the two lines and the slash command, in the order sent, while round one's tool runs", j(duringRoundOne.map(q => q.uuid)) === j([U1, U2, UC]), j(duringRoundOne))
-  const r2 = await waitWire('round two', w => w.kind === 'request' && w.arm === 'three' && w.step === 1 && w.n > (r1?.n ?? 0), 30_000)
+  const r2 = await waitWire('round two', w => w.kind === 'request' && w.arm === 'three' && w.step === 1 && w.n > (r1?.n ?? 0), TURN_MS * 3 / 4)
   check("round two's request went out after the boundary", r2 !== null)
   const sentAt3 = Date.now()
   send(user(LINE3, U3))
   const afterBoundaryOne = await queueOf('facts-after-boundary-one')
   check('past the boundary the queue holds the slash command (waiting for the turn to end) and the third line, and the two lines are gone', j(afterBoundaryOne.map(q => q.uuid)) === j([UC, U3]), j(afterBoundaryOne))
-  const r3 = await waitWire('round three', w => w.kind === 'request' && w.arm === 'three' && w.step === 2 && w.n > (r2?.n ?? 0), 30_000)
+  const r3 = await waitWire('round three', w => w.kind === 'request' && w.arm === 'three' && w.step === 2 && w.n > (r2?.n ?? 0), TURN_MS * 3 / 4)
   check("round three's request went out", r3 !== null)
-  const r4 = await waitWire('the final request', w => w.kind === 'request' && w.arm === 'three' && w.step === 3 && w.n > (r3?.n ?? 0), 30_000)
+  const r4 = await waitWire('the final request', w => w.kind === 'request' && w.arm === 'three' && w.step === 3 && w.n > (r3?.n ?? 0), TURN_MS * 3 / 4)
   check('the final request went out', r4 !== null)
-  const threeResult = await waitFor('the tool turn', isResult, 40_000, beforeThree)
+  const threeResult = await waitFor('the tool turn', isResult, TURN_MS, beforeThree)
   check("the tool turn answered with the fixture's final text", threeResult !== null && String(threeResult.result ?? '').startsWith('done: three tool rounds'), j(threeResult?.result))
   const afterThree = threeResult === null ? lines.length : lines.indexOf(threeResult) + 1
   const slashResult = await waitFor("the slash command's own turn after the tool turn", isResult, 25_000, afterThree)
@@ -356,7 +357,7 @@ if (!existsSync(DIST)) {
   section('R3 escape with a line queued: the interrupt ends the turn and the line runs as the next turn')
   const beforeLong = lines.length
   send(user(LONG_ROUND_ASK, UL))
-  const rl = await waitWire('the long round', w => w.kind === 'request' && w.arm === 'long' && w.step === 0, 30_000)
+  const rl = await waitWire('the long round', w => w.kind === 'request' && w.arm === 'long' && w.step === 0, TURN_MS * 3 / 4)
   check("the long round's request went out (a 30 s tool runs)", rl !== null)
   const T4 = new Date(Date.now() - 30_000).toISOString()
   send(user(LINE4, U4, T4))
@@ -382,7 +383,7 @@ if (!existsSync(DIST)) {
   send(user(LINE5, U5, new Date().toISOString()))
   await sleep(400)
   check('the line waits in the queue while the fold runs, and no boundary takes it (no result yet)', j((await queueOf('facts-during-fold')).map(q => q.uuid)) === j([U5]) && lines.slice(beforeFold).find(isResult) === undefined)
-  const foldResult = await waitFor("the fold's own turn", isResult, 40_000, beforeFold)
+  const foldResult = await waitFor("the fold's own turn", isResult, TURN_MS, beforeFold)
   check('the fold landed', foldResult !== null && String(foldResult.result ?? '').startsWith('Compacted'), j(foldResult?.result))
   const afterFold = foldResult === null ? lines.length : lines.indexOf(foldResult) + 1
   const heldTurn = lines.slice(beforeFold).filter(isTurnStarted).find(f => j(f.uuids).includes(U5)) ?? (await waitFor('the held line opens the next turn', f => isTurnStarted(f) && j(f.uuids).includes(U5), 20_000, afterFold))
