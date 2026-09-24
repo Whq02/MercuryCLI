@@ -133,7 +133,10 @@ export const ScheduleWakeupTool = buildTool({
         `${SCHEDULE_WAKEUP_TOOL_NAME}: this surface has no wake queue — a one-shot run cannot take a later fire.`,
       )
     }
-    const armed = armLocalWake(clamped, fired)
+    const armed = armLocalWake(clamped, fired, {
+      spelling: wakeDelaySpelling(clamped),
+      ...(safeReason !== undefined ? { reason: safeReason } : {}),
+    })
     if (!armed.ok) throw new Error(`${SCHEDULE_WAKEUP_TOOL_NAME}: ${armed.reason}`)
     return { data: { delaySeconds: clamped, humanSchedule, road: 'local' as const } }
   },
