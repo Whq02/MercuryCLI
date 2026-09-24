@@ -688,7 +688,7 @@ export function clientContractCheck(): CheckSpec {
           : contract.source === 'learned'
             ? `learned ${contract.asOf} from the registry`
             : 'constant · MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version> overrides'
-      const record = clientContractRecordWords(contract, formatAge)
+      const record = await clientContractRecordWords(contract, formatAge)
       if (contract.ignoredOverride !== undefined) {
         return {
           status: 'warn',
