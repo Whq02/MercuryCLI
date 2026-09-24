@@ -3,13 +3,13 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-24T04:54:14.095Z",
+ "capturedAt": "2026-09-24T14:10:11.497Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · ● ready · Opus 5.…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-nJOYfa",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-nbdbAO",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
@@ -58,13 +58,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-nJOYfa · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-nbdbAO · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "05:53:56 [sam] ❯ design the cache layer",
+    "15:09:53 [sam] ❯ design the cache layer",
     "",
-    "05:53:56 [Mercury] Let me confirm the open",
+    "15:09:53 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,16 +106,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6204,
-   "frame-recommit": 26
+   "patches": 6174,
+   "frame-recommit": 29
   },
   "frames": {
-   "total": 42,
-   "window": 42,
-   "p50": 0.9742919999998776,
-   "p95": 4.454916000000594,
-   "p99": 13.796415999999908,
-   "maxMs": 13.796415999999908
+   "total": 45,
+   "window": 45,
+   "p50": 0.6467499999998836,
+   "p95": 7.7853329999998095,
+   "p99": 15.695792000000097,
+   "maxMs": 15.695792000000097
   }
  },
  "requests": [
@@ -150,11 +150,11 @@
  ],
  "sends": [
   {
-   "atMs": 10851.68194770813,
+   "atMs": 10857.695817947388,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12451.68194770813,
+   "atMs": 12457.695817947388,
    "b64": "DQ=="
   }
  ]
