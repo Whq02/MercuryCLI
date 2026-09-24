@@ -192,8 +192,8 @@ section('2 · active-source usage shapes for the new lanes')
     JSON.stringify(kimiUsage),
   )
   check(
-    'the windows read 5h · wk · quota with the stated percentages, resets and stamp',
-    kimiUsage.windows.map(w => w.label).join(',') === '5h,wk,quota' &&
+    'the windows read 5h · 7d · quota with the stated percentages, resets and stamp',
+    kimiUsage.windows.map(w => w.label).join(',') === '5h,7d,quota' &&
       kimiUsage.windows[0]?.usedPct === 1 &&
       kimiUsage.windows[1]?.usedPct === 4 &&
       kimiUsage.windows[2]?.usedPct === 4 &&

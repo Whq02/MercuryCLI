@@ -493,7 +493,7 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
   if (!usage) return []
   const seen = new Map<string, number>()
   const view = (w: KimiUsageWindowView, fallbackLabel: string): UsageWindowView => {
-    const label = w.windowMinutes !== undefined ? usageWindowLabel(w.windowMinutes) : fallbackLabel
+    const label = w.windowMinutes === 7 * 24 * 60 ? '7d' : w.windowMinutes !== undefined ? usageWindowLabel(w.windowMinutes) : fallbackLabel
     const count = (seen.get(label) ?? 0) + 1
     seen.set(label, count)
     return {
@@ -852,7 +852,7 @@ function planWord(plan: string): string {
 const API_BILLING_TIER = 'API billing'
 
 const ZAI_USAGE_ABSENCE_NOTE =
-  'Z.AI publishes no usage or balance endpoint (its API reference lists none, checked 2026-09-01) — the Z.AI console is the view'
+  'No Z.AI usage read found (checked 2026-09-24) — https://z.ai/manage-apikey/subscription'
 const COMPAT_USAGE_ABSENCE_NOTE =
   "a custom endpoint publishes no usage Mercury reads — the endpoint's own dashboard is the view"
 const API_KEY_USAGE_ABSENCE_NOTE =
@@ -901,7 +901,7 @@ export function usageForProvider(
   if (provider === 'zai') {
     const keyPresent = reads?.zaiKeyPresent?.() ?? resolveZaiApiKey() !== undefined
     return keyPresent
-      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE, credits: CREDITS_UNREPORTED }
+      ? { provider, sourceKind: 'api-key', label: 'Z.AI usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE, credits: CREDITS_UNREPORTED }
       : { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins zai adds a key' }
   }
 
