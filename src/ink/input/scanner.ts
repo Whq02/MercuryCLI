@@ -91,6 +91,12 @@ function isMetaPrefixedIntroducer(code: number): boolean {
   return code === ESC_TYPE.CSI || code === 0x4f
 }
 
+function isMouseReportHead(data: string, at: number, x10Mouse: boolean): boolean {
+  if (data.charCodeAt(at) !== ESC_TYPE.CSI) return false
+  const marker = data.charCodeAt(at + 1)
+  return marker === 0x3c || (x10Mouse && marker === 0x4d)
+}
+
 const DOUBLE_ESC = ESC + ESC
 
 function isPartialMouseHead(s: string, x10Mouse: boolean): boolean {
@@ -188,7 +194,10 @@ function scan(
           i++
           emit('esc')
         } else if (code === C0.ESC) {
-          if (i + 1 >= data.length || isMetaPrefixedIntroducer(data.charCodeAt(i + 1))) {
+          if (
+            i + 1 >= data.length ||
+            (isMetaPrefixedIntroducer(data.charCodeAt(i + 1)) && !isMouseReportHead(data, i + 1, x10Mouse))
+          ) {
             i++
             break
           }
