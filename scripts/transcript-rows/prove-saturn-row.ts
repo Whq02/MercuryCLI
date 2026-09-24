@@ -137,7 +137,7 @@ try {
   const prompt = rows.saturnFirstLine(wakeOrigin(), ROW_AT)
   check('delivery within the minute names no second time', !prompt.includes('fired'), prompt)
   const held = rows.saturnFirstLine(wakeOrigin({ heldSince: HELD_SINCE, heldWhy: 'window' }), LATE_ROW_AT)
-  check('a wake that waited says since when and why', held.endsWith(`fired ${clock(FIRED_AT)} · held since ${clock(HELD_SINCE)} · the usage window was closed`), held)
+  check('a wake that waited says since when and why, the wait standing in for the fire clause', held.endsWith(`reason: ${REASON} · held since ${clock(HELD_SINCE)} · the usage window was closed`) && !held.includes('fired'), held)
   const parked = rows.saturnFirstLine(cronOrigin({ heldSince: HELD_SINCE, heldWhy: 'parked' }), ROW_AT)
   check('a fire held for a parked session says so', parked.endsWith(`held since ${clock(HELD_SINCE)} · the session was parked`), parked)
   check("the prompt's own words drop the reason line and keep the rest", JSON.stringify(rows.saturnPromptLines(WAKE_TEXT)) === JSON.stringify([WAKE_BODY]), JSON.stringify(rows.saturnPromptLines(WAKE_TEXT)))
