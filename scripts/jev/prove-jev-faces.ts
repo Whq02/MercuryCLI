@@ -170,6 +170,21 @@ const bootJevRow = (lines: string[]): string => lines.find(line => /❯ JEV\s+(?
 const said = (m: Mounted, words: string): boolean => popupText(m.lines()).includes(collapse(words))
 const DETAIL_PANE = 'SETTING DETAIL'
 const DETAIL_PANE_WIDTH = 46
+const JEV_INNER = jevBody.JEV_POPUP_WIDTH - 4
+function popupRows(lines: string[]): string[] {
+  const header = lines.find(line => line.includes('Mercury · jev'))
+  if (header === undefined) return []
+  const left = Array.from(header).indexOf('│')
+  return lines
+    .map(line => Array.from(line))
+    .filter(cells => cells[left] === '│' && cells.lastIndexOf('│') > left)
+    .map(cells => cells.slice(left + 1, cells.lastIndexOf('│')).join('').trim())
+}
+function shellWhole(m: Mounted, state: string): void {
+  const rows = popupRows(m.lines())
+  const line = jevBody.jevPopupLine()
+  check(`${state}: the summary line and the hint fit the popup and are painted whole, never sheared at the border`, stringWidth(line) <= JEV_INNER && stringWidth(jevBody.JEV_POPUP_HINT) <= JEV_INNER + 1 && rows.includes(line) && rows.includes(jevBody.JEV_POPUP_HINT), `${line} · ${rows.length} rows`)
+}
 
 section('§0 the command and the row objects')
 check('/jev is a local, screen-seat, user-private command that is unavailable non-interactively', jevCommand.type === 'local' && jevCommand.seat === 'screen' && jevCommand.userPrivate === true && jevCommand.supportsNonInteractive === false)
@@ -182,6 +197,12 @@ check('/jev is a local, screen-seat, user-private command that is unavailable no
   const at = rows.findIndex(row => row.env === 'jev')
   check('the Boot Menu row joins the AGENTS group of the startup table (one header, beside Sub-agents and Workflows)', at > 0 && rows[at - 1]?.group === 'agents' && rows[at]?.group === 'agents' && rows.length === STARTUP_MENU.length + 1, String(at))
   check('the detail width is the SETTING DETAIL text width and every detail line fits it', JEV_BOOT_DETAIL_WIDTH === 41 && jevBootDetailLines().every(line => stringWidth(line) <= JEV_BOOT_DETAIL_WIDTH), jevBootDetailLines().join(' | '))
+  const keyStates = [{ present: false }, { present: true, source: 'stored' }, { present: true, source: 'env' }] as const
+  const widest = contract.JEV_STATUS_KINDS.flatMap(kind =>
+    keyStates.map(key => jevBody.jevPopupLine({ settings: { ...setting.readJevSettings(), allowanceUsd: 200, enabled: true }, key, ledger: ledger.jevLedgerSnapshot(), status: { kind, words: '' } })),
+  )
+  check('the summary line fits the popup for every status kind and key state; the hint fits its row', widest.every(line => stringWidth(line) <= JEV_INNER) && stringWidth(jevBody.JEV_POPUP_HINT) <= JEV_INNER + 1, widest.filter(line => stringWidth(line) > JEV_INNER).join(' | '))
+  check('the summary line names the key by presence only, never its long sentence', jevBody.jevKeyShortWords({ present: false }) === 'no key' && jevBody.jevKeyShortWords({ present: true, source: 'stored' }) === 'key stored' && jevBody.jevKeyShortWords({ present: true, source: 'env' }) === `key from ${keyOwner.JEV_KEY_ENV}`)
 }
 
 section('§1 /jev off with no key (frame a)')
@@ -196,8 +217,9 @@ check('a fresh home is off, keyless, with no jev key on disk', setting.jevEnable
   check('the Spend row is Mercury\'s count, labelled so, at zero', lines.some(line => /Spend\s+spend so far: \$0\.00 · 0 calls · 0 unconfirmed/.test(line)) && has(lines, jevBody.JEV_SPEND_LABEL))
   check('the allowance, pace, ceiling and sub-agents rows carry the setting lines\' values', lines.some(line => /Allowance\s+\$20\.00 — a runaway stop, not a budget/.test(line)) && lines.some(line => /Pace\s+10 requests a minute/.test(line)) && lines.some(line => /Request ceiling\s+off/.test(line)) && lines.some(line => /Sub-agents\s+off/.test(line)))
   check('the doors line names the three surfaces', has(lines, setting.JEV_DOORS))
-  check('the context line carries the switch, the key and the spend against the allowance', has(lines, jevBody.jevPopupLine()))
-  check('the hint is the popup\'s own', has(lines, '↑↓ select · ←/→ change · ↵ act on the row'))
+  check('the context line carries the switch, the key and the spend against the allowance', has(lines, jevBody.jevPopupLine()) && jevBody.jevPopupLine() === 'switch off · no key · spend $0.00 of $20.00 · off', jevBody.jevPopupLine())
+  check('the hint is the popup\'s own', has(lines, jevBody.JEV_POPUP_HINT))
+  shellWhole(m, 'off, no key')
   check('the selected row\'s note names the one switch and the permission law', popupText(lines).includes('the same switch as the JEV row of /config and the JEV row of the Boot Menu') && popupText(lines).includes('never answers a permission request'))
   await closePopup(m)
 }
@@ -262,6 +284,7 @@ section('§4 /jev on with no key, then the key pasted through the masked entry (
   const m = await openJev()
   const lines = keepFrame('jev-on-no-key-178x51', '/jev after the Boot Settings face turned the switch on: the honest no-key state, nothing sent', m)
   check('the switch reads on and the status is the resolver\'s no-key words', rowLine(m, 'Switch').trim().endsWith('on') && popupText(lines).includes(collapse(status.jevStatusLine())), rowLine(m, 'Switch'))
+  shellWhole(m, 'on, no key')
   await press(m, KEY.down)
   check('↓ selects the Key row', rowLine(m, 'Key') !== '')
   await press(m, KEY.enter, 250)
@@ -298,7 +321,8 @@ section('§5 /jev on with a stored key and spend on the ledger (frame b); a refu
   check('the Spend row is the ledger\'s figures: $0.003108 · 2 calls · 1 unconfirmed', spendWords === `spend so far: ${contract.jevUsdLabel(snap.spendUsd)} · 2 calls · 1 unconfirmed` && contract.jevUsdLabel(snap.spendUsd) === '$0.003108' && has(lines, spendWords), spendWords)
   check('the last answer and the served model are on the row', has(lines, `last answered ${contract.jevClockLabel(T0 + 1000)} · jev-1.13.0`))
   check('the row is labelled Mercury\'s count — the provider publishes no balance', has(lines, jevBody.JEV_SPEND_LABEL))
-  check('the status is ready and the context line carries the spend against the allowance', has(lines, 'JEV ready') && has(lines, `spend ${contract.jevUsdLabel(snap.spendUsd)} of the $20.00 allowance`))
+  check('the status is ready and the context line carries the spend against the allowance', has(lines, 'JEV ready') && jevBody.jevPopupLine() === `switch on · key stored · spend ${contract.jevUsdLabel(snap.spendUsd)} of $20.00 · ready` && has(lines, jevBody.jevPopupLine()), jevBody.jevPopupLine())
+  shellWhole(m, 'on, key stored, spend')
   await press(m, KEY.down)
   await press(m, KEY.down)
   await press(m, KEY.down)
@@ -311,6 +335,7 @@ section('§5 /jev on with a stored key and spend on the ledger (frame b); a refu
   const refused = keepFrame('jev-refused-178x51', '/jev after a typed allowance of -3: the setter refused it and the message is painted; nothing was written', m)
   check('the setter\'s refusal is painted verbatim', popupText(refused).includes('the JEV session allowance is a positive dollar amount, not -3'), refused.filter(line => line.includes('allowance')).join(' | '))
   check('nothing landed: the allowance is still the default and the file carries no allowance', setting.readJevSettings().allowanceUsd === 20 && storedJev()?.allowanceUsd === undefined, JSON.stringify(storedJev()))
+  shellWhole(m, 'after a refused value')
   await press(m, KEY.enter, 250)
   await press(m, 'a')
   await press(m, 'b')
@@ -376,6 +401,7 @@ section('§6 the other doors read the /jev switch-off; the inline popup (frame f
   const inline = await openJev(false)
   const lines = keepFrame('jev-inline-178x51', '/jev on the sequential (non-fullscreen) road: the same popup painted in the flow (FullscreenLayout mounts SettingsPopupSlot overlay=false there)', inline)
   check('the inline road paints the same popup with the same words', has(lines, 'Mercury · jev') && popupText(lines).includes(collapse(status.jevStatusLine())) && has(lines, setting.JEV_DOORS))
+  shellWhole(inline, 'inline')
   await closePopup(inline)
 }
 
