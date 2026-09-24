@@ -12,6 +12,7 @@ writeFileSync(join(process.env.MERCURY_CONFIG_DIR, '.credentials.json'), JSON.st
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.OPENAI_API_KEY = 'sk-fixture-catalogue-refresh'
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9/openai/v1'
+process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:9/openai/chatgpt'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9/anthropic'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
@@ -57,7 +58,7 @@ const fetchFixture = (async (url: string | URL | Request) => {
     doorRequests++
     return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
   }
-  if (!spelled.includes('/openai/v1/models')) throw new Error(`Unexpected request: ${spelled}`)
+  if (!(spelled.includes('/openai/') && spelled.includes('/models'))) throw new Error(`Unexpected request: ${spelled}`)
   requests++
   return new Promise<Response>(resolve => { answer = resolve })
 }) as typeof fetch
