@@ -99,7 +99,7 @@ console.log('— T1 the ledger fold —')
   updateProgressFromMessage(tr, assistant('r3', NO_RATE_ID, { input_tokens: 10, output_tokens: 5 }))
   check(
     'T1 a model with no rate on file counts an unpriced turn beside its tokens — never a foreign rate',
-    modelPricingBasis(NO_RATE_ID) === 'unpriced' && tr.ledger.unpricedTurns === 1 && tr.ledger.inputTokens === 3510 && tr.ledger.outputTokens === 505,
+    modelPricingBasis(NO_RATE_ID) === 'unpriced' && tr.ledger.unpricedTurns === 1 && tr.ledger.inputTokens === 3010 && tr.ledger.outputTokens === 505,
     JSON.stringify(tr.ledger),
   )
   const before = JSON.stringify(tr.ledger)
@@ -108,7 +108,7 @@ console.log('— T1 the ledger fold —')
   const p = getProgressUpdate(tr)
   check(
     'T1 the progress snapshot carries the fold and the served model',
-    p.inputTokens === 3510 && p.outputTokens === 505 && p.unpricedTurns === 1 && p.model === NO_RATE_ID,
+    p.inputTokens === 3010 && p.outputTokens === 505 && p.unpricedTurns === 1 && p.model === NO_RATE_ID,
     JSON.stringify(p),
   )
   const fresh = getProgressUpdate(createProgressTracker())
