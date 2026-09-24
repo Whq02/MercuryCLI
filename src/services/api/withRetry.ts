@@ -22,6 +22,8 @@ import { sleep } from '../../utils/sleep.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
 import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder, type HeldBusyRetryWait } from '../providers/busyRetry.js'
+import { isClientContractRefusalError } from './clientContractGate.js'
+import { healClientContractRefusal, noteClientContractHeal, type ClientContractHeal } from './clientContractLearned.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
@@ -197,6 +199,7 @@ type WithRetryOptions = {
   querySource?: string
   initialConsecutive529Errors?: number
   onHeldWait?: (wait: HeldBusyRetryWait) => void
+  healClientContract?: boolean
 }
 
 export async function* withRetry<T>(
@@ -216,6 +219,8 @@ export async function* withRetry<T>(
   let previousError: unknown
   let consecutive529Errors = options.initialConsecutive529Errors ?? 0
   let authenticationRecoveryAttempted = false
+  let contractHealTried = false
+  let contractHeal: ClientContractHeal | undefined
   let busy: BusyRetryLadder | undefined
 
   for (let attempt = 1; attempt <= maxRetries + 1 || busy !== undefined; attempt++) {
@@ -285,6 +290,18 @@ export async function* withRetry<T>(
         if (countingEnabled) consecutive529Errors++
       } else {
         consecutive529Errors = 0
+      }
+
+      if (options.healClientContract === true && isClientContractRefusalError(error)) {
+        if (!contractHealTried && attempt <= maxRetries) {
+          contractHealTried = true
+          contractHeal = await healClientContractRefusal(error, options.signal).catch(() => undefined)
+          logForDebugging(`client contract: the too-old refusal met ${contractHeal?.kind ?? 'no heal'}`)
+          if (options.signal?.aborted) throw new APIUserAbortError()
+          if (contractHeal?.kind === 'retry') continue
+        }
+        if (contractHeal !== undefined) noteClientContractHeal(error, contractHeal)
+        throw new CannotRetryError(error, retryContext)
       }
 
       if (overload && isRetryableError(error)) {

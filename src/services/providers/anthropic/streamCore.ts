@@ -148,6 +148,7 @@ import {
 import { getInitializationStatus } from '../../lsp/manager.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
+import { clientContractMoveOf } from '../../api/clientContractLearned.js'
 import { captureModelRefusalRequest, clearModelRefusal, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
@@ -440,6 +441,7 @@ export async function* executeNonStreamingRequest(
       initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
       querySource: retryOptions.querySource,
       ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}),
+      healClientContract: true,
     },
   )
 
@@ -606,22 +608,25 @@ async function* queryModel(
     messagesForAPI = [announcement, ...messagesForAPI]
   }
 
-  systemPrompt = asSystemPrompt(
-    [
-      getAttributionHeader(fingerprint),
-      getCLISyspromptPrefix({
-        isNonInteractive: options.isNonInteractiveSession,
-        hasAppendSystemPrompt: options.hasAppendSystemPrompt,
-      }),
-      ...systemPrompt,
-    ].filter(Boolean),
-  )
+  const systemPromptBody = [
+    getCLISyspromptPrefix({
+      isNonInteractive: options.isNonInteractiveSession,
+      hasAppendSystemPrompt: options.hasAppendSystemPrompt,
+    }),
+    ...systemPrompt,
+  ]
+  const assembleSystemPrompt = (attribution: string): SystemPrompt =>
+    asSystemPrompt([attribution, ...systemPromptBody].filter(Boolean))
+  let attributionLine = getAttributionHeader(fingerprint)
+  systemPrompt = assembleSystemPrompt(attributionLine)
 
   logAPIPrefix(systemPrompt)
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)
-  const system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching)
+  let system = buildSystemPromptBlocks(systemPrompt, enablePromptCaching)
+  const systemForAttribution = (attribution: string): typeof system =>
+    buildSystemPromptBlocks(assembleSystemPrompt(attribution), enablePromptCaching)
 
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
   if (options.nativeWebSearch) {
@@ -664,6 +669,11 @@ async function* queryModel(
   const consumedPinnedEdits = cachedMCEnabled ? getPinnedCacheEdits() : []
 
   const paramsFromContext = (retryContext: RetryContext) => {
+    const attribution = getAttributionHeader(fingerprint)
+    if (attribution !== attributionLine) {
+      attributionLine = attribution
+      system = systemForAttribution(attribution)
+    }
     const betasParams = [...betas]
 
     const extraBodyParams = getExtraBodyParams([])
@@ -791,13 +801,15 @@ async function* queryModel(
         output_config: outputConfig,
       }),
     }
-    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
+    const verdict = judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
       system: params.system,
       tools: params.tools,
       messages: params.messages,
     }, params.messages === wireMessages ? wireMessageIds : params.messages.map(() => null), {
       replaceRecord: isTurnOwningQuerySource(options.querySource),
     })
+    const contractMove = clientContractMoveOf(verdict.mismatch)
+    if (contractMove !== null) declareLawfulPrefixChange(rosterOwnerKey, contractMove)
     return params
   }
 
@@ -1037,6 +1049,7 @@ async function* queryModel(
         signal,
         querySource: options.querySource,
         ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
+        healClientContract: true,
       },
     )
 

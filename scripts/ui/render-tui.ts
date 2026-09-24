@@ -83,6 +83,7 @@ for (let attempt = 1; attempt <= 2; attempt++) {
       ...(PYTE_PATH ? { PYTHONPATH: [PYTE_PATH, process.env.PYTHONPATH].filter(Boolean).join(':') } : {}),
       MERCURY_FULLSCREEN: '1',
       MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR || CONFIG_HOME,
+      MERCURY_NPM_REGISTRY_BASE: 'http://127.0.0.1:1',
     },
   })
   if (res.status !== 0) {
