@@ -171,6 +171,13 @@ export type GlobalConfig = {
     effort?: string
   }
   motion?: 'auto' | 'full' | 'reduced' | 'off'
+  jev?: {
+    enabled?: boolean
+    allowanceUsd?: number
+    pacePerMinute?: number
+    requestCeiling?: number
+    subagents?: boolean
+  }
   supervisorEnabled?: boolean
   pingsBell?: boolean
   subModels?: {
