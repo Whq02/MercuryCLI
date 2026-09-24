@@ -3,11 +3,13 @@ import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { resolveProofHome } from '../lib/proofHome.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
+const DEFAULT_FABLE = ALL_MODEL_CONFIGS[newestGenerationKey('fable')].firstParty
+const bareId = (model: string | undefined): string => (model ?? '').replace(/\[[0-9]+m\]$/i, '')
 
 const fixture = resolve(process.argv[2] ?? '')
 if (!fixture || !existsSync(fixture)) {
@@ -17,6 +19,27 @@ if (!fixture || !existsSync(fixture)) {
 const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
 const sid = crypto.randomUUID()
 const sid2 = crypto.randomUUID()
+const CONFIG_HOME = resolveProofHome([fixture])
+const DEAD_BASE = 'http://127.0.0.1:1'
+const DEAD_BASES: Record<string, string> = {
+  MERCURY_CUSTOM_OAUTH_URL: DEAD_BASE,
+  MERCURY_OPENAI_API_BASE: DEAD_BASE,
+  MERCURY_OPENAI_AUTH_BASE: DEAD_BASE,
+  MERCURY_OPENAI_CHATGPT_BASE: DEAD_BASE,
+  MERCURY_OPENROUTER_API_BASE: DEAD_BASE,
+  MERCURY_OPENROUTER_AUTH_BASE: DEAD_BASE,
+  MERCURY_GEMINI_API_BASE: DEAD_BASE,
+  MERCURY_GEMINI_OAUTH_AUTH_BASE: DEAD_BASE,
+  MERCURY_GEMINI_OAUTH_TOKEN_BASE: DEAD_BASE,
+  MERCURY_MOONSHOT_API_BASE: DEAD_BASE,
+  MERCURY_MOONSHOT_OAUTH_BASE: DEAD_BASE,
+  MERCURY_MOONSHOT_CODING_BASE: DEAD_BASE,
+  MERCURY_ZAI_API_BASE: DEAD_BASE,
+  MERCURY_DEEPSEEK_API_BASE: DEAD_BASE,
+  MERCURY_HUGGINGFACE_API_BASE: DEAD_BASE,
+  MERCURY_HUGGINGFACE_HUB_BASE: DEAD_BASE,
+  MERCURY_UPDATE_API_BASE_URL: DEAD_BASE,
+}
 
 function childEnv(): Record<string, string> {
   const env: Record<string, string> = {}
@@ -27,7 +50,16 @@ function childEnv(): Record<string, string> {
     if (/^MERCURY_/i.test(key)) continue
     env[key] = value
   }
-  return env
+  return {
+    ...env,
+    ...DEAD_BASES,
+    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL ?? DEAD_BASE,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? 'proof-key-ci-gate-not-a-real-key',
+    HOME: CONFIG_HOME,
+    MERCURY_CONFIG_DIR: CONFIG_HOME,
+    MERCURY_CREDENTIAL_STORE: 'file',
+    BROWSER: '/usr/bin/true',
+  }
 }
 
 type TurnObs = {
@@ -138,8 +170,7 @@ function runOnce(argvExtra: string[], prompt: string): { models: string[]; subty
 
 function sessionJsonlPath(id: string): string {
   const slug = fixture.replace(/[/.]/g, '-')
-  const home = process.env.MERCURY_HOME ?? join(homedir(), '.mercury')
-  return join(home, 'projects', slug, `${id}.jsonl`)
+  return join(CONFIG_HOME, 'projects', slug, `${id}.jsonl`)
 }
 
 const fails: string[] = []
@@ -156,12 +187,12 @@ for (const t of turns) {
 check('stream session exited cleanly', exit === 0, `exit=${exit}`)
 check('5 turns observed', turns.length === 5)
 const [t1, t2, t3, t4, t5] = turns
-check('T1 fresh default resolves the frontier policy (Fable 5 [1m] init)', !!t1?.initModel?.includes('claude-fable-5'), t1?.initModel)
-check('T1 served by claude-fable-5 (API truth)', t1?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t1?.assistantModels.join(','))
-check('T2 still fable, same session', t2?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t2?.assistantModels.join(','))
+check(`T1 fresh default resolves the frontier policy (${DEFAULT_FABLE} init)`, bareId(t1?.initModel) === DEFAULT_FABLE, t1?.initModel)
+check(`T1 served by ${DEFAULT_FABLE} (API truth)`, t1?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t1?.assistantModels.join(','))
+check('T2 still fable, same session', t2?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t2?.assistantModels.join(','))
 check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m === DEFAULT_OPUS) === true, t3?.assistantModels.join(','))
-check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t4?.assistantModels.join(','))
-check('T5 stays on the default', t5?.assistantModels.every(m => m.includes('claude-fable-5')) === true, t5?.assistantModels.join(','))
+check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t4?.assistantModels.join(','))
+check('T5 stays on the default', t5?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t5?.assistantModels.join(','))
 check('every turn completed', turns.every(t => t.resultSubtype === 'success'), turns.map(t => t.resultSubtype).join(','))
 
 const jsonl = readFileSync(sessionJsonlPath(sid), 'utf8')
@@ -170,13 +201,13 @@ check('history intact (≥5 user turns in one conversation)', userCount >= 5, `u
 
 console.log('\n=== §8 resume retention ===')
 const resumed = runOnce(['--resume', sid], 'One line: still here?')
-check('resume (no --model) retains the conversation model (fable)', resumed.models.every(m => m.includes('claude-fable-5')) && resumed.models.length > 0, resumed.models.join(','))
+check('resume (no --model) retains the conversation model (fable)', resumed.models.every(m => bareId(m) === DEFAULT_FABLE) && resumed.models.length > 0, resumed.models.join(','))
 const opusT1 = runOnce(['--session-id', sid2, '--model', 'opus'], 'One line: say ok.')
 check('opus micro-session ran on opus', opusT1.models.every(m => m === DEFAULT_OPUS) && opusT1.models.length > 0, opusT1.models.join(','))
 const opusResumed = runOnce(['--resume', sid2], 'One line: say ok again.')
 check('resume retains the OPUS transcript model (§8)', opusResumed.models.every(m => m === DEFAULT_OPUS) && opusResumed.models.length > 0, opusResumed.models.join(','))
 
-const receipts = { sid, sid2, turns, perTurnAttached, resumed, opusT1, opusResumed }
+const receipts = { sid, sid2, turns, resumed, opusT1, opusResumed }
 const out = join(fixture, '..', 'crown-journey-receipts.json')
 writeFileSync(out, JSON.stringify(receipts, null, 2))
 console.log(`\nreceipts → ${out}`)
