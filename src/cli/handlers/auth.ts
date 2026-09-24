@@ -24,7 +24,7 @@ import {
   createAndStoreApiKey,
   fetchAndStoreUserRoles,
   fetchProfileInfo,
-  refreshOAuthToken,
+  refreshSignInGrant,
   parseScopes,
   shouldUseClaudeAIAuth,
   storeOAuthAccountInfo,
@@ -144,7 +144,7 @@ export async function authLogin(opts: {
       process.exit(1)
     }
     try {
-      const tokens = await refreshOAuthToken(envRefreshToken, {
+      const tokens = await refreshSignInGrant(envRefreshToken, {
         scopes: parseScopes(scopesRaw),
       })
       await installOAuthTokens(tokens)

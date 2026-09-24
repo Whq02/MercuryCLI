@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/wallet/** src/services/providers/primaryBackend.ts
+# gate-watch: src/services/wallet/** src/services/providers/primaryBackend.ts src/cli/handlers/auth.ts src/utils/secureStorage/**
+# gate-watch: src/services/providers/credentialIdentity* src/services/providers/accountSlots.ts src/services/providers/*/*Accounts.ts src/services/providers/*/*Login.ts src/services/oauth/** src/utils/accounts/** src/utils/auth.ts src/components/mercury-ui/screens/anthropicLoginModel.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -9,4 +10,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 __t=$SECONDS; __rc=0
 "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wallet.ts" || { __rc=$?; prover_mark "$here/prove-wallet.ts" "$__t" "$__rc"; echo "❌ WALLET SUITE RED"; exit 1; }
 prover_mark "$here/prove-wallet.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0
+"${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wallet-identity.ts" || { __rc=$?; prover_mark "$here/prove-wallet-identity.ts" "$__t" "$__rc"; echo "❌ WALLET SUITE RED"; exit 1; }
+prover_mark "$here/prove-wallet-identity.ts" "$__t" "$__rc"
 echo "✅ WALLET SUITE GREEN"

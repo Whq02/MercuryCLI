@@ -1065,8 +1065,9 @@ const slotReads = {
   )
   const oauthSlot = flat.find(s => s.id === 'moonshot:oauth')
   check(
-    'slots: the moonshot OAuth identity names the Kimi sign-in and its region, shadowed under the env pin',
-    oauthSlot?.identity.includes('Kimi account (device-code sign-in') === true &&
+    'slots: the moonshot OAuth identity names the Kimi sign-in by its kind and region (never a token fragment), shadowed under the env pin',
+    oauthSlot?.identity.startsWith('Kimi account · device-code, ') === true &&
+      !oauthSlot.identity.includes('dd00') &&
       oauthSlot.active === false &&
       oauthSlot.stateNote?.includes('env pin') === true,
     JSON.stringify({ identity: oauthSlot?.identity, active: oauthSlot?.active, note: oauthSlot?.stateNote }),

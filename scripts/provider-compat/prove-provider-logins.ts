@@ -292,7 +292,7 @@ section('§1 · the Kimi device-code sign-in, end to end')
 
   const groups = deriveFamilySlotGroups()
   const kimiSlot = groups.find(g => g.family.id === 'moonshot')?.slots.find(s => s.id === 'moonshot:oauth')
-  check('/accounts: the Kimi slot is the active source, named by region, tail-masked', kimiSlot?.active === true && kimiSlot.signedIn && kimiSlot.identity.includes('global (kimi.ai)') && kimiSlot.identity.includes('…0001'), JSON.stringify(kimiSlot))
+  check('/accounts: the Kimi slot is the active source, named by its kind and region, never a token fragment', kimiSlot?.active === true && kimiSlot.signedIn && kimiSlot.identity === 'Kimi account · device-code, global' && !kimiSlot.identity.includes(KIMI_ACCESS_1.slice(-4)), JSON.stringify(kimiSlot))
   const presences = providerFamilyPresences()
   const moonshotPresence = presences.find(p => (p.id as string) === 'moonshot')
   check('the presence owner reads the Kimi sign-in (the adapter account)', moonshotPresence?.credentialed === true && moonshotPresence.credentialLabel?.startsWith('Kimi account (device-code sign-in') === true, JSON.stringify(moonshotPresence))

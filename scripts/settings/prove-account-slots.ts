@@ -366,8 +366,8 @@ section('(6) the REAL owner path — hermetic home fixture (add-side assertions)
   const moonshot = groups.find(g => g.family.id === 'moonshot')
   const kimi = moonshot?.slots.find(s => s.id === 'moonshot:oauth')
   const moonshotKey = moonshot?.slots.find(s => s.id === 'moonshot:stored-key')
-  check('real owners: the Kimi sign-in slot is the active source, named by region, tail-masked',
-    kimi?.active === true && kimi.signedIn && kimi.kindLabel === 'Kimi sign-in' && kimi.identity.includes('global (kimi.ai)') && kimi.identity.includes('…qrst') && kimi.removal.route === 'moonshot-oauth',
+  check('real owners: the Kimi sign-in slot is the active source, named by its kind and region, never a token fragment',
+    kimi?.active === true && kimi.signedIn && kimi.kindLabel === 'Kimi sign-in' && kimi.identity === 'Kimi account · device-code, global' && !kimi.identity.includes('qrst') && kimi.removal.route === 'moonshot-oauth',
     JSON.stringify(kimi))
   check('real owners: the stored Moonshot key stands shadowed by the sign-in',
     moonshotKey?.active === false && moonshotKey.stateNote === 'shadowed — the Kimi sign-in wins' && moonshotKey.identity.includes('…ijkl'),
