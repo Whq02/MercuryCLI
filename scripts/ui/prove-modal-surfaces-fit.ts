@@ -42,7 +42,7 @@ section('⤳N counts operator prompts')
   check('an assistant message is not', !isOperatorTurn({ type: 'assistant', message: { role: 'assistant', content: [] } } as never))
   const messages = [
     user('<command-message>logins</command-message><command-name>/logins</command-name>'),
-    user('<local-command-stdout>Login closed — no credential changed</local-command-stdout>'),
+    user('<local-command-stdout>/logins closed — no credential changed</local-command-stdout>'),
     user('hi, stream the plan'),
     user([{ type: 'tool_result', tool_use_id: 'x', content: 'ok' }]),
     user('and the corpus numbers'),
@@ -75,8 +75,8 @@ section('mechanism pins')
   check('the effort ladder glyphs are distinct', new Set(ladder).size === ladder.length)
 
   const login = read('src/commands/login/login.tsx')
-  check('a closed login says so', login.includes("onDone('Login closed — no credential changed', chain)") && !login.includes('Login interrupted'))
-  check('the login footer says esc closes (not cancels)', login.includes('footer="esc back · from the menu, esc closes login"'))
+  check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
+  check('the /logins footer says esc closes (not cancels)', login.includes('footer="esc back · from the menu, esc closes /logins"'))
 }
 
 section('THE SCREEN at 100x30: footers pinned, PageDown pages, the help grid whole')

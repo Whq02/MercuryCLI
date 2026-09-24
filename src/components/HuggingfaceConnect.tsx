@@ -13,6 +13,7 @@ import {
   storeHuggingfaceTokenLogin,
 } from '../services/providers/huggingface/huggingfaceLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
 
 
 const COPY_ACK_MS = 2000
@@ -187,9 +188,10 @@ function HuggingfaceTokenLeg({
   }
   return (
     <Box flexDirection="column" gap={1} paddingX={1}>
+      <Text>{keyPageLine('huggingface')}</Text>
       <Text>
-        Paste a Hugging Face token with the Inference Providers permission (huggingface.co/settings/tokens). Stored
-        auth-scoped (mode 600), never logged; an HF_TOKEN env var always wins over the store.
+        Paste a Hugging Face token with the Inference Providers permission. Stored auth-scoped (mode 600), never
+        logged; an HF_TOKEN env var always wins over the store.
       </Text>
       <Box>
         <Text>Token: </Text>

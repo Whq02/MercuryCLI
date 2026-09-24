@@ -81,6 +81,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
 import {
+  keyPageLine,
   loginFamilyFocusFor,
   loginFamilyRows,
   loginFamilyInitialFocus,
@@ -326,6 +327,21 @@ export function wrapHard(text: string, width: number): string[] {
   return lines.length > 0 ? lines : [''];
 }
 
+export function wrapClauses(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const clause of text.split(/(?<=,) | (?=—)/)) {
+    if (line === '') line = clause;
+    else if (line.length + 1 + clause.length <= width) line += ' ' + clause;
+    else {
+      lines.push(line);
+      line = clause;
+    }
+  }
+  if (line !== '') lines.push(line);
+  return lines.flatMap(l => (l.length > width ? wrapPlain(l, width) : [l]));
+}
+
 export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[] {
   const flow = snap.flow;
   switch (flow.name) {
@@ -432,7 +448,7 @@ export function loginsPickOptions(
     case 'moonshot':
       return [
         { label: 'Sign in with Kimi — device code in your browser', value: 'region' },
-        { label: 'Paste a Moonshot API key (platform.kimi.ai; stored locally, mode 600)', value: 'key' },
+        { label: 'Paste a Moonshot API key (stored locally, mode 600)', value: 'key' },
       ];
     case 'huggingface':
       return [
@@ -453,7 +469,7 @@ export function loginsPickPaneLines(pick: LoginsPickId): string[] {
       case 'openai':
         return 'One OpenAI family, two credentials: the ChatGPT subscription signs in with the browser (d on the wait switches to a device code); an API key bills usage-based.';
       case 'zai':
-        return 'Z.AI signs in with API keys only (z.ai/manage-apikey). Which key is this? A GLM Coding Plan key is valid on the Coding Plan base and refused on the general one, so the answer picks the base.';
+        return 'Z.AI signs in with API keys only. Which key is this? A GLM Coding Plan key is valid on the Coding Plan base and refused on the general one, so the answer picks the base.';
       case 'moonshot':
         return 'A Kimi account signs in with a device code and runs on its plan; a Moonshot platform key bills usage-based. Either one lights the Kimi rows in /model.';
       case 'huggingface':
@@ -468,6 +484,7 @@ export function loginsPickPaneLines(pick: LoginsPickId): string[] {
   })();
   return [
     ...wrapPlain(body, DETAIL_W),
+    ...(pick === 'kimi-region' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
     '',
     pick === 'kimi-region' ? 'esc — back to the Kimi choice' : 'esc — back to the roster',
   ];
@@ -541,6 +558,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
     const [, sentence, address] = geminiKeyLegLines(opened);
     lines.push(...wrapPlain(sentence!.text, DETAIL_W), ...wrapHard(address!.text, DETAIL_W));
   }
+  if (leg === 'deepseek' && note === null) lines.push(...wrapClauses(keyPageLine('deepseek'), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {

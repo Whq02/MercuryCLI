@@ -20,7 +20,7 @@ argument-hint: "[question or task]"
 - Route `gpt-` to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `glm-` to Z.AI; `gemini-` to Gemini.
 - Use Anthropic's declared IDs and aliases for Messages; do not treat arbitrary unknown IDs as Anthropic models.
 - Preserve explicit gateway/model-pin admission; never fall through to another provider after a route failure.
-- Use `/login` and `/accounts` for credentials; select the actual API-key or subscription endpoint rather than substituting one for the other.
+- Use `/logins` and `/accounts` for credentials; select the actual API-key or subscription endpoint rather than substituting one for the other.
 
 ## Verify
 - Check every model ID, capability, price and limit against today's catalogue or provider page.
