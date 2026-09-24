@@ -528,10 +528,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const runsLive = runsAll.reduce((n, r) => n + (r.status === 'running' ? 1 : 0), 0)
 
   const ledger = telemetry.tasks
-  const ledgerActive = ledger.filter(t => t.status === 'in_progress')
-  const ledgerPending = ledger.filter(t => t.status === 'pending')
-  const ledgerDone = ledger.filter(t => t.status === 'completed').length
-  const ledgerOpen = ledgerActive.length + ledgerPending.length
 
   const work = (() => {
     if (isEnvDefinedFalsy(flagEnv('MERCURY_WORK_LANE'))) return null
@@ -602,9 +598,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const solo =
     peers.length === 0 &&
     crewAll.length === 0 &&
-    daemonCrew.length === 0 &&
     runsAll.length === 0 &&
-    ledgerOpen === 0
+    daemonCrew.length === 0
 
   const recentScopeKey = `${getProjectRoot() || ''}::${getSessionId()}`
   const [recentSnap, setRecentSnap] = useState<{ key: string; rows: LogOption[] | null }>(
@@ -698,15 +693,11 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const intentTabula = !isTabulaEnabled()
     ? 0
     : tabulaOpen.length === 0 ? 1 : Math.min(3, tabulaOpen.length) + (tabulaOpen.length > 3 ? 1 : 0)
-  const tasksIntent =
-    Math.min(2, ledgerActive.length) + (ledgerActive.length > 2 ? 1 : 0) +
-    Math.min(3, ledgerPending.length) + (ledgerPending.length > 3 ? 1 : 0)
   const seatGlanceRows = 1 + peersShown.length + (peersMore > 0 ? 1 : 0)
   const intents: Record<string, number> = {
     seat: 0,
     crew: solo ? 0 : Math.max(1, 1 + crewShown.length + (crewMore > 0 ? 1 : 0)),
     work: work ? work.rows.length : 0,
-    tasks: work ? 0 : solo ? (ledger.length > 0 ? tasksIntent : 0) : Math.max(1, tasksIntent),
     runs: solo ? 0 : runsShown.length + (runsMore > 0 ? 1 : 0),
     recent: solo ? (recent == null ? 1 : recent.length) : 0,
     mission: solo && mission ? 1 : 0,
@@ -732,7 +723,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 +
-      (['seat', 'crew', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next', 'files'] as const)
+      (['seat', 'crew', 'work', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next', 'files'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
       (seatGlanceRows + SECTION_CHROME) +
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
@@ -871,63 +862,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         </Box>
       ))
     : []
-
-  const MISSION_ACTIVE_ROWS = 2
-  const MISSION_QUEUE_ROWS = 3
-  const missionNodes: React.ReactNode[] = []
-  for (const t of ledgerActive.slice(0, MISSION_ACTIVE_ROWS)) {
-    missionNodes.push(
-      <RailRow
-        key={`mission:a:${t.id}`}
-        width={rowW}
-        glyph={GLYPH.busy}
-        glyphColor={tok.success}
-        glyphLive
-        name={t.activeForm ?? t.subject}
-        nameColor={tok.textPrimary}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/tasks', label: `mission:a:${t.id}` })}
-      />,
-    )
-  }
-  if (ledgerActive.length > MISSION_ACTIVE_ROWS) {
-    missionNodes.push(
-      <RailRow
-        key="mission:a:more"
-        width={rowW}
-        glyph={GLYPH.dot}
-        glyphColor={tok.textMuted}
-        name={`+${ledgerActive.length - MISSION_ACTIVE_ROWS} also in progress`}
-        nameColor={tok.textMuted}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/tasks', label: 'mission:a:more' })}
-      />,
-    )
-  }
-  for (const t of ledgerPending.slice(0, MISSION_QUEUE_ROWS)) {
-    missionNodes.push(
-      <RailRow
-        key={`mission:q:${t.id}`}
-        width={rowW}
-        glyph={GLYPH.pending}
-        glyphColor={tok.textMuted}
-        name={t.subject}
-        nameColor={tok.textSecondary}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/tasks', label: `mission:q:${t.id}` })}
-      />,
-    )
-  }
-  if (ledgerPending.length > MISSION_QUEUE_ROWS) {
-    missionNodes.push(
-      <RailRow
-        key="mission:q:more"
-        width={rowW}
-        glyph={GLYPH.dot}
-        glyphColor={tok.textMuted}
-        name={`+${ledgerPending.length - MISSION_QUEUE_ROWS} queued`}
-        nameColor={tok.textMuted}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/tasks', label: 'mission:q:more' })}
-      />,
-    )
-  }
 
   const runNodes: React.ReactNode[] = runsShown.map(r => {
     const live = r.status === 'running'
@@ -1256,12 +1190,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
               )
             : null}
 
-          {
-}
-          {!work && ledger.length > 0
-            ? section('tasks', GLYPH.mission, 'TASKS', `${ledgerDone}/${ledger.length}`, missionNodes, { open: '/tasks' })
-            : null}
-
           {}
           {soloNodes.length > 0 ? section('recent', GLYPH.read, 'RECENT', undefined, soloNodes, { open: '/sessions' }) : null}
 
@@ -1298,8 +1226,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             { open: '/teammates' },
           )}
 
-          {
-}
+          {}
           {work
             ? section(
                 'work',
@@ -1310,25 +1237,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
                 { open: '/workbench' },
               )
             : null}
-
-          {
-}
-          {work ? null : section(
-            'tasks',
-            GLYPH.mission,
-            'TASKS',
-            ledger.length > 0 ? `${ledgerDone}/${ledger.length}` : undefined,
-            missionNodes.length === 0 ? (
-              <Box width={rowW}>
-                <Text color={tok.textMuted} wrap="truncate-end">
-                  {'  no open tasks'}
-                </Text>
-              </Box>
-            ) : (
-              missionNodes
-            ),
-            { open: '/tasks' },
-          )}
 
           {
 }

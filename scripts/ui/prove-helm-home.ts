@@ -94,6 +94,12 @@ check('a hosted CREW row opens its work card (/tasks <id>), never a local agent 
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
 check('S2: SEAT peers are capped (slice PEER_ROWS)', /slice\(0, PEER_ROWS\)/.test(lanes))
+check('no TASKS card: the rail builds no ledger section or rows of its own',
+  !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
+check('RUNS is the one rail door to the /tasks board (header opens /tasks)',
+  /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/tasks' \}\)/.test(lanes))
+check('a ledger alone never forces the busy layout (the solo gate reads peers, crew, runs and daemon crew only)',
+  /const solo =\n\s+peers\.length === 0 &&\n\s+crewAll\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 

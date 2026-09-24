@@ -30,7 +30,6 @@ import { PrBadge } from '../PrBadge.js'
 import { TeamStatus } from '../teams/TeamStatus.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
-import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
 import { useFocusedShellRunning } from '../../services/engine-connector/shellRunning.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
@@ -81,7 +80,6 @@ export function PromptInputFooterLeftSide({
   const treeShowing = useAppState(
     (state: AppState) => state.expandedView === 'teammates',
   )
-  const cockpitActive = useContext(CockpitActiveContext)
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const teamContext = useAppState((state: AppState) => state.teamContext)
@@ -244,19 +242,12 @@ export function PromptInputFooterLeftSide({
     const runningTeammates = inProcessTeammates.filter(
       task => task.status === 'running',
     )
-    const reachable = cockpitActive
-      ? runningTeammates.length > 0
-      : inProcessTeammates.length > 0
-    if (reachable) {
-      const action = cockpitActive
-        ? treeShowing
-          ? 'hide'
-          : 'show teammates'
-        : runningTeammates.length > 0
-          ? 'cycle tasks'
-          : treeShowing
-            ? 'hide tasks'
-            : 'show tasks'
+    if (inProcessTeammates.length > 0) {
+      const action = runningTeammates.length > 0
+        ? 'cycle tasks'
+        : treeShowing
+          ? 'hide tasks'
+          : 'show tasks'
       parts.push(
         <KeyboardShortcutHint key="toggle" shortcut={tasksChord} action={action} />,
       )
