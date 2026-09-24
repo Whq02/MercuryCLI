@@ -16,11 +16,11 @@
                                                                        │ the browser (d on the wait switches to     │
                                                                        │ a device code); an API key bills           │
                                                                        │ usage-based.                               │
+                                                                       │ API key: platform.openai.com/api-keys      │
+                                                                       │ — sign in, API Keys, create,               │
+                                                                       │ paste it here.                             │
                                                                        │                                            │
                                                                        │ esc — back to the roster                   │
-                                                                       │                                            │
-                                                                       │                                            │
-                                                                       │                                            │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ LOGINS                                     │

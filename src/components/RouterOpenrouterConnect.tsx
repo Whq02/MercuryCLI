@@ -19,6 +19,7 @@ import {
   storeOpenrouterApiKeyLogin,
 } from '../services/providers/openrouter/openrouterLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
 
 
 export function RouterOpenrouterConnect({
@@ -204,6 +205,7 @@ function OpenrouterKeyLeg({
   }
   return (
     <Box flexDirection="column" gap={1} paddingX={1}>
+      <Text>{keyPageLine('openrouter')}</Text>
       <Text>
         Paste your OpenRouter API key. Stored auth-scoped (mode 600), never logged; an
         OPENROUTER_API_KEY env var always wins over the store.
