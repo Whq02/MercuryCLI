@@ -112,6 +112,19 @@ try {
     const configDir = join(home, '.mercury')
     seedFirstRun(configDir, [cwd])
     const MODEL = 'claude-opus-4-8'
+    const pythonForChild = ((): string | null => {
+      const seen = new Set<string>()
+      for (const dir of (process.env.PATH ?? '').split(':')) {
+        const candidate = join(dir, 'python3')
+        if (dir === '' || seen.has(candidate) || !existsSync(candidate)) continue
+        seen.add(candidate)
+        const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' })
+        const version = /Python\s+(\d+)\.(\d+)/.exec(`${probe.stdout ?? ''}${probe.stderr ?? ''}`)
+        if (version && (Number(version[1]) > 3 || (Number(version[1]) === 3 && Number(version[2]) >= 10))) return candidate
+      }
+      return null
+    })()
+    console.log(`        note: Python kernel for the print seat: ${pythonForChild ?? 'none of 3.10 or newer on this PATH — the Python value-shape leg is skipped here (the pure §B leg of prove-cell-failure-state.ts carries it)'}`)
     const fixture = await startFixtureApi([
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "var fs = require('node:fs'); var repo = '/x'", title: "the record's require cell" }, whenModel: MODEL },
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "crypto.createHash('sha256').update('x').digest('hex')", title: "the record's createHash cell" }, whenModel: MODEL },
@@ -125,8 +138,10 @@ try {
         'JSON.stringify([typeof splitter, typeof n])',
       ].map(code => ({ kind: 'tool_use' as const, name: 'Eval', input: { language: 'js', code, title: 'declaration boundaries' }, whenModel: MODEL })),
       { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "const r = await tool.Bash({ command: 'echo boom; exit 1' })\nJSON.stringify([r.code, r.stdout.includes('boom'), r.stderr])", title: 'a shell exit as a value' }, whenModel: MODEL },
-      { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "const a = await tool.attempt.Bash({ command: 'echo boom; exit 1' })\nconst w = await tool.attempt.Bash({ command: 'nohup sleep 1 &' })\nJSON.stringify([a.ok, a.value && a.value.code, w.ok, String(w.error).startsWith(\"Ward 'self-daemonize'\"), String(w.error).includes('<tool_use_error>')])", title: 'attempt: an exit is a value, a ward refusal an error' }, whenModel: MODEL },
-      { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: "r = tool.Bash(command='echo boom; exit 1')\n[r['code'], 'boom' in r['stdout'], r['stderr']]", title: 'py: a shell exit as a value' }, whenModel: MODEL },
+      { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "const a = await tool.attempt.Bash({ command: 'echo boom; exit 1' })\nconst w = await tool.attempt.Bash({ command: 'nohup sleep 1 &' })\nJSON.stringify([a.ok, a.value && a.value.code, w.ok, String(w.error).includes(\"Ward 'self-daemonize' blocked this Bash call\"), String(w.error).includes('<tool_use_error>')])", title: 'attempt: an exit is a value, a ward refusal an error' }, whenModel: MODEL },
+      ...(pythonForChild !== null
+        ? [{ kind: 'tool_use' as const, name: 'Eval', input: { language: 'py', code: "r = tool.Bash(command='echo boom; exit 1')\n[r['code'], 'boom' in r['stdout'], r['stderr']]", title: 'py: a shell exit as a value' }, whenModel: MODEL }]
+        : []),
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
     ])
@@ -143,6 +158,7 @@ try {
       MERCURY_VERIFY_EVIDENCE: '0',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+      ...(pythonForChild !== null ? { MERCURY_EVAL_PYTHON: pythonForChild } : {}),
     }
     const startedAt = Date.now()
     const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
@@ -187,7 +203,8 @@ try {
     console.log(`        note: print mode exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
     for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, i >= 9 ? 400 : 160))}`)
     check('the artifact ran the cells and closed the turn', outcome.exit === 0 && /kernel-words-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-    check('all twelve results reached the model', results.length === 12, String(results.length))
+    const expectedResults = pythonForChild !== null ? 12 : 11
+    check(`all ${expectedResults} results reached the model`, results.length === expectedResults, String(results.length))
     check('artifact: a leading comment preserves both declarations', results[4]?.text.includes('["number","number"]') === true, JSON.stringify(results[4]))
     check('artifact: a trailing comment preserves both declarations', results[6]?.text.includes('["number","number"]') === true, JSON.stringify(results[6]))
     check('artifact: the regex initializer runs and preserves its bindings', results[7] !== undefined && !results[7].isError && results[8]?.text.includes('["object","number"]') === true, JSON.stringify(results.slice(7)))
@@ -200,7 +217,8 @@ try {
     console.log(`        record (${bundleFacts}) · the shell-exit cell: is_error=${String(shellExit?.isError)} · "Shell command failed"=${shellExit?.text.includes('Shell command failed') ?? false} · boom in the result=${shellExit?.text.includes('boom') ?? false} · wrapped=${shellExit?.text.includes('<tool_use_error>') ?? false}`)
     check('artifact: a bridged Bash call whose command exited 1 returns { code: 1, stdout, stderr: "" } and the JS cell runs on', shellExit !== undefined && !shellExit.isError && shellExit.text.includes(`⇒ '[1,true,""]'`), JSON.stringify(shellExit))
     check('artifact: tool.attempt.Bash answers { ok: true, value: { code: 1 } } for an exit and { ok: false, error } with the ward\'s bare words for a refusal', attempts !== undefined && !attempts.isError && attempts.text.includes(`⇒ '[true,1,false,true,false]'`), JSON.stringify(attempts))
-    check('artifact: the Python kernel reads the same value shape', pyExit !== undefined && !pyExit.isError && pyExit.text.includes(`⇒ [1, True, '']`), JSON.stringify(pyExit))
+    if (pythonForChild !== null) check('artifact: the Python kernel reads the same value shape', pyExit !== undefined && !pyExit.isError && pyExit.text.includes(`⇒ [1, True, '']`), JSON.stringify(pyExit))
+    else console.log('        note: the Python value-shape check is skipped in this print seat (no python3 of 3.10 or newer on PATH); prove-cell-failure-state.ts §B B6 carries it through the real bridge')
     const leftovers = spawnSync('pgrep', ['-f', `${configDir}/eval/runner-`], { encoding: 'utf8' }).stdout.trim()
     if (leftovers !== '') {
       for (const pid of leftovers.split('\n')) {
