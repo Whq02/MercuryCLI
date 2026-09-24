@@ -281,6 +281,13 @@ function pushIfAbsent(options: ModelOption[], row: ModelOption): void {
   options.push(row)
 }
 
+function leadFamilyBlock(options: ModelOption[], row: ModelOption): void {
+  if (options.some(existing => existing.value === row.value)) return
+  const family = anthropicFamilyOf(row.value)
+  const at = family === undefined ? -1 : options.findIndex(option => !isSentinelValue(option.value) && anthropicFamilyOf(option.value) === family)
+  options.splice(at === -1 ? options.length : at, 0, row)
+}
+
 export const ANTHROPIC_MODEL_GROUP = 'Mercury — Anthropic models'
 export const OPENAI_MODEL_GROUP = 'Mercury — OpenAI models'
 export const ZAI_MODEL_GROUP = 'Mercury — Z.AI models'
@@ -617,7 +624,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   for (const id of ['claude-sonnet-5', 'claude-opus-5-5']) {
     const marketing = getMarketingNameForModel(id) ?? id
-    pushIfAbsent(options, {
+    leadFamilyBlock(options, {
       value: id,
       label: marketing,
       description: '',

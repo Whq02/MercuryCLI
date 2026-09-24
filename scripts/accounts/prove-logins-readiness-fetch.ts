@@ -109,7 +109,7 @@ section('§2 the Anthropic door: the card\'s read fetches every signed-in door o
   check('the Anthropic row keeps the same words after the landing (the list never gates the credential)', JSON.stringify(after.anthropic) === JSON.stringify(before.anthropic), JSON.stringify(after.anthropic))
   check('the door reads ready with its count', anthropicCatalogue.anthropicCatalogueDoorStates().map(s => `${s.door}:${s.state}${s.state === 'ready' ? `:${s.count}` : ''}`).join(',') === 'api-key:ready:2')
   const rows = getModelOptions({ anthropicCredentialed: () => true }).filter(o => o.group === undefined).map(o => o.value)
-  check('the picker composed after the card lists the live id the table lacks', rows.includes('claude-opus-5-7') && rows.at(-1) === 'claude-opus-5-7', rows.join(','))
+  check('the picker composed after the card lists the live id the table lacks, at the end of its family block', rows.includes('claude-opus-5-7') && rows[rows.indexOf('claude-opus-4-6') + 1] === 'claude-opus-5-7', rows.join(','))
   check('the picker composition made no Anthropic request of its own', count('/anthropic/v1/models') === 1, hits.join(', '))
 }
 

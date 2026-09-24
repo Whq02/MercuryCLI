@@ -115,7 +115,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check('a natively-1M row never grows a (1M context) twin: neither Opus 5.5 nor Opus 5', !values.includes(`${ID}[1m]`) && !values.includes(`${PREVIOUS}[1m]`), JSON.stringify(values))
   check('the suffix-1M previous generations list once each, on the bare id, no twin row', values.includes('claude-opus-4-8') && values.includes('claude-opus-4-6') && !values.some(v => v.includes('[1m]')), JSON.stringify(values))
   check('the previous generations list newest first: Opus 5 before Opus 4.8', at(PREVIOUS) !== -1 && at(PREVIOUS) < at('claude-opus-4-8'), JSON.stringify(values))
-  check("the newest row keeps the explicit row's place at the section's end, after Sonnet 5", at(ID) === values.length - 1 && at('claude-sonnet-5') === values.length - 2, JSON.stringify(values))
+  check("the newest row leads the opus block: right before Opus 5, never at the section's end", at(ID) !== -1 && at(PREVIOUS) === at(ID) + 1 && at(ID) < values.length - 1, JSON.stringify(values))
   check("the spoken spelling 'opus 5.5' resolves to the row", resolveCatalogueSpelling('opus 5.5') === ID && parseUserSpecifiedModel('Opus 5.5') === ID, `${String(resolveCatalogueSpelling('opus 5.5'))} / ${parseUserSpecifiedModel('Opus 5.5')}`)
   check("the spoken spelling 'opus 5' still resolves to Opus 5", resolveCatalogueSpelling('opus 5') === PREVIOUS, String(resolveCatalogueSpelling('opus 5')))
   check('the 1M toggle never lights on the natively-1M rows', !focusedOptionSupports1m(ID) && !focusedOptionSupports1m(PREVIOUS))
