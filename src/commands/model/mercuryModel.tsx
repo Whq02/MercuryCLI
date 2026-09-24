@@ -686,8 +686,28 @@ function MercuryModelWrapper({
           )
           return
         }
+        if (keyLane === 'moonshot') {
+          void (async () => {
+            const { resolveMoonshotAccount } = await import('../../services/providers/moonshot/moonshotAccounts.js')
+            const account = resolveMoonshotAccount()
+            if (account) {
+              const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../services/providers/moonshot/moonshotCatalogue.js')
+              setNotice(`Moonshot — reading the model list of the ${account.label}…`)
+              await refreshMoonshotCatalogue({ force: true }).catch(() => null)
+              const { source } = moonshotCatalogueRows()
+              setNotice(
+                source.kind === 'live'
+                  ? `Moonshot model list landed: ${source.count} model(s) from the ${account.label} — pick one above`
+                  : `Moonshot model list unavailable — ↵ retries${source.kind === 'unread' && source.error !== undefined ? ` (${source.error})` : ''}`,
+              )
+              return
+            }
+            onDone('Kimi (Moonshot) sign-in — running /logins moonshot; the picker re-opens when it settles', { nextInput: '/logins moonshot --return=/model', submitNextInput: true })
+          })()
+          return
+        }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'moonshot' ? 'Kimi (Moonshot)' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLane === 'zai' ? 'GLM (Z.AI)' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return

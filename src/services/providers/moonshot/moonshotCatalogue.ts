@@ -180,15 +180,49 @@ export interface MoonshotCatalogueRow {
 export type MoonshotCatalogueSource =
   | { kind: 'live'; count: number; fetchedAtMs: number }
   | { kind: 'pin'; observedAt: string }
+  | { kind: 'unread'; reading: boolean; error?: string }
+
+function unreadSource(snapshot: MoonshotCatalogueSnapshot | null, env: NodeJS.ProcessEnv): MoonshotCatalogueSource {
+  const verdict = catalogueTrafficVerdict('moonshot', env)
+  if (!verdict.allowed) return { kind: 'unread', reading: false, error: verdict.reason }
+  const error = snapshot?.lastError
+  return { kind: 'unread', reading: catalogueInFlight.has(catalogueIdentity(env)) || error === undefined, ...(error !== undefined ? { error } : {}) }
+}
+
+function baseAliasLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
+  const ids = rows.map(row => row.id)
+  const baseOf = (id: string): string | undefined => {
+    let base: string | undefined
+    for (const other of ids) {
+      if (other !== id && id.startsWith(`${other}-`) && (base === undefined || other.length > base.length)) base = other
+    }
+    return base
+  }
+  const heads: MoonshotCatalogueRow[] = []
+  const variants = new Map<string, MoonshotCatalogueRow[]>()
+  for (const row of rows) {
+    const base = baseOf(row.id)
+    if (base === undefined) heads.push(row)
+    else variants.set(base, [...(variants.get(base) ?? []), row])
+  }
+  const ordered: MoonshotCatalogueRow[] = []
+  const place = (row: MoonshotCatalogueRow): void => {
+    ordered.push(row)
+    for (const variant of variants.get(row.id) ?? []) place(variant)
+  }
+  for (const head of heads) place(head)
+  return ordered
+}
 
 export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MoonshotCatalogueRow[]; source: MoonshotCatalogueSource } {
-  const snapshot = getCachedMoonshotCatalogue(env)
-  if (!snapshot || snapshot.fetchedAtMs === 0) {
+  if (resolveMoonshotAccount(env) === undefined) {
     return {
       rows: KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName, observedAt: pin.observedAt, ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}), listedLive: false })),
       source: { kind: 'pin', observedAt: KIMI_DISPLAY_PINS[0]?.observedAt ?? '' },
     }
   }
+  const snapshot = getCachedMoonshotCatalogue(env)
+  if (!snapshot || snapshot.fetchedAtMs === 0) return { rows: [], source: unreadSource(snapshot, env) }
   const taken = new Set<string>()
   const rows: MoonshotCatalogueRow[] = []
   const served = moonshotServedModels(env)
@@ -208,7 +242,7 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
       ...(observed !== undefined ? { servedAs: { id: observed.served, displayName: kimiShortName(observed.served) ?? observed.served } } : {}),
     })
   }
-  return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
+  return { rows: baseAliasLeads(rows), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
 export function moonshotCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {

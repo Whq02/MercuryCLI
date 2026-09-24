@@ -231,9 +231,13 @@ const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek'])
 
 function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek'): LaneRowVerdict {
   try {
-    const { keyLanePins } = require('./modelOptions.js') as typeof import('./modelOptions.js')
+    const { keyLanePins, keyLaneListState } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const pin = keyLanePins(family)[0]
-    if (pin === undefined) return { usable: false, why: 'no selectable row in the catalogue' }
+    if (pin === undefined) {
+      const list = keyLaneListState(family)
+      if (list.kind === 'unread') return { usable: false, why: `the account's model list has not been read${list.error !== undefined ? ` (${list.error})` : ''}` }
+      return { usable: false, why: 'no selectable row in the catalogue' }
+    }
     return {
       usable: true,
       setting: pin.id,
