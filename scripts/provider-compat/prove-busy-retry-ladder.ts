@@ -70,7 +70,8 @@ function check(label: string, condition: boolean, detail = ''): void {
 
 const LADDER_SCALE = '0.05'
 const RUNGS = [50, 100, 200, 400, 800, 1500]
-const FLOOR = RUNGS.map((rung, i) => Math.max(rung / 2, (RUNGS[i - 1] ?? 0) + 1))
+const FLOOR = RUNGS.map((rung, i) => (rung + (RUNGS[i - 1] ?? 0)) / 2)
+const FLOOR_WORDS = 'each stays above the midpoint between its rung and the rung before, even on a loaded box'
 console.log('── the ladder, pure')
 const ladder = busy.openBusyRetryLadder(0, 1)
 check('the rungs are 1 s, 2 s, 4 s, 8 s, 16 s and 30 s, the budget their sum and the quiet window 30 s', JSON.stringify(ladder.rungsMs) === JSON.stringify([1000, 2000, 4000, 8000, 16000, 30000]) && ladder.budgetMs === 61000 && ladder.quietMs === 30000)
@@ -185,7 +186,7 @@ try {
   check("the spent ladder ends the turn with one red line that says how long Gemini stayed busy and keeps the wire's words as its tail", spentRed.length === 1 && /^API Error: Gemini stayed busy through 6 retries over \d+ s — Gemini stream failed \(api-UNAVAILABLE\) — /.test(spentRed[0] ?? '') && (spentRed[0] ?? '').endsWith(overloadReason) && spent.some(item => item.type === 'assistant' && item.error === 'server_error'), spentRed[0] ?? '(no red line)')
   check('no recovery stamp rides a spent ladder', stamped(spent).length === 0)
   const waits = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
-  check('the waits between requests grow with the rungs and stay above half each rung even on a loaded box', waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
+  check(`the waits between requests grow with the rungs and ${FLOOR_WORDS}`, waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
 
   reset('0.6', { refusals: 2 })
   const recovered = await drain(geminiCallModel(params()))
@@ -244,7 +245,7 @@ try {
     check(`${road.name}: the spent ladder ends the turn with one red line naming ${road.provider} and how long it stayed busy, the wire's words as its tail`, roadRed.length === 1 && new RegExp(`^API Error: ${escape(road.provider)} stayed busy through 6 retries over \\d+ s — ${escape(road.busy.tail)}`).test(roadRed[0] ?? '') && (roadRed[0] ?? '').includes(road.busy.message) && roadSpent.some(item => item.type === 'assistant' && item.error === road.busy.typed), roadRed[0] ?? '(no red line)')
     check(`${road.name}: no recovery stamp rides a spent ladder`, stamped(roadSpent).length === 0)
     const roadWaits = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
-    check(`${road.name}: the waits between requests grow with the rungs and stay above half each rung even on a loaded box`, roadWaits.length === 6 && roadWaits.every((wait, i) => wait >= FLOOR[i]!) && roadWaits[5]! > roadWaits[0]!, JSON.stringify(roadWaits))
+    check(`${road.name}: the waits between requests grow with the rungs and ${FLOOR_WORDS}`, roadWaits.length === 6 && roadWaits.every((wait, i) => wait >= FLOOR[i]!) && roadWaits[5]! > roadWaits[0]!, JSON.stringify(roadWaits))
 
     reset('0.6', { status: road.busy.status, body: road.busy.body, refusals: 2 })
     const roadRecovered = await drain(road.call(params(undefined, road.model)))
@@ -361,7 +362,7 @@ try {
     check('home: the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentHomeNotices.length === 1 && spentHomeNotices[0]?.retryInMs === 1500 && spentHomeNotices[0].retryAttempt === 6 && spentHomeNotices[0].maxRetries === 6, JSON.stringify(spentHomeNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
     check("home: the spent ladder ends the turn with one red line carrying the wire's 529 answer, its words unchanged", spentHomeRed.length === 1 && /^API Error: 529 \{"type":"error","error":\{"type":"overloaded_error","message":"Overloaded"\}/.test(spentHomeRed[0] ?? ''), spentHomeRed[0] ?? '(no red line)')
     const waits = homeWaits(run.homeHits)
-    check('home: the waits between requests grow with the rungs and stay above half each rung even on a loaded box', waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
+    check(`home: the waits between requests grow with the rungs and ${FLOOR_WORDS}`, waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
   }
   reset(LADDER_SCALE)
   {
@@ -416,18 +417,28 @@ try {
     check("home: a Retry-After on the 529 inside the budget is honoured whole in place of the rung, quietly, and the second request answers", run.homeHits.length === 2 && askedWait >= 990 && notices(askedHome).length === 0 && redLines(askedHome).length === 0 && answered(askedHome, HOME_ANSWER), `${run.homeHits.length} requests, ${askedWait} ms, ${notices(askedHome).length} notices`)
   }
 
-  console.log('── the pin: the floor must grow with the rungs, and a loaded box only shortens a wait by ~4 ms')
+  console.log('── the pin: the floor sits midway between neighbouring rungs, a loaded box only shortens a wait by ~4 ms, and a plateau at any rung reds from the gap after it')
   const BASE_RUNGS = [10, 20, 40, 80, 160, 300]
   const BASE_FLOOR = BASE_RUNGS.map(rung => rung - 2)
+  const OVERHEAD = 3
+  const JITTER = 4
   const injectedWaits = (first: number, rest: number[]): number[] => [first, ...rest]
-  const jitteredFirstGap = injectedWaits(6, [20, 40, 80, 160, 300].map(w => w + 3))
+  const jitteredFirstGap = injectedWaits(6, [20, 40, 80, 160, 300].map(w => w + OVERHEAD))
   check('the old −2 floor reds a loaded box\'s 6 ms first gap at the 10 ms rung', !jitteredFirstGap.every((wait, i) => wait >= BASE_FLOOR[i]!), JSON.stringify(jitteredFirstGap))
-  const scaledJitteredFirstGap = injectedWaits(46, [100, 200, 400, 800, 1500].map(w => w + 3))
-  check('the half-rung floor passes the same 4 ms of jitter at 50 ms (46 ≥ 25, 103 ≥ 51, …)', scaledJitteredFirstGap.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(scaledJitteredFirstGap))
+  check('the floor is the midpoint between each rung and the rung before: 25, 75, 150, 300, 600, 1150', JSON.stringify(FLOOR) === JSON.stringify([25, 75, 150, 300, 600, 1150]), JSON.stringify(FLOOR))
+  const scaledJitteredFirstGap = injectedWaits(RUNGS[0]! - JITTER, RUNGS.slice(1).map(w => w + OVERHEAD))
+  check(`the midpoint floor passes ${JITTER} ms of jitter on the first gap and ${OVERHEAD} ms of overhead on every later one (46 ≥ 25, 103 ≥ 75, 203 ≥ 150, 403 ≥ 300, 803 ≥ 600, 1503 ≥ 1150)`, scaledJitteredFirstGap.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(scaledJitteredFirstGap))
+  const allJittered = RUNGS.map(w => w - JITTER)
+  check(`every gap ${JITTER} ms short of its rung still passes: the floor keeps the loaded-box tolerance on every rung`, allJittered.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(allJittered))
   const noBackoff = injectedWaits(6, [6, 6, 6, 6, 6])
   check('a ladder that does not back off reds every rung', !noBackoff.some((wait, i) => wait >= FLOOR[i]!), JSON.stringify(noBackoff))
-  const plateau = injectedWaits(46, [103, 203, 403, 800, 800])
-  check('a ladder that plateaus at rung 5 (the 6th gap sleeps the 5th rung, 800) reds the rung-after floor (800 < 801)', !plateau.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(plateau))
+  const plateauAt = (rung: number): number[] => RUNGS.map((w, i) => (i < rung ? w : RUNGS[rung - 1]!) + OVERHEAD)
+  for (const rung of [1, 2, 3, 4, 5]) {
+    const waits = plateauAt(rung)
+    check(`a ladder that plateaus at rung ${rung} (every later gap sleeps ${RUNGS[rung - 1]} + ${OVERHEAD} ms of overhead) reds gap ${rung + 1} and every gap after it (${waits[rung]} < ${FLOOR[rung]})`, !waits.every((wait, i) => wait >= FLOOR[i]!) && waits.slice(rung).every((wait, i) => wait < FLOOR[rung + i]!) && waits.slice(0, rung).every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(waits))
+  }
+  const RETIRED_FLOOR = RUNGS.map((rung, i) => Math.max(rung / 2, (RUNGS[i - 1] ?? 0) + 1))
+  check('the retired rung-after floor (25, 51, 101, 201, 401, 801) let the last-rung plateau with overhead through (803 ≥ 801) — the hole the midpoint floor closes (803 < 1150)', plateauAt(5).every((wait, i) => wait >= RETIRED_FLOOR[i]!) && !plateauAt(5).every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(plateauAt(5)))
 
   console.log('── the three-strikes door on the home road: an Opus model on an API key')
   const DOOR_MODEL = 'claude-opus-5'
