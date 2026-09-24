@@ -158,7 +158,10 @@ type RecordFile = {
   learned?: { version?: string; learnedAtMs?: number }
   lastRead?: { atMs?: number; by?: string; answer?: { version?: string; failure?: { kind?: string; words?: string } } }
   lastPeekAtMs?: number
+  _v?: number
+  _rev?: { revision?: number }
 }
+const holdsNothing = (record: RecordFile | null): boolean => record === null || (record.learned === undefined && record.lastRead === undefined && record.lastPeekAtMs === undefined)
 function readLearnedFile(home: string): RecordFile | null {
   try {
     return JSON.parse(readFileSync(join(home, 'client-contract.json'), 'utf8'))
@@ -262,6 +265,7 @@ check('the learned-contract module exists', learnedModule !== null, learnedModul
   check('the drive answered after the heal (no refusal surfaced)', result.answered && result.refusalText === '', result.refusalText)
   const record = readLearnedFile(home)
   check('the learned number is persisted in the config home', record?.learned?.version === NEWER, JSON.stringify(record))
+  check('the record rides the store kernel: its schema stamp and a committed revision', record?._v === 1 && typeof record._rev?.revision === 'number' && record._rev.revision >= 2, JSON.stringify({ _v: record?._v, _rev: record?._rev }))
   check('the persisted read is the registry answer, not a failure', record?.lastRead?.by === 'heal' && record.lastRead.answer?.version === NEWER && record.lastRead.answer.failure === undefined, JSON.stringify(record?.lastRead ?? null))
   const described = oauth.describeAnthropicClientContract()
   check('the next describe reads it back as source learned with the learned date', described.presented === NEWER && described.source === 'learned' && described.asOf === dayOf(record?.learned?.learnedAtMs), JSON.stringify(described))
@@ -368,7 +372,7 @@ section('§5 precedence — the override wins over a learned number; a learned n
 }
 {
   const home = freshHome('older-learned')
-  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ version: 1, learned: { version: bump(CONTRACT, -181), learnedAtMs: Date.now(), origin: 'registry.npmjs.org' } }))
+  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ learned: { version: bump(CONTRACT, -181), learnedAtMs: Date.now(), origin: 'registry.npmjs.org' }, _v: 1 }))
   const described = oauth.describeAnthropicClientContract()
   check('a learned number older than the constant is never presented', described.presented === CONTRACT && described.source === 'constant', JSON.stringify(described))
   const line = getAttributionHeader('fp10')
@@ -415,7 +419,7 @@ check('the peek owner exists', typeof learnedModule?.startClientContractPeek ===
 {
   const home = freshHome('peek-adopts')
   const early = oauth.describeAnthropicClientContract()
-  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ version: 1, learned: { version: NEWER_2, learnedAtMs: Date.now(), from: 'another session', by: 'peek' }, lastPeekAtMs: Date.now() }))
+  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ learned: { version: NEWER_2, learnedAtMs: Date.now(), from: 'another session', by: 'peek' }, lastPeekAtMs: Date.now(), _v: 1 }))
   const readsBefore = registryReads
   const outcome = await learnedModule?.peekClientContract()
   check("a peek that finds today's peek already done by another session reads nothing and adopts its number", early.source === 'constant' && outcome?.kind === 'skipped' && outcome.why === 'today' && outcome.adopted === NEWER_2 && registryReads === readsBefore, JSON.stringify(outcome))
@@ -498,7 +502,7 @@ if (typeof health.clientContractCheck === 'function') {
   check('an override is named as the source', overrideRow.evidence === `subscription door presents cc_version ${belowOverride} · MERCURY_ANTHROPIC_CLIENT_CONTRACT override`, overrideRow.evidence)
   const home = freshHome('holds')
   oauth.describeAnthropicClientContract()
-  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ version: 1, learned: { version: NEWER_2, learnedAtMs: Date.now(), from: 'another session', by: 'heal' } }))
+  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ learned: { version: NEWER_2, learnedAtMs: Date.now(), from: 'another session', by: 'heal' }, _v: 1 }))
   const holdsRow = await health.clientContractCheck().run()
   check('a newer number another session stored is named, with when this session presents it', holdsRow.evidence === `subscription door presents cc_version ${CONTRACT} · constant · MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version> overrides · the config home holds ${NEWER_2} (learned ${dayOf(Date.now())}), presented from the next start or the next too-old refusal`, holdsRow.evidence)
   const readsBefore = registryReads
@@ -516,7 +520,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   delete process.env.MERCURY_FAULT_INJECT
   check('a config home that refuses the claim reads the registry nothing and does not retry', refused.requests.length === 1 && registryReads === readsBefore, `${refused.requests.length} request(s), ${registryReads - readsBefore} read(s)`)
   check('the row says the read was not attempted and why, in one sentence', refused.refusalText.includes('the registry read was not attempted: the config home refused its record (EACCES) — not retried') && sentences(refused.refusalText) === 1, refused.refusalText)
-  check('nothing was written', readLearnedFile(home) === null, JSON.stringify(readLearnedFile(home)))
+  check('no claim, no learned number and no day stamp were saved (at most the empty store the kernel seeds before its lock)', holdsNothing(readLearnedFile(home)), JSON.stringify(readLearnedFile(home)))
   if (typeof health.clientContractCheck === 'function') {
     const row = await health.clientContractCheck().run()
     check('the doctor row names the refused claim', row.evidence.endsWith(' · the heal could not claim its registry read: the config home refused its record (EACCES)'), row.evidence)

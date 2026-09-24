@@ -109,7 +109,7 @@ const learnedHomes: string[] = []
 function describeWithLearned(version: string): ReturnType<typeof oauth.describeAnthropicClientContract> {
   const home = mkdtempSync(join(tmpdir(), 'client-contract-clock-'))
   learnedHomes.push(home)
-  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ version: 1, learned: { version, learnedAtMs: LEARNED_AT, from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', by: 'heal' } }))
+  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ learned: { version, learnedAtMs: LEARNED_AT, from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', by: 'heal' }, _v: 1 }))
   envUtils.setAuthScope(home)
   try {
     return oauth.describeAnthropicClientContract()
