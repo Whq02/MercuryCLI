@@ -67,7 +67,7 @@ async function leg(name: string, isolation: 'worktree' | undefined): Promise<voi
   if (runner.proc.exitCode === null) {
     const before = runner.frames.length
     runner.send(user(FOLLOW_UP, randomUUID()))
-    const follow = await runner.waitFor('the follow-up result', isResult, bound(60_000), before)
+    const follow = await runner.waitFor('the follow-up result', f => isResult(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
     tally.check('the seat answers the next message', follow !== null && follow.subtype === 'success' && fixture.requests.some(isFollowUp), String(follow?.subtype))
   } else {
     tally.check('the seat answers the next message', false, 'the seat had already exited')
