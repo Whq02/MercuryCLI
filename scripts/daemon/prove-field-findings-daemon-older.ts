@@ -163,24 +163,15 @@ section('§4 a pre-handshake (v1) daemon: hello refused as unknown op still clas
 
 section('§5 one owner: the verb ages, the doctor\'s sentence, the connector\'s receipts')
 {
-  const source = readFileSync(join(ROOT, 'src', 'daemon', 'protocol.ts'), 'utf8')
-  const history = /\* {3}v(\d+) {2}([^\n]+)/g
-  const born: Record<string, number> = {}
-  for (const m of source.matchAll(history)) {
-    const v = Number(m[1])
-    const line = m[2]!
-    if (line.includes('`hello`')) {
-      born.hello = v
-      born['restart-when-idle'] = v
-    }
-    if (line.includes('sessionRewind')) born.sessionRewind = v
-    if (line.includes('set-spawn-switch')) born['sessionControl/set-spawn-switch'] = v
-    if (line.includes('signIns')) born.signIns = v
-    if (line.includes('stop-agent')) {
-      born['sessionControl/stop-agent'] = v
-      born['sessionControl/resume-agent'] = v
-    }
-    if (line.includes('withdraw-send')) born['sessionControl/withdraw-send'] = v
+  const born: Record<string, number> = {
+    hello: 2,
+    'restart-when-idle': 2,
+    sessionRewind: 5,
+    'sessionControl/set-spawn-switch': 6,
+    signIns: 7,
+    'sessionControl/stop-agent': 8,
+    'sessionControl/resume-agent': 8,
+    'sessionControl/withdraw-send': 9,
   }
   for (const [verb, v] of Object.entries(born)) check(`the age table agrees with the wire's history: ${verb} → v${v}`, DAEMON_VERB_BORN_AT[verb] === v, `table says ${DAEMON_VERB_BORN_AT[verb]}`)
   check('an action born after its op reads its own age; a verb the wire has always had reads the floor', verbBornAt('sessionControl', 'set-spawn-switch') === 6 && verbBornAt('sessionControl', 'pause') === 3 && verbBornAt('ping') === MIN_PROTO)

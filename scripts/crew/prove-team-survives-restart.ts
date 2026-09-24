@@ -14,6 +14,7 @@ import {
   sleep,
   toolResultOf,
   treeOf,
+  TURN_MS,
 } from './team-world.ts'
 
 const TEAM = 'lasting'
@@ -69,8 +70,8 @@ let after: string[] = []
 try {
   tally.section('a team with a config, two inboxes with rows and a lease store, then the lead exits')
   first.submit(`${FIRST}: create the team, spawn alpha and beta, leave alpha a note.`)
-  await first.waitFor('the team never started', () => first.stdout().includes('TEAM-STARTED'))
-  const until = Date.now() + 30_000
+  await first.waitFor('the team never started', () => first.stdout().includes('TEAM-STARTED'), TURN_MS)
+  const until = Date.now() + TURN_MS / 3
   while (idleNotices() < 2 && Date.now() < until) await sleep(50)
   tally.check('both seats reported idle to the lead inbox', idleNotices() >= 2, `${idleNotices()} notice(s)`)
   tally.check("alpha's inbox holds the lead's note", inbox('alpha').some(row => row.text.includes('NOTE-FOR-ALPHA')))

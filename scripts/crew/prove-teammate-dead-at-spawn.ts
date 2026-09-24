@@ -12,6 +12,7 @@ import {
   record,
   sleep,
   toolResultOf,
+  TURN_MS,
   userTextsOf,
 } from './team-world.ts'
 
@@ -60,13 +61,13 @@ const failedNotice = (): InboxRow | undefined =>
 try {
   tally.section('the lead creates the team and spawns a seat whose first dispatch fails')
   session.submit(`${FIRST}: create the team and the ghost seat.`)
-  await session.waitFor('the lead never reported the spawn', () => session.stdout().includes('SPAWN-REPORTED'))
+  await session.waitFor('the lead never reported the spawn', () => session.stdout().includes('SPAWN-REPORTED'), TURN_MS)
   const spawnAnswer = toolResultOf(world, SPAWN_ID)
   tally.check('the Agent tool answered', spawnAnswer !== null)
   const answerText = spawnAnswer?.text ?? ''
   record('agent-tool-answer.txt', `${answerText}\nis_error=${String(spawnAnswer?.isError)}\n`)
 
-  const until = Date.now() + 30_000
+  const until = Date.now() + TURN_MS / 3
   while (failedNotice() === undefined && Date.now() < until) await sleep(50)
   const notice = failedNotice()
   record('team-lead-inbox.json', JSON.stringify(readJson(inboxPath), null, 2) + '\n')

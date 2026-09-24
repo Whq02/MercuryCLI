@@ -35,6 +35,15 @@ function check(name: string, cond: boolean, detail?: string): void {
     console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
   }
 }
+function closingBraceAfter(src: string, open: number): number {
+  if (open < 0 || src[open] !== '{') return -1
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}' && --depth === 0) return i
+  }
+  return -1
+}
 
 const PARENT = 'claude-opus-4-8'
 
@@ -226,7 +235,8 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'low' }) === 'low')
   check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === 'xhigh')
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
-  const scoped = runAgent.slice(runAgent.indexOf('const agentGetAppState'), runAgent.indexOf('// ── Hooks'))
+  const scopedAt = runAgent.indexOf('const agentGetAppState')
+  const scoped = runAgent.slice(scopedAt, closingBraceAfter(runAgent, scopedAt < 0 ? -1 : runAgent.indexOf('{', scopedAt)) + 1)
   const posture = readFileSync('src/tools/AgentTool/agentPermissionPosture.ts', 'utf-8')
   check(
     'the scoped state writes effortValue (the key dispatch reads) through the one posture owner',
