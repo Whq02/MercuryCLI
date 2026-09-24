@@ -12,7 +12,7 @@ import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '.
 import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
-import { workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
+import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -20,7 +20,7 @@ import { truncateKeepingTail } from '../utils/truncate.js'
 import { GLYPH, branchChip, branchChipWidth } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
-import { focusedWorkflowRows, useFocusedWorkRows } from './tasks/useFocusedWork.js'
+import { focusedWorkflowRows, useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'
 import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
@@ -140,6 +140,10 @@ export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewCloc
   }
 }
 
+export function waitingStatusWords(live: SessionLiveV1): string {
+  return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
+}
+
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
   if (s.hardStopping) return 'interrupting again — the request is torn down once more; x on its row stops the runner'
   if (s.interrupting) return 'interrupting — the request is torn down'
@@ -151,7 +155,7 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
     }
     if (live.phase === 'waiting') {
       if (compact) return 'waiting on background work'
-      return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
+      return waitingStatusWords(live)
     }
     if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
       return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`
@@ -213,6 +217,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
   const workRows = useFocusedWorkRows()
+  const samples = useFocusedSamples()
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
@@ -243,12 +248,13 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const words = held ?? resting
+  const spoken = withSampleWords(words ?? line, samples)
   const fixedWidth =
-    (words !== null ? 1 : 1 + stringWidth(status.projectLabel) + (line !== '' ? 3 : 0)) +
+    (words !== null ? 1 : 1 + stringWidth(status.projectLabel) + (spoken !== '' ? 3 : 0)) +
     (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
     2 +
     stringWidth(backHint)
-  const fitted = fitStatusLine(words ?? line, columns, fixedWidth)
+  const fitted = fitStatusLine(spoken, columns, fixedWidth)
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
