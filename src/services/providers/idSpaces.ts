@@ -1,4 +1,5 @@
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
+import { OPENAI_O_SERIES_ID_RE, OPENAI_O_SERIES_ID_SPELLING } from './openai/gptPins.js'
 
 export type CallModelRoute =
   | 'anthropic'
@@ -17,6 +18,7 @@ export interface ProviderIdSpace {
   qualifiedPrefix?: string
   barePrefixes?: readonly string[]
   bareAliases?: readonly string[]
+  barePatterns?: readonly { pattern: RegExp; spelled: string }[]
   innerGrammar?: 'segments-2' | 'named'
 }
 
@@ -26,7 +28,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'huggingface', qualifiedPrefix: 'huggingface/', innerGrammar: 'segments-2' },
   { route: 'local', qualifiedPrefix: 'local/', innerGrammar: 'named' },
   { route: 'zai', barePrefixes: ['glm-'], bareAliases: ['glm'] },
-  { route: 'openai', barePrefixes: ['gpt-'], bareAliases: ['gpt'] },
+  { route: 'openai', barePrefixes: ['gpt-'], bareAliases: ['gpt'], barePatterns: [{ pattern: OPENAI_O_SERIES_ID_RE, spelled: OPENAI_O_SERIES_ID_SPELLING }] },
   { route: 'moonshot', barePrefixes: ['kimi-', 'moonshot-'], bareAliases: ['kimi'] },
   { route: 'deepseek', barePrefixes: ['deepseek-'], bareAliases: ['deepseek'] },
   { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
@@ -90,6 +92,9 @@ export function recognizeModelId(
     if (space.barePrefixes?.some(prefix => lowered.startsWith(prefix))) {
       return { kind: 'declared', route: space.route }
     }
+    if (space.barePatterns?.some(shape => shape.pattern.test(lowered))) {
+      return { kind: 'declared', route: space.route }
+    }
   }
   if (lowered.includes('/')) return { kind: 'carrier-shaped' }
   for (const pin of FIRST_PARTY_MODEL_ENV_PINS) {
@@ -131,7 +136,7 @@ export function declaredIdSpacesLine(): string {
   const families = PROVIDER_ID_SPACES.map(space =>
     space.qualifiedPrefix !== undefined
       ? `${space.qualifiedPrefix}…`
-      : (space.barePrefixes ?? []).map(prefix => `${prefix}*`).join('/'),
+      : [...(space.barePrefixes ?? []).map(prefix => `${prefix}*`), ...(space.barePatterns ?? []).map(shape => shape.spelled)].join('/'),
   )
   return [`${FIRST_PARTY_ID_MARK}* (and the opus/sonnet/haiku/fable aliases)`, ...families].join(' · ')
 }

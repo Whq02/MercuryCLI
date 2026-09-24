@@ -42,6 +42,29 @@ export function parseGptModelId(id: string): GptModelIdentity | undefined {
   }
 }
 
+export const OPENAI_O_SERIES_ID_RE = /^o([1-9]\d*)(?:-([a-z0-9][a-z0-9-]*))?$/
+export const OPENAI_O_SERIES_ID_SPELLING = 'o<digit>*'
+
+export interface OSeriesModelIdentity {
+  family: 'o-series'
+  series: number
+  variant: string
+  canonicalId: string
+}
+
+export type OpenaiModelIdentity = GptModelIdentity | OSeriesModelIdentity
+
+export function parseOSeriesModelId(id: string): OSeriesModelIdentity | undefined {
+  const trimmed = stripGptServedWindowSuffix(id).trim().toLowerCase()
+  const match = OPENAI_O_SERIES_ID_RE.exec(trimmed)
+  if (!match) return undefined
+  return { family: 'o-series', series: Number(match[1]), variant: match[2] ?? '', canonicalId: trimmed }
+}
+
+export function parseOpenaiModelId(id: string): OpenaiModelIdentity | undefined {
+  return parseGptModelId(id) ?? parseOSeriesModelId(id)
+}
+
 
 export const WIRE_EFFORT_RANK: Record<string, number> = {
   none: 0,
