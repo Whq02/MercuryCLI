@@ -26,6 +26,7 @@ import { SessionIdentityOwner } from './runtime/session-identity.js'
 import { StatsHandleOwner } from './runtime/stats-handle.js'
 import { TurnAccountingOwner } from './runtime/turn-accounting.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
+import { resetJevLedger } from '../services/jev/jevLedger.js'
 
 export type ChannelEntry = RuntimeChannelEntry
 export type InvokedSkillInfo = RuntimeInvokedSkillInfo
@@ -213,6 +214,7 @@ export function getTotalUnpricedTurns(): number {
 
 export function resetCostState(): void {
   usageLedger.resetCostState()
+  resetJevLedger()
   apiCapture.promptId = null
 }
 

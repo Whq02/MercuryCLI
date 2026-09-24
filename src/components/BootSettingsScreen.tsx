@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { basename } from 'node:path';
 import { execFile } from 'node:child_process';
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { Box, useInput } from '../ink.js';
+import { Box, useInput, wrapText } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { getSessionId } from '../bootstrap/state.js';
 import { chatOnlyBoot, leaveCurrentSurface, enterConcourse, routeSurfaceRegistered, stripFacts } from '../context/surfaceRoute.js';
@@ -42,6 +42,16 @@ import {
   setMotionSetting,
   type MotionSetting,
 } from '../utils/cockpit/motionSetting.js';
+import { jevKeyPresence, jevKeySourceWords } from '../services/jev/jevKey.js';
+import {
+  JEV_MENU_ROW,
+  jevReceiptWords,
+  jevSettingLines,
+  jevValueWords,
+  readJevSettings,
+  setJevEnabled,
+} from '../services/jev/jevSetting.js';
+import { jevStatusLine } from '../services/jev/jevStatus.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
@@ -74,6 +84,24 @@ function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string
     if (sp !== undefined && menuRowChoices(row).some(c => c.value === profile.env[sp])) out[row.env] = profile.env[sp]!;
   }
   return out;
+}
+
+export const JEV_BOOT_DETAIL_WIDTH = 41;
+
+export function withJevRow(rows: readonly MenuRow[]): MenuRow[] {
+  const jev = JEV_MENU_ROW as MenuRow;
+  let after = -1;
+  rows.forEach((row, i) => {
+    if (row.group === jev.group) after = i;
+  });
+  if (after < 0) return [...rows, jev];
+  return [...rows.slice(0, after + 1), jev, ...rows.slice(after + 1)];
+}
+
+export function jevBootDetailLines(): string[] {
+  const settings = readJevSettings();
+  const facts = [jevStatusLine(), jevKeySourceWords(jevKeyPresence()), ...jevSettingLines(settings)];
+  return facts.flatMap(line => wrapText(line, JEV_BOOT_DETAIL_WIDTH, 'wrap').split('\n'));
 }
 
 interface WorkerApplySummary {
@@ -136,13 +164,24 @@ export function BootSettingsScreen({
   }, [seatsTick, saveTick]);
   const [motionTick, setMotionTick] = useState(0);
   const motionSetting = useMemo(() => readMotionSetting(), [motionTick, saveTick]);
-  const menuRows = useMemo<readonly MenuRow[]>(() => [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
+  const [jevTick, setJevTick] = useState(0);
+  const jevSettings = useMemo(() => readJevSettings(), [jevTick, saveTick]);
+  const jevDetailLines = useMemo(() => jevBootDetailLines(), [jevTick, saveTick]);
+  const menuRows = useMemo<readonly MenuRow[]>(() => [...withJevRow(STARTUP_MENU), SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
   const isSeatsRow = (row: MenuRow): boolean => row.env === SEATS_MENU_ROW.env;
   const isMotionRow = (row: MenuRow): boolean => row.env === MOTION_MENU_ROW.env;
+  const isJevRow = (row: MenuRow): boolean => row.env === JEV_MENU_ROW.env;
   const commitMotion = (next: MotionSetting): string => {
     setMotionSetting(next);
     setMotionTick(n => n + 1);
     const words = motionReceiptWords(next);
+    setLastReceipt(words);
+    return words;
+  };
+  const commitJev = (next: boolean): string => {
+    const settings = setJevEnabled(next);
+    setJevTick(n => n + 1);
+    const words = jevReceiptWords(settings);
     setLastReceipt(words);
     return words;
   };
@@ -252,6 +291,7 @@ export function BootSettingsScreen({
   const commitRow = (row: MenuRow, value: string | null): string => {
     if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));
     if (isMotionRow(row)) return commitMotion(value === null ? 'auto' : (value as MotionSetting));
+    if (isJevRow(row)) return commitJev(value === 'on');
     const env: Record<string, string> = { ...saved };
     if (value === null) delete env[row.env];
     else env[row.env] = value;
@@ -276,6 +316,7 @@ export function BootSettingsScreen({
       const at = MOTION_SETTINGS.indexOf(motionSetting);
       return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
     }
+    if (isJevRow(row)) return commitJev(!jevSettings.enabled);
     const choices = menuRowChoices(row);
     const currentValue = saved[row.env] ?? null;
     const idx = Math.max(0, choices.findIndex(c => c.value === currentValue));
@@ -386,6 +427,18 @@ export function BootSettingsScreen({
           detailExtra: motionDetailLines(),
         };
       }
+      if (isJevRow(row)) {
+        return {
+          label: row.label,
+          group: row.group,
+          summary: row.summary,
+          valueLabel: jevValueWords(jevSettings),
+          valueIsDefault: !jevSettings.enabled,
+          pinnedVal: null,
+          detail: row.detail ?? null,
+          detailExtra: jevDetailLines,
+        };
+      }
       const effective = effectiveByEnv.get(row.env);
       const envPinned = effective?.source === 'process-env';
       return {
@@ -440,7 +493,7 @@ export function BootSettingsScreen({
         : {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, effectiveByEnv, seatFacts, motionSetting, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {

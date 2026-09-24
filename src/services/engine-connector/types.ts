@@ -11,6 +11,7 @@ import type { AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
+import type { JevStatusKind } from '../jev/jevContract.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 
@@ -109,6 +110,20 @@ export type UsageFactsV1 = {
   geminiWindow?: LaneWindowFactV1
   openrouterWindow?: LaneWindowFactV1
   huggingfaceWindow?: LaneWindowFactV1
+  jev?: JevFactsV1
+}
+
+export type JevFactsV1 = {
+  spendUsd: number
+  calls: number
+  attempts: number
+  inputTokens: number
+  unconfirmedCharges: number
+  holdUntilMs: number
+  refusals: number
+  lastAnsweredAtMs: number | null
+  lastModel: string | null
+  status: { kind: JevStatusKind; words: string }
 }
 
 export type OpenaiObservedBandV1 = {

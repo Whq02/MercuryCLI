@@ -60,6 +60,7 @@ import { BlenderTool } from './tools/BlenderTool/BlenderTool.js'
 import { AsepriteTool } from './tools/AsepriteTool/AsepriteTool.js'
 import { GrepTool } from './tools/GrepTool/GrepTool.js'
 import { InspectTool } from './tools/InspectTool/InspectTool.js'
+import { JevEvalTool, jevEvalEnabled } from './tools/JevEvalTool/JevEvalTool.js'
 import { JourneyTool } from './tools/JourneyTool/JourneyTool.js'
 import { LaunchFleetTool } from './tools/LaunchFleetTool/LaunchFleetTool.js'
 import { LaunchTool } from './tools/LaunchTool/LaunchTool.js'
@@ -217,6 +218,7 @@ export function getAllBaseTools(): Tools {
     ...(blenderBridgeToolCatalogEnabled() ? [BlenderTool] : []),
     ...(asepriteToolCatalogEnabled() ? [AsepriteTool] : []),
     ...(isAutopilotEnabled() ? [SetTierTool] : []),
+    ...(jevEvalEnabled() ? [JevEvalTool] : []),
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,

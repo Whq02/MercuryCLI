@@ -69,6 +69,14 @@ const BAND: KeyTable = {
   resetsAtMs: 'resets_at_ms',
   observedAtMs: 'observed_at_ms',
 }
+const JEV: KeyTable = {
+  spendUsd: 'spend_usd',
+  inputTokens: 'input_tokens',
+  unconfirmedCharges: 'unconfirmed_charges',
+  holdUntilMs: 'hold_until_ms',
+  lastAnsweredAtMs: 'last_answered_at_ms',
+  lastModel: 'last_model',
+}
 const IDENTITY: KeyTable = {
   firstPartyApi: 'first_party_api',
   consoleBilling: 'console_billing',
@@ -210,6 +218,7 @@ function usageNested(
   openaiWindowKey: string,
   laneWindowTable: KeyTable,
   laneWindowKeys: readonly string[],
+  jevTable: KeyTable,
 ): (out: Row) => void {
   return out => {
     const observed = out[observedKey]
@@ -228,6 +237,8 @@ function usageNested(
       const laneWindow = out[key]
       if (isRow(laneWindow)) out[key] = renamed(laneWindow, laneWindowTable)
     }
+    const jev = out.jev
+    if (isRow(jev)) out.jev = renamed(jev, jevTable)
     void table
   }
 }
@@ -282,7 +293,7 @@ function factsNested(direction: 'to' | 'from'): (out: Row) => void {
   const laneWindowKeys = direction === 'to' ? ['gemini_window', 'openrouter_window', 'huggingface_window'] : ['geminiWindow', 'openrouterWindow', 'huggingfaceWindow']
   const catalogueKey = direction === 'to' ? 'openai_catalogue' : 'openaiCatalogue'
   return out => {
-    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey, t(OPENAI_WINDOW), openaiWindowKey, t(LANE_WINDOW), laneWindowKeys))
+    out.usage = row(out.usage, t(USAGE), usageNested(t(USAGE), t(BAND), observedKey, t(ANTHROPIC_WINDOW), windowKey, t(OPENAI_WINDOW), openaiWindowKey, t(LANE_WINDOW), laneWindowKeys, t(JEV)))
     out.identity = row(out.identity, t(IDENTITY))
     out.workspace = row(out.workspace, t(WORKSPACE))
     if (workKey in out) out[workKey] = rows(out[workKey], t(WORK_ROW), workRowNested(t(WORK_PULSE), t(AGENT_WAIT), t(AGENT_PAUSE)))

@@ -1,0 +1,5 @@
+{
+  "bytes": 5352,
+  "measures": "UTF-8 bytes of JSON.stringify({ name, description: JevEvalTool.prompt(), input_schema }) — the entry the tool adds to every request's tool list when the switch is on and a key is stored",
+  "rule": "a ratchet: prove-jev-roster.ts is red when the measured bytes pass this figure; raise it only with the reason in the commit message, and lower it to the measured figure whenever the prompt or the schema shrinks"
+}
