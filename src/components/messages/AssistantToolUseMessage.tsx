@@ -1,5 +1,5 @@
 
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { ProgressMessage } from '../../types/message.js'
@@ -8,13 +8,24 @@ import type { Tools } from '../../Tool.js'
 import { filterToolProgressMessages, safeUserFacingName } from '../../Tool.js'
 import { findToolForRender } from '../../tools/MCPTool/absentToolShim.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
 import { logError } from '../../utils/log.js'
 import type { MessageLookups } from '../../utils/messages/lookups.js'
 import { summarizeToolResult } from '../../utils/toolResultSummary.js'
+import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
+import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snapshot.js'
 import { useFluxMountMark } from '../../hooks/useFluxMountMark.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTerminalFocus } from '../../ink/hooks/use-terminal-focus.js'
+import { useActionAffordance } from '../../keybindings/useShortcutDisplay.js'
+import {
+  BACKGROUND_HINT_ACTION,
+  BACKGROUND_HINT_AFTER_MS,
+  BACKGROUND_HINT_WORDS,
+  useFocusedShellToolRunning,
+} from '../../services/engine-connector/shellRunning.js'
+import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { toolMarkFor, toolToneFor } from '../mercury-ui/toolGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -70,6 +81,31 @@ export function RunningToolElapsed({
   const elapsedMs = Date.now() - startedAt
   if (elapsedMs < ELAPSED_VISIBLE_MS) return null
   return <Text dimColor> · {Math.floor(elapsedMs / 1000)}s</Text>
+}
+
+export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactNode {
+  const reducedMotion =
+    useAppStateMaybeOutsideOfProvider(
+      state => state.settings.prefersReducedMotion,
+    ) ?? false
+  const focused = useTerminalFocus()
+  const shellHere = useFocusedShellToolRunning(id)
+  useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
+  const affordance = useActionAffordance(BACKGROUND_HINT_ACTION, 'Chat')
+  const chord = affordance.kind === 'bound' ? affordance.chord : null
+  const offered = shellHere && chord !== null && getSettingsSnapshot().settings.backgroundKey !== false
+  useNowTick(offered && focused && !reducedMotion ? ELAPSED_TICK_MS : null)
+  if (!offered || chord === null) return null
+  if (!toolStartStamps.has(id)) seedStamp(id, Date.now())
+  const startedAt = toolStartStamps.get(id) ?? Date.now()
+  if (Date.now() - startedAt < BACKGROUND_HINT_AFTER_MS) return null
+  return (
+    <Box paddingLeft={4}>
+      <Text dimColor>
+        <KeyboardShortcutHint shortcut={chord} action={BACKGROUND_HINT_WORDS} />
+      </Text>
+    </Box>
+  )
 }
 
 
@@ -332,6 +368,9 @@ export function AssistantToolUseMessage({
         </MessageResponse>
       ) : null}
       {running ? renderProgressBody() : null}
+      {running && shouldAnimate && !isTranscriptMode && param.name === BASH_TOOL_NAME ? (
+        <RunningShellBackgroundHint id={param.id} />
+      ) : null}
       {queuedMessage !== null ? (
         <MessageResponse>{queuedMessage}</MessageResponse>
       ) : null}
