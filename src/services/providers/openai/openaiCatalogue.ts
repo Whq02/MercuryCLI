@@ -19,29 +19,26 @@ export const OPENAI_ADAPTER_DIGEST = 'openai-responses-adapter@1:sse-fold@1:stat
 import {
   gptDisplayPin,
   nearestSupportedWireEffort,
-  parseOpenaiModelId,
+  parseGptModelId,
   stripGptServedWindowSuffix,
   wireEffortForListDefault,
   type GptDisplayPin,
-  type OpenaiModelIdentity,
+  type GptModelIdentity,
 } from './gptPins.js'
 
 export {
   GPT_DISPLAY_PINS,
   GPT_SERVED_WINDOW_SUFFIX,
-  OPENAI_O_SERIES_ID_RE,
   WIRE_EFFORT_RANK,
   gptDisplayName,
   gptDisplayPin,
   hasGptServedWindowSuffix,
   nearestSupportedWireEffort,
   parseGptModelId,
-  parseOSeriesModelId,
-  parseOpenaiModelId,
   stripGptServedWindowSuffix,
   withGptServedWindowSuffix,
 } from './gptPins.js'
-export type { GptDisplayPin, GptModelIdentity, OSeriesModelIdentity, OpenaiModelIdentity } from './gptPins.js'
+export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
 
 
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000
@@ -227,7 +224,7 @@ export interface GptQualificationReceipt {
 }
 
 export interface GptCandidate {
-  identity: OpenaiModelIdentity
+  identity: GptModelIdentity
   live: OpenaiLiveModel
   displayName: string
   pin?: GptDisplayPin
@@ -246,7 +243,7 @@ export function evaluateGptCandidate(
   modelId: string,
   sourceKind: OpenaiAccountSourceKind,
 ): { ok: true; candidate: GptCandidate } | { ok: false; why: GptDisqualification } {
-  const identity = parseOpenaiModelId(modelId)
+  const identity = parseGptModelId(modelId)
   if (!identity) {
     return modelId.trim().toLowerCase().startsWith('gpt')
       ? { ok: false, why: { reason: 'unparseable-id' } }
@@ -277,14 +274,10 @@ export function evaluateGptCandidate(
     candidate: {
       identity,
       live: rowAsWireServes(live, sourceKind),
-      displayName: identity.family === 'gpt' ? (live.displayName ?? pin?.displayName ?? identity.canonicalId) : identity.canonicalId,
+      displayName: live.displayName ?? pin?.displayName ?? identity.canonicalId,
       ...(pin ? { pin } : {}),
     },
   }
-}
-
-export function gptClassCandidate(role: ApexGptRole, sourceKind: OpenaiAccountSourceKind): GptCandidate | undefined {
-  return qualifiedGptCandidates(role, sourceKind).find(candidate => candidate.identity.family === 'gpt')
 }
 
 export function qualifiedGptCandidates(
@@ -426,7 +419,7 @@ export function liveGptContextCeiling(modelId: string): number | undefined {
 }
 
 function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
-  const identity = parseOpenaiModelId(modelId)
+  const identity = parseGptModelId(modelId)
   if (!identity) return undefined
   const discovery = primeOpenaiDiscovery()
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
@@ -463,7 +456,7 @@ export function liveGptDefaultEffort(modelId: string): string | undefined {
 }
 
 export function liveGptListedEffortWords(modelId: string): readonly string[] | undefined {
-  const identity = parseOpenaiModelId(modelId)
+  const identity = parseGptModelId(modelId)
   if (!identity) return undefined
   const discovery = primeOpenaiDiscovery()
   const account = discovery?.provider === 'openai' ? discovery.account : undefined

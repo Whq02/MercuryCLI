@@ -368,11 +368,6 @@ function unavailableGptRow(
   }
 }
 
-function openaiRawRowDescription(id: string, vendorName: string | undefined, source: string): string {
-  const name = vendorName !== undefined ? ` (the vendor names it "${vendorName}")` : ''
-  return `${id} — listed live by the connected ${source}${name}; outside the gpt- grammar, so it is served under its raw id with the OpenAI family's defaults on the native OpenAI Responses engine, billed to the connected ${source}.`
-}
-
 export function gptCatalogueRefusalWords(modelId: string): string | undefined {
   const availability = getGptSeatAvailability()
   if (availability.state !== 'ready') return undefined
@@ -420,16 +415,6 @@ function getQualifiedGptOptions(): ModelOption[] {
   for (const candidate of qualifiedGptCandidates('primary', availability.sourceKind)) {
     const id = candidate.identity.canonicalId
     listed.add(id)
-    if (candidate.identity.family !== 'gpt') {
-      out.push({
-        value: id,
-        label: id,
-        description: '',
-        descriptionForModel: openaiRawRowDescription(id, candidate.live.displayName, source),
-        group: OPENAI_MODEL_GROUP,
-      })
-      continue
-    }
     const label = gptDisplayName(id) ?? candidate.displayName
     out.push({
       value: id,

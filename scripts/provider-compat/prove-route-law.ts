@@ -46,8 +46,6 @@ const routes: Array<[string | undefined, string]> = [
   ['glm-5.2', 'zai'],
   ['gpt', 'openai'],
   ['gpt-5.6-sol', 'openai'],
-  ['o3-mini', 'openai'],
-  ['o5-preview', 'openai'],
   ['kimi', 'moonshot'],
   ['kimi-k3', 'moonshot'],
   ['kimi-k2.7-code', 'moonshot'],
@@ -272,7 +270,6 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
     ['us.anthropic.claude-opus-5-v1:0', 'route'], ['opus', 'route'], ['sonnet5', 'route'],
     ['banana-brew-9', 'unrecognised'], ['Qwen/Qwen3.8-2.4T-A95B', 'unrecognised'],
     [' deepseek-v4-pro ', 'route'], ['gpt-5.6-sol[served]', 'route'], ['', 'absence'], [undefined, 'absence'],
-    ['o5-preview', 'route'], ['O3', 'route'], ['o1-2024-12-17', 'route'], ['o5-preview[served]', 'route'], ['o-mini', 'unrecognised'], ['openai/o5', 'unrecognised'],
   ]
   check(
     'TOTALITY across the matrix: every id lands exactly its honest kind',

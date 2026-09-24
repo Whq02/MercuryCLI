@@ -18,7 +18,7 @@ import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
   listMarksDelegationLead,
-  parseOpenaiModelId,
+  parseGptModelId,
 } from '../../services/providers/openai/gptPins.js'
 import {
   liveGptContextWindow,
@@ -172,7 +172,7 @@ export type GptEffortVocabularyView =
   | { state: 'unavailable' }
 
 export function gptEffortVocabularyView(model: string): GptEffortVocabularyView {
-  const identity = parseOpenaiModelId(model)
+  const identity = parseGptModelId(model)
   if (!identity) return { state: 'not-gpt' }
   const catalogue = liveGptEffortCatalogue(identity.canonicalId)
   if (!catalogue) return { state: 'unavailable' }
@@ -339,7 +339,7 @@ export function gptModelDefaultEffort(model: string): EffortLevel | undefined {
 }
 
 export function gptModelDefaultEffortRaw(model: string): string | undefined {
-  const identity = parseOpenaiModelId(model)
+  const identity = parseGptModelId(model)
   if (!identity) return undefined
   return liveGptDefaultEffort(identity.canonicalId)
 }
@@ -478,7 +478,7 @@ export function resolveContextWindow(
       }
     }
     const gptBase = model.replace(/\[1m\]/i, '')
-    if (!parseOpenaiModelId(gptBase)) {
+    if (!parseGptModelId(gptBase)) {
       return finish({ effectiveWindow: 1_000_000, source: 'suffix-1m' })
     }
     const base = resolveContextWindow(gptBase, betas, requestedMode)

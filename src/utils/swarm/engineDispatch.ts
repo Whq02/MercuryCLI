@@ -1,7 +1,5 @@
 import {
   evaluateGptCandidate,
-  gptClassCandidate,
-  parseOpenaiModelId,
   qualifiedGptCandidates,
   refreshOpenaiCatalogue,
   GPT_DISPLAY_PINS,
@@ -58,7 +56,6 @@ export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
     /^(gpt|glm|kimi|moonshot|deepseek|gemini)-/i.test(v.trim()) ||
-    parseOpenaiModelId(v) !== undefined ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
@@ -66,7 +63,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-const ENGINE_ID_SHAPES = 'gpt-*, o<digit>*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -116,7 +113,7 @@ async function resolveGptClassDispatch(): Promise<EngineDispatch> {
     )
   }
   const snapshot = await refreshOpenaiCatalogue(account.kind)
-  const head = gptClassCandidate('specialist', account.kind)
+  const head = qualifiedGptCandidates('specialist', account.kind)[0]
   if (!head) {
     throw new Error(
       snapshot?.lastError
@@ -356,7 +353,7 @@ export async function resolveEngineDispatch(
   }
   if (isExactEngineModelId(modelParam)) {
     const id = modelParam!.trim()
-    if (declaredRouteOf(id) === 'openai') {
+    if (/^gpt-/i.test(id)) {
       await requireProviderAvailable('openai')
       return resolveGptExactModel(id.toLowerCase())
     }

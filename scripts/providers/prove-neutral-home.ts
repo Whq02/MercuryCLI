@@ -202,9 +202,6 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
   check('an id no family declares is UNRECOGNISED — never first-party by remainder', kind('foo-bar-9') === 'unrecognised' && kind('nemotron-nano') === 'unrecognised')
   check('the reason names the id and every declared family from the table',
     /'foo-bar-9'/.test(unrecognisedModelIdReason('foo-bar-9')) && /openrouter\/…/.test(declaredIdSpacesLine()) && /gpt-\*/.test(declaredIdSpacesLine()) && /claude-\*/.test(declaredIdSpacesLine()))
-  check('the OpenAI family names its o-series shape beside gpt-* (o<digit>*), anchored on a digit so no first-party alias is captured',
-    /gpt-\*\/o<digit>\*/.test(declaredIdSpacesLine()) && kind('o5-preview') === 'declared:openai' && kind('o3') === 'declared:openai' && kind('opus') === 'first-party:alias' && kind('opus5') === 'first-party:alias' && kind('opus55') === 'first-party:alias' && kind('opusplan') === 'first-party:alias' && kind('o-mini') === 'unrecognised' && kind('o') === 'unrecognised',
-    declaredIdSpacesLine())
 
   const firstPartyNoFact = { firstPartyBaseUrl: () => true, env: {} }
   const refusal = homeLaneAdmissionRefusal('foo-bar-9', firstPartyNoFact)
