@@ -11,8 +11,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 writeFileSync(join(process.env.MERCURY_CONFIG_DIR, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-claude-access', refreshToken: 'fixture-claude-refresh', expiresAt: Date.now() + 86_400_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max', rateLimitTier: 'default_claude_max_20x' } }), { mode: 0o600 })
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.OPENAI_API_KEY = 'sk-fixture-catalogue-refresh'
-process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9/v1'
-process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9/openai/v1'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9/anthropic'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_CRITTER_IDLE = '0'
@@ -29,6 +29,10 @@ const catalogue = await import('../../src/services/providers/openai/openaiCatalo
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const stripAnsi = (await import('strip-ansi')).default
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 150))
+const settle = async (seen: () => string, ok: (frame: string) => boolean, ms = 3000): Promise<void> => {
+  const until = Date.now() + ms
+  while (!ok(seen()) && Date.now() < until) await flush()
+}
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -46,8 +50,14 @@ check('the cache is primed within its freshness span', primed !== null && Date.n
 let requests = 0
 let answer: ((response: Response) => void) | undefined
 const realFetch = globalThis.fetch
+let doorRequests = 0
 const fetchFixture = (async (url: string | URL | Request) => {
-  if (!String(url).includes('/models')) throw new Error(`Unexpected request: ${url}`)
+  const spelled = String(url instanceof Request ? url.url : url)
+  if (spelled.includes('/anthropic/v1/models')) {
+    doorRequests++
+    return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
+  }
+  if (!spelled.includes('/openai/v1/models')) throw new Error(`Unexpected request: ${spelled}`)
   requests++
   return new Promise<Response>(resolve => { answer = resolve })
 }) as typeof fetch
@@ -67,8 +77,11 @@ const mount = async (model = 'gpt-5.6-sol') => {
 
 try {
   const first = await mount()
-  check('the open paints the cached rows without waiting for the request', first.seen().includes('GPT-5.6 Terra') && first.seen().includes('GPT-5.6 Sol'))
+  await settle(first.seen, frame => frame.includes('GPT-5.6 Terra') && frame.includes('GPT-5.6 Sol'))
+  check('the open paints the cached rows without waiting for the request (the request is still held)', first.seen().includes('GPT-5.6 Terra') && first.seen().includes('GPT-5.6 Sol') && answer !== undefined, `requests ${requests}`)
   check('the open starts one background refresh despite the primed cache', requests === 1, `requests ${requests}`)
+  const { anthropicDoors } = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+  check('each signed-in Anthropic door read its own list once on the same open, counted apart from the GPT refresh', doorRequests === anthropicDoors().length && doorRequests >= 1, `doors ${anthropicDoors().length} door requests ${doorRequests}`)
   first.rerender()
   await flush()
   check('a re-render does not start another refresh', requests === 1, `requests ${requests}`)

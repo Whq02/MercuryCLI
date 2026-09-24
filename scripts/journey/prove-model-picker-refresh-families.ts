@@ -9,7 +9,7 @@ import { PassThrough } from 'node:stream'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'model-refresh-families-pure-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 writeFileSync(join(process.env.MERCURY_CONFIG_DIR, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-claude-access', refreshToken: 'fixture-claude-refresh', expiresAt: Date.now() + 86_400_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max', rateLimitTier: 'default_claude_max_20x' } }), { mode: 0o600 })
-process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9/anthropic'
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9/v1'
 process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:9/or/v1'
 process.env.MERCURY_GEMINI_API_BASE = 'http://127.0.0.1:9/gemini/v1beta'
@@ -166,6 +166,7 @@ const familyOfUrl = (url: string): FamilyName | undefined => {
 }
 const fetchFixture = (async (input: string | URL | Request) => {
   const url = String(input instanceof Request ? input.url : input)
+  if (url.includes('/anthropic/v1/models')) return json({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }, 404)
   const family = familyOfUrl(url)
   if (family === undefined) throw new Error(`Unexpected request: ${url}`)
   const spec = FAMILIES.find(f => f.name === family)!
@@ -230,7 +231,8 @@ try {
     const base = requests[spec.name]
 
     const first = await mount(spec.model)
-    check(`${spec.word}: the open paints the cached rows without waiting for the request`, live(first.seen(), spec.oldName) && live(first.seen(), spec.keepName), first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | '))
+    await settle(first.seen, frame => live(frame, spec.oldName) && live(frame, spec.keepName))
+    check(`${spec.word}: the open paints the cached rows without waiting for the request (the request stays held while they paint)`, live(first.seen(), spec.oldName) && live(first.seen(), spec.keepName) && held?.family === spec.name, first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | ') || `held ${held?.family ?? 'nothing'}; frame ${first.seen().length} chars`)
     check(`${spec.word}: the open starts one background refresh despite the primed cache`, requests[spec.name] === base + 1, `requests ${requests[spec.name] - base}`)
     first.rerender()
     await flush()
