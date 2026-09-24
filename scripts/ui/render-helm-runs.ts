@@ -66,7 +66,7 @@ expect('run row carries a work glyph before the title', /[◐◓◑◒] sleep 30
 expect('run row verb is `shell <elapsed>`', /sleep 300 · shell \d+[sm]/.test(t))
 expect('busy branch: CREW lane present', /CREW ·/.test(t))
 expect('solo NEXT hints replaced by the busy layout', !/NEXT/.test(t))
-expect('TASKS header is ledger-only (no `· N open` conflation)', /TASKS(?! · \d+ open)/.test(t))
+expect('no TASKS card on the rail (RUNS is the one door to /tasks)', !/TASKS/.test(t) && !/no open tasks/.test(t))
 
 console.log('\n▶ drill: ↵ on the RUNS row opens the process card')
 const d = text(capture(120, 'cockpit-runs-drill'))
