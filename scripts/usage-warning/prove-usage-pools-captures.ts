@@ -164,8 +164,8 @@ console.log('============================================================')
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '', atTick: 999, awaitText: 'of Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
-        { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '', atTick: 999, awaitText: 'of the Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
+        { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
         { data: '', atTick: 999, awaitText: 'Sonnet', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'pools' },
       ],
@@ -204,7 +204,7 @@ console.log('============================================================')
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
         { data: '', atTick: 999, awaitText: '87%', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'band' },
       ],
@@ -239,7 +239,7 @@ console.log('============================================================')
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-        { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: CLICK_ABOVE, atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4, mark: 'open' },
         { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'closed' },
       ],
@@ -253,9 +253,9 @@ console.log('============================================================')
   const open = marks.open ?? ''
   const closed = marks.closed ?? ''
   const openRows = open.split('\n')
-  const tabsRow = (rows: string[]): number => rows.findIndex(l => l.includes('Settings') && l.includes('Config') && l.includes('Usage'))
-  check('the panel stood under the cockpit: its tabs row below row 5, the session box title above it', tabsRow(openRows) > 5 && openRows.slice(0, 5).some(l => l.includes('✶ VIEW')), `tabs at row ${tabsRow(openRows)}`)
-  check('the click on the cockpit above the panel closed it: the tabs and the meters are gone, the hints are back', tabsRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), closed.split('\n').filter(l => l.includes('Usage') || l.includes('Current week')).join(' | ') || '(no such rows)')
+  const titleRow = (rows: string[]): number => rows.findIndex(l => l.includes('Mercury · usage'))
+  check('the panel stood under the cockpit: its title row below row 5, the session box title above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => l.includes('✶ VIEW')), `title at row ${titleRow(openRows)}`)
+  check('the click on the cockpit above the panel closed it: the title and the meters are gone, the hints are back', titleRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), closed.split('\n').filter(l => l.includes('usage') || l.includes('Current week')).join(' | ') || '(no such rows)')
 }
 
 console.log(failures === 0 ? '\n✅ prove-usage-pools-captures — all checks pass' : '\n❌ prove-usage-pools-captures — check(s) failed')
