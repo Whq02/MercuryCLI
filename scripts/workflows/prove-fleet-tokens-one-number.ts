@@ -265,7 +265,7 @@ const driven = async (shapes: Record<'opus-one' | 'opus-two' | 'sol', Shape>, ti
 
 const mixed = await driven({ 'opus-one': 'anthropic', 'opus-two': 'anthropic', sol: 'openai' }, 'mixed')
 
-section('§A the run figure is the sum of the agent rows at EVERY frame (the base holds this by accident for the context sum but not for the figure the agent lane paints)')
+section('§A the run figure is the sum of the agent rows at EVERY frame (the context sum used to hold this by accident; the figure the agent lane paints did not)')
 {
   let bad = mixed.snapshots.find(s => s.totalTokens !== s.rows.reduce((n, r) => n + rowFigure(r), 0))
   check(`the run Tok equals the sum of the figures the agent lanes paint, at all ${mixed.snapshots.length} frames`, bad === undefined, bad === undefined ? '' : `${bad.at}: ${figures(bad)}`)
@@ -273,7 +273,7 @@ section('§A the run figure is the sum of the agent rows at EVERY frame (the bas
   check('the run Tok equals the spend of the run rollup (the header and the run detail pane agree) at every frame', bad === undefined, bad === undefined ? '' : `${bad.at}: ${figures(bad)}`)
 }
 
-section("§B each agent's row is fresh input + output of its SETTLED responses — the cache fields do not enter, the newest response's prompt size does not enter (RED on the base: the row is the newest response's context, cache read inside)")
+section("§B each agent's row is fresh input + output of its SETTLED responses — the cache fields do not enter, the newest response's prompt size does not enter (the row used to be the newest response's context, cache read inside)")
 {
   const f = mixed.marks.final
   const expect = (name: string, word: string, rs: Resp[]): void => {
@@ -290,7 +290,7 @@ section("§B each agent's row is fresh input + output of its SETTLED responses �
   check('the cached prefix of every response stays outside the run Tok', f.totalTokens < [...OPUS_ONE, ...OPUS_TWO, ...SOL].reduce((n, r) => n + r.input + r.cacheRead + r.cacheWrite + r.output, 0))
 }
 
-section('§C while agents still run and a response has settled anywhere, the run paints a figure, never the dash (RED on the base: the OpenAI-shaped agent adds 0 until it lands and the Anthropic-shaped ones have yielded nothing)')
+section('§C while agents still run and a response has settled anywhere, the run paints a figure, never the dash (the OpenAI-shaped agent used to add 0 until it landed, and the Anthropic-shaped ones had yielded nothing)')
 {
   const t = mixed.marks.underTest
   check(`the run Tok is > 0 at the frame under test (${t.totalTokens})`, t.totalTokens > 0, figures(t))
@@ -303,7 +303,7 @@ section('§C while agents still run and a response has settled anywhere, the run
   check(`§D the same on the Anthropic shape: right after opus-one's first response settled its row is ${fresh(OPUS_ONE[0]!)}, the run Tok ${fresh(OPUS_ONE[0]!) + freshOf(SOL.slice(0, 2))}`, rowFigure(rowOf(o0, 'opus-one')!) === fresh(OPUS_ONE[0]!) && o0.totalTokens === fresh(OPUS_ONE[0]!) + freshOf(SOL.slice(0, 2)), figures(o0))
 }
 
-section("§E a landed agent's row is its final settled sum: no jump at the settle (RED on the base: the last progress frame carries the newest response's arrival-time size, the done frame its settled size)")
+section("§E a landed agent's row is its final settled sum: no jump at the settle (the last progress frame used to carry the newest response's arrival-time size, the done frame its settled size)")
 {
   for (const [name, rs] of [['opus-one', OPUS_ONE], ['opus-two', OPUS_TWO], ['sol', SOL]] as const) {
     const lastProgress = [...mixed.snapshots].reverse().find(s => s.frame.label === name && s.frame.state === 'progress')
@@ -314,7 +314,7 @@ section("§E a landed agent's row is its final settled sum: no jump at the settl
   }
 }
 
-section("§G a frame that carries a wait keeps the agent's figure (RED on the base: the first-byte wait frame replaces the row with no tokens and the run Tok drops)")
+section("§G a frame that carries a wait keeps the agent's figure (the first-byte wait frame used to replace the row with no tokens, and the run Tok dropped)")
 {
   const b = mixed.marks.beforeWait
   const a = mixed.marks.afterWait
@@ -324,7 +324,7 @@ section("§G a frame that carries a wait keeps the agent's figure (RED on the ba
   check('the waiting agent row still carries its figure and its record', row !== undefined && row.waiting === 'prefill' && rowFigure(row) === fresh(OPUS_ONE[0]!) && row.tokens === fresh(OPUS_ONE[0]!), row === undefined ? 'no row' : `waiting ${String(row.waiting)} · tokens ${String(row.tokens)} · painted ${rowFigure(row)}`)
 }
 
-section('§F a mixed run behaves as a single-family run: the same responses give the same Tok at every frame whatever the dialect wrote at yield time (RED on the base: the all-OpenAI run reads 0 where the all-Anthropic run reads the context)')
+section('§F a mixed run behaves as a single-family run: the same responses give the same Tok at every frame whatever the dialect wrote at yield time (the all-OpenAI run used to read 0 where the all-Anthropic run read the context)')
 {
   const anthropic = await driven({ 'opus-one': 'anthropic', 'opus-two': 'anthropic', sol: 'anthropic' }, 'anthropic')
   const openai = await driven({ 'opus-one': 'openai', 'opus-two': 'openai', sol: 'openai' }, 'openai')
