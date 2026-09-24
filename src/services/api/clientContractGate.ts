@@ -4,3 +4,8 @@ export function clientContractGateText(text: string): boolean {
     text.includes('claude_code_version_too_old')
   )
 }
+
+export function isClientContractRefusalError(error: unknown): boolean {
+  const record = error as { status?: unknown; message?: unknown } | null
+  return record?.status === 400 && typeof record.message === 'string' && clientContractGateText(record.message)
+}
