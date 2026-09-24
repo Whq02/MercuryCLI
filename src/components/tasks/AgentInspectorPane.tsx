@@ -221,7 +221,7 @@ export function AgentInspectorPane({
   if (view?.usage && view.usage.contextTokens > 0) usageBits.push(`${GLYPH.tokens} ${formatTokens(view.usage.contextTokens)} context`)
   if (recorded) {
     usageBits.push(
-      `${formatTokens(workflowUsageSpend(recorded))} spent (${formatTokens(workflowUsageSpend(recorded) - recorded.outputTokens)} in / ${formatTokens(recorded.outputTokens)} out)`,
+      `${formatTokens(workflowUsageSpend(recorded))} spent (${formatTokens(recorded.inputTokens)} in / ${formatTokens(recorded.outputTokens)} out)`,
     )
     usageBits.push(`${recorded.apiTurns} api ${plural(recorded.apiTurns, 'turn')}${recorded.unsettledTurns > 0 ? ` · ${recorded.unsettledTurns} unmeasured` : ''}`)
   } else if (view?.usage) {
