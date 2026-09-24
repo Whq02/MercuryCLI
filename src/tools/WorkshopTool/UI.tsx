@@ -9,8 +9,10 @@ import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js';
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js';
 import { Box, Text } from '../../ink.js';
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js';
-import { cellCardFactsOf, rememberCellCard, type WorkshopCellCardFacts } from './cellCards.js';
+import { cellCardFactsOf, lastShellCallOf, rememberCellCard, shellCallHeadline, type WorkshopCellCardFacts } from './cellCards.js';
 import type { Input, Output } from './WorkshopTool.js';
+
+const SHELL_CALL_ROW_LINES = 3;
 
 export function renderToolUseMessage(
   input: Partial<Input>,
@@ -53,11 +55,26 @@ function FailedCellsRow({ result, verbose, facts }: { result: ToolResultBlockPar
       <MessageResponse>
         <Box flexDirection="column">
           <FallbackToolUseErrorMessage result={result} verbose={verbose} />
-          {facts.map(cell => (
-            <Text key={cell.cellId} color={FAINT}>
-              {cellCardHint(cell.cellId)}
-            </Text>
-          ))}
+          {facts.map(cell => {
+            const shellCall = lastShellCallOf(cell);
+            const shellTail = (shellCall?.outputTail ?? []).slice(-SHELL_CALL_ROW_LINES);
+            return (
+              <Box key={cell.cellId} flexDirection="column">
+                {shellCall !== undefined ? (
+                  <Text color={FAINT} wrap="truncate-end">
+                    {`  ${shellCall.refused === true ? 'refused' : 'command'}: ${shellCallHeadline(shellCall)}`}
+                  </Text>
+                ) : null}
+                {shellTail.map((line, index) => (
+                  <Text key={index} color={FAINT} wrap="truncate-end">
+                    {'    '}
+                    {line}
+                  </Text>
+                ))}
+                <Text color={FAINT}>{cellCardHint(cell.cellId)}</Text>
+              </Box>
+            );
+          })}
         </Box>
       </MessageResponse>
     </InteractiveRow>

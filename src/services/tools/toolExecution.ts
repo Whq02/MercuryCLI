@@ -17,7 +17,7 @@ import { createPermissionRequestMessage } from '../../utils/permissions/decision
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isAbortError, ShellError } from '../../utils/errors.js'
+import { isAbortError, ShellError, type ShellRunFact } from '../../utils/errors.js'
 import { clampToolResultImageBlocks } from '../../utils/imageResizer.js'
 import { logError } from '../../utils/log.js'
 import {
@@ -79,6 +79,21 @@ export type MessageUpdateLazy<M = Message> = {
     toolUseID: string
     modifier: (context: ToolUseContext) => ToolUseContext
   }
+  shellRun?: ShellRunFact
+}
+
+function shellRunOfResult(tool: Tool, data: unknown): ShellRunFact | null {
+  if (!toolMatchesName(tool, BASH_TOOL_NAME)) return null
+  if (typeof data !== 'object' || data === null) return null
+  const out = data as { code?: unknown; interrupted?: unknown }
+  if (out.interrupted === true) return null
+  return { code: typeof out.code === 'number' ? out.code : null }
+}
+
+function shellRunOfError(tool: Tool, error: unknown): ShellRunFact | null {
+  if (!toolMatchesName(tool, BASH_TOOL_NAME)) return null
+  if (!(error instanceof ShellError) || !error.ran || error.interrupted) return null
+  return { code: error.code, output: [error.stderr, error.stdout].filter(part => part !== '').join('\n') }
 }
 
 const SLOW_PHASE_THRESHOLD_MS = 2000
@@ -838,7 +853,9 @@ async function runTransactionBody(args: {
         push({ message })
       }
     } else {
-      push(await buildResultUpdate(mappedBlock, true))
+      const resultUpdate = await buildResultUpdate(mappedBlock, true)
+      const shellRun = shellRunOfResult(tool, result.data)
+      push(shellRun === null ? resultUpdate : { ...resultUpdate, shellRun })
       const postStartedAt = Date.now()
       let postHookCount = 0
       for await (const item of runPostToolUseHooks(
@@ -926,6 +943,7 @@ async function runTransactionBody(args: {
       toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
     const mcpMeta = (error as { mcpMeta?: { _meta?: Record<string, unknown> } }).mcpMeta
     const modelFacingText = formatError(error)
+    const shellRun = shellRunOfError(tool, error)
     push({
       message: createUserMessage({
         content: [
@@ -940,6 +958,7 @@ async function runTransactionBody(args: {
         ...(isSubagent || mcpMeta === undefined ? {} : { mcpMeta }),
         sourceToolAssistantUUID: sourceUUID as never,
       }),
+      ...(shellRun === null ? {} : { shellRun }),
     })
     for (const failureMessage of failureHookMessages) {
       push({ message: failureMessage })

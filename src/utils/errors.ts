@@ -47,9 +47,25 @@ export class ShellError extends MercuryError {
     readonly stderr: string,
     readonly code: number,
     readonly interrupted: boolean,
+    readonly ran: boolean = true,
   ) {
     super('Shell command failed')
   }
+}
+
+export interface ShellRunFact {
+  code: number | null
+  output?: string
+}
+
+export interface ShellCallValue {
+  code: number | null
+  stdout: string
+  stderr: string
+}
+
+export function shellCallValue(fact: ShellRunFact, text: string): ShellCallValue {
+  return { code: fact.code, stdout: fact.output ?? text, stderr: '' }
 }
 
 export class TeleportOperationError extends MercuryError {

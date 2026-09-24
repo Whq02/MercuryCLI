@@ -11,7 +11,9 @@ enableConfigs()
 const React = (await import('react')).default
 const { renderToString } = await import('../../src/utils/staticRender.tsx')
 const { cellCardRows } = await import('../../src/tools/WorkshopTool/WorkshopCellCard.tsx')
-const { cellCardFactsOf, cellCardOf, cellOpensCard, forgetCellCards, rememberCellCard } = await import('../../src/tools/WorkshopTool/cellCards.ts')
+const { cellCardFactsOf, cellCardOf, cellOpensCard, forgetCellCards, lastShellCallOf, rememberCellCard, shellCallHeadline } = await import('../../src/tools/WorkshopTool/cellCards.ts')
+const { SHELL_CALL_OUTPUT_LINES, SHELL_CALLS_KEPT } = await import('../../src/services/workshop/contracts.ts')
+const { lastOutputLines, shellCallLedger } = await import('../../src/services/workshop/shellCalls.ts')
 const { cellCardFactsOfResult, cellCardHint, renderToolResultMessage, renderToolUseErrorMessage } = await import('../../src/tools/WorkshopTool/UI.tsx')
 type WorkshopCellResult = import('../../src/services/workshop/contracts.ts').WorkshopCellResult
 
@@ -96,6 +98,48 @@ console.log('── the inline row: a failed call keeps the error card and gains
   const succeeded = { cells: [cell({ cellId: 'cell-js-g1-2', state: 'succeeded', error: undefined, valuePreview: '42', outputTail: [] })], result: '' }
   const okText = await renderToString(React.createElement(React.Fragment, null, renderToolResultMessage(succeeded, [], { verbose: false })), 120)
   check('a succeeded cell\'s row is untouched and offers no card', okText.includes('= 42') && !okText.includes('view the card') && cellCardOf('cell-js-g1-2') === undefined)
+}
+
+console.log('── a bridged shell call: the facts carry its command and the last output lines; the row and the card paint them under the error ──')
+{
+  forgetCellCards()
+  const SHELL_COMMAND = 'echo out-line; echo err-line >&2; exit 1'
+  const ledger = shellCallLedger()
+  const opened = ledger.open(1, 'tool', { name: 'Bash', input: { command: SHELL_COMMAND } })
+  ledger.settle(opened, { code: 1, stdout: 'out-line\nerr-line\n\nExited with code 1\n\n', stderr: '' })
+  check('the ledger opens a row for a Bash call only, with its command', opened !== null && opened.command === SHELL_COMMAND && ledger.open(2, 'tool', { name: 'Read', input: {} }) === null && ledger.open(3, 'inspect', { ref: 'x' }) === null)
+  check('a settled call records its exit code and the last output lines, trailing blank lines dropped', opened?.code === 1 && JSON.stringify(opened?.outputTail) === JSON.stringify(['out-line', 'err-line', '', 'Exited with code 1']))
+  check(`the last-lines reader keeps at most ${SHELL_CALL_OUTPUT_LINES}`, lastOutputLines(Array.from({ length: 20 }, (_, i) => `l${i}`).join('\n')).length === SHELL_CALL_OUTPUT_LINES && lastOutputLines('a\nb')[0] === 'a')
+  for (let i = 0; i < SHELL_CALLS_KEPT + 3; i++) ledger.open(10 + i, 'tool', { name: 'Bash', input: { command: `true ${i}` } })
+  check(`the ledger keeps the last ${SHELL_CALLS_KEPT} calls`, ledger.calls.length === SHELL_CALLS_KEPT && ledger.calls[ledger.calls.length - 1]!.command === `true ${SHELL_CALLS_KEPT + 2}`)
+  const refused = ledger.open(30, 'tool', { name: 'Bash', input: { command: 'nohup sleep 1 &' } })
+  ledger.refuse(refused)
+  check('a refused call is marked and keeps its command', refused?.refused === true && refused.command === 'nohup sleep 1 &' && refused.code === undefined)
+  check('the headline names the command and the exit; a refusal names the command alone', shellCallHeadline({ ordinal: 1, command: SHELL_COMMAND, code: 1 }) === `${SHELL_COMMAND} · exit 1` && shellCallHeadline({ ordinal: 2, command: 'nohup sleep 1 &', refused: true }) === 'nohup sleep 1 &')
+
+  const shellCell = cell({ cellId: 'cell-js-g1-3', error: 'Error: the command failed, stopping here\n  at cell-js-g1-3.js:2:7', outputTail: [], shellCalls: [{ ordinal: 1, command: SHELL_COMMAND, code: 1, outputTail: ['out-line', 'err-line', '', 'Exited with code 1'] }] })
+  const shellFacts = cellCardFactsOf(shellCell, "const r = await mercury.tool('Bash', { command: 'echo out-line; echo err-line >&2; exit 1' })\nif (r.code !== 0) throw new Error('the command failed, stopping here')")
+  check('the facts carry the shell calls and name the last one', shellFacts !== null && shellFacts.shellCalls.length === 1 && lastShellCallOf(shellFacts)?.command === SHELL_COMMAND)
+  check('a cell row without the field (an older transcript) yields no shell calls', cellCardFactsOf(cell({}), 'x')?.shellCalls.length === 0)
+  const plain = cellCardRows(40, { code: 3, error: 5, output: 5, killed: false })
+  const withShell = cellCardRows(40, { code: 3, error: 5, output: 5, killed: false, shell: 1 + SHELL_CALL_OUTPUT_LINES })
+  check('at 120x40 the shell block takes its rows without clipping the error or the code', withShell.shell === 1 + SHELL_CALL_OUTPUT_LINES && withShell.error === 5 && withShell.code === 3 && withShell.output !== null, JSON.stringify(withShell))
+  check('a plan without a shell block is the plan as before', plain.shell === 0 && plain.error === 5 && plain.code === 3, JSON.stringify(plain))
+  const short = cellCardRows(14, { code: 3, error: 5, output: 5, killed: false, shell: 1 + SHELL_CALL_OUTPUT_LINES })
+  check('on a short window the shell block shrinks to the command line and the error and the code keep a row each', short.shell === 1 && short.error >= 1 && short.code >= 1 && short.output === null, JSON.stringify(short))
+  const shellResult = { cells: [shellCell], result: '[cell-js-g1-3] failed · 12ms · gen 1 · 1 bridge call(s)\nerror: Error: the command failed, stopping here\n  at cell-js-g1-3.js:2:7' }
+  const shellInput = { cells: [{ language: 'js' as const, code: shellFacts!.code }] }
+  for (const columns of [178, 120]) {
+    const row = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(`<tool_use_error>${shellResult.result}</tool_use_error>`, { verbose: false, toolUseResult: shellResult, input: shellInput })), columns)
+    check(`at ${columns} columns the failed row paints the command and its exit under the error`, row.includes('▲ Error: [cell-js-g1-3] failed') && row.includes(`command: ${SHELL_COMMAND} · exit 1`), row.slice(0, 600))
+    const afterCommand = row.slice(row.indexOf('command:'))
+    check(`at ${columns} columns the last output lines follow the command, then the way to the card`, afterCommand.includes('err-line') && afterCommand.includes('Exited with code 1') && afterCommand.indexOf('Exited with code 1') < afterCommand.indexOf(cellCardHint('cell-js-g1-3')), afterCommand.slice(0, 400))
+  }
+  const refusedCell = cell({ cellId: 'cell-js-g1-4', error: "bridge call 1 (Bash) failed: Ward 'self-daemonize' blocked this Bash call\nthe cell stopped at that call", outputTail: [], shellCalls: [{ ordinal: 1, command: 'nohup sleep 1 &', refused: true }] })
+  const refusedResult = { cells: [refusedCell], result: `[cell-js-g1-4] failed · 3ms · gen 1 · 1 bridge call(s)\nerror: ${refusedCell.error}` }
+  const refusedRow = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(`<tool_use_error>${refusedResult.result}</tool_use_error>`, { verbose: false, toolUseResult: refusedResult, input: { cells: [{ language: 'js' as const, code: "await mercury.tool('Bash', { command: 'nohup sleep 1 &' })" }] } })), 178)
+  check("a refused call's row names the command it refused under the refusal", refusedRow.includes('refused: nohup sleep 1 &') && !refusedRow.includes('exit '), refusedRow.slice(0, 600))
+  forgetCellCards()
 }
 
 console.log('── the error road hands every tool the structured result and the input; the Workshop renderer alone reads them ──')

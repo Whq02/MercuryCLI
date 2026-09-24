@@ -46,7 +46,16 @@ export interface WorkshopCellResult {
   artifactRef?: string
   error?: string
   nestedCalls: number
+  shellCalls?: WorkshopShellCall[]
   compiler?: string
+}
+
+export interface WorkshopShellCall {
+  ordinal: number
+  command: string
+  code?: number | null
+  outputTail?: string[]
+  refused?: true
 }
 
 export const DEFAULT_CELL_TIMEOUT_MS = 30_000
@@ -54,6 +63,8 @@ export const MAX_CELL_TIMEOUT_MS = 600_000
 export const OVERALL_CELL_CEILING_MS = 600_000
 export const OUTPUT_TAIL_LINES = 60
 export const OUTPUT_SPILL_THRESHOLD_LINES = 200
+export const SHELL_CALL_OUTPUT_LINES = 8
+export const SHELL_CALLS_KEPT = 5
 
 export function workshopEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_WORKSHOP'))

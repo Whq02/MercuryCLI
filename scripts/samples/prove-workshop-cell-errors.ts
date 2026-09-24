@@ -161,6 +161,21 @@ section('S8. through the tool: a nested tool\'s refusal reaches the cell without
   check('S8d the recursion refusal keeps its words under the bridge-call head', /^bridge call 1 \(Workshop\) failed: recursive Workshop calls are refused/m.test(recursive.data.cells[0].error ?? ''), brief(recursive.data.cells[0]))
 }
 
+section('S9. the runtime hands a bridge value object to the cell unchanged, and a rejection still stops it')
+{
+  const valued = {
+    ...refusing,
+    tool: async (name: string) => {
+      if (name === 'Bash') return { code: 1, stdout: 'out-line\nerr-line\n\nExited with code 1', stderr: '' }
+      throw new Error(`no tool '${name}' in this session's catalog`)
+    },
+  }
+  const s9 = await run("const r = await mercury.tool('Bash', { command: 'exit 1' })\nJSON.stringify([r.code, r.stdout.split('\\n')[1], r.stderr])", { bridge: valued })
+  check('S9a a value object crosses the worker boundary whole: code, stdout and stderr read in the cell', s9.state === 'succeeded' && s9.valuePreview === "'[1,\"err-line\",\"\"]'" && s9.nestedCalls === 1, JSON.stringify(s9).slice(0, 300))
+  const s9b = await run("await mercury.tool('Missing', {})", { bridge: valued })
+  check('S9b a rejected call still fails the cell at that call', s9b.state === 'failed' && /^bridge call 1 \(Missing\) failed: no tool 'Missing'/m.test(s9b.error ?? ''), brief(s9b))
+}
+
 disposeOwner(owner)
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {
