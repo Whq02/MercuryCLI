@@ -720,7 +720,7 @@ t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks
 
   t.check('↵ is live on moonshot + huggingface (and the whole catalogue since A6b)', (['moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'] as const).every(v => loginsFlowReady(v)))
 
-  t.check('the Kimi choice is the landed card, byte-same', JSON.stringify(loginsPickOptions('moonshot').map(o => o.label)) === JSON.stringify(['Sign in with Kimi — device code in your browser', 'Paste a Moonshot API key (platform.kimi.ai; stored locally, mode 600)']))
+  t.check('the Kimi choice is the landed card, byte-same', JSON.stringify(loginsPickOptions('moonshot').map(o => o.label)) === JSON.stringify(['Sign in with Kimi — device code in your browser', 'Paste a Moonshot API key (stored locally, mode 600)']))
   t.check('the Hub choice is the landed card, byte-same', JSON.stringify(loginsPickOptions('huggingface').map(o => o.label)) === JSON.stringify(['Sign in with Hugging Face — device code in your browser', 'Paste a token (Inference Providers permission; stored locally, mode 600)']))
   t.check('the region question is the landed card, byte-same values incl. mainland-cn', JSON.stringify(loginsPickOptions('kimi-region')) === JSON.stringify([{ label: 'Global — kimi.ai (auth.kimi.ai · api.kimi.ai/coding/v1)', value: 'global' }, { label: 'Mainland China — kimi.com (auth.kimi.com · api.kimi.com/coding/v1)', value: 'mainland-cn' }]))
   t.check('the region pane backs one step, not to the roster', loginsPickPaneLines('kimi-region')[loginsPickPaneLines('kimi-region').length - 1] === 'esc — back to the Kimi choice')

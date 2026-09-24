@@ -5,6 +5,7 @@ import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
 
 
 export function DeepseekConnect({
@@ -45,9 +46,10 @@ export function DeepseekConnect({
       <Text bold color={tokens.accent}>
         Connect DeepSeek — API key
       </Text>
+      <Text>{keyPageLine('deepseek')}</Text>
       <Text>
-        DeepSeek signs in with API keys only (platform.deepseek.com → API keys). Stored auth-scoped (mode 600),
-        never logged; a DEEPSEEK_API_KEY env var always wins over the store.
+        DeepSeek signs in with API keys only. Stored auth-scoped (mode 600), never logged; a DEEPSEEK_API_KEY
+        env var always wins over the store.
       </Text>
       <Box>
         <Text>Key: </Text>

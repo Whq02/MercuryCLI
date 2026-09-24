@@ -32,6 +32,7 @@ import { DeepseekConnect } from './DeepseekConnect.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
+  keyPageLine,
   loginFamilyFocusFor,
   loginFamilyRows,
   loginFamilyInitialFocus,
@@ -419,6 +420,7 @@ function OpenaiKeyLeg({
   }
   return (
     <Box flexDirection="column" gap={1}>
+      <Text>{keyPageLine('openai')}</Text>
       <Text>Paste your OpenAI API key. It is stored in the auth-scoped secret store (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>
       <Box>
         <Text>Key: </Text>

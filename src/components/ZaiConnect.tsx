@@ -7,6 +7,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import type { ZaiApiPlan } from '../services/providers/zai/zaiClient.js'
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
 
 
 export function ZaiConnect({
@@ -24,9 +25,10 @@ export function ZaiConnect({
           Connect GLM (Z.AI) — API key
         </Text>
         <Text color={tokens.textSecondary}>
-          Z.AI signs in with API keys only (z.ai/manage-apikey). Which key is this? A GLM Coding Plan key is
-          valid on the Coding Plan base and refused on the general one, so the answer picks the base.
+          Z.AI signs in with API keys only. Which key is this? A GLM Coding Plan key is valid on the Coding
+          Plan base and refused on the general one, so the answer picks the base.
         </Text>
+        <Text color={tokens.textSecondary}>{keyPageLine('zai')}</Text>
         <Select
           options={[
             { label: 'GLM Coding Plan key — api.z.ai/api/coding/paas/v4', value: 'coding' },

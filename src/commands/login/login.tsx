@@ -45,8 +45,8 @@ export function Login({
   }
   return (
     <CommandCenter
-      view="login"
-      footer="esc back · from the menu, esc closes login"
+      view="logins"
+      footer="esc back · from the menu, esc closes /logins"
       captureInput={false}
       onClose={() => settle(false)}
     >
@@ -131,7 +131,7 @@ export async function call(
         const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
         onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
       } else {
-        onDone('Login closed — no credential changed', chain)
+        onDone('/logins closed — no credential changed', chain)
       }
       void mainLoopModel
     })()

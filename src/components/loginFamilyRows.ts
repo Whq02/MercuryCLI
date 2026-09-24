@@ -58,6 +58,28 @@ export const openaiArmPickRows = [
   { label: 'OpenAI API key — paste one (stored locally, mode 600)', value: 'key' },
 ] as const
 
+export type KeyFamilyValue = Exclude<LoginFamilyValue, 'claudeai' | 'console'>
+
+export const KEY_PAGES: Record<KeyFamilyValue, string> = {
+  openai: 'platform.openai.com/api-keys',
+  openrouter: 'openrouter.ai/settings/keys',
+  gemini: 'aistudio.google.com/apikey',
+  huggingface: 'huggingface.co/settings/tokens',
+  moonshot: 'platform.kimi.ai',
+  zai: 'z.ai/manage-apikey',
+  deepseek: 'platform.deepseek.com',
+}
+
+export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
+
+export function keyPageMenuWord(family: KeyFamilyValue): string {
+  return family === 'huggingface' ? 'Access Tokens' : 'API Keys'
+}
+
+export function keyPageLine(family: KeyFamilyValue): string {
+  return `${family === 'huggingface' ? 'Token' : 'API key'}: ${KEY_PAGES[family]} — sign in, ${keyPageMenuWord(family)}, create, paste it here.`
+}
+
 export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginFamilyValue | undefined {
   switch (defaultProvider) {
     case 'anthropic':

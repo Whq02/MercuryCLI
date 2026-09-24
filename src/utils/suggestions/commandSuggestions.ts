@@ -69,7 +69,9 @@ function toSuggestionItem(
   }
   let aliasSuffix = ''
   if (typedQuery !== '') {
-    const matchedAlias = (command.aliases ?? []).find(alias => alias.toLowerCase().startsWith(typedQuery))
+    const matchedAlias = (command.aliases ?? []).find(
+      alias => alias.toLowerCase().startsWith(typedQuery) && !name.toLowerCase().startsWith(alias.toLowerCase()),
+    )
     if (matchedAlias !== undefined) aliasSuffix = ` (${matchedAlias})`
   }
   const isWorkflow = command.type === 'prompt' && command.kind === 'workflow'
