@@ -1,6 +1,30 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.19
+- Added a live Anthropic model list. New models show up in the picker when they ship. Same for every provider
+- Added a reason when a model is refused, on its picker row and in the doctor
+- Added /view on and /view off for the sessions bar. Off by default
+- Added a counting card for bursts of tool calls
+- Added usage warnings at 80 and 90 percent for subscriptions that report one. Warnings only
+- Changed /config, /usage and /status into popups
+- Changed panels that close on esc to also close on a click outside
+- Changed the logins card to fetch the lists it shows
+- Changed scheduled wakes to show as muted rows
+- Changed esc on a hung tool call to end only that call
+- Changed a session restart to keep its running agents and the queued line
+- Changed held notices and queued messages to appear in order
+- Changed bare skill names to print their usage instead of starting a turn
+- Changed the Browser tool to use its own browser instead of yours
+- Fixed workflow runs filed under the wrong project after a cd
+- Fixed a session dying when a background agent finished in a removed worktree
+- Fixed Windows: paths, encodings, process trees, the credential store, watchers, the updater
+- Changed token counts to one number everywhere. Rows add up
+- Changed resumed sessions to send the same prompt as the first time
+- Changed the workflow stall clock to count a live stream as alive, and stalled attempts to resume in place
+- Changed Workshop and Eval cells to get a failed command back as a value instead of stopping
+- Changed the update notice to only offer newer versions
+
 ## 1.0.0-beta.18
 - Added Claude Opus 5.5 as the default Opus, launched at high effort, with its own cost and effort rows in the pickers
 - Added a directory for every sub-agent: the Agent tool takes the folder a helper works in, a helper isolated in its own worktree can build there, a session's own worktree comes ready to build, a continued helper wakes where it was launched, and a folder outside every trusted workspace is one question rather than a wall (in sovereign mode the answer is yes)
