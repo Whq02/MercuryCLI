@@ -1161,15 +1161,15 @@ section('S8 · J1/J5 usage + usability surfaces — honest shapes, one vocabular
 
 {
   const spend = () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 })
-  const keyLaneShape = (family: string, model: string, reads: Record<string, unknown>) => {
+  const keyLaneShape = (family: string, model: string, reads: Record<string, unknown>, label = 'API usage') => {
     const usage = activeSourceUsage({ model, reads: { ...reads, spend } as never })
     check(
-      `usage: ${family} credentialed → api-spend shape, 'API usage', tier 'API billing'`,
-      usage.shape === 'api-spend' && usage.label === 'API usage' && usage.tier === 'API billing',
+      `usage: ${family} credentialed → api-spend shape, '${label}', tier 'API billing'`,
+      usage.shape === 'api-spend' && usage.label === label && usage.tier === 'API billing',
       JSON.stringify({ shape: usage.shape, label: usage.label, tier: usage.tier }),
     )
   }
-  keyLaneShape('zai', FAMILY_MODEL.zai!, { zaiKeyPresent: () => true })
+  keyLaneShape('zai', FAMILY_MODEL.zai!, { zaiKeyPresent: () => true }, 'Z.AI usage')
   keyLaneShape('openrouter', FAMILY_MODEL.openrouter!, {
     openrouterKeyPresent: () => true,
     openrouterObserved: () => ({ usage: null }),
