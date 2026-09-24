@@ -68,6 +68,9 @@ function check(label: string, condition: boolean, detail = ''): void {
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
 }
 
+const LADDER_SCALE = '0.05'
+const RUNGS = [50, 100, 200, 400, 800, 1500]
+const FLOOR = RUNGS.map((rung, i) => Math.max(rung / 2, (RUNGS[i - 1] ?? 0) + 1))
 console.log('── the ladder, pure')
 const ladder = busy.openBusyRetryLadder(0, 1)
 check('the rungs are 1 s, 2 s, 4 s, 8 s, 16 s and 30 s, the budget their sum and the quiet window 30 s', JSON.stringify(ladder.rungsMs) === JSON.stringify([1000, 2000, 4000, 8000, 16000, 30000]) && ladder.budgetMs === 61000 && ladder.quietMs === 30000)
@@ -173,16 +176,16 @@ type Road = {
   rate: { status: number; body: unknown }
 }
 try {
-  reset('0.01')
+  reset(LADDER_SCALE)
   const spent = await drain(geminiCallModel(params()))
   const spentNotices = notices(spent)
   const spentRed = redLines(spent)
   check('a 503 that never clears is retried six times on the scaled rungs: seven requests', hits.length === 7, `${hits.length} requests`)
-  check('the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentNotices.length === 1 && spentNotices[0]?.retryInMs === 300 && spentNotices[0].retryAttempt === 6 && spentNotices[0].maxRetries === 6, JSON.stringify(spentNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
+  check('the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentNotices.length === 1 && spentNotices[0]?.retryInMs === 1500 && spentNotices[0].retryAttempt === 6 && spentNotices[0].maxRetries === 6, JSON.stringify(spentNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
   check("the spent ladder ends the turn with one red line that says how long Gemini stayed busy and keeps the wire's words as its tail", spentRed.length === 1 && /^API Error: Gemini stayed busy through 6 retries over \d+ s — Gemini stream failed \(api-UNAVAILABLE\) — /.test(spentRed[0] ?? '') && (spentRed[0] ?? '').endsWith(overloadReason) && spent.some(item => item.type === 'assistant' && item.error === 'server_error'), spentRed[0] ?? '(no red line)')
   check('no recovery stamp rides a spent ladder', stamped(spent).length === 0)
   const waits = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
-  check('the waits between requests grow with the rungs', waits.length === 6 && waits.every((wait, i) => wait >= [10, 20, 40, 80, 160, 300][i]! - 2) && waits[5]! > waits[0]!, JSON.stringify(waits))
+  check('the waits between requests grow with the rungs and stay above half each rung even on a loaded box', waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
 
   reset('0.6', { refusals: 2 })
   const recovered = await drain(geminiCallModel(params()))
@@ -232,16 +235,16 @@ try {
   ]
   for (const road of roads) {
     console.log(`── the ladder on the ${road.provider} road`)
-    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    reset(LADDER_SCALE, { status: road.busy.status, body: road.busy.body })
     const roadSpent = await drain(road.call(params(undefined, road.model)))
     const roadNotices = notices(roadSpent)
     const roadRed = redLines(roadSpent)
     check(`${road.name}: a busy refusal that never clears is retried six times on the scaled rungs: seven requests`, hits.length === 7, `${hits.length} requests`)
-    check(`${road.name}: the five retries inside the quiet window mint no notice; the sixth mints one with its true wait and place`, roadNotices.length === 1 && roadNotices[0]?.retryInMs === 300 && roadNotices[0].retryAttempt === 6 && roadNotices[0].maxRetries === 6, JSON.stringify(roadNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
+    check(`${road.name}: the five retries inside the quiet window mint no notice; the sixth mints one with its true wait and place`, roadNotices.length === 1 && roadNotices[0]?.retryInMs === 1500 && roadNotices[0].retryAttempt === 6 && roadNotices[0].maxRetries === 6, JSON.stringify(roadNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
     check(`${road.name}: the spent ladder ends the turn with one red line naming ${road.provider} and how long it stayed busy, the wire's words as its tail`, roadRed.length === 1 && new RegExp(`^API Error: ${escape(road.provider)} stayed busy through 6 retries over \\d+ s — ${escape(road.busy.tail)}`).test(roadRed[0] ?? '') && (roadRed[0] ?? '').includes(road.busy.message) && roadSpent.some(item => item.type === 'assistant' && item.error === road.busy.typed), roadRed[0] ?? '(no red line)')
     check(`${road.name}: no recovery stamp rides a spent ladder`, stamped(roadSpent).length === 0)
     const roadWaits = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
-    check(`${road.name}: the waits between requests grow with the rungs`, roadWaits.length === 6 && roadWaits.every((wait, i) => wait >= [10, 20, 40, 80, 160, 300][i]! - 2) && roadWaits[5]! > roadWaits[0]!, JSON.stringify(roadWaits))
+    check(`${road.name}: the waits between requests grow with the rungs and stay above half each rung even on a loaded box`, roadWaits.length === 6 && roadWaits.every((wait, i) => wait >= FLOOR[i]!) && roadWaits[5]! > roadWaits[0]!, JSON.stringify(roadWaits))
 
     reset('0.6', { status: road.busy.status, body: road.busy.body, refusals: 2 })
     const roadRecovered = await drain(road.call(params(undefined, road.model)))
@@ -260,21 +263,21 @@ try {
     const roadStoppedAfterMs = Date.now() - roadStopAt
     check(`${road.name}: the operator's stop ends the first wait at once: one request, no red line, the road silent, well inside the 1 s rung`, hits.length === 1 && redLines(roadStopped).length === 0 && notices(roadStopped).length === 0 && roadStoppedAfterMs < 1000, `${hits.length} requests, ${roadStoppedAfterMs} ms`)
 
-    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    reset(LADDER_SCALE, { status: road.busy.status, body: road.busy.body })
     const agentDoor: unknown[] = []
     const heldRun = await drain(road.call(params(undefined, road.model, { agentId: 'agent-held', onWait: wait => agentDoor.push(wait) })))
     const held = agentDoor.map(heldNoticeOf).filter(notice => notice !== null)
-    check(`${road.name}: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing`, held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === [10, 20, 40, 80, 160][i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldRun).length === 1 && hits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldRun).length} notices, ${hits.length} requests`)
-    reset('0.01', { status: road.busy.status, body: road.busy.body })
+    check(`${road.name}: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing`, held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === RUNGS[i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldRun).length === 1 && hits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldRun).length} notices, ${hits.length} requests`)
+    reset(LADDER_SCALE, { status: road.busy.status, body: road.busy.body })
     const mainDoor: unknown[] = []
     await drain(road.call(params(undefined, road.model, { onWait: wait => mainDoor.push(wait) })))
     check(`${road.name}: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel`, mainDoor.every(wait => heldNoticeOf(wait) === null) && hits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
 
-    reset('0.01', { status: road.rate.status, body: road.rate.body })
+    reset(LADDER_SCALE, { status: road.rate.status, body: road.rate.body })
     const roadRate = await drain(road.call(params(undefined, road.model)))
     check(`${road.name}: a rate limit without a wait keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1, the rate-limit line`, hits.length === 2 && notices(roadRate).length === 1 && notices(roadRate)[0]?.retryInMs === 400 && notices(roadRate)[0]?.retryAttempt === 1 && notices(roadRate)[0]?.maxRetries === 1 && roadRate.some(item => item.type === 'assistant' && item.error === 'rate_limit') && redLines(roadRate).length === 1 && !/stayed busy/.test(redLines(roadRate)[0] ?? ''), `${hits.length} requests, ${JSON.stringify(notices(roadRate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}, ${redLines(roadRate)[0] ?? ''}`)
 
-    reset('0.01', { status: road.rate.status, body: road.rate.body, refusals: 1, retryAfter: '1' })
+    reset(LADDER_SCALE, { status: road.rate.status, body: road.rate.body, refusals: 1, retryAfter: '1' })
     const roadRateAsked = await drain(road.call(params(undefined, road.model)))
     const roadRateAskedWait = hits.length === 2 ? hits[1]!.atMs - hits[0]!.atMs : -1
     check(`${road.name}: a rate limit with a wait rides the ladder: the ask slept whole and quietly, the second request answered, one stamp naming 1 retry`, hits.length === 2 && roadRateAskedWait >= 990 && notices(roadRateAsked).length === 0 && redLines(roadRateAsked).length === 0 && answered(roadRateAsked, ANSWER) && stamped(roadRateAsked)[0]?.busyRecovery?.retries === 1, `${hits.length} requests, ${roadRateAskedWait} ms, ${notices(roadRateAsked).length} notices, ${redLines(roadRateAsked)[0] ?? ''}`)
@@ -348,19 +351,19 @@ try {
   const foreground = (retrySeam as { isForegroundQuerySource?: (source: string) => boolean }).isForegroundQuerySource ?? ((): undefined => undefined)
   check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-general') === true && foreground('agent:custom') === true && foreground('repl_main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
 
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const run = homeCall({ refusals: Infinity })
     const spentHome = await drain(run.generator)
     const spentHomeNotices = notices(spentHome)
     const spentHomeRed = redLines(spentHome)
     check('home: a 529 that never clears is retried six times on the scaled rungs: seven requests', run.homeHits.length === 7, `${run.homeHits.length} requests`)
-    check('home: the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentHomeNotices.length === 1 && spentHomeNotices[0]?.retryInMs === 300 && spentHomeNotices[0].retryAttempt === 6 && spentHomeNotices[0].maxRetries === 6, JSON.stringify(spentHomeNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
+    check('home: the five retries that begin inside the quiet window mint no notice; the sixth mints one with its true wait and place', spentHomeNotices.length === 1 && spentHomeNotices[0]?.retryInMs === 1500 && spentHomeNotices[0].retryAttempt === 6 && spentHomeNotices[0].maxRetries === 6, JSON.stringify(spentHomeNotices.map(notice => [notice.retryInMs, notice.retryAttempt, notice.maxRetries])))
     check("home: the spent ladder ends the turn with one red line carrying the wire's 529 answer, its words unchanged", spentHomeRed.length === 1 && /^API Error: 529 \{"type":"error","error":\{"type":"overloaded_error","message":"Overloaded"\}/.test(spentHomeRed[0] ?? ''), spentHomeRed[0] ?? '(no red line)')
     const waits = homeWaits(run.homeHits)
-    check('home: the waits between requests grow with the rungs', waits.length === 6 && waits.every((wait, i) => wait >= [10, 20, 40, 80, 160, 300][i]! - 2) && waits[5]! > waits[0]!, JSON.stringify(waits))
+    check('home: the waits between requests grow with the rungs and stay above half each rung even on a loaded box', waits.length === 6 && waits.every((wait, i) => wait >= FLOOR[i]!) && waits[5]! > waits[0]!, JSON.stringify(waits))
   }
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const run = homeCall({ refusals: Infinity }, { querySource: 'agent:builtin:mercury-general' })
     const resumedSpent = await drain(run.generator)
@@ -372,7 +375,7 @@ try {
     const recoveredHome = await drain(run.generator)
     check('home: a 529 that clears on the third request answers with no notice and no red line', run.homeHits.length === 3 && notices(recoveredHome).length === 0 && redLines(recoveredHome).length === 0 && answered(recoveredHome, HOME_ANSWER), `${run.homeHits.length} requests, ${notices(recoveredHome).length} notices, ${redLines(recoveredHome).length} red lines`)
   }
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const run = homeCall({ refusals: 3, midStream: true })
     const midStream = await drain(run.generator)
@@ -390,28 +393,41 @@ try {
     const stoppedAfterMs = Date.now() - stopAt
     check("home: the operator's stop ends the first wait at once: one request, no red line, the road silent, well inside the 1 s rung", run.homeHits.length === 1 && redLines(stoppedHome).length === 0 && notices(stoppedHome).length === 0 && stoppedAfterMs < 1000, `${run.homeHits.length} requests, ${stoppedAfterMs} ms`)
   }
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const agentDoor: unknown[] = []
     const run = homeCall({ refusals: Infinity }, { door: { agentId: 'agent-held', onWait: wait => agentDoor.push(wait) } })
     const heldHome = await drain(run.generator)
     const held = agentDoor.map(heldNoticeOf).filter(notice => notice !== null)
-    check("home: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing", held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === [10, 20, 40, 80, 160][i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldHome).length === 1 && run.homeHits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldHome).length} notices, ${run.homeHits.length} requests`)
+    check("home: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing", held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === RUNGS[i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldHome).length === 1 && run.homeHits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldHome).length} notices, ${run.homeHits.length} requests`)
   }
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const mainDoor: unknown[] = []
     const run = homeCall({ refusals: Infinity }, { door: { onWait: wait => mainDoor.push(wait) } })
     await drain(run.generator)
     check("home: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel", mainDoor.every(wait => heldNoticeOf(wait) === null) && run.homeHits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
   }
-  reset('0.01')
+  reset(LADDER_SCALE)
   {
     const run = homeCall({ refusals: 1, retryAfter: '1' })
     const askedHome = await drain(run.generator)
     const askedWait = run.homeHits.length === 2 ? run.homeHits[1]!.atMs - run.homeHits[0]!.atMs : -1
     check("home: a Retry-After on the 529 inside the budget is honoured whole in place of the rung, quietly, and the second request answers", run.homeHits.length === 2 && askedWait >= 990 && notices(askedHome).length === 0 && redLines(askedHome).length === 0 && answered(askedHome, HOME_ANSWER), `${run.homeHits.length} requests, ${askedWait} ms, ${notices(askedHome).length} notices`)
   }
+
+  console.log('── the pin: the floor must grow with the rungs, and a loaded box only shortens a wait by ~4 ms')
+  const BASE_RUNGS = [10, 20, 40, 80, 160, 300]
+  const BASE_FLOOR = BASE_RUNGS.map(rung => rung - 2)
+  const injectedWaits = (first: number, rest: number[]): number[] => [first, ...rest]
+  const jitteredFirstGap = injectedWaits(6, [20, 40, 80, 160, 300].map(w => w + 3))
+  check('the old −2 floor reds a loaded box\'s 6 ms first gap at the 10 ms rung', !jitteredFirstGap.every((wait, i) => wait >= BASE_FLOOR[i]!), JSON.stringify(jitteredFirstGap))
+  const scaledJitteredFirstGap = injectedWaits(46, [100, 200, 400, 800, 1500].map(w => w + 3))
+  check('the half-rung floor passes the same 4 ms of jitter at 50 ms (46 ≥ 25, 103 ≥ 51, …)', scaledJitteredFirstGap.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(scaledJitteredFirstGap))
+  const noBackoff = injectedWaits(6, [6, 6, 6, 6, 6])
+  check('a ladder that does not back off reds every rung', !noBackoff.some((wait, i) => wait >= FLOOR[i]!), JSON.stringify(noBackoff))
+  const plateau = injectedWaits(46, [103, 203, 403, 800, 800])
+  check('a ladder that plateaus at rung 5 (the 6th gap sleeps the 5th rung, 800) reds the rung-after floor (800 < 801)', !plateau.every((wait, i) => wait >= FLOOR[i]!), JSON.stringify(plateau))
 
   console.log('── the three-strikes door on the home road: an Opus model on an API key')
   const DOOR_MODEL = 'claude-opus-5'
