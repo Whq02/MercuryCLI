@@ -71,7 +71,9 @@ import {
 } from './openaiAccounts.js'
 import {
   evaluateGptCandidate,
+  gptClassCandidate,
   liveGptListedEffortWords,
+  parseOpenaiModelId,
   qualifiedGptCandidates,
   refreshOpenaiCatalogue,
   resolveGptReasoningProfile,
@@ -252,7 +254,7 @@ export function toBridgeMessages(
         foreignRecordModels.add(servedModel.trim() === '' ? 'an unnamed model' : servedModel.trim())
       }
       const turnKey = typeof m.message.id === 'string' ? m.message.id : m.uuid
-      if (servedModel.toLowerCase().startsWith('gpt')) gptTurnIds.add(turnKey)
+      if (parseOpenaiModelId(servedModel) !== undefined) gptTurnIds.add(turnKey)
       if (decoded) recordedTurnIds.add(turnKey)
       if (m.message.stop_reason != null) settledTurnIds.add(turnKey)
       out.push({
@@ -413,8 +415,7 @@ async function qualifyRequestedModel(
   const sourceKind = auth.account.kind
   const snapshot = await refreshOpenaiCatalogue(sourceKind)
   if (requestedId === 'gpt') {
-    const candidates = qualifiedGptCandidates('specialist', sourceKind)
-    const head = candidates[0]
+    const head = gptClassCandidate('specialist', sourceKind)
     if (head) return { kind: 'ok', modelId: head.identity.canonicalId, candidate: head }
     return {
       kind: 'refused',
