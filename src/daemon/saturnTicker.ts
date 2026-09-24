@@ -180,6 +180,9 @@ const heldLine = (reason: HeldFireV1['reason'], n: number, family?: string): str
             ? 'held: the admission door refused — retried each tick'
             : 'held'
 
+const reasonClause = (schedule: SaturnScheduleV1 | undefined): string =>
+  schedule?.note !== undefined && schedule.note.trim() !== '' ? ` · reason: ${schedule.note.replace(/[\r\n]+/g, ' ').trim()}` : ''
+
 
 export interface SaturnTickReportV1 {
   fired: number
@@ -272,12 +275,14 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           if (outcome.ok) {
             report.replayed++
             markSaturnFired(sessionId, h.scheduleId, now, ports.dir)
-            rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})`, {
+            rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})${reasonClause(heldSchedule)}`, {
               outcome: 'fired-late',
               scheduleId: h.scheduleId,
               dueAt: h.dueAt,
+              firedAt: now,
               heldMs: now - h.heldAt,
               releasedFrom: h.reason,
+              ...(heldSchedule?.note !== undefined ? { note: heldSchedule.note } : {}),
             })
           } else {
             holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
@@ -424,12 +429,14 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
             ports.dir,
           )
         }
-        rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + movedClause, {
+        rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + reasonClause(schedule) + movedClause, {
           outcome: lateMs > 60_000 ? 'fired-late' : 'fired',
           scheduleId: schedule.id,
           dueAt,
+          firedAt: now,
           lateMs,
           kind: schedule.action.kind,
+          ...(schedule.note !== undefined ? { note: schedule.note } : {}),
           ...(resolved.movedFromFamily !== undefined ? { firedOnFamily: fireAccount.family, movedFromFamily: resolved.movedFromFamily } : {}),
           ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
         })
