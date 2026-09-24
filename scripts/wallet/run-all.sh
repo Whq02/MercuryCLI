@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/wallet/** src/services/providers/primaryBackend.ts
+# gate-watch: src/services/wallet/** src/services/providers/primaryBackend.ts src/cli/handlers/auth.ts src/utils/secureStorage/**
 # gate-watch: src/services/providers/credentialIdentity* src/services/providers/accountSlots.ts src/services/providers/*/*Accounts.ts src/services/providers/*/*Login.ts src/services/oauth/** src/utils/accounts/** src/utils/auth.ts src/components/mercury-ui/screens/anthropicLoginModel.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

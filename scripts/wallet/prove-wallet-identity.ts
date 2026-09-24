@@ -61,6 +61,11 @@ const TOKENS = {
   claudeRefresh2: 'fixture-claude-refresh-two-CR2Q',
   claudeAccess3: 'fixture-claude-access-three-CA3Q',
   claudeRefresh3: 'fixture-claude-refresh-three-CR3Q',
+  claudeAccess4: 'fixture-claude-access-four-CA4Q',
+  claudeRefresh4: 'fixture-claude-refresh-four-CR4Q',
+  claudeAccess5: 'fixture-claude-access-five-CA5Q',
+  claudeRefresh5: 'fixture-claude-refresh-five-CR5Q',
+  claudeEnvRefresh: 'fixture-claude-env-refresh-token-ER1Q',
   openaiAccess: 'fixture-openai-access-token-OA1Q',
   openaiRefresh: 'fixture-openai-refresh-token-OR1Q',
   googleAccess: 'fixture-google-access-token-GA1Q',
@@ -296,6 +301,8 @@ const moonshotAccounts = await import('../../src/services/providers/moonshot/moo
 const { runKimiDeviceLogin } = await import('../../src/services/providers/moonshot/moonshotLogin.ts')
 const openrouterAccounts = await import('../../src/services/providers/openrouter/openrouterAccounts.ts')
 const accountSlots = await import('../../src/services/providers/accountSlots.ts')
+const auth = await import('../../src/utils/auth.ts')
+const scopeScan = await import('../../src/utils/accounts/scopeScan.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type WalletEntry = import('../../src/services/wallet/wallet.ts').WalletEntry
 type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
@@ -437,6 +444,9 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   const receiptEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A2 the Claude entry names the receipt account, source receipt', receiptEntry?.identity?.email === CLAUDE_RECEIPT_EMAIL && receiptEntry.identity.source === 'receipt', JSON.stringify(receiptEntry))
   expectLines('A2 the Claude row: the receipt email', 'anthropic', [`Claude account · ${CLAUDE_RECEIPT_EMAIL} (subscription)`])
+  auth.dropCredentialMemos()
+  const restartedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
+  check('A2 after a restart (every credential memo dropped) the receipt stored with the credential still names the account', restartedEntry?.identity?.email === CLAUDE_RECEIPT_EMAIL && restartedEntry.identity.source === 'receipt' && restartedEntry.label === `Claude account (${CLAUDE_RECEIPT_EMAIL})`, JSON.stringify(restartedEntry))
 
   oauthClient.storeOAuthAccountInfo({
     accountUuid: 'claude-uuid-one',
@@ -458,7 +468,73 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   check('A4 a sign-in that reported no account settles', third === 'success', third)
   const typedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A4 an address the operator typed (MERCURY_USER_EMAIL) is never claimed as the provider\'s word', typedEntry !== undefined && typedEntry.identity?.source === undefined, JSON.stringify(typedEntry?.identity))
+  check('A4 …nor carried in the wallet\'s public identity (no email; the label names the scope, not the typed address)', typedEntry !== undefined && typedEntry.identity?.email === undefined && typedEntry.label === 'Claude account (primary)', JSON.stringify(typedEntry))
   expectLines('A4 the Claude row paints the sign-in kind alone, never the typed address', 'anthropic', ['Claude account · subscription'])
+
+  delete process.env.MERCURY_USER_EMAIL
+  wallet.resetWalletEntriesMemo()
+  const unpinnedTypedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
+  check('A4b removing the env does not turn a persisted typed address into provider identity', unpinnedTypedEntry?.identity?.source === undefined, JSON.stringify(unpinnedTypedEntry?.identity))
+  expectLines('A4b the row still withholds the unproven identity after the env is gone', 'anthropic', ['Claude account · subscription'])
+  check('A4b the typed address is still recorded on disk (the fallback the wallet must not read)', scopeScan.readScopeIdentity(scopeScan.scopeIdentityFile(HOME)).email === TYPED_EMAIL, JSON.stringify(scopeScan.readScopeIdentity(scopeScan.scopeIdentityFile(HOME))))
+  check('A4b …and the wallet\'s public identity carries none of it (no email, no source; the label names the scope)', unpinnedTypedEntry !== undefined && unpinnedTypedEntry.identity?.email === undefined && unpinnedTypedEntry.label === 'Claude account (primary)' && !JSON.stringify(unpinnedTypedEntry).includes(TYPED_EMAIL), JSON.stringify(unpinnedTypedEntry))
+  auth.dropCredentialMemos()
+  const restartedTypedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
+  check('A4b after a restart (every credential memo dropped, the env still gone) the typed record is still never identity', restartedTypedEntry !== undefined && restartedTypedEntry.identity?.source === undefined && restartedTypedEntry.identity?.email === undefined && !JSON.stringify(restartedTypedEntry).includes(TYPED_EMAIL), JSON.stringify(restartedTypedEntry))
+  expectLines('A4b …and the row after the restart paints the sign-in kind alone', 'anthropic', ['Claude account · subscription'])
+}
+
+section('A5 the provenance rule itself: only the credential\'s own profile or receipt names a Claude account')
+{
+  const ownAccount = (wallet as { anthropicCredentialAccount?: (credential: unknown) => unknown }).anthropicCredentialAccount
+  const scopeEntry = (wallet as { anthropicScopeEntry?: (scope: unknown, credential: unknown) => WalletEntry }).anthropicScopeEntry
+  const missing = 'no anthropicCredentialAccount / anthropicScopeEntry on this tree'
+  const profileAndReceipt = {
+    profile: { account: { email: ' profile@example.test ', uuid: 'uuid-profile' }, organization: { uuid: 'org-p' } },
+    tokenAccount: { uuid: 'uuid-receipt', emailAddress: 'receipt@example.test' },
+  }
+  const receiptOnly = { tokenAccount: { uuid: 'uuid-receipt', emailAddress: 'receipt@example.test' } }
+  const blankProfile = { profile: { account: { email: '   ', uuid: 'uuid-blank' }, organization: { uuid: 'org-b' } }, tokenAccount: receiptOnly.tokenAccount }
+  const malformed = { profile: { account: { email: 42 } }, tokenAccount: { emailAddress: ['x@example.test'] } }
+  check('A5 the profile read outranks the receipt, trimmed, source profile', typeof ownAccount === 'function' && JSON.stringify(ownAccount(profileAndReceipt)) === JSON.stringify({ email: 'profile@example.test', uuid: 'uuid-profile', source: 'profile' }), typeof ownAccount === 'function' ? JSON.stringify(ownAccount(profileAndReceipt)) : missing)
+  check('A5 a receipt alone names the account, source receipt', typeof ownAccount === 'function' && JSON.stringify(ownAccount(receiptOnly)) === JSON.stringify({ email: 'receipt@example.test', uuid: 'uuid-receipt', source: 'receipt' }), typeof ownAccount === 'function' ? JSON.stringify(ownAccount(receiptOnly)) : missing)
+  check('A5 a blank profile email falls to the receipt', typeof ownAccount === 'function' && (ownAccount(blankProfile) as { source?: string } | undefined)?.source === 'receipt', typeof ownAccount === 'function' ? JSON.stringify(ownAccount(blankProfile)) : missing)
+  check('A5 nothing reported (no credential, an empty one, malformed fields) names nobody', typeof ownAccount === 'function' && [undefined, null, {}, malformed].every(credential => ownAccount(credential) === undefined), missing)
+  const typedScope = { name: 'primary', dir: HOME, isCurrent: true, hasConfig: true, authed: true, foreignHarness: false, email: TYPED_EMAIL, uuid: 'typed-uuid' }
+  const bare = scopeEntry?.(typedScope, {})
+  check('A5 the current scope with a credential that reported nothing: no email, no source, the label names the scope — its recorded address is never read', bare !== undefined && bare.identity?.email === undefined && bare.identity?.source === undefined && bare.label === 'Claude account (primary)' && !JSON.stringify(bare).includes(TYPED_EMAIL), bare === undefined ? missing : JSON.stringify(bare))
+  check('A5 …while its usage-owner key stays the recorded account id (unchanged — usage ownership does not move)', bare !== undefined && bare.identity?.accountId === 'typed-uuid', bare === undefined ? missing : JSON.stringify(bare?.identity))
+  const named = scopeEntry?.(typedScope, receiptOnly)
+  check('A5 the current scope with a receipt names the receipt, never the recorded address', named !== undefined && named.identity?.email === 'receipt@example.test' && named.identity.source === 'receipt' && named.label === 'Claude account (receipt@example.test)' && named.identity.accountId === 'uuid-receipt', named === undefined ? missing : JSON.stringify(named))
+  const otherScope = { ...typedScope, name: 'b', dir: join(HOME, 'other-scope'), isCurrent: false, uuid: 'uuid-b' }
+  const other = scopeEntry?.(otherScope, profileAndReceipt)
+  check('A5 a non-current scope never borrows the current credential and never upgrades its own recorded address', other !== undefined && other.id === 'anthropic:oauth:b' && other.identity?.email === undefined && other.identity?.source === undefined && other.label === 'Claude account (b)' && !JSON.stringify(other).includes(TYPED_EMAIL) && !JSON.stringify(other).includes('profile@example.test'), other === undefined ? missing : JSON.stringify(other))
+}
+
+section('A6 an env refresh-token sign-in never wears the previous sign-in\'s receipt')
+{
+  state.claudeAccess = TOKENS.claudeAccess4
+  state.claudeRefresh = TOKENS.claudeRefresh4
+  state.claudeReceipt = { uuid: 'claude-uuid-four', email: CLAUDE_RECEIPT_EMAIL }
+  state.claudeProfile = { uuid: 'claude-uuid-four', email: CLAUDE_RECEIPT_EMAIL }
+  const fourth = await signInAnthropic('fixture-claude-code-four')
+  check('A6 the previous account signs in with its profile and receipt', fourth === 'success' && entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')?.identity?.email === CLAUDE_RECEIPT_EMAIL, fourth)
+  const scopes = ['user:inference', 'user:profile']
+  const sameGrant = await oauthClient.refreshOAuthToken(TOKENS.claudeRefresh4, { scopes })
+  check('A6 a refresh of the stored grant keeps the receipt that grant\'s sign-in stored', sameGrant.tokenAccount?.emailAddress === CLAUDE_RECEIPT_EMAIL, JSON.stringify(sameGrant.tokenAccount))
+  state.claudeAccess = TOKENS.claudeAccess5
+  state.claudeRefresh = TOKENS.claudeRefresh5
+  state.claudeReceipt = undefined
+  state.claudeProfile = undefined
+  const signInGrant = (oauthClient as { refreshSignInGrant?: typeof oauthClient.refreshOAuthToken }).refreshSignInGrant
+  const envTokens = await (signInGrant ?? oauthClient.refreshOAuthToken)(TOKENS.claudeEnvRefresh, { scopes })
+  check('A6 the env refresh-token sign-in grant carries no receipt from the credential it replaces', typeof signInGrant === 'function' && envTokens.accessToken === TOKENS.claudeAccess5 && envTokens.tokenAccount === undefined, typeof signInGrant === 'function' ? JSON.stringify(envTokens.tokenAccount) : `no refreshSignInGrant on this tree; the refresh carried ${JSON.stringify(envTokens.tokenAccount)}`)
+  const landed = auth.saveOAuthTokensIfNeeded(envTokens)
+  const envEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
+  check('A6 the landed env sign-in never names the previous account (its credential reported none)', landed.success && envEntry !== undefined && envEntry.identity?.email === undefined && envEntry.identity?.source === undefined && !envEntry.label.includes(CLAUDE_RECEIPT_EMAIL), JSON.stringify(envEntry))
+  expectLines('A6 the row paints the sign-in kind alone', 'anthropic', ['Claude account · subscription'])
+  const authSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'handlers', 'auth.ts'), 'utf8')
+  check('A6 the env fast path of `auth login` builds its tokens through refreshSignInGrant, never the stored-grant refresh', authSource.includes('await refreshSignInGrant(envRefreshToken') && !authSource.includes('refreshOAuthToken('), 'src/cli/handlers/auth.ts')
 }
 
 section('O OpenAI ChatGPT — the id_token email claim, captured at the token exchange')

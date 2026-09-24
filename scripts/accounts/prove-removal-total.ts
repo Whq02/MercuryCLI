@@ -99,6 +99,7 @@ function seedAnthropic(email: string, uuid: string): void {
         scopes: ['user:inference', 'user:profile'],
         subscriptionType: 'max',
         rateLimitTier: null,
+        tokenAccount: { uuid, emailAddress: email },
       },
       ...SIBLINGS,
     }),
