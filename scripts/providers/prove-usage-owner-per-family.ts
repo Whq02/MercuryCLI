@@ -129,7 +129,7 @@ section('§2 honest absence — the owner says the provider publishes nothing, a
     check(`${family}: the refresh door makes NO request`, fetchCalls === 0, String(fetchCalls))
   }
   const zai = owner.usageForProvider('zai')
-  check('zai: connected, api-spend, and the owner states the verified absence (no usage or balance endpoint, dated)', zai.sourceKind === 'api-key' && zai.shape === 'api-spend' && typeof zai.absence === 'string' && zai.absence.includes('no usage or balance endpoint') && zai.absence.includes('2026-09-01'), zai.absence)
+  check('zai: connected, api-spend, and the owner states the checked absence with its console link', zai.sourceKind === 'api-key' && zai.shape === 'api-spend' && typeof zai.absence === 'string' && zai.absence.includes('No Z.AI usage read found') && zai.absence.includes('2026-09-24') && zai.absence.includes('https://z.ai/manage-apikey/subscription'), zai.absence)
   const gm = owner.usageForProvider('gemini')
   check('gemini: the owner carries the verified no-usage-endpoint line (the same constant the reader states)', gm.sourceKind === 'api-key' && gm.absence === geminiState.GEMINI_USAGE_ABSENCE_NOTE, gm.absence)
   const compat = owner.usageForProvider('openai-compat')
