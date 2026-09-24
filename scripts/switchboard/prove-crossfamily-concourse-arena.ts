@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -99,6 +99,16 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       arenaCwd = cwd
+      const gitRun = (args: string[]): string => {
+        const res = spawnSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } })
+        if (res.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${(res.stderr ?? '').slice(0, 200)}${res.error !== undefined ? ` (${res.error.message})` : ''}`)
+        return (res.stdout ?? '').trim()
+      }
+      gitRun(['init', '-q', '-b', 'main', '.'])
+      writeFileSync(join(cwd, 'README.md'), '# arena workspace\n')
+      gitRun(['add', 'README.md'])
+      gitRun(['-c', 'user.name=arena', '-c', 'user.email=arena@fixture.invalid', 'commit', '-q', '-m', 'base'])
+      check('the arena folder starts as a git repository with one base commit (the second seat forks silently)', gitRun(['rev-parse', '--is-inside-work-tree']) === 'true' && gitRun(['rev-list', '--count', 'HEAD']) === '1')
       const cfgPath = join(configDir, '.config.json')
       const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
       cfg.concourseCoordinator = { mode: 'agent-assisted', assistModel: 'gpt-5.5' }
@@ -159,6 +169,7 @@ try {
       boards.some(b => /coordinator · GPT-5\.5/i.test(b.text)),
       boards.length > 0 ? boards[boards.length - 1]!.text.split('\n').filter(r => /coordinator/i.test(r)).join(' | ').slice(0, 200) : 'no boards')
     check('LAUNCH: the coordinator spoke through the GPT ack on the board', boards.some(b => b.text.includes('cma-openai-ack')), laneStr)
+    check('no git-offer card held the coordinator launch (the folder was already a git repository)', lane.every(l => !/start one in|needs git/i.test(l.text)), laneStr)
 
     let phase: 'want-e1' | 'want-b1' | 'want-e2' | 'done' = 'want-e1'
     let firstEntered: 'alpha' | 'beta' | null = null
