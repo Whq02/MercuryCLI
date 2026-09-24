@@ -1,11 +1,18 @@
 import axios from 'axios'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { dropCredentialMemos, getClaudeAIOAuthTokens, isClaudeAISubscriber } from '../../../utils/auth.js'
+import {
+  checkAndRefreshOAuthTokenIfNeeded,
+  dropCredentialMemos,
+  getClaudeAIOAuthTokens,
+  isAnthropicOAuthSignInExpired,
+  isClaudeAISubscriber,
+} from '../../../utils/auth.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
 import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../claudeAiLimits.js'
+import { isOAuthTokenExpired } from '../../oauth/client.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
 
@@ -16,7 +23,10 @@ export type AnthropicUsageReadFailure = {
   detail: string
   atMs: number
   retryAfterMs?: number
+  refresh?: 'refused' | 'unanswered'
 }
+
+export type SignInRenewal = 'fresh' | 'renewed' | 'refused' | 'unanswered'
 
 export interface AnthropicUsageReadStatus {
   lastAttemptAtMs?: number
@@ -104,7 +114,7 @@ function classify(error: unknown, host: string, atMs: number): AnthropicUsageRea
 }
 
 function sameEpisode(a: AnthropicUsageReadFailure | undefined, b: AnthropicUsageReadFailure): boolean {
-  return a !== undefined && a.kind === b.kind && a.status === b.status && a.host === b.host
+  return a !== undefined && a.kind === b.kind && a.status === b.status && a.host === b.host && a.refresh === b.refresh
 }
 
 export function isServerWait(f: { kind?: string; status?: number; retryAfterMs?: number } | undefined): boolean {
@@ -126,7 +136,9 @@ function failedWords(f: AnthropicUsageReadFailure): string {
     case 'network':
       return `usage endpoint unreachable — ${f.detail} (${f.host})`
     case 'token':
-      return 'usage endpoint not asked — the sign-in token is expired (the next reply refreshes it)'
+      return f.refresh === 'refused'
+        ? 'usage endpoint not asked — the sign-in has expired and the refresh grant was refused (/logins anthropic signs in again)'
+        : 'usage endpoint not asked — the sign-in token is expired and the refresh grant did not answer'
   }
 }
 
@@ -149,9 +161,35 @@ function retryWords(now: number): string {
   return wait <= 0 ? 'retry due' : `retry in ${formatUsageAge(wait)}`
 }
 
+function signInExpired(): boolean {
+  try {
+    const tokens = getClaudeAIOAuthTokens()
+    return tokens !== null && isOAuthTokenExpired(tokens.expiresAt ?? null)
+  } catch {
+    return false
+  }
+}
+
+export async function renewExpiredSignIn(): Promise<SignInRenewal> {
+  if (!signInExpired()) return 'fresh'
+  let renewed = false
+  try {
+    renewed = await checkAndRefreshOAuthTokenIfNeeded()
+  } catch {
+    renewed = false
+  }
+  if (renewed || !signInExpired()) return 'renewed'
+  try {
+    return isAnthropicOAuthSignInExpired() ? 'refused' : 'unanswered'
+  } catch {
+    return 'unanswered'
+  }
+}
+
 export function anthropicUsageReaderNote(now: number = Date.now(), style: 'prose' | 'compact' = 'prose'): string | undefined {
   if (failure === undefined) return undefined
   if (style === 'compact') return failedWordsCompact(failure)
+  if (failure.kind === 'token' && failure.refresh === 'refused') return failedWords(failure)
   return `${failedWords(failure)} · ${retryWords(now)}`
 }
 
@@ -211,7 +249,7 @@ export function usageReaderRecordWords(configHome?: string): string | undefined 
   }
   const what =
     record.kind === 'token'
-      ? 'sign-in token expired'
+      ? record.detail
       : isServerWait(record)
         ? `the endpoint asked us to wait ${formatUsageAge(record.retryAfterMs!)} (HTTP 429)`
         : record.detail
@@ -331,14 +369,27 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
       logForDebugging(`[usage] read #${request} (${reason}) GET ${host}/api/oauth/usage → ${outcome} in ${Date.now() - started} ms`)
     }
     try {
+      const renewal = await renewExpiredSignIn()
+      if (renewal !== 'fresh') logForDebugging(`[usage] read #${request} (${reason}): the sign-in token was expired — refresh grant ${renewal}`)
+      if (renewal === 'renewed' && issued === generation) observedCredential = currentCredential()
       const answer = await fetchUtilization()
       if (issued !== generation) {
         trace('settled after the account moved (discarded)')
         return anthropicUsageReadStatus()
       }
       if (answer === null) {
-        trace('not asked — the sign-in token is expired')
-        noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
+        const refresh = renewal === 'refused' ? 'refused' : 'unanswered'
+        trace(`not asked — the sign-in token is expired (refresh grant ${refresh})`)
+        noteFailure(
+          {
+            kind: 'token',
+            host,
+            detail: refresh === 'refused' ? 'sign-in expired — the refresh grant was refused' : 'sign-in token expired — the refresh grant did not answer',
+            atMs: now(),
+            refresh,
+          },
+          now(),
+        )
       } else {
         trace('ok')
         noteAnswer(now())
