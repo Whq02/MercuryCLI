@@ -29,7 +29,7 @@ import { wrapPlain } from './BootHealthScreen.js'
 import type { ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
 import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
 import {
-  parseGptModelId,
+  parseOpenaiModelId,
   gptDisplayPin,
   hasGptServedWindowSuffix,
   liveGptContextWindow,
@@ -127,7 +127,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
   const ctxStateOf = (p: string | undefined): boolean => {
     if (p === undefined) return false
-    if (parseGptModelId(p)) {
+    if (parseOpenaiModelId(p)) {
       return !(hasGptServedWindowSuffix(current) && stripGptServedWindowSuffix(current) === p)
     }
     return has1mContext(p) || focusedOptionSupports1m(p)
@@ -136,7 +136,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const [context1m, setContext1m] = useState(ctxStateOf(models[startI]?.id))
   const focusedGptWindow = ((): { served: number; ceiling?: number; observed?: string } | null => {
     const p = focusedModel?.id
-    if (!p || !parseGptModelId(p)) return null
+    if (!p || !parseOpenaiModelId(p)) return null
     const live = liveGptContextWindow(p)
     const pin = gptDisplayPin(p)
     const served = live ?? pin?.contextWindow
@@ -201,7 +201,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (p && focusedOptionSupports1m(p)) {
       const base = stripContext1m(p)
       onSelect(context1m === has1mContext(p) ? m.id : (context1m ? withContext1m(base) : base))
-    } else if (p && parseGptModelId(p) && focusedGptToggle) {
+    } else if (p && parseOpenaiModelId(p) && focusedGptToggle) {
       onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id))
     } else {
       onSelect(m.id)

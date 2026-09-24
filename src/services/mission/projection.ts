@@ -18,6 +18,7 @@ import {
 } from './contracts.js'
 import type { MissionPolicyDecision, MissionTaskFingerprint } from './policyProfiles.js'
 import { evaluateMissionCompletion } from './completion.js'
+import { parseOpenaiModelId } from '../providers/openai/gptPins.js'
 
 const ACTIVE_PLAN_STATES = new Set(['committed', 'running', 'synthesizing', 'revising'])
 const TERMINAL_RUN = new Set(['completed', 'cancelled', 'failed'])
@@ -250,7 +251,7 @@ export async function gatherPolicyDecision(
     try {
       const { readQualificationReceipts } = await import('../providers/openai/qualificationStore.js')
       solEngineQualified = readQualificationReceipts().some(
-        r => r.current && r.receipt.modelId.startsWith('gpt-') && r.receipt.role === 'primary',
+        r => r.current && parseOpenaiModelId(r.receipt.modelId) !== undefined && r.receipt.role === 'primary',
       )
     } catch {
       solEngineQualified = false

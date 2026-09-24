@@ -17,7 +17,7 @@ argument-hint: "[question or task]"
 ## Resolve Mercury's route
 - Resolve `compat/`, `openrouter/`, `huggingface/` and `local/` namespaces before native prefixes.
 - Strip Mercury's carrier prefix, not the provider's own model slug, before sending.
-- Route `gpt-` to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `glm-` to Z.AI; `gemini-` to Gemini.
+- Route `gpt-` and the o-series shape (`o` followed by a digit: `o3`, `o5-preview`) to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `glm-` to Z.AI; `gemini-` to Gemini. An o-series id rides only when the account's live model list carries it.
 - Use Anthropic's declared IDs and aliases for Messages; do not treat arbitrary unknown IDs as Anthropic models.
 - Preserve explicit gateway/model-pin admission; never fall through to another provider after a route failure.
 - Use `/login` and `/accounts` for credentials; select the actual API-key or subscription endpoint rather than substituting one for the other.

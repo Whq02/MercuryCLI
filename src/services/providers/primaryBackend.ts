@@ -1,7 +1,7 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
 import { normalizeModelStringForAPI } from '../../utils/model/model.js'
 import { resolveZaiApiKey } from '../../utils/router/providerDiscovery.js'
-import { parseGptModelId } from './openai/gptPins.js'
+import { parseOpenaiModelId } from './openai/gptPins.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { classifyModelRoute, type CallModelRoute } from './callModelRouter.js'
 import { activeWalletEntry } from '../wallet/wallet.js'
@@ -60,6 +60,7 @@ export interface AgentRuntimeRef {
     | { kind: 'claude' }
     | { kind: 'glm' }
     | { kind: 'gpt'; major: number; minor: number; variant: string }
+    | { kind: 'o-series'; series: number; variant: string }
     | { kind: 'kimi' }
     | { kind: 'deepseek' }
     | { kind: 'compat' }
@@ -297,10 +298,13 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
   const backend = BACKENDS[route]
   let family: AgentRuntimeRef['family']
   if (route === 'openai') {
-    const parsed = parseGptModelId(canonical)
-    family = parsed
-      ? { kind: 'gpt', major: parsed.major, minor: parsed.minor, variant: parsed.variant }
-      : { kind: 'unknown' }
+    const parsed = parseOpenaiModelId(canonical)
+    family =
+      parsed === undefined
+        ? { kind: 'unknown' }
+        : parsed.family === 'gpt'
+          ? { kind: 'gpt', major: parsed.major, minor: parsed.minor, variant: parsed.variant }
+          : { kind: 'o-series', series: parsed.series, variant: parsed.variant }
   } else if (route === 'zai') {
     family = { kind: 'glm' }
   } else if (route === 'moonshot') {
