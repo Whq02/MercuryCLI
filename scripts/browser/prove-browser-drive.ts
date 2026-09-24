@@ -24,17 +24,22 @@ const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 
 {
-  const r = resolveBrowser()
-  if (r.state !== 'ok') {
+  const r = await (async () => {
+    const first = resolveBrowser()
+    if (first.state === 'ok') return first
     const { resolveExecutionProfile } = await import('../lib/executionProfile.ts')
     if (resolveExecutionProfile(ROOT).kind === 'hosted-gate') {
-      console.error(`  [FAIL] hosted gate has no drivable browser — ${r.note}; provision the shard (op:"provision" / a cached managed build) rather than skipping the suite`)
+      const { provisionManagedBrowserForTheGate } = await import('../lib/provisionManagedBrowser.ts')
+      const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
+      const again = provisioned.ok ? resolveBrowser() : first
+      if (again.state === 'ok') return again
+      console.error(`  [FAIL] hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}`)
       process.exit(1)
     }
-    console.log(`__SUITE_SKIPPED browser: ${r.note}`)
+    console.log(`__SUITE_SKIPPED browser: ${first.note}`)
     console.log(`  – no drivable browser on this machine — SKIP; the resolution law is pinned by scripts/language-sidecars/prove-browser-resolution.ts`)
     process.exit(0)
-  }
+  })()
   console.log(`  driving: ${r.source} — ${r.executablePath}`)
 }
 

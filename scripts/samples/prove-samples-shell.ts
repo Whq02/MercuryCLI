@@ -86,13 +86,21 @@ check('H9 every version names itself for the switcher', served.includes('aria-la
 check('H10 the record\'s state is on the chip', renderSampleShell({ record: record(2, 'changes-needed'), versions: record(2).versions, token: TOKEN }).includes('class="chip warn" id="state">changes needed<'))
 
 section('R the browser road')
-const resolution = resolveBrowser()
-if (resolution.state !== 'ok') {
+const resolution = await (async () => {
+  const first = resolveBrowser()
+  if (first.state === 'ok') return first
   const { resolveExecutionProfile } = await import('../lib/executionProfile.ts')
   if (resolveExecutionProfile(ROOT).kind === 'hosted-gate') {
-    console.log(`  [FAIL] the hosted gate has no drivable browser — ${resolution.note}`)
+    const { provisionManagedBrowserForTheGate } = await import('../lib/provisionManagedBrowser.ts')
+    const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
+    const again = provisioned.ok ? resolveBrowser() : first
+    if (again.state === 'ok') return again
+    console.log(`  [FAIL] the hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}`)
     process.exit(1)
   }
+  return first
+})()
+if (resolution.state !== 'ok') {
   if (failures > 0) {
     console.log(`\n❌ samples shell: ${failures} failure(s) before the browser road`)
     process.exit(1)
