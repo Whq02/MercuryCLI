@@ -6,7 +6,7 @@ import {
 } from '../../services/engine-connector/focusedConnector.js'
 import { runnerRecordAlive, workRowRuns } from '../../services/engine-connector/workCounts.js'
 import { readSessionWorkers } from '../../daemon/concourseSupervisor.js'
-import type { MissionRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
+import type { MissionRowV1, SampleRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { useAppState, useAppStateStore, type AppState } from '../../state/AppState.js'
 import { getTelemetry, subscribeTelemetry, type SessionGlanceSnapshot } from '../../state/telemetryBus.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -28,6 +28,13 @@ export function useFocusedWorkRoster(): WorkRosterV1 {
 
 export function useFocusedMission(): readonly MissionRowV1[] {
   return useFocusedWorkRoster().mission
+}
+
+const focusedSamplesStamp = (): string => JSON.stringify(getFocusedSessionConnector().workRoster().samples ?? [])
+
+export function useFocusedSamples(): readonly SampleRowV1[] {
+  const stamp = useSyncExternalStore(subscribeFocusedWork, focusedSamplesStamp, focusedSamplesStamp)
+  return useMemo(() => JSON.parse(stamp) as SampleRowV1[], [stamp])
 }
 
 export function focusedWorkRows(
