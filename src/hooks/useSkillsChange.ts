@@ -67,7 +67,7 @@ export function useSkillsChange(
           if (parent === ancestor) return
           ancestor = parent
         }
-        const birth = watch(ancestor, {}, () => {
+        const birth = watch(resolveWatchRoot(ancestor), {}, () => {
           if (!alive) return
           birth.close()
           if (existsSync(dir)) rescan()
