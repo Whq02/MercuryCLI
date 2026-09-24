@@ -8,15 +8,16 @@ export type WorkshopCellCardFacts = {
   state: 'failed' | 'timed-out'
   error: string
   outputTail: string[]
-  shellCalls: WorkshopShellCall[]
+  shellCalls?: WorkshopShellCall[]
   durationMs: number
   generation: number
   runtimeKilled: boolean
   artifactRef?: string
 }
 
-export function lastShellCallOf(facts: Pick<WorkshopCellCardFacts, 'shellCalls'>): WorkshopShellCall | undefined {
-  return facts.shellCalls[facts.shellCalls.length - 1]
+export function lastShellCallOf(facts: { shellCalls?: WorkshopShellCall[] | null }): WorkshopShellCall | undefined {
+  const calls = Array.isArray(facts.shellCalls) ? facts.shellCalls : []
+  return calls.length > 0 ? calls[calls.length - 1] : undefined
 }
 
 export function shellCallHeadline(call: WorkshopShellCall): string {
