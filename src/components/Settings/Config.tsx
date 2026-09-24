@@ -80,6 +80,8 @@ import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammat
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
+import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '../../services/jev/jevSetting.js'
+import { jevStatusLine } from '../../services/jev/jevStatus.js'
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
@@ -528,6 +530,25 @@ export function Config({
         globalTouchedRef.current.add('motion')
         snapshots.dirty = true
         recordSet('motion', `set motion to ${next}`)
+        bump()
+      },
+    })
+  }
+  {
+    const jevSettings = readJevSettings()
+    items.push({
+      id: 'jev',
+      label: 'JEV',
+      searchText: 'jev typesafe second opinion jeveval eval tool key allowance pace ceiling sub-agents',
+      kind: 'boolean',
+      value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
+      warning: [jevStatusLine(), ...jevSettingLines(jevSettings)].join(' · '),
+      change: () => {
+        const next = !jevSettings.enabled
+        setJevEnabled(next)
+        globalTouchedRef.current.add('jev')
+        snapshots.dirty = true
+        recordToggle('jev', `set JEV to ${jevValueWords({ ...jevSettings, enabled: next })}`)
         bump()
       },
     })
