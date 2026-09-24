@@ -85,8 +85,8 @@ console.log('— T1 the ledger fold —')
   )
   updateProgressFromMessage(tr, assistant('r2', ANTHROPIC_ID, { input_tokens: 2000, output_tokens: 100, cache_read_input_tokens: 500 }))
   check(
-    'T1 the next response ADDS, input counting the cached prefix read',
-    tr.ledger.inputTokens === 3500 && tr.ledger.outputTokens === 500,
+    'T1 the next response ADDS its fresh input and output; the cached prefix read stays outside the ledger',
+    tr.ledger.inputTokens === 3000 && tr.ledger.outputTokens === 500,
     JSON.stringify(tr.ledger),
   )
   check('T1 the served model rides the fold', tr.ledger.servedModel === ANTHROPIC_ID, String(tr.ledger.servedModel))
