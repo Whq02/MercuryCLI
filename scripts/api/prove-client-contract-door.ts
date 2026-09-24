@@ -60,7 +60,7 @@ check('cc_version is the FIRST field (the gate-read position)', line.startsWith(
 check('the product version rides nowhere on the line', !line.includes('1.0.0'), line)
 check('the accessor answers the constant when the override is unset', getAnthropicClientContractVersion() === CONTRACT)
 
-section('§2 NOTHING ELSE — every agent stays mercury/<version>; six homes in src')
+section('§2 NOTHING ELSE — every agent stays mercury/<version>; five homes in src')
 const agents: Array<[string, string]> = [
   ['provider transports (getUserAgent)', getUserAgent()],
   ['MCP (getMCPUserAgent)', getMCPUserAgent()],
@@ -95,8 +95,8 @@ const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8
 const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 {
   const homes = tracked.filter(p => /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
-  const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
-  check('the contract version has exactly its six declared homes in src (a seventh is a leak)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
+  const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
+  check('the contract version has exactly its five declared homes in src (a sixth is a leak)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
   const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
   check("the first-party client's agent is the product agent at source", clientSrc.includes("'User-Agent': getUserAgent()"))
   const httpSrc = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')
@@ -170,7 +170,7 @@ process.env.NODE_ENV = 'test'
   const text = textOf(msg)
   check('the row names the model and the active door', text.includes('Fable 5.1 is refused on Anthropic API key'), text)
   check('the row names the required version in plain words', text.includes('needs client version 2.1.251'), text)
-  check('the row names what Mercury presents and where the number came from', text.includes(`Mercury presents ${CONTRACT} (constant)`), text)
+  check('the row names what Mercury presents', text.includes(`Mercury presents ${CONTRACT}`), text)
   check('…and the override at the required floor', text.includes('MERCURY_ANTHROPIC_CLIENT_CONTRACT=2.1.251'), text)
   check("the wire's updater advice never reaches the operator", !/claude update|desktop app/i.test(text) && !text.includes(otherName), text)
   check('the row carries no errorDetails (the wire text stays in the debug log)', msg.errorDetails === undefined, msg.errorDetails)
@@ -179,7 +179,7 @@ process.env.NODE_ENV = 'test'
 {
   process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = '2.1.240'
   const text = clientContractGateLine(gate400.message, 'claude-fable-5-1')
-  check('under an override the line names the presented version, its source and remedy', text.includes('Mercury presents 2.1.240 (override)') && text.includes('MERCURY_ANTHROPIC_CLIENT_CONTRACT=2.1.251'), text)
+  check('under an override the line names the presented version and remedy', text.includes('Mercury presents 2.1.240') && text.includes('MERCURY_ANTHROPIC_CLIENT_CONTRACT=2.1.251'), text)
   delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 }
 {
@@ -219,7 +219,6 @@ section('§5 THE DOCTOR — the identity section carries the row from the one de
   check("the identity section carries the 'client-contract' check", health.includes("id: 'client-contract'"))
   check('…composed from the one describer', health.includes('describeAnthropicClientContract()') && health.includes('subscription door presents cc_version ${contract.presented}'))
   check('…and the ignored-override shape warns with a fix', health.includes("status: 'warn'") && health.includes('not a three-part version'))
-  check('…and a learned number is named with its date and source', health.includes('learned ${contract.asOf} from the registry'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

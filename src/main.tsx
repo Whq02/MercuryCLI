@@ -2373,9 +2373,6 @@ async function connectClaudeAiConnectors(store: {
 
 export function startDeferredPrefetches(): void {
   if (isBareMode()) return
-  void import('./services/api/clientContractLearned.js')
-    .then(({ startClientContractPeek }) => startClientContractPeek())
-    .catch((error: unknown) => logForDebugging(`client contract: the daily peek did not start: ${String(error)}`))
   void (async () => {
     try {
       void getCoreUserData()

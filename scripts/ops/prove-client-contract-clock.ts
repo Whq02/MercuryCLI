@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { lt, valid } from 'semver'
 import * as oauth from '../../src/constants/oauth.ts'
@@ -100,32 +99,5 @@ check('the ops suite runs the clock through the proof runner', readFileSync(join
 const tree = assess(LICENCE, VERSION, CONTRACT, AS_OF, TODAY)
 check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
 if (tree.info) console.log(tree.info)
-
-console.log('Client-contract clock: a learned number presents with its own date; the constant stays the baseline the clock checks')
-const envUtils = await import('../../src/utils/envUtils.ts')
-const LEARNED_AT = Date.parse('2000-03-01T12:00:00Z')
-const patchOf = (delta: number): string => CONTRACT.replace(/\d+$/, patch => String(Number(patch) + delta))
-const learnedHomes: string[] = []
-function describeWithLearned(version: string): ReturnType<typeof oauth.describeAnthropicClientContract> {
-  const home = mkdtempSync(join(tmpdir(), 'client-contract-clock-'))
-  learnedHomes.push(home)
-  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ version: 1, learned: { version, learnedAtMs: LEARNED_AT, from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', by: 'heal' } }))
-  envUtils.setAuthScope(home)
-  try {
-    return oauth.describeAnthropicClientContract()
-  } finally {
-    envUtils.clearAuthScope()
-  }
-}
-const learnedOverride = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
-delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
-const learned = describeWithLearned(patchOf(9))
-check('a learned number newer than the constant presents as learned, dated by its own learning', learned.presented === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned))
-check('the constant and its check date are untouched while a learned number presents', oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION === CONTRACT && (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF === AS_OF)
-check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(LICENCE, VERSION, CONTRACT, (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '))
-const staleLearned = describeWithLearned(patchOf(-1))
-check('a learned number older than the constant never presents: the constant and its date do', staleLearned.presented === CONTRACT && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned))
-if (learnedOverride !== undefined) process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = learnedOverride
-for (const home of learnedHomes) rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? 'client-contract clock: green' : `client-contract clock: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

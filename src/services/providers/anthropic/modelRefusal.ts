@@ -5,7 +5,6 @@ import { describeAnthropicClientContract } from '../../../constants/oauth.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { clientContractGateText } from '../../api/clientContractGate.js'
-import { clientContractHealOf, clientContractStory, type ClientContractSource } from '../../api/clientContractLearned.js'
 import { classifyAnthropicRefusal } from '../anthropicRefusal.js'
 import { classifyCredentialWall } from '../credentialWall.js'
 
@@ -27,8 +26,6 @@ export interface ModelRefusalFacts {
   door: string
   subscriber: boolean
   presented: string
-  presentedSource?: ClientContractSource | undefined
-  contractStory?: string | undefined
   seenAtMs: number
 }
 
@@ -37,8 +34,6 @@ export interface ClassifiedModelRefusal extends ModelRefusal {
   floor?: string
   read?: string
   presented?: string
-  presentedSource?: ClientContractSource
-  contractStory?: string
 }
 
 export function modelRefusalId(id: string): string {
@@ -78,8 +73,7 @@ export function modelRefusalSentence(refusal: ClassifiedModelRefusal): string {
     require('../../../utils/model/model.js') as typeof import('../../../utils/model/model.js')
   const name = renderModelName(refusal.id)
   if (refusal.kind === 'contract-floor') {
-    const presents = refusal.contractStory ?? `Mercury presents ${refusal.presented}${refusal.presentedSource !== undefined ? ` (${refusal.presentedSource})` : ''}`
-    return `${name} is refused on ${refusal.door}: it needs ${refusal.floor ? `client version ${refusal.floor}` : 'a newer client version'} and ${presents} — ${modelRefusalFix(refusal)}.`
+    return `${name} is refused on ${refusal.door}: it needs ${refusal.floor ? `client version ${refusal.floor}` : 'a newer client version'} and Mercury presents ${refusal.presented} — ${modelRefusalFix(refusal)}.`
   }
   if (refusal.kind === 'tier') {
     return `${name} is not available on the tier for ${refusal.door} — ${modelRefusalFix(refusal)}.`
@@ -97,25 +91,21 @@ export interface ModelRefusalRequest {
   home: string
   subscriber: boolean
   presented: string
-  source?: ClientContractSource
 }
 
 export function captureModelRefusalRequest(model: string): ModelRefusalRequest {
   const { isClaudeAISubscriber } = require('../../../utils/auth.js') as typeof import('../../../utils/auth.js')
-  const contract = describeAnthropicClientContract()
   return {
     id: modelRefusalId(model),
     door: activeModelRefusalDoor() ?? 'an unknown door',
     home: getAuthConfigHomeDir(),
     subscriber: isClaudeAISubscriber(),
-    presented: contract.presented,
-    source: contract.source,
+    presented: describeAnthropicClientContract().presented,
   }
 }
 
 export function modelRefusalFromError(error: unknown, model: string, request = captureModelRefusalRequest(model)): ClassifiedModelRefusal | null {
   const record = error as { status?: number; message?: string } | null
-  const heal = clientContractHealOf(error)
   return classifyModelRefusal({
     status: record?.status,
     errorType: modelRefusalErrorType(error),
@@ -124,8 +114,6 @@ export function modelRefusalFromError(error: unknown, model: string, request = c
     door: request.door,
     subscriber: request.subscriber,
     presented: request.presented,
-    presentedSource: request.source,
-    contractStory: heal === undefined ? undefined : clientContractStory(heal),
     seenAtMs: Date.now(),
   })
 }
@@ -148,8 +136,6 @@ export function classifyModelRefusal(facts: ModelRefusalFacts): ClassifiedModelR
       kind: 'contract-floor',
       ...(floor !== undefined ? { floor } : {}),
       ...(read !== undefined ? { read } : {}),
-      ...(facts.presentedSource !== undefined ? { presentedSource: facts.presentedSource } : {}),
-      ...(facts.contractStory !== undefined ? { contractStory: facts.contractStory } : {}),
     })
   }
   if (status === 400 && facts.subscriber && wireText.toLowerCase().includes('invalid model name') && /^(?:claude-opus(?:-|$)|opus$)/.test(id)) {
