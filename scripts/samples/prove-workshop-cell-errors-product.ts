@@ -152,7 +152,7 @@ section("§5 a shell command the ward refuses: the tool never ran, so the bridge
 const wardText = ward?.text ?? ''
 console.log(`  record · is_error=${String(ward?.is_error)} · head=${JSON.stringify(wardText.split('\n')[0] ?? '')} · the refused command in the result=${wardText.includes(WARD_COMMAND)}`)
 check('the ward cell is an error result with a failed head', ward !== undefined && ward.is_error === true && /^\[cell-js-g\d+-\d+\] failed/m.test(wardText), show(ward))
-check("the error names bridge call 1 (Bash) and carries the ward's words without the transcript wrapper", /^error: bridge call 1 \(Bash\) failed: Ward 'self-daemonize' blocked this Bash call/m.test(wardText) && !wardText.includes('<tool_use_error>'), show(ward))
+check("the error names bridge call 1 (Bash) and carries the ward's words without the transcript wrapper", /^error: bridge call 1 \(Bash\) failed: .*Ward 'self-daemonize' blocked this Bash call/m.test(wardText) && !wardText.includes('<tool_use_error>'), show(ward))
 check('the result says the cell stopped at that call', /the cell stopped at that call/.test(wardText), show(ward))
 check('no worker-internal frames', !WORKER_FRAME.test(wardText), show(ward))
 
