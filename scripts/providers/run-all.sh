@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage*
+# gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage* src/services/providers/openai/openaiLimitState* src/services/engine-connector/daemonConnector*
 # gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
 # gate-watch: src/services/providers/sseDecoder*
 set -u
