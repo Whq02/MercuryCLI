@@ -156,5 +156,26 @@ in_estate src/y.ts; rc=$?
 check "…a src/ entry is untouched" "$([ "$rc" = 0 ] && [ -z "$(first)" ] && echo 0 || echo 1)" "rc=$rc home=$(first)"
 check "nothing under \$HOME/.mercury after the preload road" "$(own_empty && echo 0 || echo 1)" "$(ls -A "$scratch/home/.mercury" | tr '\n' ' ')"
 
+echo "── a child environment built by stripping MERCURY_* names its own scratch config home"
+strips_home() {
+  grep -qE 'Object\.(entries|keys)\(process\.env\)' "$1" || return 1
+  grep -qE "(![[:space:]]*[A-Za-z_]+\.startsWith\(['\"]MERCURY_['\"]\))|(/\^MERCURY_/[a-z]*\.test\([^)]*\)\)?[^;]*(continue|delete|return false))|(startsWith\(['\"]MERCURY_['\"]\)[^;]*(continue|delete|return false))" "$1" || return 1
+  ! grep -qE "MERCURY_CONFIG_DIR[[:space:]]*[:=]|'MERCURY_CONFIG_DIR'|\"MERCURY_CONFIG_DIR\"" "$1"
+}
+mkdir -p "$scratch/census"
+printf '%s\n' "for (const [key, value] of Object.entries(process.env)) {" "  if (/^MERCURY_/i.test(key)) continue" "  env[key] = value" "}" "spawn('node', [dist], { env })" >"$scratch/census/strips-without-home.ts"
+printf '%s\n' "for (const [key, value] of Object.entries(process.env)) {" "  if (/^MERCURY_/i.test(key)) continue" "  env[key] = value" "}" "env.MERCURY_CONFIG_DIR = home" >"$scratch/census/strips-with-home.ts"
+printf '%s\n' "const clean = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('MERCURY_')))" "spawn('node', [dist], { env: { ...clean, MERCURY_CONFIG_DIR: home } })" >"$scratch/census/filters-with-home.ts"
+printf '%s\n' "for (const [k, v] of Object.entries(process.env)) {" "  if (k === 'PATH' || k.startsWith('MERCURY_')) env[k] = v" "}" >"$scratch/census/keeps.ts"
+check "the census reads a child env that strips MERCURY_* and names no config home as homeless" "$(strips_home "$scratch/census/strips-without-home.ts" && echo 0 || echo 1)"
+check "…one that sets MERCURY_CONFIG_DIR on the child env as kept" "$(strips_home "$scratch/census/strips-with-home.ts" && echo 1 || echo 0)"
+check "…a filtered spread that sets it as kept" "$(strips_home "$scratch/census/filters-with-home.ts" && echo 1 || echo 0)"
+check "…and a keep-list that carries MERCURY_* through as not a strip" "$(strips_home "$scratch/census/keeps.ts" && echo 1 || echo 0)"
+homeless=""
+while IFS= read -r f; do
+  strips_home "$f" && homeless="$homeless ${f#"$root"/}"
+done < <(find "$root/scripts" -type f \( -name '*.ts' -o -name '*.mjs' -o -name '*.js' \) -not -path '*/corpus/*' -not -path '*/node_modules/*' | sort)
+check "every script under scripts/ that strips MERCURY_* from a child environment it builds names MERCURY_CONFIG_DIR on that environment (a stripped child boots on the operator's own home)" "$([ -z "$homeless" ] && echo 0 || echo 1)" "$homeless"
+
 if [ "$fail" = 0 ]; then echo "  ALL PASS"; else echo "  FAILED"; fi
 exit "$fail"
