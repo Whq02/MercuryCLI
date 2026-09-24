@@ -440,13 +440,18 @@ export async function getSystemPrompt(
   const replMode = toolNames.has('REPL')
 
 
+  const [instructionEstate, usingTools] = await resolveSystemPromptSections([
+    systemPromptSection('instruction_estate', () => instructionEstateSection(toolNames)),
+    systemPromptSection('using_tools', () => usingToolsSection(toolNames, replMode) || null),
+  ])
+
   const staticSections: Array<string | null> = [
     introSection(),
     systemSection(),
     doingTasksSection(),
     careSection(),
-    instructionEstateSection(toolNames),
-    usingToolsSection(toolNames, replMode),
+    instructionEstate,
+    usingTools,
     toneSection(),
     communicationSection(),
   ].map(section => (section === '' ? null : section))
