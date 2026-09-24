@@ -9,7 +9,7 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
-import type { WorkRowV1 } from '../services/engine-connector/types.js'
+import type { SampleRowV1, WorkRowV1 } from '../services/engine-connector/types.js'
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
@@ -173,9 +173,19 @@ export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrup
 }
 
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
-  const budget = Math.max(12, columns - fixedWidth)
+  const budget = statusLineBudget(columns, fixedWidth)
   if (stringWidth(line) <= budget) return line
   return line.includes(' — ') ? truncateKeepingTail(line, budget) : line
+}
+
+export function statusLineBudget(columns: number, fixedWidth: number): number {
+  return Math.max(12, columns - fixedWidth)
+}
+
+export function fitStatusWords(line: string, samples: readonly SampleRowV1[], columns: number, fixedWidth: number): string {
+  const spoken = withSampleWords(line, samples)
+  if (stringWidth(spoken) <= statusLineBudget(columns, fixedWidth)) return spoken
+  return fitStatusLine(line, columns, fixedWidth)
 }
 
 function getFocusedSeatIdentityKey(): string {
@@ -254,7 +264,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
     (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
     2 +
     stringWidth(backHint)
-  const fitted = fitStatusLine(spoken, columns, fixedWidth)
+  const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
