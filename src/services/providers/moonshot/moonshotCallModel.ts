@@ -14,6 +14,7 @@ import { KIMI_PRESERVED_THINKING_MODELS } from './kimiPins.js'
 import {
   moonshotChatCompletionsUrl,
   moonshotDispatchSource,
+  recordMoonshotServedModel,
   refreshMoonshotTokens,
   resolveMoonshotDispatchCredential,
 } from './moonshotAccounts.js'
@@ -46,6 +47,9 @@ export const moonshotLaneProfile: CompatLaneProfile = {
   },
   buildExtras: buildMoonshotExtras,
   keepsReasoningHistory: wireModel => KIMI_PRESERVED_THINKING_MODELS.has(wireModel),
+  noteServedModel: (requested, served, credential) => {
+    recordMoonshotServedModel(requested, served, { identity: credential.accountIdentity })
+  },
 }
 
 export function moonshotLiveProofState(): { at: number; model: string } | null {

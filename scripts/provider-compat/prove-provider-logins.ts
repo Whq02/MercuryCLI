@@ -299,7 +299,7 @@ section('§1 · the Kimi device-code sign-in, end to end')
   const identity = mainLoopIdentity({ model: 'kimi-k3', presences })
   check('the main-loop identity on a Kimi model names the sign-in', identity.route === 'moonshot' && identity.text.includes('Kimi account (device-code sign-in') && identity.basis === 'credential-present', identity.text)
   const usage = activeSourceUsage({ model: 'kimi-k3', reads: {} })
-  check('the usage owner meters the plan windows on the oauth source', usage.shape === 'subscription-windows' && usage.sourceKind === 'oauth' && usage.tier === 'Kimi sign-in' && usage.windows.map(w => w.label).join(',') === '5h,wk,quota' && usage.windows[0]?.usedPct === 1, JSON.stringify(usage))
+  check('the usage owner meters the plan windows on the oauth source', usage.shape === 'subscription-windows' && usage.sourceKind === 'oauth' && usage.tier === 'Kimi sign-in' && usage.windows.map(w => w.label).join(',') === '5h,7d,quota' && usage.windows[0]?.usedPct === 1, JSON.stringify(usage))
   const usability = resolveProviderUsability().moonshot
   check('usability reads the sign-in as a usable oauth credential', usability.usable && usability.credential === 'oauth', JSON.stringify(usability))
   check('no secret rides any derived surface', !allText().includes(KIMI_ACCESS_1) && !allText().includes(KIMI_REFRESH))
