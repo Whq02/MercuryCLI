@@ -189,6 +189,7 @@ import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openro
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
   capFailoverLaneOf,
@@ -601,6 +602,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const [exitState, setExitState] = useState<{ pending: boolean; keyName: string | null }>({ pending: false, keyName: null })
   const [isPasting, setIsPasting] = useState(false)
 
+  const popupUp = useSyncExternalStore(subscribePopupOwnsKeys, popupOwnsKeys, popupOwnsKeys)
   const modalOverlayUp =
     overlay !== null ||
     showTeamsDialog ||
@@ -609,7 +611,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     showContentSearch ||
     showBashesDialog !== false ||
     isLocalJSXCommandActive ||
-    hasSuppressedDialogs
+    hasSuppressedDialogs ||
+    popupUp
 
   const canFocusSummary = (): boolean => summaryVisible && currentSurfaceRoute().kind === 'repl' && !modalOverlayUp && !externalEditorActive && !isSearchingHistory && !helpOpen && !exitState.pending && !anyModalOverlayActive() && !(pastePendingRef.current?.() ?? false)
   compactWork?.bindToggle(() => {
@@ -1939,7 +1942,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       key: Key,
       event: { stopImmediatePropagation: () => void; seq?: number },
     ): void => {
-      if (modalOverlayUp || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return
+      if (modalOverlayUp || popupOwnsKeys() || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return
       if (currentSurfaceRoute().kind !== 'repl') return
       if (event.seq !== undefined && isPriorGenerationInput(event.seq)) return
 
@@ -2728,7 +2731,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     showFileOpen ||
     showContentSearch ||
     showBashesDialog !== false ||
-    isLocalJSXCommandActive
+    isLocalJSXCommandActive ||
+    popupUp
   const inputAvailable = footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const inputFocused = inputAvailable && compactFocus === 'composer'
   const showCursor =
