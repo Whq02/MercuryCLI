@@ -65,7 +65,7 @@ import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingfac
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { parseGptModelId, withGptServedWindowSuffix } from '../../services/providers/openai/gptPins.js'
+import { parseOpenaiModelId, withGptServedWindowSuffix } from '../../services/providers/openai/gptPins.js'
 import { getCachedOpenaiCatalogue, liveGptContextCeiling, refreshOpenaiCatalogue, type OpenaiCatalogueSnapshot } from '../../services/providers/openai/openaiCatalogue.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
 import { anthropicCredentialPresence } from '../../services/providers/providerUsage.js'
@@ -286,7 +286,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
       ...(opt.catalogueDoor ? { expand: { group, family: opt.catalogueDoor.family, total: opt.catalogueDoor.total } } : {}),
     }
   }
-  if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
+  if (opt.unavailable !== undefined && parseOpenaiModelId(opt.value)) {
     return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
   }
   if (opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
@@ -314,7 +314,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
       ctxBase = fmtCtx(getContextWindowForModel(pairBase as never, betas))
       ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase) as never, betas))
     }
-    if (parseGptModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
+    if (parseOpenaiModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
       ctxBase = fmtCtx(getContextWindowForModel(withGptServedWindowSuffix(opt.value) as never, betas))
       ctx1m = fmtCtx(getContextWindowForModel(opt.value as never, betas))
     }
