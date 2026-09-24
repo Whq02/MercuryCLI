@@ -1,5 +1,7 @@
-import { scanAccountScopes } from '../../utils/accounts/scopeScan.js'
-import { getAnthropicApiKeyWithSource, getClaudeAIOAuthTokens, isClaudeAISubscriber } from '../../utils/auth.js'
+import { scanAccountScopes, type AccountScope } from '../../utils/accounts/scopeScan.js'
+import { getAnthropicApiKeyWithSource, isClaudeAISubscriber } from '../../utils/auth.js'
+import { getSecureStorage } from '../../utils/secureStorage/index.js'
+import type { OAuthTokens } from '../oauth/types.js'
 import {
   openaiSubscriptionRef,
   resolveOpenaiAccount,
@@ -64,28 +66,59 @@ export interface WalletEntry {
     | 'provider-secrets'
 }
 
-function anthropicCredentialAccount(): { email: string; uuid?: string; source: WalletIdentitySource } | undefined {
+export type AnthropicCredentialFacts = Pick<OAuthTokens, 'profile' | 'tokenAccount'>
+
+export interface ReportedAccount {
+  email: string
+  uuid?: string
+  source: WalletIdentitySource
+}
+
+function reportedAccount(email: unknown, uuid: unknown, source: WalletIdentitySource): ReportedAccount | undefined {
+  if (typeof email !== 'string' || email.trim() === '') return undefined
+  return {
+    email: email.trim(),
+    ...(typeof uuid === 'string' && uuid.trim() !== '' ? { uuid: uuid.trim() } : {}),
+    source,
+  }
+}
+
+export function anthropicCredentialAccount(
+  credential: AnthropicCredentialFacts | null | undefined,
+): ReportedAccount | undefined {
+  const profile = credential?.profile?.account
+  const receipt = credential?.tokenAccount
+  return (
+    reportedAccount(profile?.email, profile?.uuid, 'profile') ??
+    reportedAccount(receipt?.emailAddress, receipt?.uuid, 'receipt')
+  )
+}
+
+export function anthropicScopeEntry(
+  scope: Pick<AccountScope, 'name' | 'isCurrent' | 'uuid'>,
+  credential: AnthropicCredentialFacts | null | undefined,
+): WalletEntry {
+  const reported = scope.isCurrent ? anthropicCredentialAccount(credential) : undefined
+  const accountId = reported?.uuid ?? scope.uuid
+  return {
+    id: `anthropic:oauth:${scope.name}`,
+    provider: 'anthropic',
+    kind: 'subscription-oauth',
+    label: reported !== undefined ? `Claude account (${reported.email})` : `Claude account (${scope.name})`,
+    identity: {
+      ...(reported !== undefined ? { email: reported.email, source: reported.source } : {}),
+      ...(accountId ? { accountId } : {}),
+    },
+    custodian: 'anthropic-slots',
+  }
+}
+
+function storedAnthropicCredential(): AnthropicCredentialFacts | undefined {
   try {
-    const tokens = getClaudeAIOAuthTokens()
-    const profile = tokens?.profile?.account
-    const profileEmail = profile?.email?.trim() ?? ''
-    if (profile !== undefined && profileEmail !== '') {
-      return { email: profileEmail, ...(profile.uuid ? { uuid: profile.uuid } : {}), source: 'profile' }
-    }
-    const receipt = tokens?.tokenAccount
-    const receiptEmail = receipt?.emailAddress?.trim() ?? ''
-    if (receipt !== undefined && receiptEmail !== '') {
-      return { email: receiptEmail, ...(receipt.uuid ? { uuid: receipt.uuid } : {}), source: 'receipt' }
-    }
+    return getSecureStorage().read()?.claudeAiOauth ?? undefined
   } catch {
     return undefined
   }
-  return undefined
-}
-
-function recordedAccountSource(email: string): WalletIdentitySource | undefined {
-  const typed = process.env.MERCURY_USER_EMAIL?.trim().toLowerCase()
-  return typed !== undefined && typed !== '' && typed === email.trim().toLowerCase() ? undefined : 'profile'
 }
 
 const ENTRIES_TTL_MS = 5_000
@@ -116,22 +149,7 @@ function composeWalletEntries(): WalletEntry[] {
 
   for (const scope of scanAccountScopes()) {
     if (scope.foreignHarness || !scope.authed) continue
-    const own = scope.isCurrent ? anthropicCredentialAccount() : undefined
-    const email = own !== undefined ? own.email : scope.email
-    const uuid = own?.uuid ?? scope.uuid
-    const source = own !== undefined ? own.source : scope.email !== undefined ? recordedAccountSource(scope.email) : undefined
-    entries.push({
-      id: `anthropic:oauth:${scope.name}`,
-      provider: 'anthropic',
-      kind: 'subscription-oauth',
-      label: email ? `Claude account (${email})` : `Claude account (${scope.name})`,
-      identity: {
-        ...(email ? { email } : {}),
-        ...(uuid ? { accountId: uuid } : {}),
-        ...(email && source !== undefined ? { source } : {}),
-      },
-      custodian: 'anthropic-slots',
-    })
+    entries.push(anthropicScopeEntry(scope, scope.isCurrent ? storedAnthropicCredential() : undefined))
   }
 
   try {
