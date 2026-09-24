@@ -216,7 +216,8 @@ const staleReads: LimitWarningReads = {
   openaiObserved: () => ({ secondary: { usedPct: 91, windowMinutes: 10080, resetsAtMs: now - 1000, observedAtMs: now - 60000 } }),
 }
 const staleWindows = usage.openaiObservedWindowViews(staleReads)
-assert.equal(staleWindows[0]!.state, 'unavailable')
+assert.equal(staleWindows[0]!.state, 'live')
+assert.ok(usage.usageViewIsStale(staleWindows[0]!, now))
 const staleBands = staleWindows.map(w => ({ ...w, usedPct: w.usedPct!, windowName: usage.usageWindowWord(w) }))
 const staleCard = observedFamilyWindow('openai', {
   now: () => now, openaiActiveSource: () => 'chatgpt-subscription', openaiWall: () => null,

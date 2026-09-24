@@ -759,7 +759,7 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
     return {
       key: label,
       label,
-      state: usageFreshness({ ...stamp, freshForMs }).state === 'stale' ? 'unavailable' as const : 'live' as const,
+      state: 'live' as const,
       usedPct: band.usedPct!,
       ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
       ...stamp,
