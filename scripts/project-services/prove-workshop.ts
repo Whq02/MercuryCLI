@@ -328,6 +328,47 @@ section('B. WorkshopTool — nested transaction, recursion guard, cancel')
     b6.data.cells[0].state === 'succeeded' && String(b6.data.cells[0].valuePreview).includes('fresh nested'),
     JSON.stringify(b6.data.cells[0]))
 
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const ctxShell = makeCtx()
+  ctxShell.options.tools = [FileReadTool, BashTool, WorkshopTool]
+  const b7 = await (WorkshopTool as { call: Function }).call(
+    {
+      cells: [{
+        language: 'js',
+        code: "const r = await mercury.tool('Bash', { command: 'echo out-line; echo err-line >&2; exit 1' })\nJSON.stringify([r.code, r.stdout.includes('out-line') && r.stdout.includes('err-line'), r.stderr])",
+      }],
+    },
+    ctxShell,
+    ALLOW,
+    PARENT,
+  )
+  check('B7 a bridged Bash command that exits 1 comes back as { code: 1, stdout: the merged capture, stderr: "" } and the cell runs on',
+    b7.data.cells[0].state === 'succeeded' && b7.data.cells[0].valuePreview === "'[1,true,\"\"]'" && b7.data.cells[0].nestedCalls === 1,
+    JSON.stringify(b7.data.cells[0]).slice(0, 600))
+  const ctxShellOk = makeCtx()
+  ctxShellOk.options.tools = [FileReadTool, BashTool, WorkshopTool]
+  const b7b = await (WorkshopTool as { call: Function }).call(
+    { cells: [{ language: 'js', code: "const ok = await mercury.tool('Bash', { command: 'echo fine' })\nJSON.stringify([ok.code, ok.stdout.startsWith('fine'), ok.stderr])" }] },
+    ctxShellOk,
+    ALLOW,
+    PARENT,
+  )
+  check('B7b an exit 0 takes the same shape: { code: 0, stdout, stderr: "" }',
+    b7b.data.cells[0].state === 'succeeded' && b7b.data.cells[0].valuePreview === "'[0,true,\"\"]'",
+    JSON.stringify(b7b.data.cells[0]).slice(0, 600))
+  const DENY = async () => ({ behavior: 'deny', message: 'Permission to use Bash was denied by the operator.' })
+  const ctxDenied = makeCtx()
+  ctxDenied.options.tools = [FileReadTool, BashTool, WorkshopTool]
+  const b8 = await (WorkshopTool as { call: Function }).call(
+    { cells: [{ language: 'js', code: "await mercury.tool('Bash', { command: 'echo never' })" }] },
+    ctxDenied,
+    DENY,
+    PARENT,
+  )
+  check('B8 a Bash call the permission road refuses still throws into the cell, the refusal words bare',
+    b8.data.cells[0].state === 'failed' && /^bridge call 1 \(Bash\) failed: Permission to use Bash was denied/m.test(b8.data.cells[0].error ?? '') && !(b8.data.cells[0].error ?? '').includes('<tool_use_error>'),
+    JSON.stringify(b8.data.cells[0]).slice(0, 600))
+
   const cancelCtx = makeCtx()
   setTimeout(() => cancelCtx.abortController.abort(), 250)
   const b4 = await (WorkshopTool as { call: Function }).call(
