@@ -338,20 +338,11 @@ On the claude.ai sign-in door the subscription endpoint gates models on a
 minimum client version it reads from the billing attribution line Mercury
 writes into the system prompt (never from the User-Agent, which stays
 `mercury/<version>` on every wire), so Mercury presents a declared
-client-contract version there and nowhere else: the built-in version, a
-newer one Mercury learned from the npm registry, or
-`MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>`, which wins over both and
-raises it without a rebuild when the floor moves. When the gate refuses the
-presented number as too old, Mercury reads the registry once (a 3-second
-deadline) and, if it answers a newer number, retries the refused request
-once carrying it; a session boot also reads it in the background once a
-day. The learned number is kept in the config home and presented only while
-it is newer than the built-in one; at most one registry read goes out per
-config home in ten minutes, and `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC` keeps
-every registry read dark. The doctor's Client contract row shows what is
-presented and its source, and the gate's refusal names the version
-required, what Mercury presented, what the registry read did, and that
-override.
+client-contract version there and nowhere else:
+`MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>` raises it without a rebuild
+when the floor moves, the doctor's Client contract row shows what is
+presented, and the gate's refusal names the version read, the version
+required and that override.
 
 The default provider is the provider of the most recent sign-in. Every sign-in
 door records when a family's credential landed (the sign-in ledger,

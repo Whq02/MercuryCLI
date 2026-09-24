@@ -674,36 +674,6 @@ export function browserReadinessCheck(reads?: import('../services/browser/browse
   }
 }
 
-export function clientContractCheck(): CheckSpec {
-  return {
-    id: 'client-contract',
-    label: 'Client contract',
-    run: async () => {
-      const { describeAnthropicClientContract } = await import('../constants/oauth.js')
-      const { clientContractRecordWords } = await import('../services/api/clientContractLearned.js')
-      const contract = describeAnthropicClientContract()
-      const source =
-        contract.source === 'override'
-          ? 'MERCURY_ANTHROPIC_CLIENT_CONTRACT override'
-          : contract.source === 'learned'
-            ? `learned ${contract.asOf} from the registry`
-            : 'constant · MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version> overrides'
-      const record = clientContractRecordWords(contract, formatAge)
-      if (contract.ignoredOverride !== undefined) {
-        return {
-          status: 'warn',
-          evidence: `subscription door presents cc_version ${contract.presented} · ${source}${record} — MERCURY_ANTHROPIC_CLIENT_CONTRACT=${contract.ignoredOverride} ignored: not a three-part version`,
-          fix: 'set MERCURY_ANTHROPIC_CLIENT_CONTRACT to a three-part version such as 2.1.280, or unset it',
-        }
-      }
-      return {
-        status: 'ok',
-        evidence: `subscription door presents cc_version ${contract.presented} · ${source}${record}`,
-      }
-    },
-  }
-}
-
 export function modelRefusalsCheck(): CheckSpec {
   return {
     id: 'model-refusals',
@@ -841,7 +811,29 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
-        clientContractCheck(),
+        {
+          id: 'client-contract',
+          label: 'Client contract',
+          run: async () => {
+            const { describeAnthropicClientContract } = await import('../constants/oauth.js')
+            const contract = describeAnthropicClientContract()
+            const source =
+              contract.source === 'override'
+                ? 'MERCURY_ANTHROPIC_CLIENT_CONTRACT override'
+                : 'built-in constant · MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version> overrides'
+            if (contract.ignoredOverride !== undefined) {
+              return {
+                status: 'warn',
+                evidence: `subscription door presents cc_version ${contract.presented} (${source}) — MERCURY_ANTHROPIC_CLIENT_CONTRACT=${contract.ignoredOverride} ignored: not a three-part version`,
+                fix: 'set MERCURY_ANTHROPIC_CLIENT_CONTRACT to a three-part version such as 2.1.280, or unset it',
+              }
+            }
+            return {
+              status: 'ok',
+              evidence: `subscription door presents cc_version ${contract.presented} (${source})`,
+            }
+          },
+        },
         modelRefusalsCheck(),
         {
           id: 'install-provenance',

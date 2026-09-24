@@ -42,7 +42,7 @@ const CLIENT_CONTRACT_VERSION_SHAPE = /^\d+\.\d+\.\d+$/
 export type AnthropicClientContract = {
   presented: string
   asOf: string
-  source: 'constant' | 'learned' | 'override'
+  source: 'constant' | 'override'
   ignoredOverride?: string
 }
 
@@ -50,15 +50,11 @@ export function describeAnthropicClientContract(): AnthropicClientContract {
   const raw = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
   const override = raw === undefined ? '' : raw.trim()
   const asOf = ANTHROPIC_CLIENT_CONTRACT_AS_OF
-  if (override !== '' && CLIENT_CONTRACT_VERSION_SHAPE.test(override)) return { presented: override, asOf, source: 'override' }
-  const ignored = override === '' ? {} : { ignoredOverride: override }
-  const { compareClientContractVersions, isoDay, learnedClientContract } =
-    require('../services/api/clientContractLearned.js') as typeof import('../services/api/clientContractLearned.js')
-  const learned = learnedClientContract()
-  if (learned !== null && compareClientContractVersions(learned.version, ANTHROPIC_CLIENT_CONTRACT_VERSION) > 0) {
-    return { presented: learned.version, asOf: isoDay(learned.learnedAtMs), source: 'learned', ...ignored }
+  if (override === '') return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, asOf, source: 'constant' }
+  if (!CLIENT_CONTRACT_VERSION_SHAPE.test(override)) {
+    return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, asOf, source: 'constant', ignoredOverride: override }
   }
-  return { presented: ANTHROPIC_CLIENT_CONTRACT_VERSION, asOf, source: 'constant', ...ignored }
+  return { presented: override, asOf, source: 'override' }
 }
 
 export function getAnthropicClientContractVersion(): string {
