@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
-import { mkdtempSync, rmSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { createServer } from 'node:http'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stall-liveness-home-'))
+const REPO = join(new URL('.', import.meta.url).pathname, '../..')
+const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
 
 const { makeWorkflowHooks } = await import('../../src/tools/WorkflowTool/agentHooks.js')
 
@@ -22,6 +26,8 @@ type FakeArgs = {
   onQueryProgress?: (ev?: unknown) => void
   continuationMessages?: unknown[]
   toolUseContext?: { abortController?: AbortController }
+  agentId?: string
+  prompt?: string
 }
 type FakeSpec = {
   behaviors: Array<(args: FakeArgs) => AsyncGenerator<unknown, void>>
@@ -29,14 +35,14 @@ type FakeSpec = {
 
 function makeRig(spec: FakeSpec): {
   hooks: { agent: (p: string, o?: Record<string, unknown>) => Promise<unknown>; getFailures: () => string[] }
-  calls: Array<{ continuationMessages?: unknown[] }>
+  calls: Array<{ continuationMessages?: unknown[]; agentId?: string; prompt?: string }>
   frames: Array<Record<string, unknown>>
 } {
-  const calls: Array<{ continuationMessages?: unknown[] }> = []
+  const calls: Array<{ continuationMessages?: unknown[]; agentId?: string; prompt?: string }> = []
   const frames: Array<Record<string, unknown>> = []
   const fakeSpawn = (args: FakeArgs): AsyncGenerator<unknown, void> => {
     const idx = Math.min(calls.length, spec.behaviors.length - 1)
-    calls.push({ continuationMessages: args.continuationMessages })
+    calls.push({ continuationMessages: args.continuationMessages, agentId: args.agentId, prompt: args.prompt })
     return spec.behaviors[idx]!(args)
   }
   const hooks = makeWorkflowHooks({
@@ -259,6 +265,7 @@ section('(f) resume semantics: balanced prefix continues; unpaired tool_use rest
     'the preserved work rides the continuation',
     JSON.stringify(cont ?? []).includes('half the work is done'),
   )
+  check('the resume runs under the SAME agent id as the cut attempt (the same transcript, the same prefix key)', calls[0]?.agentId !== undefined && calls[1]?.agentId === calls[0]?.agentId, `${calls[0]?.agentId} → ${calls[1]?.agentId}`)
 }
 {
   const { hooks, calls } = makeRig({
@@ -281,10 +288,51 @@ section('(f) resume semantics: balanced prefix continues; unpaired tool_use rest
   const res = await hooks.agent('dangling', { stallMs: 150 })
   check('retry succeeded fresh', String(res).includes('fresh run done'), String(res).slice(0, 60))
   check('two spawns', calls.length === 2, `${calls.length}`)
+  const danglingCont = calls[1]?.continuationMessages
   check(
-    'an unpaired trailing tool_use resumes NOTHING (fresh restart)',
-    calls[1]?.continuationMessages === undefined,
+    'an unpaired trailing tool_use is dropped: the retry resumes on the seed alone (the prompt row, no completed work, no resume prompt)',
+    Array.isArray(danglingCont) && danglingCont.length === 1 && (danglingCont[0] as { type?: string }).type === 'user' && JSON.stringify(danglingCont).includes('dangling') && !JSON.stringify(danglingCont).includes('toolu_dangling') && !JSON.stringify(danglingCont).includes('cut off by a no-progress timeout'),
+    JSON.stringify(danglingCont).slice(0, 200),
   )
+  check('the retry keeps the agent id', calls[0]?.agentId !== undefined && calls[1]?.agentId === calls[0]?.agentId, `${calls[0]?.agentId} → ${calls[1]?.agentId}`)
+}
+
+section('(k) a thinking-only cut resumes on the same agent: the same id every attempt, the seed row reused, each cut counted')
+{
+  const thinkingOnly = async function* (args: FakeArgs): AsyncGenerator<unknown, void> {
+    args.onQueryProgress?.({ type: 'stream_request_start' })
+    args.onQueryProgress?.({ type: 'stream_event', event: { type: 'message_start' } })
+    for (let i = 0; i < 3; i++) {
+      await sleep(30)
+      args.onQueryProgress?.({ type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'hm' } } })
+    }
+    await hangUntilAbort(args)
+  }
+  const { hooks, calls, frames } = makeRig({
+    behaviors: [
+      thinkingOnly,
+      thinkingOnly,
+      async function* (args) {
+        const msg = assistantText('answered on the third attempt')
+        args.onQueryProgress?.(msg)
+        yield msg
+      },
+    ],
+  })
+  const res = await hooks.agent('think about it', { stallMs: 200 })
+  check('k1 the third attempt answered', String(res).includes('answered on the third attempt'), String(res).slice(0, 80))
+  check('k1 three spawns: two thinking-only cuts, then the answer', calls.length === 3, `${calls.length}`)
+  check('k1 every attempt ran under the SAME agent id', calls[0]?.agentId !== undefined && calls.every(c => c.agentId === calls[0]!.agentId), calls.map(c => c.agentId).join(' → '))
+  const seedOf = (c: { continuationMessages?: unknown[] } | undefined): { type?: string; uuid?: string } | undefined =>
+    Array.isArray(c?.continuationMessages) && c.continuationMessages.length === 1 ? (c.continuationMessages[0] as { type?: string; uuid?: string }) : undefined
+  const seed2 = seedOf(calls[1])
+  const seed3 = seedOf(calls[2])
+  check('k2 a thinking-only cut resumes on the seed alone: one user row carrying the original prompt, no resume prompt appended', seed2?.type === 'user' && JSON.stringify(calls[1]?.continuationMessages).includes('think about it') && !JSON.stringify(calls[1]?.continuationMessages).includes('cut off by a no-progress timeout'), JSON.stringify(calls[1]?.continuationMessages).slice(0, 200))
+  check('k3 the seed is the same row on every retry (one uuid, one object), so the roster and prefix key hold across attempts', seed2 !== undefined && seed3 !== undefined && typeof seed2.uuid === 'string' && seed3.uuid === seed2.uuid && seed3 === seed2, `${seed2?.uuid} · ${seed3?.uuid}`)
+  check("k4 the attempt chip keeps its words: attempt 2 says 'stalled (no progress)'", frames.some(f => f.attempt === 2 && f.lastAttemptReason === 'stalled (no progress)'), JSON.stringify(frames.filter(f => f.attempt === 2).slice(0, 1)).slice(0, 200))
+  const usageFrames = frames.filter(f => typeof (f.usage as { unsettledTurns?: unknown } | undefined)?.unsettledTurns === 'number')
+  const lastUsage = usageFrames[usageFrames.length - 1]?.usage as { unsettledTurns: number } | undefined
+  check('k5 each cut request counts as an unsettled turn on the settled frame', lastUsage !== undefined && lastUsage.unsettledTurns === 2, JSON.stringify(lastUsage))
 }
 
 section('source locks — the forward stays live and honest')
@@ -359,6 +407,202 @@ section("(h) a tool round with progress ticks, then silence: a tool's own progre
   }
   check("the silence after a ticking round is cut by the stall budget (the ticks never armed it; the result row did)", /stalled on all/.test(threw), threw.slice(0, 140))
   check('the ladder ran its attempts inside the bound', calls.length === 6 && Date.now() - t0 < 8_000, `${calls.length} attempts in ${Date.now() - t0} ms`)
+}
+
+section('(i) a stream alive with activity relays alone (the provider pings, the model thinks with the display off) is never cut by the workflow clock')
+{
+  const { hooks, calls, frames } = makeRig({
+    behaviors: [
+      async function* (args) {
+        args.onQueryProgress?.({ type: 'stream_request_start' })
+        const until = Date.now() + 700
+        while (Date.now() < until) {
+          await sleep(60)
+          args.onQueryProgress?.({ type: 'stream_activity', atMs: Date.now() })
+        }
+        const msg = assistantText('alive on pings alone')
+        args.onQueryProgress?.(msg)
+        yield msg
+      },
+    ],
+  })
+  const res = await hooks.agent('ping-fed', { stallMs: 200 })
+  check('the agent resolved after 700 ms of relays past a 200 ms stall budget', String(res).includes('alive on pings alone'), String(res).slice(0, 80))
+  check('exactly ONE spawn: no stall cut, no retry', calls.length === 1 && !frames.some(f => (f.attempt as number) > 1), `${calls.length}`)
+}
+
+section("(j) the real road: a pinging stream reaches the workflow clock and the runner's idle deadline as life through the transport relay")
+{
+  const PING_MS = 250
+  const PING_FOR_MS = 5_000
+  const STALL_MS = 2_000
+  const IDLE_MINUTES = '0.04'
+  const DONE = 'PING-PROBE-DONE'
+  const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`
+  const finalTurn = (): string =>
+    [
+      sse('message_start', { type: 'message_start', message: { id: `msg_ping_${Date.now() % 1e6}`, type: 'message', role: 'assistant', model: 'fixture-anthropic', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 9, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } }),
+      sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: DONE } }),
+      sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+      sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 9, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 } }),
+      sse('message_stop', { type: 'message_stop' }),
+    ].join('')
+  const requests: Array<{ at: number; endedAt?: number; pings: number }> = []
+  const server = createServer((req, res) => {
+    const chunks: Buffer[] = []
+    req.on('data', c => chunks.push(c as Buffer))
+    req.on('end', () => {
+      const path = (req.url ?? '').split('?')[0] ?? ''
+      if (req.method !== 'POST' || !path.endsWith('/v1/messages')) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ object: 'list', data: [], models: [] }))
+        return
+      }
+      const hit = { at: Date.now(), pings: 0 } as { at: number; endedAt?: number; pings: number }
+      requests.push(hit)
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' })
+      const answer = (): void => {
+        hit.endedAt = Date.now()
+        if (!res.destroyed) res.end(finalTurn())
+      }
+      if (requests.length > 1) {
+        answer()
+        return
+      }
+      const pinger = setInterval(() => {
+        if (res.destroyed) {
+          clearInterval(pinger)
+          hit.endedAt = Date.now()
+          return
+        }
+        if (Date.now() - hit.at >= PING_FOR_MS) {
+          clearInterval(pinger)
+          answer()
+          return
+        }
+        hit.pings++
+        res.write('event: ping\ndata: {"type":"ping"}\n\n')
+      }, PING_MS)
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  const scratch = mkdtempSync(join(tmpdir(), 'stall-liveness-real-'))
+  const CHILD = String.raw`
+;(globalThis as any).MACRO = { VERSION: '1.0.0' }
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+delete process.env.NODE_ENV
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stall-liveness-child-home-'))
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+await import('${REPO}/src/tasks.js')
+const { enableConfigs } = await import('${REPO}/src/utils/config/globalConfig.js')
+enableConfigs()
+const { WorkflowTool } = await import('${REPO}/src/tools/WorkflowTool/WorkflowTool.js')
+const { getDefaultAppState } = await import('${REPO}/src/state/AppStateStore.js')
+const emit = (o: unknown) => console.log('@@' + JSON.stringify(o))
+let state: any = getDefaultAppState()
+const setAppState = (fn: any) => { state = typeof fn === 'function' ? fn(state) : fn }
+const ctx: any = {
+  getAppState: () => state,
+  setAppState,
+  setAppStateForTasks: setAppState,
+  options: {
+    mainLoopModel: 'claude-sonnet-5',
+    mcpClients: [],
+    mcpResources: {},
+    tools: [],
+    commands: [],
+    debug: false,
+    verbose: false,
+    isNonInteractiveSession: false,
+    agentDefinitions: { activeAgents: [], allAgents: [] },
+  },
+  abortController: new AbortController(),
+  toolUseId: 'ping-probe-tool-use',
+  readFileState: { readFileState: new Map(), clear: () => {} },
+}
+const script = [
+  "export const meta = { name: 'ping-probe', description: 'one agent on a pinging stream', phases: [{ title: 'Probe' }] }",
+  "phase('Probe')",
+  "const report = await agent('ping probe: reply with one line', { stallMs: ${STALL_MS} })",
+  "return { report }",
+].join('\n')
+try {
+  const startedAt = Date.now()
+  const res = await WorkflowTool.call({ script }, ctx, async () => ({ behavior: 'allow' }))
+  const d: any = (res as any).data
+  emit({ ev: 'launched', runId: d.runId, error: d.error })
+  const deadline = Date.now() + 60_000
+  let task: any
+  for (;;) {
+    task = Object.values(state.tasks ?? {}).find((t: any) => t.type === 'local_workflow')
+    if (task && task.status !== 'running') break
+    if (Date.now() > deadline) { emit({ ev: 'timeout', status: task?.status, progress: task?.workflowProgress?.slice(-6) }); process.exit(1) }
+    await new Promise(r => setTimeout(r, 100))
+  }
+  const agents = (task.workflowProgress ?? []).filter((e: any) => e.type === 'workflow_agent')
+  emit({
+    ev: 'settled',
+    status: task.status,
+    error: task.error,
+    elapsedMs: Date.now() - startedAt,
+    result: JSON.stringify(task.result ?? null).slice(0, 300),
+    legs: agents.map((a: any) => ({ index: a.index, state: a.state, attempt: a.attempt, lastAttemptReason: a.lastAttemptReason, error: a.error, resultPreview: a.resultPreview })),
+    logs: (task.logs ?? []).slice(-8),
+  })
+  process.exit(0)
+} catch (e) {
+  emit({ ev: 'threw', message: (e as Error).message, stack: String((e as Error).stack).slice(0, 600) })
+  process.exit(1)
+}
+`
+  writeFileSync(join(scratch, 'child.ts'), CHILD)
+  const child = spawn(BUN, ['run', join(scratch, 'child.ts')], {
+    cwd: scratch,
+    env: {
+      ...process.env,
+      ANTHROPIC_BASE_URL: base,
+      ANTHROPIC_API_KEY: 'fixture-key-000',
+      MERCURY_AGENT_IDLE_MINUTES: IDLE_MINUTES,
+      MERCURY_DYNAMIC_WORKFLOWS: '1',
+    },
+  })
+  let out = ''
+  let errTail = ''
+  child.stdout.on('data', (d: Buffer) => {
+    out += d.toString()
+  })
+  child.stderr.on('data', (d: Buffer) => {
+    errTail = (errTail + d.toString()).slice(-2000)
+  })
+  const status: number | null = await new Promise(resolve => {
+    const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+    child.on('close', s => {
+      clearTimeout(killer)
+      resolve(s)
+    })
+  })
+  const lines: Array<Record<string, unknown>> = []
+  for (const line of out.split('\n')) {
+    if (!line.startsWith('@@')) continue
+    try {
+      lines.push(JSON.parse(line.slice(2)))
+    } catch {
+      void 0
+    }
+  }
+  const settled = lines.find(l => l.ev === 'settled') as { status?: string; legs?: Array<Record<string, unknown>>; logs?: string[]; result?: string } | undefined
+  const legs = settled?.legs ?? []
+  const first = requests[0]
+  console.log(`  record · requests on the wire: ${requests.length} · first request held ${first?.endedAt !== undefined ? first.endedAt - first.at : '?'} ms with ${first?.pings ?? 0} pings · legs ${JSON.stringify(legs).slice(0, 300)} · logs ${JSON.stringify(settled?.logs ?? []).slice(0, 300)}`)
+  check('the child ran the workflow to completion', status === 0 && settled?.status === 'completed', `status ${status} · ${JSON.stringify(settled).slice(0, 400)} · stderr ${errTail.slice(-400)}`)
+  check(`the pinging request was never cut: ONE request on the wire, held past the ${STALL_MS} ms stall budget and the ${IDLE_MINUTES}-minute idle deadline`, requests.length === 1 && first !== undefined && first.endedAt !== undefined && first.endedAt - first.at >= PING_FOR_MS - PING_MS, `requests=${requests.length} held=${first ? String((first.endedAt ?? 0) - first.at) : '?'}ms`)
+  check('the agent settled done on its first attempt with the fixture\'s reply', legs.length === 1 && legs[0]!.state === 'done' && (legs[0]!.attempt === undefined || legs[0]!.attempt === 1) && (String(settled?.result ?? '').includes(DONE) || String(legs[0]!.resultPreview ?? '').includes(DONE)), JSON.stringify(legs).slice(0, 300))
+  await new Promise<void>(resolve => server.close(() => resolve()))
+  rmSync(scratch, { recursive: true, force: true })
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })

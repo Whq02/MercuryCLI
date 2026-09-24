@@ -67,7 +67,11 @@ the complete index; the load-bearing ones:
   `0` disables): a dispatched agent that produces no event at all — no stream
   delta, no tool use, no provider recovery notice — is stopped and settles as
   a typed stall naming its tool-use count, instead of a forever spinner.
-  Declared provider recovery waits are honored.
+  Declared provider recovery waits are honored. A stream that is alive on
+  the wire counts as progress for this deadline and for a workflow agent's
+  no-progress clock alike: the provider's heartbeat pings and the model's
+  thinking are life even when nothing is painted, so only silence on the
+  wire is a stall.
 - **MCP call inactivity** (`MERCURY_MCP_CALL_IDLE_MINUTES`, default 10
   minutes, `0` disables): a `tools/call` yielding neither result nor progress
   notification settles as a typed stalled-call error and is cancelled on the
