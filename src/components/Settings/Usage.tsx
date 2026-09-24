@@ -591,7 +591,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'openrouter') return <OpenrouterUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'gemini') return <GeminiUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'huggingface') return <HuggingfaceUsageSection />
-  if (section.id === 'moonshot') return <MoonshotUsageSection />
+  if (section.id === 'moonshot') return <MoonshotUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
   return (
@@ -605,7 +605,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         presentLabel={section.family.credentialLabel}
         isActive={section.family.credentialed}
         spend={spend}
-        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
+        {...(section.id !== 'zai' && usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       {section.family.credentialed && usage.readerNote !== undefined ? (
         <Text dimColor>{usage.readerNote}</Text>
@@ -617,13 +617,12 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   )
 }
 
-function MoonshotUsageSection(): React.ReactNode {
+function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
   const account = resolveMoonshotAccount()
   const key = resolveMoonshotApiKey()
   const spend = providerSessionSpend('moonshot')
   const usage = useOwnerUsage('moonshot', account !== undefined)
   const windows = usage.windows
-  const managedSourceWords = windows[0] !== undefined ? usageSourceWords(windows[0]) : undefined
   return (
     <Box flexDirection="column">
       <Text bold>Moonshot usage</Text>
@@ -634,17 +633,19 @@ function MoonshotUsageSection(): React.ReactNode {
             <Text dimColor>{account.label}</Text>
             <Text dimColor>{spendLine(spend, false)}</Text>
             {windows.length > 0 ? (
-              windows.map(window => (
-                <Text key={window.key} dimColor>
-                  {`${window.label}: ${window.usedPct !== undefined ? `${Math.round(window.usedPct)}% used` : 'no limit stated'}${window.resetsAtMs !== undefined ? ` · resets ${new Date(window.resetsAtMs).toLocaleString()}` : ''}`}
-                </Text>
+              windows.map(window => window.usedPct !== undefined ? (
+                <ObservedWindowMeter
+                  key={window.key}
+                  window={window}
+                  {...(window.label === '7d' ? { title: 'Current week (7d)' } : {})}
+                  {...(width !== undefined ? { maxWidth: width } : {})}
+                />
+              ) : (
+                <Text key={window.key} dimColor>{`${window.label}: no limit stated`}</Text>
               ))
             ) : (
               <Text dimColor>Plan windows: not yet observed — the usage endpoint is asked on this tab.</Text>
             )}
-            {managedSourceWords !== undefined ? (
-              <Text dimColor>{`${managedSourceWords} (GET /usages on the coding base)`}</Text>
-            ) : null}
           </Box>
         ) : (
           <Text dimColor>none — /logins moonshot signs in with a device code · n/a</Text>
