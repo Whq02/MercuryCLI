@@ -1,10 +1,11 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.js'
+import type { LocalWakeFacts } from '../../tools/ScheduleWakeupTool/localWake.js'
 
 let pendingEdits: ScheduleOpRequestV1[] = []
 let rosterCache: SaturnFactsRowV1[] | null = null
 let seatObserved = false
-let wakeSink: ((prompt: string) => void) | null = null
+let wakeSink: ((prompt: string, facts?: LocalWakeFacts) => void) | null = null
 const localWakeTimers = new Set<ReturnType<typeof setTimeout>>()
 
 export const PENDING_SCHEDULE_EDIT_CAP = 20
@@ -51,7 +52,7 @@ export function sessionScheduleRoster(): SaturnFactsRowV1[] | null {
 }
 
 
-export function registerLocalWakeSink(sink: (prompt: string) => void): void {
+export function registerLocalWakeSink(sink: (prompt: string, facts?: LocalWakeFacts) => void): void {
   wakeSink = sink
 }
 
@@ -59,14 +60,14 @@ export function localWakeAvailable(): boolean {
   return wakeSink !== null
 }
 
-export function armLocalWake(delaySeconds: number, prompt: string): { ok: true; atMs: number } | { ok: false; reason: string } {
+export function armLocalWake(delaySeconds: number, prompt: string, facts?: LocalWakeFacts): { ok: true; atMs: number } | { ok: false; reason: string } {
   const sink = wakeSink
   if (sink === null) return { ok: false, reason: 'this surface has no wake queue — nothing can deliver a local wake here' }
   const atMs = Date.now() + Math.max(1, Math.round(delaySeconds)) * 1000
   const timer = setTimeout(() => {
     localWakeTimers.delete(timer)
     try {
-      sink(prompt)
+      sink(prompt, facts)
     } catch {
     }
   }, Math.max(1000, Math.round(delaySeconds) * 1000))

@@ -240,5 +240,19 @@ try {
   check('the local wake step planner stands', false, String(error))
 }
 
+console.log("§7 the seatless arm hands the wake's facts to the sink (red on the base: the sink receives the prompt alone)")
+{
+  bridge._resetScheduleBridgeForTesting()
+  const seen: Array<{ prompt: string; facts: unknown }> = []
+  bridge.registerLocalWakeSink((prompt: string, facts?: unknown) => {
+    seen.push({ prompt, facts })
+  })
+  const armed = bridge.armLocalWake(1, 'wake up and continue', { spelling: 'in ~60s', reason: REASON })
+  check('the arm is taken', armed.ok === true, j(armed))
+  await new Promise(resolve => setTimeout(resolve, 1_300))
+  check('the sink receives the prompt and the facts the tool armed it with', seen.length === 1 && seen[0]!.prompt === 'wake up and continue' && j(seen[0]!.facts) === j({ spelling: 'in ~60s', reason: REASON }), j(seen))
+  bridge._resetScheduleBridgeForTesting()
+}
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} saturn origin carry: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)
