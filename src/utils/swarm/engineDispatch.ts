@@ -10,7 +10,8 @@ import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
 import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
 import { moonshotCatalogueEntries } from '../router/providers/moonshot.js'
-import { qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
+import { moonshotCatalogueRows, qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
+import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import {
@@ -317,7 +318,15 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('moonshot')
       await refreshMoonshotCatalogue()
       const pin = moonshotCatalogueEntries()[0]
-      if (!pin) throw new Error('Engine provider moonshot has no catalogue entry — cannot resolve a model.')
+      if (!pin) {
+        const { source } = moonshotCatalogueRows()
+        if (source.kind === 'unread') {
+          throw new Error(
+            `The 'kimi' class cannot resolve — the ${resolveMoonshotAccount()?.label ?? 'Moonshot account'}'s model list has not been read${source.error !== undefined ? ` (${source.error})` : ''}. Name an exact kimi-… id the account serves, or retry when the list lands.`,
+          )
+        }
+        throw new Error('Engine provider moonshot has no catalogue entry — cannot resolve a model.')
+      }
       return { backend: 'moonshot', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (modelParam === 'deepseek') {

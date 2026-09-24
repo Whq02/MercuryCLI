@@ -257,6 +257,7 @@ type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
 
 await refreshLocalDiscovery({ force: true })
+await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
 
 const mcpTools: Tool[] = buildFixtureMcpTools<Tool>(MCPTool)
 const mcpSchemaBytes = fixtureMcpSchemaBytes(mcpTools as never)
