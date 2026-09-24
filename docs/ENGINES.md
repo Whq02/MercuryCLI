@@ -549,6 +549,11 @@ screen beside the last figure with the status and the host, backs off four
 minutes, is logged once per episode, and is written once to the doctor's record
 in the config home (`usage-reader.json`) with its recovery — `mercury doctor`
 names it from another process. `/usage` and its retry key ask at once regardless.
+An expired sign-in token is renewed by the read itself through the ordinary
+refresh grant — the same road a reply takes — before the endpoint is asked, so
+an idle session paints live numbers without sending a message; one grant per
+read, never a loop, and a grant the sign-in server refuses is reported as an
+expired sign-in (`/logins anthropic` signs in again).
 A sign-in or a removal (the sign-in ledger's epoch, the one signal every family
 raises) forgets the reader's state and asks for the account now signed in at
 once — the meter never keeps a departed account's figure or waits out its
@@ -581,7 +586,11 @@ the same credential: told to read the account again, it drops the departed
 sign-in's rows and reads the signed-in account's list once, bounded, and a
 delegated dispatch on the OpenAI route reads that list before it decides. The
 refusal for a reached window names the window that blocks; the state of the
-model list is never named as if it were the block.
+model list is never named as if it were the block. The OpenAI bands a reply's
+headers stated are one record for every surface: a band stays a stated band
+however old it grows, and the rail's rows, the frame's chips and the `/usage`
+popup all paint it with its age ("stale ↻55m", "header-fed · stale · last read
+55 min ago") — never "no usage read" on one screen beside a read on another.
 
 `/usage` opens a popup over the chat — 150 columns, centred, three providers
 side by side above 120 columns and stacked below it, six providers in view
