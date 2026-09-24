@@ -20,9 +20,9 @@ import {
 } from '../utils/cockpit/index.js'
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
-import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
+import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
 import { usageCreditsLine, usageViewIsStale, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
-import { NO_USAGE_READ_WORDS, usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
+import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
@@ -228,6 +228,19 @@ function HelmTelemetryRailImpl({
   }, [wfDisk, workRows, now])
 
   const usageNodes: React.ReactNode[] = []
+  const appendKimiDetails = (w: UsageWindowView, key: string): void => {
+    const details = [
+      w.resetsAtMs !== undefined ? `resets ${formatClock(w.resetsAtMs)}` : undefined,
+      usageAgeWords(w, readNow),
+    ].filter((line): line is string => line !== undefined)
+    for (const [index, line] of details.flatMap(line => wrapPlain(line, rowW - 2)).entries()) {
+      usageNodes.push(
+        <Box key={`${key}:detail:${index}`} width={rowW} height={1}>
+          <Text color={tok.textMuted}>{`  ${line}`}</Text>
+        </Box>,
+      )
+    }
+  }
   usageNodes.push(
     <Box key="usage:source" width={rowW}>
       <Text wrap="truncate-end">
@@ -236,7 +249,15 @@ function HelmTelemetryRailImpl({
       </Text>
     </Box>,
   )
-  if (usage.shape === 'api-spend') {
+  if (usage.provider === 'zai' && usage.absence !== undefined) {
+    for (const [index, line] of wrapPlain(usage.absence, rowW - 2).entries()) {
+      usageNodes.push(
+        <Box key={`usage:absence:${index}`} width={rowW} height={1}>
+          <Text color={tok.textMuted}>{`  ${line}`}</Text>
+        </Box>,
+      )
+    }
+  } else if (usage.shape === 'api-spend') {
     usageNodes.push(
       ((): React.ReactNode => {
         const i = sel({ kind: 'command', command: '/usage', label: 'usage:spend' })
@@ -288,13 +309,14 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={meterTail(w, pool)}
+                  resetIn={usage.provider === 'moonshot' ? undefined : meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
           )
         })(),
       )
+      if (usage.provider === 'moonshot') appendKimiDetails(w, `usage:${w.key}`)
     }
   }
   if (usage.readerNoteCompact !== undefined) {
@@ -353,13 +375,14 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={meterTail(w, pool)}
+                  resetIn={other.provider === 'moonshot' ? undefined : meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
           )
         })(),
       )
+      if (other.provider === 'moonshot') appendKimiDetails(w, `usage:${other.provider}:${w.key}`)
     }
   }
   {

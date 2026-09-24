@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { noteUsageRecordChanged } from '../../claudeAiLimits.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
@@ -265,6 +266,7 @@ export async function fetchKimiManagedUsage(
     if (!decoded) return { state: 'refused', status: response.status }
     observedManaged = decoded
     observedManagedIdentity = activeSignInIdentity()
+    noteUsageRecordChanged()
     return { state: 'confirmed', usage: decoded }
   } catch (error) {
     return { state: 'unreachable', message: error instanceof Error ? error.message : String(error) }
