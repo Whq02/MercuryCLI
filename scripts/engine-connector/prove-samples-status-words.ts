@@ -93,7 +93,9 @@ async function main(): Promise<void> {
     check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 agents · 1 shell · 1 ask · 1 sample')
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/REPL.tsx')
-    check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes('const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)') && tagBar.indexOf('const spoken = withSampleWords(words ?? line, samples)') > tagBar.indexOf('const held = receipt') && !tagBar.includes('fitStatusLine(spoken'))
+    const spokenAt = tagBar.indexOf('const spoken = withSampleWords(words ?? line, samples)')
+    const heldAt = tagBar.indexOf('const held = receipt')
+    check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes('const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)') && spokenAt >= 0 && heldAt >= 0 && spokenAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
     check('the working strip speaks the shared wait composer and no sample of its own — the row under it is the owner', repl.includes("seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null") && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'))
     check('statusLine and the wait composer carry no sample of their own', /export function statusLine\(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 \| null = null, compact = false\): string/.test(tagBar) && /export function waitingStatusWords\(live: SessionLiveV1\): string/.test(tagBar))
   }
