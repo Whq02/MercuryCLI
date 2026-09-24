@@ -37,11 +37,9 @@ export function GlobalKeybindingHandlers({
   const setAppState = useSetAppState()
   const store = useAppStateStore()
   const { addNotification } = useNotifications()
-  const { chrome, fullscreen, isCompact } = useLayoutChrome()
+  const { isCompact } = useLayoutChrome()
   void messageCount
   void showAllInTranscript
-
-  const cockpit = fullscreen && chrome === 'cockpit'
 
   const reportRefusal = (reason: string): void => {
     addNotification({
@@ -64,13 +62,6 @@ export function GlobalKeybindingHandlers({
           const teammatesPresent = Object.values(prev.tasks).some(
             task => isInProcessTeammateTask(task) && task.status === 'running',
           )
-          if (cockpit) {
-            if (!teammatesPresent) return prev
-            return {
-              ...prev,
-              expandedView: prev.expandedView === 'teammates' ? ('none' as const) : ('teammates' as const),
-            }
-          }
           if (teammatesPresent) {
             const next: AppState['expandedView'] =
               prev.expandedView === 'none'
