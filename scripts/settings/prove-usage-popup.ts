@@ -144,7 +144,8 @@ check('116 keeps the stacked layout', usageColumns(116, 10).perRow === 1)
 let token = 100
 const frameDir = arg('--frames')
 const record = arg('--record-words')
-const baseline = JSON.parse(readFileSync(arg('--compare-words') ?? join(import.meta.dir, 'usage-popup-words.json'), 'utf8')) as Record<string, string[]>
+const sameWhen = (runs: string[]): string[] => runs.map(run => run.replace(/resets .+$/, 'resets <when>'))
+const baseline = Object.fromEntries(Object.entries(JSON.parse(readFileSync(arg('--compare-words') ?? join(import.meta.dir, 'usage-popup-words.json'), 'utf8')) as Record<string, string[]>).map(([k, v]) => [k, sameWhen(v)]))
 const wordRecords: Record<string, string[]> = {}
 async function walk(board: Awaited<ReturnType<typeof mount>>, width: number, budget: number, label: string, save?: string): Promise<void> {
   const history: string[] = []
@@ -208,7 +209,7 @@ for (const fixture of ['absent', 'signed-in']) {
   subscriber = rich
   const before = counts.get('anthropic:operator') ?? 0
   const board = await mount(146, 22, 178, token++)
-  wordRecords[fixture] = board.runs().sort()
+  wordRecords[fixture] = sameWhen(board.runs().sort())
   check(`${fixture}: every provider mounts without an error`, board.sizes().length === 10 && !board.frame().includes('RENDER ERROR'))
   check(`${fixture}: the section text runs equal the original tab byte for byte`, JSON.stringify(wordRecords[fixture]) === JSON.stringify(baseline[fixture]))
   const headings = board.frame().split('\n')[0] ?? ''

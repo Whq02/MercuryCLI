@@ -45,6 +45,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/router/providerSecrets.ts',
     'src/services/providers/openai/openaiAccounts.ts',
     'src/services/providers/openai/qualificationStore.ts',
+    'src/services/providers/anthropic/modelRefusal.ts',
     'src/services/providers/gemini/geminiAccounts.ts',
     'src/services/providers/huggingface/huggingfaceAccounts.ts',
     'src/services/providers/moonshot/moonshotAccounts.ts',

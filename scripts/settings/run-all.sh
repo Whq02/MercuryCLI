@@ -18,6 +18,7 @@ echo "############################################################"
 echo "# settings — configuration pipeline proof harness"
 echo "############################################################"
 shopt -s nullglob
+export TZ=UTC LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 for proof in "$here"/prove-*.ts; do
   echo
   echo "── $(basename "$proof") ──"
