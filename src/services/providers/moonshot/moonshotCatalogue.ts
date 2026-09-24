@@ -8,14 +8,16 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import {
   kimiCodingBase,
+  moonshotAliasesServing,
   moonshotApiBase,
+  moonshotServedModels,
   moonshotStoredTokens,
   resolveMoonshotAccount,
   resolveMoonshotApiKey,
   resolveMoonshotDispatchCredential,
   type MoonshotDispatchSource,
 } from './moonshotAccounts.js'
-import { KIMI_DISPLAY_PINS, kimiDisplayName, kimiDisplayPin, isKimiModelId } from './kimiPins.js'
+import { KIMI_DISPLAY_PINS, kimiDisplayName, kimiDisplayPin, kimiShortName, isKimiModelId } from './kimiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -172,6 +174,7 @@ export interface MoonshotCatalogueRow {
   observedAt: string
   contextWindow?: number
   listedLive: boolean
+  servedAs?: { id: string; displayName: string }
 }
 
 export type MoonshotCatalogueSource =
@@ -188,18 +191,21 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
   }
   const taken = new Set<string>()
   const rows: MoonshotCatalogueRow[] = []
+  const served = moonshotServedModels(env)
   for (const model of snapshot.models.toSorted((a, b) => (b.created ?? 0) - (a.created ?? 0))) {
     const id = model.id.toLowerCase()
     if (!isKimiModelId(id) || taken.has(id)) continue
     taken.add(id)
     const pin = kimiDisplayPin(id)
     const contextWindow = model.contextWindow ?? pin?.contextWindow
+    const observed = served.find(record => record.requested === id && record.served !== id)
     rows.push({
       id,
       displayName: pin?.displayName ?? model.displayName ?? kimiDisplayName(id) ?? id,
       observedAt: pin?.observedAt ?? new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
       ...(contextWindow !== undefined ? { contextWindow } : {}),
       listedLive: true,
+      ...(observed !== undefined ? { servedAs: { id: observed.served, displayName: kimiShortName(observed.served) ?? observed.served } } : {}),
     })
   }
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
@@ -219,8 +225,11 @@ export async function qualifyMoonshotModel(modelId: string): Promise<
   const snapshot = getCachedMoonshotCatalogue()
   const { rows, source } = moonshotCatalogueRows()
   if (source.kind === 'live') {
-    if (rows.some(row => row.id === modelId.toLowerCase())) return { kind: 'ok', modelId }
-    return { kind: 'refused', message: modelNotOfferedByCatalogue(modelId, resolveMoonshotAccount()?.label ?? 'Moonshot account', rows.map(row => row.id)) }
+    const wanted = modelId.toLowerCase()
+    if (rows.some(row => row.id === wanted)) return { kind: 'ok', modelId }
+    const offered = rows.map(row => row.id)
+    const servedAs = moonshotAliasesServing(wanted).filter(alias => offered.includes(alias))
+    return { kind: 'refused', message: modelNotOfferedByCatalogue(modelId, resolveMoonshotAccount()?.label ?? 'Moonshot account', offered, servedAs) }
   }
   return {
     kind: 'degraded', modelId,

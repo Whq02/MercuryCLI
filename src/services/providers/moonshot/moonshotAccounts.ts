@@ -8,6 +8,8 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredMoonshotApiKey } from '../../../utils/router/providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
+import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
+import { credentialFingerprint } from '../credentialIdentity.js'
 
 
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -86,11 +88,18 @@ export interface MoonshotStoredTokens {
   scope?: string
 }
 
+export interface MoonshotServedModelRecord {
+  requested: string
+  served: string
+  observedAtMs: number
+}
+
 interface MoonshotAuthFile {
   version: number
   tokens?: MoonshotStoredTokens
   region?: KimiRegion
   lastRefreshMs?: number
+  servedModels?: Record<string, MoonshotServedModelRecord[]>
   [k: string]: unknown
 }
 
@@ -108,7 +117,7 @@ function readAuthFile(): MoonshotAuthFile | null {
   }
 }
 
-function writeAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
+function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
   const existing = readAuthFile() ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })
@@ -118,21 +127,140 @@ function writeAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): vo
     chmodSync(path, 0o600)
   } catch {
   }
+}
+
+function writeAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
+  publishAuthFile(mutate)
   noteCredentialChange()
 }
 
-export function writeMoonshotTokens(tokens: MoonshotStoredTokens | null, region?: KimiRegion): void {
-  writeAuthFile(file => {
-    const next = { ...file }
-    if (tokens === null) {
-      delete next.tokens
-      return next
-    }
-    next.tokens = tokens
-    next.lastRefreshMs = Date.now()
-    if (region !== undefined) next.region = region
+const SERVED_MODELS_PER_ACCOUNT = 16
+const SERVED_MODEL_ACCOUNTS = 8
+
+function isServedModelRecord(value: unknown): value is MoonshotServedModelRecord {
+  const record = value as Partial<MoonshotServedModelRecord> | null
+  return (
+    typeof record === 'object' &&
+    record !== null &&
+    typeof record.requested === 'string' &&
+    record.requested !== '' &&
+    typeof record.served === 'string' &&
+    record.served !== '' &&
+    typeof record.observedAtMs === 'number' &&
+    Number.isFinite(record.observedAtMs)
+  )
+}
+
+function servedModelTableOf(file: MoonshotAuthFile | null): Record<string, MoonshotServedModelRecord[]> {
+  const table: Record<string, MoonshotServedModelRecord[]> = {}
+  const raw = file?.servedModels
+  if (typeof raw !== 'object' || raw === null) return table
+  for (const [identity, rows] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(rows)) continue
+    const kept = rows.filter(isServedModelRecord)
+    if (kept.length > 0) table[identity] = kept
+  }
+  return table
+}
+
+function tokenIdentity(tokens: MoonshotStoredTokens): string {
+  return credentialFingerprint(tokens.refreshToken ?? tokens.accessToken)
+}
+
+export function moonshotAccountIdentity(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const envKey = env.MOONSHOT_API_KEY?.trim()
+  if (envKey) return credentialFingerprint(envKey)
+  const tokens = moonshotStoredTokens()
+  if (tokens) return tokenIdentity(tokens)
+  const stored = readStoredMoonshotApiKey()
+  return stored ? credentialFingerprint(stored) : undefined
+}
+
+function withServedModelTable(file: MoonshotAuthFile, table: Record<string, MoonshotServedModelRecord[]>): MoonshotAuthFile {
+  const next = { ...file }
+  if (Object.keys(table).length > 0) next.servedModels = table
+  else delete next.servedModels
+  return next
+}
+
+function withServedModelsMoved(file: MoonshotAuthFile, from: string, to: string): MoonshotAuthFile {
+  if (from === to) return file
+  const table = servedModelTableOf(file)
+  const rows = table[from]
+  if (rows === undefined) return file
+  delete table[from]
+  table[to] = rows
+  return withServedModelTable(file, table)
+}
+
+export function moonshotServedModels(env: NodeJS.ProcessEnv = process.env): MoonshotServedModelRecord[] {
+  const identity = moonshotAccountIdentity(env)
+  if (identity === undefined) return []
+  return servedModelTableOf(readAuthFile())[identity] ?? []
+}
+
+export function moonshotServedModelFor(requested: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const wanted = requested.trim().toLowerCase()
+  return moonshotServedModels(env).find(record => record.requested === wanted)?.served
+}
+
+export function moonshotAliasesServing(served: string, env: NodeJS.ProcessEnv = process.env): string[] {
+  const wanted = served.trim().toLowerCase()
+  return moonshotServedModels(env)
+    .filter(record => record.served === wanted)
+    .map(record => record.requested)
+}
+
+export function recordMoonshotServedModel(
+  requested: string,
+  served: string,
+  io?: { env?: NodeJS.ProcessEnv; now?: () => number; identity?: string },
+): boolean {
+  const asked = requested.trim().toLowerCase()
+  const answered = served.trim().toLowerCase()
+  if (asked === '' || answered === '') return false
+  const identity = io?.identity ?? moonshotAccountIdentity(io?.env ?? process.env)
+  if (identity === undefined || identity === '' || identity === 'none') return false
+  try {
+    const current = servedModelTableOf(readAuthFile())[identity] ?? []
+    const previous = current.find(record => record.requested === asked)
+    if (asked === answered ? previous === undefined : previous?.served === answered) return false
+    const rows = current.filter(record => record.requested !== asked)
+    if (asked !== answered) rows.push({ requested: asked, served: answered, observedAtMs: (io?.now ?? Date.now)() })
+    while (rows.length > SERVED_MODELS_PER_ACCOUNT) rows.shift()
+    publishAuthFile(file => {
+      const table = servedModelTableOf(file)
+      delete table[identity]
+      const newest = (entries: MoonshotServedModelRecord[]): number => Math.max(...entries.map(record => record.observedAtMs))
+      while (Object.keys(table).length >= SERVED_MODEL_ACCOUNTS) {
+        const oldest = Object.entries(table).sort((a, b) => newest(a[1]) - newest(b[1]))[0]
+        if (oldest === undefined) break
+        delete table[oldest[0]]
+      }
+      if (rows.length > 0) table[identity] = rows
+      return withServedModelTable(file, table)
+    })
+    bumpCatalogueEpoch()
+    return true
+  } catch {
+    return false
+  }
+}
+
+function withTokens(file: MoonshotAuthFile, tokens: MoonshotStoredTokens | null, region?: KimiRegion): MoonshotAuthFile {
+  const next = { ...file }
+  if (tokens === null) {
+    delete next.tokens
     return next
-  })
+  }
+  next.tokens = tokens
+  next.lastRefreshMs = Date.now()
+  if (region !== undefined) next.region = region
+  return next
+}
+
+export function writeMoonshotTokens(tokens: MoonshotStoredTokens | null, region?: KimiRegion): void {
+  writeAuthFile(file => withTokens(file, tokens, region))
 }
 
 export function writeMoonshotRegion(region: KimiRegion): void {
@@ -320,7 +448,7 @@ export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotSto
       const tokens = tokensFromBody(result.body, io)
       if (result.status === 200 && tokens) {
         const next = { ...tokens, refreshToken: tokens.refreshToken ?? stored.refreshToken }
-        writeMoonshotTokens(next, region)
+        writeAuthFile(file => withServedModelsMoved(withTokens(file, next, region), tokenIdentity(stored), tokenIdentity(next)))
         return next
       }
       if (result.status === 400 || result.status === 401) writeMoonshotTokens(null)
@@ -386,6 +514,7 @@ export interface MoonshotDispatchCredential {
   apiKey: string
   requestUrl: string
   source: MoonshotDispatchSource
+  accountIdentity: string
 }
 
 export async function resolveMoonshotDispatchCredential(
@@ -393,35 +522,36 @@ export async function resolveMoonshotDispatchCredential(
 ): Promise<MoonshotDispatchCredential | undefined> {
   const env = io?.env ?? process.env
   const envKey = env.MOONSHOT_API_KEY?.trim()
-  if (envKey) return { apiKey: envKey, requestUrl: moonshotChatCompletionsUrl(env), source: 'env' }
+  if (envKey) return { apiKey: envKey, requestUrl: moonshotChatCompletionsUrl(env), source: 'env', accountIdentity: credentialFingerprint(envKey) }
   const oauth = moonshotStoredTokens()
   if (oauth) {
     const region = ioRegion(io)
     const requestUrl = kimiCodingChatCompletionsUrl(region, env)
+    const signedIn = (tokens: MoonshotStoredTokens): MoonshotDispatchCredential => ({ apiKey: tokens.accessToken, requestUrl, source: 'kimi-oauth', accountIdentity: tokenIdentity(tokens) })
     const now = io?.now?.() ?? Date.now()
     const expiresAt = oauth.accessTokenExpiresAtMs
     if (expiresAt !== undefined && expiresAt - now < REFRESH_MARGIN_MS) {
       if (oauth.refreshToken) {
         const fresh = await refreshMoonshotTokens(io)
-        if (fresh) return { apiKey: fresh.accessToken, requestUrl, source: 'kimi-oauth' }
+        if (fresh) return signedIn(fresh)
         const remaining = moonshotStoredTokens()
         if (remaining) {
           if (remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now) {
-            return { apiKey: remaining.accessToken, requestUrl, source: 'kimi-oauth' }
+            return signedIn(remaining)
           }
           return undefined
         }
       } else if (expiresAt <= now) {
         writeMoonshotTokens(null)
       } else {
-        return { apiKey: oauth.accessToken, requestUrl, source: 'kimi-oauth' }
+        return signedIn(oauth)
       }
     } else {
-      return { apiKey: oauth.accessToken, requestUrl, source: 'kimi-oauth' }
+      return signedIn(oauth)
     }
   }
   const stored = readStoredMoonshotApiKey()
-  return stored ? { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored' } : undefined
+  return stored ? { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored) } : undefined
 }
 
 export function __resetMoonshotAccountsForTest(): void {

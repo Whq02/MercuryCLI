@@ -100,6 +100,7 @@ export function compatDispatchModelId(model: string): string {
 export interface CompatCredential {
   apiKey?: string
   requestUrl?: string
+  accountIdentity?: string
 }
 
 export interface CompatLaneProfile {
@@ -129,6 +130,7 @@ export interface CompatLaneProfile {
     maxOutputTokensOverride: number | undefined
   }): Record<string, unknown>
   keepsReasoningHistory?(wireModel: string): boolean
+  noteServedModel?(requested: string, served: string, credential: CompatCredential): void
 }
 
 const liveProof = new Map<CompatLaneId, { at: number; model: string }>()
@@ -329,7 +331,7 @@ const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_
 }
 
 type AttemptOutcome =
-  | { kind: 'done' }
+  | { kind: 'done'; served?: string }
   | { kind: 'cancelled' }
   | { kind: 'fault'; fault: CompatFault; retryEligible: boolean }
 
@@ -450,6 +452,7 @@ export async function* compatChatCallModel(
     })
     if (outcome.kind === 'done') {
       liveProof.set(profile.lane, { at: Date.now(), model: modelId })
+      if (outcome.served !== undefined) profile.noteServedModel?.(modelId, outcome.served, credential)
       recordLaneTurnSettled(profile.lane)
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
@@ -632,6 +635,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   const minted: AssistantMessage[] = []
   let usageSeen: CompatUsage | undefined
+  let served: string | undefined
   let finish:
     | {
         reason: CompatFinishReason
@@ -726,6 +730,9 @@ async function* streamOneCompatAttempt(ctx: {
       firstEventSeen = true
     }
     switch (event.type) {
+      case 'served-model':
+        served = event.model
+        break
       case 'reasoning-delta': {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
@@ -899,5 +906,5 @@ async function* streamOneCompatAttempt(ctx: {
       overflowOf(profile.lane, fault),
     )
   }
-  return { kind: 'done' }
+  return { kind: 'done', ...(served !== undefined ? { served } : {}) }
 }
