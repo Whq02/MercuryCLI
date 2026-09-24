@@ -8,6 +8,7 @@ import type {
   AssistantMessage,
   AttachmentMessage,
   Message,
+  MessageOrigin,
   ProgressMessage,
   SystemMessage,
   UserMessage,
@@ -72,6 +73,7 @@ type ProcessUserInputOptions = {
   skipSlashCommands?: boolean
   bridgeOrigin?: boolean
   isMeta?: boolean
+  origin?: MessageOrigin
   skipAttachments?: boolean
   isAlreadyProcessing?: boolean
 }
@@ -100,6 +102,7 @@ export async function processUserInput(
         ...(index === 0 ? {} : {
           skipSlashCommands: true,
           bridgeOrigin: false,
+          origin: undefined,
           preExpansionInput: undefined,
           pastedContents: undefined,
           ideSelection: undefined,
@@ -430,6 +433,7 @@ async function processUserInputBase(
       context.getAppState().toolPermissionContext.mode,
       isMeta,
       options.batchUuids,
+      options.origin,
     )
   }
 

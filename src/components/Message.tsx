@@ -285,6 +285,7 @@ function MessageInner({
                 param={block}
                 verbose={verbose}
                 isTranscriptMode={isTranscriptMode}
+                origin={message.origin}
               />
             )
           }

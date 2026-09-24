@@ -21,6 +21,7 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/constant
 import type {
   AssistantMessage,
   Message,
+  MessageOrigin,
   UserMessage,
 } from './types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from './types/wire.js'
@@ -199,7 +200,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[] },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; origin?: MessageOrigin },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -363,6 +364,7 @@ export class QueryEngine {
       ...(options?.batchUuids !== undefined ? { batchUuids: options.batchUuids } : {}),
       ...(options?.batchTail !== undefined ? { batchTail: options.batchTail } : {}),
       isMeta: options?.isMeta,
+      ...(options?.origin !== undefined ? { origin: options.origin } : {}),
       querySource: 'sdk',
       canUseTool: wrappedCanUseTool,
     })
@@ -986,6 +988,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   prompt: string | ContentBlockParam[]
   promptUuid?: string
   isMeta?: boolean
+  origin?: MessageOrigin
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
   promptMode?: 'prompt' | 'bash'
@@ -1001,6 +1004,7 @@ export async function* ask(
     prompt,
     promptUuid,
     isMeta,
+    origin,
     batchUuids,
     batchTail,
     promptMode,
@@ -1019,6 +1023,7 @@ export async function* ask(
     yield* engine.submitMessage(prompt, {
       uuid: promptUuid,
       isMeta,
+      ...(origin !== undefined ? { origin } : {}),
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
       ...(batchUuids !== undefined ? { batchUuids } : {}),
       ...(batchTail !== undefined ? { batchTail } : {}),
