@@ -139,6 +139,36 @@ try {
   check('B6 the Python kernel reads the same value', b6.status === 'ok' && b6.resultRepr === "[1, True, '']", JSON.stringify(b6.error ?? b6.resultRepr))
   const b7 = await runBridged('owner-B', 'py', "tool.Bash(command='echo never')")
   check('B7 Python: a refused call raises with the words bare', b7.status === 'error' && (b7.error?.value ?? '').startsWith('Permission to use Bash was denied') && !(b7.error?.value ?? '').includes('<tool_use_error>'), JSON.stringify(b7.error))
+  const { runToolUse, toolUseError } = await import('../../src/services/tools/toolExecution.js')
+  const { formatError } = await import('../../src/utils/toolErrors.js')
+  const { ShellError } = await import('../../src/utils/errors.js')
+  const { createAssistantMessage } = await import('../../src/utils/messages.js')
+  const transaction = async (command: string) => {
+    const context = await makeContext({ tools: [BashTool] })
+    const id = `toolu_b8_${Math.random().toString(36).slice(2, 8)}`
+    const block = { type: 'tool_use' as const, id, name: 'Bash', input: { command } }
+    const assistant = createAssistantMessage({ content: [block as never], isVirtual: true })
+    let seen: { content: unknown; isError: boolean; toolUseResult: unknown; shellRun: unknown } | null = null
+    for await (const update of runToolUse(block as never, assistant, gate, context)) {
+      const message = (update as { message?: { type?: string; toolUseResult?: unknown; message?: { content?: unknown } } }).message
+      if (!message || message.type !== 'user' || !Array.isArray(message.message?.content)) continue
+      for (const part of message.message.content as Array<{ type?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }>) {
+        if (part.type !== 'tool_result' || part.tool_use_id !== id) continue
+        seen = { content: part.content, isError: part.is_error === true, toolUseResult: message.toolUseResult, shellRun: (update as { shellRun?: unknown }).shellRun }
+      }
+    }
+    return seen
+  }
+  const exited = await transaction('echo out-line; echo err-line >&2; exit 1')
+  const exitedContent = typeof exited?.content === 'string' ? exited.content : ''
+  check("B8 the transaction's model-facing text for an exit is the historic one: the wrapped headline, the merged output, the exit trailer", /^<tool_use_error>Shell command failed \(exit code 1\)\nout-line\nerr-line\n\nExited with code 1(?:\n[\s\S]*)?<\/tool_use_error>$/.test(exitedContent) && exited?.isError === true && exited?.toolUseResult === 'Error: Shell command failed', JSON.stringify(exited).slice(0, 500))
+  const exitedRun = exited?.shellRun as { code?: unknown; output?: unknown } | undefined
+  check('B9 the fact rides the update beside that text and carries the same bytes: code 1 and the merged output the headline sits over', exitedRun !== undefined && exitedRun.code === 1 && typeof exitedRun.output === 'string' && exitedContent === toolUseError(formatError(new ShellError('', exitedRun.output, 1, false))), JSON.stringify(exitedRun).slice(0, 300))
+  const fine = await transaction('echo fine')
+  const fineRun = fine?.shellRun as { code?: unknown; output?: unknown } | undefined
+  check('B10 a success carries the fact too: code 0, no output field (the tool text is the output), the text unchanged', fine !== null && fine !== undefined && !fine.isError && typeof fine.content === 'string' && fine.content.startsWith('fine') && fineRun !== undefined && fineRun.code === 0 && fineRun.output === undefined, JSON.stringify(fine).slice(0, 300))
+  const refused = await transaction('echo never')
+  check('B11 a refusal carries no fact: the bridge reads the absence as the refusal road', refused !== null && refused !== undefined && refused.isError && refused.shellRun === undefined && String(refused.content).includes('Permission to use Bash was denied'), JSON.stringify(refused).slice(0, 300))
 } finally {
   await evalKernelManager.disposeAll()
   check('no kernel left behind', evalKernelManager.kernelCount() === 0)
