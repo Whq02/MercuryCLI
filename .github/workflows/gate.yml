@@ -133,6 +133,8 @@ jobs:
           name: dist
       - name: Unpack dist
         run: tar -xzf dist.tar.gz
+      - name: Allow the managed browser's sandbox (unprivileged user namespaces)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run shard suites (the release class)
         run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 24 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
