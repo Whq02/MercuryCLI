@@ -120,8 +120,8 @@ section('1 · /accounts slots for the key-lane families')
   const kimi = signedIn?.slots.find(s => s.id === 'moonshot:oauth')
   const shadowedKey = signedIn?.slots.find(s => s.id === 'moonshot:stored-key')
   check(
-    'no env pin ⇒ the Kimi sign-in is ACTIVE, named by region, tail-masked',
-    kimi?.active === true && kimi.kindLabel === 'Kimi sign-in' && kimi.identity.includes('mainland China (kimi.com)') && kimi.identity.includes('…0001') && !kimi.identity.includes('tok-never-shown'),
+    'no env pin ⇒ the Kimi sign-in is ACTIVE, named by its kind and region, never a token fragment',
+    kimi?.active === true && kimi.kindLabel === 'Kimi sign-in' && kimi.identity === 'Kimi account · device-code, mainland China' && !kimi.identity.includes('0001') && !kimi.identity.includes('tok-never-shown'),
     JSON.stringify(kimi),
   )
   check(
