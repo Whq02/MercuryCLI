@@ -11,12 +11,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const rail = readFileSync('src/components/HelmLanesRail.tsx', 'utf8');
 check(
-  'active mission rows are selectable RailRows',
-  /label: `mission:a:\$\{t\.id\}`/.test(rail),
-);
-check(
-  'both +N overflow rows are selectable',
-  rail.includes("label: 'mission:a:more'") && rail.includes("label: 'mission:q:more'"),
+  'the rail builds no ledger rows of its own (the TASKS card retired; RUNS opens /tasks)',
+  !/mission:a:/.test(rail) && !/mission:q:/.test(rail) && !/section\('tasks'/.test(rail),
 );
 check(
   'wake glance is a selectable row opening /saturn',

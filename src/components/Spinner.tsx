@@ -225,7 +225,7 @@ export function SpinnerWithVerb({
   const tail =
     treeExpanded && hasRunningTeammates ? (
       <TeammateSpinnerTree />
-    ) : ledgerExpanded && !inCockpit && mission.length > 0 ? (
+    ) : ledgerExpanded && mission.length > 0 ? (
       <TaskListV2 tasks={mission} />
     ) : pendingNext ? (
       <Text dimColor wrap="truncate-end">

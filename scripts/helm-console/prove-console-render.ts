@@ -53,10 +53,8 @@ check('compose hint advertises armed keys', text.includes('↵ ask'))
 const occurrences = lines.filter(l => l.includes('what changed here')).length
 check('text appears exactly once (never leaked to the prompt)', occurrences === 1, `n=${occurrences}`)
 
-check('TASKS header carries done/total', text.includes('TASKS · 1/4'))
-check('in-progress row narrates the activeForm', text.includes('Charting the reef'))
-check('queued rows render subjects', text.includes('Refit the tide') && text.includes('Sound the harb'))
-check('completed task not listed as a row', !text.includes('Stow the survey'))
+check('no TASKS card on the rail', !text.includes('TASKS') && !text.includes('no open tasks'))
+check('no ledger rows painted on the rail (activeForm, queued subjects)', !text.includes('Charting the reef') && !text.includes('Refit the tide') && !text.includes('Sound the harb'))
 
 console.log(`  (png: /tmp/helm-console-160.png)`)
 console.log('')
