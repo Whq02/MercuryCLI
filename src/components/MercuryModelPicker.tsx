@@ -2,7 +2,7 @@ import figures from 'figures'
 import * as React from 'react'
 import { useState } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
-import { Box, Text, useInput } from '../ink.js'
+import { Box, Text, useInput, wrapText } from '../ink.js'
 import { fitMeasuredWindow, packLines, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
@@ -289,7 +289,9 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const rowPaint = (idx: number): number => {
     if (compact) return 1
     if (models[idx]?.expand?.open) return 0
-    return idx === i ? (models[idx]?.tag ? 4 : 3) : 1
+    if (idx !== i) return 1
+    const tag = models[idx]?.tag ?? ''
+    return tag === '' ? 3 : 3 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
   }
   const detailLines = new Map<string, string[]>()
   for (const [g, detail] of Object.entries(groupDetails ?? {})) {
@@ -313,21 +315,19 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, panelWidth - 4)
       : null
   const basePaint =
-    (compact ? (shedMeters ? 5 : 6) : 10) +
+    (compact ? (shedMeters ? 4 : 5) : 9) +
+    (hasEffort ? 1 : 0) +
     (pendingNext ? 1 : 0) +
-    (!compact && ctxNotice ? 2 : !compact && notice ? 1 : 0) +
+    (!compact && ctxNotice ? wrapText(ctxNotice, panelWidth - 4, 'wrap').split('\n').length : !compact && notice ? 1 : 0) +
     (!compact && reasonLines !== null ? reasonLines.length - 1 : 0)
   const paintBudget = Math.max(3, availRows - basePaint)
-  const win = fitMeasuredWindow(
-    totalRows,
-    paintBudget,
-    span => paneWindow(totalRows, i, span),
-    w => {
-      let lines = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0) + headingPaint(w)
-      for (let idx = w.start; idx < w.end; idx++) lines += rowPaint(idx)
-      return lines
-    },
-  )
+  const windowPaint = (w: PaneWindow): number => {
+    let lines = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0) + headingPaint(w)
+    for (let idx = w.start; idx < w.end; idx++) lines += rowPaint(idx)
+    return lines
+  }
+  const win = fitMeasuredWindow(totalRows, paintBudget, span => paneWindow(totalRows, i, span), windowPaint)
+  const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
   let lastGroup: string | null = null
   const doorHeaderIndex = expanded === null ? -1 : models.findIndex(m => m.expand?.open === true)
   const doorHeader = doorHeaderIndex === -1 ? undefined : { index: doorHeaderIndex, id: models[doorHeaderIndex]!.id, parts: catalogueDoorHeaderParts(models[doorHeaderIndex]!.expand!) }
@@ -417,6 +417,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           </React.Fragment>
         )
       })}
+      {slack > 0 ? <Box height={slack} flexShrink={0} /> : null}
       {win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
       {shedMeters ? null : <Box marginTop={compact ? 0 : 1}>
         {
