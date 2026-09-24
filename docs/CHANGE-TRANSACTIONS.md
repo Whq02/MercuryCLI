@@ -94,7 +94,10 @@ had read shift through the edit and the lines it wrote count as seen, at
 the generation the write produced. A later edit of that file therefore
 needs no re-read even when the read cache no longer holds it — a resumed
 agent, a pruned context — while a change made by anyone else still refuses,
-because its generation is neither the read's nor the edit's.
+because its generation is neither the read's nor the edit's. A generation is
+keyed on the file's modification time, its size and a digest of its bytes,
+so a rewrite that keeps the size and lands in the same millisecond is still
+another generation.
 
 A Read of lines 1–5 followed by a file change and a search showing lines
 6–10 does not establish current knowledge of lines 1–10. The refusal names
