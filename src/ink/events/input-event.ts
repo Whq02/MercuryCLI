@@ -52,7 +52,7 @@ const FUNCTIONAL_NAMES = new Set<string>(nonAlphanumericKeys)
 const EXTENDED_KEYBOARD_RE = /^\[\d[\d;:]*u$/
 const MODIFY_OTHER_KEYS_RE = /^\[27;[\d;]*~$/
 const EVENT_TYPED_FUNCTIONAL_RE = /^\[[\d;]*;\d+:\d+[~A-Za-z]$/
-const MOUSE_REPORT_SHAPE_RE = /^\x1b*\[<\d[\d;]*[Mm]?$/
+const MOUSE_REPORT_SHAPE_RE = /^(?:\x1b+\[<\d[\d;]*[Mm]?|\[<\d[\d;]*[Mm])$/
 
 function normalizeSpecialFamilyText(name: string | undefined): string {
   if (!name) return ''
