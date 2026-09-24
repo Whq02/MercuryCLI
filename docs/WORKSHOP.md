@@ -64,6 +64,14 @@ path — a cell asking to edit a file meets exactly the consent an Edit
 would. Parallel and pipelined calls work in-cell; a cell invoking Workshop
 recursively is refused.
 
+A bridge call throws into the cell only when the tool refused to run — an
+unknown tool, the kill switch, a permission, a ward. A Bash command that
+ran comes back as a value whatever it exited: `{code, stdout, stderr}`,
+where `code` is the exit code, `stdout` is the command's one interleaved
+capture — the same text the Bash tool returns — and `stderr` is always
+empty because the Bash tool keeps one stream. A non-zero exit never stops
+the cell; the cell's own code decides what it means.
+
 With samples switched on ([SAMPLES.md](SAMPLES.md); off by default),
 `mercury.sample({ name, title?, html })` keeps a page the operator asked to
 see as a sample: a versioned, re-openable page under the session that opens

@@ -158,7 +158,7 @@ export interface CellBudgetHooks {
 export type BridgeServer = (
   frame: BridgeRequestFrame,
   budget: CellBudgetHooks,
-) => Promise<{ ok: boolean; value?: unknown; error?: string }>
+) => Promise<{ ok: boolean; value?: unknown; error?: string; code?: number | null }>
 
 export interface RunCellRequest {
   owner: string
@@ -422,7 +422,7 @@ export class EvalKernelManager {
     let displaysDropped = 0
     let resultRepr: string | undefined
     let cellError: { name: string; value: string; traceback: string; survived?: string[] } | undefined
-    const nested: { seq: number; name: string; ok: boolean; error?: string }[] = []
+    const nested: { seq: number; name: string; ok: boolean; error?: string; code?: number }[] = []
 
     const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
     const transformed = input.language === 'js' ? transformJsCell(input.code) : null
@@ -477,6 +477,7 @@ export class EvalKernelManager {
               if (row !== undefined) {
                 row.ok = result.ok
                 if (!result.ok) row.error = String(result.error ?? 'failed').slice(0, 160)
+                else if (typeof result.code === 'number') row.code = result.code
               }
             }
             entry.kernel.answerBridge(frame.bridgeId, result.ok, result.value, result.error)
@@ -621,9 +622,11 @@ export function nestedCallName(frame: { kind: string; payload?: unknown }): stri
   return null
 }
 
-export function nestedCallsLine(rows: readonly { seq: number; name: string; ok: boolean; error?: string }[]): string | null {
+export function nestedCallsLine(rows: readonly { seq: number; name: string; ok: boolean; error?: string; code?: number }[]): string | null {
   if (rows.length === 0) return null
-  const shown = rows.slice(0, 20).map(r => `${r.seq} ${r.name} ${r.ok ? 'ok' : `failed (${r.error ?? 'failed'})`}`)
+  const outcome = (r: { ok: boolean; error?: string; code?: number }): string =>
+    !r.ok ? `failed (${r.error ?? 'failed'})` : typeof r.code === 'number' && r.code !== 0 ? `exit ${r.code}` : 'ok'
+  const shown = rows.slice(0, 20).map(r => `${r.seq} ${r.name} ${outcome(r)}`)
   const more = rows.length > 20 ? ` · +${rows.length - 20} more` : ''
   const failed = rows.filter(r => !r.ok).length
   return `nested calls (${rows.length}, ${failed} failed): ${shown.join(' · ')}${more}`

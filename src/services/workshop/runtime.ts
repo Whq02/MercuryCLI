@@ -35,7 +35,7 @@ import {
 
 export interface WorkshopBridge {
   inspect(ref: string): Promise<string>
-  tool(name: string, input: unknown): Promise<string>
+  tool(name: string, input: unknown): Promise<unknown>
   agent(input: unknown): Promise<string>
 }
 

@@ -5,7 +5,9 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { toolMatchesName } from '../../Tool.js'
 import type { AssistantMessage, Message, NormalizedUserMessage, UserMessage } from '../../types/message.js'
+import { shellCallValue, type ShellRunFact } from '../../utils/errors.js'
 import { createAssistantMessage, createUserMessage } from '../../utils/messages.js'
+import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { smallFastModelFor } from '../../utils/model/providerFrontier.js'
 import { runToolUse } from '../tools/toolExecution.js'
@@ -47,6 +49,7 @@ interface BridgeAnswer {
   ok: boolean
   value?: unknown
   error?: string
+  code?: number | null
 }
 
 function extractToolResult(
@@ -144,17 +147,20 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
     const assistant = createAssistantMessage({ content: [block as never], isVirtual: true })
     deps.onNested?.(assistant)
     let result: { text: string; isError: boolean } | null = null
+    let shellRun: ShellRunFact | undefined
     for await (const update of runToolUse(block as never, assistant, makeWrappedCanUse(budget), nestedContext)) {
       const message = (update as { message?: Message }).message
       if (!message || message.type !== 'user') continue
       const extracted = extractToolResult(message as UserMessage, toolUseId)
       if (extracted) {
         result = extracted
+        shellRun = update.shellRun
         deps.onNested?.(toNormalizedUser(message as UserMessage))
       }
     }
     if (!result) return { ok: false, error: `the ${name} call produced no result` }
-    if (result.isError) return { ok: false, error: result.text || `the ${name} call failed` }
+    if (shellRun !== undefined) return { ok: true, value: shellCallValue(shellRun, result.text), code: shellRun.code }
+    if (result.isError) return { ok: false, error: unwrapToolUseError(result.text) || `the ${name} call failed` }
     return { ok: true, value: result.text }
   }
 

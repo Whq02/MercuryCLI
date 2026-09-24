@@ -15,6 +15,7 @@ import {
   type WorkshopBridge,
 } from '../../services/workshop/runtime.js'
 import { getCwd } from '../../utils/cwd.js'
+import { shellCallValue, type ShellRunFact } from '../../utils/errors.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -103,7 +104,8 @@ export const WorkshopTool = buildTool({
 Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts needs a workspace typescript package (Mercury does not bundle a compiler — an absent one refuses honestly). py needs python3 on PATH (absent ⇒ honest refusal; no packages are ever auto-installed; interactive stdin raises). require() resolves from the session cwd and re-reads changed local files on later cells (dynamic import() stays cached). One cell runs at a time per runtime; later cells queue. A JS/TS timeout or cancel TERMINATES the runtime — retained state is lost and reported, never silently; a py cancel INTERRUPTS first (KeyboardInterrupt — state retained) and kills only if the interrupt does not land within 2s. reset: true discards state explicitly.
 
 The bridge (inside cells):
-· await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused)
+· await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused); the call throws only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward)
+· await mercury.tool('Bash', { command }) — a command that RAN returns { code, stdout, stderr } whatever it exited: code is the exit code (null while a command runs in the background), stdout is the command's one interleaved capture (the same text the Bash tool returns), stderr is always '' because the Bash tool keeps one stream; a non-zero exit is a value, never a throw — the cell decides what it means
 · await mercury.agent(input) — delegate to a sub-agent (the same input shape as a direct launch); the result includes the structured envelope
 · await mercury.inspect(ref) — read a mercury:// resource
 · mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)${sampleLine}
@@ -152,7 +154,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
     const startedAt = Date.now()
 
     let bridgeSeq = 0
-    const runNestedTool = async (name: string, nestedInput: unknown): Promise<string> => {
+    const runNestedTool = async (name: string, nestedInput: unknown): Promise<unknown> => {
       if (name === WORKSHOP_TOOL_NAME) {
         throw new Error('recursive Workshop calls are refused — compose within the current cell')
       }
@@ -165,6 +167,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
       const toolUseId = `toolu_workshop_${++bridgeSeq}`
       let resultText = ''
       let isError = false
+      let shellRun: ShellRunFact | undefined
       for await (const update of runToolUse(
         { type: 'tool_use', id: toolUseId, name, input: nestedInput } as never,
         (parentMessage ?? {
@@ -182,6 +185,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
             const b = block as { type?: string; content?: unknown; is_error?: boolean }
             if (b.type === 'tool_result') {
               isError = b.is_error === true
+              shellRun = update.shellRun
               resultText =
                 typeof b.content === 'string'
                   ? b.content
@@ -195,6 +199,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
           }
         }
       }
+      if (shellRun !== undefined) return shellCallValue(shellRun, resultText)
       if (isError) throw new Error(unwrapToolUseError(resultText) || `tool '${name}' failed`)
       return resultText
     }
@@ -208,7 +213,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
       tool: runNestedTool,
       agent: async agentInput => {
         const { AGENT_TOOL_NAME } = await import('../AgentTool/constants.js')
-        return runNestedTool(AGENT_TOOL_NAME, agentInput)
+        return String(await runNestedTool(AGENT_TOOL_NAME, agentInput))
       },
     }
 
