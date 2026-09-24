@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { check, cleanup, finish, loadEval, section, setup, within } from './lib.js'
+import { check, cleanup, finish, loadEval, makeContext, section, setup, within } from './lib.js'
 
 const { work } = setup()
 const { evalKernelManager } = await loadEval()
@@ -106,6 +106,39 @@ try {
   check('A4 the Python cell finishes ok with values', a2.status === 'ok' && a2.resultRepr === "[True, False, 'the bridge refused this call']", a2.resultRepr ?? JSON.stringify(a2.error))
   const a3 = await run('owner-A', 'py', 'tool("Refused")')
   check('A5 the plain call still raises (a denial must be handled)', a3.status === 'error' && (a3.error?.value ?? '').includes('the bridge refused this call'), JSON.stringify(a3.error))
+
+  section('§B the real bridge with the real Bash tool: a command that ran is a value, a refusal a raise, the ledger keeps the exit code')
+  const { makeEvalBridgeServer } = await import('../../src/services/eval/evalBridge.js')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const gate = (async (_tool: { name: string }, input: Record<string, unknown>) =>
+    String(input.command ?? '').includes('never')
+      ? { behavior: 'deny', message: 'Permission to use Bash was denied by the operator.' }
+      : { behavior: 'allow', updatedInput: input }) as never
+  const runBridged = async (owner: string, language: 'js' | 'py', code: string) => {
+    const abort = new AbortController()
+    const context = await makeContext({ tools: [BashTool], abortController: abort })
+    const cellAbort = new AbortController()
+    const serveBridge = makeEvalBridgeServer({ context, canUseTool: gate, cellAbort })
+    try {
+      return await within('bridged cell', 60_000, evalKernelManager.runCell({ owner, cwd: work, input: { language, code }, abortSignal: abort.signal, serveBridge }))
+    } finally {
+      cellAbort.abort()
+    }
+  }
+  const b1 = await runBridged('owner-B', 'js', "const r = await tool.Bash({ command: 'echo out-line; echo err-line >&2; exit 1' })\nJSON.stringify([r.code, r.stdout.includes('out-line') && r.stdout.includes('err-line'), r.stderr])")
+  check('B1 a Bash command that exits 1 comes back as { code: 1, stdout: the merged capture, stderr: "" } and the JS cell finishes ok', b1.status === 'ok' && b1.resultRepr === "'[1,true,\"\"]'", JSON.stringify(b1.error ?? b1.resultRepr))
+  const b2 = await runBridged('owner-B', 'js', "const ok = await tool.Bash({ command: 'echo fine' })\nJSON.stringify([ok.code, ok.stdout.startsWith('fine'), ok.stderr])")
+  check('B2 an exit 0 takes the same shape: { code: 0, stdout, stderr: "" }', b2.status === 'ok' && b2.resultRepr === "'[0,true,\"\"]'", JSON.stringify(b2.error ?? b2.resultRepr))
+  const b3 = await runBridged('owner-B', 'js', "const a = await tool.attempt.Bash({ command: 'exit 4' })\nconst d = await tool.attempt.Bash({ command: 'echo never' })\nJSON.stringify([a.ok, a.value && a.value.code, d.ok, String(d.error).startsWith('Permission to use Bash was denied'), String(d.error).includes('<tool_use_error>')])")
+  check('B3 tool.attempt: an exit is { ok: true, value: { code } }; a refusal is { ok: false, error } with the words bare', b3.status === 'ok' && b3.resultRepr === "'[true,4,false,true,false]'", JSON.stringify(b3.error ?? b3.resultRepr))
+  const b4 = await runBridged('owner-B', 'js', "await tool.Bash({ command: 'echo never' })")
+  check('B4 a refused Bash call still raises into the cell, its words bare', b4.status === 'error' && (b4.error?.value ?? '').startsWith('Permission to use Bash was denied') && !(b4.error?.value ?? '').includes('<tool_use_error>'), JSON.stringify(b4.error))
+  const b5 = await runBridged('owner-B', 'js', "await tool.Bash({ command: 'exit 3' })\nthrow new Error('after the call')")
+  check('B5 the nested-call ledger records the exit code of a call that ran, not a clipped error', b5.status === 'error' && (b5.annotations.find(a => a.startsWith('nested calls')) ?? '') === 'nested calls (1, 0 failed): 1 Bash exit 3', JSON.stringify(b5.annotations))
+  const b6 = await runBridged('owner-B', 'py', "r = tool.Bash(command='echo out-line; echo err-line >&2; exit 1')\n[r['code'], 'out-line' in r['stdout'] and 'err-line' in r['stdout'], r['stderr']]")
+  check('B6 the Python kernel reads the same value', b6.status === 'ok' && b6.resultRepr === "[1, True, '']", JSON.stringify(b6.error ?? b6.resultRepr))
+  const b7 = await runBridged('owner-B', 'py', "tool.Bash(command='echo never')")
+  check('B7 Python: a refused call raises with the words bare', b7.status === 'error' && (b7.error?.value ?? '').startsWith('Permission to use Bash was denied') && !(b7.error?.value ?? '').includes('<tool_use_error>'), JSON.stringify(b7.error))
 } finally {
   await evalKernelManager.disposeAll()
   check('no kernel left behind', evalKernelManager.kernelCount() === 0)
