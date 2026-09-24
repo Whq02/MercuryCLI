@@ -265,6 +265,7 @@ section('(f) resume semantics: balanced prefix continues; unpaired tool_use rest
     'the preserved work rides the continuation',
     JSON.stringify(cont ?? []).includes('half the work is done'),
   )
+  check('the resume runs under the SAME agent id as the cut attempt (the same transcript, the same prefix key)', calls[0]?.agentId !== undefined && calls[1]?.agentId === calls[0]?.agentId, `${calls[0]?.agentId} → ${calls[1]?.agentId}`)
 }
 {
   const { hooks, calls } = makeRig({
@@ -287,10 +288,51 @@ section('(f) resume semantics: balanced prefix continues; unpaired tool_use rest
   const res = await hooks.agent('dangling', { stallMs: 150 })
   check('retry succeeded fresh', String(res).includes('fresh run done'), String(res).slice(0, 60))
   check('two spawns', calls.length === 2, `${calls.length}`)
+  const danglingCont = calls[1]?.continuationMessages
   check(
-    'an unpaired trailing tool_use resumes NOTHING (fresh restart)',
-    calls[1]?.continuationMessages === undefined,
+    'an unpaired trailing tool_use is dropped: the retry resumes on the seed alone (the prompt row, no completed work, no resume prompt)',
+    Array.isArray(danglingCont) && danglingCont.length === 1 && (danglingCont[0] as { type?: string }).type === 'user' && JSON.stringify(danglingCont).includes('dangling') && !JSON.stringify(danglingCont).includes('toolu_dangling') && !JSON.stringify(danglingCont).includes('cut off by a no-progress timeout'),
+    JSON.stringify(danglingCont).slice(0, 200),
   )
+  check('the retry keeps the agent id', calls[0]?.agentId !== undefined && calls[1]?.agentId === calls[0]?.agentId, `${calls[0]?.agentId} → ${calls[1]?.agentId}`)
+}
+
+section('(k) a thinking-only cut resumes on the same agent: the same id every attempt, the seed row reused, each cut counted')
+{
+  const thinkingOnly = async function* (args: FakeArgs): AsyncGenerator<unknown, void> {
+    args.onQueryProgress?.({ type: 'stream_request_start' })
+    args.onQueryProgress?.({ type: 'stream_event', event: { type: 'message_start' } })
+    for (let i = 0; i < 3; i++) {
+      await sleep(30)
+      args.onQueryProgress?.({ type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'hm' } } })
+    }
+    await hangUntilAbort(args)
+  }
+  const { hooks, calls, frames } = makeRig({
+    behaviors: [
+      thinkingOnly,
+      thinkingOnly,
+      async function* (args) {
+        const msg = assistantText('answered on the third attempt')
+        args.onQueryProgress?.(msg)
+        yield msg
+      },
+    ],
+  })
+  const res = await hooks.agent('think about it', { stallMs: 200 })
+  check('k1 the third attempt answered', String(res).includes('answered on the third attempt'), String(res).slice(0, 80))
+  check('k1 three spawns: two thinking-only cuts, then the answer', calls.length === 3, `${calls.length}`)
+  check('k1 every attempt ran under the SAME agent id', calls[0]?.agentId !== undefined && calls.every(c => c.agentId === calls[0]!.agentId), calls.map(c => c.agentId).join(' → '))
+  const seedOf = (c: { continuationMessages?: unknown[] } | undefined): { type?: string; uuid?: string } | undefined =>
+    Array.isArray(c?.continuationMessages) && c.continuationMessages.length === 1 ? (c.continuationMessages[0] as { type?: string; uuid?: string }) : undefined
+  const seed2 = seedOf(calls[1])
+  const seed3 = seedOf(calls[2])
+  check('k2 a thinking-only cut resumes on the seed alone: one user row carrying the original prompt, no resume prompt appended', seed2?.type === 'user' && JSON.stringify(calls[1]?.continuationMessages).includes('think about it') && !JSON.stringify(calls[1]?.continuationMessages).includes('cut off by a no-progress timeout'), JSON.stringify(calls[1]?.continuationMessages).slice(0, 200))
+  check('k3 the seed is the same row on every retry (one uuid, one object), so the roster and prefix key hold across attempts', seed2 !== undefined && seed3 !== undefined && typeof seed2.uuid === 'string' && seed3.uuid === seed2.uuid && seed3 === seed2, `${seed2?.uuid} · ${seed3?.uuid}`)
+  check("k4 the attempt chip keeps its words: attempt 2 says 'stalled (no progress)'", frames.some(f => f.attempt === 2 && f.lastAttemptReason === 'stalled (no progress)'), JSON.stringify(frames.filter(f => f.attempt === 2).slice(0, 1)).slice(0, 200))
+  const usageFrames = frames.filter(f => typeof (f.usage as { unsettledTurns?: unknown } | undefined)?.unsettledTurns === 'number')
+  const lastUsage = usageFrames[usageFrames.length - 1]?.usage as { unsettledTurns: number } | undefined
+  check('k5 each cut request counts as an unsettled turn on the settled frame', lastUsage !== undefined && lastUsage.unsettledTurns === 2, JSON.stringify(lastUsage))
 }
 
 section('source locks — the forward stays live and honest')
