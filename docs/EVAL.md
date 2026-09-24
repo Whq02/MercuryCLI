@@ -68,8 +68,15 @@ each cell.
 ## Inside a cell
 
 Both kernels carry the same helpers: `tool.<Name>(…)` calls any session
-tool under the session's permission mode (a refused call raises into the
-cell; `tool.attempt` returns the error as a value instead), `agent(…)` runs
+tool under the session's permission mode (a call raises into the cell only
+when the tool refused to run — an unknown tool, the kill switch, a
+permission, a ward; `tool.attempt` returns that error as a value instead).
+A Bash command that ran comes back as a value whatever it exited:
+`{code, stdout, stderr}`, where `code` is the exit code, `stdout` is the
+command's one interleaved capture — the same text the Bash tool returns —
+and `stderr` is always empty because the Bash tool keeps one stream; a
+non-zero exit never stops the cell, the cell's own code decides what it
+means. `agent(…)` runs
 one sub-agent, `parallel(…)` and `pipeline(…)` fan work out, `completion(…)`
 makes a tool-free model call, `display(…)` and its markdown, JSON and image
 forms put rich output beside stdout, and `read_file` / `write_file` are the
