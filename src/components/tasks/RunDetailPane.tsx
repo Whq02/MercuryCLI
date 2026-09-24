@@ -38,7 +38,7 @@ import { EmptyState, StateBadge, useNowTick } from '../mercury-ui/components.js'
 import { displayWidth, GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { agentPulse, agentPulseWord } from '../../tools/WorkflowTool/livePulse.js'
-import { usageSpeaks, workflowSpendWords, workflowUsageSpend } from '../../tools/WorkflowTool/workflowUsage.js'
+import { usageSpeaks, workflowSpendWords } from '../../tools/WorkflowTool/workflowUsage.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { decodeNavKey } from '../mercury-ui/navSemantics.js'
@@ -410,7 +410,7 @@ function DossierCard({
   if (agent.usage && usageSpeaks(agent.usage)) {
     const u = agent.usage
     metaBits.push(
-      `${GLYPH.tokens} ${workflowSpendWords(u, formatTokens)} (${formatTokens(workflowUsageSpend(u) - u.outputTokens)} in / ${formatTokens(u.outputTokens)} out)`,
+      `${GLYPH.tokens} ${workflowSpendWords(u, formatTokens)} (${formatTokens(u.inputTokens)} in / ${formatTokens(u.outputTokens)} out)`,
     )
   } else if (typeof agent.tokens === 'number' && agent.tokens > 0) {
     metaBits.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} context`)
