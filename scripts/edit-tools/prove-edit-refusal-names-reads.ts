@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -179,9 +179,16 @@ section('L. the law itself is unchanged')
   check('L3 a full read still edits anywhere', full.ok && readFileSync(file, 'utf8').includes('const v1 = 11'), messageOf(full))
   const anchored = await edit({ file_path: file, old_string: 'const v2 = 2', new_string: 'const v2 = 22', expected_anchor: mintFileAnchor(readFileSync(file, 'utf8')) }, makeContext())
   check('L4 a matching full anchor still edits without a read', anchored.ok && readFileSync(file, 'utf8').includes('const v2 = 22'), messageOf(anchored))
+  const statBefore = statSync(file)
+  const keyBefore = fileGeneration(file)
+  writeFileSync(file, readFileSync(file, 'utf8').replace('const v4 = 4', 'const v4 = 9'))
+  utimesSync(file, statBefore.atime, statBefore.mtime)
+  const statAfter = statSync(file)
+  check('L5p an outside rewrite at equal size with the mtime set back keeps the stat pair (mtime ms and size) the ledger once keyed on', Math.floor(statAfter.mtimeMs) === Math.floor(statBefore.mtimeMs) && statAfter.size === statBefore.size, `${Math.floor(statBefore.mtimeMs)}:${statBefore.size} -> ${Math.floor(statAfter.mtimeMs)}:${statAfter.size}`)
+  check('L5g …and the file generation tells the rewrite apart (RED on the base: the key is the stat pair alone)', fileGeneration(file) !== keyBefore, String(keyBefore))
   const before = readFileSync(file, 'utf8')
   const refused = await edit({ file_path: file, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
-  check('L5 a line of a file that changed after the lines you read still refuses and writes nothing, leading with the change', !refused.ok && refused.message.startsWith(`The file ${file} changed after the lines you read; the lines the edit touches, as they stand now, are below and count as read: check them, then edit again without a Read.`) && readFileSync(file, 'utf8') === before, messageOf(refused))
+  check('L5 a line of a file that changed outside the tool after the lines you read, at equal size in the same instant, still refuses and writes nothing, leading with the change (RED on the base: the edit lands)', !refused.ok && refused.message.startsWith(`The file ${file} changed after the lines you read; the lines the edit touches, as they stand now, are below and count as read: check them, then edit again without a Read.`) && readFileSync(file, 'utf8') === before, messageOf(refused))
   const carried = await edit({ file_path: file, old_string: 'const v6 = 6', new_string: 'const v6 = 66' }, makeContext())
   check('L5a …and the same edit lands on the lines the refusal carried', carried.ok && readFileSync(file, 'utf8').includes('const v6 = 66'), messageOf(carried))
   const never = join(fixtures, 'never.ts')
