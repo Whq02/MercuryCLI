@@ -1,10 +1,9 @@
-import { mkdirSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { defineStore, StoreLockLostError } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
-import { lockSync } from '../../utils/lockfile.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { sleep } from '../../utils/sleep.js'
@@ -20,12 +19,12 @@ export const CLIENT_CONTRACT_PEEK_EVERY_MS = 24 * 60 * 60 * 1000
 const RECORD_MAX_BYTES = 16_384
 const ANSWER_MAX_BYTES = 256 * 1024
 const LATEST_STAMP_MS = 8_640_000_000_000_000
-const LOCK_ATTEMPTS = 5
 const PEER_WAIT_MS = REGISTRY_READ_DEADLINE_MS + 2_000
 const PEER_POLL_MS = 100
 const STABLE_VERSION = /^(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})$/
 const WIRE_VERSION = /(\d+\.\d+\.\d+) does not support this model/
 const LINE_VERSION = /cc_version=(\d+\.\d+\.\d+)\./
+const LOCK_LOST = 'the record lock was lost'
 
 export type ClientContractSource = 'constant' | 'learned' | 'override'
 export type ClientContractPresented = { presented: string; source: ClientContractSource }
@@ -48,7 +47,6 @@ export type ClientContractRead = {
 }
 
 export type ClientContractRecord = {
-  version: 1
   learned?: LearnedClientContract
   lastRead?: ClientContractRead
   lastPeekAtMs?: number
@@ -154,11 +152,10 @@ function parseRead(value: unknown): ClientContractRead | undefined {
   return read
 }
 
-function parseRecord(value: unknown): ClientContractRecord | null {
-  if (typeof value !== 'object' || value === null) return null
-  const raw = value as { version?: unknown; learned?: unknown; lastRead?: unknown; lastPeekAtMs?: unknown }
-  if (raw.version !== 1) return null
-  const record: ClientContractRecord = { version: 1 }
+function decodeRecord(value: unknown): ClientContractRecord | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const raw = value as { learned?: unknown; lastRead?: unknown; lastPeekAtMs?: unknown }
+  const record: ClientContractRecord = {}
   const learned = parseLearned(raw.learned)
   if (learned !== undefined) record.learned = learned
   const lastRead = parseRead(raw.lastRead)
@@ -171,31 +168,48 @@ export function clientContractRecordPath(home: string = getAuthConfigHomeDir()):
   return join(home, CLIENT_CONTRACT_RECORD_FILE)
 }
 
-export function readClientContractRecord(home: string = getAuthConfigHomeDir()): ClientContractRecord | null {
+const clientContractStore = defineStore<ClientContractRecord, [home: string]>({
+  name: 'client-contract',
+  path: home => clientContractRecordPath(home),
+  schemaVersion: 1,
+  decode: raw => decodeRecord(raw),
+  empty: () => ({}),
+  onReadFailure: 'empty',
+})
+
+async function storedRecord(home: string): Promise<ClientContractRecord> {
+  try {
+    return await clientContractStore(home).read()
+  } catch {
+    return {}
+  }
+}
+
+function learnedOnDisk(home: string): LearnedClientContract | null {
   const path = clientContractRecordPath(home)
   try {
     if (statSync(path).size > RECORD_MAX_BYTES) return null
-    return parseRecord(JSON.parse(readFileSync(path, 'utf8')))
+    return decodeRecord(JSON.parse(readFileSync(path, 'utf8')))?.learned ?? null
   } catch {
     return null
   }
 }
 
-function publishFailureCode(error: unknown): string {
+function recordFailureCode(error: unknown): string {
+  if (error instanceof StoreLockLostError) return LOCK_LOST
   const record = error as { fsCode?: unknown; code?: unknown } | null
   const code = record?.fsCode ?? record?.code
   return typeof code === 'string' && /^[A-Z][A-Z0-9_]{1,31}$/.test(code) ? code : 'EIO'
 }
 
-function publishRecord(home: string, record: ClientContractRecord): string | null {
-  try {
-    durableAtomicPublishSync(clientContractRecordPath(home), `${JSON.stringify(record, null, 2)}\n`, { mode: 0o600 })
-    return null
-  } catch (error) {
-    const code = publishFailureCode(error)
-    logForDebugging(`client contract: the record could not be saved (${code})`, { level: 'warn' })
-    return code
-  }
+function claimRefusal(error: unknown): string {
+  const code = recordFailureCode(error)
+  if (code === LOCK_LOST) return `${LOCK_LOST} before the claim was saved`
+  if (code === 'ELOCKED') return 'another Mercury held the record lock'
+  const path = (error as { path?: unknown } | null)?.path
+  return typeof path === 'string' && path.endsWith('.lock')
+    ? `the config home refused the record lock (${code})`
+    : `the config home refused its record (${code})`
 }
 
 const presentedByHome = new Map<string, LearnedClientContract | null>()
@@ -204,7 +218,7 @@ const readsInFlight = new Map<string, Promise<void>>()
 const troubleByHome = new Map<string, string>()
 
 function presentedFor(home: string): LearnedClientContract | null {
-  if (!presentedByHome.has(home)) presentedByHome.set(home, readClientContractRecord(home)?.learned ?? null)
+  if (!presentedByHome.has(home)) presentedByHome.set(home, learnedOnDisk(home))
   return presentedByHome.get(home) ?? null
 }
 
@@ -251,6 +265,17 @@ export function npmRegistryBase(): string {
 
 export function clientContractRegistryUrl(): string {
   return `${npmRegistryBase()}${CLIENT_CONTRACT_REGISTRY_PATH}`
+}
+
+function registrySource(): string {
+  try {
+    const url = new URL(clientContractRegistryUrl())
+    url.username = ''
+    url.password = ''
+    return url.toString()
+  } catch {
+    return NPM_REGISTRY_DEFAULT_BASE
+  }
 }
 
 function shapeFailure(words: string): RegistryAnswer {
@@ -362,67 +387,32 @@ function refusalText(error: unknown): string {
   return typeof message === 'string' ? message : ''
 }
 
-function lockRecord(home: string): (() => void) | string {
-  const path = clientContractRecordPath(home)
-  try {
-    mkdirSync(home, { recursive: true, mode: 0o700 })
-    return lockSync(path, {
-      lockfilePath: `${path}.lock`,
-      realpath: false,
-      onCompromised: (error: Error) => {
-        logForDebugging(`client contract: the record lock was compromised (${error.message})`, { level: 'warn' })
-      },
-    })
-  } catch (error) {
-    const code = (error as { code?: unknown } | null)?.code
-    return typeof code === 'string' ? code : 'EIO'
-  }
-}
-
-async function underRecordLock<T>(home: string, section: () => T): Promise<{ ok: true; value: T } | { ok: false; code: string }> {
-  let code = 'ELOCKED'
-  for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt++) {
-    const release = lockRecord(home)
-    if (typeof release === 'function') {
-      try {
-        return { ok: true, value: section() }
-      } finally {
-        try {
-          release()
-        } catch (error) {
-          logForDebugging(`client contract: the record lock could not be released (${String(error)})`, { level: 'warn' })
-        }
-      }
-    }
-    code = release
-    if (release !== 'ELOCKED') break
-    if (attempt < LOCK_ATTEMPTS - 1) await sleep(15 * 2 ** attempt)
-  }
-  return { ok: false, code }
-}
-
 async function claimRead(home: string, by: ClientContractActor, at: number): Promise<ClaimVerdict> {
-  const locked = await underRecordLock(home, (): ClaimVerdict => {
-    const record: ClientContractRecord = readClientContractRecord(home) ?? { version: 1 }
-    if (by === 'peek' && peekedWithinDay(record, at)) return { kind: 'today' }
-    const last = latestRead(home, record.lastRead)
-    if (last !== undefined && withinQuietWindow(last.atMs, at)) return { kind: 'windowed', last }
-    const claim: ClientContractRead = { atMs: at, by, from: clientContractRegistryUrl() }
-    const refused = publishRecord(home, { ...record, lastRead: claim })
-    if (refused !== null) return { kind: 'unclaimed', why: `the config home refused its record (${refused})` }
-    readsThisProcess.set(home, claim)
-    return { kind: 'claimed', claim, previous: record.lastRead }
-  })
-  if (locked.ok) return locked.value
-  return {
-    kind: 'unclaimed',
-    why: locked.code === 'ELOCKED' ? 'another Mercury held the record lock' : `the config home refused the record lock (${locked.code})`,
+  try {
+    const verdict = await clientContractStore(home).update<ClaimVerdict>(current => {
+      if (by === 'peek' && peekedWithinDay(current, at)) return { next: current, result: { kind: 'today' } }
+      const last = latestRead(home, current.lastRead)
+      if (last !== undefined && withinQuietWindow(last.atMs, at)) return { next: current, result: { kind: 'windowed', last } }
+      const claim: ClientContractRead = { atMs: at, by, from: registrySource() }
+      return { next: { ...current, lastRead: claim }, result: { kind: 'claimed', claim, previous: current.lastRead } }
+    })
+    if (verdict.kind === 'claimed') readsThisProcess.set(home, verdict.claim)
+    return verdict
+  } catch (error) {
+    const why = claimRefusal(error)
+    logForDebugging(`client contract: the registry read was not claimed (${why})`, { level: 'warn' })
+    return { kind: 'unclaimed', why }
   }
 }
 
 async function settleRecord(home: string, next: (fresh: ClientContractRecord) => ClientContractRecord): Promise<string | null> {
-  const locked = await underRecordLock(home, () => publishRecord(home, next(readClientContractRecord(home) ?? { version: 1 })))
-  const refused = locked.ok ? locked.value : locked.code
+  let refused: string | null = null
+  try {
+    await clientContractStore(home).mutate(next)
+  } catch (error) {
+    refused = recordFailureCode(error)
+    logForDebugging(`client contract: the record could not be saved (${refused})`, { level: 'warn' })
+  }
   noteTrouble(home, refused === null ? null : `the last registry answer was not saved to the config home (${refused})`)
   return refused
 }
@@ -453,21 +443,21 @@ async function awaitPeerAnswer(home: string, claim: ClientContractRead, signal?:
   if (last.answer !== undefined || Date.now() - claim.atMs >= PEER_WAIT_MS) return last
   for (let polls = 0; polls < PEER_WAIT_MS / PEER_POLL_MS && last.answer === undefined && signal?.aborted !== true; polls++) {
     await sleep(PEER_POLL_MS, signal)
-    const read = readClientContractRecord(home)?.lastRead
+    const read = (await storedRecord(home)).lastRead
     if (read !== undefined && read.atMs >= claim.atMs) last = read
   }
   return last
 }
 
-function adoptKnown(home: string, sent: ClientContractPresented): string | null {
-  const stored = readClientContractRecord(home)?.learned
+async function adoptKnown(home: string, sent: ClientContractPresented): Promise<string | null> {
+  const stored = (await storedRecord(home)).learned
   if (stored !== undefined) raisePresented(home, stored)
   const now = presentedNow()
   return now.source !== 'override' && isNewer(now.presented, sent.presented) ? now.presented : null
 }
 
-function adoptStored(home: string): { adopted?: string } {
-  const stored = readClientContractRecord(home)?.learned
+async function adoptStored(home: string): Promise<{ adopted?: string }> {
+  const stored = (await storedRecord(home)).learned
   if (stored === undefined || !raisePresented(home, stored)) return {}
   return presentedNow().presented === stored.version ? { adopted: stored.version } : {}
 }
@@ -487,14 +477,14 @@ export async function healClientContractRefusal(
   const home = getAuthConfigHomeDir()
   const peer = readsInFlight.get(home)
   if (peer !== undefined) await peer
-  const known = adoptKnown(home, sent)
+  const known = await adoptKnown(home, sent)
   if (known !== null) return { kind: 'retry', sent, to: known, via: 'stored' }
   const off = getEssentialTrafficOnlyReason()
   if (off !== null) return { kind: 'off', sent, why: off }
   const verdict = await claimRead(home, 'heal', clock())
   if (verdict.kind === 'windowed') {
     const last = await awaitPeerAnswer(home, verdict.last, signal)
-    const late = adoptKnown(home, sent)
+    const late = await adoptKnown(home, sent)
     if (late !== null) return { kind: 'retry', sent, to: late, via: 'peer' }
     return { kind: 'windowed', sent, last }
   }
@@ -524,6 +514,7 @@ export async function healClientContractRefusal(
     const holder: { learned: LearnedClientContract } = {
       learned: { version: answer.version, learnedAtMs: clock(), from: verdict.claim.from, by: 'heal' },
     }
+    raisePresented(home, holder.learned)
     const refused = await settleRecord(home, fresh => {
       if (fresh.learned !== undefined && !isNewer(holder.learned.version, fresh.learned.version)) holder.learned = fresh.learned
       return { ...fresh, learned: holder.learned, lastRead: read }
@@ -545,18 +536,17 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
     if (!peekLaneOpen()) return { kind: 'skipped', why: 'lane' }
     const home = getAuthConfigHomeDir()
     const at = clock()
-    const stored = readClientContractRecord(home)
-    if (stored !== null && peekedWithinDay(stored, at)) return { kind: 'skipped', why: 'today', ...adoptStored(home) }
+    if (peekedWithinDay(await storedRecord(home), at)) return { kind: 'skipped', why: 'today', ...(await adoptStored(home)) }
     const peer = readsInFlight.get(home)
     if (peer !== undefined) {
       await peer
-      return { kind: 'skipped', why: 'window', ...adoptStored(home) }
+      return { kind: 'skipped', why: 'window', ...(await adoptStored(home)) }
     }
     const verdict = await claimRead(home, 'peek', at)
-    if (verdict.kind === 'today') return { kind: 'skipped', why: 'today', ...adoptStored(home) }
+    if (verdict.kind === 'today') return { kind: 'skipped', why: 'today', ...(await adoptStored(home)) }
     if (verdict.kind === 'windowed') {
       await awaitPeerAnswer(home, verdict.last)
-      return { kind: 'skipped', why: 'window', ...adoptStored(home) }
+      return { kind: 'skipped', why: 'window', ...(await adoptStored(home)) }
     }
     if (verdict.kind === 'unclaimed') {
       noteTrouble(home, `the daily peek could not claim its registry read: ${verdict.why}`)
@@ -568,25 +558,17 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
       const answer = await readClientContractFromRegistry()
       const read: ClientContractRead = { ...verdict.claim, answer: answerOf(answer) }
       readsThisProcess.set(home, read)
-      const holder: { learned?: LearnedClientContract; stored?: LearnedClientContract } = {}
-      if (answer.ok && isNewer(answer.version, newestOf([now.constant, presentedFor(home)?.version]))) {
-        holder.learned = { version: answer.version, learnedAtMs: clock(), from: verdict.claim.from, by: 'peek' }
-      }
-      const refused = await settleRecord(home, fresh => {
-        const bar = newestOf([fresh.learned?.version, now.constant, presentedFor(home)?.version])
-        holder.stored = fresh.learned
-        holder.learned =
-          answer.ok && isNewer(answer.version, bar)
-            ? { version: answer.version, learnedAtMs: clock(), from: verdict.claim.from, by: 'peek' }
-            : fresh.learned
-        return {
-          ...fresh,
-          lastRead: read,
-          ...(holder.learned !== undefined ? { learned: holder.learned } : {}),
-          ...(answer.ok ? { lastPeekAtMs: at } : {}),
-        }
-      })
-      const learned = holder.learned !== undefined && holder.learned !== holder.stored && raisePresented(home, holder.learned)
+      const answered: LearnedClientContract | undefined =
+        answer.ok && isNewer(answer.version, newestOf([now.constant, presentedFor(home)?.version]))
+          ? { version: answer.version, learnedAtMs: clock(), from: verdict.claim.from, by: 'peek' }
+          : undefined
+      const learned = answered !== undefined && raisePresented(home, answered)
+      const refused = await settleRecord(home, fresh => ({
+        ...fresh,
+        lastRead: read,
+        ...(answered !== undefined && (fresh.learned === undefined || isNewer(answered.version, fresh.learned.version)) ? { learned: answered } : {}),
+        ...(answer.ok ? { lastPeekAtMs: at } : {}),
+      }))
       return { kind: 'read', answer, learned, ...(refused !== null ? { unsaved: refused } : {}) }
     } finally {
       done()
@@ -668,19 +650,19 @@ export function clientContractMoveOf(mismatch: { path?: string; before?: string;
   return `the client-contract number the door presents moved from ${was} to ${now}`
 }
 
-export function clientContractRecordWords(
+export async function clientContractRecordWords(
   contract: ClientContractPresented,
   ageOf: (ms: number) => string,
   nowMs: number = Date.now(),
-): string {
+): Promise<string> {
   const home = getAuthConfigHomeDir()
-  const record = readClientContractRecord(home)
+  const record = await storedRecord(home)
   const clauses: string[] = []
-  const stored = record?.learned
+  const stored = record.learned
   if (contract.source !== 'override' && stored !== undefined && isNewer(stored.version, contract.presented)) {
     clauses.push(`the config home holds ${stored.version} (learned ${isoDay(stored.learnedAtMs)}), presented from the next start or the next too-old refusal`)
   }
-  const last = latestRead(home, record?.lastRead)
+  const last = latestRead(home, record.lastRead)
   if (last !== undefined) {
     const who = last.by === 'peek' ? 'the daily peek' : 'the heal'
     const age = ageOf(nowMs - last.atMs)
