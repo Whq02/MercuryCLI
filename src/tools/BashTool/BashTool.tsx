@@ -137,6 +137,7 @@ export type Out = {
   stdout: string
   stderr: string
   interrupted: boolean
+  code?: number
   isImage?: boolean
   backgroundTaskId?: string
   backgroundedByUser?: boolean
@@ -637,7 +638,7 @@ async function* runBash(
     out = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
 
     if (result.preSpawnError) {
-      throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
+      throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
     }
     if (interpretation.isError && !interruptedByUser) {
       throw new ShellError('', [out, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
@@ -682,6 +683,7 @@ async function* runBash(
       stdout: formatted.truncatedContent,
       stderr,
       interrupted: result.interrupted,
+      code: result.code,
       isImage,
       returnCodeInterpretation,
       ...(exitNote !== undefined ? { exitNote } : {}),
