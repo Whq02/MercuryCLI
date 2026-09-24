@@ -240,6 +240,15 @@ export async function refreshOAuthToken(
   }
 }
 
+export async function refreshSignInGrant(
+  refreshToken: string,
+  options: { scopes?: string[] } = {},
+): Promise<OAuthTokens> {
+  const tokens: OAuthTokens = { ...(await refreshOAuthToken(refreshToken, options)) }
+  delete tokens.tokenAccount
+  return tokens
+}
+
 
 const ORGANIZATION_SUBSCRIPTIONS: Record<string, SubscriptionType> = {
   claude_max: 'max',

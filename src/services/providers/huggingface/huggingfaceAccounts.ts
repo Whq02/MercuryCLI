@@ -112,6 +112,7 @@ export function writeHuggingfaceTokens(
     next.tokens = tokens
     next.lastRefreshMs = Date.now()
     if (identity) next.identity = identity
+    else delete next.identity
     return next
   })
 }

@@ -1,6 +1,9 @@
-import { scanAccountScopes } from '../../utils/accounts/scopeScan.js'
+import { scanAccountScopes, type AccountScope } from '../../utils/accounts/scopeScan.js'
 import { getAnthropicApiKeyWithSource, isClaudeAISubscriber } from '../../utils/auth.js'
+import { getSecureStorage } from '../../utils/secureStorage/index.js'
+import type { OAuthTokens } from '../oauth/types.js'
 import {
+  openaiSubscriptionRef,
   resolveOpenaiAccount,
   resolveOpenaiApiKey,
   subscriptionConnected,
@@ -14,11 +17,32 @@ import {
   resolveGeminiAccount,
   resolveGeminiApiKey,
 } from '../providers/gemini/geminiAccounts.js'
-import { credentialEnvNames, readStoredOpenrouterApiKey } from '../../utils/router/providerSecrets.js'
+import {
+  kimiRegionLabel,
+  moonshotLoginRegion,
+  moonshotStoredTokens,
+  resolveMoonshotAccount,
+  resolveMoonshotApiKey,
+} from '../providers/moonshot/moonshotAccounts.js'
+import {
+  huggingfaceOauthIdentity,
+  huggingfaceStoredTokens,
+  resolveHuggingfaceApiKey,
+} from '../providers/huggingface/huggingfaceAccounts.js'
+import { maskedKeyTail } from '../providers/credentialIdentity.js'
+import { kimiHostWords } from './identityWords.js'
+import {
+  credentialEnvNames,
+  readStoredHuggingfaceApiKey,
+  readStoredOpenrouterApiKey,
+} from '../../utils/router/providerSecrets.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 
-export type WalletProvider = 'anthropic' | 'openai' | 'openrouter' | 'gemini'
+export type WalletProvider = 'anthropic' | 'openai' | 'openrouter' | 'gemini' | 'moonshot' | 'huggingface'
+
+export type WalletIdentitySource = 'profile' | 'receipt'
+
 export type WalletAuthKind = 'subscription-oauth' | 'oauth' | 'api-key'
 
 export type WalletEntryId = string
@@ -28,14 +52,73 @@ export interface WalletEntry {
   provider: WalletProvider
   kind: WalletAuthKind
   label: string
-  identity?: { email?: string; accountId?: string; plan?: string }
+  identity?: { email?: string; name?: string; accountId?: string; plan?: string; source?: WalletIdentitySource }
+  keyTail?: string
+  host?: string
   custodian:
     | 'anthropic-slots'
     | 'anthropic-auth'
     | 'openai-accounts'
     | 'openrouter-accounts'
     | 'gemini-accounts'
+    | 'moonshot-accounts'
+    | 'huggingface-accounts'
     | 'provider-secrets'
+}
+
+export type AnthropicCredentialFacts = Pick<OAuthTokens, 'profile' | 'tokenAccount'>
+
+export interface ReportedAccount {
+  email: string
+  uuid?: string
+  source: WalletIdentitySource
+}
+
+function reportedAccount(email: unknown, uuid: unknown, source: WalletIdentitySource): ReportedAccount | undefined {
+  if (typeof email !== 'string' || email.trim() === '') return undefined
+  return {
+    email: email.trim(),
+    ...(typeof uuid === 'string' && uuid.trim() !== '' ? { uuid: uuid.trim() } : {}),
+    source,
+  }
+}
+
+export function anthropicCredentialAccount(
+  credential: AnthropicCredentialFacts | null | undefined,
+): ReportedAccount | undefined {
+  const profile = credential?.profile?.account
+  const receipt = credential?.tokenAccount
+  return (
+    reportedAccount(profile?.email, profile?.uuid, 'profile') ??
+    reportedAccount(receipt?.emailAddress, receipt?.uuid, 'receipt')
+  )
+}
+
+export function anthropicScopeEntry(
+  scope: Pick<AccountScope, 'name' | 'isCurrent' | 'uuid'>,
+  credential: AnthropicCredentialFacts | null | undefined,
+): WalletEntry {
+  const reported = scope.isCurrent ? anthropicCredentialAccount(credential) : undefined
+  const accountId = reported?.uuid ?? scope.uuid
+  return {
+    id: `anthropic:oauth:${scope.name}`,
+    provider: 'anthropic',
+    kind: 'subscription-oauth',
+    label: reported !== undefined ? `Claude account (${reported.email})` : `Claude account (${scope.name})`,
+    identity: {
+      ...(reported !== undefined ? { email: reported.email, source: reported.source } : {}),
+      ...(accountId ? { accountId } : {}),
+    },
+    custodian: 'anthropic-slots',
+  }
+}
+
+function storedAnthropicCredential(): AnthropicCredentialFacts | undefined {
+  try {
+    return getSecureStorage().read()?.claudeAiOauth ?? undefined
+  } catch {
+    return undefined
+  }
 }
 
 const ENTRIES_TTL_MS = 5_000
@@ -66,17 +149,7 @@ function composeWalletEntries(): WalletEntry[] {
 
   for (const scope of scanAccountScopes()) {
     if (scope.foreignHarness || !scope.authed) continue
-    entries.push({
-      id: `anthropic:oauth:${scope.name}`,
-      provider: 'anthropic',
-      kind: 'subscription-oauth',
-      label: scope.email ? `Claude account (${scope.email})` : `Claude account (${scope.name})`,
-      identity: {
-        ...(scope.email ? { email: scope.email } : {}),
-        ...(scope.uuid ? { accountId: scope.uuid } : {}),
-      },
-      custodian: 'anthropic-slots',
-    })
+    entries.push(anthropicScopeEntry(scope, scope.isCurrent ? storedAnthropicCredential() : undefined))
   }
 
   try {
@@ -84,11 +157,13 @@ function composeWalletEntries(): WalletEntry[] {
       skipRetrievingKeyFromApiKeyHelper: true,
     })
     if ((key !== null || source === 'apiKeyHelper') && source !== 'none' && !isClaudeAISubscriber()) {
+      const keyTail = maskedKeyTail(key ?? undefined)
       entries.push({
         id: `anthropic:api-key:${source === 'ANTHROPIC_API_KEY' ? 'env' : source === 'apiKeyHelper' ? 'helper' : 'managed'}`,
         provider: 'anthropic',
         kind: 'api-key',
         label: `Anthropic API key (${source})`,
+        ...(keyTail !== '' ? { keyTail } : {}),
         custodian: 'anthropic-auth',
       })
     }
@@ -96,17 +171,17 @@ function composeWalletEntries(): WalletEntry[] {
   }
 
   if (subscriptionConnected()) {
-    const armed = resolveOpenaiAccount()
-    const accountId = armed?.kind === 'chatgpt-subscription' ? armed.accountId : undefined
-    const plan = armed?.kind === 'chatgpt-subscription' ? armed.planType : undefined
-    const email = armed?.kind === 'chatgpt-subscription' ? armed.email : undefined
+    const subscription = openaiSubscriptionRef()
+    const accountId = subscription?.accountId
+    const plan = subscription?.planType
+    const email = subscription?.email
     entries.push({
       id: `openai:oauth:${accountId ? accountId.slice(0, 8) : 'subscription'}`,
       provider: 'openai',
       kind: 'subscription-oauth',
-      label: armed?.kind === 'chatgpt-subscription' ? armed.label : 'ChatGPT subscription',
+      label: subscription?.label ?? 'ChatGPT subscription',
       identity: {
-        ...(email ? { email } : {}),
+        ...(email ? { email, source: 'receipt' as const } : {}),
         ...(accountId ? { accountId } : {}),
         ...(plan ? { plan } : {}),
       },
@@ -115,21 +190,26 @@ function composeWalletEntries(): WalletEntry[] {
   }
   const openaiKey = resolveOpenaiApiKey()
   if (openaiKey) {
+    const keyTail = maskedKeyTail(openaiKey.key)
     entries.push({
       id: `openai:api-key:${openaiKey.source}`,
       provider: 'openai',
       kind: 'api-key',
       label: `OpenAI API key (${openaiKey.source})`,
+      ...(keyTail !== '' ? { keyTail } : {}),
       custodian: openaiKey.source === 'env' ? 'openai-accounts' : 'provider-secrets',
     })
   }
 
-  if (readMintedOpenrouterKey()) {
+  const minted = readMintedOpenrouterKey()
+  if (minted) {
+    const keyTail = maskedKeyTail(minted.key)
     entries.push({
       id: 'openrouter:oauth-key',
       provider: 'openrouter',
       kind: 'api-key',
       label: 'OpenRouter (OAuth-minted key)',
+      ...(keyTail !== '' ? { keyTail } : {}),
       custodian: 'openrouter-accounts',
     })
   }
@@ -137,11 +217,13 @@ function composeWalletEntries(): WalletEntry[] {
     const envKey = process.env.OPENROUTER_API_KEY?.trim()
     const storedKey = readStoredOpenrouterApiKey()
     if (envKey || storedKey) {
+      const keyTail = maskedKeyTail(envKey || storedKey)
       entries.push({
         id: `openrouter:api-key:${envKey ? 'env' : 'stored'}`,
         provider: 'openrouter',
         kind: 'api-key',
         label: envKey ? 'OpenRouter API key (env)' : 'OpenRouter API key (stored)',
+        ...(keyTail !== '' ? { keyTail } : {}),
         custodian: envKey ? 'openrouter-accounts' : 'provider-secrets',
       })
     }
@@ -159,6 +241,7 @@ function composeWalletEntries(): WalletEntry[] {
   {
     const geminiKey = resolveGeminiApiKey()
     if (geminiKey) {
+      const keyTail = maskedKeyTail(geminiKey.key)
       entries.push({
         id: `gemini:api-key:${geminiKey.source}`,
         provider: 'gemini',
@@ -169,7 +252,62 @@ function composeWalletEntries(): WalletEntry[] {
             : geminiKey.source === 'env-gemini'
               ? 'Gemini API key (GEMINI_API_KEY env)'
               : 'Gemini API key (stored)',
+        ...(keyTail !== '' ? { keyTail } : {}),
         custodian: geminiKey.source === 'stored' ? 'provider-secrets' : 'gemini-accounts',
+      })
+    }
+  }
+
+  if (moonshotStoredTokens()) {
+    const region = moonshotLoginRegion()
+    entries.push({
+      id: 'moonshot:oauth',
+      provider: 'moonshot',
+      kind: 'oauth',
+      label: `Kimi account (device-code sign-in · ${kimiRegionLabel(region)})`,
+      host: kimiHostWords(region),
+      custodian: 'moonshot-accounts',
+    })
+  }
+  {
+    const moonshotKey = resolveMoonshotApiKey()
+    if (moonshotKey) {
+      const keyTail = maskedKeyTail(moonshotKey.key)
+      entries.push({
+        id: `moonshot:api-key:${moonshotKey.source}`,
+        provider: 'moonshot',
+        kind: 'api-key',
+        label: moonshotKey.source === 'env' ? 'MOONSHOT_API_KEY (env)' : 'Moonshot API key (stored, auth-scoped)',
+        ...(keyTail !== '' ? { keyTail } : {}),
+        custodian: moonshotKey.source === 'env' ? 'moonshot-accounts' : 'provider-secrets',
+      })
+    }
+  }
+
+  if (huggingfaceStoredTokens()) {
+    const identity = huggingfaceOauthIdentity()
+    const username = identity?.username?.trim()
+    entries.push({
+      id: 'huggingface:oauth',
+      provider: 'huggingface',
+      kind: 'oauth',
+      label: username ? `Hugging Face account (${username})` : 'Hugging Face account (OAuth device flow)',
+      identity: username ? { name: username, source: 'profile' } : {},
+      custodian: 'huggingface-accounts',
+    })
+  }
+  {
+    const envKey = process.env.HF_TOKEN?.trim()
+    const storedKey = readStoredHuggingfaceApiKey()
+    if (envKey || storedKey) {
+      const keyTail = maskedKeyTail(envKey || storedKey)
+      entries.push({
+        id: `huggingface:api-key:${envKey ? 'env' : 'stored'}`,
+        provider: 'huggingface',
+        kind: 'api-key',
+        label: envKey ? 'HF_TOKEN (env)' : 'Hugging Face token (stored, auth-scoped)',
+        ...(keyTail !== '' ? { keyTail } : {}),
+        custodian: envKey ? 'huggingface-accounts' : 'provider-secrets',
       })
     }
   }
@@ -243,6 +381,24 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
         (active.kind === 'chatgpt-subscription'
           ? e.kind === 'subscription-oauth'
           : e.kind === 'api-key'),
+    )
+  }
+  if (provider === 'moonshot') {
+    const active = resolveMoonshotAccount()
+    if (!active) return undefined
+    return entries.find(
+      e =>
+        e.provider === 'moonshot' &&
+        (active.kind === 'kimi-oauth' ? e.kind === 'oauth' : e.id === `moonshot:api-key:${active.keySource}`),
+    )
+  }
+  if (provider === 'huggingface') {
+    const active = resolveHuggingfaceApiKey()
+    if (!active) return undefined
+    return entries.find(
+      e =>
+        e.provider === 'huggingface' &&
+        (active.source === 'oauth' ? e.kind === 'oauth' : e.id === `huggingface:api-key:${active.source}`),
     )
   }
   const scopes = scanAccountScopes()

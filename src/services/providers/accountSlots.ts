@@ -1,5 +1,6 @@
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
 import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
+import { maskedKeyTail } from './credentialIdentity.js'
 import {
   clearScopeIdentitySnapshot,
   forgetScopeIdentity,
@@ -54,11 +55,11 @@ import {
 } from './gemini/geminiAccounts.js'
 import {
   disconnectMoonshotOauth,
-  kimiRegionLabel,
   moonshotLoginRegion,
   moonshotStoredTokens,
   type KimiRegion,
 } from './moonshot/moonshotAccounts.js'
+import { kimiHostWords, signInWords } from '../wallet/identityWords.js'
 import {
   disconnectHuggingfaceOauth,
   huggingfaceOauthIdentity,
@@ -171,10 +172,7 @@ export interface AccountSlotReads {
   localAccount?: () => LocalAccountRef | undefined
 }
 
-export function maskedKeyTail(key: string | undefined): string {
-  const trimmed = key?.trim() ?? ''
-  return trimmed.length >= 10 ? `…${trimmed.slice(-4)}` : ''
-}
+export { maskedKeyTail }
 
 export function familyDisplayName(id: string): string {
   return providerDisplayName(id)
@@ -813,10 +811,7 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
       name: 'kimi',
       kind: 'oauth',
       kindLabel: 'Kimi sign-in',
-      identity: label([
-        `Kimi account (device-code sign-in · ${kimiRegionLabel(region)})`,
-        maskedKeyTail(oauth.accessToken),
-      ]),
+      identity: signInWords('moonshot', 'oauth', undefined, kimiHostWords(region)),
       active: !envKey && !expiredUnrefreshable,
       envPinned: false,
       signedIn: !expiredUnrefreshable,
@@ -910,10 +905,7 @@ function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
       name: identity?.username ?? 'hf',
       kind: 'oauth',
       kindLabel: 'OAuth',
-      identity: label([
-        identity ? `Hugging Face account · ${identity.username}` : 'Hugging Face account (device flow)',
-        maskedKeyTail(oauth.accessToken),
-      ]),
+      identity: signInWords('huggingface', 'oauth', identity?.username?.trim() || undefined),
       active: !envKey && !expiredUnrefreshable,
       envPinned: false,
       signedIn: !expiredUnrefreshable,
