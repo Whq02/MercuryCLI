@@ -41,7 +41,6 @@ import { setMessageCursor, useMessageCursorActive } from '../components/messageC
 import { FocusedSessionStatusRow, statusLine, waitingStatusWords } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
-import { useFocusedSamples } from '../components/tasks/useFocusedWork.js';
 import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableBypassPermissionsIfNeeded,
@@ -132,7 +131,6 @@ import { modelDisplayString, renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
 import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
-import { withSampleWords } from '../services/engine-connector/workCounts.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
@@ -606,7 +604,6 @@ export function REPL({
 
   const focusedConnector = useSyncExternalStore(subscribeFocusedSessionConnector, getFocusedSessionConnector, getFocusedSessionConnector);
   const seatLive = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedSeatLive, getFocusedSeatLive);
-  const focusedSamples = useFocusedSamples();
   const focusedEffectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel);
   const textActive = useSyncExternalStore(subscribeFocusedTail, getFocusedTailActive, getFocusedTailActive);
   const interruptingKey = useSyncExternalStore(subscribeFocusedSeatLive, getFocusedStatusKey, getFocusedStatusKey);
@@ -2088,7 +2085,7 @@ export function REPL({
   const viewStreamMode: SpinnerMode =
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
-  const viewAgentWait = seatLive.phase === 'waiting' ? withSampleWords(waitingStatusWords(seatLive), focusedSamples) : null;
+  const viewAgentWait = seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null;
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2622,7 +2619,6 @@ export function REPL({
   fluxWhy('repl-root', rootWhyRef, () => ({
     focusedConnector,
     seatLive,
-    focusedSamples,
     focusedEffectiveModel,
     textActive,
     interruptingKey,
