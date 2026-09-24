@@ -941,7 +941,15 @@ export async function* runAgent(
         true
     }
     childContext.setSDKStatus = (status: unknown) => {
-      if (status !== null && typeof status === 'object' && 'wait' in status) {
+      if (status === null || typeof status !== 'object') return
+      if ('streamActivity' in status) {
+        const atMs = (status as { streamActivity?: unknown }).streamActivity
+        if (typeof atMs !== 'number') return
+        watchdog.touch()
+        onQueryProgress?.({ type: 'stream_activity', atMs } as never)
+        return
+      }
+      if ('wait' in status) {
         const wait = (status as { wait?: unknown }).wait ?? null
         const heldNotice = heldBusyRetryNotice(wait)
         if (heldNotice !== null) {
