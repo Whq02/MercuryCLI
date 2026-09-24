@@ -17,7 +17,7 @@ const VSHOT = join(import.meta.dir, 'vshot.py')
 const KEY = 'proof-key-ci-gate-not-a-real-key'
 const DEAD = 'http://127.0.0.1:1'
 const ESC = '\x1b'
-const UP = `${ESC}[A`
+const DOWN = `${ESC}[B`
 const HOME = `${ESC}[H`
 const COLS = 120
 const ROWS = 40
@@ -101,9 +101,10 @@ const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
   { afterPrevTicks: 3, data: '\r' },
-  { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 8, mark: 'opened', data: UP },
-  { afterPrevTicks: 2, data: UP },
-  { afterPrevTicks: 2, data: UP },
+  { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 8, mark: 'opened', data: DOWN },
+  { afterPrevTicks: 2, data: DOWN },
+  { afterPrevTicks: 2, data: DOWN },
+  { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 5, mark: 'focus', data: 'c' },
   { afterPrevTicks: 6, mark: 'toggled', data: 'c' },
   { afterPrevTicks: 6, mark: 'toggled-back', data: HOME },
@@ -143,7 +144,7 @@ const anthropicGroup = (lines: string[]): string[] => {
   for (const l of lines.slice(start + 1)) {
     const cell = l.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '').trim()
     if (cell.startsWith('MERCURY — ') || cell.startsWith('↓ ') || cell.startsWith('context ') || cell === '') break
-    if (cell.startsWith('╭') || cell.startsWith('╰') || cell === 'credential present') continue
+    if (cell.startsWith('╭') || cell.startsWith('╰') || cell === 'signed in') continue
     rows.push(cell.replace(/^│\s*/, ''))
   }
   return rows
@@ -162,7 +163,7 @@ console.log(`  [record] the Anthropic group: ${names.join(' · ')}`)
 check('the Anthropic group lists no "(1M context)" row', group.length > 0 && names.every(n => !n.endsWith('(1M context)')), names.join(' · '))
 check('no display name repeats in the Anthropic group', names.length > 0 && new Set(names).size === names.length, names.join(' · '))
 check('the previous generations with a suffix window (Opus 4.8, 4.7, 4.6) are one row each', ['Opus 4.8', 'Opus 4.7', 'Opus 4.6'].every(n => names.filter(x => x === n).length === 1), names.join(' · '))
-check('three ↑ from the current row focus the Opus 4.6 row, its window 1M', nameOf(focusLine(focus)) === 'Opus 4.6' && windowOf(focusLine(focus)) === '1M', focusLine(focus))
+check('four ↓ from the current row focus the Opus 4.6 row, its window 1M', nameOf(focusLine(focus)) === 'Opus 4.6' && windowOf(focusLine(focus)) === '1M', focusLine(focus))
 check('c keeps the cursor on the row and drops its window to 200k', nameOf(focusLine(toggled)) === 'Opus 4.6' && windowOf(focusLine(toggled)) === '200k', focusLine(toggled))
 check('c again brings the window back to 1M on the same row', nameOf(focusLine(back)) === 'Opus 4.6' && windowOf(focusLine(back)) === '1M', focusLine(back))
 
