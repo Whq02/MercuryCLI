@@ -21,6 +21,7 @@ export interface SettingsSnapshot {
 }
 
 let lastSnapshot: SettingsSnapshot | null = null
+let lastSessionCache: unknown = null
 let lastSettingsFingerprint: string | null = null
 let revisionCounter = 0
 
@@ -83,11 +84,13 @@ function computeProvenance(
 }
 
 export function getSettingsSnapshot(): SettingsSnapshot {
-  if (lastSnapshot !== null && getSessionSettingsCache() !== null) {
+  const sessionCache = getSessionSettingsCache()
+  if (lastSnapshot !== null && sessionCache !== null && sessionCache === lastSessionCache) {
     return lastSnapshot
   }
 
   const { settings, errors } = getSettingsWithErrors()
+  lastSessionCache = getSessionSettingsCache()
   const perSource: Array<{ source: SettingSource; settings: SettingsJson }> = []
   for (const source of getEnabledSettingSources()) {
     const sourceSettings = getSettingsForSource(source)
@@ -117,6 +120,7 @@ export function settingsRevision(): number {
 
 export function _resetSettingsSnapshotForTesting(): void {
   lastSnapshot = null
+  lastSessionCache = null
   lastSettingsFingerprint = null
   revisionCounter = 0
 }
