@@ -26,6 +26,7 @@ const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts'
 const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
 const { SDKUserMessageSchema } = await import('../../src/entrypoints/sdk/coreSchemas.ts')
 const { processTextPrompt } = await import('../../src/utils/processUserInput/processTextPrompt.ts')
+const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
 const rows = await import('../../src/utils/messages/noticeRows.ts')
@@ -205,7 +206,8 @@ console.log('§4 the frame and the turn road carry the origin whole; the words n
   const message = out.messages[0] as Raw
   check('the turn road stores the origin on the user message and leaves the model-facing text byte-identical', j(message.origin) === j(origin) && (message.message as Raw).content === text && message.isMeta === true, j(message))
   const bare = processTextPrompt(WAKE_PROMPT, [], [], []).messages[0] as Raw
-  check("a prompt with no origin stores none (the operator's line is the shape it was)", !('origin' in bare) && (bare.message as Raw).content === WAKE_PROMPT, j(bare))
+  const factoryShape = createUserMessage({ content: WAKE_PROMPT }) as unknown as Raw
+  check("a prompt with no origin stores none: the operator's line keeps the factory's own key set, origin undefined and absent from its JSON", bare.origin === undefined && j(Object.keys(bare).sort()) === j(Object.keys(factoryShape).sort()) && !JSON.stringify(bare).includes('"origin"') && (bare.message as Raw).content === WAKE_PROMPT, j(Object.keys(bare).sort()))
 }
 
 console.log('§5 the tool mints the spelling the row reads back')

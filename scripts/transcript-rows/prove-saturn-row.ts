@@ -58,19 +58,10 @@ const REPLY = 'Three rulings wait, shortest first.'
 const wakeOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, spelling: 'in ~900s', reason: REASON, ...extra })
 const cronOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'cron', firedAt: FIRED_AT, scheduleId: '3f9a2c1d', spelling: 'Every weekday at 09:00', ...extra })
 
-function fakeIo(columns: number): { stdout: NodeJS.WriteStream; stdin: NodeJS.ReadStream; written: () => string } {
-  let written = ''
-  const stdout = Object.assign(
-    new Writable({
-      write(chunk: Buffer, _enc, cb) {
-        written += chunk.toString()
-        cb()
-      },
-    }),
-    { columns, rows: 51, isTTY: false },
-  ) as unknown as NodeJS.WriteStream
+function fakeIo(columns: number): { stdout: NodeJS.WriteStream; stdin: NodeJS.ReadStream } {
+  const stdout = Object.assign(new Writable({ write(_chunk, _enc, cb) { cb() } }), { columns, rows: 51, isTTY: false }) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
-  return { stdout, stdin, written: () => written }
+  return { stdout, stdin }
 }
 
 async function paintText(props: Raw, meta: Raw, columns = 178): Promise<string> {
@@ -81,9 +72,10 @@ async function paintText(props: Raw, meta: Raw, columns = 178): Promise<string> 
     { stdout: io.stdout, stdin: io.stdin, exitOnCtrlC: false, patchConsole: false },
   )
   await settle()
+  const frame = instance.lastFrame()
   instance.unmount?.()
   await settle(50)
-  return oneLine(io.written())
+  return oneLine(frame)
 }
 
 async function paintChat(messages: Raw[], columns: number): Promise<string[]> {
@@ -195,7 +187,8 @@ for (const columns of [178, 120]) {
     { ...createAssistantMessage({ content: REPLY }), timestamp: LATE_ROW_AT },
   ]
   const frame = await paintChat(chat as Raw[], columns)
-  check(`${columns} columns: the chat around the row paints the handle, the caret and the Mercury plate as today`, frame.some(l => l.includes(`${clock(ROW_AT)} ${HANDLE} ${CARET} ${OPERATOR_LINE}`)) && frame.some(l => l.includes('[Mercury]') && l.includes(REPLY)), frame.join('\n'))
+  const operatorRows = frame.filter(l => l === `${clock(ROW_AT)} ${HANDLE} ${CARET} ${OPERATOR_LINE}`)
+  check(`${columns} columns: the chat around the row paints the operator's line once, handle and caret as today, and the reply beneath it without a handle`, operatorRows.length === 1 && frame.some(l => l.includes(REPLY) && !l.includes(HANDLE)), frame.join('\n'))
   check(`${columns} columns: no Saturn plate where no origin says so`, !frame.some(l => l.includes(SATURN)), frame.join('\n'))
 }
 
