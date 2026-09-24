@@ -176,7 +176,10 @@ recovery. Output lines never carry GitHub access material.
 A quiet once-a-day update notice performs the same
 release-list read, deferred past first paint, silent on every failure, and
 renders one expiring line ("vX.Y.Z available — mercury update") in the
-existing notice surface. The Boot face reads the same cache and paints one
+existing notice surface. The line names a release newer than the running
+build and nothing else: the listing is read against the managed install's
+pointer, and a build running ahead of its own pointer says nothing, on the
+day it lists and from its cache alike. The Boot face reads the same cache and paints one
 small line in its bottom-right corner — "vX.Y.Z available · mercury update" —
 once per newer release: the cache records the version the face announced, the
 line does not return for that version on later boots, and it returns for the

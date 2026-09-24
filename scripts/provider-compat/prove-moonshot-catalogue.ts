@@ -246,6 +246,22 @@ if (catalogue) {
   check('an operator-named id the landed list lacks is refused with the shared sentence naming the served ids', named.kind === 'refused' && named.message === "model 'kimi-operator-named' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(named))
   check('a served id spelled in upper case is admitted', (await c.qualifyMoonshotModel('KIMI-FIXTURE-NEXT')).kind === 'ok')
   check('the call road strips a window annotation before the admission, and the raw spelling alone is not a served id', (await c.qualifyMoonshotModel(normalizeModelStringForAPI('kimi-fixture-next[1m]'))).kind === 'ok' && (await c.qualifyMoonshotModel('kimi-fixture-next[1m]')).kind === 'refused')
+  console.log('a live id outside the kimi- grammar (the moonshot-* shape the route law declares): a guard, green before and after')
+  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
+  const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [
+    { id: 'moonshot-v2', object: 'model', created: 500, owned_by: 'moonshot', context_length: 262144, supports_image_in: false, supports_video_in: false, supports_reasoning: true },
+    { id: 'kimi-k2.6', object: 'model', created: 100, owned_by: 'moonshot' },
+    { id: 'text-embedding-foreign', object: 'model', created: 900, owned_by: 'moonshot' },
+  ] }) })
+  const shaped = c.moonshotCatalogueRows()
+  check('guard: a moonshot-v2 row is listed under its raw id, newest first, with its stated context, live', shaped.source.kind === 'live' && shaped.rows[0]?.id === 'moonshot-v2' && shaped.rows[0].contextWindow === 262144 && shaped.rows[0].listedLive, JSON.stringify(shaped.rows))
+  check('guard: a row outside both shapes is not a Moonshot row', shaped.rows.every(row => row.id !== 'text-embedding-foreign') && shaped.rows.length === 2)
+  check('guard: the picker reads the raw row', keyLanePins('moonshot').map(row => row.id).join(',') === 'moonshot-v2,kimi-k2.6')
+  check('guard: the id space and the route law declare it', recognizeModelId('moonshot-v2', {}).kind === 'declared' && declaredRouteOf('moonshot-v2') === 'moonshot')
+  check('guard: the admission, the typed road and the engine grammar admit the served raw id', (await c.qualifyMoonshotModel('moonshot-v2')).kind === 'ok' && (await validateModel('moonshot-v2')).valid && (await resolveEngineDispatch('moonshot-v2'))?.model === 'moonshot-v2')
+  check('guard: the specialist alias follows the newest served row whatever its shape', (await resolveEngineDispatch('kimi'))?.model === 'moonshot-v2')
+  await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
   const admissionOwner = readFileSync(join(import.meta.dir, '../../src/services/providers/catalogueAdmission.ts'), 'utf8')
   const gptRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   const moonshotRoad = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCatalogue.ts'), 'utf8')
