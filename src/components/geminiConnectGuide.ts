@@ -1,4 +1,5 @@
 import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
+import { KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
   address: string
@@ -22,7 +23,7 @@ const CONSOLE_OWN_PAGE = "the Google Cloud Console's own page, answering an unsi
 const AI_STUDIO_OWN_PAGE = "Google AI Studio's own page, answering an unsigned request"
 
 export const GEMINI_API_KEY_PAGE: GeminiGuidePage = {
-  address: 'https://aistudio.google.com/apikey',
+  address: `https://${KEY_PAGES.gemini}`,
   observedAt: OBSERVED_AT,
   source: AI_STUDIO_OWN_PAGE,
 }

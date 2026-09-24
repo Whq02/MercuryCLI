@@ -15,6 +15,7 @@ import {
 } from '../services/providers/moonshot/moonshotAccounts.js'
 import { KIMI_CONNECT_STOPPED_RECEIPT, runKimiDeviceLogin, storeMoonshotApiKeyLogin } from '../services/providers/moonshot/moonshotLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
+import { keyPageLine } from './loginFamilyRows.js'
 
 
 const COPY_ACK_MS = 2000
@@ -109,7 +110,7 @@ export function KimiConnect({
         <Select
           options={[
             { label: 'Sign in with Kimi — device code in your browser', value: 'region' },
-            { label: 'Paste a Moonshot API key (platform.kimi.ai; stored locally, mode 600)', value: 'key' },
+            { label: 'Paste a Moonshot API key (stored locally, mode 600)', value: 'key' },
           ]}
           onChange={value => setLeg(value as 'region' | 'key')}
           onCancel={() => settle('Kimi sign-in cancelled — nothing stored.')}
@@ -217,9 +218,10 @@ function MoonshotKeyLeg({
   }
   return (
     <Box flexDirection="column" gap={1} paddingX={1}>
+      <Text>{keyPageLine('moonshot')}</Text>
       <Text>
-        Paste your Moonshot API key (platform.kimi.ai → API keys). Stored auth-scoped (mode 600), never logged;
-        a MOONSHOT_API_KEY env var always wins over the store, and a Kimi sign-in outranks a stored key.
+        Paste your Moonshot API key. Stored auth-scoped (mode 600), never logged; a MOONSHOT_API_KEY env var
+        always wins over the store, and a Kimi sign-in outranks a stored key.
       </Text>
       <Box>
         <Text>Key: </Text>
