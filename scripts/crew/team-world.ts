@@ -16,6 +16,7 @@ export const DIST = argAfter('--dist') ?? join(ROOT, 'dist/mercury.mjs')
 export const RECORD = argAfter('--record')
 export const LEAD_MODEL = 'claude-fable-5-1'
 export const LEAD_GATE = 'fable-5-1'
+export const TURN_MS = 90_000
 
 const vendoredNode = join(dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 export const NODE = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
@@ -116,7 +117,7 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
       resolveExit(code)
     }),
   )
-  const waitFor = async (label: string, test: () => boolean, timeoutMs = 90_000): Promise<void> => {
+  const waitFor = async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
     const until = Date.now() + timeoutMs
     while (!test()) {
       if (done || Date.now() >= until) {

@@ -16,6 +16,8 @@ const WHERE_PROMPT = 'say where you are'
 const CONTINUE_PROMPT = 'say where you are now'
 const BUILD_PROMPT = 'typecheck the checkout'
 const BUN = process.execPath
+const TURN_MS = 240_000
+const pollRounds = (budgetMs: number, stepMs = 200): number => Math.ceil(budgetMs / stepMs)
 
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
@@ -70,7 +72,7 @@ const whereFixture = await startScriptedFixture(req => {
     }
     case 2:
       seen.continued = last
-      return [{ type: 'tool_use', name: 'Bash', input: { command: `for i in $(seq 1 150); do [ -f "${flag}" ] && break; sleep 0.2; done; cat "${flag}" 2>/dev/null || echo no-flag`, description: 'wait for the continuation' } }]
+      return [{ type: 'tool_use', name: 'Bash', input: { command: `for i in $(seq 1 ${pollRounds(TURN_MS / 2)}); do [ -f "${flag}" ] && break; sleep 0.2; done; cat "${flag}" 2>/dev/null || echo no-flag`, description: 'wait for the continuation' } }]
     case 3:
       seen.waited = last
       return [{ type: 'tool_use', name: 'Agent', input: { description: 'nowhere', prompt: WHERE_PROMPT, cwd: missing } }]
@@ -84,7 +86,7 @@ const whereFixture = await startScriptedFixture(req => {
 })
 let whereTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: 240_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
 } finally {
   await whereFixture.close()
 }
@@ -131,7 +133,7 @@ const askFixture = await startScriptedFixture(req => {
 })
 let askTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--permission-mode', 'default', '--allowed-tools', 'Bash'] })
+  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--permission-mode', 'default', '--allowed-tools', 'Bash'] })
 } finally {
   await askFixture.close()
 }
@@ -178,7 +180,7 @@ const buildFixture = await startScriptedFixture(req => {
 })
 let buildTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions'] })
+  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--dangerously-bypass-permissions'] })
 } finally {
   await buildFixture.close()
 }
@@ -200,7 +202,7 @@ tally.check("the checkout's own status is unchanged", authoredStatus(repo) === p
 tally.check('no worktree is left behind', git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 1, git(repo, 'worktree', 'list', '--porcelain'))
 
 const firstLine = (r: SeenResult | undefined): string => (r?.text ?? '').split('\n')[0]?.trim() ?? ''
-const waitForFile = (file: string): string => `for i in $(seq 1 600); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
+const waitForFile = (file: string): string => `for i in $(seq 1 ${pollRounds(TURN_MS / 2)}); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
 const sidecarsUnder = (dir: string): string[] => {
   if (!existsSync(dir)) return []
   const out: string[] = []
@@ -318,8 +320,8 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   const effortHome = join(scratch, 'home-effort')
   const effortContinuedFlag = join(scratch, 'effort-continued.flag')
   const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
-  const readRecord = `for i in $(seq 1 25); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
-  const readSettledRecord = `for i in $(seq 1 50); do ${findRecord}; [ -n "$f" ] && ! grep -q worktreePath "$f" && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
+  const readRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48)}); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
+  const readSettledRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48, 100)}); do ${findRecord}; [ -n "$f" ] && ! grep -q worktreePath "$f" && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
   let effortId = ''
   let preSettle = ''
   let continuedEffortPwd = ''
@@ -356,7 +358,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   })
   let effortTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
   try {
-    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: 240_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
   } finally {
     await effortFixture.close()
   }

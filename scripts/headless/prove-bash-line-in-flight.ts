@@ -22,6 +22,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const settle = (ms: number): Promise<void> => new Promise(res => setTimeout(res, ms))
+const TURN_MS = 30_000
 
 if (!existsSync(DIST)) {
   console.log('❌ dist/mercury.mjs absent — build first (the pooled gate prebuilds it)')
@@ -173,7 +174,7 @@ async function drive(): Promise<void> {
   section('§2 — a bash-mode line runs as a shell in the session process; the runner lives on')
   const nonce = `bash-line-${randomUUID().slice(0, 8)}`
   send({ type: 'user', message: { role: 'user', content: `echo ${nonce}` }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
-  const result1 = (await waitFor(e => e.type === 'result', 'the echo line result', 30_000)) as
+  const result1 = (await waitFor(e => e.type === 'result', 'the echo line result', TURN_MS)) as
     | (Envelope & { is_error?: boolean; session_id?: string })
     | undefined
   check(
@@ -187,10 +188,10 @@ async function drive(): Promise<void> {
   check('the turn carries a session id (system:init / result)', sessionId.length > 0)
   check(
     "the shell RAN: its stdout landed in the session transcript under the bash-stdout tag",
-    await transcriptCarries(configDir, sessionId, `<bash-stdout>${nonce}`, 5_000),
+    await transcriptCarries(configDir, sessionId, `<bash-stdout>${nonce}`, TURN_MS / 6),
     findTranscript(configDir, sessionId) === null ? 'no transcript file found' : 'stdout row absent',
   )
-  check('the echoed command row carries the bash-input tag', await transcriptCarries(configDir, sessionId, `<bash-input>echo ${nonce}`, 2_000))
+  check('the echoed command row carries the bash-input tag', await transcriptCarries(configDir, sessionId, `<bash-input>echo ${nonce}`, TURN_MS / 15))
 
   section('§3 — a running shell keeps the turn open (busy over the wire); an interrupt frame ends it with the receipt')
   const resultsBefore = resultCount()
@@ -213,7 +214,7 @@ async function drive(): Promise<void> {
   check('the interrupted shell turn settles as a result (the runner keeps its session; no error envelope)', result2?.subtype === 'success', j({ subtype: result2?.subtype }))
   check(
     `the interrupted receipt landed: the transcript carries the interrupt row (${INTERRUPT_MESSAGE})`,
-    await transcriptCarries(configDir, sessionId, INTERRUPT_MESSAGE, 5_000),
+    await transcriptCarries(configDir, sessionId, INTERRUPT_MESSAGE, TURN_MS / 6),
   )
 
   section('§4 — a prompt turn runs after the shell; the model never saw the shell lines; clean end')
