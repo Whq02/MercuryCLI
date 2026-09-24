@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { fileGeneration, generationOf, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { fileGeneration, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -784,7 +784,6 @@ export const FileEditTool = buildTool({
     let generationAtStat: string | null = null
     try {
       const stats = await stat(expandedPath)
-      generationAtStat = generationOf(stats)
       if (stats.size > ONE_GIB) {
         return {
           result: false as const,
@@ -793,6 +792,7 @@ export const FileEditTool = buildTool({
           errorCode: 10,
         }
       }
+      generationAtStat = fileGeneration(expandedPath)
     } catch (err) {
       if (!isENOENT(err)) throw err
     }

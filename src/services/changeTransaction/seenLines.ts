@@ -1,5 +1,6 @@
 
-import { statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
+import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -32,9 +33,13 @@ export function generationOf(st: { mtimeMs: number; size: number }): string {
   return `m${Math.floor(st.mtimeMs)}:${st.size}`
 }
 
+function contentDigestOf(bytes: Uint8Array): string {
+  return runtimeKernel().hash.sha256Hex(bytes).slice(0, 12)
+}
+
 export function fileGeneration(path: string): string | null {
   try {
-    return generationOf(statSync(path))
+    return `${generationOf(statSync(path))}:${contentDigestOf(readFileSync(path))}`
   } catch {
     return null
   }
