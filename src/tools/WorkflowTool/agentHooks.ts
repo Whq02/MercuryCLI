@@ -39,7 +39,6 @@ import { EFFORT_LEVELS } from '../../utils/effort.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { sleep } from '../../utils/sleep.js'
-import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { createUserMessage, extractTextContent } from '../../utils/messages.js'
 import { AbortError } from '../../utils/errors.js'
 import {
@@ -64,6 +63,7 @@ import {
   addWorkflowUsage,
   EMPTY_WORKFLOW_USAGE,
   foldResponseUsage,
+  workflowUsageSpend,
   type WorkflowUsageRollup,
 } from './workflowUsage.js'
 export { STRUCTURED_OUTPUT_TOOL_NAME }
@@ -849,14 +849,12 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       let lastToolName: string | undefined
       let lastToolSummary: string | undefined
       const responses = new Map<string, { message: { stop_reason?: string | null; usage?: Parameters<typeof foldResponseUsage>[1]['usage'] } }>()
+      let newestResponse: { message: { stop_reason?: string | null } } | undefined
       let requestInFlight = false
       const attemptUsage = (attemptEnded: boolean): WorkflowUsageRollup => {
         let folded: WorkflowUsageRollup = EMPTY_WORKFLOW_USAGE
-        const ended = attemptEnded ? responses.size : responses.size - 1
-        let i = 0
         for (const r of responses.values()) {
-          if (i++ >= ended) break
-          folded = foldResponseUsage(folded, r.message)
+          if (r.message.stop_reason != null || attemptEnded || r !== newestResponse) folded = foldResponseUsage(folded, r.message)
         }
         if (attemptEnded && requestInFlight) folded = { ...folded, unsettledTurns: folded.unsettledTurns + 1 }
         return folded
@@ -867,6 +865,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         extra?: Record<string, unknown>,
       ): void => {
         const attemptEnded = state === 'done' || state === 'error' || state === 'skipped'
+        const usage = addWorkflowUsage(statics.carryover.usage, attemptUsage(attemptEnded))
         emit({
           type: 'progress',
           toolUseID: tileId,
@@ -890,10 +889,17 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             lastToolSummary,
             promptPreview: attemptPromptPreview,
             lastProgressAt: Date.now(),
-            usage: addWorkflowUsage(statics.carryover.usage, attemptUsage(attemptEnded)),
+            tokens: workflowUsageSpend(usage),
+            usage,
             ...extra,
           },
         })
+      }
+      const noteResponseSettled = (evt: unknown): void => {
+        const m = evt as { type?: string; event?: { type?: string } } | undefined
+        if (m?.type !== 'stream_event' || m.event?.type !== 'message_delta') return
+        if (newestResponse?.message.stop_reason == null) return
+        emitFrame('progress', { toolCalls: statics.carryover.toolCalls + toolCalls })
       }
 
       let stallTimer: ReturnType<typeof setTimeout> | undefined
@@ -953,6 +959,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               retryAttempt?: number
             }
           | undefined
+        noteResponseSettled(m)
         const notice = recoveryNoticeFacts(m)
         if (notice !== null) {
           const isRealDelay = typeof m?.retryInMs === 'number' && m.retryInMs > 0
@@ -1043,14 +1050,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         : undefined
 
       const carry = statics.carryover
-      const contextNow = (): number => {
-        const u = lastAssistant?.message.usage
-        if (lastAssistant?.isApiErrorMessage || !u) return tokens
-        const settled = getTokenCountFromUsage(u as unknown as Parameters<typeof getTokenCountFromUsage>[0])
-        return settled > tokens ? settled : tokens
-      }
       const settledTotals = (elapsed: number): Record<string, unknown> => {
-        tokens = contextNow()
+        tokens = workflowUsageSpend(attemptUsage(true))
         return {
           tokens: carry.tokens + tokens,
           toolCalls: carry.toolCalls + toolCalls,
@@ -1209,11 +1210,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           } else {
             const responseKey = typeof a.message.id === 'string' ? a.message.id : `#${responses.size}`
             responses.set(responseKey, a)
-            if (a.message.usage) {
-              tokens = getTokenCountFromUsage(
-                a.message.usage as unknown as Parameters<typeof getTokenCountFromUsage>[0],
-              )
-            }
+            newestResponse = a
           }
           let toolUsesHere = 0
           for (const block of a.message.content) {
@@ -1233,10 +1230,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           } else {
             armStallTimer()
           }
-          emitFrame('progress', {
-            tokens: carry.tokens + tokens,
-            toolCalls: carry.toolCalls + toolCalls,
-          })
+          emitFrame('progress', { toolCalls: carry.toolCalls + toolCalls })
         }
       } catch (e) {
         const cutReason = childAbort.signal.aborted

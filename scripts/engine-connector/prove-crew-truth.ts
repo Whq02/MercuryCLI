@@ -85,8 +85,8 @@ console.log('— T1 the ledger fold —')
   )
   updateProgressFromMessage(tr, assistant('r2', ANTHROPIC_ID, { input_tokens: 2000, output_tokens: 100, cache_read_input_tokens: 500 }))
   check(
-    'T1 the next response ADDS, input counting the cached prefix read',
-    tr.ledger.inputTokens === 3500 && tr.ledger.outputTokens === 500,
+    'T1 the next response ADDS its fresh input and output; the cached prefix read stays outside the ledger',
+    tr.ledger.inputTokens === 3000 && tr.ledger.outputTokens === 500,
     JSON.stringify(tr.ledger),
   )
   check('T1 the served model rides the fold', tr.ledger.servedModel === ANTHROPIC_ID, String(tr.ledger.servedModel))
@@ -99,7 +99,7 @@ console.log('— T1 the ledger fold —')
   updateProgressFromMessage(tr, assistant('r3', NO_RATE_ID, { input_tokens: 10, output_tokens: 5 }))
   check(
     'T1 a model with no rate on file counts an unpriced turn beside its tokens — never a foreign rate',
-    modelPricingBasis(NO_RATE_ID) === 'unpriced' && tr.ledger.unpricedTurns === 1 && tr.ledger.inputTokens === 3510 && tr.ledger.outputTokens === 505,
+    modelPricingBasis(NO_RATE_ID) === 'unpriced' && tr.ledger.unpricedTurns === 1 && tr.ledger.inputTokens === 3010 && tr.ledger.outputTokens === 505,
     JSON.stringify(tr.ledger),
   )
   const before = JSON.stringify(tr.ledger)
@@ -108,7 +108,7 @@ console.log('— T1 the ledger fold —')
   const p = getProgressUpdate(tr)
   check(
     'T1 the progress snapshot carries the fold and the served model',
-    p.inputTokens === 3510 && p.outputTokens === 505 && p.unpricedTurns === 1 && p.model === NO_RATE_ID,
+    p.inputTokens === 3010 && p.outputTokens === 505 && p.unpricedTurns === 1 && p.model === NO_RATE_ID,
     JSON.stringify(p),
   )
   const fresh = getProgressUpdate(createProgressTracker())
