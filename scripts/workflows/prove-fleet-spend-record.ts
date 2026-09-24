@@ -275,14 +275,14 @@ check('the fixture answered the run with two requests per wire (and the cut agen
 const expectAgent = (a: AgentRow | undefined, name: string): void => {
   const u = a?.usage
   check(`${name}: the record accumulates both responses (18 in, 10 out, 2 turns, 0 unmeasured)`, !!u && u.inputTokens === 18 && u.outputTokens === 10 && u.cacheReadTokens === 0 && u.cacheCreationTokens === 0 && u.apiTurns === 2 && u.unsettledTurns === 0, JSON.stringify(a))
-  check(`${name}: the context figure is the newest response's size (12), not zero`, a?.tokens === 12, String(a?.tokens))
+  check(`${name}: the row figure is the fresh input + output over both responses (28), not zero and not the newest size`, a?.tokens === 28, String(a?.tokens))
 }
 expectAgent(anthropicAgent, 'Anthropic wire')
 expectAgent(responsesAgent, 'Responses wire')
 const run = settled?.manifestUsage
 check('run.json rolls the fleet up: 36 in, 20 out, 4 turns, 2 reporting, 0 unreported', !!run && run.inputTokens === 36 && run.outputTokens === 20 && run.apiTurns === 4 && run.unsettledTurns === 0 && run.agentsReporting === 2 && run.agentsUnreported === 0, JSON.stringify(run))
 check('the task state carries the same rollup', JSON.stringify(settled?.taskUsage) === JSON.stringify(run))
-check('the context sum is the two newest sizes (24) on the task and the record', settled?.taskTotalTokens === 24 && settled?.manifestTotalTokens === 24, `${settled?.taskTotalTokens}/${settled?.manifestTotalTokens}`)
+check('the run figure is the two rows added (56) on the task and the record, the same number the rollup spends', settled?.taskTotalTokens === 56 && settled?.manifestTotalTokens === 56, `${settled?.taskTotalTokens}/${settled?.manifestTotalTokens}`)
 
 section('§3 a request cut before any response answered')
 const last = cut?.last
@@ -297,10 +297,10 @@ check('…and the rollup over such an agent carries the unmeasured turn', (() =>
 const nudge = lines.find(line => line.ev === 'nudge') as { attempts?: number; usage?: { inputTokens: number; outputTokens: number; apiTurns: number } } | undefined
 check('structured-output corrections retain all earlier spend exactly once', nudge?.attempts === 2 && nudge.usage?.inputTokens === 9080 && nudge.usage.outputTokens === 220 && nudge.usage.apiTurns === 2, JSON.stringify(nudge))
 
-section('§4 the notification spells the spend beside the context sum')
+section('§4 the notification spells the one number and the spend record beside it')
 const usageLine = settled?.usageLine ?? ''
 check(`the notice followed the task's settled status, awaited on the queue's own signal within the product's notice deadline (MERCURY_NOTICE_DEADLINE_MS, ${settled?.noticeBoundMs ?? '?'} ms) — it is queued only after the output file it names is written (${settled?.noticeWaitMs ?? '?'} ms after the status read)`, settled?.noticeArrived === true && usageLine !== '', `arrived ${settled?.noticeArrived} · waited ${settled?.noticeWaitMs} ms of ${settled?.noticeBoundMs} · usage line ${usageLine === '' ? 'EMPTY' : 'present'}`)
-check('the <usage> section carries subagent_tokens (the context sum)', usageLine.includes('<subagent_tokens>24</subagent_tokens>'), usageLine)
+check('the <usage> section carries subagent_tokens (the one number, the rows added)', usageLine.includes('<subagent_tokens>56</subagent_tokens>'), usageLine)
 check('…and subagent_spend with the accumulated counts and what they cover', usageLine.includes('<subagent_spend tokens="56" input="36" cache_read="0" cache_creation="0" output="20" api_turns="4" unsettled_turns="0" agents_reporting="2" agents_unreported="0"/>'), usageLine)
 
 await fixture.close()
