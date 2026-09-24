@@ -3,7 +3,7 @@
  "note": "contract journey 2 — four questions, unanswered navigation into review",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-24T17:20:59.100Z",
+ "capturedAt": "2026-09-24T18:18:36.361Z",
  "screens": [
   {
    "atMs": 12200,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-4xfheM · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-z8HR1X · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-4xfheM · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-z8HR1X · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -114,7 +114,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-4xfheM · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-z8HR1X · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -152,9 +152,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 18:20:37 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 19:18:14 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 18:20:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 19:18:14 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -182,22 +182,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-4xfheM                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-z8HR1X                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 17446,
-   "frame-recommit": 40
+   "patches": 17161,
+   "frame-recommit": 39
   },
   "frames": {
-   "total": 62,
-   "window": 62,
-   "p50": 1.2145830000004025,
-   "p95": 7.941749999999956,
-   "p99": 25.830124999999953,
-   "maxMs": 25.830124999999953
+   "total": 59,
+   "window": 59,
+   "p50": 1.3075000000008004,
+   "p95": 9.239207999999962,
+   "p99": 26.672708000000057,
+   "maxMs": 26.672708000000057
   }
  },
  "requests": [
@@ -232,27 +232,27 @@
  ],
  "sends": [
   {
-   "atMs": 10745.159149169922,
+   "atMs": 10791.126728057861,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12345.159149169922,
+   "atMs": 12391.126728057861,
    "b64": "DQ=="
   },
   {
-   "atMs": 19745.159149169922,
+   "atMs": 19791.12672805786,
    "b64": "CQ=="
   },
   {
-   "atMs": 20745.159149169922,
+   "atMs": 20791.12672805786,
    "b64": "CQ=="
   },
   {
-   "atMs": 21745.159149169922,
+   "atMs": 21791.12672805786,
    "b64": "CQ=="
   },
   {
-   "atMs": 22745.159149169922,
+   "atMs": 22791.12672805786,
    "b64": "CQ=="
   }
  ]
