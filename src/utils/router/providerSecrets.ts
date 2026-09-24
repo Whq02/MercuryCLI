@@ -24,6 +24,7 @@ interface ProviderSecretsFile {
   localApiKey?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
+  typesafeApiKey?: string
   [k: string]: unknown
 }
 
@@ -167,6 +168,7 @@ type StoredKeyField =
   | 'localApiKey'
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
+  | 'typesafeApiKey'
 
 function readStoredKey(field: StoredKeyField): string | undefined {
   const file = readFile()
@@ -258,6 +260,13 @@ export function writeStoredTavilyApiKey(key: string | null): void {
   writeStoredKey('tavilyApiKey', key)
 }
 
+export function readStoredTypesafeApiKey(): string | undefined {
+  return readStoredKey('typesafeApiKey')
+}
+export function writeStoredTypesafeApiKey(key: string | null): void {
+  writeStoredKey('typesafeApiKey', key)
+}
+
 export function providerSecretsPathForDisplay(): string {
   return secretsPath()
 }
@@ -283,5 +292,6 @@ export function credentialEnvNames(): readonly string[] {
     'MERCURY_LOCAL_API_KEY',
     'BRAVE_API_KEY',
     'TAVILY_API_KEY',
+    'TYPESAFE_API_KEY',
   ]
 }
