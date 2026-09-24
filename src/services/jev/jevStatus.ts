@@ -69,7 +69,7 @@ export function resolveJevStatus(inputs: JevStatusInputs): JevStatus {
     }
     if (wire.kind === 'provider-refused') {
       if (jevRefusalNamesCredit(wire.detail)) {
-        return { kind: 'provider-credit', words: `provider refused for credit — it said ${quoted(wire.detail)} (${wire.status ?? 'no status'}) at ${at}; top up at the provider, then /clear or a new key admits the next attempt`, retryInMs }
+        return { kind: 'provider-credit', words: `provider refused for credit — it said ${quoted(wire.detail)} (${wire.status ?? 'no status'}) at ${at}; top up at the provider, then /clear or a new key admits the next attempt` }
       }
       return { kind: 'provider-refused', words: `provider refused — ${wire.status ?? 'no status'} ${quoted(wire.detail)} at ${at}; ${next}`, retryInMs }
     }

@@ -68,6 +68,8 @@ import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'
+import { JEV_TOOL_NAME } from '../../services/jev/jevContract.js'
+import { readJevSettings } from '../../services/jev/jevSetting.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -104,6 +106,7 @@ export function filterToolsForAgent(args: {
       return true
     }
     if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+    if (tool.name === JEV_TOOL_NAME && !readJevSettings().subagents) return false
     if (!isBuiltIn && CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) {
       return false
     }

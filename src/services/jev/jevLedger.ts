@@ -7,6 +7,7 @@ import {
   type JevWireFailure,
   type JevWireFailureKind,
   jevChargeUsd,
+  jevRefusalNamesCredit,
   jevUsdLabel,
   jevWaitLabel,
 } from './jevContract.js'
@@ -182,6 +183,10 @@ export function noteJevWireFailure(failure: JevWireFailure, now: number = Date.n
     state.spendUsd += JEV_MAX_CALL_USD
   }
   if (failure.kind === 'invalid-key' || failure.kind === 'bad-request' || failure.kind === 'aborted') return 0
+  if (failure.kind === 'provider-refused' && jevRefusalNamesCredit(failure.detail)) {
+    state.holdUntil = Number.MAX_SAFE_INTEGER
+    return Number.MAX_SAFE_INTEGER
+  }
   state.refusals = now - state.lastRefusalAt <= STREAK_DECAY_MS ? state.refusals + 1 : 1
   state.lastRefusalAt = now
   const ladder = jevCoolDownWindowMs(state.refusals, random)
@@ -192,6 +197,10 @@ export function noteJevWireFailure(failure: JevWireFailure, now: number = Date.n
 
 export function noteJevKeyChanged(): void {
   if (state.lastWire?.kind === 'invalid-key') state.lastWire = null
+  if (state.lastWire?.kind === 'provider-refused' && jevRefusalNamesCredit(state.lastWire.detail)) {
+    state.lastWire = null
+    state.holdUntil = 0
+  }
   state.notices.delete('invalid-key')
   state.notices.delete('no-key')
 }

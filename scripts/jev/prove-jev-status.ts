@@ -96,6 +96,8 @@ const refused = resolveJevStatus({ settings: on, key: stored, ledger: wired({ ki
 check('a refusal quotes the wire verbatim, with its status', /418 "I am a teapot"/.test(refused.words))
 const credit = resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'provider-refused', status: 402, detail: 'Insufficient balance on this account' }), now: T0 + 1 })
 check('a credit refusal quotes the wire and never states a balance figure', /said "Insufficient balance on this account"/.test(credit.words) && !/\$\d/.test(credit.words))
+check('a credit refusal names no wait: it ends when the conversation resets or the key changes', credit.retryInMs === undefined && /\/clear or a new key/.test(credit.words))
+check('a credit refusal still holds a year later', resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'provider-refused', status: 402, detail: 'insufficient credits' }), now: T0 + 365 * 24 * 60 * 60_000 }).kind === 'provider-credit')
 const parse = resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'parse-failed', status: 200, detail: 'answers.q.confidence missing' }), now: T0 + 1 })
 check('an unreadable 200 is the provider down with the reason named, never an answer', parse.kind === 'provider-down' && /could not read/.test(parse.words))
 const long = resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'provider-refused', status: 500, detail: 'x'.repeat(400) }), now: T0 + 1 })
