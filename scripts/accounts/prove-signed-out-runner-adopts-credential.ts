@@ -127,7 +127,7 @@ section('§4 the shape: the invalidator names both transitions')
 {
   const src = readFileSync(join(ROOT, 'src/utils/auth.ts'), 'utf8')
   const start = src.indexOf('function invalidateOnDiskChange')
-  const inv = src.slice(start, src.indexOf('// --- Refresh', start))
+  const inv = src.slice(start, src.indexOf('\n}\n', start))
   check('the invalidator exists', start > 0)
   check('absent → present is a change (a null last-mtime clears)', /lastCredentialsMtimeMs === null \|\|/.test(inv))
   check('the absent branch remembers the absence', /lastCredentialsMtimeMs = null/.test(inv))

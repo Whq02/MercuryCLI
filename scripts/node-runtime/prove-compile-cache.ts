@@ -10,6 +10,20 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+function closingBraceAfter(src: string, open: number): number {
+  if (open < 0 || src[open] !== '{') return -1
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}' && --depth === 0) return i
+  }
+  return -1
+}
+const compileCacheSeam = (cli: string): string => {
+  const at = cli.indexOf('const cacheHome = await resolveCompileCacheHome()')
+  const close = closingBraceAfter(cli, at < 0 ? -1 : cli.indexOf('{', at))
+  return close < 0 ? '' : cli.slice(at, close + 1)
+}
 
 section('§1 COMPILE CACHE (synthetic 20MB ESM, the STATE.md §4 recipe)')
 {
@@ -149,7 +163,7 @@ section('§3 THE LONG-HOME GUARD — a 224-char Windows home never starts withou
   check('an extended-length spelling opts out of the bound', compileCacheDirUsable('\\\\?\\' + 'C:\\' + 'y'.repeat(300), 'win32') === true)
   check('off win32 the guard never refuses', compileCacheDirUsable('/' + 'z'.repeat(400), 'darwin') === true && compileCacheDirUsable('/' + 'z'.repeat(400), 'linux') === true)
   const cli = readFileSync(join(import.meta.dir, '..', '..', 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  const seam = cli.slice(cli.indexOf('resolveCompileCacheHome()'), cli.indexOf('// 6 — Windows console UTF-8'))
+  const seam = compileCacheSeam(cli)
   check('the boot seam consults the guard before enabling the cache', seam.indexOf('compileCacheDirUsable(cacheDir)') !== -1 && seam.indexOf('compileCacheDirUsable(cacheDir)') < seam.indexOf('enableCompileCache(cacheDir)'))
   check('the guard rides a dynamic import (the seam stays zero-import until it engages)', seam.includes("await import('../utils/runtime/compileCachePath.js')"))
 
@@ -198,7 +212,7 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
   console.log(`  BEFORE: children of an env-less boot inherit no compile cache (every self-spawn re-parses the bundle) · AFTER: they inherit ${String(after.childSees)}`)
   rmSync(SCRATCH, { recursive: true, force: true })
   const cli = readFileSync(join(import.meta.dir, '..', '..', 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  const seam = cli.slice(cli.indexOf('resolveCompileCacheHome()'), cli.indexOf('// 6 — Windows console UTF-8'))
+  const seam = compileCacheSeam(cli)
   check(
     'the seam exports the directory the enable took, gated on the ENABLED status',
     /const enabled = enableCompileCache\(cacheDir\)[\s\S]{0,900}?if \(enabled\.status === moduleConstants\.compileCacheStatus\.ENABLED\) \{\n\s*process\.env\.NODE_COMPILE_CACHE = enabled\.directory \?\? cacheDir\n\s*\}/.test(seam),

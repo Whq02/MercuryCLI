@@ -34,7 +34,8 @@ t('same-model skip ignores the [1m]-style tag', routedSource.includes("m.replace
 t('yoloClassifier walks with the shared base-model law', yolo.includes('const baseModel = classifierBaseModel'))
 
 console.log('— the unreadable verdict: one same-model re-ask, then its own outcome —')
-const unreadableOwner = yolo.slice(yolo.indexOf('function unreadableVerdict('), yolo.indexOf('// The classifier call'))
+const unreadableAt = yolo.indexOf('function unreadableVerdict(')
+const unreadableOwner = yolo.slice(unreadableAt, yolo.indexOf('\n}\n', unreadableAt))
 t('the unreadable-verdict owner marks retryable AND unreadable', /retryable: true,\s*\n\s*unreadable: true,/.test(unreadableOwner))
 t('…and carries the issues for the words', unreadableOwner.includes('verdictIssues: args.issues'))
 t('…and dumps the evidence on the error-dump road', unreadableOwner.includes('writeErrorDump(args.evidence.dumpText'))
