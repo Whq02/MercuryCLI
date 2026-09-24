@@ -3,7 +3,7 @@
  "note": "contract journey 6 (internal leg) — notes opened with n, typed, exited with Esc (external editor lands at Wave B)",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-24T15:08:32.331Z",
+ "capturedAt": "2026-09-24T15:34:10.293Z",
  "screens": [
   {
    "atMs": 13800,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-P8YHdU · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-A8mKVB · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-P8YHdU · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-A8mKVB · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 16:08:10 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:33:48 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 16:08:10 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 16:33:48 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -149,23 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-P8YHdU                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-A8mKVB                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 14926,
-   "frame-recommit": 37,
-   "tail-publish": 2
+   "patches": 14872,
+   "frame-recommit": 38
   },
   "frames": {
-   "total": 59,
-   "window": 59,
-   "p50": 1.5915420000001177,
-   "p95": 7.8466669999997976,
-   "p99": 27.89458300000001,
-   "maxMs": 27.89458300000001
+   "total": 60,
+   "window": 60,
+   "p50": 1.1255000000019209,
+   "p95": 8.193083000000115,
+   "p99": 27.679333000000042,
+   "maxMs": 27.679333000000042
   }
  },
  "requests": [
@@ -200,23 +199,23 @@
  ],
  "sends": [
   {
-   "atMs": 10760.12110710144,
+   "atMs": 10765.894889831543,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12360.12110710144,
+   "atMs": 12365.894889831543,
    "b64": "DQ=="
   },
   {
-   "atMs": 20360.12110710144,
+   "atMs": 20365.894889831543,
    "b64": "bg=="
   },
   {
-   "atMs": 21360.12110710144,
+   "atMs": 21365.894889831543,
    "b64": "cHJlZmVyIHRoZSBsYXllcmVkIHNoYXBl"
   },
   {
-   "atMs": 23160.12110710144,
+   "atMs": 23165.894889831543,
    "b64": "Gw=="
   }
  ]
