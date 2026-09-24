@@ -102,7 +102,6 @@ import type {
 } from '../entrypoints/sdk/controlTypes.js'
 import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
-import { wallRecheckDelayMs } from '../tools/MonitorTool/watchMailbox.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
   clearServerCache,
@@ -124,10 +123,11 @@ import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
-  armLocalWake,
   registerLocalWakeSink,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
+import { isSaturnOrigin } from '../utils/messages/noticeRows.js'
+import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
 import {
@@ -1247,6 +1247,7 @@ export async function runHeadless(
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),
           isMeta: command.isMeta,
+          ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
@@ -1742,11 +1743,13 @@ export async function runHeadless(
   })
 
   if (streamingInput) {
-    registerLocalWakeSink((prompt: string) => {
+    const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
       if (inputClosed) return
-      const wall = sessionLaneWall()
-      if (wall.closed) {
-        armLocalWake(Math.ceil(wallRecheckDelayMs(wall, Date.now()) / 1000), prompt)
+      const nowMs = Date.now()
+      const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
+      if (next.step === 'wait') {
+        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
+        recheck.unref?.()
         return
       }
       enqueue({
@@ -1756,8 +1759,12 @@ export async function runHeadless(
         priority: 'later',
         isMeta: true,
         workload: 'cron',
+        origin: next.origin,
       })
       driver.kick()
+    }
+    registerLocalWakeSink((prompt: string, facts?: LocalWakeFacts) => {
+      deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
     })
   }
 
@@ -3052,6 +3059,7 @@ export async function runHeadless(
             sentAt,
             ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
             ...(typed.priority !== undefined ? { priority: typed.priority } : {}),
+            ...(isSaturnOrigin(typed.origin) ? { origin: typed.origin } : {}),
           })
           driver.kick()
         }

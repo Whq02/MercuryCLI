@@ -24,6 +24,7 @@ import type { ConcourseReviveOutcome } from './concourseSupervisor.js'
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { workspaceKindOf } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
+import type { SaturnOrigin } from '../utils/messages/noticeRows.js'
 
 export interface ConcourseDispatchRecordV1 {
   schema: 1
@@ -376,6 +377,7 @@ export function buildConcoursePromptFrame(prompt: string, extras?: ConcourseProm
       ? { mode: 'task-notification', agent_id: extras.agentId }
       : {}),
     ...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),
+    ...(extras?.origin !== undefined ? { origin: extras.origin } : {}),
   })
 }
 
@@ -388,16 +390,18 @@ export interface ConcoursePromptExtras {
   content?: unknown[]
   identity?: string
   sentAt?: string
+  origin?: SaturnOrigin
 }
 
-function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId' | 'sentAt'>): ConcoursePromptExtras | undefined {
-  if (req.mode === undefined && req.priority === undefined && req.content === undefined && req.sentAt === undefined) return undefined
+function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' | 'content' | 'agentId' | 'sentAt' | 'origin'>): ConcoursePromptExtras | undefined {
+  if (req.mode === undefined && req.priority === undefined && req.content === undefined && req.sentAt === undefined && req.origin === undefined) return undefined
   return {
     ...(req.mode !== undefined ? { mode: req.mode } : {}),
     ...(req.agentId !== undefined ? { agentId: req.agentId } : {}),
     ...(req.priority !== undefined ? { priority: req.priority } : {}),
     ...(req.content !== undefined ? { content: req.content } : {}),
     ...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),
+    ...(req.origin !== undefined ? { origin: req.origin } : {}),
   }
 }
 
@@ -522,6 +526,7 @@ export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
   sentAt?: string
+  origin?: SaturnOrigin
 }
 
 export type ConcourseDispatchResult = {

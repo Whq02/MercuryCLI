@@ -390,6 +390,7 @@ export type SDKUserMessage = {
   priority?: 'now' | 'next' | 'later'
   mode?: 'prompt' | 'bash' | 'task-notification'
   agent_id?: string
+  origin?: { kind: string; [field: string]: unknown }
 }
 
 export type SDKStreamRawEvent =

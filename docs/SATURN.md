@@ -84,6 +84,24 @@ skill builds on exactly this: it schedules a short sentinel that expands at
 fire time to the loop's instructions — `loop.md` or the autonomous default —
 whole on the first delivery and a short reminder afterwards.
 
+## How a fire arrives in the chat
+
+A scheduled fire arrives as its own muted row plated `[Saturn]`, never as a
+line typed by you: the clock, the dim plate, and the schedule's own words on
+the first line — a self-paced wake names its cadence and the reason it gave
+(`self-paced wake · fifteen-minute cadence · reason: …`), a cron schedule
+names its id and the spelling it was scheduled with (`schedule 3f9a2c1d ·
+every weekday at 09:00`) — with the prompt's own words dim beneath. Mercury's
+reply follows as it always does, and the words the model reads are exactly
+the prompt the schedule was given. The row keeps its delivery stamp; when the
+fire landed a minute or more before the row could be delivered, the first
+line also names the fire time, and a fire that waited says since when and why
+(a closed usage window, a parked session). The fire's receipt names the fire
+time and the reason as well. A resumed session repaints the row the same. A
+self-paced wake on a bare streaming run that fires into a closed usage window
+waits with the window's own recheck delay, never opening a turn the window
+would refuse, and its row says so once when it lands.
+
 ## Accounts, holds, and releases
 
 A schedule captures its account at write time — provider family and

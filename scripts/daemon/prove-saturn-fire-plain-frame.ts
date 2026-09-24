@@ -125,10 +125,12 @@ const ports = {
 }
 const report = await ticker.tickSaturnOnce(ports as never)
 check('the tick fires all three', report.fired === 3 && report.held === 0 && delivered.length === 3, j(report))
-const FRAME_KEYS = 'by,clientMessageId,parked,prompt,sessionId,workspaceId'
+const FRAME_KEYS = 'by,clientMessageId,origin,parked,prompt,sessionId,workspaceId'
 for (const d of delivered) {
   const keys = Object.keys(d).sort().join(',')
   check(`the delivery for '${String(d.prompt)}' is a plain frame: ${FRAME_KEYS} — no model, no system, no tools, no messages`, keys === FRAME_KEYS, keys)
+  const origin = d.origin as Record<string, unknown> | undefined
+  check(`…and its origin names the schedule that fired it, nothing of the model`, origin !== undefined && origin.kind === 'saturn' && origin.fire === 'cron' && origin.firedAt === new Date(T0).toISOString() && typeof origin.scheduleId === 'string' && !('model' in origin), j(origin))
 }
 const byPrompt = (prompt: string): Record<string, unknown> | undefined => delivered.find(d => d.prompt === prompt)
 check('the same-model fire delivers into the live session, not parked', byPrompt('same-model beat')?.sessionId === SESSION_LIVE && byPrompt('same-model beat')?.parked === false)

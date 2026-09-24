@@ -33,6 +33,7 @@ import {
   saturnBoxSchedulesPath,
   takeBoxHeldFires,
 } from './saturnBoxSchedules.js'
+import { wakeDelayOfSpelling, type SaturnOrigin } from '../utils/messages/noticeRows.js'
 
 
 export const DEFAULT_SATURN_CATCHUP_WINDOW_MS = 6 * 60 * 60 * 1000
@@ -57,6 +58,29 @@ export interface SaturnDeliveryV1 {
   by: string
   clientMessageId: string
   parked: boolean
+  origin?: SaturnOrigin
+}
+
+export interface SaturnFireFactsV1 {
+  schedule?: SaturnScheduleV1
+  heldAt?: number
+  heldReason?: HeldFireV1['reason']
+}
+
+export function saturnFireOrigin(envelope: SaturnFireEnvelopeV1, nowMs: number, facts: SaturnFireFactsV1): SaturnOrigin {
+  const when = facts.schedule?.when
+  const spelling = when === undefined ? undefined : (when.spelling ?? describeWhen(when))
+  const heldWhy = facts.heldReason === 'parked-queued' ? ('parked' as const) : facts.heldReason === 'rate-limited' ? ('window' as const) : undefined
+  return {
+    kind: 'saturn',
+    fire: wakeDelayOfSpelling(spelling) !== null ? 'wake' : 'cron',
+    firedAt: new Date(nowMs).toISOString(),
+    scheduleId: envelope.scheduleId,
+    ...(spelling !== undefined ? { spelling } : {}),
+    ...(facts.schedule?.note !== undefined ? { reason: facts.schedule.note } : {}),
+    ...(facts.heldAt !== undefined ? { heldSince: new Date(facts.heldAt).toISOString() } : {}),
+    ...(heldWhy !== undefined ? { heldWhy } : {}),
+  }
 }
 
 export interface SaturnTickerPortsV1 {
@@ -156,6 +180,9 @@ const heldLine = (reason: HeldFireV1['reason'], n: number, family?: string): str
             ? 'held: the admission door refused — retried each tick'
             : 'held'
 
+const reasonClause = (schedule: SaturnScheduleV1 | undefined): string =>
+  schedule?.note !== undefined && schedule.note.trim() !== '' ? ` · reason: ${schedule.note.replace(/[\r\n]+/g, ' ').trim()}` : ''
+
 
 export interface SaturnTickReportV1 {
   fired: number
@@ -239,16 +266,23 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           if (rearm !== undefined) {
             refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
           }
-          const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by)
+          const heldSchedule = scheduleList.find(s => s.id === h.scheduleId)
+          const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by, {
+            schedule: heldSchedule,
+            heldAt: h.heldAt,
+            heldReason: h.reason,
+          })
           if (outcome.ok) {
             report.replayed++
             markSaturnFired(sessionId, h.scheduleId, now, ports.dir)
-            rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})`, {
+            rowSaturnTickReceipt(rec, by, 'schedule-fire', `fired late — held since ${new Date(h.heldAt).toISOString()} (${h.reason})${reasonClause(heldSchedule)}`, {
               outcome: 'fired-late',
               scheduleId: h.scheduleId,
               dueAt: h.dueAt,
+              firedAt: now,
               heldMs: now - h.heldAt,
               releasedFrom: h.reason,
+              ...(heldSchedule?.note !== undefined ? { note: heldSchedule.note } : {}),
             })
           } else {
             holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
@@ -379,7 +413,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
 
       const marked = markSaturnFired(sessionId, schedule.id, now, ports.dir)
       if (marked === 'missing') continue
-      const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by)
+      const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by, { schedule })
       if (effect.ok) {
         report.fired++
         const movedClause =
@@ -395,12 +429,14 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
             ports.dir,
           )
         }
-        rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + movedClause, {
+        rowSaturnTickReceipt(rec, by, 'schedule-fire', (lateMs > 60_000 ? `fired ~${Math.round(lateMs / 60000)}m late (${describeWhen(schedule.when)})` : `fired (${describeWhen(schedule.when)})`) + reasonClause(schedule) + movedClause, {
           outcome: lateMs > 60_000 ? 'fired-late' : 'fired',
           scheduleId: schedule.id,
           dueAt,
+          firedAt: now,
           lateMs,
           kind: schedule.action.kind,
+          ...(schedule.note !== undefined ? { note: schedule.note } : {}),
           ...(resolved.movedFromFamily !== undefined ? { firedOnFamily: fireAccount.family, movedFromFamily: resolved.movedFromFamily } : {}),
           ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
         })
@@ -564,6 +600,7 @@ async function replayEnvelope(
   envelope: SaturnFireEnvelopeV1,
   parked: boolean,
   by: string,
+  facts: SaturnFireFactsV1,
 ): Promise<{ ok: boolean; sessionId?: string; detail?: string }> {
   if (envelope.kind === 'birth') {
     if (envelope.birth === undefined) return { ok: false, detail: 'malformed envelope: birth without a spec' }
@@ -578,6 +615,7 @@ async function replayEnvelope(
     by,
     clientMessageId: `saturn-${rec.sessionId}-${envelope.scheduleId}-${envelope.dueAt}`,
     parked,
+    origin: saturnFireOrigin(envelope, ports.now(), facts),
   })
 }
 
