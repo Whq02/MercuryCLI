@@ -32,7 +32,7 @@ const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const FABLE_REPLY = 'fable picked up the handoff'
 const TARGET_ID = 'claude-fable-5-1'
-const TARGET_CHIP = 'Fable 5.1 · ●'
+const TARGET_CHIP = 'Fable 5.1 ·'
 const HOME_CHIP = 'GPT-5.6 Sol ·'
 const OFFER_TITLE = 'OpenAI usage window'
 const LANE_LINE = /on the anthropic failover lane · (Fable 5\.1|Sonnet 5) · OpenAI window resets [^·]+ · \/model to return/
@@ -237,12 +237,12 @@ const legSettle = drive(
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello sol\r' },
     { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
-    { requireAwait: true, awaitText: 'Model switch preview', minTick: 8, awaitSettleTicks: 2, data: '\r', mark: 'preview' },
+    { requireAwait: true, awaitText: 'Set model to', minTick: 8, awaitSettleTicks: 2, data: '', mark: 'preview' },
     { requireAwait: true, awaitText: TARGET_CHIP, minTick: 10, awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'switched' },
     { requireAwait: true, awaitText: 'failover lane', minTick: 2, awaitSettleTicks: 2, data: '', mark: 'line-t0' },
     { afterPrevTicks: LANE_LINE_TICKS, data: '', mark: 'line-later' },
     { afterPrevTicks: 2, data: '/model sonnet\r' },
-    { requireAwait: true, awaitText: 'Model switch preview', minTick: 3, awaitSettleTicks: 2, data: '\r', mark: 'sonnet-preview' },
+    { requireAwait: true, awaitText: 'Sonnet 5 ·', minTick: 3, awaitSettleTicks: 2, data: '', mark: 'sonnet-preview' },
     { requireAwait: true, awaitText: 'failover lane · Sonnet 5', minTick: 2, awaitSettleTicks: 2, data: '', mark: 'line-again' },
     { afterPrevTicks: PROBE_GAP, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
   ],
@@ -266,11 +266,11 @@ const legSettle = drive(
   check(`the card offers the exact id the seat persists (⇄ ${TARGET_ID})`, offerGrid.includes(`⇄ ${TARGET_ID}`))
   check('the one true hint line: enter opens the preview, esc stays put', offerGrid.includes('enter opens the transition preview') && offerGrid.includes('stays put'))
 
-  section('L3 — ↵ opens the transition preview (the plan, the settlement owner)')
+  section('L3 — ↵ settles the lossless history through the selection owner')
   const previewGrid = markGrid(p, 'preview')
-  check('the preview card stood when the confirm was sent', previewGrid.includes('Model switch preview'), previewGrid.split('\n').slice(-14).join('\n'))
-  check('the preview names the move to the target and its plan', previewGrid.includes('Fable 5.1') && previewGrid.includes('plan ') && previewGrid.includes('settlement owner'))
-  check('the offer card is gone while the preview stands (the cards never stack)', !previewGrid.includes(OFFER_TITLE))
+  check('the refusal-only history settles without a needless preview', previewGrid.includes('Set model to') && !previewGrid.includes('Model switch preview'), previewGrid.split('\n').slice(-14).join('\n'))
+  check('the settlement names the chosen target', previewGrid.includes('Fable 5.1'))
+  check('the offer card is gone after its selection settles', !previewGrid.includes(OFFER_TITLE))
 
   section('L4 — ↵ settles: the seat switches on the real bundle, the next turn dispatches to the Anthropic wire')
   const switchedTick = receiptTick(p, 4)
@@ -303,7 +303,7 @@ const legSettle = drive(
   check(`past its window (${LANE_LINE_MS} ms here; two minutes unset) the sentence has left the composer`, laterTick >= t0Tick + LANE_LINE_TICKS - 1 && !later.includes('failover lane'), lineRow(later) || `(line-later at tick ${laterTick})`)
   check('…and the strip\'s mark still says where the session runs (Fable 5.1 · failover)', later.includes(LANE_MARK_FABLE), later.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
   const again = markGrid(p, 'line-again')
-  check('a switch on the lane (/model sonnet, confirmed at its preview) is a change of state: the sentence returns for its window, naming the new served model', receiptTick(p, 9) > 0 && LANE_LINE.test(lineRow(again)) && lineRow(again).includes('Sonnet 5'), lineRow(again) || `(no sentence; endReason=${p?.endReason ?? '?'})`)
+  check('a lossless switch on the lane (/model sonnet) is a change of state: the sentence returns for its window, naming the new served model', receiptTick(p, 9) > 0 && LANE_LINE.test(lineRow(again)) && lineRow(again).includes('Sonnet 5'), lineRow(again) || `(no sentence; endReason=${p?.endReason ?? '?'})`)
   check('the mark follows the served model (Sonnet 5 · failover)', again.includes(LANE_MARK_SONNET), again.split('\n').filter(l => l.includes('Sonnet 5')).join(' | '))
   const probeGrid = markGrid(p, 'probe')
   check('by the probe the sentence has left again and the mark stands', !probeGrid.includes('failover lane') && probeGrid.includes(LANE_MARK_SONNET), probeGrid.split('\n').filter(l => l.includes('failover')).join(' | '))

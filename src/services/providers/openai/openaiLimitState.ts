@@ -162,6 +162,18 @@ export function adoptOpenaiObservedUsage(
   }
 }
 
+export function adoptOpenaiWindowFact(record: unknown): boolean {
+  if (record === null || typeof record !== 'object') return false
+  const { source, resetsAtMs, observedAtMs } = record as Record<string, unknown>
+  if (source !== 'chatgpt-subscription' && source !== 'api-key') return false
+  if (typeof resetsAtMs !== 'number' || !Number.isFinite(resetsAtMs) || resetsAtMs <= 0) return false
+  if (typeof observedAtMs !== 'number' || !Number.isFinite(observedAtMs) || observedAtMs <= 0) return false
+  const held = observedBySource[source]
+  if (held !== null && held.observedAtMs >= observedAtMs) return false
+  recordOpenaiUsageLimit(resetsAtMs, source, () => observedAtMs)
+  return true
+}
+
 export function openaiWindowClosedUntil(fact: { resetsAtMs?: unknown } | undefined, nowMs: number): number | undefined {
   if (fact === undefined || typeof fact.resetsAtMs !== 'number' || !Number.isFinite(fact.resetsAtMs)) return undefined
   return fact.resetsAtMs > nowMs ? fact.resetsAtMs : undefined

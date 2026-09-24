@@ -68,12 +68,12 @@ const sends = [
   { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'boot' },
   { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: 'hello sol\r', mark: 'home' },
   { requireAwait: true, awaitText: 'OpenAI usage window', awaitSettleTicks: 4, data: '\r', mark: 'offer' },
-  { requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'confirm' },
+  { requireAwait: true, awaitText: 'Set model to', awaitSettleTicks: 2, data: '', mark: 'confirm' },
   { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: 'pick up from gpt pls\r', mark: 'pickup-send' },
   { requireAwait: true, awaitText: 'fable picked up the handoff', awaitSettleTicks: 4, data: '', mark: 'pickup' },
   { requireAwait: true, awaitText: 'Fable 5.1 ·', awaitSettleTicks: 4, data: '', mark: 'settled' },
   { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: '/model sonnet\r', mark: 'model-send' },
-  { requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'sonnet-confirm' },
+  { requireAwait: true, awaitText: 'Sonnet 5 ·', awaitSettleTicks: 2, data: '', mark: 'sonnet-confirm' },
   { requireAwait: true, awaitText: 'Sonnet 5 ·', awaitSettleTicks: 4, data: '', mark: 'sonnet' },
 ]
 type Grid = Array<Array<{ c: string }>>
@@ -108,7 +108,7 @@ function check(label: string, yes: boolean): void {
   if (!yes) failures++
 }
 check('every send reached its product gate', payload.sendReceipts?.length === sends.length && result.status === 0)
-check('offer and confirmation stood', frame('offer').includes('OpenAI usage window') && frame('confirm').includes('Model switch preview'))
+check('the offer stood and its lossless handoff settled directly', frame('offer').includes('OpenAI usage window') && frame('confirm').includes('Set model to') && !frame('confirm').includes('Model switch preview'))
 const ack = events.findIndex(event => event.event === 'model-ack' && event.response?.at === 'now' && event.response.model === 'claude-fable-5-1')
 check('the runner acknowledged the failover model applied now', ack >= 0)
 const release = events.findIndex(event => event.event === 'facts-release')
