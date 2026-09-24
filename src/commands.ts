@@ -74,6 +74,7 @@ import securityReview from './commands/security-review.js'
 import terminalSetup from './commands/terminalSetup/index.js'
 import mockLimits from './commands/mock-limits/index.js'
 import usage from './commands/usage/index.js'
+import jev from './commands/jev/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
 import permissions from './commands/permissions/index.js'
@@ -265,6 +266,7 @@ const COMMANDS = memoize((): Command[] => [
   terminalSetup,
   mockLimits,
   usage,
+  jev,
   defaultprovider,
   insightsShim,
   vim,
