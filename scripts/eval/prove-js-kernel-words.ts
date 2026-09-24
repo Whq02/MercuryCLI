@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { check, cleanup, finish, loadEval, section, setup, within } from './lib.js'
@@ -124,6 +124,9 @@ try {
         'const splitter = /,\\s*in\\s+/, n = 1',
         'JSON.stringify([typeof splitter, typeof n])',
       ].map(code => ({ kind: 'tool_use' as const, name: 'Eval', input: { language: 'js', code, title: 'declaration boundaries' }, whenModel: MODEL })),
+      { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "const r = await tool.Bash({ command: 'echo boom; exit 1' })\nJSON.stringify([r.code, r.stdout.includes('boom'), r.stderr])", title: 'a shell exit as a value' }, whenModel: MODEL },
+      { kind: 'tool_use', name: 'Eval', input: { language: 'js', code: "const a = await tool.attempt.Bash({ command: 'echo boom; exit 1' })\nconst w = await tool.attempt.Bash({ command: 'nohup sleep 1 &' })\nJSON.stringify([a.ok, a.value && a.value.code, w.ok, String(w.error).startsWith(\"Ward 'self-daemonize'\"), String(w.error).includes('<tool_use_error>')])", title: 'attempt: an exit is a value, a ward refusal an error' }, whenModel: MODEL },
+      { kind: 'tool_use', name: 'Eval', input: { language: 'py', code: "r = tool.Bash(command='echo boom; exit 1')\n[r['code'], 'boom' in r['stdout'], r['stderr']]", title: 'py: a shell exit as a value' }, whenModel: MODEL },
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
       { kind: 'text', text: 'kernel-words-probe: done', whenModel: MODEL },
     ])
@@ -172,10 +175,19 @@ try {
         results.push({ text, isError: block.is_error === true })
       }
     }
+    const bundleFacts = ((): string => {
+      try {
+        const manifest = JSON.parse(readFileSync(join(dirname(DIST), 'manifest.json'), 'utf8')) as { version?: string; buildTree?: string }
+        return `${manifest.version ?? 'version unknown'} · buildTree ${manifest.buildTree ?? 'unknown'}`
+      } catch {
+        return 'no manifest beside the bundle'
+      }
+    })()
+    console.log(`        note: bundle under proof ${DIST} (${bundleFacts})`)
     console.log(`        note: print mode exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
-    for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, 160))}`)
-    check('the artifact ran the three cells and closed the turn', outcome.exit === 0 && /kernel-words-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-    check('all nine results reached the model', results.length === 9, String(results.length))
+    for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, i >= 9 ? 400 : 160))}`)
+    check('the artifact ran the cells and closed the turn', outcome.exit === 0 && /kernel-words-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
+    check('all twelve results reached the model', results.length === 12, String(results.length))
     check('artifact: a leading comment preserves both declarations', results[4]?.text.includes('["number","number"]') === true, JSON.stringify(results[4]))
     check('artifact: a trailing comment preserves both declarations', results[6]?.text.includes('["number","number"]') === true, JSON.stringify(results[6]))
     check('artifact: the regex initializer runs and preserves its bindings', results[7] !== undefined && !results[7].isError && results[8]?.text.includes('["object","number"]') === true, JSON.stringify(results.slice(7)))
@@ -184,6 +196,11 @@ try {
     check('artifact: …and reports fs and repo as never bound, not as survivors', req !== undefined && /never bound[^:]*: fs, repo/.test(req.text) && !/survived this failed cell: fs/.test(req.text), JSON.stringify(req))
     check('artifact: the createHash cell names the Web Crypto fact and the node:crypto import', hash !== undefined && hash.isError && hash.text.includes('crypto.createHash is not a function') && hash.text.includes(CRYPTO_WORDS) && hash.text.includes(CRYPTO_FIX), JSON.stringify(hash))
     check('artifact: the fix cell returns the digest', fix !== undefined && !fix.isError && fix.text.includes(DIGEST), JSON.stringify(fix))
+    const [shellExit, attempts, pyExit] = results.slice(9)
+    console.log(`        record (${bundleFacts}) · the shell-exit cell: is_error=${String(shellExit?.isError)} · "Shell command failed"=${shellExit?.text.includes('Shell command failed') ?? false} · boom in the result=${shellExit?.text.includes('boom') ?? false} · wrapped=${shellExit?.text.includes('<tool_use_error>') ?? false}`)
+    check('artifact: a bridged Bash call whose command exited 1 returns { code: 1, stdout, stderr: "" } and the JS cell runs on', shellExit !== undefined && !shellExit.isError && shellExit.text.includes(`⇒ '[1,true,""]'`), JSON.stringify(shellExit))
+    check('artifact: tool.attempt.Bash answers { ok: true, value: { code: 1 } } for an exit and { ok: false, error } with the ward\'s bare words for a refusal', attempts !== undefined && !attempts.isError && attempts.text.includes(`⇒ '[true,1,false,true,false]'`), JSON.stringify(attempts))
+    check('artifact: the Python kernel reads the same value shape', pyExit !== undefined && !pyExit.isError && pyExit.text.includes(`⇒ [1, True, '']`), JSON.stringify(pyExit))
     const leftovers = spawnSync('pgrep', ['-f', `${configDir}/eval/runner-`], { encoding: 'utf8' }).stdout.trim()
     if (leftovers !== '') {
       for (const pid of leftovers.split('\n')) {
