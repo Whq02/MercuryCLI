@@ -13,6 +13,15 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
+function closingBraceAfter(src: string, open: number): number {
+  if (open < 0 || src[open] !== '{') return -1
+  let depth = 0
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}' && --depth === 0) return i
+  }
+  return -1
+}
 
 const ROOT = join(import.meta.dir, '..', '..')
 const state = await import('../../src/bootstrap/state.ts')
@@ -86,7 +95,7 @@ section('§5 source pins — the stamp precedes the pool; the scheduler start is
   check('…BEFORE the headless tool pool is assembled', stampAt >= 0 && poolAt > stampAt, `stamp@${stampAt} pool@${poolAt}`)
   const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   const sinkBlockStart = print.indexOf('if (streamingInput) {')
-  const sinkBlockEnd = print.indexOf('// (The legacy in-process task engine', sinkBlockStart)
+  const sinkBlockEnd = closingBraceAfter(print, print.indexOf('{', sinkBlockStart))
   const sinkBlock = sinkBlockStart >= 0 && sinkBlockEnd > sinkBlockStart ? print.slice(sinkBlockStart, sinkBlockEnd) : ''
   const sinkCalls = (print.match(/registerLocalWakeSink\(/g) ?? []).length
   check(

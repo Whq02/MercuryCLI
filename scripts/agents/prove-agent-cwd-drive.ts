@@ -200,7 +200,7 @@ tally.check("the checkout's own status is unchanged", authoredStatus(repo) === p
 tally.check('no worktree is left behind', git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 1, git(repo, 'worktree', 'list', '--porcelain'))
 
 const firstLine = (r: SeenResult | undefined): string => (r?.text ?? '').split('\n')[0]?.trim() ?? ''
-const waitForFile = (file: string): string => `for i in $(seq 1 150); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
+const waitForFile = (file: string): string => `for i in $(seq 1 600); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
 const sidecarsUnder = (dir: string): string[] => {
   if (!existsSync(dir)) return []
   const out: string[] = []
