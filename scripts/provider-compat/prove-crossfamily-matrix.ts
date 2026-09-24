@@ -288,6 +288,7 @@ type Message = import('../../src/types/message.ts').Message
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 
 await refreshLocalDiscovery({ force: true })
+await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
 
 const echoCalls: Array<{ family: string; text: string }> = []
 const EchoTool = {

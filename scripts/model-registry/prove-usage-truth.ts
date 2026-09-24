@@ -170,7 +170,7 @@ section('3 · activeSourceUsage — lane → kind → SHAPE, switch re-derives')
   )
 
   const zai = activeSourceUsage({ model: 'glm-5.2', reads: baseReads })
-  check("zai key: 'API usage' spend shape", zai.shape === 'api-spend' && zai.label === 'API usage')
+  check("zai key: spend shape under the band's own name", zai.shape === 'api-spend' && zai.label === 'Z.AI usage')
   const zaiNone = activeSourceUsage({
     model: 'glm-5.2',
     reads: { ...baseReads, zaiKeyPresent: () => false, spend: () => spendZero },
