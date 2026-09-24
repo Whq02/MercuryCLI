@@ -25,7 +25,7 @@ import {
   setJevRequestCeiling,
   setJevSubagents,
 } from '../../services/jev/jevSetting.js'
-import { jevStatusLine, resolveJevStatus } from '../../services/jev/jevStatus.js'
+import { JEV_STATUS_HEADWORDS, jevStatusLine, resolveJevStatus } from '../../services/jev/jevStatus.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import { providerSecretsPathForDisplay } from '../../utils/router/providerSecrets.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
@@ -35,7 +35,7 @@ import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import TextInput from '../TextInput.js'
 
 export const JEV_POPUP_WIDTH = 120
-export const JEV_POPUP_HINT = '↑↓ select · ←/→ change · ↵ act on the row · ⌫ default (the key row: clears the stored key) · esc or click outside closes'
+export const JEV_POPUP_HINT = '↑↓ select · ←→ change · ↵ act · ⌫ default · esc or click outside closes'
 export const JEV_SPEND_LABEL = "Mercury's count — the provider publishes no balance"
 export const JEV_ALLOWANCE_RUNGS: readonly number[] = [1, 2, 5, 10, 20, 50, 100, 200]
 export const JEV_CEILING_RUNGS: readonly number[] = [10, 20, 50, 100, 200, 500]
@@ -131,8 +131,13 @@ export function jevRowNote(id: JevRowId): string {
   }
 }
 
+export function jevKeyShortWords(key: JevKeyPresence): string {
+  if (!key.present) return 'no key'
+  return key.source === 'env' ? `key from ${JEV_KEY_ENV}` : 'key stored'
+}
+
 export function jevPopupLine(facts: JevFacts = jevFacts()): string {
-  return `switch ${jevValueWords(facts.settings)} · ${jevKeySourceWords(facts.key)} · spend ${jevUsdLabel(facts.ledger.spendUsd)} of the ${jevUsdLabel(facts.settings.allowanceUsd)} allowance (Mercury's count)`
+  return `switch ${jevValueWords(facts.settings)} · ${jevKeyShortWords(facts.key)} · spend ${jevUsdLabel(facts.ledger.spendUsd)} of ${jevUsdLabel(facts.settings.allowanceUsd)} · ${JEV_STATUS_HEADWORDS[facts.status.kind]}`
 }
 
 export function nextRung(rungs: readonly number[], current: number, direction: 1 | -1): number {
