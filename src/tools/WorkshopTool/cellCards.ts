@@ -1,4 +1,4 @@
-import type { WorkshopCellResult, WorkshopLanguage } from '../../services/workshop/contracts.js'
+import type { WorkshopCellResult, WorkshopLanguage, WorkshopShellCall } from '../../services/workshop/contracts.js'
 
 export type WorkshopCellCardFacts = {
   cellId: string
@@ -8,10 +8,20 @@ export type WorkshopCellCardFacts = {
   state: 'failed' | 'timed-out'
   error: string
   outputTail: string[]
+  shellCalls: WorkshopShellCall[]
   durationMs: number
   generation: number
   runtimeKilled: boolean
   artifactRef?: string
+}
+
+export function lastShellCallOf(facts: Pick<WorkshopCellCardFacts, 'shellCalls'>): WorkshopShellCall | undefined {
+  return facts.shellCalls[facts.shellCalls.length - 1]
+}
+
+export function shellCallHeadline(call: WorkshopShellCall): string {
+  if (call.refused === true) return call.command
+  return typeof call.code === 'number' ? `${call.command} · exit ${call.code}` : call.command
 }
 
 const CARD_LIMIT = 50
@@ -31,6 +41,7 @@ export function cellCardFactsOf(cell: WorkshopCellResult, code: string | undefin
     state: cell.state,
     error: cell.error ?? '',
     outputTail: cell.outputTail,
+    shellCalls: Array.isArray(cell.shellCalls) ? cell.shellCalls : [],
     durationMs: cell.durationMs,
     generation: cell.generation,
     runtimeKilled: cell.runtimeKilled,
