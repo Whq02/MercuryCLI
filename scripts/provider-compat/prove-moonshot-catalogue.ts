@@ -55,9 +55,11 @@ if (catalogue) {
   calls = []
   check('signed out: refresh is a non-event', await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch() }) === null && calls.length === 0)
   check('signed out: kick starts nothing', !c.kickMoonshotCatalogue({ fetchImpl: pageFetch() }) && calls.length === 0)
+  const preview = c.moonshotCatalogueRows()
+  check('signed out, the dated observations preview the lineup and none is listed live', preview.source.kind === 'pin' && preview.rows[0]?.id === 'kimi-k3' && preview.rows.every(row => !row.listedLive && row.observedAt === '2026-08-21'))
   writeStoredMoonshotApiKey('fixture-stored-one')
-  const pins = c.moonshotCatalogueRows()
-  check('without a fetched list, only dated observations stand in', pins.source.kind === 'pin' && pins.rows[0]?.id === 'kimi-k3' && pins.rows.every(row => !row.listedLive && row.observedAt === '2026-08-21'))
+  const unread = c.moonshotCatalogueRows()
+  check('a stored key with no fetched list lists nothing and says the list is unread, never the dated table', unread.source.kind === 'unread' && unread.source.reading && unread.rows.length === 0 && keyLanePins('moonshot').length === 0, JSON.stringify(unread))
   let clock = Date.now()
   const now = () => clock
   const epoch = catalogueEpoch()
@@ -108,7 +110,8 @@ if (catalogue) {
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({}, 503), now })
   const degraded = await c.qualifyMoonshotModel('kimi-fixture-named')
   check('with no successful list, an exact id proceeds with an explicit note', degraded.kind === 'degraded' && degraded.note.includes('unavailable') && degraded.note.includes("proceeding with 'kimi-fixture-named'"))
-  check('a failed first read leaves the dated table, not an empty live catalogue', c.moonshotCatalogueRows().source.kind === 'pin')
+  const failedFirst = c.moonshotCatalogueRows()
+  check('a failed first read on a signed-in key leaves the list unread with its error — never the dated table, never an empty live catalogue', failedFirst.source.kind === 'unread' && !failedFirst.source.reading && failedFirst.source.error?.includes('HTTP 503') === true && failedFirst.rows.length === 0, JSON.stringify(failedFirst.source))
   const failedCount = calls.length
   clock += 5000
   await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch(), now })
@@ -163,8 +166,9 @@ if (catalogue) {
     const choice = computedDefault()
     const verdict = await c.qualifyMoonshotModel('kimi-operator-named')
     check(`${shape.name}: the snapshot records the failure and no fetched list`, snapshot !== null && snapshot.fetchedAtMs === 0 && snapshot.models.length === 0 && (shape.error !== '' ? snapshot.lastError === shape.error : (snapshot.lastError ?? '').length > 0), JSON.stringify(snapshot))
-    check(`${shape.name}: the picker reads the dated table`, rows.source.kind === 'pin' && rows.rows[0]?.id === 'kimi-k3' && keyLanePins('moonshot').every(row => !row.listedLive))
-    check(`${shape.name}: the default names the dated row and says no live list`, choice.provider === 'moonshot' && choice.setting === 'kimi-k3' && choice.why.includes('observed 2026-08-21; no live list'), choice.why)
+    check(`${shape.name}: the picker lists nothing and says the list could not be read, with the reader's own words`, rows.source.kind === 'unread' && !rows.source.reading && rows.source.error === snapshot?.lastError && rows.rows.length === 0 && keyLanePins('moonshot').length === 0, JSON.stringify(rows.source))
+    const moonshotVerdict = choice.considered.find(entry => entry.family === 'moonshot')?.verdict
+    check(`${shape.name}: the default leaves the family and says the account's list has not been read, naming the failure`, choice.provider !== 'moonshot' && moonshotVerdict?.usable === false && moonshotVerdict.why === `the account's model list has not been read (${snapshot?.lastError})`, JSON.stringify({ provider: choice.provider, why: moonshotVerdict?.why }))
     check(`${shape.name}: an operator-named id proceeds with the degraded note carrying the reason`, verdict.kind === 'degraded' && verdict.note.startsWith('[moonshot] the live model catalogue is unavailable (') && (shape.error === '' || verdict.note.includes(shape.error)) && verdict.note.endsWith("— proceeding with 'kimi-operator-named'; the provider validates it at dispatch."), JSON.stringify(verdict))
   }
   c.__resetMoonshotCatalogueForTest()
@@ -197,7 +201,8 @@ if (catalogue) {
   c.__resetMoonshotCatalogueForTest()
   resetComputedDefaultMemo()
   const absentWorld = computedDefault()
-  check('absent: the dated row is the default with the observation words; the picker and the adapter carry the dated rows', absentWorld.setting === 'kimi-k3' && absentWorld.why.includes('observed 2026-08-21; no live list') && keyLanePins('moonshot').every(row => !row.listedLive) && listMoonshotModels()[0]?.ref.model === 'kimi-k3' && describeMoonshotProvider().catalogueSource === 'static-pin', absentWorld.why)
+  const absentVerdict = absentWorld.considered.find(entry => entry.family === 'moonshot')?.verdict
+  check("unread: a signed-in key with no list read lists nothing; the default leaves the family saying the account's list has not been read; the picker and the adapter carry no row", absentWorld.provider !== 'moonshot' && absentVerdict?.usable === false && absentVerdict.why === "the account's model list has not been read" && keyLanePins('moonshot').length === 0 && listMoonshotModels().length === 0 && describeMoonshotProvider().catalogue.length === 0, JSON.stringify({ provider: absentWorld.provider, why: absentVerdict?.why }))
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [] }) })
   resetComputedDefaultMemo()
   const emptyChoice = computedDefault()

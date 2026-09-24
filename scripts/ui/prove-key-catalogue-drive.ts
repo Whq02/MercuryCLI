@@ -134,10 +134,10 @@ for (const family of FAMILIES) {
           { name: 'retired', model: retired, refused: true },
           { name: 'empty', model: next, list: 'empty', refused: true },
           { name: 'unreachable', model: next, list: 'unreachable', expected: next, degraded: true },
-          { name: 'dated-default', list: 'unreachable', oldServed: true, expected: retired, degraded: true },
+          { name: 'unread-default', list: 'unreachable', oldServed: true, unreadDefault: true },
           { name: 'traffic-off', model: next, dark: true, expected: next, degraded: true },
         ]
-        for (const test of cases as Array<{ name: string; model?: string; expected?: string; saved?: string; envModel?: string; list?: string; oldServed?: boolean; refused?: boolean; degraded?: boolean; dark?: boolean }>) {
+        for (const test of cases as Array<{ name: string; model?: string; expected?: string; saved?: string; envModel?: string; list?: string; oldServed?: boolean; refused?: boolean; degraded?: boolean; dark?: boolean; unreadDefault?: boolean }>) {
           wire.splice(0)
           listMode = test.list ?? 'live'
           serveRetired = test.oldServed ?? false
@@ -151,6 +151,8 @@ for (const family of FAMILIES) {
           if (family === 'zai') {
             const words = result.stdout
             check(`${tag}: the Z.AI reason follows the status`, words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'), words)
+          } else if (test.unreadDefault) {
+            check(`${tag} ${test.name}: a signed-in account whose list cannot be read never defaults onto a typed id (no chat on ${retired}, no fixture answer)`, !chats.some(hit => hit.model === retired) && !result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }))
           } else if (test.refused) {
             check(`${tag} ${test.name}: refusal precedes every chat request`, chats.length === 0 && result.stdout.includes('is not offered by the') && result.stdout.includes('live catalogue'), JSON.stringify({ chats, stdout: result.stdout }))
           } else {

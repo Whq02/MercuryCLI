@@ -454,6 +454,27 @@ export function keyLanePinLabel(pin: Pick<KeyLanePin, 'displayName' | 'servedAs'
   return pin.servedAs === undefined ? pin.displayName : `${pin.displayName} · ${pin.servedAs.displayName}`
 }
 
+export type KeyLaneListState =
+  | { kind: 'live'; count: number }
+  | { kind: 'pin' }
+  | { kind: 'unread'; reading: boolean; error?: string }
+
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneListState {
+  if (provider === 'zai') return { kind: 'pin' }
+  if (provider === 'moonshot') {
+    const { moonshotCatalogueRows } =
+      require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
+    const { source } = moonshotCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    if (source.kind === 'unread') return { kind: 'unread', reading: source.reading, ...(source.error !== undefined ? { error: source.error } : {}) }
+    return { kind: 'pin' }
+  }
+  const { deepseekCatalogueRows } =
+    require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
+  const { source } = deepseekCatalogueRows()
+  return source.kind === 'live' ? { kind: 'live', count: source.count } : { kind: 'pin' }
+}
+
 export interface KeyLaneReads {
   zaiKeyPresent(): boolean
   moonshotCredentialPresent(): boolean
@@ -527,7 +548,24 @@ export function keyLaneGroupRows(args: {
   connectLabel?: string
   keyPresent: boolean
   pins: KeyLanePin[]
+  listState?: KeyLaneListState
 }): ModelOption[] {
+  if (args.keyPresent && args.pins.length === 0 && args.listState?.kind === 'unread') {
+    const reading = args.listState.reading
+    const error = args.listState.error
+    return [
+      {
+        value: args.connectValue,
+        label: reading ? `${args.providerName} — reading model list…` : `${args.providerName} — list unavailable`,
+        description: reading ? "rows appear when the account's model list lands — ↵ reads it again" : `model list unavailable: ${error ?? 'the last read failed'} — ↵ retries now`,
+        descriptionForModel: reading
+          ? `The ${args.providerName} account is signed in and its live model list is being read; no ${args.providerName} model is selectable until the list lands.`
+          : `The ${args.providerName} account is signed in but its live model list could not be read (${error ?? 'the last read failed'}); no ${args.providerName} model is selectable until a read lands.`,
+        group: args.group,
+        ...(reading ? {} : { unavailable: `model list unavailable — ${error ?? 'the last read failed'}` }),
+      },
+    ]
+  }
   if (args.keyPresent) {
     return args.pins.map(pin => ({
       value: pin.id,
@@ -579,6 +617,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       connectLabel: 'sign in with Kimi or attach a key',
       keyPresent: reads.moonshotCredentialPresent(),
       pins: keyLanePins('moonshot'),
+      listState: keyLaneListState('moonshot'),
     }),
   )
   out.push(
