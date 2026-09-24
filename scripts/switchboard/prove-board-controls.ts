@@ -606,7 +606,7 @@ console.log('H — the session model picker follows the selected session facts')
     getDisplayedEffortLabel: (_model: string, value: string | undefined) => value ?? 'default',
     getInitialEffortSetting: () => 'high',
     useCatalogueRefreshOnOpen: () => {},
-    GPT_ROAD: {}, OPENROUTER_ROAD: {}, GEMINI_ROAD: {}, HUGGINGFACE_ROAD: {}, LOCAL_ROAD: {},
+    GPT_ROAD: {}, OPENROUTER_ROAD: {}, GEMINI_ROAD: {}, HUGGINGFACE_ROAD: {}, LOCAL_ROAD: {}, ANTHROPIC_SUBSCRIPTION_ROAD: {},
     getModelOptions: () => [],
     modelChoiceOf: (v: unknown) => v,
     resolveCurrentRowId: (_rows: unknown[], value: string) => value,
