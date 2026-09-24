@@ -5,6 +5,8 @@ import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../constants/betas.js'
 import { getAttributionHeader, getCLISyspromptPrefix } from '../constants/system.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { getAnthropicClient } from '../services/api/client.js'
+import { isClientContractRefusalError } from '../services/api/clientContractGate.js'
+import { healClientContractRefusal, noteClientContractHeal } from '../services/api/clientContractLearned.js'
 import { getAPIMetadata } from '../services/providers/anthropic/requestParams.js'
 import type { JsonOutputFormat, MessageParam, TextBlockParam } from '../types/wire.js'
 import { computeFingerprint } from './fingerprint.js'
@@ -116,10 +118,29 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
     ...(betas.length > 0 ? { betas } : {}),
   }
 
-  const response = await client.beta.messages.create(
-    request as unknown as Parameters<typeof client.beta.messages.create>[0],
-    opts.signal ? { signal: opts.signal } : undefined,
-  )
+  const send = (system: TextBlockParam[]) =>
+    client.beta.messages.create(
+      { ...request, system } as unknown as Parameters<typeof client.beta.messages.create>[0],
+      opts.signal ? { signal: opts.signal } : undefined,
+    )
+  let response: Awaited<ReturnType<typeof send>>
+  try {
+    response = await send(systemBlocks)
+  } catch (error) {
+    if (!isClientContractRefusalError(error)) throw error
+    const heal = await healClientContractRefusal(error, opts.signal)
+    const healed = getAttributionHeader(fingerprint)
+    if (heal.kind !== 'retry' || !attributionHeader || healed === attributionHeader) {
+      noteClientContractHeal(error, heal)
+      throw error
+    }
+    try {
+      response = await send([{ type: 'text', text: healed }, ...systemBlocks.slice(1)])
+    } catch (retryError) {
+      if (isClientContractRefusalError(retryError)) noteClientContractHeal(retryError, heal)
+      throw retryError
+    }
+  }
   setLastApiCompletionTimestamp(Date.now())
   return response as unknown as ApiMessage
 }
