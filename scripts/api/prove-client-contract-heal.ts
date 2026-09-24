@@ -27,11 +27,19 @@ function bump(v: string, patch: number): string {
   const parts = v.split('.')
   return `${parts[0]}.${parts[1]}.${Number(parts[2]) + patch}`
 }
+async function waitFor(condition: () => boolean, ms: number): Promise<boolean> {
+  const until = Date.now() + ms
+  while (Date.now() < until) {
+    if (condition()) return true
+    await new Promise(resolve => setTimeout(resolve, 20))
+  }
+  return condition()
+}
 const dayOf = (ms: number | undefined): string => (typeof ms === 'number' ? new Date(ms).toISOString().slice(0, 10) : '')
 const ROOT = join(import.meta.dir, '..', '..')
 
 type RegistryMode =
-  | { kind: 'ok'; version: string; holdMs?: number; onRead?: () => void }
+  | { kind: 'ok'; version: string; holdMs?: number; onRead?: () => void; until?: Promise<void> }
   | { kind: 'status500' }
   | { kind: 'hang' }
   | { kind: 'noversion' }
@@ -60,7 +68,8 @@ const registry = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ name: '@anthropic-ai/claude-code', version: mode.version }))
   }
-  if (mode.holdMs === undefined) answer()
+  if (mode.until !== undefined) void mode.until.then(answer)
+  else if (mode.holdMs === undefined) answer()
   else setTimeout(answer, mode.holdMs)
 })
 await new Promise<void>(resolve => registry.listen(0, '127.0.0.1', resolve))
@@ -569,30 +578,29 @@ check('the words of a still-refused retry whose answer was not saved say so in t
 
 section('§9 the quiet window is claimed across processes — two sessions refused together make one registry read')
 {
-  const sharedHome = join(scratchRoot, 'home-cross')
-  mkdirSync(sharedHome, { recursive: true })
-  registryMode = { kind: 'ok', version: NEWER, holdMs: 800 }
-  const readsBefore = registryReads
-  const childEnv: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: sharedHome, HEAL_SENT: CONTRACT, HEAL_FLOOR: NEWER }
-  delete childEnv.MERCURY_FAULT_INJECT
-  const runChild = (): Promise<{ code: number | null; out: string; err: string }> =>
-    new Promise(resolve => {
-      const child = spawn(process.execPath, ['run', join(ROOT, 'scripts', 'api', 'client-contract-heal-child.ts')], { cwd: ROOT, env: childEnv })
-      let out = ''
-      let err = ''
-      child.stdout.on('data', d => {
-        out += String(d)
-      })
-      child.stderr.on('data', d => {
-        err += String(d)
-      })
-      const killer = setTimeout(() => child.kill('SIGKILL'), 30_000)
+  type ChildRun = { code: number | null; out: string; err: string }
+  const startChild = (home: string, extra: Record<string, string> = {}): { go: () => void; ready: () => boolean; done: Promise<ChildRun> } => {
+    const env: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: home, HEAL_SENT: CONTRACT, HEAL_FLOOR: NEWER, ...extra }
+    delete env.MERCURY_FAULT_INJECT
+    const child = spawn(process.execPath, ['run', join(ROOT, 'scripts', 'api', 'client-contract-heal-child.ts')], { cwd: ROOT, env })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', d => {
+      out += String(d)
+    })
+    child.stderr.on('data', d => {
+      err += String(d)
+    })
+    child.stdin.on('error', () => undefined)
+    const killer = setTimeout(() => child.kill('SIGKILL'), 30_000)
+    const done = new Promise<ChildRun>(resolve =>
       child.on('close', code => {
         clearTimeout(killer)
         resolve({ code, out, err })
-      })
-    })
-  const [a, b] = await Promise.all([runChild(), runChild()])
+      }),
+    )
+    return { go: () => void child.stdin.write('go\n'), ready: () => out.split('\n').includes('ready'), done }
+  }
   const outcomeOf = (out: string): { kind?: string; to?: string; via?: string } | null => {
     try {
       return JSON.parse(out.trim().split('\n').filter(Boolean).at(-1) ?? 'null')
@@ -600,12 +608,43 @@ section('§9 the quiet window is claimed across processes — two sessions refus
       return null
     }
   }
-  const outcomes = [outcomeOf(a.out), outcomeOf(b.out)]
-  check('both sessions ran to an outcome', a.code === 0 && b.code === 0 && outcomes.every(o => o !== null), `${a.code}/${b.code} ${a.err.slice(-300)} ${b.err.slice(-300)}`)
-  check('the two sessions made exactly one registry read between them', registryReads - readsBefore === 1, `${registryReads - readsBefore} read(s)`)
-  check('both sessions retry once on the number that one read learned', outcomes.every(o => o?.kind === 'retry' && o.to === NEWER), JSON.stringify(outcomes))
-  check('exactly one of them read the registry; the other took its answer', outcomes.filter(o => o?.via === 'registry').length === 1 && outcomes.filter(o => o?.via === 'peer' || o?.via === 'stored').length === 1, JSON.stringify(outcomes))
-  check('the shared record holds the learned number and no lock remains', readLearnedFile(sharedHome)?.learned?.version === NEWER && !lockLeft(sharedHome), JSON.stringify(readLearnedFile(sharedHome)))
+  const judge = (leg: string, home: string, runs: ChildRun[], reads: number): void => {
+    const outcomes = runs.map(run => outcomeOf(run.out))
+    check(`${leg}: both sessions ran to an outcome`, runs.every(run => run.code === 0) && outcomes.every(o => o !== null), runs.map(run => `${run.code} ${run.err.slice(-300)}`).join(' | '))
+    check(`${leg}: the two sessions made exactly one registry read between them`, reads === 1, `${reads} read(s)`)
+    check(`${leg}: both sessions retry once on the number that one read learned`, outcomes.every(o => o?.kind === 'retry' && o.to === NEWER), JSON.stringify(outcomes))
+    check(`${leg}: exactly one of them read the registry; the other took its answer`, outcomes.filter(o => o?.via === 'registry').length === 1 && outcomes.filter(o => o?.via === 'peer' || o?.via === 'stored').length === 1, JSON.stringify(outcomes))
+    check(`${leg}: the shared record holds the learned number and no lock remains`, readLearnedFile(home)?.learned?.version === NEWER && !lockLeft(home), JSON.stringify(readLearnedFile(home)))
+  }
+  for (const round of [1, 2, 3]) {
+    const home = join(scratchRoot, `home-cross-${round}`)
+    mkdirSync(home, { recursive: true })
+    registryMode = { kind: 'ok', version: NEWER, holdMs: 800 }
+    const readsBefore = registryReads
+    const runs = await Promise.all([startChild(home).done, startChild(home).done])
+    judge(`refused together, round ${round} of 3`, home, runs, registryReads - readsBefore)
+  }
+  {
+    const home = join(scratchRoot, 'home-cross-interleaved')
+    mkdirSync(home, { recursive: true })
+    let release: () => void = () => undefined
+    const held = new Promise<void>(resolve => {
+      release = resolve
+    })
+    registryMode = { kind: 'ok', version: NEWER, until: held }
+    const readsBefore = registryReads
+    const first = startChild(home, { HEAL_WAIT_FOR_GO: '1' })
+    const second = startChild(home, { HEAL_WAIT_FOR_GO: '1', HEAL_CLOCK_LAG_MS: '5000' })
+    const ready = await waitFor(() => first.ready() && second.ready(), 30_000)
+    first.go()
+    const firstReading = await waitFor(() => registryReads - readsBefore >= 1, 15_000)
+    second.go()
+    await waitFor(() => registryReads - readsBefore >= 2, 1_000)
+    release()
+    const runs = await Promise.all([first.done, second.done])
+    check('interleaved: both sessions were ready, and the first had saved its claim and opened its read before the second began', ready && firstReading, `ready=${ready} firstReading=${firstReading}`)
+    judge("interleaved, the second session's clock 5 s behind the first one's claim", home, runs, registryReads - readsBefore)
+  }
 }
 
 section('§10 a moved number reads as a lawful prefix change — named by the ledger, declared by the owner rule')

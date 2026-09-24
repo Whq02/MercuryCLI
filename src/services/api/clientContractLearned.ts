@@ -246,7 +246,7 @@ function latestRead(home: string, stored: ClientContractRead | undefined): Clien
 }
 
 function withinQuietWindow(atMs: number, nowMs: number): boolean {
-  return nowMs - atMs >= 0 && nowMs - atMs < REGISTRY_QUIET_WINDOW_MS
+  return Math.abs(nowMs - atMs) < REGISTRY_QUIET_WINDOW_MS
 }
 
 function peekedWithinDay(record: ClientContractRecord, at: number): boolean {
@@ -387,9 +387,10 @@ function refusalText(error: unknown): string {
   return typeof message === 'string' ? message : ''
 }
 
-async function claimRead(home: string, by: ClientContractActor, at: number): Promise<ClaimVerdict> {
+async function claimRead(home: string, by: ClientContractActor, clock: () => number): Promise<ClaimVerdict> {
   try {
     const verdict = await clientContractStore(home).update<ClaimVerdict>(current => {
+      const at = clock()
       if (by === 'peek' && peekedWithinDay(current, at)) return { next: current, result: { kind: 'today' } }
       const last = latestRead(home, current.lastRead)
       if (last !== undefined && withinQuietWindow(last.atMs, at)) return { next: current, result: { kind: 'windowed', last } }
@@ -481,7 +482,7 @@ export async function healClientContractRefusal(
   if (known !== null) return { kind: 'retry', sent, to: known, via: 'stored' }
   const off = getEssentialTrafficOnlyReason()
   if (off !== null) return { kind: 'off', sent, why: off }
-  const verdict = await claimRead(home, 'heal', clock())
+  const verdict = await claimRead(home, 'heal', clock)
   if (verdict.kind === 'windowed') {
     const last = await awaitPeerAnswer(home, verdict.last, signal)
     const late = await adoptKnown(home, sent)
@@ -542,7 +543,7 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
       await peer
       return { kind: 'skipped', why: 'window', ...(await adoptStored(home)) }
     }
-    const verdict = await claimRead(home, 'peek', at)
+    const verdict = await claimRead(home, 'peek', clock)
     if (verdict.kind === 'today') return { kind: 'skipped', why: 'today', ...(await adoptStored(home)) }
     if (verdict.kind === 'windowed') {
       await awaitPeerAnswer(home, verdict.last)
@@ -567,7 +568,7 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
         ...fresh,
         lastRead: read,
         ...(answered !== undefined && (fresh.learned === undefined || isNewer(answered.version, fresh.learned.version)) ? { learned: answered } : {}),
-        ...(answer.ok ? { lastPeekAtMs: at } : {}),
+        ...(answer.ok ? { lastPeekAtMs: read.atMs } : {}),
       }))
       return { kind: 'read', answer, learned, ...(refused !== null ? { unsaved: refused } : {}) }
     } finally {
