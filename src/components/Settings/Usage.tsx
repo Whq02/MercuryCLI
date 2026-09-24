@@ -10,6 +10,7 @@ import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns } from '../../utils/model/computedDefault.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
+  CREDITS_UNREPORTED_WORDS,
   anthropicPoolWindowViews,
   anthropicWindowViews,
   openaiObservedWindowViews,
@@ -24,6 +25,10 @@ import {
   type ProviderSessionSpend,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
+import { jevUsdLabel } from '../../services/jev/jevContract.js'
+import { jevLedgerSnapshot } from '../../services/jev/jevLedger.js'
+import { readJevSettings } from '../../services/jev/jevSetting.js'
+import { JEV_STATUS_HEADWORDS, jevStatus } from '../../services/jev/jevStatus.js'
 import { usageSourceWords } from '../../services/providers/usageFreshness.js'
 import { activeWalletEntry, walletEntries } from '../../services/wallet/wallet.js'
 import { getGptSeatAvailability } from '../../services/providers/openai/openaiCatalogue.js'
@@ -858,6 +863,22 @@ export function usageWindow(bands: ReadonlyArray<{ height: number; count: number
   return { ...current, previous, next }
 }
 
+export const JEV_USAGE_LABEL = "JEV · Mercury's count"
+
+export function jevUsageRow(now: number = Date.now()): string {
+  const settings = readJevSettings()
+  const ledger = jevLedgerSnapshot(now)
+  const headword = JEV_STATUS_HEADWORDS[jevStatus(undefined, now).kind]
+  return `${JEV_USAGE_LABEL}: ${jevUsdLabel(ledger.spendUsd)} · ${ledger.calls} call${ledger.calls === 1 ? '' : 's'} (${ledger.unconfirmedCharges} unconfirmed) · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${CREDITS_UNREPORTED_WORDS}`
+}
+
+export function usageBodyRows(budget: number): { footerRows: number; jevRows: number; capacity: number } {
+  const rows = Math.max(0, Math.floor(budget))
+  const footerRows = rows > 1 ? 1 : 0
+  const jevRows = rows > 2 ? 1 : 0
+  return { footerRows, jevRows, capacity: rows - footerRows - jevRows }
+}
+
 export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: number; width?: number; rowBudget?: number }): React.ReactNode {
   const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
   const { perRow, colW, meterW, gap } = usageColumns(width, plan.length)
@@ -872,8 +893,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: 
   }, [])
   useLayoutEffect(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
-  const footerRows = budget > 1 ? 1 : 0
-  const capacity = budget - footerRows
+  const { footerRows, jevRows, capacity } = usageBodyRows(budget)
   const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return
@@ -904,6 +924,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: 
             </Box>
           </Box>
         </Box>
+        {jevRows > 0 ? <Box height={1} flexShrink={0}><Text wrap="truncate-end">{jevUsageRow()}</Text></Box> : null}
         {footerRows > 0 ? <Box height={1} flexShrink={0}><Text dimColor wrap="truncate-end">{more}</Text></Box> : null}
       </Box>
     </UsageLayoutContext.Provider>
