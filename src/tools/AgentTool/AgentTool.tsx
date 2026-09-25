@@ -681,20 +681,6 @@ export const AgentTool = buildTool({
       promptMessages = buildForkedMessages(input.prompt, parentAssistantMessage)
     } else {
       promptMessages = [createUserMessage({ content: input.prompt })]
-      const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
-      if (!willOverrideCwd) {
-        try {
-          systemPromptOverride = await buildDefaultSystemPrompt(
-            agentDef,
-            context,
-            plan.model,
-          )
-        } catch (error) {
-          logForDebugging(
-            `AgentTool: system prompt build failed: ${errorMessage(error)}`,
-          )
-        }
-      }
     }
 
     const workerTools = isFork
@@ -726,6 +712,21 @@ export const AgentTool = buildTool({
     }
 
     const earlyAgentId = generateTaskId('local_agent') as AgentId
+    const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
+    if (!isFork && !willOverrideCwd) {
+      try {
+        systemPromptOverride = await buildDefaultSystemPrompt(
+          agentDef,
+          context,
+          plan.model,
+          earlyAgentId,
+        )
+      } catch (error) {
+        logForDebugging(
+          `AgentTool: system prompt build failed: ${errorMessage(error)}`,
+        )
+      }
+    }
 
     let worktreeInfo:
       | Awaited<ReturnType<typeof createAgentWorktree>>
@@ -1172,6 +1173,7 @@ async function buildDefaultSystemPrompt(
   definition: AgentDefinition,
   context: ToolUseContext,
   childModel: string,
+  agentId: AgentId,
 ): Promise<string[]> {
   const ownPrompt = isBuiltInAgent(definition)
     ? definition.getSystemPrompt({ toolUseContext: context })
@@ -1186,5 +1188,7 @@ async function buildDefaultSystemPrompt(
     Array.from(
       context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
     ),
+    undefined,
+    agentId,
   )
 }
