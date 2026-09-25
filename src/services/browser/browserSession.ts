@@ -1,4 +1,5 @@
 
+import { ChildProcess } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Browser as DriverBrowser, LaunchOptions, Page } from 'puppeteer-core'
@@ -53,9 +54,19 @@ export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
 export type CloseOutcome = 'closed' | 'killed' | 'gone'
 
 function killChild(browser: DriverBrowser): void {
+  const child = browser.process()
+  if (!child) return
+  const pid = child instanceof ChildProcess && process.platform !== 'win32' ? child.pid : undefined
   try {
-    browser.process()?.kill()
+    if (typeof pid === 'number' && pid > 0) process.kill(-pid, 'SIGKILL')
+    else child.kill('SIGKILL')
+    return
   } catch {
+  }
+  try {
+    child.kill('SIGKILL')
+  } catch {
+    return
   }
 }
 

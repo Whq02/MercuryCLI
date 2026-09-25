@@ -229,9 +229,56 @@ export function driverFailureWords(op: string, message: string): string | null {
     return `${op}: the browser did not answer within ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s — its process may be gone; op:"close" ends the session, op:"open" starts a new one`
   }
   if (/Target closed|Connection closed|Session closed|Protocol error.*detached|Navigating frame was detached|browser has disconnected/i.test(message)) {
-    return `${op}: the browser is gone (its process exited mid-op) — op:"open" starts a new one`
+    return browserGoneMidOpWords(op)
   }
   return null
+}
+
+export function browserGoneMidOpWords(op: string): string {
+  return `${op}: the browser is gone (its process exited mid-op) — op:"open" starts a new one`
+}
+
+export function errorChainText(err: unknown): string {
+  const parts: string[] = []
+  let cursor: unknown = err
+  for (let depth = 0; depth < 8 && cursor !== undefined && cursor !== null; depth++) {
+    const e = cursor as { message?: unknown; cause?: unknown }
+    parts.push(typeof e.message === 'string' ? e.message : String(cursor))
+    cursor = e.cause
+  }
+  return parts.join(' <- ')
+}
+
+const BROWSER_GONE_ERROR = 'BrowserGoneError'
+
+function browserGoneError(): Error {
+  const err = new Error('the browser is gone (its process exited mid-op)')
+  err.name = BROWSER_GONE_ERROR
+  return err
+}
+
+interface OpLife {
+  signal: AbortSignal
+  browser: LiveSession['browser']
+  release: () => void
+}
+
+function openOpLife(s: LiveSession, outer: AbortSignal | undefined): OpLife {
+  const life = new AbortController()
+  const onOuter = (): void => life.abort(outer?.reason)
+  const onGone = (): void => life.abort(browserGoneError())
+  if (outer?.aborted) life.abort(outer.reason)
+  else outer?.addEventListener('abort', onOuter, { once: true })
+  if (s.browser.connected) s.browser.on('disconnected', onGone)
+  else onGone()
+  return {
+    signal: life.signal,
+    browser: s.browser,
+    release: (): void => {
+      outer?.removeEventListener('abort', onOuter)
+      s.browser.off('disconnected', onGone)
+    },
+  }
 }
 
 function preview(text: string, cap = 40): string {
@@ -813,6 +860,8 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
     let inlinePath: string | undefined
     let inlineMediaType: string | undefined
     let secretInPlay: { value: string; ref: string } | null = null
+    let life = null as OpLife | null
+    const signalFor = (s: LiveSession): AbortSignal => (life ??= openOpLife(s, context.abortController?.signal)).signal
     try {
       switch (input.op) {
         case 'status': {
@@ -835,7 +884,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           const response = await s.page.goto(input.url!, {
             waitUntil: input.waitUntil ?? 'load',
             timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
-            signal: context.abortController?.signal,
+            signal: signalFor(s),
           })
           approveWebOrigin(owner, input.url!)
           const landed = originOf(s.page.url())
@@ -879,7 +928,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           let target: string
           if (input.selector) {
             const deadline = actDeadline(input)
-            const handle = await resolveActTarget(s, input.selector, deadline, context.abortController?.signal)
+            const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s))
             await handle.scrollIntoView()
             await settleBoundingBox(handle, deadline)
             const refusal = await clickGate(s, handle)
@@ -928,12 +977,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
               break
             }
             secretInPlay = { value: resolved.value, ref: input.secretRef }
-            const requested = await resolveActTarget(
-              s,
-              input.selector!,
-              actDeadline(input),
-              context.abortController?.signal,
-            )
+            const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
             await requested.focus()
             const probe = await probeEditableTarget(s, requested)
             if (!probe || !probe.held) {
@@ -986,7 +1030,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           const targetName = input.selector ?? '(focused element)'
           let requested: ElementHandle<Element> | null = null
           if (input.selector) {
-            requested = await resolveActTarget(s, input.selector, actDeadline(input), context.abortController?.signal)
+            requested = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
             await requested.focus()
           }
           const probe = await probeEditableTarget(s, requested)
@@ -1092,7 +1136,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           if (input.selector) {
-            const handle = await resolveActTarget(s, input.selector, actDeadline(input), context.abortController?.signal)
+            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
             await handle.evaluate(el => (el as HTMLElement).scrollIntoView({ block: 'center' }))
             const yNow = await s.page.evaluate(() => window.scrollY)
             result = `scroll: ${input.selector} into view (scrollY ${Math.round(yNow)}) at ${s.page.url()}`
@@ -1125,7 +1169,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
               const state = input.state ?? 'visible'
               await s.page.waitForSelector(input.selector, {
                 timeout: deadline,
-                signal: context.abortController?.signal,
+                signal: signalFor(s),
                 ...(state === 'visible' ? { visible: true } : state === 'hidden' ? { hidden: true } : {}),
               })
               const landedState =
@@ -1137,7 +1181,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
                   const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
                   return norm(document.body?.innerText ?? '').includes(norm(needle))
                 },
-                { timeout: deadline, polling: 'raf', signal: context.abortController?.signal },
+                { timeout: deadline, polling: 'raf', signal: signalFor(s) },
                 input.text,
               )
               result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${s.page.url()}`
@@ -1146,7 +1190,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
                 .waitForFunction(() => document.readyState !== 'loading', {
                   timeout: deadline,
                   polling: 'raf',
-                  signal: context.abortController?.signal,
+                  signal: signalFor(s),
                 })
                 .catch(() => {})
               result = `waitFor navigation: already landed at ${s.page.url()} (${Date.now() - t0}ms — the navigation completed during the previous act)`
@@ -1154,7 +1198,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
               await s.page.waitForNavigation({
                 waitUntil: 'domcontentloaded',
                 timeout: deadline,
-                signal: context.abortController?.signal,
+                signal: signalFor(s),
               })
               result = `waitFor navigation: landed ${s.page.url()} after ${Date.now() - t0}ms`
             }
@@ -1189,7 +1233,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
             response = await s.page.goBack({
               waitUntil: 'domcontentloaded',
               timeout: 15_000,
-              signal: context.abortController?.signal,
+              signal: signalFor(s),
             })
           } catch (err) {
             if (!(err as Error).message.includes('History entry to navigate to not found')) throw err
@@ -1221,7 +1265,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           const reloadResponse = await s.page.reload({
             waitUntil: input.waitUntil ?? 'load',
             timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
-            signal: context.abortController?.signal,
+            signal: signalFor(s),
           })
           const reloadStatus =
             reloadResponse === null
@@ -1247,7 +1291,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
-          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), context.abortController?.signal)
+          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
           const isSelect = await handle.evaluate(el => el.tagName === 'SELECT')
           if (!isSelect) {
             result = `select refused: ${input.selector} is not a <select> element — op:"type" fills text fields, op:"click" toggles checkboxes`
@@ -1334,7 +1378,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
-          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), context.abortController?.signal)
+          const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
           await handle.hover()
           result = `hover ${input.selector} at ${s.page.url()}`
           outcome = 'succeeded'
@@ -1375,7 +1419,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
             break
           }
           const scope = input.selector ?? 'body'
-          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), context.abortController?.signal) : null
+          const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s)) : null
           if ((input.mode ?? 'text') === 'text') {
             const text = root
               ? await root.evaluate(el => (el as HTMLElement).innerText)
@@ -1437,7 +1481,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           }
           const file = screenshotPath(input.label ?? new URL(s.page.url()).hostname)
           if (input.selector) {
-            const handle = await resolveActTarget(s, input.selector, actDeadline(input), context.abortController?.signal)
+            const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
             await handle.screenshot({ path: file as `${string}.png` })
           } else {
             await s.page.screenshot({ path: file as `${string}.png`, fullPage: input.fullPage === true })
@@ -1478,11 +1522,17 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       }
     } catch (err) {
       const e = err as Error
+      const interrupted = context.abortController?.signal.aborted === true
+      const goneMidOp = e.name === BROWSER_GONE_ERROR || (life !== null && !life.browser.connected)
       result =
-        e.name === 'AbortError' || context.abortController?.signal.aborted === true
+        interrupted || (e.name === 'AbortError' && !goneMidOp)
           ? `${input.op} interrupted by the operator — the wait was released, nothing further was done`
-          : (driverFailureWords(input.op, String(e.message ?? e)) ?? `${input.op} failed: ${e.message}`)
+          : goneMidOp
+            ? browserGoneMidOpWords(input.op)
+            : (driverFailureWords(input.op, errorChainText(e)) ?? `${input.op} failed: ${e.message}`)
       outcome = 'failed'
+    } finally {
+      life?.release()
     }
     if (secretInPlay !== null) {
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)
