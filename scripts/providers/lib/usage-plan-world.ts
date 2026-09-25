@@ -2,6 +2,7 @@ import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
@@ -29,8 +30,7 @@ export function tally() {
 
 export async function usagePlanWorld() {
   const root = resolve(argument('--root') ?? join(import.meta.dir, '../../..'))
-  const parent = process.env.TMPDIR
-  if (!parent || !isAbsolute(parent)) throw new Error('TMPDIR must name the lead-provided scratch directory')
+  const parent = process.env.TMPDIR && isAbsolute(process.env.TMPDIR) ? process.env.TMPDIR : tmpdir()
   const home = mkdtempSync(join(parent, 'usage-plans-'))
   const savedEnv = { ...process.env }
   for (const name of Object.keys(process.env)) {

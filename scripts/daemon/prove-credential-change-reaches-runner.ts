@@ -113,6 +113,7 @@ function landSignIn(account: { uuid: string; email: string }): void {
     scopes: ['user:inference', 'user:profile'],
     subscriptionType: 'max',
     rateLimitTier: 'default_claude_max_20x',
+    tokenAccount: { uuid: account.uuid, emailAddress: account.email },
   })
   if (!saved.success) throw new Error(`the credential store refused the sign-in: ${saved.warning ?? '?'}`)
   auth.clearOAuthTokenCache()

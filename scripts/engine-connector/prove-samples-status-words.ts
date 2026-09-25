@@ -38,6 +38,8 @@ async function main(): Promise<void> {
   enableConfigs()
   const counts = await import(src('services/engine-connector/workCounts.ts'))
   const bar = await import(src('components/SwitchboardTagBar.tsx'))
+  const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
+  const chordDelta = stringWidth(keyHintLabel('⇧← back')) - stringWidth('⇧← back')
   const work = await import(src('components/tasks/useFocusedWork.ts'))
   const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
   const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
@@ -309,7 +311,8 @@ async function main(): Promise<void> {
   let fallbacks = 0
   for (const [name, line, fixed] of cases) {
     check(`${name}: the line carries a tail clause (the cut that protects it is the cut under proof)`, line.includes(' — ') && line !== '', line)
-    for (const columns of [100, 120, 178]) {
+    for (const nominal of [100, 120, 178]) {
+      const columns = nominal + chordDelta
       const base = bar.fitStatusLine(line, columns, fixed)
       const budget = budgetOf(columns, fixed)
       let ok = true
@@ -324,9 +327,9 @@ async function main(): Promise<void> {
           ok = false
           detail = `${n}: ${got}`
         }
-        lawful[`${name}@${columns}/${n}`] = got
+        lawful[`${name}@${nominal}/${n}`] = got
       }
-      check(`${name} @${columns}: the no-sample fit exactly, or the whole line with its tail — never a cut inside the state words`, ok, detail)
+      check(`${name} @${nominal}: the no-sample fit exactly, or the whole line with its tail — never a cut inside the state words`, ok, detail)
     }
   }
   check('the matrix exercises both arms (a tail that fits, and a fallback that drops it)', tails > 0 && fallbacks > 0, `tails=${tails} fallbacks=${fallbacks}`)
@@ -335,10 +338,10 @@ async function main(): Promise<void> {
   const second = cases[3]![1]
   check("the reviewer's case: the late first-byte warning at 178 keeps '2m so far' and its whole head", lawful['late first byte@178/1'] === late && late.includes('2m so far') && !lawful['late first byte@178/1']!.includes('·…'), lawful['late first byte@178/1'])
   check("the reviewer's case: the stuck warning at 120 keeps 'for 45s'", lawful['stuck@120/1'] === stuck && stuck.includes('for 45s'), lawful['stuck@120/1'])
-  check("the reviewer's case: the second esc at 100 reads exactly as it does without samples, its head surviving", lawful['interrupting again@100/1'] === bar.fitStatusLine(second, 100, cases[3]![2]) && lawful['interrupting again@100/1']!.startsWith('interrupt'), lawful['interrupting again@100/1'])
-  check("the reviewer's case: the long effort receipt at 100 reads exactly as it does without samples", lawful['effort receipt with the saved note@100/1'] === bar.fitStatusLine(receipts[1]![1], 100, cases[5]![2]), lawful['effort receipt with the saved note@100/1'])
+  check("the reviewer's case: the second esc at 100 reads exactly as it does without samples, its head surviving", lawful['interrupting again@100/1'] === bar.fitStatusLine(second, 100 + chordDelta, cases[3]![2]) && lawful['interrupting again@100/1']!.startsWith('interrupt'), lawful['interrupting again@100/1'])
+  check("the reviewer's case: the long effort receipt at 100 reads exactly as it does without samples", lawful['effort receipt with the saved note@100/1'] === bar.fitStatusLine(receipts[1]![1], 100 + chordDelta, cases[5]![2]), lawful['effort receipt with the saved note@100/1'])
   seatA.setWork({ samples: samples(1) })
-  const wide = await mount(178, React.createElement(bar.FocusedSessionStatusRow))
+  const wide = await mount(178 + chordDelta, React.createElement(bar.FocusedSessionStatusRow))
   const wideScene = async (name: string, act: () => void): Promise<string> => {
     act()
     await settle()
@@ -358,7 +361,7 @@ async function main(): Promise<void> {
   })
   wide.close()
   seatA.setLive(thinking)
-  const tight = await mount(100, React.createElement(bar.FocusedSessionStatusRow))
+  const tight = await mount(100 + chordDelta, React.createElement(bar.FocusedSessionStatusRow))
   const tightScene = async (name: string, act: () => void): Promise<string> => {
     act()
     await settle()
@@ -373,11 +376,11 @@ async function main(): Promise<void> {
   {
     const lateHint = bar.escBackHint(thinking, arms[0]![2])
     const secondHint = bar.escBackHint(thinking, arms[3]![2])
-    check('every warning scene is one line within its width', [lateFrame, receiptFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 178) && [stuckFrame, secondFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 100))
+    check('every warning scene is one line within its width', [lateFrame, receiptFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 178 + chordDelta) && [stuckFrame, secondFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 100 + chordDelta))
     check('178, late first byte, one sample: the warning stands whole and the count yields', lateFrame.startsWith(` mercury · ${late}`) && !lateFrame.includes('sample') && lateFrame.trimEnd().endsWith(lateHint), lateFrame)
     check('178, a held receipt, one sample: the receipt whole, the count after its full stop', receiptPainted && receiptFrame.startsWith(` ${receipts[0]![1]} · 1 sample`) && receiptFrame.trimEnd().endsWith(idleHint), receiptFrame)
-    check('100, stuck, one sample: the row reads exactly as it does without samples', stuckFrame.startsWith(` mercury · ${bar.fitStatusLine(stuck, 100, cases[1]![2])}`) && !stuckFrame.includes('sample') && stuckFrame.includes('the session may be stuck'), stuckFrame)
-    check('100, the second esc, one sample: the row reads exactly as it does without samples', secondFrame.startsWith(` mercury · ${bar.fitStatusLine(second, 100, cases[3]![2])}`) && !secondFrame.includes('sample') && secondFrame.trimEnd().endsWith(secondHint), secondFrame)
+    check('100, stuck, one sample: the row reads exactly as it does without samples', stuckFrame.startsWith(` mercury · ${bar.fitStatusLine(stuck, 100 + chordDelta, cases[1]![2])}`) && !stuckFrame.includes('sample') && stuckFrame.includes('the session may be stuck'), stuckFrame)
+    check('100, the second esc, one sample: the row reads exactly as it does without samples', secondFrame.startsWith(` mercury · ${bar.fitStatusLine(second, 100 + chordDelta, cases[3]![2])}`) && !secondFrame.includes('sample') && secondFrame.trimEnd().endsWith(secondHint), secondFrame)
   }
   slot._resetFocusedSessionConnectorForTesting()
 }
