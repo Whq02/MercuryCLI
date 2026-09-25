@@ -714,12 +714,13 @@ section('L7 ABORT MID-STREAM — synthetic pairing + the interrupt exemption')
   const mk = (reason?: string): RunOpts => {
     let controller: AbortController
     return {
+      tools: [makeTool('Bash')],
       beforeRun: rig => {
         controller = rig.abortController
       },
       script: [
         [
-          y(asstToolUse('tu_ab', 'EchoTool', { text: 'x' })),
+          y(asstToolUse('tu_ab', 'Bash', { command: 'sleep 30' })),
           {
             kind: 'do',
             fn: () => (reason === undefined ? controller.abort() : controller.abort(reason)),
@@ -734,13 +735,39 @@ section('L7 ABORT MID-STREAM — synthetic pairing + the interrupt exemption')
   const synth = toolResultBlocks(r.yields).filter(b => b.tool_use_id === 'tu_ab')
   check('synthetic tool_result for the announced tool_use, exactly once', synth.length === 1, String(synth.length))
   check('synthetic result is an error', synth[0]?.is_error === true)
+  const synthText = String(synth[0]?.content)
   check(
-    "synthetic result says 'Interrupted by user'",
-    String(synth[0]?.content) === 'Interrupted by user',
-    String(synth[0]?.content),
+    "synthetic result opens with 'Interrupted by user' and says the operator stopped the call on purpose",
+    synthText.startsWith('Interrupted by user') && /on purpose/.test(synthText),
+    synthText,
+  )
+  check(
+    'the aborted Bash call is told the command may have partially executed',
+    /partially executed/.test(synthText),
+    synthText,
+  )
+  check(
+    'the aborted Bash call is told a background task or process it launched keeps running',
+    /background task or process .*keeps running/.test(synthText),
+    synthText,
   )
   const interruptions = userTextMessages(r.yields).filter(t => t === INTERRUPT_MESSAGE)
   check('exactly one interruption message (reason undefined)', interruptions.length === 1, String(interruptions.length))
+
+  const textOnly = (): RunOpts => {
+    let controller: AbortController
+    return {
+      beforeRun: rig => {
+        controller = rig.abortController
+      },
+      script: [[y(asstText('half an answer')), { kind: 'do', fn: () => controller.abort() }]],
+    }
+  }
+  const rt = record(await run(textOnly()))
+  check('a non-tool interrupt: terminal aborted_streaming', rt.terminal.reason === 'aborted_streaming', JSON.stringify(rt.terminal))
+  check('a non-tool interrupt: no synthetic tool_result at all', toolResultBlocks(rt.yields).length === 0, String(toolResultBlocks(rt.yields).length))
+  const textOnlyRows = userTextMessages(rt.yields)
+  check('a non-tool interrupt keeps the bare INTERRUPT_MESSAGE row, exactly once', textOnlyRows.filter(t => t === INTERRUPT_MESSAGE).length === 1 && !textOnlyRows.some(t => /partially executed/.test(t)), textOnlyRows.join(' | '))
 
   const r2 = record(await run(mk('interrupt')))
   check("reason 'interrupt': terminal aborted_streaming", r2.terminal.reason === 'aborted_streaming')
