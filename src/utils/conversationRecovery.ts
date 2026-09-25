@@ -24,6 +24,7 @@ import {
 } from './messages.js'
 import { copyPlanForResume } from './plans.js'
 import { processSessionStartHooks } from './sessionStart.js'
+import { buildAttributionSnapshotChain, buildFileHistorySnapshotChain } from './sessionStorage/chain.js'
 import {
   buildConversationChain,
   checkResumeConsistency,
@@ -416,9 +417,32 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
 }
 
 
-async function walkTranscriptFile(
-  path: string,
-): Promise<{ messages: SerializedMessage[]; sessionId: UUID | undefined }> {
+type ResumeFacts = Pick<
+  LogOption,
+  | 'fileHistorySnapshots'
+  | 'attributionSnapshots'
+  | 'contentReplacements'
+  | 'contextCollapseCommits'
+  | 'contextCollapseSnapshot'
+  | 'agentName'
+  | 'agentColor'
+  | 'agentSetting'
+  | 'customTitle'
+  | 'tag'
+  | 'mode'
+  | 'worktreeSession'
+  | 'prNumber'
+  | 'prUrl'
+  | 'prRepository'
+>
+
+type WalkedTranscript = {
+  messages: SerializedMessage[]
+  sessionId: UUID | undefined
+  facts: ResumeFacts
+}
+
+async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   const loaded = await loadTranscriptFile(path)
   const messages = loaded.messages
   const referencedParents = new Set<string>()
@@ -437,9 +461,31 @@ async function walkTranscriptFile(
       best = message
     }
   }
-  if (!best) return { messages: [], sessionId: undefined }
+  if (!best) return { messages: [], sessionId: undefined, facts: {} }
   const chain = buildConversationChain(messages, best)
-  return { messages: removeExtraFields(chain), sessionId: best.sessionId as UUID }
+  const sessionId = best.sessionId as UUID
+  return {
+    messages: removeExtraFields(chain),
+    sessionId,
+    facts: {
+      fileHistorySnapshots: buildFileHistorySnapshotChain(loaded.fileHistorySnapshots, chain),
+      attributionSnapshots: buildAttributionSnapshotChain(loaded.attributionSnapshots, chain),
+      contentReplacements: loaded.contentReplacements.get(sessionId) ?? [],
+      contextCollapseCommits: loaded.contextCollapseCommits.filter(e => e.sessionId === sessionId),
+      contextCollapseSnapshot:
+        loaded.contextCollapseSnapshot?.sessionId === sessionId ? loaded.contextCollapseSnapshot : undefined,
+      agentName: loaded.agentNames.get(sessionId),
+      agentColor: loaded.agentColors.get(sessionId),
+      agentSetting: loaded.agentSettings.get(sessionId),
+      customTitle: loaded.customTitles.get(sessionId),
+      tag: loaded.tags.get(sessionId),
+      mode: loaded.modes.get(sessionId) as LogOption['mode'],
+      worktreeSession: loaded.worktreeStates.has(sessionId) ? loaded.worktreeStates.get(sessionId) : undefined,
+      prNumber: loaded.prNumbers.get(sessionId),
+      prUrl: loaded.prUrls.get(sessionId),
+      prRepository: loaded.prRepositories.get(sessionId),
+    },
+  }
 }
 
 export async function loadMessagesFromJsonlPath(
@@ -448,25 +494,10 @@ export async function loadMessagesFromJsonlPath(
   return walkTranscriptFile(path)
 }
 
-type ResumeResult = {
+type ResumeResult = ResumeFacts & {
   messages: Message[]
   turnInterruptionState: TurnInterruptionState
   sessionId: UUID
-  fileHistorySnapshots?: LogOption['fileHistorySnapshots']
-  attributionSnapshots?: LogOption['attributionSnapshots']
-  contentReplacements?: LogOption['contentReplacements']
-  contextCollapseCommits?: LogOption['contextCollapseCommits']
-  contextCollapseSnapshot?: LogOption['contextCollapseSnapshot']
-  agentName?: LogOption['agentName']
-  agentColor?: LogOption['agentColor']
-  agentSetting?: LogOption['agentSetting']
-  customTitle?: LogOption['customTitle']
-  tag?: LogOption['tag']
-  mode?: LogOption['mode']
-  worktreeSession?: LogOption['worktreeSession']
-  prNumber?: LogOption['prNumber']
-  prUrl?: LogOption['prUrl']
-  prRepository?: LogOption['prRepository']
   fullPath?: string
 }
 
@@ -483,6 +514,7 @@ export async function loadConversationForResume(
     let messages: SerializedMessage[] | undefined
     let sessionId: SessionId | undefined
     let fullPath: string | undefined
+    let facts: ResumeFacts = {}
 
     if (source === undefined) {
       const logs = await loadMessageLogs()
@@ -491,6 +523,7 @@ export async function loadConversationForResume(
       const walked = await walkTranscriptFile(sourceJsonlFile)
       messages = walked.messages
       sessionId = walked.sessionId as SessionId | undefined
+      facts = walked.facts
     } else if (typeof source === 'string') {
       log = await getLastSessionLog(source as UUID)
       sessionId = asSessionId(source)
@@ -510,6 +543,23 @@ export async function loadConversationForResume(
       messages = log.messages as SerializedMessage[]
       checkResumeConsistency(messages as unknown as Message[])
       fullPath = log.fullPath
+      facts = {
+        fileHistorySnapshots: log.fileHistorySnapshots,
+        attributionSnapshots: log.attributionSnapshots,
+        contentReplacements: log.contentReplacements,
+        contextCollapseCommits: log.contextCollapseCommits,
+        contextCollapseSnapshot: log.contextCollapseSnapshot,
+        agentName: log.agentName,
+        agentColor: log.agentColor,
+        agentSetting: log.agentSetting,
+        customTitle: log.customTitle,
+        tag: log.tag,
+        mode: log.mode,
+        worktreeSession: log.worktreeSession,
+        prNumber: log.prNumber,
+        prUrl: log.prUrl,
+        prRepository: log.prRepository,
+      }
     }
 
     const asMessages = (messages ?? []) as unknown as Message[]
@@ -524,25 +574,7 @@ export async function loadConversationForResume(
       messages: [...deserialized, ...dedupedHooks],
       turnInterruptionState,
       sessionId: sessionId as unknown as UUID,
-      ...(log
-        ? {
-            fileHistorySnapshots: log.fileHistorySnapshots,
-            attributionSnapshots: log.attributionSnapshots,
-            contentReplacements: log.contentReplacements,
-            contextCollapseCommits: log.contextCollapseCommits,
-            contextCollapseSnapshot: log.contextCollapseSnapshot,
-            agentName: log.agentName,
-            agentColor: log.agentColor,
-            agentSetting: log.agentSetting,
-            customTitle: log.customTitle,
-            tag: log.tag,
-            mode: log.mode,
-            worktreeSession: log.worktreeSession,
-            prNumber: log.prNumber,
-            prUrl: log.prUrl,
-            prRepository: log.prRepository,
-          }
-        : {}),
+      ...facts,
       fullPath,
     }
   } catch (err) {
