@@ -955,7 +955,7 @@ async function daemonRun(args: string[]): Promise<void> {
             )
             await reassertControlKey(controlKey)
             await persistSupervisorRecord(currentOwnerPid)
-            if (sockMissing) await controlServer?.rebind()
+            if (sockMissing && daemonHomeStands('the plane heal')) await controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
           } finally {

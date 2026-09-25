@@ -75,6 +75,7 @@ function errnoOf(e: unknown): string | undefined {
 
 export interface DurablePublishOptions {
   mode?: number
+  parent?: 'create' | 'must-stand'
 }
 
 const TEMP_PATTERN = /^\..+\.\d+\.[0-9a-f]{8}\.tmp$/
@@ -287,7 +288,7 @@ export async function durableAtomicPublish(
 ): Promise<DurablePublishReport> {
   const startedAt = Date.now()
   const dir = dirname(path)
-  await mkdir(dir, { recursive: true })
+  if (opts?.parent !== 'must-stand') await mkdir(dir, { recursive: true })
   sweepOnFirstUse(dir)
   const tmp = durableTempName(path)
   let fh: Awaited<ReturnType<typeof open>> | null = null
@@ -366,7 +367,7 @@ export function durableAtomicPublishSync(
 ): DurablePublishReport {
   const startedAt = Date.now()
   const dir = dirname(path)
-  mkdirSync(dir, { recursive: true })
+  if (opts?.parent !== 'must-stand') mkdirSync(dir, { recursive: true })
   const tmp = durableTempName(path)
   let fd: number | null = null
   let phase: PublishFailurePhase = 'create-temp'
