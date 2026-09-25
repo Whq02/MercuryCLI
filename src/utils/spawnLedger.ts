@@ -1,5 +1,5 @@
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { getMercuryHome } from './envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
@@ -55,11 +55,10 @@ export function bashAuditPath(): string {
 }
 
 function appendTrail(path: string, row: unknown): void {
-  const { daemonHomeStands } = require('../daemon/daemonHome.js') as typeof import('../daemon/daemonHome.js')
+  const { appendInDaemonHome, daemonHomeStands } = require('../daemon/daemonHome.js') as typeof import('../daemon/daemonHome.js')
   if (!daemonHomeStands('the spawn ledger')) return
   const { parseWorkerParentPid } = require('../daemon/workerParentWatch.js') as typeof import('../daemon/workerParentWatch.js')
-  if (parseWorkerParentPid() === null) mkdirSync(dirname(path), { recursive: true })
-  appendFileSync(path, JSON.stringify(row) + '\n')
+  appendInDaemonHome('the spawn ledger', path, JSON.stringify(row) + '\n', { parent: parseWorkerParentPid() === null ? 'create' : 'must-stand' })
 }
 
 export function recordSpawn(entry: SpawnLedgerEntry): void {
