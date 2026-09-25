@@ -30,11 +30,14 @@ const React = await import('react')
 const { render } = await import('../../src/ink.ts')
 const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
 const { createStore } = await import('../../src/state/store.ts')
-const { call } = await import('../../src/commands/model/mercuryModel.tsx')
+const { call, MercuryModelChoicePicker, MercuryModelDefaultPicker, MercurySessionModelPicker } = await import('../../src/commands/model/mercuryModel.tsx')
 const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
 const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const huggingface = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
 const local = await import('../../src/services/providers/local/localDiscovery.ts')
+const openai = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
+const anthropic = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { getModelOptions, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
 const stripAnsi = (await import('strip-ansi')).default
@@ -193,14 +196,14 @@ const release = (spec: Family, rows: unknown[] | Response): void => {
 }
 const totalRequests = (): number => Object.values(requests).reduce((a, b) => a + b, 0)
 
-const mount = async (model: string) => {
+const mount = async (model: string, element?: React.ReactNode) => {
   let output = ''
   const stdout = Object.assign(new PassThrough(), { columns: 120, rows: 40 })
   stdout.on('data', chunk => { output += String(chunk) })
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
   const store = createStore({ ...getDefaultAppState(), mainLoopModel: model }, () => {})
-  const picker = await call(() => {}, { messages: [] } as never, '')
+  const picker = element ?? await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   await flush()
   return { seen: () => stripAnsi(output), clear: () => { output = '' }, unmount: () => instance.unmount(), rerender: () => store.setState(state => ({ ...state, effortValue: 'high' })), send: (keys: string) => { input.push(keys); stdin.emit('readable') } }
@@ -315,6 +318,101 @@ try {
       keyless.unmount()
     }
     check(`${spec.word}: the other families sent nothing during this leg`, others.every((f, i) => requests[f] === othersBefore[i]), JSON.stringify(requests))
+  }
+
+  console.log('\n── every road credentialed at once, at each of the four picker sites ──')
+  for (const spec of FAMILIES) Object.assign(process.env, spec.keys)
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'ollama=http://127.0.0.1:9/ollama'
+  process.env.OPENAI_API_KEY = 'sk-fixture-catalogue-refresh'
+  process.env.MOONSHOT_API_KEY = 'sk-fixture-moonshot-refresh-000001'
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:9/moonshot/v1'
+  resetAll()
+  openai.__resetOpenaiCatalogueForTest()
+  moonshot.__resetMoonshotCatalogueForTest()
+  const gptRow = (id: string, display_name: string, priority: number) => ({ id, display_name, priority, visibility: 'public', supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium', context_window: 400_000 })
+  const moonshotRow = (id: string) => ({ id, object: 'model', created: 100, owned_by: 'moonshot', context_length: 262_144 })
+  const pages: Record<string, unknown> = {
+    gpt: { data: [gptRow('gpt-5.6-sol', 'GPT-5.6 Sol', 1), gptRow('gpt-5.6-terra', 'GPT-5.6 Terra', 2)] },
+    moonshot: { object: 'list', data: [moonshotRow('kimi-refresh-alpha'), moonshotRow('kimi-refresh-beta')] },
+    anthropic: { data: [{ id: 'claude-fable-5-1', display_name: 'Fable 5.1', type: 'model' }], has_more: false },
+  }
+  for (const spec of FAMILIES) pages[spec.name] = spec.page(spec.oldRows)
+  const pageOf = (road: string): unknown => pages[road.startsWith('anthropic:') ? 'anthropic' : road]
+  const roadOf = (url: string, init?: RequestInit): string | undefined => {
+    const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]!
+    if (path === '/v1/models') return 'gpt'
+    if (path === '/moonshot/v1/models') return 'moonshot'
+    if (path === '/anthropic/v1/models') {
+      const headers = new Headers(init?.headers as HeadersInit | undefined)
+      return headers.has('x-api-key') ? 'anthropic:api-key' : headers.has('anthropic-beta') ? 'anthropic:subscription' : 'anthropic:bearer'
+    }
+    const family = familyOfUrl(url)
+    return family !== undefined && path === FAMILIES.find(f => f.name === family)!.listPath ? family : undefined
+  }
+  const ledger: string[] = []
+  const heldAll: { road: string; answer: (response: Response) => void }[] = []
+  let holdAll = false
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input instanceof Request ? input.url : input)
+    const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0]!
+    if (path === '/ollama/api/version') return json({ version: '0.11.4' })
+    if (path === '/ollama/api/ps') return json({ models: [] })
+    if (path === '/ollama/api/show') return json(showBody)
+    const road = roadOf(url, init)
+    if (road === undefined) throw new Error(`Unexpected request: ${url}`)
+    ledger.push(road)
+    if (!holdAll) return json(pageOf(road))
+    return new Promise<Response>(resolve => { heldAll.push({ road, answer: resolve }) })
+  }) as typeof fetch
+  await openai.refreshOpenaiCatalogue('api-key', { force: true })
+  await moonshot.refreshMoonshotCatalogue({ force: true })
+  await anthropic.refreshAnthropicCatalogue({ force: true })
+  for (const spec of FAMILIES) await spec.refresh(true)
+  ledger.length = 0
+  holdAll = true
+  const roads = ['gpt', 'moonshot', ...FAMILIES.map(spec => spec.name), ...anthropic.anthropicDoors().map(door => `anthropic:${door.door}`)]
+  const cachedValues: Record<string, string[]> = {
+    gpt: ['gpt-5.6-sol', 'gpt-5.6-terra'],
+    moonshot: ['kimi-refresh-alpha', 'kimi-refresh-beta'],
+    ...Object.fromEntries(FAMILIES.map(spec => [spec.name, [spec.model, spec.model.replace('alpha', 'beta')]])),
+  }
+  const ledgerWords = (from: number): string => {
+    const counts = new Map<string, number>()
+    for (const road of ledger.slice(from)) counts.set(road, (counts.get(road) ?? 0) + 1)
+    return [...counts.entries()].map(([road, n]) => `${road} ${n}`).join(' · ') || 'nothing'
+  }
+  const oncePerRoad = (from: number): boolean => roads.every(road => ledger.slice(from).filter(entry => entry === road).length === 1) && ledger.length - from === roads.length
+  const releaseAll = async (): Promise<void> => {
+    for (const waiting of heldAll.splice(0)) waiting.answer(json(pageOf(waiting.road)))
+    await flush(300)
+  }
+  const sites: { name: string; element: () => React.ReactNode | undefined }[] = [
+    { name: 'the /model command', element: () => undefined },
+    { name: 'MercuryModelDefaultPicker', element: () => React.createElement(MercuryModelDefaultPicker, { onDone: () => {} }) },
+    { name: 'MercurySessionModelPicker', element: () => React.createElement(MercurySessionModelPicker, { currentModel: 'gpt-5.6-sol', currentEffort: undefined, onSelect: () => {}, onEffort: () => {}, onDone: () => {} }) },
+    { name: 'MercuryModelChoicePicker', element: () => React.createElement(MercuryModelChoicePicker, { current: 'gpt-5.6-sol', onSelect: () => {}, onClose: () => {} }) },
+  ]
+  check('the leg credentials every road the picker refreshes, the Anthropic doors among them', roads.length >= 7 && roads.some(road => road.startsWith('anthropic:')), roads.join(', '))
+  for (const site of sites) {
+    for (const opening of ['first', 'second'] as const) {
+      const from = ledger.length
+      const opened = await mount('gpt-5.6-sol', site.element())
+      await settle(() => '', () => heldAll.length >= roads.length, 2000)
+      await flush(200)
+      check(`${site.name}, ${opening} open: exactly one list request per credentialed road, the ledger naming each road once`, oncePerRoad(from), `ledger: ${ledgerWords(from)}`)
+      const listed = getModelOptions().map(option => option.value)
+      const missing = Object.entries(cachedValues).filter(([, values]) => !values.every(value => listed.includes(value))).map(([road]) => road)
+      check(`${site.name}, ${opening} open: every family's cached rows stand in the list while every request is still held`, heldAll.length === roads.length && missing.length === 0, `held ${heldAll.length} of ${roads.length} · rows missing for ${missing.join(', ') || 'no family'}`)
+      if (site.name === 'the /model command') {
+        opened.rerender()
+        await flush(200)
+        check(`${site.name}, ${opening} open: a re-render adds nothing to any road's ledger`, ledger.length === from + roads.length, `ledger: ${ledgerWords(from)}`)
+      }
+      await releaseAll()
+      check(`${site.name}, ${opening} open: the lists landing adds no request`, ledger.length === from + roads.length, `ledger: ${ledgerWords(from)}`)
+      opened.unmount()
+      await flush(100)
+    }
   }
 } finally {
   globalThis.fetch = realFetch
