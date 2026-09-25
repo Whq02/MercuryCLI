@@ -24,7 +24,14 @@ export type RipgrepConfig = {
 }
 
 export function isRipgrepUsageDiagnostic(stderr: string): boolean {
-  return /^error:|regex parse error|error parsing|unrecognized flag|invalid value/im.test(stderr)
+  return /^error:|regex parse error|error parsing|unrecognized flag|invalid value|^rg: PCRE2(?::| is not available)/im.test(stderr)
+}
+
+export function usageDiagnostic(stderr: string): string {
+  const lines = stderr.trim().split('\n')
+  const head = lines.slice(0, 3)
+  const reason = lines.slice(3).find(line => line.startsWith('error:'))
+  return (reason === undefined ? head : [...head, reason]).join(' ')
 }
 
 export class RipgrepUsageError extends Error {
@@ -448,7 +455,7 @@ export async function ripGrepAnswer(
   )
   if (code !== 2 && code !== 'ABORT_ERR') logError(outcome.error)
   if (code === 2 && salvaged.length === 0 && isRipgrepUsageDiagnostic(outcome.stderr)) {
-    throw new RipgrepUsageError(outcome.stderr.trim().split('\n').slice(0, 3).join(' '))
+    throw new RipgrepUsageError(usageDiagnostic(outcome.stderr))
   }
   if (isAbort && salvaged.length === 0) {
     const abortError = new Error('The search was interrupted before it finished.')
