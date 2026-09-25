@@ -82,6 +82,7 @@ const FULL_READS = {
     claudeSubscriber: () => true,
     subscriptionType: () => 'max',
     anthropicApiKeyPresent: () => true,
+    anthropicEmail: () => 'main@example.com',
   },
   scanScopes: () => SCAN_DOUBLE,
   anthropicApiKey: () => ({ key: 'sk-ant-proof-value-9876', source: '/logins managed key' as const }),
@@ -111,8 +112,11 @@ section('(1) derivation — one slot per signed-in identity, catalogue-driven')
   const anthropic = groups[0]!.slots
   check("anthropic: the signed-in scope + the API-key ladder ⇒ 2 slots; a scope with nothing behind it is the family's absent row, never a slot",
     anthropic.length === 2 && !anthropic.some(s => s.id === '/proof-home/.mercury-account-b'), JSON.stringify(anthropic.map(s => s.id)))
-  check("ring slot: OAuth kind, identity from the scan owner, the sign-in's own name (the scope's role name is the This-session grid's fact)",
+  check("ring slot: OAuth kind, identity from the sign-in's own credential, the sign-in's own name (the scope's role name is the This-session grid's fact)",
     anthropic[0]?.kind === 'oauth' && anthropic[0]?.identity === 'main@example.com' && anthropic[0]?.active === true && anthropic[0]?.name === 'claude')
+  const recordOnly = deriveFamilySlotGroups(double, { ...FULL_READS, familyReads: { ...FULL_READS.familyReads, anthropicEmail: () => undefined } })[0]!.slots
+  check('ring slot: with no email beside the credential the slot says signed in, never the scan\'s recorded address',
+    recordOnly[0]?.kind === 'oauth' && recordOnly[0]?.identity === 'signed in' && recordOnly[0]?.signedIn === true, String(recordOnly[0]?.identity))
   check('managed key slot: removable through its owner route',
     anthropic[1]?.kind === 'api-key' && anthropic[1]?.removal.route === 'anthropic-managed-key' && anthropic[1]?.envPinned === false)
   check('managed key slot: masked last-four tail rides the identity',

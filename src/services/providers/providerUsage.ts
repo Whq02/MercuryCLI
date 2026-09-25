@@ -2,7 +2,7 @@ import { getModelUsage, getUnpricedTurns } from '../../bootstrap/state.js'
 import {
   getAnthropicApiKey,
   getAuthTokenSource,
-  getOauthAccountInfo,
+  getClaudeAIOAuthTokens,
   getSubscriptionType,
   isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
@@ -25,7 +25,7 @@ import {
 } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
-import { activeWalletEntry, walletEntries, type WalletEntry } from '../wallet/wallet.js'
+import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
 import {
@@ -159,7 +159,7 @@ export function anthropicCredentialPresence(
       return false
     }
   })()
-  const identity = subscriber ? readAnthropicEmail(reads) : undefined
+  const identity = subscriber ? anthropicSignInEmail(reads) : undefined
   return {
     credentialed: credentialLabel !== undefined,
     ...(credentialLabel !== undefined ? { credentialLabel } : {}),
@@ -168,9 +168,9 @@ export function anthropicCredentialPresence(
   }
 }
 
-function readAnthropicEmail(reads?: ProviderFamilyReads): string | undefined {
+export function anthropicSignInEmail(reads?: ProviderFamilyReads): string | undefined {
   try {
-    const email = reads?.anthropicEmail ? reads.anthropicEmail() : getOauthAccountInfo()?.emailAddress
+    const email = reads?.anthropicEmail ? reads.anthropicEmail() : anthropicCredentialAccount(getClaudeAIOAuthTokens())?.email
     return typeof email === 'string' && email.trim() !== '' ? email.trim() : undefined
   } catch {
     return undefined
