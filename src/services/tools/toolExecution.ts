@@ -333,13 +333,14 @@ export async function* runToolUse(
   const ownRound = joined === null ? `call:${toolUseID}` : null
   const roundID = joined?.id ?? ownRound!
   const roundOrdinal = joined?.ordinal ?? 0
-  openRoundCall(owner, roundID, toolUseID, roundOrdinal, toolUseContext.messages)
+  const roundHandle = openRoundCall(owner, roundID, toolUseID, roundOrdinal, joined !== null && round === undefined ? (toolUseContext.roundHandle ?? toolUseContext.toolUseId ?? null) : null, toolUseContext.messages)
   const stream = new Stream<MessageUpdateLazy>()
   const resolved = tool
   const body = runTransactionBody({
     tool: resolved,
     toolUse,
     toolUseID,
+    roundHandle,
     rawInput,
     assistantMessage,
     canUseTool,
@@ -373,6 +374,7 @@ export async function* runToolUse(
   recordToolCall(owner, {
     toolName: resolved.name,
     toolUseID,
+    roundHandle,
     roundID,
     roundOrdinal,
     arguments: rawInput,
@@ -389,6 +391,7 @@ async function runTransactionBody(args: {
   tool: Tool
   toolUse: ToolUseBlock
   toolUseID: string
+  roundHandle: string
   rawInput: AnyObject
   assistantMessage: AssistantMessage
   canUseTool: CanUseToolFn
@@ -742,6 +745,7 @@ async function runTransactionBody(args: {
     const contextForCall: ToolUseContext = {
       ...toolUseContext,
       toolUseId: toolUseID,
+      roundHandle: args.roundHandle,
       userModifiedInput: (decision as { userModified?: boolean }).userModified,
     }
     let callAbandoned = false

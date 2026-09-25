@@ -277,6 +277,30 @@ section('B. WorkshopTool — nested transaction, recursion guard, cancel')
   check('B1 mercury.tool routes through the REAL transaction and returns the mapped result',
     b1.data.cells[0].state === 'succeeded' && b1.data.cells[0].valuePreview === 'true',
     JSON.stringify(b1.data.cells[0]))
+
+  {
+    const seenIds: string[] = []
+    const RECORDING_ALLOW = async (_t: unknown, input: unknown, _ctx: unknown, _msg: unknown, id: unknown) => {
+      seenIds.push(String(id))
+      return { behavior: 'allow', updatedInput: input }
+    }
+    const twoNested = {
+      cells: [{
+        language: 'js',
+        code: `await mercury.tool('Read', { file_path: ${JSON.stringify(target)} })\nawait mercury.tool('Read', { file_path: ${JSON.stringify(target)} })\ntrue`,
+      }],
+    }
+    const first = makeCtx() as unknown as { toolUseId?: string }
+    first.toolUseId = 'toolu_parent_A'
+    const second = makeCtx() as unknown as { toolUseId?: string }
+    second.toolUseId = 'toolu_parent_B'
+    await (WorkshopTool as { call: Function }).call(twoNested, first, RECORDING_ALLOW, PARENT)
+    await (WorkshopTool as { call: Function }).call(twoNested, second, RECORDING_ALLOW, PARENT)
+    const nested = seenIds.filter(id => id.startsWith('toolu_workshop_'))
+    check('B1b the bridge mints every nested tool-use id under its own parent call, unique across two Workshop calls (four nested Reads, four distinct ids, each naming its parent)',
+      nested.length === 4 && new Set(nested).size === 4 && nested.slice(0, 2).every(id => id.includes('toolu_parent_A')) && nested.slice(2).every(id => id.includes('toolu_parent_B')),
+      JSON.stringify(nested))
+  }
   check('B2 the tool effect names the cell', b1.effect.operation === 'workshop.cell' && b1.effect.outcome === 'succeeded')
 
   const b3 = await (WorkshopTool as { call: Function }).call(
