@@ -30,6 +30,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
+import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
 import { quote } from '../bash/shellQuote.js'
 import { getCurrentProjectConfig } from '../config.js'
 import { hasEmbeddedSearchTools } from '../embeddedTools.js'
@@ -1075,7 +1076,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       return [
         createUserMessage({
           content: wrapInSystemReminder(
-            `${attachment.hookName} hook stopped continuation: ${boundHookContext(attachment.message, `${attachment.hookName}-stop`).text}`,
+            `${attachment.hookName} hook stopped continuation: ${boundHookContext(stoppedContinuationMessage(attachment), `${attachment.hookName}-stop`).text}`,
           ),
           isMeta: true,
         }),
