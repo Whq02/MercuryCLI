@@ -105,6 +105,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   RecordConvention: 'memory',
   AskUserQuestion: 'system',
   Checkpoint: 'system',
+  ContextLeft: 'system',
   Debug: 'system',
   EnterWorktree: 'system',
   ExitWorktree: 'system',

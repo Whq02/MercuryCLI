@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 184 operations · 72 with a declared capability contract.
+Census version 1 — 74 built-in production tools · 186 operations · 74 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 45 available · 13 conditional · 0 degraded · 14 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 20 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 37 name a focused proof
+- support (at generation time): 46 available · 13 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 39 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -32,6 +32,7 @@ Census version 1 — 72 built-in production tools · 184 operations · 72 with a
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
+| ContextLeft | observation | resource-inspection | — | block | no | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
@@ -48,6 +49,7 @@ Census version 1 — 72 built-in production tools · 184 operations · 72 with a
 | Godot | mutation | game-engine | — | block | yes | — | — | — | scripts/vulcan/run-all.sh |
 | Grep | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
 | Inspect | observation | resource-inspection | — | block | yes | — | — | mercury://file, mercury://run, mercury://receipt, mercury://task, mercury://execution, mercury://transaction, mercury://evidence | scripts/project-services/prove-resource-plane.ts |
+| JevEval | observation | web-access | — | cancel | no | — | — | — | scripts/jev/run-all.sh |
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | LaunchFleet | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
