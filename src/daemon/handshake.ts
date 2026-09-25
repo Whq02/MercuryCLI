@@ -399,7 +399,7 @@ export async function restartDaemon(opts: {
     }
     const rec = await readSupervisorState().catch(() => null)
     const dir = rec?.dir ?? opts.dir ?? process.cwd()
-    const bye = await daemonControlRpc({ op: 'shutdown', reapWorkers: false }, { timeoutMs: 3000 })
+    const bye = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 3000 })
     if (!bye.ok) return { state: 'refused', line: `daemon v${d.version} did not stop — ${bye.error}` }
     await waitForHandshake(v => v.state === 'absent', opts)
     const pid = await (opts.spawn ?? spawnSuccessorHere)(dir, opts.posture)

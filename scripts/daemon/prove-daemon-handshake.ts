@@ -42,12 +42,14 @@ function freshPlane(): string {
 interface Fixture {
   received: string[]
   killed: () => boolean
+  shutdownFrame?: () => Record<string, unknown> | null
   close: () => Promise<void>
 }
 
 function startOldDaemon(opts: { version: string; jobs: Array<Record<string, unknown>> }): Promise<Fixture> {
   const received: string[] = []
   let killed = false
+  let shutdownFrame: Record<string, unknown> | null = null
   const server = net.createServer(sock => {
     readControlFrame(
       sock,
@@ -59,6 +61,7 @@ function startOldDaemon(opts: { version: string; jobs: Array<Record<string, unkn
         if (op === 'ping') return answer({ ok: true, op: 'ping', version: opts.version, proto: 1 })
         if (op === 'shutdown') {
           killed = true
+          shutdownFrame = { op, ...('reapWorkers' in req ? { reapWorkers: req.reapWorkers } : {}) }
           setTimeout(() => server.close(), 5)
           return answer({ ok: true, op: 'shutdown', reaped: 0 })
         }
@@ -88,6 +91,7 @@ function startOldDaemon(opts: { version: string; jobs: Array<Record<string, unkn
       resolve({
         received,
         killed: () => killed,
+        shutdownFrame: () => shutdownFrame,
         close: () => new Promise(done => server.close(() => done())),
       }),
     )
@@ -253,6 +257,8 @@ section('B · pre-handshake daemon, idle: no silent kill; /daemon restart stops 
   check('B4 the successor was spawned with the RECORD\'s scheduling dir', spawns.length === 1 && spawns[0]!.dir === '/tmp/project-b', JSON.stringify(spawns))
   check('B5 the receipt is typed restarted and names the owned posture', receipt.state === 'restarted' && receipt.line.includes("this Mercury's own daemon"), `${receipt.state}: ${receipt.line}`)
   check('B6 the follow-up handshake is matched (the heal completed)', (await hsMod.handshakeDaemon({ timeoutMs: 500 })).state === 'matched')
+  const bye = old.shutdownFrame?.() ?? null
+  check('B7 the heal\'s shutdown frame asks for the reap by name, as the stop verb does: the daemon\'s teardown ends every rostered worker whatever the flag says, so the wire never says keep', bye !== null && bye.reapWorkers === true, JSON.stringify(bye))
 }
 
 section('C · v2-family daemon one proto older, idle: restart-when-idle heals TRANSPARENTLY — no shutdown, no spawn, no operator hand (the poison)')
@@ -416,6 +422,8 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   check('G9 the certificate daemon row runs the handshake and the line IS the fix', health.includes('daemonHandshakeEvidence') && health.includes('fix: hs.line'))
   const statusSrc = read('src/daemon/status.ts')
   check('G10 the status probe handshakes BEFORE the keyed ops (an old daemon still reports)', statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') !== -1 && statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') < statusSrc.indexOf("daemonControlRpc({ op: 'status'"))
+  const hsSrc = read('src/daemon/handshake.ts')
+  check('G11 the pre-handshake heal spells the stop verb\'s frame, reapWorkers asked for by name, and never false', hsSrc.includes("{ op: 'shutdown', reapWorkers: true }") && !hsSrc.includes('reapWorkers: false'), hsSrc.split('\n').filter(l => l.includes('reapWorkers')).map(l => l.trim()).join(' | '))
 }
 
 rmSync(home, { recursive: true, force: true })

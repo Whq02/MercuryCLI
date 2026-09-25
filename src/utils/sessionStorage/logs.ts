@@ -56,7 +56,7 @@ import {
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
-import { loadSessionFile, loadTranscriptFile } from './loading.js'
+import { loadSessionFile, loadTranscriptFile, type TranscriptFoldState } from './loading.js'
 import {
   getAgentTranscriptPath,
   getProjectDir,
@@ -586,22 +586,55 @@ export async function doesMessageExistInSession(
   return messageSet.has(messageUuid)
 }
 
+export type ResumeFacts = Pick<
+  LogOption,
+  | 'fileHistorySnapshots'
+  | 'attributionSnapshots'
+  | 'contentReplacements'
+  | 'contextCollapseCommits'
+  | 'contextCollapseSnapshot'
+  | 'agentName'
+  | 'agentColor'
+  | 'agentSetting'
+  | 'customTitle'
+  | 'tag'
+  | 'mode'
+  | 'worktreeSession'
+  | 'prNumber'
+  | 'prUrl'
+  | 'prRepository'
+>
+
+export function resumeFactsOf(
+  fold: Omit<TranscriptFoldState, 'progressBridge'>,
+  sessionId: UUID,
+  chain: TranscriptMessage[],
+): ResumeFacts {
+  return {
+    fileHistorySnapshots: buildFileHistorySnapshotChain(fold.fileHistorySnapshots, chain),
+    attributionSnapshots: buildAttributionSnapshotChain(fold.attributionSnapshots, chain),
+    contentReplacements: fold.contentReplacements.get(sessionId) ?? [],
+    contextCollapseCommits: fold.contextCollapseCommits.filter(e => e.sessionId === sessionId),
+    contextCollapseSnapshot:
+      fold.contextCollapseSnapshot?.sessionId === sessionId ? fold.contextCollapseSnapshot : undefined,
+    agentName: fold.agentNames.get(sessionId),
+    agentColor: fold.agentColors.get(sessionId),
+    agentSetting: fold.agentSettings.get(sessionId),
+    customTitle: fold.customTitles.get(sessionId),
+    tag: fold.tags.get(sessionId),
+    mode: fold.modes.get(sessionId) as LogOption['mode'],
+    worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
+    prNumber: fold.prNumbers.get(sessionId),
+    prUrl: fold.prUrls.get(sessionId),
+    prRepository: fold.prRepositories.get(sessionId),
+  }
+}
+
 export async function getLastSessionLog(
   sessionId: UUID,
 ): Promise<LogOption | null> {
-  const {
-    messages,
-    summaries,
-    customTitles,
-    tags,
-    agentSettings,
-    worktreeStates,
-    fileHistorySnapshots,
-    attributionSnapshots,
-    contentReplacements,
-    contextCollapseCommits,
-    contextCollapseSnapshot,
-  } = await loadSessionFile(sessionId)
+  const fold = await loadSessionFile(sessionId)
+  const { messages, summaries } = fold
   if (messages.size === 0) return null
   if (!getSessionMessages.cache.has(sessionId)) {
     getSessionMessages.cache.set(
@@ -616,30 +649,17 @@ export async function getLastSessionLog(
   const transcript = buildConversationChain(messages, lastMessage)
 
   const summary = summaries.get(lastMessage.uuid)
-  const customTitle = customTitles.get(lastMessage.sessionId as UUID)
-  const tag = tags.get(lastMessage.sessionId as UUID)
-  const agentSetting = agentSettings.get(sessionId)
   return {
     ...convertToLogOption(
       transcript,
       0,
       summary,
-      customTitle,
-      buildFileHistorySnapshotChain(fileHistorySnapshots, transcript),
-      tag,
+      undefined,
+      undefined,
+      undefined,
       getTranscriptPathForSession(sessionId),
-      buildAttributionSnapshotChain(attributionSnapshots, transcript),
-      agentSetting,
-      contentReplacements.get(sessionId) ?? [],
     ),
-    worktreeSession: worktreeStates.get(sessionId),
-    contextCollapseCommits: contextCollapseCommits.filter(
-      e => e.sessionId === sessionId,
-    ),
-    contextCollapseSnapshot:
-      contextCollapseSnapshot?.sessionId === sessionId
-        ? contextCollapseSnapshot
-        : undefined,
+    ...resumeFactsOf(fold, sessionId, transcript),
   }
 }
 

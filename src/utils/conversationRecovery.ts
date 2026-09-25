@@ -24,7 +24,7 @@ import {
 } from './messages.js'
 import { copyPlanForResume } from './plans.js'
 import { processSessionStartHooks } from './sessionStart.js'
-import { buildAttributionSnapshotChain, buildFileHistorySnapshotChain } from './sessionStorage/chain.js'
+import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
 import {
   buildConversationChain,
   checkResumeConsistency,
@@ -417,25 +417,6 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
 }
 
 
-type ResumeFacts = Pick<
-  LogOption,
-  | 'fileHistorySnapshots'
-  | 'attributionSnapshots'
-  | 'contentReplacements'
-  | 'contextCollapseCommits'
-  | 'contextCollapseSnapshot'
-  | 'agentName'
-  | 'agentColor'
-  | 'agentSetting'
-  | 'customTitle'
-  | 'tag'
-  | 'mode'
-  | 'worktreeSession'
-  | 'prNumber'
-  | 'prUrl'
-  | 'prRepository'
->
-
 type WalkedTranscript = {
   messages: SerializedMessage[]
   sessionId: UUID | undefined
@@ -467,24 +448,7 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   return {
     messages: removeExtraFields(chain),
     sessionId,
-    facts: {
-      fileHistorySnapshots: buildFileHistorySnapshotChain(loaded.fileHistorySnapshots, chain),
-      attributionSnapshots: buildAttributionSnapshotChain(loaded.attributionSnapshots, chain),
-      contentReplacements: loaded.contentReplacements.get(sessionId) ?? [],
-      contextCollapseCommits: loaded.contextCollapseCommits.filter(e => e.sessionId === sessionId),
-      contextCollapseSnapshot:
-        loaded.contextCollapseSnapshot?.sessionId === sessionId ? loaded.contextCollapseSnapshot : undefined,
-      agentName: loaded.agentNames.get(sessionId),
-      agentColor: loaded.agentColors.get(sessionId),
-      agentSetting: loaded.agentSettings.get(sessionId),
-      customTitle: loaded.customTitles.get(sessionId),
-      tag: loaded.tags.get(sessionId),
-      mode: loaded.modes.get(sessionId) as LogOption['mode'],
-      worktreeSession: loaded.worktreeStates.has(sessionId) ? loaded.worktreeStates.get(sessionId) : undefined,
-      prNumber: loaded.prNumbers.get(sessionId),
-      prUrl: loaded.prUrls.get(sessionId),
-      prRepository: loaded.prRepositories.get(sessionId),
-    },
+    facts: resumeFactsOf(loaded, sessionId, chain),
   }
 }
 
