@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import { census } from '../gate/prove-suite-class-census.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SCRIPTS = join(ROOT, 'scripts')
@@ -106,6 +107,38 @@ check(
   deferredOnly.map(rel => `${rel} — ${(listedBy.get(rel) ?? []).map(dir => `${dir} (${classOf(dir)})`).join(', ') || 'the pty complement only'}: ${RELEASE_COUNTED[rel]}`).join(' · '),
 )
 check('the release-counted census rows all point at existing files', missingCounted.length === 0, missingCounted.join(', '))
+
+const DRIVE_ONLY_ESTATES: Record<string, string> = {
+  ui: 'the source renders, censuses and in-process pins ride the release verdict in the ui-pure shards; the pty complement and its pty siblings hold the terminal drives and the bundle boots',
+  interaction: 'the grammar censuses and chord pins ride the release verdict in interaction-pure; the pty complement holds the terminal drives',
+}
+const classCensus = census(ROOT)
+const driven = new Set(classCensus.suites.flatMap(s => s.drivers))
+const bootsBundle = (rel: string): boolean => readFileSync(join(ROOT, rel), 'utf8').split('\n').some(l => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && /--dist\b/.test(l))
+const estateOf = (rel: string): string | undefined => Object.keys(DRIVE_ONLY_ESTATES).find(e => rel.startsWith(`scripts/${e}/prove-`))
+const pureInPty: string[] = []
+const heavyInRelease: string[] = []
+for (const s of classCensus.suites) {
+  for (const rel of s.executed) {
+    if (estateOf(rel) === undefined) continue
+    const heavy = driven.has(rel) ? 'drives a terminal' : bootsBundle(rel) ? 'boots the bundle' : null
+    if (s.cls === 'pty' && heavy === null) pureInPty.push(`${rel} (${s.suite})`)
+    if (RELEASE_CLASSES.has(s.cls) && heavy !== null) heavyInRelease.push(`${rel} (${s.suite}: ${heavy})`)
+  }
+}
+const missingEstates = Object.keys(DRIVE_ONLY_ESTATES).filter(e => !existsSync(join(SCRIPTS, e, 'run-all.sh')))
+const unterminated = readdirSync(SCRIPTS)
+  .filter(dir => existsSync(join(SCRIPTS, dir, 'members.txt')))
+  .filter(dir => !/(^|\n)$/.test(readFileSync(join(SCRIPTS, dir, 'members.txt'), 'utf8')))
+  .map(dir => `scripts/${dir}/members.txt`)
+check(
+  `no pure proof of a drive-only estate sits in a pty suite — a pty suite is deferred to the drives verdict, so a source render, a census or an in-process pin there never runs on a gate (${pureInPty.length} found; a proof is pure when no file it executes opens a terminal and its source carries no --dist bundle boot)`,
+  pureInPty.length === 0,
+  pureInPty.join('\n      '),
+)
+check('no terminal drive or bundle boot sits in a release-class shard of a drive-only estate', heavyInRelease.length === 0, heavyInRelease.join(' · '))
+check('the drive-only estate rows all point at existing suites', missingEstates.length === 0, missingEstates.join(', '))
+check('every member list ends with a newline (a complement runner cats the sibling lists in sequence: a last row without one glues to the next list and both names escape their lists)', unterminated.length === 0, unterminated.join(', '))
 
 const vacuous: string[] = []
 for (const dir of readdirSync(SCRIPTS)) {
