@@ -12,6 +12,7 @@ import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
   CREDITS_UNREPORTED_WORDS,
   anthropicPoolWindowViews,
+  anthropicSignInEmail,
   anthropicWindowViews,
   openaiObservedWindowViews,
   providerFamilyPresences,
@@ -792,11 +793,13 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
   const view = providerUsageView('anthropic')
   const keyEntry = view.entries.find(e => e.kind === 'api-key')
   const owner = usageForProvider('anthropic')
+  const signInEmail = subscriber ? anthropicSignInEmail() : undefined
   return (
     <Box flexDirection="column">
       <Text bold>Anthropic usage</Text>
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
+        {signInEmail !== undefined ? <Text dimColor wrap="truncate-end">Signed in as {signInEmail}</Text> : null}
         {anthropicSection}
       </Box>
       <ApiKeySlot
