@@ -2,6 +2,7 @@ import { shouldSkipHighlight } from '../../utils/cliHighlight.js'
 import { diffArrays } from 'diff'
 import { truecolorActive } from '../../ink/colorize.js'
 import { stringWidth } from '../../ink/stringWidth.js'
+import { expandTabs } from '../../ink/tabstops.js'
 import { logError } from '../../utils/log.js'
 
 function charWidth(char: string): number {
@@ -777,7 +778,7 @@ export class ColorFile {
   }
 
   render(themeName: string, width: number, dim: boolean): string[] | null {
-    const split = this.source.split('\n')
+    const split = expandTabs(this.source).split('\n')
     if (split.length > 0 && split[split.length - 1] === '') split.pop()
     const gutterWidth = String(split.length).length
     const lines: RenderLine[] = split.map((code, index) => ({
