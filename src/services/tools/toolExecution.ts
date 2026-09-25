@@ -918,6 +918,7 @@ async function runTransactionBody(args: {
       return
     }
     const isInterrupt = isAbortError(error)
+    const cutByTurn = isInterrupt && signal.aborted
     const message = error instanceof Error ? error.message : String(error)
 
     if (error instanceof McpAuthError) {
@@ -951,6 +952,11 @@ async function runTransactionBody(args: {
       failureHookMessages.push(item.message)
     }
 
+    if (cutByTurn) {
+      push(interruptResultUpdate(toolUseID, sourceUUID, turnCutResultText(turnCutOf(signal.reason), tool.name)))
+      for (const failureMessage of failureHookMessages) push({ message: failureMessage })
+      return
+    }
     const isSubagent =
       toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
     const mcpMeta = (error as { mcpMeta?: { _meta?: Record<string, unknown> } }).mcpMeta

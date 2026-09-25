@@ -1,4 +1,5 @@
 import { outageCauseWordsOf } from '../api/recoveryBudget.js'
+import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience } from './patience.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
@@ -175,6 +176,11 @@ export function retryReasonWords(status: number | null | undefined, message?: st
   if (outage !== undefined) return outage
   if (/no first byte/.test(message)) return 'a first-byte timeout'
   return 'a connection error'
+}
+
+export function retryNoticeWait(notice: SystemAPIErrorMessage, nowMs: number = Date.now()): Extract<RequestWaitV1, { kind: 'retry' }> {
+  const status = notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status
+  return { kind: 'retry', attempt: notice.retryAttempt, of: notice.maxRetries, reason: retryReasonWords(status, notice.error?.message), delayMs: notice.retryInMs, sinceMs: nowMs }
 }
 
 
