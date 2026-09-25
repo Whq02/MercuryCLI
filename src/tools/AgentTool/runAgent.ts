@@ -393,6 +393,7 @@ async function buildAgentSystemPrompt(
   toolUseContext: ToolUseContext,
   resolvedAgentModel: string,
   enabledToolNames: ReadonlySet<string>,
+  agentId: AgentId,
 ): Promise<string[]> {
   let ownPrompt: string
   try {
@@ -416,6 +417,7 @@ async function buildAgentSystemPrompt(
       toolUseContext.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
     ),
     enabledToolNames,
+    agentId,
   )
 }
 
@@ -882,6 +884,7 @@ export async function* runAgent(
         toolUseContext,
         resolvedAgentModel,
         enabledToolNames,
+        agentId,
       ))
     if (reviewReceipt !== undefined) systemPrompt.push(`Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
     if (structuredOutputSpec !== undefined) {
