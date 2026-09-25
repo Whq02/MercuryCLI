@@ -64,12 +64,15 @@ tally.section('§2 the verbs consult the verdict before anything that would end 
   tally.check("…refusing the stop-and-start road (a pre-handshake daemon) and a daemon that counts nothing live — the two roads that would end this turn", /hosting\.hosted && first\.daemon !== null && \(first\.heal === 'operator' \|\| first\.live === 0\)/.test(restart) && restart.includes("hostedCallerRefusalLine('restart')"))
   tally.check('…and lets the armed road through, saying this session is one of the live ones', restart.includes("receipt.state === 'armed'") && restart.includes('this hosted session is one of them; your turn goes on'))
   const teardown = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
-  tally.check('the seam stands as read: the teardown reaps every rostered worker, --keep or not (why the refusal is client-side)', teardown.includes('for (const j of roster.list())') && teardown.includes('roster.kill(j.short)'))
-  const { DAEMON_USAGE } = await import('../../src/daemon/verbs.ts')
-  const keepLine = DAEMON_USAGE.split('\n').find(l => l.trimStart().startsWith('stop ') && l.includes('--keep')) ?? ''
-  const promisesSurvival = (text: string): boolean => /leaves? (in-flight )?(them|workers) running|workers? (survive|stay alive|keep running|live on)/i.test(text)
-  tally.check('the usage text no longer promises that --keep leaves workers running; it says the teardown still ends them', keepLine !== '' && !promisesSurvival(keepLine) && /teardown still ends every worker/.test(keepLine), keepLine)
-  tally.check("the contradiction refusal says the same (no 'leaves them running')", !promisesSurvival(stop) && stop.includes("the daemon's own teardown still ends every worker"))
+  tally.check('the seam stands as read: the teardown reaps every rostered worker (why the refusal is client-side, and why no flag can keep one)', teardown.includes('for (const j of roster.list())') && teardown.includes('roster.kill(j.short)'))
+  const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/verbs.ts')
+  const stopRow = DAEMON_USAGE.split('\n').find(l => l.trimStart().startsWith('stop')) ?? ''
+  const promisesSurvival = (text: string): boolean => /leaves? (in-flight )?(them|workers) running|workers? (survive|stay alive|keep running|live on)|skips that reap/i.test(text)
+  tally.check('the usage carries no --keep: the flag is retired, not explained', !DAEMON_USAGE.includes('--keep') && !DAEMON_USAGE.includes('--any'), stopRow)
+  tally.check('the stop row of the usage names the reap and promises no survival', /reap/.test(stopRow) && !promisesSurvival(stopRow), stopRow)
+  const keep = parseDaemonVerb(['stop', '--keep'], () => false) as { kind: string; word?: string }
+  tally.check("`stop --keep` is refused by the grammar, typed, naming the flag", keep.kind === 'unknown-flag' && keep.word === '--keep', `accepted as ${JSON.stringify(keep)}`)
+  tally.check('the stop verb reads no --keep and asks for the reap by name', !stop.includes('--keep') && stop.includes("{ op: 'shutdown', reapWorkers: true }"), stop.split('\n').filter(l => /--keep|reapWorkers/.test(l)).join(' | '))
 }
 
 tally.section('§3 LIVE — a session this daemon hosts runs the stop from its own Bash')
@@ -102,7 +105,7 @@ const clientCommand = (verb: string): string =>
   CLIENT === 'bundle'
     ? `"${NODE}" "${DIST}" daemon ${verb}`
     : `"${BUN}" run "${join(ROOT, 'scripts', 'daemon', 'hosted-caller-client.ts')}" ${verb}`
-const stopCommand = `${clientCommand('stop --keep')} 2>&1; echo "${STOP_EXIT_MARK}$?"`
+const stopCommand = `${clientCommand('stop')} 2>&1; echo "${STOP_EXIT_MARK}$?"`
 const restartCommand = `${clientCommand('restart')} 2>&1; echo "${RESTART_EXIT_MARK}$?"`
 const script: Script = req => {
   if (req.step === 0 && req.ask.includes(STOP_ASK)) return [{ type: 'tool_use', name: 'Bash', input: { command: stopCommand, description: 'stop the daemon from inside its own session' } }]
@@ -215,7 +218,7 @@ try {
   const bootPid = await supervisorPid()
   tally.check('the supervisor record names the daemon the proof booted', bootPid === daemon.pid, `record ${bootPid} · spawned ${daemon.pid}`)
 
-  console.log('\n  the stop: `mercury daemon stop --keep` from the Bash of a session this daemon hosts')
+  console.log('\n  the stop: `mercury daemon stop` from the Bash of a session this daemon hosts')
   const a = await dispatch('stop-inside', STOP_ASK, workA)
   const pidA = a.rec?.pid
   tally.check('the runner is live', a.rec !== undefined && alive(pidA), JSON.stringify(a.rec))

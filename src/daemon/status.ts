@@ -172,7 +172,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   if (status.supervisor && !status.controlReachable) {
     lines.push(
       '  warning:      supervisor record present but control socket unreachable — ' +
-        'the process may have crashed; run `mercury daemon stop --any` to clear it',
+        'the process may have crashed; run `mercury daemon stop` to clear it',
     )
   }
 
