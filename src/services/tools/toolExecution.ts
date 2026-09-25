@@ -25,6 +25,8 @@ import {
   createProgressMessage,
   createToolResultStopMessage,
   createUserMessage,
+  turnCutOf,
+  turnCutResultText,
 } from '../../utils/messages.js'
 import { emitInvocationTrace } from '../../utils/observability/invocationTrace.js'
 import type { HermesKillInfo } from '../../utils/permissions/capabilityGate.js'
@@ -198,15 +200,16 @@ function errorResultUpdate(args: {
 function interruptResultUpdate(
   toolUseID: string,
   sourceToolAssistantUUID: AssistantMessage['uuid'],
+  text: string = CANCEL_MESSAGE,
 ): MessageUpdateLazy {
   const block = {
     ...createToolResultStopMessage(toolUseID),
-    content: CANCEL_MESSAGE,
+    content: text,
   }
   return {
     message: createUserMessage({
       content: [block] as never,
-      toolUseResult: CANCEL_MESSAGE,
+      toolUseResult: text,
       sourceToolAssistantUUID: sourceToolAssistantUUID as never,
     }),
   }
@@ -911,7 +914,7 @@ async function runTransactionBody(args: {
     }
     if (error instanceof ToolCallAbandonedError) {
       logForDebugging(`tool ${tool.name}: ${error.message}`)
-      push(interruptResultUpdate(toolUseID, sourceUUID))
+      push(interruptResultUpdate(toolUseID, sourceUUID, turnCutResultText(turnCutOf(signal.reason), tool.name)))
       return
     }
     const isInterrupt = isAbortError(error)
