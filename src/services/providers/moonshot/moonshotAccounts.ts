@@ -21,6 +21,7 @@ const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 export const KIMI_OAUTH_CLIENT_ID = '17e5f671-d194-4dfb-9706-5516cb48c098'
 const DEVICE_DEFAULT_INTERVAL_SEC = 5
 const REFRESH_MARGIN_MS = 15 * 60 * 1000
+const MIN_REFRESH_MARGIN_MS = 60 * 1000
 
 export type KimiRegion = 'global' | 'mainland-cn'
 export const KIMI_REGIONS: readonly KimiRegion[] = ['global', 'mainland-cn']
@@ -165,6 +166,31 @@ function servedModelTableOf(file: MoonshotAuthFile | null): Record<string, Moons
 
 function tokenIdentity(tokens: MoonshotStoredTokens): string {
   return credentialFingerprint(tokens.refreshToken ?? tokens.accessToken)
+}
+
+function accessTokenClaims(accessToken: string): Record<string, unknown> | undefined {
+  const parts = accessToken.split('.')
+  if (parts.length !== 3 || parts[1] === undefined) return undefined
+  try {
+    const parsed = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')) as unknown
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function kimiAccountKey(tokens: MoonshotStoredTokens): string {
+  const claims = accessTokenClaims(tokens.accessToken)
+  const subject = claims?.sub ?? claims?.user_id
+  return typeof subject === 'string' && subject.trim() !== '' ? credentialFingerprint(`kimi-subject:${subject.trim()}`) : tokenIdentity(tokens)
+}
+
+export function accessTokenRefreshMarginMs(tokens: MoonshotStoredTokens): number {
+  const claims = accessTokenClaims(tokens.accessToken)
+  const issuedAt = typeof claims?.iat === 'number' ? claims.iat * 1000 : undefined
+  const expiresAt = typeof claims?.exp === 'number' ? claims.exp * 1000 : tokens.accessTokenExpiresAtMs
+  if (issuedAt === undefined || expiresAt === undefined || expiresAt <= issuedAt) return REFRESH_MARGIN_MS
+  return Math.min(REFRESH_MARGIN_MS, Math.max(MIN_REFRESH_MARGIN_MS, Math.floor((expiresAt - issuedAt) / 3)))
 }
 
 export function moonshotAccountIdentity(env: NodeJS.ProcessEnv = process.env): string | undefined {
@@ -530,7 +556,7 @@ export async function resolveMoonshotDispatchCredential(
     const signedIn = (tokens: MoonshotStoredTokens): MoonshotDispatchCredential => ({ apiKey: tokens.accessToken, requestUrl, source: 'kimi-oauth', accountIdentity: tokenIdentity(tokens) })
     const now = io?.now?.() ?? Date.now()
     const expiresAt = oauth.accessTokenExpiresAtMs
-    if (expiresAt !== undefined && expiresAt - now < REFRESH_MARGIN_MS) {
+    if (expiresAt !== undefined && expiresAt - now < accessTokenRefreshMarginMs(oauth)) {
       if (oauth.refreshToken) {
         const fresh = await refreshMoonshotTokens(io)
         if (fresh) return signedIn(fresh)

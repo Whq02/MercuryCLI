@@ -82,9 +82,13 @@ export const KIMI_DISPLAY_PINS: readonly KimiDisplayPin[] = [
   },
 ]
 
-export function kimiDisplayPin(id: string): KimiDisplayPin | undefined {
+export function kimiPlanPin(id: string): KimiDisplayPin | undefined {
   const lower = id.trim().toLowerCase()
-  return KIMI_PLAN_PINS.find(p => p.id === lower) ?? KIMI_DISPLAY_PINS.find(p => p.id === lower)
+  return KIMI_PLAN_PINS.find(p => p.id === lower)
+}
+
+export function kimiDisplayPin(id: string): KimiDisplayPin | undefined {
+  return kimiPlanPin(id) ?? KIMI_DISPLAY_PINS.find(p => p.id === id.trim().toLowerCase())
 }
 
 export function kimiMechanicalName(id: string): string {

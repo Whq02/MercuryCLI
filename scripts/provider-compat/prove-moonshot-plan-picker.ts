@@ -383,6 +383,68 @@ section('§8 the coding plan serves k3: an off-grammar id that arrived in the ac
   check("signed out, 'k3' routes nowhere by grammar while 'kimi-k3' still routes to moonshot by grammar", declaredRouteOf(K3) === null && declaredRouteOf('kimi-k3') === 'moonshot' && !engine.isExactEngineModelId(K3) && engine.isExactEngineModelId('kimi-k3') && liveIds().size === 0, `${String(declaredRouteOf(K3))} / ${String(declaredRouteOf('kimi-k3'))}`)
 }
 
+section('§9 a real Kimi sign-in: the access token lives fifteen minutes and rotates on refresh, and the list stays under the account')
+{
+  const SUBJECT = 'fixture-subject-plan'
+  const LIFETIME_S = 15 * 60
+  let minted = 0
+  const jwt = (issuedAtS: number): string => {
+    minted++
+    const encode = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+    return `${encode({ alg: 'none', typ: 'JWT' })}.${encode({ sub: SUBJECT, user_id: SUBJECT, iat: issuedAtS, exp: issuedAtS + LIFETIME_S, jti: `jti-${minted}` })}.sig`
+  }
+  const refreshPosts: string[] = []
+  const tokenFetch = globalThis.fetch
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const spelled = String(url instanceof Request ? url.url : url)
+    if (spelled === 'http://127.0.0.1:1/api/oauth/token') {
+      refreshPosts.push(String(new URLSearchParams(String(init?.body ?? '')).get('refresh_token')))
+      const nowS = Math.floor(Date.now() / 1000)
+      return Response.json({ access_token: jwt(nowS), refresh_token: `fixture-refresh-rotated-${refreshPosts.length}`, expires_in: LIFETIME_S })
+    }
+    return tokenFetch(url, init)
+  }) as typeof fetch
+  const nowS = Math.floor(Date.now() / 1000)
+  const tenMinutesLeft = { accessToken: jwt(nowS - 5 * 60), refreshToken: 'fixture-refresh-live', accessTokenExpiresAtMs: (nowS + 10 * 60) * 1000 }
+  accounts.writeMoonshotTokens(tenMinutesLeft, 'global')
+  recordSignIn('moonshot', 'oauth')
+  catalogue.__resetMoonshotCatalogueForTest()
+  listMode = { kind: 'list', body: CODING_PLAN_LIST }
+  const marginOf = (accounts as { accessTokenRefreshMarginMs?: (tokens: typeof tenMinutesLeft) => number }).accessTokenRefreshMarginMs
+  check('the refresh margin follows the token lifetime: a fifteen-minute token refreshes inside its last five minutes, never on every request', marginOf?.(tenMinutesLeft) === 5 * 60 * 1000, String(marginOf?.(tenMinutesLeft)))
+  await catalogue.refreshMoonshotCatalogue({ force: true })
+  check('a catalogue read on a token with ten minutes left posts no refresh grant', refreshPosts.length === 0, JSON.stringify(refreshPosts))
+  const landed = catalogue.moonshotCatalogueRows()
+  check('the list landed under the account and the section paints the plan, k3 first', landed.source.kind === 'live' && landed.rows.map(row => row.id).join(',') === `${K3},${K3_256K},${ALIAS},${FAST_ALIAS}`, JSON.stringify(landed.source) + ' ' + landed.rows.map(row => row.id).join(','))
+  check('k3 carries the plan window over the endpoint, k3-256k its own', landed.rows[0]?.contextWindow === 1_048_576 && landed.rows[1]?.contextWindow === 262_144, JSON.stringify(landed.rows.map(row => [row.id, row.contextWindow])))
+  const threeMinutesLeft = { accessToken: jwt(nowS - 12 * 60), refreshToken: 'fixture-refresh-live', accessTokenExpiresAtMs: (nowS + 3 * 60) * 1000 }
+  accounts.writeMoonshotTokens(threeMinutesLeft, 'global')
+  check('a token rotation by another road (the same account) keeps the list: the section still paints it', catalogue.moonshotCatalogueRows().source.kind === 'live' && catalogue.getCachedMoonshotCatalogue() !== null && catalogue.cachedLiveIds().has(K3), JSON.stringify(catalogue.moonshotCatalogueRows().source))
+  await catalogue.refreshMoonshotCatalogue({ force: true })
+  check('a read on a token inside its last five minutes refreshes it once, through the refresh grant', refreshPosts.length === 1 && refreshPosts[0] === 'fixture-refresh-live', JSON.stringify(refreshPosts))
+  const rotated = accounts.moonshotStoredTokens()
+  const keyOf = (accounts as { kimiAccountKey?: (tokens: typeof tenMinutesLeft) => string }).kimiAccountKey
+  check('the rotated token is stored (a new access token, a new refresh token) and the account key does not move', rotated !== undefined && rotated.accessToken !== threeMinutesLeft.accessToken && rotated.refreshToken === 'fixture-refresh-rotated-1' && keyOf?.(rotated) === keyOf?.(threeMinutesLeft), JSON.stringify({ key: rotated && keyOf ? keyOf(rotated) : null }))
+  const afterRotation = catalogue.moonshotCatalogueRows()
+  check('the list read with the rotated token in hand is stored where the next read finds it: live rows, k3 first', afterRotation.source.kind === 'live' && afterRotation.rows[0]?.id === K3 && catalogue.cachedLiveIds().has(K3), JSON.stringify(afterRotation.source))
+  for (let round = 0; round < 3; round++) {
+    accounts.writeMoonshotTokens({ accessToken: jwt(Math.floor(Date.now() / 1000)), refreshToken: `fixture-refresh-live-${round}`, accessTokenExpiresAtMs: Date.now() + LIFETIME_S * 1000 }, 'global')
+    check(`rotation ${round + 1}: the picker still paints the plan's rows and the seam still routes k3 to Moonshot`, moonshotRows().some(row => row.value === K3) && catalogue.moonshotCatalogueRows().source.kind === 'live' && declaredRouteOf(K3) === 'moonshot', JSON.stringify(catalogue.moonshotCatalogueRows().source))
+  }
+  const other = { accessToken: (() => { const encode = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_'); return `${encode({ alg: 'none' })}.${encode({ sub: 'fixture-subject-other', iat: nowS, exp: nowS + LIFETIME_S })}.sig` })(), refreshToken: 'fixture-refresh-other', accessTokenExpiresAtMs: Date.now() + LIFETIME_S * 1000 }
+  accounts.writeMoonshotTokens(other, 'global')
+  recordSignIn('moonshot', 'oauth')
+  check("another account's sign-in does not inherit the list: its own read is pending", catalogue.moonshotCatalogueRows().source.kind === 'unread' && !catalogue.cachedLiveIds().has(K3), JSON.stringify(catalogue.moonshotCatalogueRows().source))
+  const owner = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotCatalogue.ts'), 'utf8')
+  const accountsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/moonshot/moonshotAccounts.ts'), 'utf8')
+  check('the catalogue identity of a Kimi sign-in is the account key, never the access token', owner.includes('return `kimi-oauth:${tokens ? kimiAccountKey(tokens) : \'\'}:${kimiCodingBase(account.region, env)}`') && !owner.includes('credentialFingerprint(moonshotStoredTokens()?.accessToken'))
+  check('the read stores the list under the same identity it is read by', owner.includes("destination = source === 'kimi-oauth' ? catalogueIdentity(env) : "))
+  check('the refresh margin is derived from the token lifetime', accountsSrc.includes('expiresAt - now < accessTokenRefreshMarginMs(oauth)') && accountsSrc.includes('Math.floor((expiresAt - issuedAt) / 3)'))
+  globalThis.fetch = tokenFetch
+  accounts.writeMoonshotTokens(null)
+  catalogue.__resetMoonshotCatalogueForTest()
+}
+
 globalThis.fetch = realFetch
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\nprove-moonshot-plan-picker: ${checks} checks, ${failures === 0 ? 'green' : `${failures} failed`}`)
