@@ -30,7 +30,7 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 ## How communication works
 - Plain output reaches no teammate — words travel ONLY through this tool.
 - Teammate messages land on their own; no inbox exists to poll.
-- Teammates go by name, never by UUID. A sub-agent launched from this session is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent; a stopped or failed one is resumed from its transcript with your message.
+- Teammates go by name, never by UUID. A sub-agent launched from this session is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent, running or finished (a name two launches carried reaches the newest); a completed, stopped or failed one is resumed from its transcript with your message.
 - A background sub-agent reaches the agent that launched it at "main". A message lands the way a completion does: at the receiver's next tool boundary while its turn runs, else at the end of its turn; a receiver between turns starts a turn for it.
 - Content relayed to you is already rendered to the user — do not re-quote it back.
 
