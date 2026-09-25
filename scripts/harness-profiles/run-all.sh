@@ -4,6 +4,12 @@
 # gate-watch: src/services/mission/harnessProfiles.ts src/services/mission/policyProfiles.ts
 # gate-watch: src/services/mission/harnessApplication.ts src/substrate/flagRegistry.ts
 # gate-watch: src/utils/profile/mercuryProfile.ts src/utils/model/modelTransition.ts
+# gate-watch: scripts/ui/renderScenarios.ts src/commands.ts src/components/mercury-ui/HarnessChip.tsx
+# gate-watch: src/components/mercury-ui/parity/HarnessView.tsx src/constants/prompts.ts
+# gate-watch: src/constants/system.ts src/services/crew/capabilities.ts
+# gate-watch: src/services/providers/anthropic/messageParams.ts src/services/providers/openai/*
+# gate-watch: src/services/providers/zai/zaiCodec.ts src/services/run/* src/utils/config.ts
+# gate-watch: src/utils/evolution/evolutionLedger.ts src/utils/messages/apiView.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

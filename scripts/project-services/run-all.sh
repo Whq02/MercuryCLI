@@ -10,6 +10,9 @@
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask* src/tools/** src/utils/artifacts/store*
 # gate-watch: src/utils/messageQueueManager* src/utils/messages/attachmentText* src/utils/tasks*
 # gate-watch: src/utils/verification/verificationState* assets/completions/**
+# gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs scripts/lib/proofHome.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts src/services/workshop/workerSource.ts
+# gate-watch: src/utils/capability/census.ts src/utils/toolErrors.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

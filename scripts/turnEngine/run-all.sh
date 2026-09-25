@@ -2,6 +2,8 @@
 # gate-class: pure
 # gate-watch: src/QueryEngine* src/Tool* src/bootstrap/state* src/query/**
 # gate-watch: src/services/api/errors* src/utils/**
+# gate-watch: scripts/lib/fixtureApi.ts src/cli/print.ts src/query.ts src/run-core/budget-guard.ts
+# gate-watch: src/run-core/events.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

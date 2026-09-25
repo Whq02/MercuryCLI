@@ -10,6 +10,10 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/utils/messages/lookups.ts
 # gate-watch: src/services/api/errors.ts
+# gate-watch: scripts/ui/render-tui.ts src/QueryEngine.ts src/components/MercuryResume.tsx
+# gate-watch: src/components/Message.tsx src/components/mercury-ui/components.tsx
+# gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
+# gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

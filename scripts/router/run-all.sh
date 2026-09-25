@@ -4,6 +4,7 @@
 # gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/SendMessageTool*
 # gate-watch: src/utils/model/** src/utils/router/**
 # gate-watch: src/utils/swarm/busEnvelopes* src/utils/teammateMailbox*
+# gate-watch: src/services/providers/openai/gptPins.ts src/services/providers/openai/openaiCatalogue.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

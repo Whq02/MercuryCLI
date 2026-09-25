@@ -11,6 +11,20 @@
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
 # gate-watch: src/state/AppStateStore* src/substrate/bootNotes* src/tools/BriefTool/UI*
 # gate-watch: src/types/logs* src/utils/**
+# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs design-system/live/manifest.json
+# gate-watch: design-system/readme.md docs/ENGINES.md mercury-skills/provider-apis/SKILL.md
+# gate-watch: native/voice/Cargo.toml native/voice/src/** scripts/cockpit-interaction/prove-action-graph.ts
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/critters/prove-critter-mini-drive.ts
+# gate-watch: scripts/engine-durability/harness.ts scripts/ink-runtime/ansiEmulator.ts
+# gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/interaction/prove-exit-copy-journeys.ts
+# gate-watch: scripts/journey/cap-offer-fixture-server.ts scripts/lib/* scripts/navigation/arena.ts
+# gate-watch: scripts/navigation/fixture1k.ts scripts/notifications/concourseReferenceSeed.ts
+# gate-watch: scripts/ops/launcher-mercury.sh
+# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
+# gate-watch: scripts/release/launcherTemplates.mjs scripts/render-continuity/lib/attrgrab.py
+# gate-watch: scripts/search/lib/bundle-for-node.ts scripts/streaming/artifactArena.ts
+# gate-watch: scripts/streaming/screengrab.py scripts/voice/fixtures/on-device-take.wav
+# gate-watch: scripts/voice/voice-transcriber-fixture-server.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

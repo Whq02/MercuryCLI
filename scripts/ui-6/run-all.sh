@@ -4,6 +4,7 @@
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
 # gate-watch: src/services/run/** src/state/AppState* src/utils/**
+# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

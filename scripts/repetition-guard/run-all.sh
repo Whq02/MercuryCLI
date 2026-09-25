@@ -4,6 +4,9 @@
 # gate-watch: src/services/changeTransaction/repetitionPolicy.ts
 # gate-watch: src/tools/FileEditTool/** src/tools/FileWriteTool/** src/tools/ChangeSetTool/**
 # gate-watch: scripts/mission-runner/live/runner.ts
+# gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/Tool.ts
+# gate-watch: src/services/changeTransaction/contracts.ts src/services/changeTransaction/snapshotAnchor.ts
+# gate-watch: src/services/run/effectObserver.ts src/utils/verification/verificationState.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

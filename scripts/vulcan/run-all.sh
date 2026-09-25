@@ -3,6 +3,11 @@
 # gate-watch: src/constants/subagentDoctrine* src/services/vulcan/** src/substrate/flagRegistry*
 # gate-watch: src/substrate/startupMenu* src/tools/** src/utils/cwd* src/utils/cockpit/harnessMap*
 # gate-watch: src/utils/vulcan/optable.generated* src/utils/vulcan/vulcanGates*
+# gate-watch: assets/vulcan/addon/categories/editor.gd assets/vulcan/addon/categories/script.gd
+# gate-watch: assets/vulcan/addon/core/** assets/vulcan/addon/plugin.cfg assets/vulcan/addon/plugin.gd
+# gate-watch: assets/vulcan/optable.json scripts/lib/generated-assets-map.mjs src/bootstrap/state.ts
+# gate-watch: src/cli/godotEngineCli.ts src/constants/prompts.ts src/services/ide/godotSession.ts
+# gate-watch: src/services/run/ownerKey.ts src/tools.ts src/utils/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

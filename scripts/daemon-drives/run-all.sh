@@ -4,6 +4,8 @@
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/concourseSupervisor.ts src/daemon/concourseDispatch.ts
 # gate-watch: src/components/concourse/LiveNowCell.tsx src/services/engine-connector/crewFacts.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatProjections.ts
+# gate-watch: scripts/lib/* scripts/ui/vshot.py src/daemon/* src/services/crew/obligations.ts
+# gate-watch: src/utils/sessionStorage/paths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

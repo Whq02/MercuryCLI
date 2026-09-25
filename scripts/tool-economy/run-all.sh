@@ -2,6 +2,11 @@
 # gate-class: pure
 # gate-watch: src/services/providers/** src/utils/toolSearch* src/utils/api.ts
 # gate-watch: src/tools/ToolSearchTool/** src/utils/attachments/deltas* src/utils/model/capabilities*
+# gate-watch: src/Tool.ts src/bootstrap/state.ts src/components/messages/nullRenderingAttachments.ts
+# gate-watch: src/services/api/prefixFingerprint.ts src/services/tools/toolExecution.ts src/tools.ts
+# gate-watch: src/tools/MCPTool/MCPTool.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/messages/attachmentText.ts
+# gate-watch: src/utils/router/providers/* src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -5,6 +5,27 @@
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 # gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
 # gate-watch: src/services/api/** src/run-core/turn-machine.ts
+# gate-watch: .node-version docs/SESSIONS.md package.json scripts/compact/overflowFixture.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/* src/bootstrap/state.ts src/cli/print.ts
+# gate-watch: src/components/SwitchboardTagBar.tsx src/components/concourse/ConcourseRoute.tsx
+# gate-watch: src/components/messages/AssistantTextMessage.tsx
+# gate-watch: src/components/messages/nullRenderingAttachments.ts
+# gate-watch: src/components/tasks/WorkflowDetailDialog.tsx src/constants/* src/query/transitions.ts
+# gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts
+# gate-watch: src/services/desktop/screenshotRetention.ts src/services/engine-connector/seatLive.ts
+# gate-watch: src/services/mcp/useManageMCPConnections.ts src/services/providers/*
+# gate-watch: src/services/providers/gemini/geminiCallModel.ts
+# gate-watch: src/services/providers/openaicompat/compatCallModel.ts
+# gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/run/requestContextPlan.ts
+# gate-watch: src/services/run/resolveOwner.ts src/services/search/searchContract.ts
+# gate-watch: src/services/tools/toolExecution.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
+# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/ChangeSetTool/ChangeSetTool.ts
+# gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
+# gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/WorkflowTool/* src/utils/*
+# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts
+# gate-watch: src/utils/cockpit/runProtocol.ts src/utils/config/globalConfig.ts src/utils/messages/*
+# gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
+# gate-watch: src/utils/settings/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

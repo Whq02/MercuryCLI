@@ -6,6 +6,16 @@
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts scripts/journey/prove-accounts-header-drive.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen* scripts/journey/prove-signin-receipt-drive.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/ui/vshot.py
+# gate-watch: src/commands/model/mercuryModel.tsx src/components/PromptInput/useSwarmBanner.ts
+# gate-watch: src/constants/figures.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/ink.ts
+# gate-watch: src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/services/providers/deepseek/deepseekAccounts.ts
+# gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
+# gate-watch: src/services/providers/moonshot/moonshotAccounts.ts
+# gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts src/state/AppState.tsx src/state/store.ts
+# gate-watch: src/tools/AgentTool/agentColorManager.ts src/utils/accounts/signInLedger.ts src/utils/config.ts
+# gate-watch: src/utils/imageStore.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -10,6 +10,7 @@
 # gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
+# gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

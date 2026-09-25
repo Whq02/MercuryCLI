@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/samples/** src/services/workshop/** src/tools/WorkshopTool/** docs/SAMPLES.md src/components/samples/** src/components/tasks/useFocusedWork.ts src/services/engine-connector/seatWire.ts src/daemon/runnerFrames.ts
+# gate-watch: scripts/lib/* src/Tool.ts src/cli/print.ts src/daemon/sessionSeat.ts
+# gate-watch: src/entrypoints/sdk/coreSchemas.ts src/ink/stringWidth.ts
+# gate-watch: src/services/browser/browserResolver.ts src/services/browser/browserSession.ts
+# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/run/ownerKey.ts
+# gate-watch: src/services/run/ownerLifecycle.ts src/tools/FileEditTool/FileEditTool.ts
+# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/messageQueueManager.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

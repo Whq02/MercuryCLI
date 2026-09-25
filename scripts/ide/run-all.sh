@@ -7,6 +7,9 @@
 # gate-watch: src/services/vulcan/vulcanClient* src/services/workshop/pythonRuntime*
 # gate-watch: src/tools/DebugTool/DebugTool* src/tools/LSPTool/mercuryOps*
 # gate-watch: src/tools/LaunchTool/LaunchTool* src/tools/TestTool/TestTool* src/utils/**
+# gate-watch: build.ts docs/DEBUGGER.md package.json scripts/engine-durability/harness.ts scripts/vendor/*
+# gate-watch: src/Tool.ts src/substrate/flagRegistry.ts src/tools.ts
+# gate-watch: src/tools/TransactionTool/TransactionTool.ts vendor/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

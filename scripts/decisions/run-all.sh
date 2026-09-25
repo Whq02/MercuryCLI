@@ -2,6 +2,8 @@
 # gate-class: pure
 # gate-watch: src/Tool* src/utils/errors/** src/utils/permissions/decision/**
 # gate-watch: src/utils/permissions/denialTracking* src/utils/permissions/permissions*
+# gate-watch: src/tools/BashTool/* src/tools/PowerShellTool/* src/utils/errors.ts
+# gate-watch: src/utils/permissions/shellRuleMatching.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

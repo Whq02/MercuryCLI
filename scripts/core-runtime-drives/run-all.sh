@@ -10,6 +10,8 @@
 # gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/core-runtime/* scripts/lib/captureDriver.ts
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/ui/vshot.py
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

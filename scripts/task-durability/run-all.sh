@@ -4,6 +4,12 @@
 # gate-watch: src/substrate/durablePublish.ts src/substrate/fileStore.ts src/utils/tasks.ts
 # gate-watch: src/services/privateChannel/installLayout.ts src/utils/errors/classifyToolError.ts
 # gate-watch: src/services/changeTransaction/changeSetCommit.ts .github/workflows/windows-functional.yml
+# gate-watch: scripts/reliability/helpers/durablePublishKillChild.ts src/daemon/ownedDaemon.ts
+# gate-watch: src/keybindings/writeBindings.ts src/memdir/mnemeConsolidate.ts
+# gate-watch: src/services/interview/decisionRecord.ts src/services/vulcan/addonInstaller.ts
+# gate-watch: src/tools/LSPTool/mercuryOps.ts src/utils/* src/utils/cockpit/presenceLive.ts
+# gate-watch: src/utils/observability/invocationTrace.ts src/utils/router/postures.ts
+# gate-watch: src/utils/sessionStorage/resumeSnapshot.ts src/utils/verification/verificationState.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
