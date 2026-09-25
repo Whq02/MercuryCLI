@@ -115,5 +115,34 @@ console.log('\n6 the plane heal reads the latch before it re-binds')
   check('6 the rebind line reads daemonHomeStands first', rebindLines.every(line => line.includes('daemonHomeStands(')), rebindLines.map(l => l.trim()).join(' | ') || 'none')
 }
 
+console.log('\n7 the daemon-home writers outside src/daemon publish through the seam: the trails append through it, the projections rename through it')
+{
+  const seam = read(SEAM)
+  check('7 daemonHome.ts exports appendInDaemonHome (a trail appends one row; the publish door replaces whole files)', /export function appendInDaemonHome\(/.test(seam))
+  check('7 daemonHome.ts exports publishTransientInDaemonHome (a boot-wiped projection renames without the durable fsync)', /export function publishTransientInDaemonHome\(/.test(seam))
+  const ledger = read(join(ROOT, 'src', 'utils', 'spawnLedger.ts'))
+  const projections = read(join(ROOT, 'src', 'services', 'engine-connector', 'seatProjections.ts'))
+  const routed: Array<{ file: string; code: string; fn: string; door: string }> = [
+    { file: 'spawnLedger.ts', code: ledger, fn: 'appendTrail', door: 'appendInDaemonHome' },
+    { file: 'seatProjections.ts', code: projections, fn: 'publishSessionFacts', door: 'publishTransientInDaemonHome' },
+    { file: 'seatProjections.ts', code: projections, fn: 'publishSessionAsks', door: 'publishTransientInDaemonHome' },
+    { file: 'seatProjections.ts', code: projections, fn: 'publishSessionTail', door: 'publishTransientInDaemonHome' },
+    { file: 'seatProjections.ts', code: projections, fn: 'publishSessionProgress', door: 'publishTransientInDaemonHome' },
+  ]
+  const roads = ['writeFile(', 'writeFileSync(', 'appendFileSync(', 'mkdir(', 'mkdirSync(', 'renameSync(', 'publishAtomic(', 'publishOrdered(']
+  for (const r of routed) {
+    const body = functionBody(r.code, r.fn)
+    const privateRoads = body === null ? ['function not found'] : roads.filter(road => body.includes(road))
+    check(`7 ${r.file} ${r.fn} publishes through ${r.door} and takes no private write road`, body !== null && body.includes(`${r.door}(`) && privateRoads.length === 0, privateRoads.join(', ') || `no ${r.door} call`)
+  }
+  for (const fn of ['publishSessionFacts', 'publishSessionAsks', 'publishSessionTail', 'publishSessionProgress']) {
+    const body = functionBody(projections, fn) ?? ''
+    check(`7 seatProjections.ts ${fn} creates its subdirectory through ensureDirInDaemonHome`, body.includes('ensureDirInDaemonHome('), 'no ensureDirInDaemonHome call')
+  }
+  check('7 seatProjections.ts carries no publish road of its own', !projections.includes("from '../../substrate/fileStore.js'") && !/\bpublishAtomic\b/.test(projections), 'imports publishAtomic from the authority')
+  check('7 seatProjections.ts takes no durable road for its projections (a boot-wiped projection never costs the daemon loop a fsync)', !projections.includes('publishInDaemonHome('), 'publishInDaemonHome')
+  check('7 spawnLedger.ts keeps the worker law where it was born: a daemon-marked worker never creates the forensics directory', /parseWorkerParentPid\(\) === null \? 'create' : 'must-stand'/.test(ledger), 'no marker-keyed parent option')
+}
+
 console.log(failures === 0 ? '\nprove-daemon-home-census: ALL LAWS HOLD' : `\nprove-daemon-home-census: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

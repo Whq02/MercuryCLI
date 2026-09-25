@@ -1,9 +1,8 @@
 import type { FoldStatusV1 } from '../compact/foldStatus.js'
-import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
-import { daemonHomeStands } from '../../daemon/daemonHome.js'
-import { publishAtomic } from '../../substrate/fileStore.js'
+import { daemonHomeStands, ensureDirInDaemonHome, publishTransientInDaemonHome } from '../../daemon/daemonHome.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
 import type { EffortResolution } from '../../utils/effort.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -247,44 +246,28 @@ export function readSessionProgress(sessionId: string, dir?: string): SessionPro
 }
 
 
-const publishChains = new Map<string, Promise<void>>()
-function publishOrdered(path: string, bytes: string): void {
-  const prev = publishChains.get(path) ?? Promise.resolve()
-  const next = prev.then(() => publishAtomic(path, bytes)).catch(() => {})
-  publishChains.set(path, next)
-  void next.then(() => {
-    if (publishChains.get(path) === next) publishChains.delete(path)
-  })
-}
-
 export function publishSessionFacts(facts: SessionFactsV1, dir?: string): void {
   if (!daemonHomeStands('the session facts', dir)) return
-  mkdirSync(sessionFactsDir(dir), { recursive: true })
-  publishOrdered(sessionFactsPath(facts.sessionId, dir), `${JSON.stringify(facts)}\n`)
+  if (!ensureDirInDaemonHome('the session facts', sessionFactsDir(dir), dir)) return
+  publishTransientInDaemonHome('the session facts', sessionFactsPath(facts.sessionId, dir), `${JSON.stringify(facts)}\n`, dir)
 }
 
 export function publishSessionAsks(asks: SessionAsksV1, dir?: string): void {
   if (!daemonHomeStands('the session asks', dir)) return
-  mkdirSync(sessionAsksDir(dir), { recursive: true })
-  publishOrdered(sessionAsksPath(asks.sessionId, dir), `${JSON.stringify(asks)}\n`)
+  if (!ensureDirInDaemonHome('the session asks', sessionAsksDir(dir), dir)) return
+  publishTransientInDaemonHome('the session asks', sessionAsksPath(asks.sessionId, dir), `${JSON.stringify(asks)}\n`, dir)
 }
 
 export function publishSessionTail(tail: SessionTailV1, dir?: string): void {
   if (!daemonHomeStands('the session tail', dir)) return
-  const dest = sessionTailPath(tail.sessionId, dir)
-  mkdirSync(sessionTailDir(dir), { recursive: true })
-  const tmp = `${dest}.${process.pid}.tmp`
-  writeFileSync(tmp, `${JSON.stringify(tail)}\n`)
-  renameSync(tmp, dest)
+  if (!ensureDirInDaemonHome('the session tail', sessionTailDir(dir), dir)) return
+  publishTransientInDaemonHome('the session tail', sessionTailPath(tail.sessionId, dir), `${JSON.stringify(tail)}\n`, dir)
 }
 
 export function publishSessionProgress(progress: SessionProgressV1, dir?: string): void {
   if (!daemonHomeStands('the session progress', dir)) return
-  const dest = sessionProgressPath(progress.sessionId, dir)
-  mkdirSync(sessionProgressDir(dir), { recursive: true })
-  const tmp = `${dest}.${process.pid}.tmp`
-  writeFileSync(tmp, `${JSON.stringify(progress)}\n`)
-  renameSync(tmp, dest)
+  if (!ensureDirInDaemonHome('the session progress', sessionProgressDir(dir), dir)) return
+  publishTransientInDaemonHome('the session progress', sessionProgressPath(progress.sessionId, dir), `${JSON.stringify(progress)}\n`, dir)
 }
 
 export function resetSeatProjections(dir?: string): void {
