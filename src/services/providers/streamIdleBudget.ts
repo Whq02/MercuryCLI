@@ -1,3 +1,4 @@
+import { outageCauseWordsOf } from '../api/recoveryBudget.js'
 import { currentPatience } from './patience.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
@@ -97,7 +98,9 @@ const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(toke
 
 export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
   if (wait.kind === 'retry') {
-    return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''}`
+    const delay = wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''
+    if (outageCauseWordsOf(wait.reason) !== undefined) return `reconnecting — reconnect ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
+    return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
   }
   const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
   if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — first byte within ${seconds(wait.budgetMs)}${again}`
@@ -167,7 +170,10 @@ export function requestWaitFromWire(raw: unknown): unknown {
 
 export function retryReasonWords(status: number | null | undefined, message?: string): string {
   if (typeof status === 'number' && status > 0) return `a ${status}`
-  if (message !== undefined && /no first byte/.test(message)) return 'a first-byte timeout'
+  if (message === undefined) return 'a connection error'
+  const outage = outageCauseWordsOf(message)
+  if (outage !== undefined) return outage
+  if (/no first byte/.test(message)) return 'a first-byte timeout'
   return 'a connection error'
 }
 

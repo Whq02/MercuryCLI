@@ -71,17 +71,27 @@ export function connectTimeoutFromTransportRing(nowMs: number = Date.now()): Out
   return connectTimeoutCause(recent.code, recent.syscall)
 }
 
-export function outageCauseOf(error: unknown): OutageCause | null {
-  if (!isSdkConnectionError(error)) return null
-  if (typeof (error as { status?: unknown }).status === 'number') return null
+function outageCauseOfChain(error: unknown): OutageCause | null {
   const deep = deepestErrorDetail(error)
-  if (isSdkTimeout(error)) return deep.code === undefined ? connectTimeoutFromTransportRing() : null
   if (deep.code === undefined || isStaleSocketCode(deep.code)) return null
   if (extractConnectionErrorDetails(error)?.isSSLError === true) return null
   const timedOut = connectTimeoutCause(deep.code, deep.syscall)
   if (timedOut !== null) return timedOut
   const words = OUTAGE_WORDS.get(deep.code)
   return words === undefined ? null : { code: deep.code, words }
+}
+
+export function outageCauseOf(error: unknown): OutageCause | null {
+  if (!isSdkConnectionError(error)) return null
+  if (typeof (error as { status?: unknown }).status === 'number') return null
+  if (isSdkTimeout(error)) return deepestErrorDetail(error).code === undefined ? connectTimeoutFromTransportRing() : null
+  return outageCauseOfChain(error)
+}
+
+export function outageCauseOfFetchFailure(error: unknown): OutageCause | null {
+  if (!(error instanceof Error)) return null
+  if (typeof (error as { status?: unknown }).status === 'number') return null
+  return outageCauseOfChain(error)
 }
 
 export function outageCauseWords(cause: OutageCause): string {
