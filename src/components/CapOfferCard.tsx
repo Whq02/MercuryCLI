@@ -23,7 +23,7 @@ export interface CapOfferChoice {
 }
 
 type Props = {
-  trigger: 'warning' | 'rejected' | 'reset'
+  trigger: 'rejected' | 'reset'
   windowName: string | null
   resetText: string | null
   targetModel: string
@@ -96,11 +96,9 @@ export function CapOfferCard({
   const windowNoun = windowName ?? 'usage window'
   const stateLine = home
     ? `the ${homeName} window has reset — ${homeSpend.kind === 'subscription' ? 'the subscription lane' : 'the home lane'} is open again`
-    : trigger === 'rejected'
-      ? windowNoun === 'credits'
-        ? `the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`
-        : `the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`
-      : `approaching the ${homeName} ${windowNoun}`
+    : windowNoun === 'credits'
+      ? `the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`
+      : `the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`
   const spendLine = home
     ? awaySpend.kind === 'local'
       ? `returning to ${homeName} — the local lane cost nothing to leave`
