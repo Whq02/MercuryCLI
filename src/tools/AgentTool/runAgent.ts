@@ -160,6 +160,8 @@ export type RunAgentParams = {
   cwd?: string
   reviewReceipt?: string
   description?: string
+  name?: string
+  launchedAt?: number
   seatHolder?: string
   transcriptSubdir?: string
   effortOverride?: string
@@ -564,6 +566,8 @@ export async function* runAgent(
     cwd,
     reviewReceipt: requestedReviewReceipt,
     description,
+    name,
+    launchedAt,
     seatHolder,
     transcriptSubdir,
     effortOverride,
@@ -994,6 +998,8 @@ export async function* runAgent(
       ...(worktreePath ? { worktreePath } : {}),
       ...(cwd ? { cwd } : {}),
       ...(description ? { description } : {}),
+      ...(name ? { name } : {}),
+      ...(launchedAt !== undefined ? { launchedAt } : {}),
       model: resolvedAgentModel,
       ...(effortOverride !== undefined && { effortOverride }),
       ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}),

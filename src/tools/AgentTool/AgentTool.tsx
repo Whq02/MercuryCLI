@@ -876,6 +876,8 @@ export const AgentTool = buildTool({
       ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
       ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
+      ...(input.name ? { name: input.name } : {}),
+      launchedAt: startTime,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
       onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
     }

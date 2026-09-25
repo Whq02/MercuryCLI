@@ -12,6 +12,7 @@ import type { Message } from '../../types/message.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
+import { listAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
@@ -135,12 +136,15 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
   return receipts
 }
 
-export interface NamedLaunchReceipt {
-  toolUseId: string
+export interface NamedLaunch {
   agentId: string
   name: string
   description: string
   launchedAt: number
+}
+
+export interface NamedLaunchReceipt extends NamedLaunch {
+  toolUseId: string
 }
 
 const CONTINUATION_ID = /agentId: (\S+) \(internal/g
@@ -182,13 +186,34 @@ export function namedLaunchReceipts(messages: readonly Message[]): NamedLaunchRe
   return receipts
 }
 
-export function launchesNamed(messages: readonly Message[], name: string): NamedLaunchReceipt[] {
+function carriedName<T extends NamedLaunch>(launches: readonly T[], name: string): T[] {
   const wanted = name.trim()
-  const receipts = namedLaunchReceipts(messages)
-  const exact = receipts.filter(receipt => receipt.name === wanted)
+  const exact = launches.filter(launch => launch.name === wanted)
   if (exact.length > 0) return exact
   const folded = wanted.toLowerCase()
-  return receipts.filter(receipt => receipt.name.toLowerCase() === folded)
+  return launches.filter(launch => launch.name.toLowerCase() === folded)
+}
+
+export function launchesNamed(messages: readonly Message[], name: string): NamedLaunchReceipt[] {
+  return carriedName(namedLaunchReceipts(messages), name)
+}
+
+export async function recordedNamedLaunches(): Promise<NamedLaunch[]> {
+  const launches: NamedLaunch[] = []
+  for (const { agentId, metadata } of await listAgentMetadata()) {
+    if (typeof metadata.name !== 'string' || metadata.name.trim() === '') continue
+    launches.push({
+      agentId,
+      name: metadata.name.trim(),
+      description: recordedDescription(metadata.description) || 'agent',
+      launchedAt: typeof metadata.launchedAt === 'number' && Number.isFinite(metadata.launchedAt) ? metadata.launchedAt : 0,
+    })
+  }
+  return launches.sort((a, b) => a.launchedAt - b.launchedAt)
+}
+
+export async function recordedLaunchesNamed(name: string): Promise<NamedLaunch[]> {
+  return carriedName(await recordedNamedLaunches(), name)
 }
 
 export function settledLaunchIds(messages: readonly Message[]): Set<string> {

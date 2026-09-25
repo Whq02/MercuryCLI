@@ -233,11 +233,15 @@ export async function resumeAgentBackground(args: {
         true,
       )
 
+  const launchName = meta?.name
+  const launchedAt = meta?.launchedAt
   void writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
     ...(worktreePath ? { worktreePath } : {}),
     ...(cwdPath ? { cwd: cwdPath } : {}),
     description,
+    ...(launchName ? { name: launchName } : {}),
+    ...(launchedAt !== undefined ? { launchedAt } : {}),
     ...(restoredModel ? { model: restoredModel } : {}),
     ...(restoredEffort ? { effortOverride: restoredEffort } : {}),
     ...(instructionProfileOverride
@@ -298,6 +302,8 @@ export async function resumeAgentBackground(args: {
           ...(worktreePath ? { worktreePath } : {}),
           ...(cwdPath ? { cwd: cwdPath } : {}),
           description,
+          ...(launchName ? { name: launchName } : {}),
+          ...(launchedAt !== undefined ? { launchedAt } : {}),
           effortOverride: meta?.effortOverride,
           ...(instructionProfileOverride
             ? { instructionProfileOverride }
