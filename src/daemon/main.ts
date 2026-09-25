@@ -102,6 +102,7 @@ import { startControlServer, type ControlServerHandle } from './controlServer.js
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
+import { hostedCallerOf, hostedCallerRefusalLine } from './hostedCaller.js'
 import {
   acquireSupervisorLock,
   clearControlKey,
@@ -164,11 +165,18 @@ async function daemonStatusCmd(): Promise<void> {
 async function daemonStopCmd(args: string[]): Promise<void> {
   if (args.includes('--any') && args.includes('--keep')) {
     // eslint-disable-next-line no-console
-    console.error('[daemon] stop: --any and --keep contradict — pick one (--any reaps in-flight workers, --keep leaves them running)')
+    console.error("[daemon] stop: --any and --keep contradict — pick one (--any reaps in-flight workers first; --keep skips that reap, though the daemon's own teardown still ends every worker)")
     process.exitCode = 2
     return
   }
   const reapWorkers = args.includes('--any') || !args.includes('--keep')
+  const hosting = await hostedCallerOf((await readSupervisorState().catch(() => null))?.pid)
+  if (hosting.hosted) {
+    // eslint-disable-next-line no-console
+    console.error(hostedCallerRefusalLine('stop'))
+    process.exitCode = 1
+    return
+  }
   const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers }, { timeoutMs: 3000 })
   if (reply.ok && reply.op === 'shutdown') {
     // eslint-disable-next-line no-console
@@ -218,10 +226,19 @@ async function daemonStopCmd(args: string[]): Promise<void> {
 }
 
 async function daemonRestartCmd(): Promise<void> {
-  const { restartDaemon } = await import('./handshake.js')
+  const { handshakeDaemon, restartDaemon } = await import('./handshake.js')
+  const first = await handshakeDaemon()
+  const hosting = await hostedCallerOf(first.daemon?.pid ?? (await readSupervisorState().catch(() => null))?.pid)
+  if (hosting.hosted && first.daemon !== null && (first.heal === 'operator' || first.live === 0)) {
+    // eslint-disable-next-line no-console
+    console.error(hostedCallerRefusalLine('restart'))
+    process.exitCode = 1
+    return
+  }
   const receipt = await restartDaemon({ by: 'mercury daemon restart', posture: 'persistent' })
+  const carried = hosting.hosted && receipt.state === 'armed' ? ' — this hosted session is one of them; your turn goes on' : ''
   // eslint-disable-next-line no-console
-  console.error(`[daemon] ${receipt.line}`)
+  console.error(`[daemon] ${receipt.line}${carried}`)
   if (receipt.state === 'refused') process.exitCode = 1
 }
 
