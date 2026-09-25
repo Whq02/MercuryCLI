@@ -379,6 +379,131 @@ section('§7 the surfaces read the one credential-account owner')
   check('the usage card reads the presence owner\'s sign-in email', read('src/components/HelmTelemetryRail.tsx').includes('anthropicSignInEmail('))
 }
 
+type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState
+let probe: (dir: string) => Promise<ScopeRead> = () => new Promise<ScopeRead>(() => {})
+await stub('src/utils/accounts/accountIdentity.ts', { resolveLiveScopeIdentity: (dir: string) => probe(dir) })
+const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
+const status = await import(join(ROOT, 'src/utils/status.tsx'))
+const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
+const { AccountView } = await import(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'))
+const boardRow = (frame: string): string => frame.split('\n').find(line => /\bclaude\s+OAuth\b/.test(line)) ?? ''
+async function paintBoard(size: { columns: number; rows: number }, tag: string, read?: ScopeRead): Promise<string> {
+  probe = read === undefined ? () => new Promise<ScopeRead>(() => {}) : async () => read
+  const frame = await paint(React.createElement(AppStateProvider, null, React.createElement(AccountView, { onClose: () => {} })), size.columns, size.rows)
+  save(`accounts-${tag}-${size.columns}x${size.rows}`, frame)
+  return frame
+}
+function scopeWords(read: ScopeRead | undefined): { tail: string; mainLoop: string; identity: string } {
+  const groups = slots.deriveFamilySlotGroups()
+  const scope = groups.find(group => group.family.id === 'anthropic')?.slots.find(slot => slot.scope !== undefined)
+  if (scope === undefined) return { tail: 'no anthropic scope slot', mainLoop: '', identity: '' }
+  const identities = read === undefined ? {} : { [scope.id]: read }
+  const tail = slots.scopeSlotTail(slots.slotSigninState(scope, identities), read, scope)
+  const mainLoop = slots.mainLoopIdentity({ model: MODEL, presences: groups.map(group => group.family), currentScopeIdentity: read ?? { state: 'checking' } }).text
+  return { tail, mainLoop, identity: scope.identity }
+}
+
+section('§8 the /accounts board names the credential\'s own email; the config record rides only as a labelled snapshot beside it')
+{
+  settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
+  const checking = scopeWords(undefined)
+  check('the scope row tail names the credential\'s own email first while the probe is out', checking.tail.startsWith(`${PROFILE_EMAIL} · `) && checking.tail.endsWith('verifying identity…'), checking.tail)
+  check('…and the differing config record rides beside it, labelled a snapshot', checking.tail.includes(` · snapshot ${RECORD_EMAIL} · `), checking.tail)
+  check('the main-loop row names the credential\'s own email and never labels it a snapshot', checking.mainLoop.includes(` · ${PROFILE_EMAIL} · verifying identity…`) && !checking.mainLoop.includes('snapshot'), checking.mainLoop)
+  const expiredRead: ScopeRead = { state: 'expired', snapshotEmail: RECORD_EMAIL }
+  const expired = scopeWords(expiredRead)
+  check('an expired credential is named by its own email, the record labelled beside it', expired.tail === `expired — ${PROFILE_EMAIL} (snapshot ${RECORD_EMAIL}) · not signed in · ↵ opens Logins to reauth`, expired.tail)
+  check('…on the main-loop row too', expired.mainLoop.includes(`credential expired · ${PROFILE_EMAIL} (snapshot ${RECORD_EMAIL})`), expired.mainLoop)
+  const offlineRead: ScopeRead = { state: 'unverified', email: RECORD_EMAIL, note: 'offline (fixture)' }
+  const offline = scopeWords(offlineRead)
+  check('an offline probe leaves the credential\'s own email on the row, the record labelled beside it', offline.tail === `unverified — offline (fixture) · ${PROFILE_EMAIL} · snapshot ${RECORD_EMAIL} · not counted as signed in`, offline.tail)
+  check('…on the main-loop row too', offline.mainLoop.endsWith(`unverified — offline (fixture) · ${PROFILE_EMAIL} · snapshot ${RECORD_EMAIL}`), offline.mainLoop)
+  for (const size of SIZES) {
+    const stamp = `${size.columns}x${size.rows}`
+    const frame = await paintBoard(size, 'profile')
+    const row = boardRow(frame)
+    check(`${stamp} accounts: the Claude row's tail opens with the credential's own email`, row.includes(PROFILE_EMAIL) && !row.includes(`snapshot ${PROFILE_EMAIL}`) && (row.indexOf('snapshot') < 0 || row.indexOf(PROFILE_EMAIL) < row.indexOf('snapshot')), row)
+    if (size.columns >= 150) {
+      check(`${stamp} accounts: the record rides beside it as a labelled snapshot, then the probe word`, row.includes(`${PROFILE_EMAIL} · snapshot ${RECORD_EMAIL} · verifying identity…`), row)
+      const mainLoop = lineWith(frame, 'main loop') ?? ''
+      check(`${stamp} accounts: the main-loop row names the credential's own email, unlabelled`, mainLoop.includes(`· ${PROFILE_EMAIL} · verifying identity…`) && !mainLoop.includes('snapshot'), mainLoop)
+      check(`${stamp} accounts: the frame stays inside the terminal`, inBounds(frame, size.columns, size.rows))
+    } else {
+      check(`${stamp} accounts: the row never opens with the record`, !row.includes(`snapshot ${RECORD_EMAIL} · verifying`), row)
+      check(`${stamp} accounts: the compact board stays inside the terminal`, inBounds(frame, size.columns, size.rows))
+    }
+  }
+  const size = SIZES[0]
+  const expiredFrame = await paintBoard(size, 'expired', expiredRead)
+  check('178x51 accounts (expired): the row names the credential\'s own email, the record labelled', boardRow(expiredFrame).includes(`expired — ${PROFILE_EMAIL} (snapshot ${RECORD_EMAIL})`), boardRow(expiredFrame))
+  const offlineFrame = await paintBoard(size, 'offline', offlineRead)
+  check('178x51 accounts (offline): the row names the credential\'s own email, the record labelled', boardRow(offlineFrame).includes(`${PROFILE_EMAIL} · snapshot ${RECORD_EMAIL}`), boardRow(offlineFrame))
+  settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: PROFILE_EMAIL })
+  const agree = scopeWords(undefined)
+  check('a record that agrees with the credential is not repeated: one address, no snapshot word', agree.tail === `${PROFILE_EMAIL} · verifying identity…`, agree.tail)
+  const agreeFrame = await paintBoard(size, 'agree')
+  check('178x51 accounts (agree): one address on the row, no snapshot word', boardRow(agreeFrame).includes(`${PROFILE_EMAIL} · verifying identity…`) && !boardRow(agreeFrame).includes('snapshot'), boardRow(agreeFrame))
+  settleFixture({ record: RECORD_EMAIL })
+  const nameless = scopeWords(undefined)
+  check('a credential with no stored email leaves the labelled snapshot standing alone (recorded)', nameless.tail === `snapshot ${RECORD_EMAIL} · verifying identity…` && nameless.identity === 'signed in', `${nameless.tail} | ${nameless.identity}`)
+  const namelessFrame = await paintBoard(size, 'no-email')
+  check('178x51 accounts (no email): the row carries the labelled snapshot and no bare address', boardRow(namelessFrame).includes(`snapshot ${RECORD_EMAIL} · verifying identity…`), boardRow(namelessFrame))
+  settleFixture({ envKey: true })
+  const keyFrame = await paintBoard(size, 'key')
+  const keyRow = lineWith(keyFrame, 'API key · env') ?? ''
+  check('178x51 accounts (key): the key row names the env key and no email; no OAuth row', keyRow.includes('ANTHROPIC_API_KEY (env)') && !keyFrame.includes('@') && boardRow(keyFrame) === '', keyRow)
+  check('no request reached the OAuth profile endpoint while the board painted', !requests.some(path => path.includes('/api/oauth/profile')), JSON.stringify(requests))
+}
+
+section('§9 auth status names the credential\'s own email; the JSON shape is the contract it was')
+{
+  const RUNNER = join(HOME, 'auth-status-runner.ts')
+  writeFileSync(RUNNER, [
+    ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }",
+    `const { enableConfigs } = await import(${JSON.stringify(join(ROOT, 'src/utils/config.ts'))})`,
+    'enableConfigs()',
+    `const { authStatus } = await import(${JSON.stringify(join(ROOT, 'src/cli/handlers/auth.ts'))})`,
+    'await authStatus({ json: true })',
+  ].join('\n') + '\n')
+  const authStatusJson = (): { status: number; json: Record<string, unknown> | null; stdout: string; stderr: string } => {
+    const result = Bun.spawnSync([process.execPath, RUNNER], { cwd: HOME, env: { ...process.env }, stdout: 'pipe', stderr: 'pipe' })
+    const stdout = result.stdout.toString()
+    let json: Record<string, unknown> | null = null
+    try {
+      json = JSON.parse(stdout) as Record<string, unknown>
+    } catch {
+      json = null
+    }
+    return { status: result.exitCode, json, stdout, stderr: result.stderr.toString() }
+  }
+  const emailRow = (): string => {
+    const property = status.buildAccountProperties().find(candidate => candidate.label === 'Email')
+    return property === undefined ? 'no Email row' : status.propertyValueToText(property.value)
+  }
+  settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
+  const info = auth.getAccountInformation()
+  check('getAccountInformation().email is the credential\'s own email', info?.email === PROFILE_EMAIL, JSON.stringify(info))
+  check('the readable Email row (auth status on a terminal, /status) reads it', emailRow() === PROFILE_EMAIL, emailRow())
+  const signedIn = authStatusJson()
+  check('auth status --json: stdout is JSON, exit 0 on the signed-in ladder', signedIn.json !== null && signedIn.status === 0, `status=${signedIn.status} stdout=${signedIn.stdout.slice(0, 160)} stderr=${signedIn.stderr.slice(0, 300)}`)
+  check('auth status --json: email is the credential\'s own', signedIn.json?.email === PROFILE_EMAIL, JSON.stringify(signedIn.json?.email))
+  check('auth status --json: the key set is the contract\'s, in order', JSON.stringify(Object.keys(signedIn.json ?? {})) === JSON.stringify(['loggedIn', 'authMethod', 'email', 'orgId', 'orgName', 'subscriptionType', 'routedProvider', 'providers']), JSON.stringify(Object.keys(signedIn.json ?? {})))
+  check('auth status --json: loggedIn true, authMethod claude.ai, orgId still the record\'s (not this change\'s)', signedIn.json?.loggedIn === true && signedIn.json?.authMethod === 'claude.ai' && signedIn.json?.orgId === 'org-record-fixture', JSON.stringify(signedIn.json))
+  settleFixture({ record: RECORD_EMAIL })
+  const namelessInfo = auth.getAccountInformation()
+  check('a credential with no stored email names nobody — never the record', namelessInfo?.email === undefined && emailRow() === 'no Email row', JSON.stringify(namelessInfo))
+  const nameless = authStatusJson()
+  check('auth status --json: email null for a nameless credential, the key kept', nameless.json !== null && 'email' in nameless.json && nameless.json.email === null, JSON.stringify(nameless.json))
+  settleFixture({ envKey: true })
+  const keyInfo = auth.getAccountInformation()
+  check('a key-based sign-in is unchanged: the key source, no email', keyInfo?.apiKeySource === 'ANTHROPIC_API_KEY' && keyInfo.email === undefined, JSON.stringify(keyInfo))
+  const key = authStatusJson()
+  check('auth status --json for the key: authMethod api_key, apiKeySource named, no email key', key.json?.authMethod === 'api_key' && key.json?.apiKeySource === 'ANTHROPIC_API_KEY' && !('email' in (key.json ?? {})), JSON.stringify(key.json))
+  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
+  check('getAccountInformation reads the one sign-in email reader, never the record\'s address', read('src/utils/auth.ts').includes('anthropicSignInEmail') && !read('src/utils/auth.ts').includes('info.email = account.emailAddress'))
+  check('the JSON verb reads the one sign-in email reader, never the record\'s address', read('src/cli/handlers/auth.ts').includes('anthropicSignInEmail') && !read('src/cli/handlers/auth.ts').includes('payload.email = account?.emailAddress'))
+}
+
 if (framesDir) {
   writeFileSync(join(framesDir, 'index.txt'), [
     'profile-*: the credential stores profile owner@example.com beside the token; the config record says ring@example.com',
@@ -387,6 +512,9 @@ if (framesDir) {
     'key-*: ANTHROPIC_API_KEY alone, no Claude sign-in',
     'logins: the face Logins roster (BootLoginsScreen) · face: the boot face with its strip (BootSplashScreen)',
     'usage-popup: the /usage popup body at the store geometry · usage-card: the cockpit telemetry rail (HelmTelemetryRail)',
+    'accounts: the /accounts board (AccountView) with its live probe held in flight, except where the leg names the probe\'s answer',
+    'accounts-agree-*: the config record agrees with the credential (owner@example.com on both)',
+    'accounts-expired-*: the probe refused the credential (401) and fell back to the record · accounts-offline-*: the probe could not reach the endpoint and fell back to the record',
     `fixture usage endpoint: ${JSON.stringify(utilization)}`,
   ].join('\n') + '\n')
 }
