@@ -10,6 +10,7 @@ import sliceAnsi from '../utils/sliceAnsi.js'
 import { expectColorDiff } from './StructuredDiff/colorDiff.js'
 import { StructuredDiffFallback } from './StructuredDiff/Fallback.js'
 import { boundPatchForRender, DIFF_LINE_RENDER_CAP } from './StructuredDiff/lineBudget.js'
+import { expandPatchTabs } from './StructuredDiff/tabExpansion.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
 type CacheEntry = {
@@ -126,7 +127,7 @@ export const StructuredDiff = React.memo(function StructuredDiff({
   const highlightingOff =
     skipHighlighting || Boolean(settings.syntaxHighlightingDisabled)
 
-  const bounded = boundPatchForRender(patch)
+  const bounded = expandPatchTabs(boundPatchForRender(patch))
   const boundedFirstLine =
     firstLine !== null && firstLine.length > DIFF_LINE_RENDER_CAP
       ? firstLine.slice(0, DIFF_LINE_RENDER_CAP)
