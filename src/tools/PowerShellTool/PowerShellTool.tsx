@@ -28,7 +28,10 @@ import { detectGitOperation, trackGitOperations } from '../../tools/shared/gitOp
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
 import { getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
+import { describeMaxOutputChars } from '../BashTool/prompt.js'
 import { shouldUseSandbox } from '../BashTool/shouldUseSandbox.js'
+import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
+import { windowedError } from '../../utils/toolErrors.js'
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { powershellToolHasPermission } from './powershellPermissions.js'
@@ -39,13 +42,16 @@ import {
 } from '../BashTool/UI.js'
 import {
   buildImageToolResult,
+  formatExcerpt,
   formatOutput,
   isImageOutput,
+  outputBudgetClause,
   resizeShellImageOutput,
   resetCwdIfOutsideProject,
   stdErrAppendShellResetMessage,
   stripEmptyLines,
 } from '../BashTool/utils.js'
+import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from '../BashTool/maxOutputChars.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -98,6 +104,7 @@ function buildModelSchema() {
     run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),
     inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process). By default they are scrubbed and the result names them; a proof or a build must not see them."),
+    max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })
 }
 const modelInputSchema = lazySchema(buildModelSchema)
@@ -120,6 +127,7 @@ export type Out = {
   gitOperation?: unknown
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
+  outputBudgetNotice?: string
 }
 
 
@@ -364,13 +372,19 @@ async function* runPowerShell(
     accumulator.append(trailingTrimmed + '\n')
     let out = stripEmptyLines(accumulator.toString())
     const interpretation = interpretCommandResult(input.command, result.code, trailingTrimmed, result.stderr)
+    const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
+    const windowed = result.outputFilePath === undefined
+    const clause = outputBudgetClause(budget)
+    const outputBudgetNotice = windowed ? clause : undefined
 
     if (result.preSpawnError) {
       throw new ShellError('', result.preSpawnError, result.code, result.interrupted)
     }
     if (interpretation.isError && !interruptedByUser) {
       const annotated = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
-      throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      const thrown = budget.requested === undefined ? annotated : windowed ? formatOutput(annotated, { maxLength: budget.effective }).truncatedContent : formatExcerpt(annotated, budget.effective)
+      const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      throw budget.requested === undefined ? error : windowedError(error)
     }
 
     let persistedOutputPath: string | undefined
@@ -398,8 +412,9 @@ async function* runPowerShell(
     }
 
     return {
-      stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined }).truncatedContent, stderr, interrupted: result.interrupted, isImage,
+      stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective }).truncatedContent, stderr, interrupted: result.interrupted, isImage,
       returnCodeInterpretation: interpretation.message, gitOperation,
+      ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
       ...(scrubbedSessionEnv.length > 0 ? { scrubbedSessionEnv } : {}),
     }
@@ -424,7 +439,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   if (output.interrupted) errorText += `\n<error>The command was cut short before it finished.</error>`
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
+  const content = [stdout, errorText, output.outputBudgetNotice ?? '', backgroundNotice, scrubNotice].filter(p => p !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 
@@ -474,6 +489,10 @@ export const PowerShellTool = buildTool({
           errorCode: 10,
         }
       }
+    }
+    const refused = refuseMaxOutputChars(input.max_output_chars)
+    if (refused !== undefined) {
+      return { result: false as const, message: refused, errorCode: 2 }
     }
     return { result: true as const }
   },

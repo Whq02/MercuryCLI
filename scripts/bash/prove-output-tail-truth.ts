@@ -64,14 +64,14 @@ section('§2b the PowerShell family applies the in-memory head + tail cut Bash d
   check('PowerShell imports formatOutput from the Bash utils (one cut, two shells)', /import \{[^}]*\bformatOutput\b[^}]*\} from '\.\.\/BashTool\/utils\.js'/.test(ps))
   check(
     '…and its settled result hands the model the formatOutput cut (spill-aware), never the raw accumulator',
-    ps.includes('stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined }).truncatedContent,') &&
+    ps.includes('stdout: formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective }).truncatedContent,') &&
       !/^\s*stdout: out, stderr, interrupted: result\.interrupted, isImage,/m.test(ps),
   )
   check(
     'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
     bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: formatted.truncatedContent,'),
   )
-  check('the error throws keep today’s bytes beside scrub attribution on both shells; Bash applies a per-call budget there only when one is given', ps.includes("throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("throw new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)"))
+  check('the error throws keep today’s bytes beside scrub attribution on both shells, once; each applies a per-call budget there only when one is given, and declares the error windowed when it did', ps.includes("const thrown = budget.requested === undefined ? annotated : windowed ? formatOutput(annotated, { maxLength: budget.effective }).truncatedContent : formatExcerpt(annotated, budget.effective)") && ps.includes("const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && [ps, bash].every(src => src.includes('throw budget.requested === undefined ? error : windowedError(error)')))
 }
 
 section('§3 the notebook path still receives a bounded string')
