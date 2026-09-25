@@ -4,6 +4,7 @@
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 # gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
+# gate-watch: src/services/api/reconnectLadder* src/services/api/recoveryBudget*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -40,6 +41,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-agen
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-agent-record-resume.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-agent-record-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lawful-change-owners.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-lawful-change-owners.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-recovery-budget.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-recovery-budget.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-reconnect-ladder.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-reconnect-ladder.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-liveness-tap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-liveness-tap.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-numbers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-numbers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthropic.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-anthropic.ts" "$__t" "$__rc"
