@@ -2,6 +2,7 @@
 # gate-class: pty
 # gate-watch: src/components/messages/TurnReceiptRow.tsx src/components/KitMenuScreen.tsx src/services/kitMenu/** src/utils/cockpit/turnReceipt.ts src/ink/** src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts src/components/Messages.tsx src/components/LiveStreamingTail.tsx src/screens/REPL.tsx
 # gate-watch: src/components/StructuredDiff.tsx src/components/StructuredDiff/** src/components/StructuredDiffList.tsx src/components/FileEditToolUpdatedMessage.tsx src/native-ts/color-diff/** src/tools/FileWriteTool/UI.tsx
+# gate-watch: src/components/Settings/Jev.tsx src/components/Settings/Settings.tsx src/components/SettingsPopupSlot.tsx src/components/MercuryFilesMenu.tsx src/utils/cockpit/settingsPopup.ts src/utils/cockpit/filesMenu.ts src/utils/cockpit/popupOwnsKeys.ts src/components/PromptInput/PromptInput.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
