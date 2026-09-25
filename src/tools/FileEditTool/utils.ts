@@ -1,4 +1,4 @@
-import { structuredPatch } from 'diff'
+import { diffArrays, structuredPatch } from 'diff'
 
 import {
   convertLeadingTabsToSpaces,
@@ -17,6 +17,7 @@ import {
   RIGHT_SINGLE_CURLY_QUOTE,
   straightenQuotes,
 } from '../../utils/curlyQuotes.js'
+import { plainTypography } from '../../utils/typography.js'
 import type { FileEdit } from './types.js'
 
 
@@ -32,11 +33,201 @@ export function stripTrailingWhitespace(s: string): string {
 }
 
 
+export const FORGIVENESS_CONTENT_DRIFT_LIMIT = 0
+
+export type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
+
+export type ActualMatch = {
+  kind: 'found'
+  actual: string
+  index: number
+  road: ForgivingRoad
+  startLine: number
+  endLine: number
+  feedback: string | null
+}
+
+export type ActualMatchOutcome =
+  | ActualMatch
+  | { kind: 'ambiguous'; road: ForgivingRoad; count: number }
+  | { kind: 'none' }
+
+const LEADING_WHITESPACE = /^\s*/
+
+function leadingWhitespace(line: string): string {
+  return (LEADING_WHITESPACE.exec(line) as RegExpExecArray)[0]
+}
+
+function describeIndentation(whitespace: string): string {
+  if (whitespace === '') return 'no indentation'
+  const tabs = whitespace.split('\t').length - 1
+  const spaces = whitespace.split(' ').length - 1
+  const other = whitespace.length - tabs - spaces
+  if (other > 0) return `${whitespace.length} whitespace ${plural(whitespace.length, 'character')}`
+  const parts: string[] = []
+  if (tabs > 0) parts.push(`${tabs} ${plural(tabs, 'tab')}`)
+  if (spaces > 0) parts.push(`${spaces} ${plural(spaces, 'space')}`)
+  return parts.join(' and ')
+}
+
+function lineSpan(startLine: number, endLine: number): string {
+  return startLine === endLine ? `line ${startLine}` : `lines ${startLine}-${endLine}`
+}
+
+function forgivenessFeedback(road: ForgivingRoad, actual: string, search: string, startLine: number, endLine: number): string | null {
+  if (road === 'exact' || road === 'quotes') return null
+  const span = lineSpan(startLine, endLine)
+  if (road === 'characters') return `Matched with the file's dash/space characters at ${span}.`
+  const actualLines = actual.split('\n')
+  const searchLines = search.split('\n')
+  const characters = actualLines.some((line, i) => line.trim() !== (searchLines[i] ?? '').trim())
+  const also = characters ? ' and dash/space characters' : ''
+  if (road === 'whitespace') return `Matched with the file's trailing whitespace${also} at ${span}.`
+  const differing = actualLines.findIndex((line, i) => leadingWhitespace(line) !== leadingWhitespace(searchLines[i] ?? ''))
+  const at = Math.max(differing, 0)
+  const fileIndent = leadingWhitespace(actualLines[at] ?? '')
+  const typedIndent = leadingWhitespace(searchLines[at] ?? '')
+  const file = fileIndent === '' ? 'has no indentation' : `indents with ${describeIndentation(fileIndent)}`
+  return `Matched with the file's indentation${also} at ${span}: the file ${file} where old_string used ${describeIndentation(typedIndent)}.`
+}
+
+function foundAt(fileContent: string, actual: string, index: number, road: ForgivingRoad, search: string): ActualMatch {
+  let startLine = 1
+  for (let at = fileContent.indexOf('\n'); at !== -1 && at < index; at = fileContent.indexOf('\n', at + 1)) startLine++
+  const endLine = startLine + actual.replace(/\n$/, '').split('\n').length - 1
+  return { kind: 'found', actual, index, road, startLine, endLine, feedback: forgivenessFeedback(road, actual, search, startLine, endLine) }
+}
+
+function locateByCharacters(fileContent: string, searchString: string): ActualMatchOutcome | null {
+  const plainContent = plainTypography(fileContent)
+  const plainSearch = plainTypography(searchString)
+  const first = plainContent.indexOf(plainSearch)
+  if (first === -1) return null
+  const actual = fileContent.slice(first, first + searchString.length)
+  let count = 1
+  let differing = false
+  for (let at = plainContent.indexOf(plainSearch, first + plainSearch.length); at !== -1; at = plainContent.indexOf(plainSearch, at + plainSearch.length)) {
+    count++
+    if (fileContent.slice(at, at + searchString.length) !== actual) differing = true
+  }
+  if (differing) return { kind: 'ambiguous', road: 'characters', count }
+  return foundAt(fileContent, actual, first, 'characters', searchString)
+}
+
+function locateByLines(fileContent: string, searchString: string): ActualMatchOutcome {
+  const terminated = searchString.endsWith('\n')
+  const body = terminated ? searchString.slice(0, -1) : searchString
+  if (body.trim() === '') return { kind: 'none' }
+  const searchLines = body.split('\n')
+  const fileLines = fileContent.split('\n')
+  const lastWindowStart = fileLines.length - searchLines.length - (terminated ? 1 : 0)
+  if (lastWindowStart < 0) return { kind: 'none' }
+  const offsets: number[] = new Array(fileLines.length)
+  let offset = 0
+  for (let i = 0; i < fileLines.length; i++) {
+    offsets[i] = offset
+    offset += (fileLines[i] as string).length + 1
+  }
+  const plainFile = fileLines.map(line => plainTypography(line))
+  const plainSearch = searchLines.map(line => plainTypography(line))
+  const roads: Array<[ForgivingRoad, (line: string) => string]> = [
+    ['whitespace', line => line.trimEnd()],
+    ['indentation', line => line.trim()],
+  ]
+  for (const [road, fold] of roads) {
+    const folded = plainFile.map(fold)
+    const wanted = plainSearch.map(fold)
+    const windows: number[] = []
+    for (let start = 0; start <= lastWindowStart; start++) {
+      let drift = 0
+      for (let k = 0; k < wanted.length; k++) {
+        if (folded[start + k] !== wanted[k]) {
+          drift++
+          if (drift > FORGIVENESS_CONTENT_DRIFT_LIMIT) break
+        }
+      }
+      if (drift <= FORGIVENESS_CONTENT_DRIFT_LIMIT) windows.push(start)
+    }
+    if (windows.length === 0) continue
+    const sliceAt = (start: number): string => {
+      const last = start + searchLines.length - 1
+      const end = (offsets[last] as number) + (fileLines[last] as string).length + (terminated ? 1 : 0)
+      return fileContent.slice(offsets[start] as number, end)
+    }
+    const actual = sliceAt(windows[0] as number)
+    if (windows.some(start => sliceAt(start) !== actual)) return { kind: 'ambiguous', road, count: windows.length }
+    return foundAt(fileContent, actual, offsets[windows[0] as number] as number, road, searchString)
+  }
+  return { kind: 'none' }
+}
+
+export function locateActualString(fileContent: string, searchString: string): ActualMatchOutcome {
+  const exact = fileContent.indexOf(searchString)
+  if (exact !== -1) return foundAt(fileContent, searchString, exact, 'exact', searchString)
+  const quoted = normalizeQuotes(fileContent).indexOf(normalizeQuotes(searchString))
+  if (quoted !== -1) return foundAt(fileContent, fileContent.slice(quoted, quoted + searchString.length), quoted, 'quotes', searchString)
+  return locateByCharacters(fileContent, searchString) ?? locateByLines(fileContent, searchString)
+}
+
 export function findActualString(fileContent: string, searchString: string): string | null {
-  if (fileContent.includes(searchString)) return searchString
-  const index = normalizeQuotes(fileContent).indexOf(normalizeQuotes(searchString))
-  if (index === -1) return null
-  return fileContent.slice(index, index + searchString.length)
+  const outcome = locateActualString(fileContent, searchString)
+  return outcome.kind === 'found' ? outcome.actual : null
+}
+
+export function matchRoad(oldString: string, actualOldString: string): ForgivingRoad | null {
+  if (actualOldString === oldString) return 'exact'
+  if (normalizeQuotes(actualOldString) === normalizeQuotes(oldString)) return 'quotes'
+  if (plainTypography(actualOldString) === plainTypography(oldString)) return 'characters'
+  const actualLines = actualOldString.split('\n')
+  const oldLines = oldString.split('\n')
+  if (actualLines.length !== oldLines.length) return null
+  const plainActual = actualLines.map(line => plainTypography(line))
+  const plainOld = oldLines.map(line => plainTypography(line))
+  if (plainActual.every((line, i) => line.trimEnd() === (plainOld[i] as string).trimEnd())) return 'whitespace'
+  if (plainActual.every((line, i) => line.trim() === (plainOld[i] as string).trim())) return 'indentation'
+  return null
+}
+
+function reindentLine(line: string, indents: Map<string, string>): string {
+  if (line.trim() === '') return line
+  const typed = leadingWhitespace(line)
+  const rest = line.slice(typed.length)
+  const known = indents.get(typed)
+  if (known !== undefined) return known + rest
+  let best: string | null = null
+  for (const key of indents.keys()) {
+    if (typed.startsWith(key) && (best === null || key.length > best.length)) best = key
+  }
+  if (best === null) return line
+  return (indents.get(best) as string) + typed.slice(best.length) + rest
+}
+
+export function respellWhitespace(oldString: string, actualOldString: string, newString: string): string {
+  if (newString === '') return newString
+  const oldLines = oldString.split('\n')
+  const actualLines = actualOldString.split('\n')
+  const indents = new Map<string, string>()
+  for (let i = 0; i < oldLines.length; i++) {
+    const typed = oldLines[i] as string
+    if (typed.trim() === '') continue
+    const key = leadingWhitespace(typed)
+    if (!indents.has(key)) indents.set(key, leadingWhitespace(actualLines[i] ?? ''))
+  }
+  const out: string[] = []
+  let at = 0
+  for (const part of diffArrays(oldLines, newString.split('\n'))) {
+    if (part.removed) {
+      at += part.value.length
+      continue
+    }
+    if (part.added) {
+      for (const line of part.value) out.push(reindentLine(line, indents))
+      continue
+    }
+    for (let k = 0; k < part.value.length; k++) out.push(actualLines[at + k] ?? (part.value[k] as string))
+    at += part.value.length
+  }
+  return out.join('\n')
 }
 
 function isOpeningPosition(text: string, index: number): boolean {
@@ -114,6 +305,11 @@ export async function preserveQuoteStyleForFile(
   actualOldString: string,
   newString: string,
 ): Promise<string> {
+  const road = matchRoad(oldString, actualOldString)
+  if (road === 'whitespace' || road === 'indentation') {
+    const respelled = respellWhitespace(oldString, actualOldString, newString)
+    return preserveQuoteStyleForFile(filePath, fileContent, actualOldString, actualOldString, respelled)
+  }
   const exact = preserveQuoteStyle(oldString, actualOldString, newString, () => false)
   const styled = preserveQuoteStyle(oldString, actualOldString, newString)
   if (exact === styled) return exact
