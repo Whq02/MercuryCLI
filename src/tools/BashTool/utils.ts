@@ -3,7 +3,7 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { setCwd } from '../../utils/Shell.js'
 import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'
 import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
-import { getMaxOutputLength, OUTPUT_HEAD_SHARE } from '../../utils/shell/outputLimits.js'
+import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import type { ToolPermissionContext } from '../../Tool.js'
@@ -82,12 +82,12 @@ function mediaSubtype(mediaType: string): string {
 
 const HEAD_SHARE = OUTPUT_HEAD_SHARE
 
-export function formatOutput(content: string, opts?: { preExcerpted?: boolean }): { totalLines: number; truncatedContent: string; isImage?: boolean } {
+export function formatOutput(content: string, opts?: { preExcerpted?: boolean; maxLength?: number }): { totalLines: number; truncatedContent: string; isImage?: boolean } {
   const isImage = isImageOutput(content)
   if (isImage) {
     return { totalLines: 1, truncatedContent: content, isImage: true }
   }
-  const maxLength = getMaxOutputLength()
+  const maxLength = opts?.maxLength ?? getMaxOutputLength()
   const totalLines = countCharInString(content, '\n') + 1
   if (content.length <= maxLength || opts?.preExcerpted === true) {
     return { totalLines, truncatedContent: content, isImage: false }
@@ -101,9 +101,35 @@ export function formatOutput(content: string, opts?: { preExcerpted?: boolean })
   const tailNewline = tail.indexOf('\n')
   if (tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
   const middle = content.slice(head.length, content.length - tail.length)
-  const removedLines = Math.max(1, countCharInString(middle, '\n'))
+  const removedLines = Math.max(1, countCharInString(middle, '\n') - (middle.startsWith('\n') && middle.endsWith('\n') ? 1 : 0))
   const notice = `\n\n[${removedLines} ${plural(removedLines, 'line')} truncated from the middle — the head and the tail of the output are shown]\n\n`
   return { totalLines, truncatedContent: head + notice + tail, isImage: false }
+}
+
+const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at [^\n]*?\]\n\n/
+
+export function formatExcerpt(content: string, maxLength: number): string {
+  if (content.length <= maxLength) return content
+  const match = SPILL_NOTICE.exec(content)
+  if (match === null) return formatOutput(content, { maxLength }).truncatedContent
+  const before = content.slice(0, match.index)
+  const after = content.slice(match.index + match[0].length)
+  const headBudget = Math.floor(maxLength * HEAD_SHARE)
+  const tailBudget = maxLength - headBudget
+  let head = before.slice(0, headBudget)
+  const headNewline = head.lastIndexOf('\n')
+  if (head.length < before.length && headNewline > headBudget / 2) head = head.slice(0, headNewline)
+  let tail = after.slice(Math.max(0, after.length - tailBudget))
+  const tailNewline = tail.indexOf('\n')
+  if (tail.length < after.length && tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
+  const dropped = Buffer.byteLength(before, 'utf8') - Buffer.byteLength(head, 'utf8') + Buffer.byteLength(after, 'utf8') - Buffer.byteLength(tail, 'utf8')
+  const notice = match[0].replace(match[1] as string, String(Number(match[1]) + dropped))
+  return head + notice + tail
+}
+
+export function outputBudgetClause(budget: OutputBudget): string | undefined {
+  if (budget.clampedTo === undefined) return undefined
+  return `[max_output_chars clamped to ${budget.effective} chars (the ${budget.clampedTo})]`
 }
 
 
