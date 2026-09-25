@@ -1,5 +1,6 @@
 
 import { stringWidth } from '../../ink/stringWidth.js'
+import { expandTabs } from '../../ink/tabstops.js'
 import type { StructuredPatchHunk } from '../../utils/diff.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import sliceAnsi from '../../utils/sliceAnsi.js'
@@ -36,16 +37,17 @@ export function filePaintWidth(width: number, lineCount: number): number {
 
 export function paintedRows(line: string, paintWidth: number): number {
   const width = Math.max(1, paintWidth)
-  return Math.max(1, Math.ceil(stringWidth(line) / width))
+  return Math.max(1, Math.ceil(stringWidth(expandTabs(line)) / width))
 }
 
 export function cutToRows(line: string, paintWidth: number, rows: number): string {
   const width = Math.max(1, paintWidth)
   if (rows <= 0) return CUT_MARK
-  if (stringWidth(line) <= width * rows) return line
+  const painted = expandTabs(line)
+  if (stringWidth(painted) <= width * rows) return line
   const cells = width * rows - stringWidth(CUT_MARK)
-  let head = sliceAnsi(line, 0, cells)
-  if (stringWidth(head) > cells) head = sliceAnsi(line, 0, cells - 1)
+  let head = sliceAnsi(painted, 0, cells)
+  if (stringWidth(head) > cells) head = sliceAnsi(painted, 0, cells - 1)
   return `${head}${CUT_MARK}`
 }
 
