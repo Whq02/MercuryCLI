@@ -466,12 +466,12 @@ export function Config({
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
-  const jevStamp = useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   useEffect(() => {
     let active = true
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
     return () => { active = false }
   }, [version, configStamp])
+  const jevStamp = useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
   const seatWarning = seatFacts === null ? null : seatCostWarning(seatFacts)
   items.push({
     id: 'seats',

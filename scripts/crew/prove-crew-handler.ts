@@ -84,7 +84,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   const reserved = await handler('tank', 'sonnet')
   check("reserved name 'tank' refused", !reserved.ok && /invalid agent name/.test(reserved.error ?? ''))
   const badModel = await handler('atlas', 'no-such-model-zz')
-  check('an unknown model ⇒ the registry refuses typed, naming the rows it has', !badModel.ok && /model refused/.test(badModel.error ?? '') && /opus/i.test(badModel.error ?? ''), badModel.error ?? '')
+  check('an unknown model ⇒ the registry refuses typed, naming three spellings the catalogue resolves', !badModel.ok && /model refused/.test(badModel.error ?? '') && /spellings like '[^']+', '[^']+', '[^']+' resolve/.test(badModel.error ?? ''), badModel.error ?? '')
   const haikuSeat = await cs.resolveCrewSeatModel('haiku')
   check("model 'haiku' ⇒ seats the haiku row like any row the account runs (no tier is refused)", haikuSeat.ok === true && /haiku/.test(haikuSeat.ok ? haikuSeat.model : ''), JSON.stringify(haikuSeat))
   const noRoster = await cs.makeCrewSpawnHandler({ roster: () => undefined, dir: scratch, onSpawned: () => {} })('atlas', 'sonnet')
