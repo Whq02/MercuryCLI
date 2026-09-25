@@ -24,6 +24,7 @@ import {
   speakAgentMessageFrame,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { launchesNamed, namedLaunchReceipts } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
 import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
@@ -364,18 +365,62 @@ type RecipientResolution =
   | { ok: true; name: string; teamName: string }
   | { ok: false; refusal: string }
 
+type KnownLaunchedAgent = { name: string; agentId: string; status: string }
+
+function knownLaunchedAgents(context: ToolUseContext): KnownLaunchedAgent[] {
+  const state = context.getAppState()
+  const tasks = state.tasks ?? {}
+  const statusOf = (agentId: string): string => {
+    const task = tasks[agentId]
+    return task === undefined ? 'finished' : agentStatusWord(task.status)
+  }
+  const byName = new Map<string, KnownLaunchedAgent>()
+  for (const receipt of namedLaunchReceipts(context.messages ?? [])) {
+    byName.set(receipt.name, { name: receipt.name, agentId: receipt.agentId, status: statusOf(receipt.agentId) })
+  }
+  const registry = state.agentNameRegistry as Map<string, string> | undefined
+  for (const [name, agentId] of registry ?? []) {
+    byName.set(name, { name, agentId: String(agentId), status: statusOf(String(agentId)) })
+  }
+  return [...byName.values()]
+}
+
+function noTeamRefusal(rawTo: string, context: ToolUseContext): string {
+  const known = knownLaunchedAgents(context)
+  const folded = rawTo.toLowerCase()
+  const own =
+    known.find(agent => agent.name === rawTo || agent.agentId === rawTo) ??
+    known.find(agent => agent.name.toLowerCase() === folded)
+  if (own !== undefined) {
+    return (
+      `Cannot deliver to "${rawTo}": that is a sub-agent of this session (id ${own.agentId}; ${own.status}), and a structured message reaches teammates only. ` +
+      `Send it a plain message addressed to its name or to its id ${own.agentId}` +
+      (own.status === 'running' ? ' — it is read at its next tool boundary.' : ' to resume it.')
+    )
+  }
+  if (known.length === 0) {
+    return (
+      `Cannot deliver to "${rawTo}": this session is not in a team and no in-process agent by that name exists, ` +
+      `so the message would land in a default inbox nobody reads. Spawn a team first, or address a live subagent by name.`
+    )
+  }
+  const running = known.filter(agent => agent.status === 'running').map(agent => agent.name)
+  const finished = known.filter(agent => agent.status !== 'running').map(agent => agent.name)
+  return (
+    `Cannot deliver to "${rawTo}": no agent named ${rawTo} in this session` +
+    (running.length > 0 ? `; the running agents are: ${running.join(', ')}` : '') +
+    (finished.length > 0 ? `; the finished agents are: ${finished.join(', ')}` : '') +
+    ` — send to an id or one of those names.`
+  )
+}
+
 async function resolveDeliverableRecipient(
   rawTo: string,
   context: ToolUseContext,
 ): Promise<RecipientResolution> {
   const teamName = getTeamName(teamContextOf(context))
   if (!teamName) {
-    return {
-      ok: false,
-      refusal:
-        `Cannot deliver to "${rawTo}": this session is not in a team and no in-process agent by that name exists, ` +
-        `so the message would land in a default inbox nobody reads. Spawn a team first, or address a live subagent by name.`,
-    }
+    return { ok: false, refusal: noTeamRefusal(rawTo, context) }
   }
   const selfRefusal = selfAddressRefusalText(rawTo)
   if (selfRefusal !== null) {
@@ -557,8 +602,16 @@ async function routeToLocalAgent(
 ): Promise<MessageOutput | undefined> {
   const registry = context.getAppState().agentNameRegistry as Map<string, string> | undefined
   const registered = registry?.get(rawTo)
-  const agentId = registered ?? toAgentId(rawTo) ?? undefined
+  const minted = toAgentId(rawTo) ?? undefined
+  const launches = registered === undefined && minted === undefined ? launchesNamed(context.messages ?? [], rawTo) : []
+  const launch = launches[launches.length - 1]
+  if (launch !== undefined && (await rosterHolds(rawTo, context))) return undefined
+  const agentId = registered ?? minted ?? launch?.agentId
   if (agentId === undefined) return undefined
+  const who =
+    launch === undefined
+      ? rawTo
+      : `${rawTo} (id ${agentId}${launches.length > 1 ? `, the newest of ${launches.length} launches that carried the name` : ''})`
 
   const task = context.getAppState().tasks?.[String(agentId)]
   const liveLocal =
@@ -569,7 +622,7 @@ async function routeToLocalAgent(
       queuePendingMessage(liveLocal.id, messageNoticeFor(liveLocal.id, content, context), context.setAppStateForTasks ?? context.setAppState)
       return {
         success: true,
-        message: `Message delivered to agent ${rawTo} — ${DELIVERED_WORDS}.`,
+        message: `Message delivered to agent ${who} — ${DELIVERED_WORDS}.`,
       }
     }
     const ended =
@@ -593,14 +646,14 @@ async function routeToLocalAgent(
       return {
         success: true,
         message:
-          `Agent ${rawTo} ${ended}; it was resumed in the background with your ` +
+          `Agent ${who} ${ended}; it was resumed in the background with your ` +
           `message and you will be notified when it completes. Output file: ${resumed.outputFile}` +
           (resumed.note ?? ''),
       }
     } catch (error) {
       return {
         success: false,
-        message: `Agent ${rawTo} ${ended} and could not be resumed: ${errorMessage(error)}`,
+        message: `Agent ${who} ${ended} and could not be resumed: ${errorMessage(error)}`,
       }
     }
   }
@@ -619,13 +672,13 @@ async function routeToLocalAgent(
 
   const transcriptPath = agentTranscriptPathOf(String(agentId))
   if (transcriptPath === null || !existsSync(transcriptPath)) {
-    if (registered === undefined && getTeamName(teamContextOf(context))) {
+    if (registered === undefined && launch === undefined && getTeamName(teamContextOf(context))) {
       return undefined
     }
     return {
       success: false,
       message:
-        `Agent ${rawTo}: no running task by that id in this session and no transcript on disk to resume — ` +
+        `Agent ${who}: no running task by that id in this session and no transcript on disk to resume — ` +
         `the agent may belong to another process, or its record was cleaned up. Address a live sub-agent by the ` +
         `id its launch receipt names, or by the name its launch gave it.`,
     }
@@ -647,7 +700,7 @@ async function routeToLocalAgent(
     return {
       success: true,
       message:
-        `Agent ${rawTo} is not running (${endedOnDisk}); it was resumed in the background with your message and you will be ` +
+        `Agent ${who} is not running (${endedOnDisk}); it was resumed in the background with your message and you will be ` +
         `notified when it completes. Output file: ${resumed.outputFile}` +
         (resumed.note ?? ''),
     }
@@ -655,9 +708,17 @@ async function routeToLocalAgent(
     return {
       success: false,
       message:
-        `Agent ${rawTo} is not running (${endedOnDisk}) and could not be resumed: ${errorMessage(error)}`,
+        `Agent ${who} is not running (${endedOnDisk}) and could not be resumed: ${errorMessage(error)}`,
     }
   }
+}
+
+async function rosterHolds(rawTo: string, context: ToolUseContext): Promise<boolean> {
+  const teamName = getTeamName(teamContextOf(context))
+  if (!teamName) return false
+  if (rawTo.toLowerCase() === TEAM_LEAD_NAME.toLowerCase()) return true
+  const roster = await readRoster(teamName)
+  return (roster?.members ?? []).some(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
 }
 
 async function messageWorkflowWorker(

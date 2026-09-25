@@ -135,6 +135,62 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
   return receipts
 }
 
+export interface NamedLaunchReceipt {
+  toolUseId: string
+  agentId: string
+  name: string
+  description: string
+  launchedAt: number
+}
+
+const CONTINUATION_ID = /agentId: (\S+) \(internal/g
+
+function lastContinuationId(text: string): string | undefined {
+  let found: string | undefined
+  for (const match of text.matchAll(CONTINUATION_ID)) found = match[1]
+  return found
+}
+
+export function namedLaunchReceipts(messages: readonly Message[]): NamedLaunchReceipt[] {
+  const launches = new Map<string, { name: string; description: string; launchedAt: number }>()
+  const receipts: NamedLaunchReceipt[] = []
+  for (const message of messages) {
+    if (message.type === 'assistant') {
+      const stamp = Date.parse(message.timestamp)
+      for (const block of blocksOf(message.message.content)) {
+        if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
+        const input = (block.input ?? {}) as { name?: unknown; description?: unknown }
+        if (typeof input.name !== 'string' || input.name.trim() === '') continue
+        launches.set(block.id, {
+          name: input.name.trim(),
+          description: recordedDescription(input.description) || 'agent',
+          launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
+        })
+      }
+      continue
+    }
+    if (message.type !== 'user') continue
+    for (const block of blocksOf(message.message.content)) {
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
+      const launch = launches.get(block.tool_use_id)
+      if (launch === undefined) continue
+      const agentId = lastContinuationId(textOf(block.content))
+      if (agentId === undefined) continue
+      receipts.push({ toolUseId: block.tool_use_id, agentId, ...launch })
+    }
+  }
+  return receipts
+}
+
+export function launchesNamed(messages: readonly Message[], name: string): NamedLaunchReceipt[] {
+  const wanted = name.trim()
+  const receipts = namedLaunchReceipts(messages)
+  const exact = receipts.filter(receipt => receipt.name === wanted)
+  if (exact.length > 0) return exact
+  const folded = wanted.toLowerCase()
+  return receipts.filter(receipt => receipt.name.toLowerCase() === folded)
+}
+
 export function settledLaunchIds(messages: readonly Message[]): Set<string> {
   const settled = new Set<string>()
   for (const message of messages) {
