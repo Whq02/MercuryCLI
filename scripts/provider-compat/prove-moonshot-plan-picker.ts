@@ -89,8 +89,10 @@ type ListMode = { kind: 'hold' } | { kind: 'list'; body: unknown } | { kind: 'fa
 let listMode: ListMode = { kind: 'hold' }
 let listRequests = 0
 let releaseHeld: (() => void) | null = null
+const chatBodies: Array<Record<string, unknown>> = []
+const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const realFetch = globalThis.fetch
-globalThis.fetch = (async (url: string | URL | Request) => {
+globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
   const spelled = String(url instanceof Request ? url.url : url)
   if (spelled === 'http://127.0.0.1:1/coding/v1/models') {
     listRequests++
@@ -100,6 +102,17 @@ globalThis.fetch = (async (url: string | URL | Request) => {
     return new Promise<Response>(resolve => {
       releaseHeld = () => resolve(Response.json(PLAN_LIST))
     })
+  }
+  if (spelled === 'http://127.0.0.1:1/coding/v1/chat/completions') {
+    const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+    chatBodies.push(body)
+    const model = String(body.model ?? '')
+    return new Response(
+      sse({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { role: 'assistant', content: 'plan answer' } }] }) +
+        sse({ id: 'chatcmpl-plan', object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 9, completion_tokens: 3 } }) +
+        'data: [DONE]\n\n',
+      { status: 200, headers: { 'content-type': 'text/event-stream' } },
+    )
   }
   if (spelled.includes('/v1/models')) {
     return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
@@ -120,6 +133,13 @@ const { moonshotCatalogueEntries, describeMoonshotProvider, listMoonshotModels }
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { readCatalogueIfPending } = await import('../../src/services/providers/catalogueOnDemand.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+const engine = await import('../../src/utils/swarm/engineDispatch.ts')
+const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
+const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
+const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type ListState = { kind: string; reading?: boolean; error?: string; count?: number }
 const listState = (): ListState | undefined => (modelOptions as { keyLaneListState?: (provider: 'moonshot') => ListState }).keyLaneListState?.('moonshot')
@@ -268,7 +288,7 @@ section('§7 the seams, source-shaped: one three-state owner, every reader follo
   const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
   const owner = src('services/providers/moonshot/moonshotCatalogue.ts')
   check('the owner gates the pin table on the absence of an account, then the fetched snapshot, else an unread source', owner.includes('if (resolveMoonshotAccount(env) === undefined) {') && owner.includes("kind: 'unread'; reading: boolean; error?: string") && owner.includes('return { rows: [], source: unreadSource(snapshot, env) }'))
-  check('the owner orders the base alias before its variants', owner.includes('return { rows: baseAliasLeads(rows), source:'))
+  check('the owner orders the base alias before its variants', owner.includes('return { rows: baseAliasLeads(planHeadLeads(rows)), source:'))
   const options = src('utils/model/modelOptions.ts')
   check('the picker row source reads the list state beside the pins and paints the status row from it', options.includes("listState: keyLaneListState('moonshot')") && options.includes("args.listState?.kind === 'unread'") && options.includes('kickMoonshotCatalogue()'))
   const defaults = src('utils/model/computedDefault.ts')
@@ -278,6 +298,89 @@ section('§7 the seams, source-shaped: one three-state owner, every reader follo
   check('↵ on the Moonshot status row re-reads the list in place for a signed-in account; a signed-out row still runs /logins', picker.includes("refreshMoonshotCatalogue({ force: true })") && picker.includes("nextInput: '/logins moonshot --return=/model'") && picker.includes('useCatalogueEpoch()'))
   const onDemand = src('services/providers/catalogueOnDemand.ts')
   check('the boot road reads the Moonshot list when nothing usable is cached, bounded', onDemand.includes("case 'moonshot'") && onDemand.includes('nothingUsable(getCachedMoonshotCatalogue())') && onDemand.includes('await bounded(refreshMoonshotCatalogue({ force }), boundMs)'))
+}
+
+const K3 = 'k3'
+const K3_256K = 'k3-256k'
+const liveIds = (): ReadonlySet<string> => (catalogue as { cachedLiveIds?: () => ReadonlySet<string> }).cachedLiveIds?.() ?? new Set()
+const CODING_PLAN_LIST = { object: 'list', data: [
+  { id: FAST_ALIAS, object: 'model', created: 400, owned_by: 'moonshot', context_length: 262144 },
+  { id: ALIAS, object: 'model', created: 300, owned_by: 'moonshot', context_length: 262144, display_name: ALIAS_NAME },
+  { id: K3_256K, object: 'model', created: 200, owned_by: 'moonshot' },
+  { id: K3, object: 'model', created: 100, owned_by: 'moonshot' },
+] }
+const chatParams = (model: string): Parameters<typeof moonshotCallModel>[0] => ({
+  messages: [createUserMessage({ content: 'say hi' })],
+  systemPrompt: ['fixture system prompt'],
+  thinkingConfig: { type: 'disabled' },
+  tools: [],
+  signal: new AbortController().signal,
+  options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model, isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue: 'high' },
+}) as never
+type Settled = { model: string; api: boolean; text: string }
+async function turn(model: string): Promise<Settled[]> {
+  const out: Settled[] = []
+  for await (const item of moonshotCallModel(chatParams(model))) {
+    if ((item as { type?: string }).type !== 'assistant') continue
+    const message = item as { isApiErrorMessage?: boolean; message: { model: string; content: Array<{ type: string; text?: string }> } }
+    out.push({ model: message.message.model, api: message.isApiErrorMessage === true, text: message.message.content.map(block => block.text ?? '').join('') })
+  }
+  return out
+}
+
+section('§8 the coding plan serves k3: an off-grammar id that arrived in the account\'s list belongs to Moonshot, paints as K3, leads, and dispatches')
+{
+  catalogue.__resetMoonshotCatalogueForTest()
+  listMode = { kind: 'list', body: CODING_PLAN_LIST }
+  const snapshot = await catalogue.refreshMoonshotCatalogue({ force: true })
+  const byCreated = (snapshot?.models ?? []).toSorted((a, b) => (b.created ?? 0) - (a.created ?? 0)).map(model => model.id)
+  check('the list lands whole — four ids, the two off-grammar ones kept — and the stamps alone would put the highspeed variant first', snapshot !== null && snapshot.models.length === 4 && byCreated.join(',') === `${FAST_ALIAS},${ALIAS},${K3_256K},${K3}`, byCreated.join(','))
+  const live = catalogue.moonshotCatalogueRows()
+  check('the rows run k3 · k3-256k · kimi-for-coding · kimi-for-coding-highspeed', live.source.kind === 'live' && live.rows.map(row => row.id).join(',') === `${K3},${K3_256K},${ALIAS},${FAST_ALIAS}`, live.rows.map(row => row.id).join(','))
+  check('k3 paints as K3 with its 1,048,576 context and k3-256k as K3 256K with 262,144 — from the plan table, the list stating no window', live.rows[0]?.displayName === 'K3' && live.rows[0].contextWindow === 1_048_576 && live.rows[1]?.displayName === 'K3 256K' && live.rows[1].contextWindow === 262_144, JSON.stringify(live.rows.map(row => [row.id, row.displayName, row.contextWindow])))
+  check("the alias rows keep their names: the endpoint's display_name and the mechanical title", live.rows[2]?.displayName === ALIAS_NAME && live.rows[3]?.displayName === FAST_NAME)
+  const rows = moonshotRows()
+  check('the section paints the four rows in that order, every one selectable, K3 first', modelIdsOf(rows).join(',') === `${K3},${K3_256K},${ALIAS},${FAST_ALIAS}` && rows.every(row => row.unavailable === undefined) && rows[0]?.label === 'K3' && rows[0].statedContextWindow === 1_048_576 && rows[1]?.label === 'K3 256K' && rows[1].statedContextWindow === 262_144, JSON.stringify(rows.map(row => [row.value, row.label, row.statedContextWindow, row.unavailable])))
+  check('the signed-in account lists k3 among its live ids', liveIds().has(K3) && liveIds().has(K3_256K) && liveIds().has(ALIAS) && !liveIds().has('kimi-k3'), [...liveIds()].join(','))
+  check("declaredRouteOf('k3') is moonshot on this account — by provenance, not by prefix", declaredRouteOf(K3) === 'moonshot' && declaredRouteOf(K3_256K) === 'moonshot' && declaredRouteOf('K3[1m]') === 'moonshot', String(declaredRouteOf(K3)))
+  check("isExactEngineModelId('k3') on this account", engine.isExactEngineModelId(K3) && engine.isExactEngineModelId(K3_256K) && engine.unrecognisedModelWordRefusal(K3) === null)
+  const { decision } = moonshotVerdict()
+  check('the default is k3 (keyLaneRow): the head of the live list, named K3', decision.provider === 'moonshot' && decision.setting === K3 && decision.row === 'K3', JSON.stringify({ provider: decision.provider, setting: decision.setting, row: decision.row }))
+  check('the frontier fact names k3 from the live source', providerFrontierFact('moonshot')?.modelId === K3 && providerFrontierFact('moonshot')?.displayName === 'K3', JSON.stringify(providerFrontierFact('moonshot')))
+  check("the 'kimi' class resolves k3", (await kimiWord()) === `resolved ${K3}`)
+  const exact = await engine.resolveEngineDispatch(K3)
+  check("the exact-id road resolves --model k3 to Moonshot's k3, labelled K3", exact?.backend === 'moonshot' && exact.model === K3 && exact.displayLabel === 'K3', JSON.stringify(exact))
+  check('the K3 laws read k3 and k3-256k as the K3 model: the effort dial, the context budget', effortVocabularyFor(K3).kind === 'provider' && effortVocabularyFor(K3_256K).kind === 'provider' && getContextWindowForModel(K3) === 1_048_576 && getContextWindowForModel(K3_256K) === 262_144, JSON.stringify({ k3: effortVocabularyFor(K3), window: getContextWindowForModel(K3), window256: getContextWindowForModel(K3_256K) }))
+  const typed = await catalogue.qualifyMoonshotModel('kimi-k3')
+  check("a typed kimi-k3 on the plan account qualifies to k3 (the list lacks kimi-k3 and holds k3)", typed.kind === 'ok' && typed.modelId === K3, JSON.stringify(typed))
+  check("the general form: kimi-k3-256k → k3-256k; kimi-for-coding stays itself; a kimi-<x> with no listed <x> is refused", (await catalogue.qualifyMoonshotModel('kimi-k3-256k')).kind === 'ok' && (await catalogue.qualifyMoonshotModel('kimi-k3-256k') as { modelId?: string }).modelId === K3_256K && (await catalogue.qualifyMoonshotModel(ALIAS) as { modelId?: string }).modelId === ALIAS && (await catalogue.qualifyMoonshotModel('kimi-k2.6')).kind === 'refused')
+  const typedDispatch = await engine.resolveEngineDispatch('kimi-k3')
+  check("the exact-id road maps --model kimi-k3 to k3 on this account", typedDispatch?.backend === 'moonshot' && typedDispatch.model === K3 && typedDispatch.displayLabel === 'K3', JSON.stringify(typedDispatch))
+  chatBodies.length = 0
+  const settled = await turn('kimi-k3')
+  check('a dispatch typed kimi-k3 puts model "k3" on the wire and settles clean', chatBodies.length === 1 && chatBodies[0]?.model === K3 && settled.some(item => item.text === 'plan answer') && settled.every(item => !item.api), JSON.stringify({ bodies: chatBodies.map(body => body.model), settled }))
+  check('the wire carried the K3 effort word for the mapped id (the laws are the model\'s, not the spelling\'s)', chatBodies[0]?.reasoning_effort === 'high', JSON.stringify(chatBodies[0]))
+  chatBodies.length = 0
+  catalogue.__resetMoonshotCatalogueForTest()
+  const requestsBefore = listRequests
+  check("with the list not yet read in this process, 'k3' is unrecognised by the sync classifier", declaredRouteOf(K3) === null)
+  const routed: Settled[] = []
+  for await (const item of routedCallModel(chatParams(K3) as never)) {
+    if ((item as { type?: string }).type !== 'assistant') continue
+    const message = item as { isApiErrorMessage?: boolean; message: { model: string; content: Array<{ type: string; text?: string }> } }
+    routed.push({ model: message.message.model, api: message.isApiErrorMessage === true, text: message.message.content.map(block => block.text ?? '').join('') })
+  }
+  check('the dispatch road reads the account lists for an unrecognised bare id, then routes k3 to Moonshot and puts k3 on the wire', listRequests === requestsBefore + 1 && chatBodies.length === 1 && chatBodies[0]?.model === K3 && routed.some(item => item.text === 'plan answer') && routed.every(item => !item.api), JSON.stringify({ requests: listRequests - requestsBefore, bodies: chatBodies.map(body => body.model), routed }))
+  check("after that read the classifier routes 'k3' to moonshot again", declaredRouteOf(K3) === 'moonshot')
+  catalogue.__resetMoonshotCatalogueForTest()
+  listMode = { kind: 'list', body: { object: 'list', data: CODING_PLAN_LIST.data.filter(model => model.id !== K3) } }
+  await catalogue.refreshMoonshotCatalogue({ force: true })
+  const without = moonshotVerdict().decision
+  check('a list without k3 leads with k3-256k and defaults to it', catalogue.moonshotCatalogueRows().rows[0]?.id === K3_256K && without.setting === K3_256K && (await kimiWord()) === `resolved ${K3_256K}`, JSON.stringify({ head: catalogue.moonshotCatalogueRows().rows[0]?.id, setting: without.setting }))
+  check("a typed kimi-k3 on that list is refused (no k3 listed), naming the offered ids", (await catalogue.qualifyMoonshotModel('kimi-k3')).kind === 'refused')
+  accounts.writeMoonshotTokens(null)
+  catalogue.__resetMoonshotCatalogueForTest()
+  check("signed out, 'k3' routes nowhere by grammar while 'kimi-k3' still routes to moonshot by grammar", declaredRouteOf(K3) === null && declaredRouteOf('kimi-k3') === 'moonshot' && !engine.isExactEngineModelId(K3) && engine.isExactEngineModelId('kimi-k3') && liveIds().size === 0, `${String(declaredRouteOf(K3))} / ${String(declaredRouteOf('kimi-k3'))}`)
 }
 
 globalThis.fetch = realFetch

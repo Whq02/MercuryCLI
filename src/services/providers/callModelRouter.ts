@@ -9,6 +9,8 @@ import { moonshotCallModel } from './moonshot/moonshotCallModel.js'
 import { deepseekCallModel } from './deepseek/deepseekCallModel.js'
 import { compatCallModel } from './openaicompat/compatCallModel.js'
 import { classifyModelRoute } from './routeLaw.js'
+import { LIVE_LIST_FAMILIES, type ModelRouteVerdict } from './idSpaces.js'
+import { readCatalogueIfPending } from './catalogueOnDemand.js'
 import { openrouterCallModel } from './openrouter/openrouterCallModel.js'
 import { geminiCallModel } from './gemini/geminiCallModel.js'
 import { huggingfaceCallModel } from './huggingface/huggingfaceCallModel.js'
@@ -75,8 +77,15 @@ async function* homeLaneCall(
   yield* queryModelWithStreaming(params)
 }
 
+async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict> {
+  const verdict = classifyModelRoute(model)
+  if (verdict.kind !== 'unrecognised' || verdict.carrierShaped) return verdict
+  await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
+  return classifyModelRoute(model)
+}
+
 export const routedCallModel: typeof queryModelWithStreaming = async function* (params) {
-  const verdict = classifyModelRoute(params.options.model)
+  const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
     yield createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: no model id rides this call — the session's model resolves upstream (/model names one; the built-in default otherwise), and this dispatch was handed none.`,

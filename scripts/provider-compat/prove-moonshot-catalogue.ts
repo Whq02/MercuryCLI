@@ -48,10 +48,12 @@ if (catalogue) {
   const fetched = await c.fetchMoonshotLiveModels({ baseUrl: 'http://127.0.0.1:1/platform/', key: 'fixture-key', fetchImpl: pageFetch() })
   check('one bearer GET on the supplied base, with the provider deadline signal', calls.length === 1 && calls[0]?.url === 'http://127.0.0.1:1/platform/models' && calls[0].method === 'GET' && calls[0].bearer === 'Bearer fixture-key' && calls[0].signal)
   check('the documented response lands with two rows', fetched.models.length === 2)
-  for (const body of [{}, null, { data: 'wrong' }, { data: [{ id: 'gpt-foreign' }] }]) {
+  for (const body of [{}, null, { data: 'wrong' }, { data: [{ object: 'model' }] }]) {
     const refused = await c.fetchMoonshotLiveModels({ baseUrl: 'http://127.0.0.1:1/platform', key: 'fixture-key', fetchImpl: pageFetch(body) }).then(() => false, () => true)
-    check('a malformed or foreign catalogue is not an authoritative empty list', refused, JSON.stringify(body))
+    check('a malformed catalogue, or one whose rows carry no id, is not an authoritative empty list', refused, JSON.stringify(body))
   }
+  const foreignSpelled = await c.fetchMoonshotLiveModels({ baseUrl: 'http://127.0.0.1:1/platform', key: 'fixture-key', fetchImpl: pageFetch({ data: [{ id: 'gpt-foreign' }] }) })
+  check("a list is a list: an id spelled outside the kimi-/moonshot- grammar lands as the account's own row, never refused as a non-catalogue view", foreignSpelled.models.map(model => model.id).join(',') === 'gpt-foreign')
   calls = []
   check('signed out: refresh is a non-event', await c.refreshMoonshotCatalogue({ fetchImpl: pageFetch() }) === null && calls.length === 0)
   check('signed out: kick starts nothing', !c.kickMoonshotCatalogue({ fetchImpl: pageFetch() }) && calls.length === 0)
@@ -257,12 +259,12 @@ if (catalogue) {
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch({ object: 'list', data: [
     { id: 'moonshot-v2', object: 'model', created: 500, owned_by: 'moonshot', context_length: 262144, supports_image_in: false, supports_video_in: false, supports_reasoning: true },
     { id: 'kimi-k2.6', object: 'model', created: 100, owned_by: 'moonshot' },
-    { id: 'text-embedding-foreign', object: 'model', created: 900, owned_by: 'moonshot' },
+    { id: 'text-embedding-foreign', object: 'model', created: 50, owned_by: 'moonshot' },
   ] }) })
   const shaped = c.moonshotCatalogueRows()
   check('guard: a moonshot-v2 row is listed under its raw id, newest first, with its stated context, live', shaped.source.kind === 'live' && shaped.rows[0]?.id === 'moonshot-v2' && shaped.rows[0].contextWindow === 262144 && shaped.rows[0].listedLive, JSON.stringify(shaped.rows))
-  check('guard: a row outside both shapes is not a Moonshot row', shaped.rows.every(row => row.id !== 'text-embedding-foreign') && shaped.rows.length === 2)
-  check('guard: the picker reads the raw row', keyLanePins('moonshot').map(row => row.id).join(',') === 'moonshot-v2,kimi-k2.6')
+  check("guard: a row outside both spellings is the account's row too (a list is a list) — listed under its raw id, last by its stamp, routed to moonshot by where it came from", shaped.rows.length === 3 && shaped.rows[2]?.id === 'text-embedding-foreign' && shaped.rows[2].displayName === 'Text Embedding Foreign' && declaredRouteOf('text-embedding-foreign') === 'moonshot', JSON.stringify(shaped.rows.map(row => row.id)))
+  check('guard: the picker reads the raw rows', keyLanePins('moonshot').map(row => row.id).join(',') === 'moonshot-v2,kimi-k2.6,text-embedding-foreign')
   check('guard: the id space and the route law declare it', recognizeModelId('moonshot-v2', {}).kind === 'declared' && declaredRouteOf('moonshot-v2') === 'moonshot')
   check('guard: the admission, the typed road and the engine grammar admit the served raw id', (await c.qualifyMoonshotModel('moonshot-v2')).kind === 'ok' && (await validateModel('moonshot-v2')).valid && (await resolveEngineDispatch('moonshot-v2'))?.model === 'moonshot-v2')
   check('guard: the specialist alias follows the newest served row whatever its shape', (await resolveEngineDispatch('kimi'))?.model === 'moonshot-v2')
