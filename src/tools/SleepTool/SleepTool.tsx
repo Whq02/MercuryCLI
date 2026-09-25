@@ -12,6 +12,13 @@ import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
 const MAX_SLEEP_SECONDS = 3600
 const MIN_SLEEP_SECONDS = 1
 
+function paintedWait(seconds: unknown): string | null {
+  if (typeof seconds !== 'number') return null
+  const wait = clampWait('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's')
+  const label = `${Math.round(wait.value)}s`
+  return wait.clause === null ? label : `${label} · ${wait.clause}`
+}
+
 export const TRACKED_SETTLE_POLL_MS = 250
 
 export const TRACKED_ARM_GRACE_TICKS = 4
@@ -108,12 +115,11 @@ export const SleepTool = buildTool({
     return SLEEP_TOOL_PROMPT
   },
   getActivityDescription(input) {
-    const s = input?.seconds
-    return typeof s === 'number' ? `Sleeping for ${Math.round(s)}s` : 'Sleeping'
+    const wait = paintedWait(input?.seconds)
+    return wait === null ? 'Sleeping' : `Sleeping for ${wait}`
   },
   renderToolUseMessage(input) {
-    const s = input?.seconds
-    return typeof s === 'number' ? `${Math.round(s)}s` : ''
+    return paintedWait(input?.seconds) ?? ''
   },
   renderToolResultMessage(output) {
     return (
