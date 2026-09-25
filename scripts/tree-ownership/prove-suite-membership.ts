@@ -78,6 +78,35 @@ console.log(`  swept ${total} provers across the suite dirs`)
 check('zero orphan provers (run in a suite or registered excluded)', orphans.length === 0, orphans.slice(0, 8).join(', '))
 check('exclusion registry rows all point at existing files', staleExclusions.length === 0, staleExclusions.join(', '))
 
+const RELEASE_COUNTED: Record<string, string> = {
+  'scripts/ui/prove-declared-keys-unshadowed.ts': 'the closed roster of key hosts over src/components, src/screens and src/commands: a fold that lands an unrostered host turns it red',
+  'scripts/ui/prove-exit-reachability.ts': 'the closed census of every way out over the same trees',
+}
+const RELEASE_CLASSES = new Set(['pure', 'cpu', 'exclusive'])
+const classOf = (dir: string): string => /^# gate-class:\s*(\S+)/m.exec(readFileSync(join(SCRIPTS, dir, 'run-all.sh'), 'utf8'))?.[1] ?? 'undeclared'
+const listedBy = new Map<string, string[]>()
+for (const dir of readdirSync(SCRIPTS)) {
+  const members = join(SCRIPTS, dir, 'members.txt')
+  const runAll = join(SCRIPTS, dir, 'run-all.sh')
+  if (!existsSync(members) || !existsSync(runAll)) continue
+  const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(runAll, 'utf8'))?.[1]
+  if (parent === undefined) continue
+  for (const raw of readFileSync(members, 'utf8').split('\n')) {
+    const name = raw.trim()
+    if (name === '' || name.startsWith('#')) continue
+    const rel = `scripts/${parent}/${name}`
+    listedBy.set(rel, [...(listedBy.get(rel) ?? []), dir])
+  }
+}
+const deferredOnly = Object.keys(RELEASE_COUNTED).filter(rel => !(listedBy.get(rel) ?? []).some(dir => RELEASE_CLASSES.has(classOf(dir))))
+const missingCounted = Object.keys(RELEASE_COUNTED).filter(rel => !existsSync(join(ROOT, rel)))
+check(
+  'every source census the release verdict must count is named by a release-class member list (a pty suite is deferred to the drives verdict)',
+  deferredOnly.length === 0,
+  deferredOnly.map(rel => `${rel} — ${(listedBy.get(rel) ?? []).map(dir => `${dir} (${classOf(dir)})`).join(', ') || 'the pty complement only'}: ${RELEASE_COUNTED[rel]}`).join(' · '),
+)
+check('the release-counted census rows all point at existing files', missingCounted.length === 0, missingCounted.join(', '))
+
 const vacuous: string[] = []
 for (const dir of readdirSync(SCRIPTS)) {
   const runAll = join(SCRIPTS, dir, 'run-all.sh')
