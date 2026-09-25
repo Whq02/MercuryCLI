@@ -200,6 +200,21 @@ async function main(): Promise<void> {
     check('a clean Git resolve ⇒ allowed', deniedBy(gitClean) === null, denialText(gitClean))
     const gitTake = { toolName: 'Git', input: { op: 'resolve', path: 'src/service.ts', take: 'ours' } }
     check('a Git resolve by take carries no bytes ⇒ allowed', deniedBy(gitTake) === null, denialText(gitTake))
+    const godotEdit = { toolName: 'Godot', input: { op: 'script_edit', args: { path: 'res://player.gd', content: 'extends Node\n# ... existing code ...\nfunc _ready():\n\tpass\n' } } }
+    const godotVerdict = verdictOf(godotEdit)
+    check('a Godot script_edit whose content carries the placeholder ⇒ denied, at the script path', deniedBy(godotEdit) === RULE && !godotVerdict.allow && godotVerdict.target === 'player.gd' && godotVerdict.line === 2, denialText(godotEdit))
+    const godotReplace = { toolName: 'Godot', input: { op: 'script_edit', args: { path: 'res://player.gd', find: 'func _ready():\n\tpass', replace: '# rest of methods ...' } } }
+    check('a Godot script_edit whose replace text carries the placeholder ⇒ denied', deniedBy(godotReplace) === RULE, denialText(godotReplace))
+    const godotKept = { toolName: 'Godot', input: { op: 'script_edit', args: { path: 'res://player.gd', find: '# rest of methods ...\nfunc _ready():', replace: '# rest of methods ...\nfunc _ready() -> void:' } } }
+    check('a Godot script_edit that keeps a placeholder already in its find text ⇒ allowed (find is the old text)', deniedBy(godotKept) === null, denialText(godotKept))
+    const godotCreate = { toolName: 'Godot', input: { op: 'script_create', args: { path: 'res://enemy.gd', content: 'extends Node\n# ... rest of the code unchanged\n' } } }
+    check('a Godot script_create whose content carries the placeholder ⇒ denied', deniedBy(godotCreate) === RULE, denialText(godotCreate))
+    const godotClean = { toolName: 'Godot', input: { op: 'script_create', args: { path: 'res://enemy.gd', content: 'extends Node\n' } } }
+    check('a clean Godot script_create ⇒ allowed', deniedBy(godotClean) === null, denialText(godotClean))
+    const godotTemplate = { toolName: 'Godot', input: { op: 'script_create', args: { path: 'res://enemy.gd', extends: 'Node' } } }
+    check('a Godot script_create from the template carries no model bytes ⇒ allowed', deniedBy(godotTemplate) === null, denialText(godotTemplate))
+    const godotRead = { toolName: 'Godot', input: { op: 'script_read', args: { path: 'res://player.gd' } } }
+    check('a Godot read op ⇒ allowed', deniedBy(godotRead) === null, denialText(godotRead))
   }
 
   section('G. the fixed phrase set — the seven Gemini prefixes, their normalisation, and the ellipsis-led idiom')

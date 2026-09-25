@@ -1,7 +1,7 @@
 
 import { resolveProjectConfigPath } from '../projectConfig.js'
 import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../../context/notifications.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
@@ -50,24 +50,32 @@ export function readTargetHead(path: string): string | undefined {
   return head.includes(0) ? undefined : head.toString('utf8')
 }
 
-export function realTargetPath(path: string): string {
-  let head = path
-  let tail = ''
-  for (;;) {
+export const TARGET_PATH_MAX = 4096
+
+function deepestExisting(path: string): { real: string; tail: string[] } {
+  const segments = path.split(sep).filter(Boolean)
+  const tail: string[] = []
+  for (let depth = segments.length; depth > 0; depth--) {
+    const candidate = sep + segments.slice(0, depth).join(sep)
     try {
-      const real = realpathSync(head)
-      return tail === '' ? real : join(real, tail)
+      return { real: realpathSync(candidate), tail }
     } catch {
-      const parent = dirname(head)
-      if (parent === head) return path
-      tail = tail === '' ? basename(head) : join(basename(head), tail)
-      head = parent
+      tail.unshift(segments[depth - 1]!)
     }
   }
+  return { real: sep, tail }
+}
+
+export function realTargetPath(path: string): string {
+  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
+  const { real, tail } = deepestExisting(path)
+  return tail.length === 0 ? real : join(real, ...tail)
 }
 
 export function repositoryRootOf(path: string): string | undefined {
-  let dir = dirname(path)
+  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return undefined
+  let dir = deepestExisting(path).real
+  if (dir === realTargetPath(path)) dir = dirname(dir)
   for (;;) {
     if (existsSync(join(dir, '.git'))) return dir
     const parent = dirname(dir)
@@ -77,6 +85,7 @@ export function repositoryRootOf(path: string): string | undefined {
 }
 
 export function makeTargetResolver(fallbackRoot: string): (path: string) => ResolvedPath {
+  const fallback = realTargetPath(fallbackRoot)
   return (path: string): ResolvedPath => {
     let expanded: string
     try {
@@ -84,8 +93,16 @@ export function makeTargetResolver(fallbackRoot: string): (path: string) => Reso
     } catch {
       return { path, root: undefined }
     }
-    const real = realTargetPath(expanded)
-    return { path: real, root: repositoryRootOf(real) ?? realTargetPath(fallbackRoot) }
+    if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
+    const { real, tail } = deepestExisting(expanded)
+    const resolved = tail.length === 0 ? real : join(real, ...tail)
+    let dir = tail.length === 0 ? dirname(real) : real
+    for (;;) {
+      if (existsSync(join(dir, '.git'))) return { path: resolved, root: dir }
+      const parent = dirname(dir)
+      if (parent === dir) return { path: resolved, root: fallback }
+      dir = parent
+    }
   }
 }
 

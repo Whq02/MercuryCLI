@@ -58,6 +58,8 @@ const AST_EDIT_TOOLS = new Set(['AstEdit'])
 const STRUCTURE_TOOLS = new Set(['Structure'])
 const GIT_TOOLS = new Set(['Git'])
 const LSP_TOOLS = new Set(['LSP'])
+const GODOT_TOOLS = new Set(['Godot'])
+const GODOT_SCRIPT_OPS = new Set(['script_create', 'script_edit'])
 export const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
@@ -324,6 +326,7 @@ const compiledGeneratedPaths = new WeakMap<WardRule, Array<{ re: RegExp; row: Ge
 const compiledLeadingMarkers = new WeakMap<WardRule, RegExp | null>()
 const LEADING_SLASH = /^\//
 const BLANK_RUN = /[ \t]+/g
+const GODOT_RESOURCE = /^(?:res|user):\/\//
 let generatedDeclaration: RegExp | null | undefined
 
 function declaredGenerator(lines: string[]): string | undefined {
@@ -523,6 +526,13 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
   if (LSP_TOOLS.has(pending.toolName)) {
     if (input.apply !== true) return []
     return [input.filePath, input.targetPath, input.newPath].filter(path => typeof path === 'string' && path !== '').map(path => editTarget(path as string, ''))
+  }
+  if (GODOT_TOOLS.has(pending.toolName)) {
+    if (typeof input.op !== 'string' || !GODOT_SCRIPT_OPS.has(input.op) || input.args === null || typeof input.args !== 'object') return []
+    const args = input.args as Record<string, unknown>
+    const parts = [args.content, args.replace].filter(part => typeof part === 'string')
+    const path = stringOf(args.path).replace(GODOT_RESOURCE, '')
+    return [{ scope: 'edit', path, text: parts.join('\n'), oldText: typeof args.find === 'string' ? args.find : undefined, whole: typeof args.content === 'string', asGiven: true }]
   }
   if (pending.shellCommand !== undefined) {
     return [{ scope: 'bash', path: '', text: pending.shellCommand, oldText: undefined, whole: false }]
