@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync, mkdirSync, rmdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
-import { daemonHomeStands } from './daemonHome.js'
+import { daemonHomeStands, ensureDirInDaemonHome, publishInDaemonHome } from './daemonHome.js'
 import { daemonDir } from './controlSocket.js'
 import {
   mintUnusedId,
@@ -109,8 +108,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code
       if (code === 'ENOENT') {
-        if (!daemonHomeStands('the box lock', dir)) return body()
-        mkdirSync(dirname(lock), { recursive: true })
+        if (!ensureDirInDaemonHome('the box lock', dirname(lock), dir)) return body()
         continue
       }
       if (code !== 'EEXIST') throw e
@@ -143,9 +141,7 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
 
 function publishBox(file: SaturnBoxFileV1, dir?: string): void {
   if (!daemonHomeStands('the box schedules', dir)) return
-  const p = saturnBoxSchedulesPath(dir)
-  mkdirSync(dirname(p), { recursive: true })
-  durableAtomicPublishSync(p, JSON.stringify(file, null, 2))
+  publishInDaemonHome('the box schedules', saturnBoxSchedulesPath(dir), JSON.stringify(file, null, 2), { dir })
 }
 
 export function markBoxScheduleFired(scheduleId: string, firedAt: number, dir?: string): 'marked' | 'spent' | 'missing' {

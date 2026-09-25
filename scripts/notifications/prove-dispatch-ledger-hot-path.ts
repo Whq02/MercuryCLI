@@ -148,7 +148,7 @@ t.section('§6 WIRING')
   t.check("…and each follows its advance(rec, 'working') (never a pre-delivery publish)", sites.length === 2 && sites.every(m => m[1] === 'AfterReply'))
   t.check('the reservation and the starting publishes stay synchronous', /dispatches\[req\.clientMessageId\] = rec\n\s*publishDispatches\(dispatches, deps\.dir\)/.test(src) && /advance\(rec, 'starting', \{ workerId: admitted\.runnerId[\s\S]{0,1200}?\n\s*publishDispatches\(dispatches, deps\.dir\)\n/.test(src))
   t.check('the read is stamp-validated (ino · mtimeMs · size) and the publish refreshes the memo with the map it wrote', /const stamp = ledgerStamp\(path\)[\s\S]{0,200}memo\.stamp === stamp\) return memo\.map/.test(src) && /st\.ino\}:\$\{st\.mtimeMs\}:\$\{st\.size\}/.test(src) && /ledgerMemo\.set\(path, \{ stamp, map: dispatches \}\)/.test(src))
-  t.check('a publish that did not land drops the memo and rethrows (the next read re-parses the disk — discard-on-failure kept)', /durableAtomicPublishSync\(\n\s*path,[\s\S]{0,200}?\} catch \(err\) \{[\s\S]{0,400}?ledgerMemo\.delete\(path\)\n\s*throw err\n\s*\}/.test(src))
+  t.check('a publish that did not land drops the memo and rethrows (the next read re-parses the disk — discard-on-failure kept)', /publishInDaemonHome\(\n\s*'the dispatch ledger',\n\s*path,[\s\S]{0,200}?\} catch \(err\) \{[\s\S]{0,400}?ledgerMemo\.delete\(path\)\n\s*throw err\n\s*\}/.test(src))
   const registry = readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8')
   t.check('the memo carries its stale-registry row (keyed-by-truth)', registry.includes('src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth'))
 }
