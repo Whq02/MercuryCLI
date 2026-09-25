@@ -276,6 +276,11 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
       legend: ["pasteText === '' ? 'Press c to copy the URL.' : '↵ submits the pasted URL.'"],
       reason: 'c copies the authorisation URL only on an empty paste draft and is consumed ahead of the field (mounted later, so it listens after); once the URL is being typed, c is a letter and the hint names the submit instead',
     },
+    'src/components/Settings/Jev.tsx': {
+      gate: ['{ isActive: entry === null }'],
+      legend: ['{entry !== null ? (', '{entryPrompt(entry.kind, facts)}', '↵ saves, esc cancels.', '↵ saves to the auth-scoped secret store; esc cancels.'],
+      reason: 'k/j are the unadvertised vi aliases of the ↑↓ the popup hint lists; the whole row handler stands down while an entry field is open (the field takes every printable and owns esc through onOwnsEscape), and the row note that lists ↵ · space · ←/→ · ⌫ yields to the entry prompt (↵ saves, esc cancels)',
+    },
   }
   const ACCOUNTS_HOSTS = new Set([
     'src/components/KimiConnect.tsx',
