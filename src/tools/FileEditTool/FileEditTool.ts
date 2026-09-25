@@ -14,7 +14,7 @@ import {
   spanText,
   type EditHunkInput,
 } from '../../services/changeTransaction/hunks.js'
-import { fileGeneration, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
+import { fileGeneration, generationOfWrittenBytes, recordSeenLines, seenLinesOf } from '../../services/changeTransaction/seenLines.js'
 import {
   recordNoChangeOutcome,
 } from '../../services/changeTransaction/repetitionPolicy.js'
@@ -49,6 +49,7 @@ import {
   FILE_NOT_FOUND_CWD_NOTE,
   findSimilarFile,
   getFileModificationTime,
+  needsPowerShellBom,
   preserveUntouchedLineEndings,
   suggestPathUnderCwd,
   writeTextContent,
@@ -114,6 +115,9 @@ const HUNK_SPAN_ELISION = '\n...\n'
 type Output = FileEditOutput
 
 export type { Output }
+
+export const APPLIED_NO_REREAD_NOTE =
+  'The change is applied and its lines count as read (a failed call would have errored); no Read is needed before the next edit.'
 
 
 function decodeFileBuffer(buffer: Buffer): { content: string; encoding: BufferEncoding; lossless: boolean } {
@@ -352,14 +356,19 @@ function knowledgeBeforeWrite(
   return coalesceLineRanges(ranges)
 }
 
+function writtenBytesOf(expandedPath: string, content: string, encoding: BufferEncoding): Buffer {
+  const marked = needsPowerShellBom(expandedPath) && encoding === 'utf8' && !content.startsWith('\uFEFF') ? `\uFEFF${content}` : content
+  return Buffer.from(marked, encoding)
+}
+
 function stampOwnEditAsSeen(
   owner: ReturnType<typeof ownerFromToolUseContext>,
   expandedPath: string,
+  generation: string | null,
   known: readonly LineRange[],
   patch: readonly StructuredPatchHunk[],
   updatedFile: string,
 ): void {
-  const generation = fileGeneration(expandedPath)
   if (generation === null) return
   const lastLine = Math.max(1, lineCountOf(updatedFile))
   const shifted = patch.length === 0 ? [...known] : mapRangesThroughPatch(known, patch, lastLine)
@@ -1240,6 +1249,8 @@ export const FileEditTool = buildTool({
       ? knowledgeBeforeWrite(context, expandedPath, input.file_path, freshContent, input.expected_anchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
       : []
     writeTextContent(expandedPath, reconciled, encoding, fileExists ? 'LF' : lineEndings)
+    const writtenAt = getFileModificationTime(expandedPath)
+    stampOwnEditAsSeen(owner, expandedPath, generationOfWrittenBytes(expandedPath, writtenBytesOf(expandedPath, reconciled, encoding)), knownBeforeWrite, patch, updatedFile)
 
     const lspManager = getLspServerManager()
     if (lspManager) {
@@ -1254,11 +1265,10 @@ export const FileEditTool = buildTool({
 
     context.readFileState.set(expandedPath, {
       content: updatedFile,
-      timestamp: getFileModificationTime(expandedPath),
+      timestamp: writtenAt,
       offset: undefined,
       limit: undefined,
     })
-    stampOwnEditAsSeen(owner, expandedPath, knownBeforeWrite, patch, updatedFile)
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
     logFileOperation({
@@ -1317,10 +1327,10 @@ export const FileEditTool = buildTool({
       }
     }
     const modifiedClause = data.userModified ? ' (the user modified the change before accepting it)' : ''
-    const recoveredClause = data.staleRecovery !== undefined ? ` Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : ''
+    const closingClause = data.staleRecovery !== undefined ? ` Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : data.userModified ? '' : ` ${APPLIED_NO_REREAD_NOTE}`
     const text = data.replaceAll
-      ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${recoveredClause}`
-      : `The file ${data.filePath} has been updated successfully${modifiedClause}.${recoveredClause}`
+      ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${closingClause}`
+      : `The file ${data.filePath} has been updated successfully${modifiedClause}.${closingClause}`
     const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
     const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
