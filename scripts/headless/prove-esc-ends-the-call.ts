@@ -34,7 +34,7 @@ tally.section('§1 the executor race, pure: a call that ignores the abort is aba
   const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
   const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { CANCEL_MESSAGE } = await import('../../src/utils/messages.ts')
+  const { isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
   const starts: unknown[] = []
   const terminals: Array<{ ok: boolean }> = []
   subscribeToolStart(e => starts.push(e))
@@ -102,7 +102,8 @@ tally.section('§1 the executor race, pure: a call that ignores the abort is aba
     const landedAt = Date.now()
     const texts = resultTextOf(updates)
     tally.check('red on the base: the call that ignores the abort is abandoned — the transaction ends without its answer', ended, `ended=${ended} after ${landedAt - abortedAt}ms`)
-    tally.check('…with the interrupt result, in the interrupt\'s own words (never an error result, never a second shape)', texts.length === 1 && texts[0] === CANCEL_MESSAGE, JSON.stringify(texts).slice(0, 240))
+    tally.check('…with the started call\'s interrupt result, in the interrupt\'s own words (never an error result, never a second shape)', texts.length === 1 && isInterruptedResultText(texts[0] ?? '') && texts[0] === turnCutResultText(turnCutOf(ctx.abortController.signal.reason), 'HangsOnAbort'), JSON.stringify(texts).slice(0, 240))
+    tally.check('…which says the call may have partially executed, not that nothing was changed', /partially executed/.test(texts[0] ?? '') && !/before it ran|nothing was changed/.test(texts[0] ?? ''), JSON.stringify(texts).slice(0, 240))
     tally.check(`…within the grace (under ${GRACE_BOUND_MS} ms of the abort), not the tool's own time`, ended && landedAt - abortedAt <= GRACE_BOUND_MS, `${landedAt - abortedAt}ms`)
     tally.check('the call was observed once as started and once as terminal, ok:false', starts.length === 1 && terminals.length === 1 && terminals[0]!.ok === false, JSON.stringify({ starts: starts.length, terminals }))
     settleLate('the late answer nobody asked for')
