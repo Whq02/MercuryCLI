@@ -17,7 +17,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { patienceSeconds } from '../patience.js'
@@ -519,8 +519,10 @@ export async function* compatChatCallModel(
           step.attempt,
           step.of,
         )
-        if (!step.quiet) yield notice
-        else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
+        if (!step.quiet) {
+          yield notice
+          options.onWait?.(retryNoticeWait(notice))
+        } else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
         await sleep(step.waitMs, signal)
         if (signal.aborted) return
         continue
@@ -531,7 +533,7 @@ export async function* compatChatCallModel(
       busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
     if (retryable) {
       const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
-      yield createSystemAPIErrorMessage(
+      const notice = createSystemAPIErrorMessage(
         Object.assign(new Error(outcome.fault.message), {
           ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
           ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
@@ -540,6 +542,8 @@ export async function* compatChatCallModel(
         attempt,
         COMPAT_MAX_ATTEMPTS - 1,
       )
+      yield notice
+      options.onWait?.(retryNoticeWait(notice))
       await sleep(delayMs, signal)
       if (signal.aborted) return
       continue
