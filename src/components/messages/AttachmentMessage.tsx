@@ -3,6 +3,7 @@ import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import type { Attachment } from '../../utils/attachments/types.js'
+import { stoppedContinuationMessage } from '../../utils/attachments/stoppedContinuation.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
@@ -426,7 +427,7 @@ export function AttachmentMessage({
       }
       return (
         <Text color="warning">
-          Hook {attachment.hookName} stopped continuation: {attachment.message}
+          Hook {attachment.hookName} stopped continuation: {stoppedContinuationMessage(attachment)}
         </Text>
       )
 

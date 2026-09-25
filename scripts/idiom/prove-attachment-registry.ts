@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import ts from 'typescript'
 
 const { BODY_SHAPE_KINDS } = await import('../../src/fabric/validate.js')
@@ -12,6 +12,8 @@ const REGISTRY_SOURCE = 'src/fabric/validate.ts'
 const REGISTRY_NAME = 'ATTACHMENT_BODY_SHAPES'
 const FIXTURE_SOURCE = 'scripts/idiom/prove-body-shape-registry.ts'
 const FIXTURE_NAME = 'ATTACHMENTS'
+const PRODUCER_ROOT = 'src'
+const PRODUCER_CALL = 'createAttachmentMessage'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -24,7 +26,20 @@ function section(t: string): void {
 
 function parse(rel: string): ts.SourceFile {
   const full = join(ROOT, rel)
-  return ts.createSourceFile(full, readFileSync(full, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  return ts.createSourceFile(full, readFileSync(full, 'utf8'), ts.ScriptTarget.Latest, true, rel.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+}
+
+function sourceFilesUnder(rel: string, carrying: string): string[] {
+  const found: string[] = []
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (/\.tsx?$/.test(name) && !name.endsWith('.d.ts') && readFileSync(full, 'utf8').includes(carrying)) found.push(relative(ROOT, full))
+    }
+  }
+  walk(join(ROOT, rel))
+  return found.sort()
 }
 
 function lineOf(sf: ts.SourceFile, node: ts.Node): number {
@@ -128,6 +143,34 @@ function registryRows(sf: ts.SourceFile): Row[] | null {
   return rows
 }
 
+type Producer = { kind: string; fields: string[]; file: string; line: number }
+
+function producerLiterals(rel: string): Producer[] {
+  const sf = parse(rel)
+  const found: Producer[] = []
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === PRODUCER_CALL && node.arguments[0] !== undefined) {
+      let inner: ts.Expression = node.arguments[0]
+      while (ts.isAsExpression(inner) || ts.isSatisfiesExpression(inner) || ts.isParenthesizedExpression(inner)) inner = inner.expression
+      if (ts.isObjectLiteralExpression(inner)) {
+        let kind: string | null = null
+        const fields: string[] = []
+        for (const p of inner.properties) {
+          if (!ts.isPropertyAssignment(p) && !ts.isShorthandPropertyAssignment(p)) continue
+          const key = propertyName(p.name)
+          if (key === null) continue
+          if (key === 'type' && ts.isPropertyAssignment(p) && ts.isStringLiteral(p.initializer)) kind = p.initializer.text
+          else fields.push(key)
+        }
+        if (kind !== null) found.push({ kind, fields, file: rel, line: lineOf(sf, inner) })
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return found
+}
+
 const sorted = (xs: Iterable<string>): string[] => [...xs].sort()
 const missing = (have: Iterable<string>, want: Iterable<string>): string[] => {
   const set = new Set(have)
@@ -180,6 +223,24 @@ section('§D each registry row is a loose object naming only fields its union me
   }
   check('every row is a z.looseObject({...}) literal the census can read', unreadable.length === 0, named(unreadable))
   check('no row names a field its union member does not declare', undeclared.length === 0, named(undeclared))
+}
+
+section(`§E every producer literal handed to ${PRODUCER_CALL} under ${PRODUCER_ROOT}/ names a member of the union and only fields that member declares`)
+{
+  const byKind = new Map(members.map(m => [m.kind, m]))
+  const files = sourceFilesUnder(PRODUCER_ROOT, `${PRODUCER_CALL}(`)
+  const producers = files.flatMap(producerLiterals)
+  console.log(`  ${producers.length} producer literals in ${files.length} files, ${new Set(producers.map(p => p.kind)).size} kinds`)
+  check('the census reads producer literals', producers.length > 0)
+  const strayKinds = sorted(new Set(producers.filter(p => !byKind.has(p.kind)).map(p => `${p.kind} (${p.file}:${p.line})`)))
+  check('every producer literal names a member of the union', strayKinds.length === 0, named(strayKinds))
+  const undeclared: string[] = []
+  for (const p of producers) {
+    const member = byKind.get(p.kind)
+    if (member === undefined) continue
+    for (const field of p.fields) if (!member.fields.includes(field)) undeclared.push(`${p.kind}.${field} (${p.file}:${p.line}; the member at ${UNION_SOURCE}:${member.line} declares ${member.fields.join(', ') || 'no field'})`)
+  }
+  check('no producer literal writes a field its union member does not declare', undeclared.length === 0, named(sorted(undeclared)))
 }
 
 console.log(`\n${failures === 0 ? 'prove-attachment-registry: ALL LAWS HOLD' : `prove-attachment-registry: ${failures} FAILURE(S)`}`)
