@@ -84,10 +84,26 @@ the complete index; the load-bearing ones:
 
 Mercury never stops or parks a runner for its memory use.
 
-A session is never stopped for repeating a tool call, whether the answer
-changes or not: Mercury keeps no count of a turn's repeated tool calls
-against its progress, no call is refused for repeating an earlier one, and
-no watcher ends a turn on a repeated call or a repeated result.
+A repeated tool call is never refused, and by default no turn is ended for
+repeating itself: the loop guard only reminds. A reminder rides into context
+after a call that repeats an earlier one with identical arguments and an
+identical result (the third, fifth and eighth such repeat, counted across
+model rounds, never within one round of parallel calls), and a cycle of one
+to five calls repeated five times over with identical results draws a
+stronger reminder on every detection; a call whose answer changed is
+progress and resets the count, so a poll of a growing log is never a loop.
+The operator sees each reminder as a recorded informational row.
+With `loopGuardStopEnabled: true` in settings, the second detection of the
+same cycle of two to five calls ends the turn: the model's context carries a
+`loop_stopped` note naming the cycle, the operator sees a warning row, and a
+headless run settles with the `error_loop_stopped` result. A run of one
+identical call is advisory on both roads, and the key is read live from the
+settings files. A reply that chants — the same fifty-character stretch of
+prose ten times over within a short span, code fences, lists, tables,
+headings, quotes and dividers left out — is answered once with the same kind
+of reminder and the model is asked to continue past it; a second chant lets
+the reply stand by default, and ends the turn the same typed way under the
+key.
 When a provider answers a request with no content at all, the chat says so
 in a note and the request is sent again once, carrying a one-line note that
 asks for the answer or the tool call, before the note stands as the turn's

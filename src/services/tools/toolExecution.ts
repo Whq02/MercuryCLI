@@ -34,6 +34,7 @@ import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../mcp/normalization.js'
 import { observeToolStart, observeToolTerminal } from '../run/effectObserver.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { observeToolCall, toolResultBlockOf } from './loopGuard.js'
 import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
@@ -342,20 +343,36 @@ export async function* runToolUse(
     () => stream.done(),
     error => stream.error(error),
   )
+  let settledResult: ToolResultBlockParam | undefined
   try {
     for await (const update of stream) {
+      settledResult = toolResultBlockOf(update.message, toolUseID) ?? settledResult
       yield update
     }
     await body
   } catch (error) {
     logError(error)
     const message = error instanceof Error ? error.message : String(error)
-    yield errorResultUpdate({
+    const escaped = errorResultUpdate({
       toolUseID,
       content: `Error calling tool ${resolved.name}: ${message}`,
       toolUseResult: `Error calling tool ${resolved.name}: ${message}`,
       sourceToolAssistantUUID: assistantMessage.uuid,
     })
+    settledResult = toolResultBlockOf(escaped.message, toolUseID) ?? settledResult
+    yield escaped
+  }
+  if (toolUseContext.abortController.signal.aborted) return
+  const loopVerdict = observeToolCall(ownerFromToolUseContext(toolUseContext), {
+    toolName: resolved.name,
+    toolUseID,
+    roundID: String(assistantMessage.uuid),
+    arguments: rawInput,
+    result: settledResult,
+    messages: toolUseContext.messages,
+  })
+  for (const message of loopVerdict.messages) {
+    yield { message }
   }
 }
 

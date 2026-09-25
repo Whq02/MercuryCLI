@@ -10,6 +10,7 @@
 # gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
+# gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
@@ -67,6 +68,12 @@ echo "── core-runtime: driver settle race (delivery-verifier)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-driver-settle-race.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-driver-settle-race.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-notification-settle.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-notification-settle.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-wake-hold.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-wake-hold.ts "$__t" "$__rc"
+
+echo "── core-runtime: the loop guard (the identical-call reminder at 3, 5 and 8; the cycle-of-k detector)"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-reminder.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-reminder.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-cycle.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-cycle.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-headless.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-headless.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-loop-guard-chant.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-loop-guard-chant.ts "$__t" "$__rc"
 
 echo "── core-runtime: delivery interleavings (delivery-verifier)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-delivery-interleavings.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-delivery-interleavings.ts "$__t" "$__rc"

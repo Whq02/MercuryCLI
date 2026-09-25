@@ -431,6 +431,12 @@ export type Attachment =
       turnCount: number
     }
   | {
+      type: 'loop_stopped'
+      toolUseID: string
+      cycle: string[]
+      message: string
+    }
+  | {
       type: 'current_session_memory'
       content: string
       path: string
