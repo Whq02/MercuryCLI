@@ -25,6 +25,7 @@ const outputSchema = lazySchema(() =>
         kind: z.enum(['fire', 'birth']),
         nextFireMs: z.number().nullable(),
         paused: z.boolean().optional(),
+        title: z.string().optional(),
       }),
     ),
     rosterKnown: z.boolean(),
@@ -63,6 +64,7 @@ export const CronListTool = buildTool({
           kind: row.kind,
           nextFireMs: row.nextFireMs,
           ...(row.paused === true ? { paused: true } : {}),
+          ...(row.title !== undefined ? { title: row.title } : {}),
         })),
         rosterKnown: roster !== null,
       } satisfies ListOutput,
@@ -81,7 +83,8 @@ export const CronListTool = buildTool({
                     ? 'paused'
                     : 'no future fire'
                   : `next ${new Date(row.nextFireMs).toISOString()}`
-              return `${row.id}: ${row.when} (${row.kind}) — ${next}`
+              const named = row.title !== undefined ? ` · ${row.title}` : ''
+              return `${row.id}${named}: ${row.when} (${row.kind}) — ${next}`
             })
             .join('\n')
     return {
