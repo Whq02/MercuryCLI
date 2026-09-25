@@ -7,6 +7,9 @@ import { all } from '../../utils/generators.js'
 import { logError } from '../../utils/log.js'
 import type { MessageUpdateLazy } from './toolExecution.js'
 import { runToolUse } from './toolExecution.js'
+import { closeRound } from './loopGuard.js'
+import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { randomUUID } from 'node:crypto'
 
 
 export type MessageUpdate = {
@@ -72,6 +75,7 @@ export async function* runTools(
   toolUseContext: ToolUseContext,
 ): AsyncGenerator<MessageUpdate> {
   let context = toolUseContext
+  const roundID = `round:${randomUUID()}`
 
   const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[] }> = []
   for (const block of toolUseBlocks) {
@@ -93,7 +97,7 @@ export async function* runTools(
         const parent = parentMessageFor(block, assistantMessages)
         return (async function* one(): AsyncGenerator<MessageUpdate> {
           try {
-            for await (const update of runToolUse(block, parent, canUseTool, currentContext, toolUseBlocks.indexOf(block))) {
+            for await (const update of runToolUse(block, parent, canUseTool, currentContext, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
               if (update.contextModifier) {
                 const queue = queuedModifiers.get(update.contextModifier.toolUseID) ?? []
                 queue.push(update.contextModifier.modifier)
@@ -122,7 +126,7 @@ export async function* runTools(
         addInProgress(context, block.id)
         const parent = parentMessageFor(block, assistantMessages)
         try {
-          for await (const update of runToolUse(block, parent, canUseTool, context, toolUseBlocks.indexOf(block))) {
+          for await (const update of runToolUse(block, parent, canUseTool, context, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
             if (update.contextModifier) {
               try {
                 context = update.contextModifier.modifier(context)
@@ -137,5 +141,13 @@ export async function* runTools(
         }
       }
     }
+  }
+  const verdict = closeRound(
+    ownerFromToolUseContext(toolUseContext),
+    roundID,
+    !toolUseContext.abortController.signal.aborted,
+  )
+  for (const message of verdict.messages) {
+    yield { message, newContext: context }
   }
 }
