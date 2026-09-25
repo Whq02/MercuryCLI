@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'daemon-home-seam-')))
 const HOME = join(SCRATCH, 'home')
@@ -14,7 +14,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.GIT_CONFIG_GLOBAL = join(SCRATCH, 'gitconfig-empty')
 process.env.GIT_CONFIG_SYSTEM = '/dev/null'
 process.env.XDG_CONFIG_HOME = join(SCRATCH, 'xdg')
-for (const key of ['MERCURY_HOME', 'MERCURY_FAULT_INJECT', 'MERCURY_DURABLE_FSYNC', 'MERCURY_WORKER_PARENT_PID', 'MERCURY_SPAWNED_BY', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD']) delete process.env[key]
+for (const key of ['MERCURY_HOME', 'MERCURY_FAULT_INJECT', 'MERCURY_DURABLE_FSYNC', 'MERCURY_WORKER_PARENT_PID', 'MERCURY_SPAWNED_BY', 'MERCURY_SPAWN_LEDGER', 'MERCURY_SPAWN_AUDIT', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD']) delete process.env[key]
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 mkdirSync(HOME, { recursive: true })
 mkdirSync(DAEMON_DIR, { recursive: true })
@@ -53,17 +53,37 @@ const sup = await import('../../src/daemon/concourseSupervisor.ts')
 const dispatch = await import('../../src/daemon/concourseDispatch.ts')
 const box = await import('../../src/daemon/saturnBoxSchedules.ts')
 const asks = await import('../../src/daemon/permissionAsks.ts')
+const led = await import('../../src/utils/spawnLedger.ts')
+const seatFiles = await import('../../src/services/engine-connector/seatProjections.ts')
+const store = await import('../../src/substrate/fileStore.ts')
 
 type Seam = (where: string, path: string, contents: string | Uint8Array, opts?: { dir?: string; mode?: number }) => 'published' | 'home-gone'
 const seam: Seam | undefined = (homeWatch as { publishInDaemonHome?: Seam }).publishInDaemonHome
 const DOOR = seam === undefined ? 'durableAtomicPublishSync straight from the writer (this tree exports no publishInDaemonHome)' : 'publishInDaemonHome'
+type AppendDoor = (where: string, path: string, line: string, opts?: { dir?: string; parent?: 'create' | 'must-stand' }) => 'appended' | 'home-gone'
+type TransientDoor = (where: string, path: string, contents: string, dir?: string) => 'published' | 'home-gone'
+type DirDoor = (where: string, path: string, dir?: string) => boolean
+const appendDoor: AppendDoor | undefined = (homeWatch as { appendInDaemonHome?: AppendDoor }).appendInDaemonHome
+const transientDoor: TransientDoor | undefined = (homeWatch as { publishTransientInDaemonHome?: TransientDoor }).publishTransientInDaemonHome
+const dirDoor: DirDoor | undefined = (homeWatch as { ensureDirInDaemonHome?: DirDoor }).ensureDirInDaemonHome
+const ROUTED = appendDoor !== undefined && transientDoor !== undefined && dirDoor !== undefined
+const OUTER_DOOR = ROUTED ? 'the daemon-home doors (appendInDaemonHome; ensureDirInDaemonHome + publishTransientInDaemonHome)' : 'their private roads: mkdir -p, then appendFileSync / publishAtomic / temp + rename (this tree exports no appendInDaemonHome or publishTransientInDaemonHome)'
 const MUST_STAND = { parent: 'must-stand' } as const
 const CREATE = { parent: 'create' } as const
 type PublishOpts = Parameters<typeof durable.durableAtomicPublishSync>[2]
 const mustStand = MUST_STAND as unknown as PublishOpts
 const create = CREATE as unknown as PublishOpts
 
-type Outcome = 'published' | 'home-gone' | { threw: string }
+type Outcome = 'published' | 'appended' | 'home-gone' | { threw: string }
+async function interleave(where: string, write: () => Outcome | Promise<Outcome>): Promise<Outcome> {
+  if (!homeWatch.daemonHomeStands(where, DAEMON_DIR)) return 'home-gone'
+  goneHome()
+  try {
+    return await write()
+  } catch (e) {
+    return { threw: errText(e) }
+  }
+}
 function road(where: string, file: string, bytes: string, between: () => void, dir: string = DAEMON_DIR): Outcome {
   if (!homeWatch.daemonHomeStands(where, dir)) return 'home-gone'
   between()
@@ -89,6 +109,7 @@ console.log('============================================================')
 console.log(' the daemon-home publish seam: a writer never recreates a home it was told is gone')
 console.log('============================================================')
 console.log(`the publish door under proof: ${DOOR}`)
+console.log(`the road of the five writers outside src/daemon under proof: ${OUTER_DOOR}`)
 console.log(`the daemon dir: ${DAEMON_DIR}`)
 check('the fixture daemon dir is the one daemonDir() resolves', control.daemonDir() === DAEMON_DIR, control.daemonDir())
 
@@ -143,6 +164,17 @@ console.log('\nU1 unarmed (the screen process): the writer road creates a missin
   check('U1 with no watch armed the road publishes and the parent is created for it', out === 'published' && existsSync(join(DAEMON_DIR, 'saturn-box-schedules.json')), text({ out, files: listing(DAEMON_DIR) }))
 }
 
+console.log('\nU2 unarmed (an operator session, an unmarked spawned child): the trail and the live feed still create a missing home, as the creators proof pins')
+{
+  goneHome()
+  led.recordSpawn({ kind: 'headless', id: 'u2', cwd: PROJECT })
+  const ledger = join(DAEMON_DIR, 'spawn-ledger.jsonl')
+  check('U2 the spawn ledger row lands under a created forensics directory (the client process keeps its shape)', readText(ledger).includes('"id":"u2"'), text(listing(DAEMON_DIR)))
+  goneHome()
+  seatFiles.publishSessionTail({ schema: 1, sessionId: 'u2', atMs: 1, text: 'u2' }, DAEMON_DIR)
+  check('U2 the session tail lands under a created subdirectory', readText(seatFiles.sessionTailPath('u2', DAEMON_DIR)).includes('"text":"u2"'), text(listing(DAEMON_DIR)))
+}
+
 console.log('\nS1 armed: the home is removed BETWEEN the presence read and the publish (the loaded-box interleave, deterministic)')
 {
   freshHome()
@@ -162,6 +194,77 @@ console.log('\nS1 armed: the home is removed BETWEEN the presence read and the p
     again === 'home-gone' && !existsSync(DAEMON_DIR) && noticed.length === 1,
     `road: ${text(again)}; daemon dir stands: ${existsSync(DAEMON_DIR)} ${text(listing(DAEMON_DIR))}; noticed: ${text(noticed)}`,
   )
+}
+
+console.log("\nS2-S4 armed: the roads of the writers outside src/daemon — the home is removed BETWEEN the presence read and the write")
+{
+  const ledgerPath = join(DAEMON_DIR, 'spawn-ledger.jsonl')
+  const ledgerRow = '{"kind":"headless","id":"s2"}\n'
+  const tailPath = seatFiles.sessionTailPath('s3', DAEMON_DIR)
+  const tailBytes = '{"schema":1,"sessionId":"s3","atMs":1,"text":"s3"}\n'
+  const factsPath = seatFiles.sessionFactsPath('s4', DAEMON_DIR)
+  const factsBytes = '{"schema":1,"sessionId":"s4"}\n'
+  type Row = { n: string; where: string; what: string; file: string; write: () => Outcome | Promise<Outcome> }
+  const rows: Row[] = [
+    {
+      n: 'S2',
+      where: 'the spawn ledger',
+      what: 'the append',
+      file: ledgerPath,
+      write: () => {
+        if (!ROUTED) {
+          mkdirSync(dirname(ledgerPath), { recursive: true })
+          appendFileSync(ledgerPath, ledgerRow)
+          return 'appended'
+        }
+        return appendDoor!('the spawn ledger', ledgerPath, ledgerRow, { parent: 'create' })
+      },
+    },
+    {
+      n: 'S3',
+      where: 'the session tail',
+      what: 'the live-feed rename',
+      file: tailPath,
+      write: () => {
+        if (!ROUTED) {
+          mkdirSync(dirname(tailPath), { recursive: true })
+          const tmp = `${tailPath}.${process.pid}.tmp`
+          writeFileSync(tmp, tailBytes)
+          renameSync(tmp, tailPath)
+          return 'published'
+        }
+        if (!dirDoor!('the session tail', dirname(tailPath), DAEMON_DIR)) return 'home-gone'
+        return transientDoor!('the session tail', tailPath, tailBytes, DAEMON_DIR)
+      },
+    },
+    {
+      n: 'S4',
+      where: 'the session facts',
+      what: 'the projection rename (the base chained the durable publish here)',
+      file: factsPath,
+      write: async () => {
+        if (!ROUTED) {
+          mkdirSync(dirname(factsPath), { recursive: true })
+          await store.publishAtomic(factsPath, factsBytes)
+          return 'published'
+        }
+        if (!dirDoor!('the session facts', dirname(factsPath), DAEMON_DIR)) return 'home-gone'
+        return transientDoor!('the session facts', factsPath, factsBytes, DAEMON_DIR)
+      },
+    },
+  ]
+  for (const r of rows) {
+    freshHome()
+    arm()
+    const out = await interleave(r.where, r.write)
+    check(
+      `${r.n} ${r.where}: ${r.what} refuses instead of recreating the home — the road answers home-gone and nothing stands at the daemon dir`,
+      out === 'home-gone' && !existsSync(DAEMON_DIR),
+      `road: ${text(out)}; daemon dir stands: ${existsSync(DAEMON_DIR)} ${text(listing(DAEMON_DIR))}; landed: ${existsSync(r.file)}`,
+    )
+    check(`${r.n} ${r.where}: the latch trips at once, at the writer that met ENOENT`, noticed.length === 1 && noticed[0] === r.where, text(noticed))
+    check(`${r.n} ${r.where}: the presence read afterwards is false (the latch), not true (a recreated home)`, !homeWatch.daemonHomeStands('after the write', DAEMON_DIR), `stands: true; noticed: ${text(noticed)}`)
+  }
 }
 
 console.log('\nF1 armed: a publish into a directory that is not the daemon home keeps creating its parent')
@@ -238,6 +341,105 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
       !w.landed() && temps(DAEMON_DIR).length === 0,
       `landed: ${w.landed()}; files: ${text(listing(DAEMON_DIR))}`,
     )
+    check(`${w.n} ${w.where}: the presence read afterwards answers the latch, not the disk`, !homeWatch.daemonHomeStands('after the writer', DAEMON_DIR) && noticed.length === 1, `stands: true; noticed: ${text(noticed)}`)
+  }
+}
+
+console.log('\nW2 armed, home standing: each writer outside src/daemon meets an ENOENT from its write and the latch trips at the writer')
+{
+  const dangling = (at: string): void => symlinkSync(join(SCRATCH, 'nowhere', 'gone'), at)
+  const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+  const facts = { schema: 1, sessionId: 's1', model: { effective: 'm', setting: null }, usage: {}, queue: [] } as unknown as Parameters<typeof seatFiles.publishSessionFacts>[0]
+  const tail = { schema: 1, sessionId: 's1', atMs: 1, text: 's1' } as const
+  const progress = { schema: 1, sessionId: 's1', atMs: 1, tools: {} } as const
+  const factsPath = seatFiles.sessionFactsPath('s1', DAEMON_DIR)
+  const asksPath = seatFiles.sessionAsksPath('s1', DAEMON_DIR)
+  const tailPath = seatFiles.sessionTailPath('s1', DAEMON_DIR)
+  const progressPath = seatFiles.sessionProgressPath('s1', DAEMON_DIR)
+  type Writer = { n: string; where: string; file: string; how: string; seed: () => string[]; fault?: string; act: () => void }
+  const writers: Writer[] = [
+    {
+      n: 'W2.1',
+      where: 'the spawn ledger',
+      file: join(DAEMON_DIR, 'spawn-ledger.jsonl'),
+      how: 'the trail name is a dangling link, so the append opens into nothing',
+      seed: () => {
+        dangling(join(DAEMON_DIR, 'spawn-ledger.jsonl'))
+        return ['spawn-ledger.jsonl']
+      },
+      act: () => led.recordSpawn({ kind: 'headless', id: 'w2', cwd: PROJECT }),
+    },
+    {
+      n: 'W2.2',
+      where: 'the session facts',
+      file: factsPath,
+      how: 'the temp name is a dangling link, so the write opens into nothing; the fault seam stands beside it for a tree still on the durable road',
+      seed: () => {
+        mkdirSync(dirname(factsPath))
+        dangling(`${factsPath}.${process.pid}.tmp`)
+        return [`s1.json.${process.pid}.tmp`]
+      },
+      fault: 'create-temp@session-facts/s1.json:enoent',
+      act: () => seatFiles.publishSessionFacts(facts, DAEMON_DIR),
+    },
+    {
+      n: 'W2.3',
+      where: 'the session asks',
+      file: asksPath,
+      how: 'the temp name is a dangling link, so the write opens into nothing; the fault seam stands beside it for a tree still on the durable road',
+      seed: () => {
+        mkdirSync(dirname(asksPath))
+        dangling(`${asksPath}.${process.pid}.tmp`)
+        return [`s1.json.${process.pid}.tmp`]
+      },
+      fault: 'create-temp@session-asks/s1.json:enoent',
+      act: () => seatFiles.publishSessionAsks({ schema: 1, sessionId: 's1', asks: [] }, DAEMON_DIR),
+    },
+    {
+      n: 'W2.4',
+      where: 'the session tail',
+      file: tailPath,
+      how: 'the temp name is a dangling link, so the write opens into nothing',
+      seed: () => {
+        mkdirSync(dirname(tailPath))
+        dangling(`${tailPath}.${process.pid}.tmp`)
+        return [`s1.json.${process.pid}.tmp`]
+      },
+      act: () => seatFiles.publishSessionTail(tail, DAEMON_DIR),
+    },
+    {
+      n: 'W2.5',
+      where: 'the session progress',
+      file: progressPath,
+      how: 'the temp name is a dangling link, so the write opens into nothing',
+      seed: () => {
+        mkdirSync(dirname(progressPath))
+        dangling(`${progressPath}.${process.pid}.tmp`)
+        return [`s1.json.${process.pid}.tmp`]
+      },
+      act: () => seatFiles.publishSessionProgress(progress, DAEMON_DIR),
+    },
+  ]
+  for (const w of writers) {
+    freshHome()
+    const seeded = w.seed()
+    arm()
+    if (w.fault !== undefined) process.env.MERCURY_FAULT_INJECT = w.fault
+    let threw = ''
+    try {
+      w.act()
+    } catch (e) {
+      threw = errText(e)
+    }
+    await sleep(150)
+    delete process.env.MERCURY_FAULT_INJECT
+    const beside = listing(dirname(w.file)).filter(name => !seeded.includes(name))
+    check(
+      `${w.n} ${w.where} (${w.how}): the ENOENT from the write trips the latch once, at the writer, and the writer does not throw`,
+      noticed.length === 1 && noticed[0] === w.where && threw === '',
+      `noticed: ${text(noticed)}; threw: ${threw || 'nothing'}`,
+    )
+    check(`${w.n} ${w.where}: nothing landed at ${relative(DAEMON_DIR, w.file)} and nothing else appeared beside it`, !existsSync(w.file) && beside.length === 0, `landed: ${existsSync(w.file)}; beside: ${text(beside)}`)
     check(`${w.n} ${w.where}: the presence read afterwards answers the latch, not the disk`, !homeWatch.daemonHomeStands('after the writer', DAEMON_DIR) && noticed.length === 1, `stands: true; noticed: ${text(noticed)}`)
   }
 }

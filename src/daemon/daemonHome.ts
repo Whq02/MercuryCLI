@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import { publishAtomicSync } from '../substrate/fileStore.js'
 
 type DaemonHomeWatch = { dir: string; onGone: (where: string) => void; gone: boolean }
@@ -48,6 +48,44 @@ export function publishInDaemonHome(
     return 'published'
   } catch (e) {
     if ((e as { fsCode?: unknown } | null)?.fsCode !== 'ENOENT') throw e
+    tripHomeGone(w, where)
+    return 'home-gone'
+  }
+}
+
+export function appendInDaemonHome(
+  where: string,
+  path: string,
+  line: string,
+  opts?: { dir?: string; parent?: 'create' | 'must-stand' },
+): 'appended' | 'home-gone' {
+  const w = watchOver(opts?.dir)
+  if (w === null) {
+    if (opts?.parent !== 'must-stand') mkdirSync(dirname(path), { recursive: true })
+    appendFileSync(path, line)
+    return 'appended'
+  }
+  if (w.gone) return 'home-gone'
+  try {
+    appendFileSync(path, line)
+    return 'appended'
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
+    tripHomeGone(w, where)
+    return 'home-gone'
+  }
+}
+
+export function publishTransientInDaemonHome(where: string, path: string, contents: string, dir?: string): 'published' | 'home-gone' {
+  const w = watchOver(dir)
+  if (w !== null && w.gone) return 'home-gone'
+  const tmp = `${path}.${process.pid}.tmp`
+  try {
+    writeFileSync(tmp, contents)
+    renameSync(tmp, path)
+    return 'published'
+  } catch (e) {
+    if (w === null || (e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
     tripHomeGone(w, where)
     return 'home-gone'
   }
