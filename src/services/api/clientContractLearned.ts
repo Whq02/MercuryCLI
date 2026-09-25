@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { defineStore, StoreLockLostError } from '../../substrate/fileStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
+import { registerExitCliffSeam, type ExitCliffSeam } from '../../utils/exitCliffDrain.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { sleep } from '../../utils/sleep.js'
@@ -61,7 +62,7 @@ export type ClientContractHeal =
   | { kind: 'unclaimed'; sent: ClientContractPresented; why: string }
   | { kind: 'off'; sent: ClientContractPresented; why: string }
 
-export type ClientContractPeekSkip = 'override' | 'traffic-off' | 'no-credential' | 'lane' | 'today' | 'window' | 'unclaimed' | 'error'
+export type ClientContractPeekSkip = 'override' | 'traffic-off' | 'no-credential' | 'lane' | 'today' | 'window' | 'unclaimed' | 'cancelled' | 'error'
 
 export type ClientContractPeek =
   | { kind: 'read'; answer: RegistryAnswer; learned: boolean; unsaved?: string }
@@ -164,7 +165,7 @@ function decodeRecord(value: unknown): ClientContractRecord | null {
   return record
 }
 
-export function clientContractRecordPath(home: string = getAuthConfigHomeDir()): string {
+export function clientContractRecordPath(home: string = getMercuryHome()): string {
   return join(home, CLIENT_CONTRACT_RECORD_FILE)
 }
 
@@ -223,7 +224,7 @@ function presentedFor(home: string): LearnedClientContract | null {
 }
 
 export function learnedClientContract(): LearnedClientContract | null {
-  return presentedFor(getAuthConfigHomeDir())
+  return presentedFor(getMercuryHome())
 }
 
 function raisePresented(home: string, learned: LearnedClientContract): boolean {
@@ -475,7 +476,7 @@ export async function healClientContractRefusal(
     echoed !== undefined && echoed !== now.presented
       ? { presented: echoed, source: echoed === now.constant ? 'constant' : 'learned' }
       : { presented: now.presented, source: now.source }
-  const home = getAuthConfigHomeDir()
+  const home = getMercuryHome()
   const peer = readsInFlight.get(home)
   if (peer !== undefined) await peer
   const known = await adoptKnown(home, sent)
@@ -528,14 +529,34 @@ export async function healClientContractRefusal(
   }
 }
 
-export async function peekClientContract(clock: () => number = Date.now): Promise<ClientContractPeek> {
+const peekExit = new AbortController()
+const peeksInFlight = new Set<Promise<ClientContractPeek>>()
+let bootPeek: Promise<ClientContractPeek> | null = null
+
+function settlePeeks(): Promise<unknown> {
+  peekExit.abort()
+  return Promise.allSettled([...(bootPeek === null ? [] : [bootPeek]), ...peeksInFlight])
+}
+
+const peekSeam: ExitCliffSeam = { name: 'client-contract-peek', phase: 2, settle: settlePeeks }
+
+export function peekClientContract(clock: () => number = Date.now): Promise<ClientContractPeek> {
+  registerExitCliffSeam(peekSeam)
+  const run = runPeek(clock, peekExit.signal)
+  peeksInFlight.add(run)
+  void run.then(() => peeksInFlight.delete(run))
+  return run
+}
+
+async function runPeek(clock: () => number, signal: AbortSignal): Promise<ClientContractPeek> {
   try {
+    if (signal.aborted) return { kind: 'skipped', why: 'cancelled' }
     const now = presentedNow()
     if (now.source === 'override') return { kind: 'skipped', why: 'override' }
     if (getEssentialTrafficOnlyReason() !== null) return { kind: 'skipped', why: 'traffic-off' }
     if (!hasAnthropicCredential()) return { kind: 'skipped', why: 'no-credential' }
     if (!peekLaneOpen()) return { kind: 'skipped', why: 'lane' }
-    const home = getAuthConfigHomeDir()
+    const home = getMercuryHome()
     const at = clock()
     if (peekedWithinDay(await storedRecord(home), at)) return { kind: 'skipped', why: 'today', ...(await adoptStored(home)) }
     const peer = readsInFlight.get(home)
@@ -543,20 +564,29 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
       await peer
       return { kind: 'skipped', why: 'window', ...(await adoptStored(home)) }
     }
+    if (signal.aborted) return { kind: 'skipped', why: 'cancelled' }
     const verdict = await claimRead(home, 'peek', clock)
     if (verdict.kind === 'today') return { kind: 'skipped', why: 'today', ...(await adoptStored(home)) }
     if (verdict.kind === 'windowed') {
-      await awaitPeerAnswer(home, verdict.last)
+      await awaitPeerAnswer(home, verdict.last, signal)
       return { kind: 'skipped', why: 'window', ...(await adoptStored(home)) }
     }
     if (verdict.kind === 'unclaimed') {
       noteTrouble(home, `the daily peek could not claim its registry read: ${verdict.why}`)
       return { kind: 'skipped', why: 'unclaimed' }
     }
+    if (signal.aborted) {
+      await releaseClaim(home, verdict.claim, verdict.previous)
+      return { kind: 'skipped', why: 'cancelled' }
+    }
     noteTrouble(home, null)
     const done = beginRead(home)
     try {
-      const answer = await readClientContractFromRegistry()
+      const answer = await readClientContractFromRegistry(signal)
+      if (!answer.ok && signal.aborted) {
+        await releaseClaim(home, verdict.claim, verdict.previous)
+        return { kind: 'skipped', why: 'cancelled' }
+      }
       const read: ClientContractRead = { ...verdict.claim, answer: answerOf(answer) }
       readsThisProcess.set(home, read)
       const answered: LearnedClientContract | undefined =
@@ -580,10 +610,9 @@ export async function peekClientContract(clock: () => number = Date.now): Promis
   }
 }
 
-let bootPeek: Promise<ClientContractPeek> | null = null
-
 export function startClientContractPeek(): Promise<ClientContractPeek> {
   if (bootPeek === null) {
+    registerExitCliffSeam(peekSeam)
     bootPeek = new Promise<void>(resolve => {
       const timer = setTimeout(resolve, 0)
       timer.unref?.()
@@ -656,7 +685,7 @@ export async function clientContractRecordWords(
   ageOf: (ms: number) => string,
   nowMs: number = Date.now(),
 ): Promise<string> {
-  const home = getAuthConfigHomeDir()
+  const home = getMercuryHome()
   const record = await storedRecord(home)
   const clauses: string[] = []
   const stored = record.learned
