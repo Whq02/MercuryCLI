@@ -19,7 +19,7 @@ console.log('§1 CI-01 — the composer reads the field the editor returns')
 {
   const composer = read('src/components/PromptInput/PromptInput.tsx')
   check('POISON: the `.text` cast is gone', !composer.includes('{ text?: string | null; error?: string }') && !composer.includes('returned.text'))
-  check('the commit gates on result.content and lands it as the one atomic edit', composer.includes("} else if (typeof result.content === 'string' && result.content !== expanded) {") && composer.includes('pendingInput.edit(result.content)') && composer.includes('setCursorOffset(result.content.length)'))
+  check('the commit gates on result.content, lands it as the one atomic edit, and the cursor follows the landed (stripped) text', composer.includes("} else if (typeof result.content === 'string' && result.content !== expanded) {") && composer.includes('pendingInput.edit(result.content)') && composer.includes('const edited = pendingInput.text()') && composer.includes('setCursorOffset(edited.length)') && !composer.includes('setCursorOffset(result.content.length)'))
   check('the error branch still toasts the editor failure', composer.includes('text: `external editor failed: ${result.error}`'))
   const editor = read('src/utils/promptEditor.ts')
   check('EditorResult declares content, never text (the contract the composer now reads)', /export type EditorResult = \{\s*\n\s*content: string \| null\s*\n\s*error\?: string\s*\n\}/.test(editor) && !/\btext\?: string/.test(editor))
