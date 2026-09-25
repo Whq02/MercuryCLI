@@ -181,14 +181,19 @@ export function restoreConversationModelFromMessages(messages?: Message[]): stri
   return billingSafeRetainedForm(servedModel)
 }
 
-function invalidateWorktreeSensitiveCaches(): void {
+function invalidateWorktreeSensitiveCaches(keepPromptSections = false): void {
   clearInstructionFileCaches()
-  clearSystemPromptSectionState()
+  if (!keepPromptSections) clearSystemPromptSectionState()
   getPlansDirectory.cache.clear()
+}
+
+function carriesBoundPrefixRecord(messages: readonly Message[]): boolean {
+  return messages.some(message => message.type === 'attachment' && message.attachment.type === 'bound_prefix')
 }
 
 export function restoreWorktreeForResume(
   worktreeSession: PersistedWorktreeSession | null | undefined,
+  opts?: { keepPromptSections?: boolean },
 ): void {
   const freshWorktree = getCurrentWorktreeSession()
   if (freshWorktree !== null) {
@@ -206,7 +211,7 @@ export function restoreWorktreeForResume(
   setCwd(worktreeSession.worktreePath)
   setOriginalCwd(worktreeSession.worktreePath)
   restoreWorktreeSession(worktreeSession as WorktreeSession)
-  invalidateWorktreeSensitiveCaches()
+  invalidateWorktreeSensitiveCaches(opts?.keepPromptSections === true)
 }
 
 export function exitRestoredWorktree(): void {
@@ -280,7 +285,7 @@ export async function processResumedConversation(
   })
 
   if (!opts.forkSession) {
-    restoreWorktreeForResume(result.worktreeSession)
+    restoreWorktreeForResume(result.worktreeSession, { keepPromptSections: carriesBoundPrefixRecord(result.messages) })
     adoptResumedSessionFile()
   }
 
