@@ -23372,7 +23372,15 @@
   "[Request cut off during tool use: the run was aborted]"
  ],
  "turnCutResultText/family": [
-  "Interrupted by user",
+  "Interrupted by user: the operator stopped this tool call on purpose.\nAn aborted command may have partially executed (check before re-running it), and any background task or process it launched keeps running unless it was stopped.",
+  "Cut off by a no-progress timeout (the provider went quiet)",
+  "Cut off by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m",
+  "Cut off: the workflow that ran this agent stopped",
+  "Cut off: the retry budget is spent",
+  "Cut off: the run was aborted"
+ ],
+ "turnCutResultText/named": [
+  "Interrupted by user: the operator stopped this Bash call on purpose.\nAn aborted command may have partially executed (check before re-running it), and any background task or process it launched keeps running unless it was stopped.",
   "Cut off by a no-progress timeout (the provider went quiet)",
   "Cut off by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m",
   "Cut off: the workflow that ran this agent stopped",

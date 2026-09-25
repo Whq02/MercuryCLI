@@ -75,9 +75,22 @@ export function turnCutLine(cut: TurnCut, toolUse: boolean): string {
   return cut.kind === 'idle-timeout' ? `[Request cut off${during} by ${why}]` : `[Request cut off${during}: ${why}]`
 }
 
-export function turnCutResultText(cut: TurnCut): string {
+export const INTERRUPTED_RESULT_LEAD = 'Interrupted by user'
+const INTERRUPTED_RESULT_FACTS =
+  'An aborted command may have partially executed (check before re-running it), and any background task or process it launched keeps running unless it was stopped.'
+
+function interruptedResultText(toolName?: string): string {
+  const call = toolName === undefined || toolName === '' ? 'this tool call' : `this ${toolName} call`
+  return `${INTERRUPTED_RESULT_LEAD}: the operator stopped ${call} on purpose.\n${INTERRUPTED_RESULT_FACTS}`
+}
+
+export function isInterruptedResultText(text: string): boolean {
+  return text === INTERRUPTED_RESULT_LEAD || text.startsWith(`${INTERRUPTED_RESULT_LEAD}: `)
+}
+
+export function turnCutResultText(cut: TurnCut, toolName?: string): string {
   const why = turnCutWhy(cut)
-  if (why === null) return 'Interrupted by user'
+  if (why === null) return interruptedResultText(toolName)
   return cut.kind === 'idle-timeout' ? `Cut off by ${why}` : `Cut off: ${why}`
 }
 
