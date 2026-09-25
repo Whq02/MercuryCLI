@@ -30,7 +30,7 @@ import {
 } from '../../utils/permissions/filesystem.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
-import { ripGrepAnswer } from '../../utils/ripgrep.js'
+import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -111,6 +111,7 @@ type Output = {
   appliedLimit?: number
   appliedOffset?: number
   incomplete?: string
+  engine?: string
 }
 
 const outputSchema = z.object({
@@ -123,6 +124,7 @@ const outputSchema = z.object({
   appliedLimit: z.number().optional(),
   appliedOffset: z.number().optional(),
   incomplete: z.string().optional(),
+  engine: z.string().optional(),
 })
 
 function effectiveLimit(headLimit: number | undefined): number | undefined {
@@ -268,6 +270,81 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   return args
 }
 
+type PcreOnlyConstruct = 'lookaround' | 'a backreference' | 'lookaround and a backreference'
+
+export function pcreOnlyConstruct(pattern: string): PcreOnlyConstruct | null {
+  let lookaround = false
+  let backreference = false
+  let depth = 0
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i]!
+    if (char === '\\') {
+      const next = pattern[i + 1] ?? ''
+      if (depth === 0 && next >= '1' && next <= '9') backreference = true
+      i++
+      continue
+    }
+    if (depth > 0) {
+      if (char === '[') depth++
+      else if (char === ']') depth--
+      continue
+    }
+    if (char === '[') {
+      depth = 1
+      if (pattern[i + 1] === '^') i++
+      if (pattern[i + 1] === ']') i++
+      continue
+    }
+    if (char !== '(' || pattern[i + 1] !== '?') continue
+    const third = pattern[i + 2]
+    if (third === '=' || third === '!') lookaround = true
+    else if (third === '<' && (pattern[i + 3] === '=' || pattern[i + 3] === '!')) lookaround = true
+  }
+  if (lookaround && backreference) return 'lookaround and a backreference'
+  if (lookaround) return 'lookaround'
+  if (backreference) return 'a backreference'
+  return null
+}
+
+const LOOKAROUND_REWRITE = 'use \\b word boundaries instead of lookaround ((?<![A-Za-z])system(?![A-Za-z]) becomes \\bsystem\\b)'
+const BACKREFERENCE_REWRITE =
+  'spell the repeated text out instead of a backreference ((foo)\\1 becomes foofoo), or search for the group alone and check the repeat in the lines it returns'
+
+function rewriteWithoutPcre2(construct: PcreOnlyConstruct): string {
+  if (construct === 'lookaround') return LOOKAROUND_REWRITE
+  if (construct === 'a backreference') return BACKREFERENCE_REWRITE
+  return `${LOOKAROUND_REWRITE}; ${BACKREFERENCE_REWRITE}`
+}
+
+function pcre2Refused(original: RipgrepUsageError, construct: PcreOnlyConstruct, refusal: string): RipgrepUsageError {
+  if (!/PCRE2 is not available/i.test(refusal)) return new RipgrepUsageError(refusal)
+  return new RipgrepUsageError(
+    `${original.diagnostic} — this ripgrep build has no PCRE2, so ${construct} cannot run: ${rewriteWithoutPcre2(construct)}`,
+  )
+}
+
+async function answerWithPcre2Fallback(
+  pattern: string,
+  args: string[],
+  searchRoot: string,
+  signal: AbortSignal,
+): Promise<{ answer: RipgrepAnswer; engine?: string }> {
+  try {
+    return { answer: await ripGrepAnswer(args, searchRoot, signal) }
+  } catch (error) {
+    if (!(error instanceof RipgrepUsageError) || !/regex parse error/i.test(error.diagnostic)) throw error
+    const construct = pcreOnlyConstruct(pattern)
+    if (construct === null) throw error
+    try {
+      const answer = await ripGrepAnswer(['--pcre2', ...args], searchRoot, signal)
+      return { answer, engine: `matched with PCRE2: the pattern uses ${construct}` }
+    } catch (retryError) {
+      if (retryError instanceof RipgrepUsageError) throw pcre2Refused(error, construct, retryError.diagnostic)
+      throw retryError
+    }
+  }
+}
+
 export const GrepTool = buildTool({
   name: GREP_TOOL_NAME,
   strict: true,
@@ -339,7 +416,7 @@ export const GrepTool = buildTool({
     const args = await buildArgs(input, context, searchRoot)
     const offset = input.offset ?? 0
 
-    const answer = await ripGrepAnswer(args, searchRoot, context.abortController.signal)
+    const { answer, engine } = await answerWithPcre2Fallback(input.pattern, args, searchRoot, context.abortController.signal)
     const lines = searchRoot === givenRoot ? answer.lines : answer.lines.map(line => respellRoot(line, searchRoot, givenRoot))
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
@@ -372,6 +449,7 @@ export const GrepTool = buildTool({
           ...(appliedLimit !== undefined ? { appliedLimit } : {}),
           ...(appliedOffset !== undefined ? { appliedOffset } : {}),
           ...(incomplete !== undefined ? { incomplete } : {}),
+          ...(engine !== undefined ? { engine } : {}),
         } satisfies Output,
       }
     }
@@ -412,6 +490,7 @@ export const GrepTool = buildTool({
           ...(appliedLimit !== undefined ? { appliedLimit } : {}),
           ...(appliedOffset !== undefined ? { appliedOffset } : {}),
           ...(incomplete !== undefined ? { incomplete } : {}),
+          ...(engine !== undefined ? { engine } : {}),
         } satisfies Output,
       }
     }
@@ -441,12 +520,14 @@ export const GrepTool = buildTool({
         ...(appliedLimit !== undefined ? { appliedLimit } : {}),
         ...(appliedOffset !== undefined ? { appliedOffset } : {}),
         ...(incomplete !== undefined ? { incomplete } : {}),
+        ...(engine !== undefined ? { engine } : {}),
       } satisfies Output,
     }
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const note = paginationNote(data.appliedLimit, data.appliedOffset)
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
+    const engineNote = data.engine !== undefined ? `\n(${data.engine})` : ''
     let text: string
     switch (data.mode) {
       case 'content':
@@ -464,7 +545,7 @@ export const GrepTool = buildTool({
             ? 'No files found'
             : `Found ${data.numFiles} ${plural(data.numFiles, 'file')}${note}\n${data.filenames.join('\n')}`
     }
-    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text + incompleteNote }
+    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text + engineNote + incompleteNote }
   },
   extractSearchText(data: Output): string {
     if (data.mode === 'content') return data.content ?? ''
