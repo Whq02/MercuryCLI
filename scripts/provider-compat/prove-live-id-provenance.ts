@@ -73,14 +73,14 @@ const OFF_GRAMMAR = { moonshot: 'k3', deepseek: 'v4-flash', openai: 'sol-6', gem
 const SHARED = 'shared-list-id'
 type Family = keyof typeof OFF_GRAMMAR
 const lists: Record<Family, string[]> = { moonshot: [], deepseek: [], openai: [], gemini: [] }
-const openaiList = (ids: string[]): unknown => ({ object: 'list', data: ids.map(id => ({ id, object: 'model', owned_by: 'fixture', created: 1 })) })
+const openaiList = (ids: string[]): unknown => ({ object: 'list', data: ids.map(id => ({ id, object: 'model', owned_by: 'fixture', created: 1, supported_reasoning_efforts: ['low', 'medium', 'high'] })) })
 const geminiList = (ids: string[]): unknown => ({ models: ids.map(id => ({ name: `models/${id}`, displayName: id, supportedGenerationMethods: ['generateContent'], inputTokenLimit: 131072 })) })
 const realFetch = globalThis.fetch
 globalThis.fetch = (async (url: string | URL | Request) => {
   const spelled = String(url instanceof Request ? url.url : url)
   if (spelled === 'http://127.0.0.1:1/moonshot/v1/models') return Response.json(openaiList(lists.moonshot))
   if (spelled === 'http://127.0.0.1:1/deepseek/models') return Response.json(openaiList(lists.deepseek))
-  if (spelled === 'http://127.0.0.1:1/openai/v1/models') return Response.json(openaiList(lists.openai))
+  if (spelled.startsWith('http://127.0.0.1:1/openai/v1/models')) return Response.json(openaiList(lists.openai))
   if (spelled.startsWith('http://127.0.0.1:1/gemini/v1beta/models')) return Response.json(geminiList(lists.gemini))
   if (spelled.includes('/v1/models')) {
     return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
