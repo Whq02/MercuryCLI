@@ -119,6 +119,7 @@ export interface AccountSlot {
   kind: AccountSlotKind
   kindLabel: string
   identity: string
+  signInEmail?: string
   active: boolean
   envPinned: boolean
   signedIn: boolean
@@ -233,18 +234,25 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
 export function scopeSlotTail(
   state: SlotSigninState,
   read: SlotIdentityRead | undefined,
-  slot: Pick<AccountSlot, 'scope' | 'family'>,
+  slot: Pick<AccountSlot, 'scope' | 'family' | 'signInEmail'>,
 ): string {
   const snapshot = slot.scope?.email
+  const own = slot.signInEmail
+  const memory = (recorded: string | undefined): string | undefined =>
+    recorded !== undefined && recorded !== '' && recorded !== own ? `snapshot ${recorded}` : undefined
+  const words = (...parts: Array<string | undefined>): string =>
+    parts.filter((part): part is string => part !== undefined).join(' · ')
   switch (state.basis) {
     case 'excluded':
       return "another tool's credential scope — never billable from Mercury"
     case 'checking':
-      return `${snapshot !== undefined ? `snapshot ${snapshot} · ` : ''}verifying identity…`
+      return words(own, memory(snapshot), 'verifying identity…')
     case 'verified-live':
       return `${read?.state === 'verified' ? read.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
-    case 'expired':
-      return `expired${read?.state === 'expired' && read.snapshotEmail ? ` (snapshot ${read.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
+    case 'expired': {
+      const recorded = memory(read?.state === 'expired' ? read.snapshotEmail : undefined)
+      return words(`expired${own !== undefined ? ` — ${own}` : ''}${recorded !== undefined ? ` (${recorded})` : ''}`, 'not signed in', '↵ opens Logins to reauth')
+    }
     case 'signed-out':
       return snapshot !== undefined
         ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
@@ -253,7 +261,7 @@ export function scopeSlotTail(
       return familyAbsentWords(slot.family)
     case 'unverified':
       return read?.state === 'unverified'
-        ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
+        ? words(`unverified — ${read.note}`, own, memory(read.email), 'not counted as signed in')
         : 'unverified · not counted as signed in'
     case 'credential-present':
       return 'credential present'
@@ -371,34 +379,39 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
     }
   }
   const identity = input.currentScopeIdentity
+  const own = presence.identity
+  const memory = (recorded: string | undefined): string | undefined =>
+    recorded !== undefined && recorded !== '' && recorded !== own ? `snapshot ${recorded}` : undefined
   switch (identity?.state) {
     case 'verified':
       return { route, family, text: `${identity.email} · verified live`, basis: 'verified-live' }
-    case 'expired':
+    case 'expired': {
+      const recorded = memory(identity.snapshotEmail)
       return {
         route,
         family,
-        text: `not signed in — credential expired${identity.snapshotEmail ? ` (snapshot ${identity.snapshotEmail})` : ''} · ↵ on the Anthropic slot reauths`,
+        text: `not signed in — credential expired${own !== undefined ? ` · ${own}` : ''}${recorded !== undefined ? ` (${recorded})` : ''} · ↵ on the Anthropic slot reauths`,
         basis: 'expired',
       }
+    }
     case 'signed-out':
       return notSignedIn()
-    case 'unverified':
+    case 'unverified': {
+      const recorded = memory(identity.email)
       return {
         route,
         family,
-        text: `${label} · unverified — ${identity.note}${identity.email ? ` · snapshot ${identity.email}` : ''}`,
+        text: `${label} · unverified — ${identity.note}${own !== undefined ? ` · ${own}` : ''}${recorded !== undefined ? ` · ${recorded}` : ''}`,
         basis: 'unverified',
       }
-    default: {
-      const snapshot = presence.identity
+    }
+    default:
       return {
         route,
         family,
-        text: `${label}${snapshot !== undefined ? ` · snapshot ${snapshot}` : ''} · verifying identity…`,
+        text: `${label}${own !== undefined ? ` · ${own}` : ''} · verifying identity…`,
         basis: 'checking',
       }
-    }
   }
 }
 
@@ -441,28 +454,32 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
     scope.isCurrent ? anthropicSignInEmail(reads.familyReads) : undefined
   const slots: AccountSlot[] = scopes
     .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.foreignHarness)
-    .map(scope => ({
-      family: 'anthropic',
-      id: scope.dir,
-      name: 'claude',
-      kind: 'oauth' as const,
-      kindLabel: 'OAuth',
-      identity: scope.foreignHarness
-        ? "another tool's credential scope"
-        : scope.authed
-          ? (signInEmail(scope) ?? 'signed in')
-          : (scope.email ?? 'not signed in'),
-      active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
-      envPinned: false,
-      signedIn: scope.authed,
-      scope,
-      removal: scope.foreignHarness
-        ? {
-            route: 'excluded' as const,
-            note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
-          }
-        : { route: 'anthropic-oauth' as const, dir: scope.dir },
-    }))
+    .map((scope): AccountSlot => {
+      const own = scope.authed && !scope.foreignHarness ? signInEmail(scope) : undefined
+      return {
+        family: 'anthropic',
+        id: scope.dir,
+        name: 'claude',
+        kind: 'oauth' as const,
+        kindLabel: 'OAuth',
+        identity: scope.foreignHarness
+          ? "another tool's credential scope"
+          : scope.authed
+            ? (own ?? 'signed in')
+            : (scope.email ?? 'not signed in'),
+        ...(own !== undefined ? { signInEmail: own } : {}),
+        active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
+        envPinned: false,
+        signedIn: scope.authed,
+        scope,
+        removal: scope.foreignHarness
+          ? {
+              route: 'excluded' as const,
+              note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
+            }
+          : { route: 'anthropic-oauth' as const, dir: scope.dir },
+      }
+    })
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
   if (apiKey.key !== null || apiKey.source === 'apiKeyHelper') {
     const subscriber = subscriberSeat
