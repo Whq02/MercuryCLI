@@ -295,7 +295,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
           : undefined
     if (apiKeySource !== undefined) payload.apiKeySource = apiKeySource
     if (authMethod === 'claude.ai') {
-      payload.email = account?.emailAddress ?? null
+      payload.email = (tokenSource.source === 'claude.ai' ? signInEmail() : account?.emailAddress) ?? null
       payload.orgId = account?.organizationUuid ?? null
       payload.orgName = account?.organizationName ?? null
       payload.subscriptionType = subscriptionType ?? null
@@ -308,6 +308,12 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     }
   }
   process.exit(routed.family === 'anthropic' ? (loggedIn ? 0 : 1) : routed.present ? 0 : 1)
+}
+
+function signInEmail(): string | undefined {
+  const { anthropicSignInEmail } =
+    require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
+  return anthropicSignInEmail()
 }
 
 function routedProviderRows(anthropicPresent: boolean): {
