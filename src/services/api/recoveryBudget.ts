@@ -32,7 +32,20 @@ export function stampProviderWait<T extends object>(row: T, askedMs: number | un
   return askedMs === undefined || !Number.isFinite(askedMs) || askedMs <= 0 ? row : { ...row, providerWaitEndsAtMs: nowMs + askedMs }
 }
 
-export type RecoveryWaitClass = 'throttle' | 'fault' | 'recovery'
+export type RecoveryWaitClass = 'throttle' | 'fault' | 'recovery' | 'outage'
+
+export interface OutageWaitFacts {
+  cause: string
+  code: string
+  reconnect: number
+  of: number
+  waitMs: number
+  rungMs: number
+  capMs: number
+  leftMs: number
+  spent: boolean
+  sinceMs: number
+}
 
 export interface RecoveryBudget {
   capMs: number
@@ -43,10 +56,11 @@ export interface RecoveryBudget {
   recoveries: number
   lastStatus: number | undefined
   lastCause: string | undefined
+  outage?: OutageWaitFacts
 }
 
 export function makeRecoveryBudget(capMs: number = recoveryBudgetMs()): RecoveryBudget {
-  return { capMs, spentMs: 0, waits: 0, refusals: 0, faults: 0, recoveries: 0, lastStatus: undefined, lastCause: undefined }
+  return { capMs, spentMs: 0, waits: 0, refusals: 0, faults: 0, recoveries: 0, lastStatus: undefined, lastCause: undefined, outage: undefined }
 }
 
 export function recoveryBudgetRemainingMs(budget: RecoveryBudget): number {
@@ -61,6 +75,7 @@ export function refillRecoveryBudget(budget: RecoveryBudget): void {
   budget.recoveries = 0
   budget.lastStatus = undefined
   budget.lastCause = undefined
+  budget.outage = undefined
 }
 
 export function recoveryAnswerRefills(message: unknown): boolean {
@@ -79,10 +94,16 @@ export function chargeRecoveryWait(
   kind: RecoveryWaitClass = 'throttle',
 ): { honoredMs: number; spent: boolean } {
   const declared = Number.isFinite(declaredMs) && declaredMs > 0 ? declaredMs : 0
+  if (kind === 'outage') {
+    budget.lastStatus = undefined
+    if (cause !== undefined) budget.lastCause = cause
+    return { honoredMs: declared, spent: false }
+  }
   const remaining = recoveryBudgetRemainingMs(budget)
   const honoredMs = Math.min(declared, remaining)
   budget.spentMs += honoredMs
   budget.waits += 1
+  budget.outage = undefined
   if (kind === 'throttle') budget.refusals += 1
   else if (kind === 'fault') budget.faults += 1
   else budget.recoveries += 1
@@ -100,6 +121,7 @@ export interface RecoveryNoticeFacts {
   providerDeclared: boolean
   cause: string
   message: string
+  outage?: OutageWaitFacts
 }
 
 export interface RecoveryReservation {
@@ -114,7 +136,13 @@ export function honourRecoveryWait(
   facts: RecoveryNoticeFacts,
   nowMs: number = Date.now(),
 ): { honoredMs: number; spent: boolean; reservation: RecoveryReservation } {
-  const { honoredMs, spent } = chargeRecoveryWait(budget, facts.declaredMs, facts.status, facts.cause, facts.kind)
+  const charged = chargeRecoveryWait(budget, facts.declaredMs, facts.status, facts.cause, facts.kind)
+  const { honoredMs } = charged
+  let { spent } = charged
+  if (facts.kind === 'outage') {
+    budget.outage = facts.outage
+    spent = facts.outage?.spent === true
+  }
   return { honoredMs, spent, reservation: { kind: facts.kind, honoredMs, startedAtMs: nowMs, settled: false } }
 }
 
@@ -144,6 +172,58 @@ export function recoveryBudgetWords(budget: RecoveryBudget): string {
   return budget.capMs === Infinity ? 'no retry budget' : `${retrySeconds(budget.capMs).replace(/ s$/, 's')} retry budget`
 }
 
+export function reconnectBudgetWords(capMs: number): string {
+  return capMs === Infinity ? 'no reconnect budget' : `${retrySeconds(capMs).replace(/ s$/, 's')} reconnect budget`
+}
+
+export function outageWaitWords(outage: OutageWaitFacts): string {
+  const words = reconnectBudgetWords(outage.capMs)
+  if (outage.spent && outage.waitMs <= 0) return `${outage.cause} — no further reconnect; the ${words} is spent after ${outage.reconnect} reconnect${outage.reconnect === 1 ? '' : 's'}`
+  const head = `${outage.cause} — waiting ${retrySeconds(outage.waitMs)} before reconnect ${outage.reconnect}`
+  if (outage.capMs === Infinity) return head
+  return outage.leftMs <= 0 ? `${head}; the ${words} ends with this wait` : `${head}; ${retrySeconds(outage.leftMs)} of the ${words} left`
+}
+
+const RECONNECT_KNOB_WORDS = 'raise MERCURY_RECONNECT_BUDGET_MINUTES'
+
+export function outageSpentLine(facts: { cause: string; reconnects: number; capMs: number; elapsedMs?: number }, road: 'seat' | 'turn'): string {
+  const detail = /\((.+)\)$/.exec(facts.cause)?.[1] ?? facts.cause
+  const n = facts.reconnects
+  const over = road === 'turn' && facts.elapsedMs !== undefined ? ` over ${retrySeconds(facts.elapsedMs)}` : ''
+  const head = `the network was unreachable through ${n} reconnect${n === 1 ? '' : 's'}${over} (${detail}) — the ${reconnectBudgetWords(facts.capMs)} is spent`
+  if (road === 'seat') return `${head} and the agent stopped; its work is kept — a message to it resumes it, or ${RECONNECT_KNOB_WORDS}`
+  return `${head} and the turn was ended; check the connection and send again, or ${RECONNECT_KNOB_WORDS}`
+}
+
+export function isReconnectBudgetSpentLine(text: string): boolean {
+  return text.includes('reconnect budget is spent') && /^(?:API Error: )?the network was unreachable through \d+ reconnects? /.test(text)
+}
+
+function outageFactsOf(error: unknown): OutageWaitFacts | null {
+  const e = error as { networkOutage?: unknown; outage?: unknown } | null | undefined
+  if (e === null || e === undefined || typeof e !== 'object' || e.networkOutage !== true) return null
+  const o = e.outage as Partial<OutageWaitFacts> | null | undefined
+  if (o === null || o === undefined || typeof o !== 'object') return null
+  const num = (v: unknown): number | null => (typeof v === 'number' && !Number.isNaN(v) ? v : null)
+  const reconnect = num(o.reconnect)
+  const waitMs = num(o.waitMs)
+  const capMs = num(o.capMs)
+  const leftMs = num(o.leftMs)
+  if (typeof o.cause !== 'string' || reconnect === null || waitMs === null || capMs === null || leftMs === null) return null
+  return {
+    cause: o.cause,
+    code: typeof o.code === 'string' ? o.code : '',
+    reconnect,
+    of: num(o.of) ?? reconnect,
+    waitMs,
+    rungMs: num(o.rungMs) ?? waitMs,
+    capMs,
+    leftMs,
+    spent: o.spent === true,
+    sinceMs: num(o.sinceMs) ?? 0,
+  }
+}
+
 const OVERLOADED_MARKER = '"type":"overloaded_error"'
 
 function causeWords(kind: RecoveryWaitClass, status: number | undefined, message: string): string {
@@ -166,6 +246,7 @@ function causeWords(kind: RecoveryWaitClass, status: number | undefined, message
 
 export function retryWaitWords(args: { facts: RecoveryNoticeFacts; honoredMs: number; budget: RecoveryBudget }): string {
   const { facts, honoredMs, budget } = args
+  if (facts.kind === 'outage') return facts.outage !== undefined ? outageWaitWords(facts.outage) : facts.message
   const words = recoveryBudgetWords(budget)
   const off = budget.capMs === Infinity
   const ladder = `retry ${facts.attempt ?? budget.waits}${facts.of !== undefined && facts.of > 0 ? ` of ${facts.of}` : ''}`
@@ -196,6 +277,9 @@ function shortAnswer(budget: RecoveryBudget): string {
 const RESUME_WORDS = 'the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'
 
 export function recoveryBudgetSpentLine(budget: RecoveryBudget): string {
+  if (budget.outage?.spent === true) {
+    return outageSpentLine({ cause: budget.outage.cause, reconnects: budget.outage.reconnect, capMs: budget.outage.capMs }, 'seat')
+  }
   const words = recoveryBudgetWords(budget)
   const n = budget.waits
   if (n > 0 && budget.refusals === n) {
@@ -219,17 +303,20 @@ export class RecoveryBudgetSpentError extends Error {
   readonly lastStatus: number | undefined
   readonly lastCause: string | undefined
   readonly resumeAfterMs: number
+  readonly networkOutage: boolean
   constructor(budget: RecoveryBudget, cut: { declaredMs: number; honoredMs: number }) {
     super(recoveryBudgetSpentLine(budget))
+    const outage = budget.outage?.spent === true ? budget.outage : undefined
     this.name = 'RecoveryBudgetSpentError'
-    this.capMs = budget.capMs
-    this.waits = budget.waits
-    this.refusals = budget.refusals
-    this.faults = budget.faults
-    this.recoveries = budget.recoveries
-    this.lastStatus = budget.lastStatus
-    this.lastCause = budget.lastCause
-    this.resumeAfterMs = Math.max(0, cut.declaredMs - cut.honoredMs)
+    this.networkOutage = outage !== undefined
+    this.capMs = outage?.capMs ?? budget.capMs
+    this.waits = outage?.reconnect ?? budget.waits
+    this.refusals = outage === undefined ? budget.refusals : 0
+    this.faults = outage === undefined ? budget.faults : 0
+    this.recoveries = outage === undefined ? budget.recoveries : 0
+    this.lastStatus = outage === undefined ? budget.lastStatus : undefined
+    this.lastCause = outage?.cause ?? budget.lastCause
+    this.resumeAfterMs = outage === undefined ? Math.max(0, cut.declaredMs - cut.honoredMs) : Math.max(0, outage.rungMs - outage.waitMs)
   }
 }
 
@@ -247,6 +334,7 @@ export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; res
 }
 
 export function isRecoveryBudgetSpentLine(text: string): boolean {
+  if (isReconnectBudgetSpentLine(text)) return true
   return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+( \S+)? retry budget is spent waiting on the provider)/.test(text)
 }
 
@@ -267,11 +355,25 @@ export function recoveryNoticeFacts(message: unknown): RecoveryNoticeFacts | nul
   const retryInMs = typeof m.retryInMs === 'number' && m.retryInMs > 0 ? m.retryInMs : 0
   const ceilingMs = typeof m.recoveryTimeoutMs === 'number' && m.recoveryTimeoutMs > 0 ? m.recoveryTimeoutMs : 0
   const declared = retryInMs > 0 ? retryInMs : ceilingMs
-  if (declared <= 0) return null
+  const outage = outageFactsOf(m.error)
+  if (declared <= 0 && outage?.spent !== true) return null
   const own = (m.error as { status?: unknown; message?: unknown } | null | undefined) ?? undefined
   const status =
     typeof m.errorDetail?.status === 'number' ? m.errorDetail.status : typeof own?.status === 'number' ? own.status : undefined
   const words = typeof own?.message === 'string' ? own.message : typeof m.errorDetail?.message === 'string' ? m.errorDetail.message : ''
+  if (outage !== null || (retryInMs > 0 && (m.errorDetail as { name?: unknown } | undefined)?.name === 'NetworkOutageError')) {
+    return {
+      declaredMs: retryInMs,
+      attempt: typeof m.retryAttempt === 'number' ? m.retryAttempt : outage?.reconnect,
+      of: typeof m.maxRetries === 'number' ? m.maxRetries : outage?.of,
+      status: undefined,
+      kind: 'outage',
+      providerDeclared: false,
+      cause: outage?.cause ?? (words.split(' — ')[0] || 'network unreachable'),
+      message: words,
+      ...(outage !== null ? { outage } : {}),
+    }
+  }
   const providerDeclared = retryAfterOf(m.error) !== undefined
   const kind: RecoveryWaitClass =
     retryInMs <= 0 && ceilingMs > 0

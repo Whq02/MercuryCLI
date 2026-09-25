@@ -201,7 +201,7 @@ export async function verifyApiKey(
           })
           return true
         },
-        { maxRetries: 2, model, thinkingConfig: { type: 'disabled' } },
+        { maxRetries: 2, model, thinkingConfig: { type: 'disabled' }, reconnect: false },
       ),
     )
   } catch (errorFromRetry) {
