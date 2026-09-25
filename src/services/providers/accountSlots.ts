@@ -81,6 +81,7 @@ import {
   type OpenaiAccountRef,
 } from './openai/openaiAccounts.js'
 import {
+  anthropicSignInEmail,
   presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
@@ -436,6 +437,8 @@ function readAnthropicApiKey(): { key: string | null; source: ApiKeySource } {
 function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const scopes = (reads.scanScopes ?? scanAccountScopes)()
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
+  const signInEmail = (scope: AccountScope): string | undefined =>
+    scope.isCurrent ? anthropicSignInEmail(reads.familyReads) : undefined
   const slots: AccountSlot[] = scopes
     .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.foreignHarness)
     .map(scope => ({
@@ -446,7 +449,9 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
       kindLabel: 'OAuth',
       identity: scope.foreignHarness
         ? "another tool's credential scope"
-        : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
+        : scope.authed
+          ? (signInEmail(scope) ?? 'signed in')
+          : (scope.email ?? 'not signed in'),
       active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
       envPinned: false,
       signedIn: scope.authed,
