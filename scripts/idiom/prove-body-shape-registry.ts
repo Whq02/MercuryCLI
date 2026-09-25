@@ -31,7 +31,7 @@ const noticeLine = (subtype: string, fields: Record<string, unknown>): string =>
 type Decoded = { entries: unknown[]; invalid: Array<{ index: number; kind: string; reason: string }>; malformed: unknown[]; totalLines: number }
 const decode = (lines: string[]): Decoded => decodeTranscriptBuffer<unknown>(lines.join('\n') + '\n') as Decoded
 
-type Fixture = { good: Record<string, unknown>; bad: Array<{ label: string; field: string; fields: Record<string, unknown> }> }
+type Fixture = { good: Record<string, unknown>; bad: Array<{ label: string; field: string; fields: Record<string, unknown> }>; older?: Array<{ label: string; fields: Record<string, unknown> }> }
 
 const ATTACHMENTS: Record<string, Fixture> = {
   task_reminder: {
@@ -190,6 +190,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   hook_stopped_continuation: {
     good: { message: 'm', hookName: 'h', toolUseID: 't', hookEvent: 'Stop' },
     bad: [{ label: 'message is a list', field: 'message', fields: { message: ['m'], hookName: 'h', toolUseID: 't', hookEvent: 'Stop' } }],
+    older: [{ label: 'the reason under content, as the tool road wrote it before the producers were typed', fields: { content: 'm', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' } }],
   },
   hook_success: { good: { content: '', hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' }, bad: [{ label: 'content is null', field: 'content', fields: { content: null, hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' } }] },
   hook_system_message: { good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'toolUseID is missing', field: 'toolUseID', fields: { content: 'c', hookName: 'h', hookEvent: 'PreToolUse' } }] },
@@ -256,6 +257,12 @@ for (const [family, fixtures, line] of [
     goodLines.push(good)
     const g = decode([good])
     check(`${family} ${kind}: the well-formed body folds`, g.entries.length === 1 && g.invalid.length === 0, JSON.stringify(g.invalid))
+    for (const older of fixture.older ?? []) {
+      const line_ = line(kind, older.fields)
+      goodLines.push(line_)
+      const o = decode([line_])
+      check(`${family} ${kind}: an older row (${older.label}) still folds`, o.entries.length === 1 && o.invalid.length === 0, JSON.stringify(o.invalid))
+    }
     for (const bad of fixture.bad) {
       const b = line(kind, bad.fields)
       badLines.push(b)
