@@ -34,6 +34,45 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
 
+export type LiveListFamily = 'moonshot' | 'deepseek' | 'openai' | 'gemini'
+
+export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'openai', 'gemini']
+
+type LiveIdsReader = { cachedLiveIds?: (env?: NodeJS.ProcessEnv) => ReadonlySet<string> }
+
+function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
+  switch (family) {
+    case 'moonshot':
+      return require('./moonshot/moonshotCatalogue.js') as LiveIdsReader
+    case 'deepseek':
+      return require('./deepseek/deepseekCatalogue.js') as LiveIdsReader
+    case 'openai':
+      return require('./openai/openaiCatalogue.js') as LiveIdsReader
+    case 'gemini':
+      return require('./gemini/geminiCatalogue.js') as LiveIdsReader
+  }
+}
+
+export function cachedLiveIdsOf(family: LiveListFamily, env: Record<string, string | undefined> = process.env): ReadonlySet<string> | undefined {
+  try {
+    return liveIdsReaderOf(family).cachedLiveIds?.(env as NodeJS.ProcessEnv)
+  } catch {
+    return undefined
+  }
+}
+
+export function liveListedRouteOf(
+  model: string,
+  env: Record<string, string | undefined> = process.env,
+): LiveListFamily | undefined {
+  const lowered = model.trim().replace(ANNOTATION_RE, '').toLowerCase()
+  if (lowered === '' || lowered.includes('/')) return undefined
+  for (const family of LIVE_LIST_FAMILIES) {
+    if (cachedLiveIdsOf(family, env)?.has(lowered)) return family
+  }
+  return undefined
+}
+
 export function qualifiedIdSpaceOf(model: string): ProviderIdSpace | undefined {
   const lowered = model.trim().toLowerCase()
   return PROVIDER_ID_SPACES.find(
@@ -85,6 +124,8 @@ export function recognizeModelId(
   const lowered = bare.toLowerCase()
   const qualified = qualifiedIdSpaceOf(lowered)
   if (qualified !== undefined) return { kind: 'declared', route: qualified.route }
+  const listed = liveListedRouteOf(lowered, env)
+  if (listed !== undefined) return { kind: 'declared', route: listed }
   for (const space of PROVIDER_ID_SPACES) {
     if (space.bareAliases?.includes(lowered)) return { kind: 'declared', route: space.route }
     if (space.barePrefixes?.some(prefix => lowered.startsWith(prefix))) {
