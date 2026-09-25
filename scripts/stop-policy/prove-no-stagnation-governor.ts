@@ -53,7 +53,7 @@ const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 type Block = { type?: string; text?: string }
 type Item = { role?: string; content?: unknown }
 export type Hit = { n: number; step: number; arm: string; userTexts: number; directive: boolean; refused: boolean; nudged: boolean; at: number }
-export const REPEAT_NUDGE_WORDS = 'in a row'
+export const REPEAT_NUDGE_PATTERN = /Loop (check|notice)/
 
 function textParts(content: unknown): string[] {
   if (typeof content === 'string') return [content]
@@ -92,13 +92,13 @@ const closeMessage = (stop: 'end_turn' | 'tool_use', index: number): string =>
   sse('content_block_stop', { type: 'content_block_stop', index }) +
   sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage }) +
   sse('message_stop', { type: 'message_stop' })
-function answerText(res: ServerResponse, n: number, model: string, text: string): void {
+export function answerText(res: ServerResponse, n: number, model: string, text: string): void {
   openMessage(res, n, model)
   res.write(sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
   res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }))
   res.end(closeMessage('end_turn', 0))
 }
-function answerTool(res: ServerResponse, n: number, model: string, id: string, name: string, input: Record<string, unknown>): void {
+export function answerTool(res: ServerResponse, n: number, model: string, id: string, name: string, input: Record<string, unknown>): void {
   openMessage(res, n, model)
   res.write(sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name, input: {} } }))
   res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }))
@@ -135,7 +135,7 @@ export async function startRereadFixture(notesPath: string, rounds = REREAD_ROUN
       const raw = JSON.stringify(body)
       const directive = raw.includes(HIDDEN_DIRECTIVE)
       const refused = lastToolResultIsError(items)
-      const nudged = raw.includes(REPEAT_NUDGE_WORDS)
+      const nudged = REPEAT_NUDGE_PATTERN.test(raw)
       const arm = tools === 0 || opening !== REREAD_ASK ? 'svc' : step === 0 ? 'write' : step <= rounds ? 'read' : 'end'
       hits.push({ n, step, arm, userTexts: texts.length, directive, refused, nudged, at: Date.now() })
       if (arm === 'svc') return answerText(res, n, model, 'svc')
@@ -192,7 +192,7 @@ if (import.meta.main) {
   const docsNamed = offenders(join(REPO, 'docs'), /stagnation governor|cycle lease|cycle_handoff|re-plan directive/i, ['docs/releases'])
   check('no product page describes it', docsNamed.filter(h => !h.startsWith('docs/releases/')).length === 0, docsNamed.join(' · '))
   const durability = src('docs/DURABILITY.md')
-  check('the durability page says a repeated tool call never ends a turn', durability.replace(/\s+/g, ' ').includes("keeps no count of a turn's repeated tool calls against its progress"))
+  check('the durability page says a repeated tool call is never refused and that by default the loop guard only reminds', durability.replace(/\s+/g, ' ').includes('A repeated tool call is never refused, and by default no turn is ended for repeating itself: the loop guard only reminds'))
 
   section('§2 on the built product, a turn that re-reads a changing file twenty times runs to the model’s own end')
   const home = join(SCRATCH_ROOT, `mercury-no-governor-${process.pid}`)
@@ -215,6 +215,7 @@ if (import.meta.main) {
   check('every read saw a file the second writer had grown since the last read', existsSync(notes) && readFileSync(notes, 'utf8').split('\n').filter(l => l !== '').length === REREAD_ROUNDS + 1)
   check('the turn ended only when the model ended it: the result is the model’s own last words', result?.subtype === 'success' && resultText === REREAD_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
   check('no request on the wire carried the hidden re-plan directive', hits.every(h => !h.directive), j(hits.filter(h => h.directive).map(h => h.n)))
+  check('no loop reminder rode the wire: every read answered with a file that had grown, so no call repeated an earlier one with an identical result', hits.every(h => !h.nudged), j(hits.filter(h => h.nudged).map(h => [h.n, h.step])))
   const records = runRecords(join(home, 'projects'))
   const decisions = records.map(r => r.run.lastStopDecision?.decision ?? 'none')
   check('the run record holds no handoff stop decision', records.length > 0 && records.every(r => r.run.lastStopDecision?.decision !== 'handoff' && !(r.run.recentEvents ?? []).some(e => e.type === 'stop-decision' && e.decision === 'handoff')), `${records.length} record(s): ${j(decisions)} ${j(records.map(r => r.run.lastStopDecision?.detail?.slice(0, 120) ?? ''))}`)

@@ -84,10 +84,39 @@ the complete index; the load-bearing ones:
 
 Mercury never stops or parks a runner for its memory use.
 
-A session is never stopped for repeating a tool call, whether the answer
-changes or not: Mercury keeps no count of a turn's repeated tool calls
-against its progress, no call is refused for repeating an earlier one, and
-no watcher ends a turn on a repeated call or a repeated result.
+A repeated tool call is never refused, and by default no turn is ended for
+repeating itself: the loop guard only reminds. A reminder rides into context
+after the third, fifth and eighth identical call whose result is identical
+too, counted across model responses — a response is judged once, after all
+of its calls have settled, in the order the model issued them, so the calls
+of one response count once whatever order they settle in, and a response
+that mixes a new call into a repeating cycle breaks that cycle — and a cycle
+of one to five calls repeated five times over with identical results draws a
+stronger reminder on every detection; a call whose answer changed is
+progress and resets the count, so a poll of a growing log is never a loop.
+The response is Mercury's own unit, never an id the provider sent, and a
+call a tool makes from inside its own execution (a Workshop cell, an Eval
+re-entry) joins the response it runs in rather than opening one of its own,
+taking its place under the call the model issued: the calls of one cell are
+ordered by when each was started, not by when it settled, and a call comes
+after every call made on its behalf, however deep the nesting and however
+many there are, so nothing the model issued earlier in that response is
+dropped or reordered. The operator sees each reminder as a recorded informational
+row.
+With `loopGuardStopEnabled: true` in settings, the second detection of the
+same cycle of two to five calls ends the turn after the round it landed in
+has settled: the model's context carries a `loop_stopped` note naming the
+cycle in the order the calls were issued, the operator sees a warning row, a
+headless run settles with the `error_loop_stopped` result, and a sub-agent
+so ended reports a typed failure to its parent. A run of one identical call
+is advisory on both roads, and the key is read live from the settings files.
+A reply that chants — the same fifty-character stretch of prose ten times
+over within a short span, code fences, lists, tables, headings, quotes and
+dividers left out — is answered once with the same kind of reminder and the
+model is asked to continue past it, whether the reply ended on its own or at
+the output cap; a second chant lets the reply stand by default, and ends
+the turn the same typed way under the key, with no chant handed on as a
+sub-agent's report.
 When a provider answers a request with no content at all, the chat says so
 in a note and the request is sent again once, carrying a one-line note that
 asks for the answer or the tool call, before the note stands as the turn's

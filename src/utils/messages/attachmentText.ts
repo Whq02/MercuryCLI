@@ -1104,6 +1104,8 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'user_context': {
       return [createUserMessage({ content: attachment.body, isMeta: true })]
     }
+    case 'loop_stopped':
+      return [createUserMessage({ content: wrapInSystemReminder(attachment.message), isMeta: true })]
     case 'deepthink_effort': {
       return wrapMessagesInSystemReminder([
         createUserMessage({

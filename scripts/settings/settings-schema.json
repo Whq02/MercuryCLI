@@ -68,6 +68,10 @@
       "description": "Background memory upkeep: the notes consolidation pass between sessions",
       "type": "boolean"
     },
+    "loopGuardStopEnabled": {
+      "description": "Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, the guard only reminds and no turn is ended",
+      "type": "boolean"
+    },
     "env": {
       "type": "object",
       "propertyNames": {

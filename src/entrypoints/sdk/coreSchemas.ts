@@ -1002,6 +1002,7 @@ export const SDKResultErrorSchema = lazySchema(() =>
       'error_max_turns',
       'error_max_budget_usd',
       'error_max_structured_output_retries',
+      'error_loop_stopped',
     ]),
     errors: z.array(z.string()).optional().describe('The error messages behind the failure'),
     ...resultEnvelopeFields,
