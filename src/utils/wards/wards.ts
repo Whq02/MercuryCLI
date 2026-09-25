@@ -59,7 +59,7 @@ const STRUCTURE_TOOLS = new Set(['Structure'])
 const GIT_TOOLS = new Set(['Git'])
 const LSP_TOOLS = new Set(['LSP'])
 const GODOT_TOOLS = new Set(['Godot'])
-const GODOT_SCRIPT_OPS = new Set(['script_create', 'script_edit'])
+const GODOT_SOURCE_OPS = new Set(['script_create', 'script_edit', 'shader_create', 'shader_edit'])
 export const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
@@ -528,11 +528,12 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
     return [input.filePath, input.targetPath, input.newPath].filter(path => typeof path === 'string' && path !== '').map(path => editTarget(path as string, ''))
   }
   if (GODOT_TOOLS.has(pending.toolName)) {
-    if (typeof input.op !== 'string' || !GODOT_SCRIPT_OPS.has(input.op) || input.args === null || typeof input.args !== 'object') return []
+    if (typeof input.op !== 'string' || !GODOT_SOURCE_OPS.has(input.op) || input.args === null || typeof input.args !== 'object') return []
     const args = input.args as Record<string, unknown>
-    const parts = [args.content, args.replace].filter(part => typeof part === 'string')
     const path = stringOf(args.path).replace(GODOT_RESOURCE, '')
-    return [{ scope: 'edit', path, text: parts.join('\n'), oldText: typeof args.find === 'string' ? args.find : undefined, whole: typeof args.content === 'string', asGiven: true }]
+    const whole = typeof args.content === 'string' && args.content !== '' ? args.content : typeof args.code === 'string' ? args.code : undefined
+    if (whole !== undefined) return [{ scope: 'edit', path, text: whole, oldText: undefined, whole: true, asGiven: true }]
+    return [{ scope: 'edit', path, text: stringOf(args.replace), oldText: typeof args.find === 'string' ? args.find : undefined, whole: false, asGiven: true }]
   }
   if (pending.shellCommand !== undefined) {
     return [{ scope: 'bash', path: '', text: pending.shellCommand, oldText: undefined, whole: false }]
