@@ -82,6 +82,7 @@ import {
   areFileEditsInputsEquivalent,
   findActualString,
   getPatchForEdit,
+  locateActualString,
   preserveQuoteStyleForFile,
 } from './utils.js'
 import { findSection, planAppend, planSectionEdit } from './sectionEdit.js'
@@ -986,7 +987,20 @@ export const FileEditTool = buildTool({
       return { result: true as const }
     }
 
-    const actualOldString = findActualString(currentContent, oldString)
+    const located = locateActualString(currentContent, oldString)
+    if (located.kind === 'ambiguous') {
+      return {
+        result: false as const,
+        behavior: 'ask' as const,
+        message: input.replace_all
+          ? `Found ${located.count} matches of the string to replace, but they differ from each other in whitespace or characters, so replace_all cannot rewrite them as one string. Provide more surrounding context to uniquely identify one instance, or spell old_string as the file does.\nString: ${oldString}`
+          : `Found ${located.count} matches of the string to replace, but replace_all is false. ` +
+            `To replace all occurrences, set replace_all to true. To replace only one occurrence, provide more surrounding context to uniquely identify the instance.\nString: ${oldString}`,
+        errorCode: 9,
+        meta: { oldString },
+      }
+    }
+    const actualOldString = located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
       return {
         result: false as const,
@@ -1327,10 +1341,12 @@ export const FileEditTool = buildTool({
       }
     }
     const modifiedClause = data.userModified ? ' (the user modified the change before accepting it)' : ''
+    const located = data.oldString === '' || data.oldString.includes(HUNK_SPAN_ELISION) ? null : locateActualString(data.originalFile, data.oldString)
+    const forgivenClause = located !== null && located.kind === 'found' && located.feedback !== null ? ` ${located.feedback}` : ''
     const closingClause = data.staleRecovery !== undefined ? ` Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : data.userModified ? '' : ` ${APPLIED_NO_REREAD_NOTE}`
     const text = data.replaceAll
-      ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${closingClause}`
-      : `The file ${data.filePath} has been updated successfully${modifiedClause}.${closingClause}`
+      ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${forgivenClause}${closingClause}`
+      : `The file ${data.filePath} has been updated successfully${modifiedClause}.${forgivenClause}${closingClause}`
     const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
     const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
