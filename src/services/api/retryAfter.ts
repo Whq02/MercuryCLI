@@ -17,7 +17,18 @@ export function errorHeaders(error: unknown): unknown {
 }
 
 export function retryAfterOf(error: unknown): string | undefined {
-  return headerValue(errorHeaders(error), 'retry-after')
+  const headers = errorHeaders(error)
+  const askedMs = positiveMilliseconds(headerValue(headers, 'retry-after-ms'))
+  if (askedMs !== undefined) return String(askedMs / 1000)
+  return headerValue(headers, 'retry-after')
+}
+
+function positiveMilliseconds(header: unknown): number | undefined {
+  if (typeof header !== 'string') return undefined
+  const text = header.trim()
+  if (text === '') return undefined
+  const ms = Number(text)
+  return Number.isFinite(ms) && Math.round(ms) > 0 ? ms : undefined
 }
 
 export function retryAfterHeaderMs(header: string | null | undefined, nowMs: number = Date.now()): number | undefined {
@@ -25,7 +36,10 @@ export function retryAfterHeaderMs(header: string | null | undefined, nowMs: num
   const text = String(header).trim()
   if (text === '') return undefined
   const seconds = Number(text)
-  if (Number.isFinite(seconds)) return seconds > 0 ? seconds * 1000 : undefined
+  if (Number.isFinite(seconds)) {
+    const ms = Math.round(seconds * 1000)
+    return ms > 0 ? ms : undefined
+  }
   const at = Date.parse(text)
   if (!Number.isFinite(at)) return undefined
   return at > nowMs ? at - nowMs : undefined

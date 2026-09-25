@@ -233,9 +233,15 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
     check(`${route.route}: silence is not re-issued`, requests.length === 2, `${requests.length} request(s)`)
     check(`${route.route}: the turn's result is the silence note, the turn's end`, resultText.includes(ZAI_SILENCE_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else {
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
+    const second = requests[1] === undefined ? [] : inputOf(requests[1])
+    const third = requests[2] === undefined ? [] : inputOf(requests[2])
+    const lastItem = third.at(-1) as { role?: unknown } | undefined
     check(`${route.route}: the tool round ran and the second request answered empty`, requests.length >= 2 && (requests[1] !== undefined) , `${requests.length} request(s)`)
     check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
-    check(`${route.route}: the request was re-issued once, unchanged`, requests.length === 3 && JSON.stringify(inputOf(requests[2]!)) === JSON.stringify(inputOf(requests[1]!)), `${requests.length} request(s)`)
+    check(`${route.route}: the request was re-issued once, with the nudge as its last user turn after the tool result`, requests.length === 3 && lastItem?.role === 'user' && JSON.stringify(lastItem).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s); last input item: ${JSON.stringify(lastItem).slice(0, 300)}`)
+    check(`${route.route}: the re-issue is not byte-identical to the empty-answered request`, requests.length === 3 && JSON.stringify(third) !== JSON.stringify(second), `${requests.length} request(s)`)
     check(`${route.route}: the turn's result is the model's answer from the re-issue, not silence`, resultText === EMPTY_REPLY_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   }
   if (failures === 0) rmSync(home, { recursive: true, force: true })

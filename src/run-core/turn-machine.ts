@@ -87,9 +87,11 @@ import type {
 } from '../types/message.js'
 import { logError } from '../utils/log.js'
 import {
+  EMPTY_REPLY_RECOVERY_NUDGE,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
   STREAM_FAULT_RECOVERY_NUDGE,
   continuableStreamFaultTextOf,
+  endsWithEmptyReplyRecoveryNudge,
   isContinuableStreamFaultMessage,
   streamFaultFactsOf,
   streamFaultNoticeLine,
@@ -1437,12 +1439,16 @@ export async function* runEventCore(
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              emptyReplyNoticeLine(`sending the same request again (retry ${decision.attempt} of ${EMPTY_REPLY_RECOVERY_LIMIT})`),
+              emptyReplyNoticeLine(`asked the model for its answer (retry ${decision.attempt} of ${EMPTY_REPLY_RECOVERY_LIMIT})`),
               'warning',
             ),
           })
+          const nudge = createUserMessage({
+            content: EMPTY_REPLY_RECOVERY_NUDGE,
+            isMeta: true,
+          })
           const next: TurnState = {
-            messages: messagesForQuery,
+            messages: endsWithEmptyReplyRecoveryNudge(messagesForQuery) ? messagesForQuery : [...messagesForQuery, nudge],
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
@@ -1464,7 +1470,7 @@ export async function* runEventCore(
         yield emit({
           kind: 'notice',
           message: createSystemMessage(
-            emptyReplyNoticeLine(`the same request was already sent again ${emptyReplyRecoveryCount === 1 ? 'once' : `${emptyReplyRecoveryCount} times`}; the turn ends here`),
+            emptyReplyNoticeLine(`the model was already asked for its answer ${emptyReplyRecoveryCount === 1 ? 'once' : `${emptyReplyRecoveryCount} times`}; the turn ends here`),
             'warning',
           ),
         })

@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { CAP_WORDS, EMPTY_WORDS, RESEND_WORDS, SILENCE_WORDS, persistedNotices } from './prove-empty-reply-cases.ts'
+import { CAP_WORDS, EMPTY_WORDS, OLD_RESEND_WORDS, RETRY_WORDS, SILENCE_WORDS, jsonNeedle, lastRowIsUserCarrying, persistedNotices } from './prove-empty-reply-cases.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -206,7 +206,7 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
   const notes = texts.filter(t => t.startsWith('[zai]'))
   const systems = run.notices
   const tail = run.stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
-  const resent = systems.some(t => t.includes(RESEND_WORDS))
+  const resent = systems.some(t => t.includes(RETRY_WORDS) || t.includes(OLD_RESEND_WORDS))
   const unchanged = run.requests.length === 2 && JSON.stringify(messagesOf(run.requests[1]!)) === JSON.stringify(messagesOf(run.requests[0]!))
   check(`${kind}: the turn settled with a result`, run.exit === 0 && result !== undefined, `exit ${String(run.exit)} ${tail}`)
   if (kind === 'silence') {
@@ -223,10 +223,15 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
     check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
     check(`${kind}: the note stands as the turn's result`, resultText.includes(CAP_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else if (kind === 'empty') {
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const first = run.requests[0] === undefined ? [] : messagesOf(run.requests[0])
+    const second = run.requests[1] === undefined ? [] : messagesOf(run.requests[1])
     check(`${kind}: the note keeps its words`, notes.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
-    check(`${kind}: the request was sent again once, unchanged`, unchanged, `${run.requests.length} request(s)`)
-    check(`${kind}: the re-send notice shows`, resent, JSON.stringify(systems).slice(0, 300))
-    check(`${kind}: the turn's result is the answer from the re-send`, resultText === ZAI_CASES_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${kind}: the request was sent again once, with the nudge as its last user row`, run.requests.length === 2 && lastRowIsUserCarrying(second, EMPTY_REPLY_RECOVERY_NUDGE) && !lastRowIsUserCarrying(first, EMPTY_REPLY_RECOVERY_NUDGE), `${run.requests.length} request(s); last row: ${JSON.stringify(second.at(-1)).slice(0, 300)}`)
+    check(`${kind}: the retry is not byte-identical to the first request`, run.requests.length === 2 && !unchanged, `${run.requests.length} request(s)`)
+    check(`${kind}: the nudge rides once`, JSON.stringify(second).split(jsonNeedle(EMPTY_REPLY_RECOVERY_NUDGE)).length === 2, JSON.stringify(second).slice(-300))
+    check(`${kind}: the retry notice shows and the old re-send words are gone`, systems.some(t => t.includes(`${RETRY_WORDS} (retry 1 of 1)`)) && !systems.some(t => t.includes(OLD_RESEND_WORDS)), JSON.stringify(systems).slice(0, 300))
+    check(`${kind}: the turn's result is the answer from the retry`, resultText === ZAI_CASES_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else {
     check(`${kind}: no empty-reply note at all`, notes.length === 0, JSON.stringify(notes).slice(0, 300))
     check(`${kind}: the route sent the request again once, unchanged`, unchanged, `${run.requests.length} request(s)`)
