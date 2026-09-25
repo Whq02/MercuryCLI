@@ -320,15 +320,25 @@ export async function clampToolResultImageBlocks(
 ): Promise<void> {
   if (block.type !== 'tool_result' || !Array.isArray(block.content)) return
   const parts = block.content as unknown[]
+  const isImage = (part: unknown): part is { type: 'image'; source?: { type?: string } } =>
+    typeof part === 'object' && part !== null && (part as { type?: string }).type === 'image'
+  const count = parts.filter(isImage).length
+  const notes: string[] = []
+  let ordinal = 0
   for (let index = 0; index < parts.length; index++) {
-    const part = parts[index] as { type?: string; source?: { type?: string } } | null
-    if (!part || part.type !== 'image' || part.source?.type !== 'base64') continue
+    const part = parts[index]
+    if (!isImage(part)) continue
+    ordinal++
+    if (part.source?.type !== 'base64') continue
     try {
       const resized = await maybeResizeAndDownsampleImageBlock(part as ImageBlockParam, { ...options, role: 'tool-result' })
       parts[index] = resized.block
+      const note = resized.dimensions === undefined ? null : createImageMetadataText(resized.dimensions, undefined, { index: ordinal, count })
+      if (note !== null) notes.push(note)
     } catch {
     }
   }
+  for (const text of notes) parts.push({ type: 'text', text })
 }
 
 
@@ -399,7 +409,11 @@ export async function compressImageBlock(imageBlock: ImageBlockParam, maxBytes: 
 }
 
 
-export function createImageMetadataText(dims: ImageDimensions, sourcePath?: string): string | null {
+export function createImageMetadataText(
+  dims: ImageDimensions,
+  sourcePath?: string,
+  ordinal?: { index: number; count: number },
+): string | null {
   const { originalWidth, originalHeight, displayWidth, displayHeight } = dims
   const complete =
     typeof originalWidth === 'number' &&
@@ -421,7 +435,8 @@ export function createImageMetadataText(dims: ImageDimensions, sourcePath?: stri
     parts.push(`displayed at: ${displayWidth}x${displayHeight}`)
     parts.push(`multiply any coordinates you read off this image by ${scale} to map them onto the original`)
   }
-  return `[Image: ${parts.join(', ')}]`
+  const head = ordinal === undefined ? 'Image' : `Image ${ordinal.index} of ${ordinal.count}`
+  return `[${head}: ${parts.join(', ')}]`
 }
 
 export function describeAttachedImage(dims: ImageDimensions | undefined, bytes: number): string {
