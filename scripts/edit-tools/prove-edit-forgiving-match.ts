@@ -168,14 +168,19 @@ section('C. through the tool: a two-space old_string against a four-space file l
   const r = await edit('four.ts', FOUR, { old_string: TWO_OLD, new_string: TWO_NEW })
   check('C1 the edit lands', r.ok, detail(r))
   check('C2 the new line landed at the file\'s 12 spaces and every other byte stands', r.after === FOUR_AFTER, JSON.stringify(r.after))
+  const SENTENCE = "Matched with the file's indentation at lines 3-7: the file indents with 4 spaces where old_string used 2 spaces."
+  check('C2b the result text carries the feedback sentence right after the success clause, once', r.ok && r.text.startsWith(`The file ${r.path} has been updated successfully. ${SENTENCE}`) && r.text.split(SENTENCE).length === 2, r.ok ? r.text.slice(0, 260) : detail(r))
   const wrapped = await edit('wrap.ts', FOUR, { old_string: '  let total = 0', new_string: '  let total = 0\n  let count = 0' })
   check('C3 guard: a one-line old_string that is an exact substring (shallower indentation) still takes the exact road and lands as typed', wrapped.ok && wrapped.after === FOUR.replace('    let total = 0\n', '    let total = 0\n  let count = 0\n'), detail(wrapped) + ' ' + JSON.stringify(wrapped.after))
+  check('C3b guard: an exact-road result carries no matched-with sentence', wrapped.ok && !wrapped.text.includes('Matched with the file'), wrapped.ok ? wrapped.text.slice(0, 200) : detail(wrapped))
   const flat = await edit('flat.ts', FOUR, { old_string: 'return total\n}', new_string: 'return total * 2\n}' })
   check('C4 guard: an old_string that is an exact substring from its first character lands as before', flat.ok && flat.after === FOUR.replace('    return total\n}', '    return total * 2\n}'), detail(flat) + ' ' + JSON.stringify(flat.after))
   const tabs = await edit('tabs.ts', '\tif (x) {\n\t\ty()\n\t}\n', { old_string: '  if (x) {\n    y()\n  }', new_string: '  if (x) {\n    y()\n    z()\n  }' })
   check('C5 a tab-indented file edited from a space-indented old_string keeps tabs on the new line', tabs.ok && tabs.after === '\tif (x) {\n\t\ty()\n\t\tz()\n\t}\n', detail(tabs) + ' ' + JSON.stringify(tabs.after))
+  check('C5b the tab result names the file\'s tab and the typed spaces', tabs.ok && tabs.text.includes("Matched with the file's indentation at lines 1-3: the file indents with 1 tab where old_string used 2 spaces."), tabs.ok ? tabs.text.slice(0, 260) : detail(tabs))
   const trailing = await edit('trailing.ts', 'const a = 1   \nconst b = 2\t\nconst c = 3\n', { old_string: 'const a = 1\nconst b = 2', new_string: 'const a = 1\nconst b = 20' })
   check('C6 trailing whitespace on the file\'s lines is forgiven and the untouched line keeps its trailing spaces', trailing.ok && trailing.after === 'const a = 1   \nconst b = 20\nconst c = 3\n', detail(trailing) + ' ' + JSON.stringify(trailing.after))
+  check('C6b the trailing-whitespace result carries its own sentence', trailing.ok && trailing.text.includes("Matched with the file's trailing whitespace at lines 1-2."), trailing.ok ? trailing.text.slice(0, 260) : detail(trailing))
   const deleted = await edit('delete.ts', FOUR, { old_string: '  for (const item of items) {\n    if (item.length > 0) {\n      total += item.length\n    }\n  }\n', new_string: '' })
   check('C7 a deletion through the indentation road removes exactly the file\'s lines', deleted.ok && deleted.after === FOUR.replace('    for (const item of items) {\n        if (item.length > 0) {\n            total += item.length\n        }\n    }\n', ''), detail(deleted) + ' ' + JSON.stringify(deleted.after))
   const blankInside = await edit('blank-inside.ts', 'a\n    x\n\n    y\nb\n', { old_string: '  x\n\n  y\n', new_string: '' })
@@ -190,9 +195,13 @@ section('D. through the tool: the same old_string matching two blocks refuses as
   check('D2 nothing was written', r.after === twin)
   const all = await edit('twin-all.ts', twin, { old_string: TWO_OLD, new_string: TWO_NEW, replace_all: true })
   check('D3 with replace_all both blocks land with the file\'s indentation', all.ok && all.after === `${FOUR_AFTER}\n${FOUR_AFTER}`, detail(all))
+  check('D3b the replace_all result carries the sentence after its own clause', all.ok && all.text.startsWith(`The file ${all.path} has been updated. All occurrences of the string were replaced. Matched with the file's indentation at lines 3-7:`), all.ok ? all.text.slice(0, 260) : detail(all))
   const differing = `${FOUR}\nfunction again(items: string[]): number {\n  let total = 0\n  for (const item of items) {\n    if (item.length > 0) {\n      total += item.length\n    }\n  }\n  return total\n}\n`
   const typedWithTabs = await edit('differing.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}' })
   check('D4 two candidate blocks with different indentation refuse and write nothing', !typedWithTabs.ok && typedWithTabs.after === differing, detail(typedWithTabs))
+  check('D4b that refusal is today\'s ambiguity wording with the count, not the not-found wording', !typedWithTabs.ok && AMBIGUOUS.test(typedWithTabs.error) && typedWithTabs.error.includes('Found 2 matches') && !typedWithTabs.error.startsWith(NOT_FOUND), detail(typedWithTabs))
+  const differingAll = await edit('differing-all.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}', replace_all: true })
+  check('D4c with replace_all the differing candidates still refuse, say why in plain words, and write nothing', !differingAll.ok && differingAll.error.startsWith('Found 2 matches of the string to replace, but they differ from each other in whitespace or characters') && differingAll.after === differing, detail(differingAll))
 }
 
 section('E. through the tool: an old_string that differs in content keeps today\'s not-found refusal')
@@ -209,6 +218,7 @@ section('F. through the tool: en dash, em dash and no-break space in the file, A
   const enFile = `# Range\n\nThe pages 10${EN}20 cover the setup.\nThe pages 30${EN}40 cover the run.\n`
   const en = await edit('en.md', enFile, { old_string: 'The pages 10-20 cover the setup.', new_string: 'The pages 10-20 cover the setup and the teardown.' })
   check('F1 an en dash line is found from ASCII and the edit lands', en.ok, detail(en))
+  check('F1b the result text carries the characters sentence after the success clause', en.ok && en.text.startsWith(`The file ${en.path} has been updated successfully. Matched with the file's dash/space characters at line 3.`), en.ok ? en.text.slice(0, 260) : detail(en))
   check('F2 the untouched part of the line keeps the en dash and the second line stands', en.after === `# Range\n\nThe pages 10${EN}20 cover the setup and the teardown.\nThe pages 30${EN}40 cover the run.\n`, JSON.stringify(en.after))
   const emFile = `notes${EM}first draft\nnotes${EM}second draft\n`
   const em = await edit('em.txt', emFile, { old_string: 'notes-second draft', new_string: 'notes-final draft' })
@@ -237,6 +247,14 @@ section('G. the replacement builder keeps the file\'s spelling on untouched line
   check('G2 a new deeper level unknown to the block extends the deepest known indentation by the typed remainder', novel === '    for (const item of items) {\n      if (item) {\n        deep()\n      }\n    }', JSON.stringify(novel))
   const untouched = await utils.preserveQuoteStyleForFile(join(fixtures, 'x.ts'), 'abc', 'abc', 'ab', 'a"c')
   check('G3 a non-forgiving length mismatch still leaves the replacement untouched (the 1:1 helper\'s law)', untouched === 'a"c', JSON.stringify(untouched))
+  const map = (FileEditTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam
+  const base = { filePath: '/x/four.ts', newString: TWO_NEW, originalFile: FOUR, structuredPatch: [], userModified: false, replaceAll: false }
+  const exactText = String(map({ ...base, oldString: TWO_OLD }, 'toolu_g').content)
+  check('G4 the result mapper mints the sentence from the original file and the typed old_string', exactText.includes("Matched with the file's indentation at lines 3-7:"), exactText.slice(0, 200))
+  const elided = String(map({ ...base, oldString: `${TWO_OLD}\n...\n  return total` }, 'toolu_g').content)
+  check('G5 a hunks-shaped old_string (spans joined by the elision) never mints the sentence', !elided.includes('Matched with the file'), elided.slice(0, 200))
+  const appended = String(map({ ...base, oldString: '' }, 'toolu_g').content)
+  check('G6 an append-shaped result (empty old_string) never mints the sentence', !appended.includes('Matched with the file'), appended.slice(0, 200))
 }
 
 section('H. scale: the passes stay quick on a large file')
