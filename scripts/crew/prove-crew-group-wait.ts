@@ -110,5 +110,49 @@ section('G4 — the hand-over receipt names the sibling and its end')
   check('the other reasons keep their lines', receipts.foregroundNotKeptLine('turn-interrupted').startsWith('The foreground request was not kept: the turn it ran in was interrupted'))
 }
 
+section('G5 — a wait above the ceiling is clamped to it and the result says so; at or below, byte for byte as before')
+{
+  const { formatZodValidationError } = await import('../../src/utils/toolErrors.js')
+  type WaitResult = { data: { retrieval_status: string; task: { task_id: string; status: string } | null; clamped?: string } }
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('TaskOutput', r.error as never).replace(/\n/g, ' ')}`)
+  const CLAUSE = 'timeout clamped to 600000 ms (the maximum)'
+  task.resetSiblingEnds()
+  const store = makeStore()
+  task.registerAsyncAgent({ agentId: 'bg-5', description: 'slow job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  const parsed = TaskOutputTool.inputSchema.safeParse({ task_id: 'bg-5', block: true, timeout: 900_000 })
+  check('a timeout of 900000 passes the schema — no round trip lost to a refusal', parsed.success === true && (parsed as { data?: { timeout?: number } }).data?.timeout === 900_000, refusal(parsed))
+  const abort = new AbortController()
+  const context = { getAppState: store.get, setAppState: store.set, abortController: abort, options: { tools: [] } } as never
+  const realNow = Date.now
+  let settledEarly = false
+  const pending = (TaskOutputTool.call({ task_id: 'bg-5', block: true, timeout: 900_000 } as never, context, undefined as never, undefined as never) as Promise<WaitResult>).catch(() => null)
+  void pending.then(() => {
+    settledEarly = Date.now === realNow
+  })
+  await new Promise(r => setTimeout(r, 150))
+  const openBeforeJump = !settledEarly
+  Date.now = () => realNow() + 650_000
+  const outcome = await Promise.race([pending, new Promise<null>(r => setTimeout(() => r(null), 1_500))])
+  Date.now = realNow
+  check('the wait is still open before the clock jumps (it did not end at once)', openBeforeJump)
+  check('the wait ends at the ceiling (600000 ms) — the requested 900000 ms is not waited', outcome !== null && outcome.data.retrieval_status === 'timeout' && outcome.data.task?.task_id === 'bg-5', outcome === null ? 'the wait was still open 650 s after its start (the clock jumped past the ceiling but short of the request)' : JSON.stringify(outcome.data))
+  check('the result says the clamp in the ScheduleWakeup grammar', outcome?.data.clamped === CLAUSE, JSON.stringify(outcome?.data.clamped))
+  const clampedBlock = outcome === null ? { content: '' } : (TaskOutputTool.mapToolResultToToolResultBlockParam(outcome.data as never, 'toolu_c') as { content: string })
+  check('the tool result text carries the clause once, as its own tagged line', clampedBlock.content.split(CLAUSE).length === 2 && clampedBlock.content.includes(`<clamped>${CLAUSE}</clamped>`), clampedBlock.content)
+  abort.abort()
+  await pending
+  const plainContext = { getAppState: store.get, setAppState: store.set, abortController: new AbortController(), options: { tools: [] } } as never
+  const plain = (await TaskOutputTool.call({ task_id: 'bg-5', block: true, timeout: 300 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
+  const plainBlock = TaskOutputTool.mapToolResultToToolResultBlockParam(plain.data as never, 'toolu_p') as { content: string }
+  check('a timeout at or below the ceiling carries no clamp field and no clause — byte for byte as before', plain.data.retrieval_status === 'timeout' && !('clamped' in plain.data) && !plainBlock.content.includes('clamped') && plainBlock.content === '<retrieval_status>timeout</retrieval_status>\n\n<task_id>bg-5</task_id>\n\n<task_type>local_agent</task_type>\n\n<status>running</status>', plainBlock.content)
+  const negative = TaskOutputTool.inputSchema.safeParse({ task_id: 'bg-5', timeout: -1 })
+  check('a negative timeout has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('The parameter `timeout` must have a minimum of 0'), refusal(negative))
+  const peek = (await TaskOutputTool.call({ task_id: 'bg-5', block: false, timeout: 900_000 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
+  check('a non-blocking read ran no wait, yet reports the clamped reading (one rule, wait or no wait)', peek.data.retrieval_status === 'not_ready' && peek.data.clamped === CLAUSE, JSON.stringify(peek.data))
+  const plainPeek = (await TaskOutputTool.call({ task_id: 'bg-5', block: false, timeout: 5_000 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
+  const plainPeekBlock = TaskOutputTool.mapToolResultToToolResultBlockParam(plainPeek.data as never, 'toolu_q') as { content: string }
+  check('a non-blocking read inside the ceiling is byte for byte as before', !('clamped' in plainPeek.data) && plainPeekBlock.content === '<retrieval_status>not_ready</retrieval_status>\n\n<task_id>bg-5</task_id>\n\n<task_type>local_agent</task_type>\n\n<status>running</status>', plainPeekBlock.content)
+}
+
 console.log(failures === 0 ? '\nprove-crew-group-wait: all green' : `\nprove-crew-group-wait: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

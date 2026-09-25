@@ -12,6 +12,8 @@ import {
   type WatchWall,
 } from '../../src/tools/MonitorTool/watchMailbox.ts'
 import { MonitorTool, monitorExpiryNotice } from '../../src/tools/MonitorTool/MonitorTool.ts'
+import * as monitorModule from '../../src/tools/MonitorTool/MonitorTool.ts'
+import { formatZodValidationError } from '../../src/utils/toolErrors.ts'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -162,6 +164,41 @@ function harness(wall: WatchWall) {
   const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
   check("the persistent field's own words tell the model the watch outlives the deadline until TaskStop", /persistent: semanticBoolean\([\s\S]{0,200}?the watch runs until TaskStop or the session ends/.test(source))
   check('every event the tool emits rides the mailbox, never the queue directly', (source.match(/mailbox\.push\(/g) ?? []).length >= 4 && (source.match(/\bemit\(/g) ?? []).length === 1)
+}
+
+{
+  type Deadline = (timeoutMs: number | undefined, persistent: boolean | undefined) => { timeoutMs: number; clamped: string | null }
+  const monitorDeadline = (monitorModule as { monitorDeadline?: Deadline }).monitorDeadline
+  const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
+  const base = { description: 'watch', command: 'echo hi' }
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Monitor', r.error as never).replace(/\n/g, ' ')}`)
+  const above = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 7_200_000 })
+  check('a timeout_ms above the ceiling passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
+  const under = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 500 })
+  check('a timeout_ms under the floor passes the schema (the tool clamps it up)', under.success === true, refusal(under))
+  const negative = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: -1 })
+  check('a negative timeout_ms has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
+  check('the deadline seam is the one exported function the call uses', typeof monitorDeadline === 'function' && /const \{ timeoutMs, clamped \} = monitorDeadline\(timeout_ms, persistent\)/.test(source))
+  if (typeof monitorDeadline === 'function') {
+    const over = monitorDeadline(7_200_000, false)
+    check('a timeout_ms above the ceiling is clamped to 3600000 and the clause says so in the ScheduleWakeup grammar', over.timeoutMs === 3_600_000 && over.clamped === 'timeout_ms clamped to 3600000 ms (the maximum)', JSON.stringify(over))
+    const low = monitorDeadline(500, false)
+    check('a timeout_ms under the floor is clamped up to 1000 and the clause says so', low.timeoutMs === 1_000 && low.clamped === 'timeout_ms clamped to 1000 ms (the minimum)', JSON.stringify(low))
+    const inside = monitorDeadline(60_000, false)
+    check('a timeout_ms inside the bounds is untouched and carries no clause', inside.timeoutMs === 60_000 && inside.clamped === null, JSON.stringify(inside))
+    const edge = monitorDeadline(3_600_000, false)
+    check('a timeout_ms at the ceiling is untouched and carries no clause', edge.timeoutMs === 3_600_000 && edge.clamped === null, JSON.stringify(edge))
+    const omitted = monitorDeadline(undefined, false)
+    check('an omitted timeout_ms takes the default with no clause', omitted.timeoutMs === 300_000 && omitted.clamped === null, JSON.stringify(omitted))
+    const persistent = monitorDeadline(7_200_000, true)
+    check('a persistent watch ignores timeout_ms and never claims a clamp', persistent.timeoutMs === 0 && persistent.clamped === null, JSON.stringify(persistent))
+  }
+  const clampedText = (MonitorTool.mapToolResultToToolResultBlockParam({ taskId: 'b1', timeoutMs: 3_600_000, persistent: false, clamped: 'timeout_ms clamped to 3600000 ms (the maximum)' } as never, 'toolu_x') as { content: string }).content
+  check('the tool result carries the clause beside the deadline it states', clampedText.includes('(task b1, timeout 3600000ms; timeout_ms clamped to 3600000 ms (the maximum))'), clampedText)
+  const plainText = (MonitorTool.mapToolResultToToolResultBlockParam({ taskId: 'b1', timeoutMs: 60_000, persistent: false } as never, 'toolu_y') as { content: string }).content
+  check('a deadline inside the bounds renders byte for byte as before', plainText === 'Monitor started (task b1, timeout 60000ms). You will be notified on each event. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.', plainText)
+  const words = (MonitorTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape['timeout_ms']?.description ?? ''
+  check("the timeout_ms parameter's own words name both bounds and say a value outside them is clamped", words.includes('max 3600000ms') && words.includes('min 1000ms') && /clamped/.test(words), words)
 }
 
 console.log(failures === 0 ? 'prove-monitor-wake: ALL LAWS HOLD' : 'prove-monitor-wake: FAILURE(S)')

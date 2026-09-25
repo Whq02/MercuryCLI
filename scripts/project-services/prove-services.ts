@@ -245,15 +245,32 @@ section('T. the Service tool end-to-end')
     t1.effect.outcome === 'succeeded' && t1.data.result.includes('mercury://service/tool-web'))
   const t2 = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 10_000 })
   check('T2 tool wait reaches READY', t2.data.result.includes('READY'))
+  const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
+  const schema = (ServiceTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: unknown } } }).inputSchema
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Service', r.error as never).replace(/\n/g, ' ')}`)
+  const above = schema.safeParse({ op: 'wait', name: 'tool-web', timeoutMs: 900_000 })
+  check('T2a a wait deadline above the ceiling passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
+  const t2b = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 900_000 })
+  check('T2b the wait ran clamped and its result says so in the ScheduleWakeup grammar',
+    t2b.data.result.includes('READY') && t2b.data.result.endsWith('\ntimeoutMs clamped to 300000 ms (the maximum)'), t2b.data.result)
+  check('T2c a wait inside the bounds carries no clause — byte for byte as before', !t2.data.result.includes('clamped'), t2.data.result)
+  const negative = schema.safeParse({ op: 'wait', name: 'tool-web', timeoutMs: -1 })
+  check('T2d a negative deadline has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
   const t3 = await call({ op: 'logs', name: 'tool-web', cwd: workDir })
   check('T3 tool logs carry the cursor line', /\[cursor: \d+/.test(t3.data.result))
   const t4 = await call({ op: 'list', cwd: workDir })
   check('T4 list shows reconciled truth', t4.data.result.includes('tool-web — ready'))
   const t5 = await call({ op: 'stop', name: 'tool-web', cwd: workDir })
   check('T5 tool stop succeeds', t5.effect.outcome === 'succeeded' && t5.data.state === 'stopped')
+  const t5b = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 50 })
+  check('T5b a deadline under the floor is clamped up to 100 ms and the result says so',
+    t5b.data.result.includes('did NOT become ready') && t5b.data.result.endsWith('\ntimeoutMs clamped to 100 ms (the minimum)'), t5b.data.result)
   const t6 = await call({ op: 'describe', name: 'no-such-service', cwd: workDir })
   check('T6 an unknown service reads honest-absent (no-change effect)',
     t6.effect.outcome === 'no-change' && t6.data.result.includes("no service 'no-such-service'"))
+  const t6b = await call({ op: 'wait', name: 'no-such-service', cwd: workDir, timeoutMs: 900_000 })
+  check('T6b a wait on an absent service ran no wait, yet its result still reports the clamped reading (one rule, wait or no wait)',
+    t6b.data.state === 'absent' && t6b.data.result === "no service 'no-such-service' in this project\ntimeoutMs clamped to 300000 ms (the maximum)", t6b.data.result)
 
   const { resolveResource } = await import('../../src/services/resources/registry.ts')
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
