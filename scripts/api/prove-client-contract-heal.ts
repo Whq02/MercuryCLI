@@ -113,7 +113,8 @@ process.env.ANTHROPIC_BASE_URL = DEAD_LETTER
 process.env.MERCURY_CUSTOM_OAUTH_URL = DEAD_LETTER
 process.env.MERCURY_NPM_REGISTRY_BASE = `http://127.0.0.1:${registryPort}`
 for (const key of ['NODE_ENV', 'CI', 'MERCURY_ANTHROPIC_CLIENT_CONTRACT', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_FAULT_INJECT', 'MERCURY_SCRIPTED_STREAM', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_BARE', 'HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy']) delete process.env[key]
-writeFileSync(join(scratchRoot, '.mercury.json'), JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } }))
+const APPROVED_KEY_CONFIG = JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } })
+writeFileSync(join(scratchRoot, '.mercury.json'), APPROVED_KEY_CONFIG)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -151,16 +152,18 @@ try {
 setIsInteractive(true)
 
 const homeOf = (name: string): string => join(scratchRoot, `home-${name}`)
-function freshHome(name: string): string {
+function useHome(name: string): string {
   const dir = homeOf(name)
-  mkdirSync(dir, { recursive: true })
-  envUtils.setAuthScope(dir)
+  process.env.MERCURY_CONFIG_DIR = dir
+  envUtils.clearAuthScope()
   auth.clearOAuthTokenCache()
   return dir
 }
-function useHome(name: string): void {
-  envUtils.setAuthScope(homeOf(name))
-  auth.clearOAuthTokenCache()
+function freshHome(name: string): string {
+  const dir = homeOf(name)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, '.mercury.json'), APPROVED_KEY_CONFIG)
+  return useHome(name)
 }
 
 type RecordFile = {
@@ -281,6 +284,20 @@ check('the learned-contract module exists', learnedModule !== null, learnedModul
   check('the retry carried exactly what describe answers now', retried?.version === described.presented, `${retried?.version} vs ${described.presented}`)
   check('a retry whose history binds no thinking to the moved line declares nothing (the ledger compared nothing)', lawful.pendingLawfulPrefixChange(OWNER) === null, String(lawful.pendingLawfulPrefixChange(OWNER)))
   check('the record lock was released', !lockLeft(home))
+}
+{
+  const home = freshHome('session-pinned')
+  const elsewhere = join(scratchRoot, 'account-elsewhere')
+  mkdirSync(elsewhere, { recursive: true })
+  envUtils.setAuthScope(elsewhere)
+  auth.clearOAuthTokenCache()
+  const scopedPath = learnedModule?.clientContractRecordPath()
+  registryMode = { kind: 'ok', version: NEWER }
+  const scoped = await drive(NEWER)
+  envUtils.clearAuthScope()
+  auth.clearOAuthTokenCache()
+  check('the record path does not move when setAuthScope names another directory (session state, not the credential plane)', scopedPath === join(home, 'client-contract.json'), String(scopedPath))
+  check('…and a heal under that account scope keeps its learned number in the session home, never in the scoped directory', scoped.requests.length === 2 && readLearnedFile(home)?.learned?.version === NEWER && !existsSync(join(elsewhere, 'client-contract.json')), `${scoped.requests.map(r => r.version).join(' -> ')} ${JSON.stringify(readLearnedFile(home))}`)
 }
 
 section('§2 a failing registry — the real refusal in one line, no retry, no loop, a quiet window between reads')
@@ -714,6 +731,31 @@ section('§11 the side query heals the same refusal — one read, one retry on t
   }
   const heal = caught === null ? undefined : learnedModule?.clientContractHealOf(caught)
   check('a side query whose registry read fails is not retried and rethrows the real refusal with what happened', caught !== null && sideRequests.length === 1 && registryReads - readsBefore === 1 && heal?.kind === 'failed', `${String(caught)} ${JSON.stringify(heal)}`)
+}
+
+section('§12 the exit cliff — a run that leaves mid-read cancels the daily peek, releases its claim and records nothing')
+{
+  const { listExitCliffSeams } = await import('../../src/utils/exitCliffDrain.js')
+  const seams = listExitCliffSeams().filter(seam => seam.name === 'client-contract-peek')
+  check('a started peek has registered the exit-cliff seam client-contract-peek once, in phase 2', seams.length === 1 && seams[0]?.phase === 2, JSON.stringify(listExitCliffSeams().map(seam => [seam.name, seam.phase])))
+  const source = readFileSync(join(ROOT, 'src/services/api/clientContractLearned.ts'), 'utf8')
+  check('the module registers that seam by name in phase 2, settled by aborting and awaiting its peeks (source)', source.includes("const peekSeam: ExitCliffSeam = { name: 'client-contract-peek', phase: 2, settle: settlePeeks }") && source.includes('registerExitCliffSeam(peekSeam)') && source.includes('peekExit.abort()'))
+  const home = freshHome('exit-cliff')
+  const earlier = { atMs: Date.now() - 20 * 60 * 1000, by: 'heal', from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', answer: { failure: { kind: 'status', words: 'HTTP 500' } } }
+  writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ lastRead: earlier, _v: 1 }))
+  registryMode = { kind: 'hang' }
+  const readsBefore = registryReads
+  const peek = learnedModule?.peekClientContract()
+  const reading = await waitFor(() => registryReads - readsBefore >= 1, 15_000)
+  const seam = seams[0]
+  const settled = seam === undefined ? false : await Promise.race([seam.settle().then(() => true), new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5_000))])
+  const outcome = await peek
+  check('the peek reached the registry, and settling the seam cancelled its read', reading && outcome?.kind === 'skipped' && outcome.why === 'cancelled', JSON.stringify(outcome))
+  check("the seam's settle resolved once the cancelled peek had finished", settled)
+  const record = readLearnedFile(home)
+  check('the record keeps the read it held before (the claim was released): no day stamp, no learned number, no lock', record?.lastRead?.atMs === earlier.atMs && record.lastRead.by === 'heal' && record.lastRead.answer?.failure?.words === 'HTTP 500' && record.lastPeekAtMs === undefined && record.learned === undefined && !lockLeft(home), JSON.stringify(record))
+  const after = await learnedModule?.peekClientContract()
+  check('past the exit cliff no peek starts again in this process', after?.kind === 'skipped' && after.why === 'cancelled' && registryReads - readsBefore === 1, JSON.stringify(after))
 }
 
 envUtils.clearAuthScope()
