@@ -33,6 +33,7 @@ run "cross-surface identity + headless per-client policy (E02/E07)" prove-identi
 run "managed-policy precedence: native outranks imported (D12)" prove-managed-precedence.ts
 run "bounded subscribers + batched deltas (A10/F04)" prove-bounded-subscribers.ts
 run "persisted body shapes: a registered kind whose body fails its shape is thinned and named" prove-body-shape-registry.ts
+run "attachment registry: every member of the Attachment union has a body-shape row and a fixture, both ways" prove-attachment-registry.ts
 run "persisted body shapes on the built seat: a malformed body never breaks the resume" prove-persisted-body-shape.ts
 
 exit "$failed"
