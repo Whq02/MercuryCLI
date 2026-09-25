@@ -25,7 +25,15 @@ export const SILENCE_REASONING_TOKENS = 21
 export const SILENCE_WORDS = 'finished this response with nothing said'
 export const CAP_WORDS = 'stopped this response at its output cap'
 export const EMPTY_WORDS = 'returned an empty reply'
-export const RESEND_WORDS = 'sending the same request again'
+export const RETRY_WORDS = 'asked the model for its answer'
+export const OLD_RESEND_WORDS = 'sending the same request again'
+
+export const jsonNeedle = (text: string): string => JSON.stringify(text).slice(1, -1)
+
+export function lastRowIsUserCarrying(rows: unknown[], text: string): boolean {
+  const last = rows.at(-1) as { role?: unknown } | undefined
+  return last !== undefined && last.role === 'user' && JSON.stringify(last).includes(jsonNeedle(text))
+}
 
 export type EmptyReplyCase = 'silence-reasoning' | 'silence-empty-message' | 'cap' | 'empty'
 export const EMPTY_REPLY_CASES: readonly EmptyReplyCase[] = ['silence-reasoning', 'silence-empty-message', 'cap', 'empty']
@@ -276,7 +284,7 @@ async function proveCase(kind: EmptyReplyCase): Promise<void> {
   const notes = texts.filter(t => t.startsWith('[openai]'))
   const systems = run.notices
   const tail = run.stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
-  const resent = systems.some(t => t.includes(RESEND_WORDS))
+  const resent = systems.some(t => t.includes(RETRY_WORDS) || t.includes(OLD_RESEND_WORDS))
   check(`${kind}: the turn settled with a result`, run.exit === 0 && result !== undefined, `exit ${String(run.exit)} ${tail}`)
   if (kind === 'silence-reasoning' || kind === 'silence-empty-message') {
     check(`${kind}: the note names silence`, notes.some(t => t.includes(SILENCE_WORDS)), JSON.stringify(notes).slice(0, 300))
@@ -292,10 +300,15 @@ async function proveCase(kind: EmptyReplyCase): Promise<void> {
     check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
     check(`${kind}: the note stands as the turn's result`, resultText.includes(CAP_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else {
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const first = run.requests[0] === undefined ? [] : inputOf(run.requests[0])
+    const second = run.requests[1] === undefined ? [] : inputOf(run.requests[1])
     check(`${kind}: the note keeps its words`, notes.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
-    check(`${kind}: the request was sent again once, unchanged`, run.requests.length === 2 && JSON.stringify(inputOf(run.requests[1]!)) === JSON.stringify(inputOf(run.requests[0]!)), `${run.requests.length} request(s)`)
-    check(`${kind}: the re-send notice shows`, resent, JSON.stringify(systems).slice(0, 300))
-    check(`${kind}: the turn's result is the answer from the re-send`, resultText === EMPTY_REPLY_CASES_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${kind}: the request was sent again once, with the nudge as its last user turn`, run.requests.length === 2 && lastRowIsUserCarrying(second, EMPTY_REPLY_RECOVERY_NUDGE) && !lastRowIsUserCarrying(first, EMPTY_REPLY_RECOVERY_NUDGE), `${run.requests.length} request(s); last input item: ${JSON.stringify(second.at(-1)).slice(0, 300)}`)
+    check(`${kind}: the retry is not byte-identical to the first request`, run.requests.length === 2 && JSON.stringify(second) !== JSON.stringify(first), `${run.requests.length} request(s)`)
+    check(`${kind}: the nudge rides once`, JSON.stringify(second).split(jsonNeedle(EMPTY_REPLY_RECOVERY_NUDGE)).length === 2, JSON.stringify(second).slice(-300))
+    check(`${kind}: the retry notice shows and the old re-send words are gone`, systems.some(t => t.includes(`${RETRY_WORDS} (retry 1 of 1)`)) && !systems.some(t => t.includes(OLD_RESEND_WORDS)), JSON.stringify(systems).slice(0, 300))
+    check(`${kind}: the turn's result is the answer from the retry`, resultText === EMPTY_REPLY_CASES_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   }
   if (failures === before) rmSync(run.home, { recursive: true, force: true })
   else console.log(`  [forensics] the world stays at ${run.home}\n${run.stderr.split('\n').slice(-8).join('\n')}`)

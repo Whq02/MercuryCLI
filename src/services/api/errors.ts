@@ -48,6 +48,10 @@ export const STREAM_FAULT_RECOVERY_NUDGE =
   'and do not restate anything you already produced. Finish the outstanding work and ' +
   'end with a complete final message.'
 
+export const EMPTY_REPLY_RECOVERY_NUDGE =
+  '[System: the previous reply came back empty — no text and no tool call reached the user. ' +
+  'Give the final answer now, or make the tool call you meant to make.]'
+
 export const PROMPT_TOO_LONG_ERROR_MESSAGE = 'Prompt is too long'
 
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
@@ -279,6 +283,19 @@ export function isContinuableStreamFaultMessage(msg: AssistantMessage): boolean 
 
 export function isStreamFaultRecoveryNudgeText(text: string): boolean {
   return text === STREAM_FAULT_RECOVERY_NUDGE
+}
+
+export function isEmptyReplyRecoveryNudgeText(text: string): boolean {
+  return text === EMPTY_REPLY_RECOVERY_NUDGE
+}
+
+export function endsWithEmptyReplyRecoveryNudge(messages: readonly Message[]): boolean {
+  const last = messages.at(-1)
+  if (last === undefined || last.type !== 'user') return false
+  const content = last.message.content
+  if (typeof content === 'string') return isEmptyReplyRecoveryNudgeText(content)
+  const tail = content.at(-1)
+  return tail !== undefined && tail.type === 'text' && isEmptyReplyRecoveryNudgeText(tail.text)
 }
 
 

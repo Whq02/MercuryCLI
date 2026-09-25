@@ -4,6 +4,7 @@
 # gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 # gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
+# gate-watch: src/services/api/** src/run-core/turn-machine.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -46,6 +47,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-roa
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-cases.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-reply-cases.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-cases-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-reply-cases-zai.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-nudge.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-reply-nudge.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-refusal-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-image-refusal-recovery.ts" "$__t" "$__rc"
