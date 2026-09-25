@@ -3,13 +3,13 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-25T22:59:11.841Z",
+ "capturedAt": "2026-09-25T23:38:30.943Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · ● ready · Opus 5.…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-jngpVs",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-TZZnEA",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
@@ -58,13 +58,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-jngpVs · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-TZZnEA · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:58:53 [sam] ❯ design the cache layer",
+    "00:38:13 [sam] ❯ design the cache layer",
     "",
-    "23:58:53 [Mercury] Let me confirm the open",
+    "00:38:13 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,16 +106,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6227,
+   "patches": 6168,
    "frame-recommit": 24
   },
   "frames": {
-   "total": 40,
-   "window": 40,
-   "p50": 0.529207999999926,
-   "p95": 3.8019580000000133,
-   "p99": 8.191417000000001,
-   "maxMs": 8.191417000000001
+   "total": 39,
+   "window": 39,
+   "p50": 0.4742079999996349,
+   "p95": 5.486750000000029,
+   "p99": 8.23258300000009,
+   "maxMs": 8.23258300000009
   }
  },
  "requests": [
@@ -135,7 +135,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-25.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-26.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -150,11 +150,11 @@
  ],
  "sends": [
   {
-   "atMs": 10589.808940887451,
+   "atMs": 10576.703071594238,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12189.808940887451,
+   "atMs": 12176.703071594238,
    "b64": "DQ=="
   }
  ]
