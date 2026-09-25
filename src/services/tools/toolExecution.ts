@@ -4,7 +4,7 @@ import type {
   ToolResult,
   ToolUseContext,
 } from '../../Tool.js'
-import { findToolByName, toolMatchesName } from '../../Tool.js'
+import { closestToolByName, findToolByName, toolMatchesName } from '../../Tool.js'
 import { startSpeculativeClassifierCheck } from '../../tools/BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
@@ -307,7 +307,16 @@ export async function* runToolUse(
     }
   }
   if (!tool) {
-    const unknownToolText = `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
+    const closest = closestToolByName(toolUseContext.options.tools, requestedName)
+    const loadRoad =
+      closest !== undefined &&
+      buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools) !== null
+    const unknownToolText =
+      closest === undefined
+        ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
+        : loadRoad
+          ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${closest.name}", then retry this call.`
+          : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
     yield errorResultUpdate({
       toolUseID,
       content: unknownToolText,

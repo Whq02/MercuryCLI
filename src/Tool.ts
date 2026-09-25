@@ -483,8 +483,86 @@ export function toolMatchesName(
   return tool.aliases?.includes(name) ?? false
 }
 
+function toolMatchesFoldedName(
+  tool: { name: string; aliases?: string[] },
+  folded: string,
+): boolean {
+  if (tool.name.toLowerCase() === folded) return true
+  return tool.aliases?.some(alias => alias.toLowerCase() === folded) ?? false
+}
+
+function findToolByFoldedName(tools: Tools, name: string): Tool | undefined {
+  const folded = name.toLowerCase()
+  let hit: Tool | undefined
+  for (const tool of tools) {
+    if (!toolMatchesFoldedName(tool, folded)) continue
+    if (hit !== undefined && hit !== tool) return undefined
+    hit = tool
+  }
+  return hit
+}
+
 export function findToolByName(tools: Tools, name: string): Tool | undefined {
-  return tools.find(tool => toolMatchesName(tool, name))
+  return tools.find(tool => toolMatchesName(tool, name)) ?? findToolByFoldedName(tools, name)
+}
+
+export const TOOL_NAME_SUGGESTION_MAX_DISTANCE = 2
+
+const TOOL_NAME_HEAD_MIN_LENGTH = 4
+
+function toolNameTokens(name: string): string[] {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(token => token.length > 0)
+}
+
+function toolNameForms(name: string): string[] {
+  const tokens = toolNameTokens(name)
+  if (tokens.length === 0) return []
+  const full = tokens.join('')
+  if (tokens.length === 1) return [full]
+  const head = tokens.slice(0, -1).join('')
+  return head.length >= TOOL_NAME_HEAD_MIN_LENGTH ? [full, head] : [full]
+}
+
+function editDistanceWithin(a: string, b: string, bound: number): number {
+  if (a === b) return 0
+  if (Math.abs(a.length - b.length) > bound) return bound + 1
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i]
+    let rowMin = i
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      const value = Math.min(previous[j]! + 1, current[j - 1]! + 1, previous[j - 1]! + cost)
+      current.push(value)
+      if (value < rowMin) rowMin = value
+    }
+    if (rowMin > bound) return bound + 1
+    previous = current
+  }
+  return previous[b.length]!
+}
+
+export function closestToolByName(tools: Tools, name: string): Tool | undefined {
+  const forms = toolNameForms(name)
+  if (forms.length === 0) return undefined
+  let closest: Tool | undefined
+  let closestDistance = TOOL_NAME_SUGGESTION_MAX_DISTANCE + 1
+  for (const tool of tools) {
+    const target = toolNameTokens(tool.name).join('')
+    if (target.length === 0) continue
+    for (const form of forms) {
+      const distance = editDistanceWithin(form, target, TOOL_NAME_SUGGESTION_MAX_DISTANCE)
+      if (distance < closestDistance) {
+        closestDistance = distance
+        closest = tool
+      }
+    }
+  }
+  return closest
 }
 
 export function safeUserFacingName(
