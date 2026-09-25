@@ -41,7 +41,7 @@ import {
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
+import { describeMaxOutputChars, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
@@ -63,7 +63,9 @@ import {
   resetCwdIfOutsideProject,
   stdErrAppendShellResetMessage,
 } from './utils.js'
-import { getMaxOutputLength, getMinOutputLength, resolveOutputBudget } from '../../utils/shell/outputLimits.js'
+import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
+import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
+import { windowedError } from '../../utils/toolErrors.js'
 import { userFacingName as fileEditUserFacingName } from '../../tools/FileEditTool/UI.js'
 import {
   BackgroundHint,
@@ -109,13 +111,6 @@ function bashDescriptionGuide(): string {
   ].join('\n')
 }
 
-const maxOutputCharsField = semanticNumber(z.number().int().positive().optional())
-
-function readMaxOutputChars(value: unknown): number | undefined {
-  const parsed = maxOutputCharsField.safeParse(value)
-  return parsed.success ? parsed.data : undefined
-}
-
 function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The command to execute'),
@@ -132,9 +127,7 @@ function buildModelSchema() {
     inherit_session_env: semanticBoolean(z.boolean().optional()).describe(
       "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process). By default they are scrubbed and the result names them; a proof or a build must not see them.",
     ),
-    max_output_chars: maxOutputCharsField.describe(
-      `Optional character budget for this call's inline result: the head and the tail of the output around a notice of what was cut, in place of the default ${getMaxOutputLength()} (the operator's cap and the most any call shows inline; a larger value clamps to it, a value under ${getMinOutputLength()} clamps up to that, and the result says so). Pass a small value for a huge log where only the beginning and the verdict at the end matter; omit it for a build whose whole output you want inline, up to the cap. A run_in_background call ignores it (its output goes to the task's file, not inline), and a run that exits 0 with output over the cap is saved to a file and shown as a fixed preview with the path instead of this window.`,
-    ),
+    max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })
 }
 
@@ -660,7 +653,8 @@ async function* runBash(
     }
     if (interpretation.isError && !interruptedByUser) {
       const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
-      throw new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      throw budget.requested === undefined ? error : windowedError(error)
     }
 
     let persistedOutputPath: string | undefined
@@ -822,11 +816,9 @@ export const BashTool = buildTool({
     if (input.command.trim() === '') {
       return { result: false as const, message: EMPTY_COMMAND_REFUSAL, errorCode: 1 }
     }
-    if (input.max_output_chars !== undefined) {
-      const parsed = maxOutputCharsField.safeParse(input.max_output_chars)
-      if (!parsed.success) {
-        return { result: false as const, message: `max_output_chars: ${parsed.error.issues.map(issue => issue.message).join('; ')}`, errorCode: 2 }
-      }
+    const refused = refuseMaxOutputChars(input.max_output_chars)
+    if (refused !== undefined) {
+      return { result: false as const, message: refused, errorCode: 2 }
     }
     return { result: true as const }
   },
