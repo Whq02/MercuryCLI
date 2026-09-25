@@ -223,8 +223,10 @@ export interface GptQualificationReceipt {
   qualifiedAtMs: number
 }
 
+export type GptCandidateIdentity = GptModelIdentity | { family: 'gpt'; canonicalId: string; unparsed: true }
+
 export interface GptCandidate {
-  identity: GptModelIdentity
+  identity: GptCandidateIdentity
   live: OpenaiLiveModel
   displayName: string
   pin?: GptDisplayPin
@@ -244,12 +246,14 @@ export function evaluateGptCandidate(
   sourceKind: OpenaiAccountSourceKind,
 ): { ok: true; candidate: GptCandidate } | { ok: false; why: GptDisqualification } {
   const identity = parseGptModelId(modelId)
-  if (!identity) {
-    return modelId.trim().toLowerCase().startsWith('gpt')
+  const canonicalId = identity?.canonicalId ?? stripGptServedWindowSuffix(modelId).trim().toLowerCase()
+  const snapshot = getCachedOpenaiCatalogue(sourceKind)
+  const live = snapshot?.models.find(m => m.id.toLowerCase() === canonicalId)
+  if (!identity && !live) {
+    return canonicalId.startsWith('gpt')
       ? { ok: false, why: { reason: 'unparseable-id' } }
       : { ok: false, why: { reason: 'not-gpt-family' } }
   }
-  const snapshot = getCachedOpenaiCatalogue(sourceKind)
   if (!snapshot || (snapshot.models.length === 0 && snapshot.lastError)) {
     return {
       ok: false,
@@ -259,7 +263,6 @@ export function evaluateGptCandidate(
       },
     }
   }
-  const live = snapshot.models.find(m => m.id.toLowerCase() === identity.canonicalId)
   if (!live) return { ok: false, why: { reason: 'not-in-live-catalogue' } }
   const VISIBLE = new Set(['list', 'visible', 'public'])
   if (live.visibility && !VISIBLE.has(live.visibility)) {
@@ -268,13 +271,13 @@ export function evaluateGptCandidate(
   if (!Array.isArray(live.supportedReasoningEfforts)) {
     return { ok: false, why: { reason: 'effort-catalogue-undecodable' } }
   }
-  const pin = gptDisplayPin(identity.canonicalId)
+  const pin = gptDisplayPin(canonicalId)
   return {
     ok: true,
     candidate: {
-      identity,
+      identity: identity ?? { family: 'gpt', canonicalId, unparsed: true },
       live: rowAsWireServes(live, sourceKind),
-      displayName: live.displayName ?? pin?.displayName ?? identity.canonicalId,
+      displayName: live.displayName ?? pin?.displayName ?? canonicalId,
       ...(pin ? { pin } : {}),
     },
   }
@@ -291,8 +294,10 @@ export function qualifiedGptCandidates(
     const evaluated = evaluateGptCandidate(model.id, sourceKind)
     if (evaluated.ok) out.push(evaluated.candidate)
   }
+  const parsedFirst = (candidate: GptCandidate): number => (candidate.identity.unparsed === true ? 1 : 0)
   out.sort(
     (a, b) =>
+      parsedFirst(a) - parsedFirst(b) ||
       (a.live.priority ?? Number.POSITIVE_INFINITY) -
       (b.live.priority ?? Number.POSITIVE_INFINITY),
   )
@@ -419,14 +424,24 @@ export function liveGptContextCeiling(modelId: string): number | undefined {
 }
 
 function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
-  const identity = parseGptModelId(modelId)
-  if (!identity) return undefined
+  const canonicalId = liveGptCanonicalId(modelId)
+  if (canonicalId === undefined) return undefined
   const discovery = primeOpenaiDiscovery()
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
   if (!account) return undefined
   const snapshot = getCachedOpenaiCatalogue(account.kind)
-  const row = snapshot?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  const row = snapshot?.models.find(m => m.id.toLowerCase() === canonicalId)
   return row === undefined ? undefined : rowAsWireServes(row, account.kind)
+}
+
+function liveGptCanonicalId(modelId: string): string | undefined {
+  const identity = parseGptModelId(modelId)
+  if (identity) return identity.canonicalId
+  const canonicalId = stripGptServedWindowSuffix(modelId).trim().toLowerCase()
+  for (const snapshot of catalogueCache.values()) {
+    if (snapshot.models.some(m => m.id.toLowerCase() === canonicalId)) return canonicalId
+  }
+  return undefined
 }
 
 export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
@@ -456,13 +471,30 @@ export function liveGptDefaultEffort(modelId: string): string | undefined {
 }
 
 export function liveGptListedEffortWords(modelId: string): readonly string[] | undefined {
-  const identity = parseGptModelId(modelId)
-  if (!identity) return undefined
+  const canonicalId = liveGptCanonicalId(modelId)
+  if (canonicalId === undefined) return undefined
   const discovery = primeOpenaiDiscovery()
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
   if (!account) return undefined
-  const row = getCachedOpenaiCatalogue(account.kind)?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  const row = getCachedOpenaiCatalogue(account.kind)?.models.find(m => m.id.toLowerCase() === canonicalId)
   return row === undefined ? undefined : [...row.supportedReasoningEfforts]
+}
+
+const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
+const liveIdSets = new WeakMap<OpenaiCatalogueSnapshot, ReadonlySet<string>>()
+
+export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+  if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
+  const account = resolveOpenaiAccount(env)
+  if (!account) return EMPTY_LIVE_IDS
+  const snapshot = getCachedOpenaiCatalogue(account.kind, env)
+  if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
+  let ids = liveIdSets.get(snapshot)
+  if (ids === undefined) {
+    ids = new Set(snapshot.models.map(m => m.id.toLowerCase()))
+    liveIdSets.set(snapshot, ids)
+  }
+  return ids
 }
 
 export function forgetDepartedOpenaiCatalogues(env: NodeJS.ProcessEnv = process.env): number {
