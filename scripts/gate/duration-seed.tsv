@@ -28,12 +28,16 @@ ui-4	1800
 ui-5	1500
 ui-6	1500
 ui-census	10
+ui-pure-1	120
+ui-pure-2	120
+ui-pure-3	120
 render-continuity	1500
 streaming	2250
 core-runtime	200
 interview	800
 golden-journeys	700
 interaction	1800
+interaction-pure	10
 cockpit-interaction	700
 diffws	1100
 prompts-panel	460
