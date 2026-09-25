@@ -116,7 +116,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       : null,
     orphanWarning: reachable
       ? null
-      : 'supervisor record present but control socket unreachable — run `mercury daemon stop --any` to clear it',
+      : 'supervisor record present but control socket unreachable — run `mercury daemon stop` to clear it',
     workers,
     breaker:
       status.breakerOpen === null ? null : status.breakerOpen ? 'OPEN · dispatch suppressed' : 'closed',

@@ -139,7 +139,7 @@ export async function daemonMain(args: string[]): Promise<void> {
     case 'status':
       return daemonStatusCmd()
     case 'stop':
-      return daemonStopCmd(verb.args)
+      return daemonStopCmd()
     case 'restart':
       return daemonRestartCmd()
     case 'help':
@@ -149,6 +149,11 @@ export async function daemonMain(args: string[]): Promise<void> {
     case 'unknown':
       // eslint-disable-next-line no-console
       console.error(`mercury daemon: unknown verb '${verb.word}'\n${DAEMON_USAGE}`)
+      process.exitCode = 1
+      return
+    case 'unknown-flag':
+      // eslint-disable-next-line no-console
+      console.error(`mercury daemon ${verb.verb}: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and reaps every in-flight worker. Run \`mercury daemon stop\` bare, or \`mercury daemon restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`)
       process.exitCode = 1
       return
     case 'run':
@@ -162,14 +167,7 @@ async function daemonStatusCmd(): Promise<void> {
   console.log(formatMercuryDaemonStatus(snapshot))
 }
 
-async function daemonStopCmd(args: string[]): Promise<void> {
-  if (args.includes('--any') && args.includes('--keep')) {
-    // eslint-disable-next-line no-console
-    console.error("[daemon] stop: --any and --keep contradict — pick one (--any reaps in-flight workers first; --keep skips that reap, though the daemon's own teardown still ends every worker)")
-    process.exitCode = 2
-    return
-  }
-  const reapWorkers = args.includes('--any') || !args.includes('--keep')
+async function daemonStopCmd(): Promise<void> {
   const hosting = await hostedCallerOf((await readSupervisorState().catch(() => null))?.pid)
   if (hosting.hosted) {
     // eslint-disable-next-line no-console
@@ -177,7 +175,7 @@ async function daemonStopCmd(args: string[]): Promise<void> {
     process.exitCode = 1
     return
   }
-  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers }, { timeoutMs: 3000 })
+  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 3000 })
   if (reply.ok && reply.op === 'shutdown') {
     // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
