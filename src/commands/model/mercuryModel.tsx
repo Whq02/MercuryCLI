@@ -76,6 +76,13 @@ import {
   resolveMoonshotAccount,
   resolveMoonshotApiKey,
 } from '../../services/providers/moonshot/moonshotAccounts.js'
+import {
+  deepseekCatalogueSourceWords,
+  getCachedDeepseekCatalogue,
+  refreshDeepseekCatalogue,
+  type DeepseekCatalogueSnapshot,
+} from '../../services/providers/deepseek/deepseekCatalogue.js'
+import { deepseekApiBase, resolveDeepseekApiKey } from '../../services/providers/deepseek/deepseekAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -271,6 +278,19 @@ const MOONSHOT_ROAD: CatalogueRoad<MoonshotCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
+const DEEPSEEK_ROAD: CatalogueRoad<DeepseekCatalogueSnapshot> = {
+  family: 'DeepSeek',
+  identity: () => {
+    const key = resolveDeepseekApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${deepseekApiBase()}` : undefined
+  },
+  cached: () => getCachedDeepseekCatalogue(),
+  refresh: () => refreshDeepseekCatalogue({ force: true }),
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
 const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
   family: 'Local',
   identity: () => {
@@ -427,7 +447,11 @@ function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Recor
       const live = moonshotCatalogueSourceWords()
       return live === undefined ? words : `${words} · ${live}`
     })(),
-    [DEEPSEEK_MODEL_GROUP]: credentialWords('deepseek'),
+    [DEEPSEEK_MODEL_GROUP]: ((): string => {
+      const words = credentialWords('deepseek')
+      const live = deepseekCatalogueSourceWords()
+      return live === undefined ? words : `${words} · ${live}`
+    })(),
     [OPENROUTER_MODEL_GROUP]: ((): string => {
       const availability = getOpenrouterAvailability()
       return availability.state === 'ready'
@@ -574,6 +598,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -907,6 +932,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1001,6 +1027,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1063,6 +1090,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
