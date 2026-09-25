@@ -1,5 +1,5 @@
 
-import { readFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
 import { join } from 'path'
 import type { UUID } from 'crypto'
 import {
@@ -92,13 +92,14 @@ export function clearAgentTranscriptSubdir(agentId: string): void {
   agentTranscriptSubdirs.delete(agentId)
 }
 
-export function getAgentTranscriptPath(agentId: AgentId): string {
+function getSubagentsDir(): string {
   const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
-  const sessionId = getSessionId()
+  return join(projectDir, getSessionId(), 'subagents')
+}
+
+export function getAgentTranscriptPath(agentId: AgentId): string {
   const subdir = agentTranscriptSubdirs.get(agentId)
-  const base = subdir
-    ? join(projectDir, sessionId, 'subagents', subdir)
-    : join(projectDir, sessionId, 'subagents')
+  const base = subdir ? join(getSubagentsDir(), subdir) : getSubagentsDir()
   return join(base, `agent-${agentId}.jsonl`)
 }
 
@@ -121,6 +122,30 @@ export type AgentMetadata = {
   effort?: string
   instructionProfile?: string
   instructionDigest?: string
+  name?: string
+  launchedAt?: number
+}
+
+export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }
+
+const AGENT_SIDECAR_FILE = /^agent-(.+)\.meta\.json$/
+
+export async function listAgentMetadata(): Promise<AgentMetadataRow[]> {
+  let names: string[]
+  try {
+    names = await readdir(getSubagentsDir())
+  } catch (e) {
+    if (isFsInaccessible(e)) return []
+    throw e
+  }
+  const rows: AgentMetadataRow[] = []
+  for (const name of names) {
+    const agentId = AGENT_SIDECAR_FILE.exec(name)?.[1]
+    if (agentId === undefined) continue
+    const metadata = await readAgentMetadata(agentId as AgentId).catch(() => null)
+    if (metadata !== null) rows.push({ agentId: agentId as AgentId, metadata })
+  }
+  return rows
 }
 
 export async function writeAgentMetadata(

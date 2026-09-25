@@ -24,7 +24,13 @@ import {
   speakAgentMessageFrame,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { launchesNamed, namedLaunchReceipts } from '../../tasks/LocalAgentTask/launchReceipts.js'
+import {
+  launchesNamed,
+  namedLaunchReceipts,
+  recordedLaunchesNamed,
+  recordedNamedLaunches,
+  type NamedLaunch,
+} from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
 import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
@@ -367,7 +373,7 @@ type RecipientResolution =
 
 type KnownLaunchedAgent = { name: string; agentId: string; status: string }
 
-function knownLaunchedAgents(context: ToolUseContext): KnownLaunchedAgent[] {
+async function knownLaunchedAgents(context: ToolUseContext): Promise<KnownLaunchedAgent[]> {
   const state = context.getAppState()
   const tasks = state.tasks ?? {}
   const statusOf = (agentId: string): string => {
@@ -375,6 +381,9 @@ function knownLaunchedAgents(context: ToolUseContext): KnownLaunchedAgent[] {
     return task === undefined ? 'finished' : agentStatusWord(task.status)
   }
   const byName = new Map<string, KnownLaunchedAgent>()
+  for (const launch of await recordedNamedLaunches().catch((): NamedLaunch[] => [])) {
+    byName.set(launch.name, { name: launch.name, agentId: launch.agentId, status: statusOf(launch.agentId) })
+  }
   for (const receipt of namedLaunchReceipts(context.messages ?? [])) {
     byName.set(receipt.name, { name: receipt.name, agentId: receipt.agentId, status: statusOf(receipt.agentId) })
   }
@@ -385,8 +394,8 @@ function knownLaunchedAgents(context: ToolUseContext): KnownLaunchedAgent[] {
   return [...byName.values()]
 }
 
-function noTeamRefusal(rawTo: string, context: ToolUseContext): string {
-  const known = knownLaunchedAgents(context)
+async function noTeamRefusal(rawTo: string, context: ToolUseContext): Promise<string> {
+  const known = await knownLaunchedAgents(context)
   const folded = rawTo.toLowerCase()
   const own =
     known.find(agent => agent.name === rawTo || agent.agentId === rawTo) ??
@@ -420,7 +429,7 @@ async function resolveDeliverableRecipient(
 ): Promise<RecipientResolution> {
   const teamName = getTeamName(teamContextOf(context))
   if (!teamName) {
-    return { ok: false, refusal: noTeamRefusal(rawTo, context) }
+    return { ok: false, refusal: await noTeamRefusal(rawTo, context) }
   }
   const selfRefusal = selfAddressRefusalText(rawTo)
   if (selfRefusal !== null) {
@@ -603,7 +612,10 @@ async function routeToLocalAgent(
   const registry = context.getAppState().agentNameRegistry as Map<string, string> | undefined
   const registered = registry?.get(rawTo)
   const minted = toAgentId(rawTo) ?? undefined
-  const launches = registered === undefined && minted === undefined ? launchesNamed(context.messages ?? [], rawTo) : []
+  const unresolved = registered === undefined && minted === undefined
+  const receipts = unresolved ? launchesNamed(context.messages ?? [], rawTo) : []
+  const launches: NamedLaunch[] =
+    unresolved && receipts.length === 0 ? await recordedLaunchesNamed(rawTo).catch((): NamedLaunch[] => []) : receipts
   const launch = launches[launches.length - 1]
   if (launch !== undefined && (await rosterHolds(rawTo, context))) return undefined
   const agentId = registered ?? minted ?? launch?.agentId
