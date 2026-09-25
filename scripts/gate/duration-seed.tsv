@@ -27,6 +27,7 @@ ui-3	1950
 ui-4	1800
 ui-5	1500
 ui-6	1500
+ui-census	10
 render-continuity	1500
 streaming	2250
 core-runtime	200
