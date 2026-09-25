@@ -47,6 +47,7 @@ writeFileSync(
       scopes: ['user:profile', 'user:inference', 'user:sessions:claude_code', 'user:mcp_servers', 'user:file_upload'],
       subscriptionType: 'max',
       rateLimitTier: 'default_claude_max_5x',
+      tokenAccount: { uuid: FIRST_UUID, emailAddress: FIRST_EMAIL, organizationUuid: 'org-first' },
     },
   }),
   { mode: 0o600 },
