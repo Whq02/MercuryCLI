@@ -27,6 +27,7 @@ export interface LoopGuardObservation {
   toolName: string
   toolUseID: string
   roundID: string
+  roundOrdinal: number
   arguments: unknown
   result: ToolResultBlockParam | undefined
   messages: readonly unknown[] | undefined
@@ -53,7 +54,7 @@ interface LoopGuardState {
   run: number
   ring: string[]
   roundID: string | null
-  roundEntries: string[]
+  roundEntries: Array<{ ordinal: number; entry: string }>
   detections: Map<string, number>
 }
 
@@ -280,11 +281,11 @@ export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservati
         : resultDigest(observation.result, observation.toolUseID)
     const entry = `${key}${KEY_SEPARATOR}${digest}`
     if (state.roundID !== observation.roundID) {
-      state.ring.push(...state.roundEntries)
+      state.ring.push(...state.roundEntries.map(item => item.entry))
       if (state.ring.length > CYCLE_WINDOW) state.ring.splice(0, state.ring.length - CYCLE_WINDOW)
       state.roundID = observation.roundID
       state.roundEntries = []
-    } else if (state.roundEntries.includes(entry)) {
+    } else if (state.roundEntries.some(item => item.entry === entry)) {
       return quiet(state.run)
     }
     const learnedNothing = sameCall && state.lastResult === digest
@@ -295,9 +296,9 @@ export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservati
     state.run = learnedNothing ? state.run + 1 : 1
     state.lastKey = key
     state.lastResult = digest
-    state.roundEntries.push(entry)
-    state.roundEntries.sort()
-    const view = [...state.ring, ...state.roundEntries].slice(-CYCLE_WINDOW)
+    state.roundEntries.push({ ordinal: observation.roundOrdinal, entry })
+    state.roundEntries.sort((a, b) => a.ordinal - b.ordinal)
+    const view = [...state.ring, ...state.roundEntries.map(item => item.entry)].slice(-CYCLE_WINDOW)
     const step = IDENTICAL_CALL_REMINDER_STEPS.includes(state.run) ? state.run : null
     const found = detectCycle(view)
     let cycle: CycleDetection | null = null

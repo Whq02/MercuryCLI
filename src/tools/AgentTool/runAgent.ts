@@ -1092,6 +1092,16 @@ export async function* runAgent(
           yield message as Message
           break
         }
+        if (
+          (anyMessage as { attachment?: { type?: string } }).attachment
+            ?.type === 'loop_stopped'
+        ) {
+          logForDebugging(
+            `runAgent: ${agentId} was ended by the loop guard — stopping`,
+          )
+          yield message as Message
+          break
+        }
         yield message as Message
         continue
       }

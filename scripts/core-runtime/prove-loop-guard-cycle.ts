@@ -88,7 +88,8 @@ const identicalResults: ResultScript = (name, input) =>
 let resultFor: ResultScript = identicalResults
 let callIndex = 0
 
-function makeTool(name: string): never {
+let delayFor: (name: string, callIndex: number) => number = () => 0
+function makeTool(name: string, concurrent = false): never {
   return {
     name,
     async description() {
@@ -100,7 +101,7 @@ function makeTool(name: string): never {
     inputSchema: z.object({}).catchall(z.unknown()),
     userFacingName: () => name,
     isEnabled: () => true,
-    isConcurrencySafe: () => false,
+    isConcurrencySafe: () => concurrent,
     isReadOnly: () => true,
     isMcp: false,
     needsPermissions: () => false,
@@ -108,7 +109,10 @@ function makeTool(name: string): never {
       return { result: true }
     },
     async call(input: Record<string, unknown>) {
-      return { data: resultFor(name, input, callIndex++) }
+      const index = callIndex++
+      const wait = delayFor(name, index)
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
+      return { data: resultFor(name, input, index) }
     },
     mapToolResultToToolResultBlockParam: (data: unknown, toolUseId: string) => ({
       type: 'tool_result',
@@ -118,7 +122,7 @@ function makeTool(name: string): never {
   } as never
 }
 
-const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read'), makeTool('Grep')]
+const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read'), makeTool('Grep', true), makeTool('Glob', true)]
 
 function makeCtx(agentId?: string): { ctx: Record<string, unknown>; abortController: AbortController } {
   let appState: Record<string, unknown> = {
@@ -197,15 +201,21 @@ type Run = {
 
 function parallelTurn(calls: Step[]): { turn: unknown[]; ids: string[] } {
   const ids = calls.map(() => `tu_${++idSeq}`)
-  const m = createAssistantMessage({
-    content: calls.map((call, i) => ({ type: 'tool_use', id: ids[i], name: call.name, input: call.input })) as never,
+  const responseId = `msg_round_${idSeq}`
+  const envelopes = calls.map((call, i) => {
+    const m = createAssistantMessage({
+      content: [{ type: 'tool_use', id: ids[i], name: call.name, input: call.input }] as never,
+    })
+    m.message.id = responseId
+    m.message.stop_reason = i === calls.length - 1 ? 'tool_use' : null
+    return m
   })
-  m.message.stop_reason = 'tool_use'
-  return { turn: [m], ids }
+  return { turn: envelopes, ids }
 }
 
-async function runScript(steps: Step[], results: ResultScript = identicalResults, agentId?: string, rounds?: Step[][]): Promise<Run> {
+async function runScript(steps: Step[], results: ResultScript = identicalResults, agentId?: string, rounds?: Step[][], delays: (name: string, callIndex: number) => number = () => 0): Promise<Run> {
   resultFor = results
+  delayFor = delays
   callIndex = 0
   const ids: string[] = []
   const { calls, callModel } = makeModel(i => {
@@ -259,6 +269,13 @@ function firstRequestWith(run: Run, needle: string | RegExp): number {
     if (typeof needle === 'string' ? text.includes(needle) : needle.test(text)) return i
   }
   return -1
+}
+function resultYieldIndex(run: Run, toolUseId: string): number {
+  return run.yields.findIndex(m => {
+    if (m.type !== 'user') return false
+    const content = (m as { message?: { content?: unknown } }).message?.content
+    return Array.isArray(content) && content.some((b: { type?: string; tool_use_id?: string }) => b.type === 'tool_result' && b.tool_use_id === toolUseId)
+  })
 }
 function attachmentsOf(run: Run, type: string): Array<Record<string, unknown>> {
   return run.yields
@@ -421,10 +438,36 @@ section('C11 — KEY ON: a run of ONE identical call never ends the turn (twenty
   check('Grep(TODO) x5, Read, Grep(FIXME) x5: two single detections of different calls, the turn completed', mixed.calls.length === 12 && mixed.terminal.reason === 'completed' && attachmentsOf(mixed, 'loop_stopped').length === 0, `calls=${mixed.calls.length} ${JSON.stringify(mixed.terminal)}`)
 }
 
-section('C12 — KEY ON: a repeat counts only across rounds — five parallel rounds of [Edit, Bash] are five repeats of the cycle; a cycle whose calls change is not')
+section('C12 — KEY ON: a repeat counts only across rounds, on the live shape (one envelope per block sharing message.id): ten parallel rounds of [Edit, Bash] nudge at round 5 and end at round 10')
 {
   const run = await runScript([], identicalResults, undefined, Array.from({ length: 10 }, () => [{ name: 'Edit', input: EDIT }, { name: 'Bash', input: TEST }]))
-  check('ten parallel rounds of the identical pair: the nudge after round 5, the end after round 10', firstRequestWith(run, NUDGE) === 5 && run.calls.length === 10 && run.terminal.reason === 'loop_stopped', `first=${firstRequestWith(run, NUDGE)} calls=${run.calls.length} ${JSON.stringify(run.terminal)}`)
+  check('ten parallel rounds of the identical pair: the nudge after round 5, the end after round 10, the cycle named in issue order', firstRequestWith(run, NUDGE) === 5 && run.calls.length === 10 && run.terminal.reason === 'loop_stopped' && JSON.stringify((run.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['Edit', 'Bash']), `first=${firstRequestWith(run, NUDGE)} calls=${run.calls.length} ${JSON.stringify(run.terminal)}`)
+  const twenty = await runScript([], identicalResults, undefined, [Array.from({ length: 10 }, () => [{ name: 'Edit', input: EDIT }, { name: 'Bash', input: TEST }]).flat()])
+  check('one response of twenty parallel blocks [Edit, Bash] x10 is ONE round: nothing fires, the turn is never ended before the model saw a result', firstRequestWith(twenty, ANY_NOTICE) === -1 && twenty.terminal.reason === 'completed' && twenty.calls.length === 2, `first=${firstRequestWith(twenty, ANY_NOTICE)} calls=${twenty.calls.length} ${JSON.stringify(twenty.terminal)}`)
+  const flipping = await runScript(
+    [],
+    identicalResults,
+    undefined,
+    Array.from({ length: 10 }, () => [{ name: 'Grep', input: GREP }, { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }]),
+    (name, index) => (Math.floor(index / 2) % 2 === 0 ? (name === 'Grep' ? 25 : 0) : name === 'Grep' ? 0 : 25),
+  )
+  const settledOrder = flipping.ids.map(id => resultYieldIndex(flipping, id))
+  const flipped = settledOrder.some((at, i) => i % 2 === 0 && settledOrder[i + 1] !== undefined && settledOrder[i + 1]! < at)
+  check('the concurrent pair really settled in varying order across rounds', flipped, `order=${JSON.stringify(settledOrder)}`)
+  check('the cycle is still caught at round 5 and ended at round 10, named in the order the model issued the calls (Grep -> Glob), whatever order they settled in', firstRequestWith(flipping, NUDGE) === 5 && /Grep -> Glob/.test(requestText(flipping, 5)) && flipping.calls.length === 10 && flipping.terminal.reason === 'loop_stopped' && JSON.stringify((flipping.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['Grep', 'Glob']), `first=${firstRequestWith(flipping, NUDGE)} calls=${flipping.calls.length} ${JSON.stringify(flipping.terminal)}`)
+}
+
+section('C14 — KEY ON: a sub-agent the guard ends settles to its parent as a typed failure naming the cycle, never as a completed report')
+{
+  const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const run = await runScript(pairs(10, () => TEST), identicalResults, 'agent-rig-3')
+  const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
+  const finalized = finalizeAgentTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'general-purpose', isAsync: false })
+  check('the finalized outcome is a typed failure with the loop-stopped reason and the stop text naming the cycle', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped' && /the same cycle of tool calls \(Edit -> Bash\)/.test(String((finalized.outcome as { error?: string }).error)), JSON.stringify(finalized.outcome))
+  const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'loop', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
+  const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
+  check('the parent receives is_error with "Agent execution failed: The loop guard ended the turn"', block.is_error === true && /Agent execution failed: The loop guard ended the turn/.test(parentText), parentText.slice(0, 300))
 }
 
 setStopKey(null)

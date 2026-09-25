@@ -166,13 +166,25 @@ function toolTurn(name: string, input: Record<string, unknown>): { turn: unknown
   m.message.stop_reason = 'tool_use'
   return { turn: [m], id }
 }
-function parallelTurn(calls: Step[]): { turn: unknown[]; ids: string[] } {
+function parallelTurn(calls: Step[], shape: 'per-block' | 'one-envelope' = 'per-block'): { turn: unknown[]; ids: string[] } {
   const ids = calls.map(() => `tu_${++idSeq}`)
-  const m = createAssistantMessage({
-    content: calls.map((call, i) => ({ type: 'tool_use', id: ids[i], name: call.name, input: call.input })) as never,
+  if (shape === 'one-envelope') {
+    const m = createAssistantMessage({
+      content: calls.map((call, i) => ({ type: 'tool_use', id: ids[i], name: call.name, input: call.input })) as never,
+    })
+    m.message.stop_reason = 'tool_use'
+    return { turn: [m], ids }
+  }
+  const responseId = `msg_round_${idSeq}`
+  const envelopes = calls.map((call, i) => {
+    const m = createAssistantMessage({
+      content: [{ type: 'tool_use', id: ids[i], name: call.name, input: call.input }] as never,
+    })
+    m.message.id = responseId
+    m.message.stop_reason = i === calls.length - 1 ? 'tool_use' : null
+    return m
   })
-  m.message.stop_reason = 'tool_use'
-  return { turn: [m], ids }
+  return { turn: envelopes, ids }
 }
 function textTurn(text: string): unknown[] {
   const m = createAssistantMessage({ content: text })
@@ -197,6 +209,7 @@ async function runScript(
     ctx?: CtxShape
     onYield?: (message: AnyMsg, yields: AnyMsg[]) => void
     rounds?: Step[][]
+    roundShape?: 'per-block' | 'one-envelope'
   } = {},
 ): Promise<Run> {
   resultFor = opts.results ?? identicalResults
@@ -206,7 +219,7 @@ async function runScript(
     if (opts.rounds !== undefined) {
       const round = opts.rounds[i]
       if (!round) return textTurn('done')
-      const { turn, ids: roundIds } = parallelTurn(round)
+      const { turn, ids: roundIds } = parallelTurn(round, opts.roundShape)
       ids.push(...roundIds)
       return turn
     }
@@ -507,15 +520,23 @@ section('R12 — a human message sent mid-turn resets the chain; a task notifica
   queueStore.resetCommandQueue()
 }
 
-section('R13 — a repeat counts only across rounds: three identical Greps fired at once in one round count as one; the same three across three rounds fire at the third')
+section('R13 — a repeat counts only across rounds, on the shape every live provider mints (one envelope per block sharing message.id): three identical Greps fired at once count as one; across three rounds they fire at the third')
 {
   const oneRound = await runScript([], { rounds: [[{ name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }]] })
+  const envelopes = oneRound.yields.filter(m => m.type === 'assistant' && JSON.stringify((m as { message?: { content?: unknown } }).message?.content).includes('tool_use'))
+  const responseIds = new Set(envelopes.map(m => (m as { message?: { id?: string } }).message?.id))
+  const uuids = new Set(envelopes.map(m => (m as { uuid?: string }).uuid))
+  check('the round is the live shape: three assistant envelopes, three uuids, ONE message.id', envelopes.length === 3 && uuids.size === 3 && responseIds.size === 1, `envelopes=${envelopes.length} uuids=${uuids.size} ids=${responseIds.size}`)
   check('the parallel round ran all three calls (three results) and the turn completed', oneRound.ids.length === 3 && oneRound.ids.every(id => toolResultText(oneRound, id).startsWith('Grep:')) && oneRound.terminal.reason === 'completed')
   check('nothing fires: the model never saw a result and tried the same thing again', firstRequestWith(oneRound, ANY_NOTICE) === -1 && noticeRows(oneRound).length === 0, `first=${firstRequestWith(oneRound, ANY_NOTICE)}`)
+  const oneEnvelope = await runScript([], { rounds: [[{ name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }]], roundShape: 'one-envelope' })
+  check('the same three in ONE envelope (a scripted shape) also count as one round', firstRequestWith(oneEnvelope, ANY_NOTICE) === -1 && noticeRows(oneEnvelope).length === 0, `first=${firstRequestWith(oneEnvelope, ANY_NOTICE)}`)
   const threeRounds = await runScript([], { rounds: [[{ name: 'Grep', input: GREP }], [{ name: 'Grep', input: GREP }], [{ name: 'Grep', input: GREP }]] })
-  check('the same three across three rounds fire at the third', requestText(threeRounds, 3).includes(GENTLE) && firstRequestWith(threeRounds, GENTLE) === 3, `first=${firstRequestWith(threeRounds, GENTLE)}`)
+  check('the same three across three rounds (three responses, three message.ids) fire at the third', requestText(threeRounds, 3).includes(GENTLE) && firstRequestWith(threeRounds, GENTLE) === 3, `first=${firstRequestWith(threeRounds, GENTLE)}`)
   const twoThenOne = await runScript([], { rounds: [[{ name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }], [{ name: 'Grep', input: GREP }], [{ name: 'Grep', input: GREP }]] })
   check('a parallel pair counts as one round: pair, single, single fires at the third round, not the second', firstRequestWith(twoThenOne, GENTLE) === 3, `first=${firstRequestWith(twoThenOne, GENTLE)}`)
+  const twenty = await runScript([], { rounds: [Array.from({ length: 20 }, () => ({ name: 'Grep', input: GREP }))] })
+  check('one response of twenty identical parallel blocks is one round: nothing fires, the turn completes', firstRequestWith(twenty, ANY_NOTICE) === -1 && twenty.terminal.reason === 'completed' && twenty.ids.length === 20, `first=${firstRequestWith(twenty, ANY_NOTICE)} ${JSON.stringify(twenty.terminal)}`)
 }
 
 console.log('\n' + '='.repeat(76))

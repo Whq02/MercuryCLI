@@ -93,7 +93,7 @@ export async function* runTools(
         const parent = parentMessageFor(block, assistantMessages)
         return (async function* one(): AsyncGenerator<MessageUpdate> {
           try {
-            for await (const update of runToolUse(block, parent, canUseTool, currentContext)) {
+            for await (const update of runToolUse(block, parent, canUseTool, currentContext, toolUseBlocks.indexOf(block))) {
               if (update.contextModifier) {
                 const queue = queuedModifiers.get(update.contextModifier.toolUseID) ?? []
                 queue.push(update.contextModifier.modifier)
@@ -122,7 +122,7 @@ export async function* runTools(
         addInProgress(context, block.id)
         const parent = parentMessageFor(block, assistantMessages)
         try {
-          for await (const update of runToolUse(block, parent, canUseTool, context)) {
+          for await (const update of runToolUse(block, parent, canUseTool, context, toolUseBlocks.indexOf(block))) {
             if (update.contextModifier) {
               try {
                 context = update.contextModifier.modifier(context)
