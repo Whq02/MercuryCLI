@@ -143,5 +143,15 @@ const byId = await loadConversationForResume(SID, undefined)
 check('the session-id road carries the title, the tag, the agent setting and the worktree record', byId?.customTitle === TITLE && byId?.tag === TAG && byId?.agentSetting === SETTING && byId?.worktreeSession?.worktreePath === worktree && byId?.fullPath === transcriptPath, j(factsOf(byId)))
 check('the two roads agree on those facts', byId?.customTitle === byFile?.customTitle && byId?.tag === byFile?.tag && byId?.agentSetting === byFile?.agentSetting && byId?.worktreeSession?.worktreePath === byFile?.worktreeSession?.worktreePath, j({ byId: factsOf(byId), byFile: factsOf(byFile) }))
 
+section('§5 the session-id road carries the whole row family — the agent name, the colour, the mode and the PR link — byte-identical to the plain road')
+const RED_ID = 'RED WHERE THE ID ROAD DROPS THE ROW'
+check(`${RED_ID}: the session-id road carries the agent name and the colour`, byId?.agentName === AGENT && byId?.agentColor === COLOR, j({ agentName: byId?.agentName, agentColor: byId?.agentColor }))
+check(`${RED_ID}: the session-id road carries the mode`, byId?.mode === MODE, j({ mode: byId?.mode }))
+check(`${RED_ID}: the session-id road carries the PR link`, byId?.prNumber === PR.prNumber && byId?.prUrl === PR.prUrl && byId?.prRepository === PR.prRepository, j({ pr: [byId?.prNumber, byId?.prUrl, byId?.prRepository] }))
+check(`${RED_ID}: the two roads' facts are byte-identical`, j(factsOf(byId)) === j(factsOf(byFile)), j({ byId: factsOf(byId), byFile: factsOf(byFile) }))
+const { getLastSessionLog } = await import('../../src/utils/sessionStorage/logs.ts')
+const direct = await getLastSessionLog(SID as never)
+check(`${RED_ID}: the last-log accessor itself, the seam every id road reads, carries the four beside the facts it always carried`, direct !== null && j(factsOf(direct)) === j(wanted), j(factsOf(direct)))
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} plain resume restores the row: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)
