@@ -1,7 +1,7 @@
 
 import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { readFileSync, unlinkSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   mkdir,
@@ -16,7 +16,7 @@ import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pi
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
-import { daemonHomeStands } from './daemonHome.js'
+import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import {
   MERCURY_DAEMON_PROTO,
   MIN_PROTO,
@@ -99,8 +99,7 @@ export async function writeSupervisorState(
 ): Promise<void> {
   try {
     if (!daemonHomeStands('the supervisor record')) return
-    await mkdir(daemonDir(), { recursive: true })
-    await writeFile(supervisorStatePath(), JSON.stringify(state, null, 2), 'utf8')
+    publishInDaemonHome('the supervisor record', supervisorStatePath(), JSON.stringify(state, null, 2))
   } catch (e) {
     logForDebugging(`[daemon] could not write supervisor state: ${e}`)
   }
@@ -117,8 +116,7 @@ export function markSupervisorStoppingSync(now = Date.now()): boolean {
   }
   if (current?.pid !== process.pid) return false
   try {
-    writeFileSync(path, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2), 'utf8')
-    return true
+    return publishInDaemonHome('the supervisor record', path, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2)) === 'published'
   } catch (e) {
     logForDebugging(`[daemon] could not mark the supervisor record stopping: ${e}`)
     return false
@@ -137,9 +135,7 @@ export function ownsControlPlaneSync(): boolean {
 export async function reassertControlKey(key: string): Promise<void> {
   try {
     if (!daemonHomeStands('the control key')) return
-    await mkdir(daemonDir(), { recursive: true })
-    await writeFile(controlKeyPath(), key, { encoding: 'utf8', mode: 0o600 })
-    await chmod(controlKeyPath(), 0o600).catch(() => {})
+    publishInDaemonHome('the control key', controlKeyPath(), key, { mode: 0o600 })
   } catch (e) {
     logForDebugging(`[daemon] control-key reassert failed: ${e}`)
   }

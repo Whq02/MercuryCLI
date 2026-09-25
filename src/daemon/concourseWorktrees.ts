@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, realpathSync, rmSync, statSync } from 'node:fs'
+import { existsSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { logForDebugging } from '../utils/debug.js'
@@ -7,7 +7,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../utils/projectConfig.js'
 import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
-import { daemonHomeStands } from './daemonHome.js'
+import { ensureDirInDaemonHome } from './daemonHome.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -218,14 +218,13 @@ export async function ensureWorkerWorktree(
       error: `no commits yet in ${workspaceId} — one base commit unlocks forking`,
     }
   }
-  if (!daemonHomeStands('the worktree root', dir)) {
+  if (!ensureDirInDaemonHome('the worktree root', workerWorktreeRoot(dir), dir)) {
     return {
       ok: false,
       code: 'worktree-create-failed',
       error: `the daemon directory ${dirname(workerWorktreeRoot(dir))} is gone — no worktree is carved under it`,
     }
   }
-  mkdirSync(workerWorktreeRoot(dir), { recursive: true })
   if (opts?.branchName !== undefined) {
     const base = forkBaseRef(workspaceId)
     const ladder = [opts.branchName, ...[2, 3, 4, 5, 6].map(n => `${opts.branchName}-${n}`)]

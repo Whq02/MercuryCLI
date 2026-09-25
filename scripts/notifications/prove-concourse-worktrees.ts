@@ -247,8 +247,8 @@ console.log('§9 structural no-merge — the family never writes workspace files
   const worktrees = read('src/daemon/concourseWorktrees.ts')
   for (const [name, src] of [['concourseSupervisor', supervisor], ['concourseDispatch', dispatch]] as const) {
     check(
-      `${name}: zero hand-rolled fs writes — every publish rides durableAtomicPublishSync`,
-      !src.includes('writeFileSync(') && src.includes('durableAtomicPublishSync('),
+      `${name}: zero hand-rolled fs writes — every publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome`,
+      !src.includes('writeFileSync(') && !src.includes('durableAtomicPublishSync(') && src.includes('publishInDaemonHome('),
       name,
     )
   }
