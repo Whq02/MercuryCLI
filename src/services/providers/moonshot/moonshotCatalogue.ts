@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import {
+  kimiAccountKey,
   kimiCodingBase,
   moonshotAliasesServing,
   moonshotApiBase,
@@ -18,7 +19,7 @@ import {
   type MoonshotDispatchSource,
 } from './moonshotAccounts.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
-import { KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiShortName } from './kimiPins.js'
+import { KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -100,7 +101,8 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   const account = resolveMoonshotAccount(env)
   if (!account) return 'none'
   if (account.kind === 'kimi-oauth') {
-    return `kimi-oauth:${credentialFingerprint(moonshotStoredTokens()?.accessToken ?? '')}:${kimiCodingBase(account.region, env)}`
+    const tokens = moonshotStoredTokens()
+    return `kimi-oauth:${tokens ? kimiAccountKey(tokens) : ''}:${kimiCodingBase(account.region, env)}`
   }
   return `${account.keySource}:${credentialFingerprint(resolveMoonshotApiKey(env)?.key ?? '')}:${moonshotApiBase(env)}`
 }
@@ -160,7 +162,7 @@ export function refreshMoonshotCatalogue(opts?: {
       if (!credential) throw new Error('Moonshot account could not produce a model-list credential')
       const baseUrl = credential.requestUrl.replace(/\/chat\/completions$/, '')
       source = credential.source
-      destination = `${source}:${credentialFingerprint(credential.apiKey)}:${baseUrl}`
+      destination = source === 'kimi-oauth' ? catalogueIdentity(env) : `${source}:${credentialFingerprint(credential.apiKey)}:${baseUrl}`
       const result = await fetchMoonshotLiveModels({ baseUrl, key: credential.apiKey, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
       const snapshot: MoonshotCatalogueSnapshot = { source, models: result.models, fetchedAtMs: now() }
       catalogueCache.set(destination, snapshot)
@@ -265,7 +267,7 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
     if (id === '' || taken.has(id)) continue
     taken.add(id)
     const pin = kimiDisplayPin(id)
-    const contextWindow = model.contextWindow ?? pin?.contextWindow
+    const contextWindow = kimiPlanPin(id)?.contextWindow ?? model.contextWindow ?? pin?.contextWindow
     const observed = served.find(record => record.requested === id && record.served !== id)
     rows.push({
       id,
