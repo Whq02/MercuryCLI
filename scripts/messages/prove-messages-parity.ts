@@ -373,6 +373,7 @@ add('turnCutLine', 'family', () =>
   [false, true].flatMap(toolUse => CUTS.map(cut => M.turnCutLine(cut as never, toolUse))),
 );
 add('turnCutResultText', 'family', () => CUTS.map(cut => M.turnCutResultText(cut as never)));
+add('turnCutResultText', 'named', () => CUTS.map(cut => M.turnCutResultText(cut as never, 'Bash')));
 add('turnCutOfText', 'pair', () => CUT_ROWS.map(t => M.turnCutOfText(t)));
 add('isTurnCutText', 'pair', () => CUT_ROWS.map(t => M.isTurnCutText(t)));
 add('createSyntheticUserCaveatMessage', 'basic', () =>

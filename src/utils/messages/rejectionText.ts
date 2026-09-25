@@ -2,7 +2,7 @@
 
 
 export * from './turnCut.js'
-import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, interruptedToolsLine, turnCutOf, turnCutWhy, turnCutLine, turnCutResultText, turnCutOfText, isTurnCutText } from './turnCut.js'
+import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, interruptedToolsLine, isInterruptedResultText, turnCutOf, turnCutWhy, turnCutLine, turnCutResultText, turnCutOfText, isTurnCutText } from './turnCut.js'
 
 export const DENIAL_WORKAROUND_GUIDANCE =
   `Do not try to reach the same effect by another route. ` +
@@ -49,6 +49,7 @@ export function isDenialResultText(raw: string): boolean {
   return (
     text.includes(INTERRUPT_MESSAGE) ||
     text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE) ||
+    isInterruptedResultText(text) ||
     /^Cut off(?: by|:) /.test(text) ||
     text === CANCEL_MESSAGE ||
     text === REJECT_MESSAGE ||
