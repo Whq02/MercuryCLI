@@ -1,6 +1,7 @@
 
 import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import type { OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
@@ -121,6 +122,7 @@ export interface OpenaiFault {
   retryAfterMs?: number
   status?: number
   forensics?: StreamCutForensicsV1
+  outage?: OutageCause
 }
 
 export type OpenaiStreamEvent =

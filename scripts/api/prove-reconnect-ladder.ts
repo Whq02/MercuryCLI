@@ -442,6 +442,255 @@ section('S7 — a dispatched agent keeps its typed stop when the reconnect budge
   console.log(`    end: ${typed?.message ?? String(thrown)}`)
 }
 
+type RoadItem = { type: string; subtype?: string; retryInMs?: number; retryAttempt?: number; maxRetries?: number; isApiErrorMessage?: boolean; error?: unknown; errorDetail?: { name?: string; status?: number; message?: string; code?: string }; message?: { content: Array<{ type: string; text?: string }> } }
+type RoadRun = { items: RoadItem[]; notices: RoadItem[]; kinds: string[]; words: string[]; red: string[]; seat: Seat; waits: Array<Record<string, unknown>>; answered: boolean; ms: number }
+type RoadDoor = { name: string; provider: string; model: string; path: RegExp; call: (p: unknown) => AsyncGenerator<unknown>; before?: () => void; after?: () => void }
+const roadRuns = new Map<string, RoadRun>()
+const ROAD_ANSWER = 'road answer'
+const NETWORK_HEAD = 'network unreachable (connection refused)'
+
+section('S8 — the four provider roads through their real client wrappers: a refused loopback connect is an outage on every road and never a charged fault; the ladder is bounded by the knobs; an accepted connection that stalls keeps the road\'s own retry')
+{
+  const http = await import('node:http')
+  const { unlinkSync, existsSync, mkdirSync } = await import('node:fs')
+  const { randomUUID } = await import('node:crypto')
+  const closedPort = await (async (): Promise<number> => {
+    const server = createServer(s => s.destroy())
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r))
+    const port = (server.address() as { port: number }).port
+    await new Promise<void>(r => server.close(() => r()))
+    return port
+  })()
+  const base = `http://127.0.0.1:${closedPort}`
+  const home = process.env.MERCURY_CONFIG_DIR ?? ''
+  process.env.OPENAI_API_KEY = 'proof-openai-key-not-a-real-key'
+  process.env.MERCURY_OPENAI_API_BASE = `${base}/v1`
+  process.env.ZAI_API_KEY = 'proof-zai-key-not-a-real-key'
+  process.env.MERCURY_ZAI_API_BASE = `${base}/v4`
+  process.env.GEMINI_API_KEY = 'proof-gemini-key-not-a-real-key'
+  process.env.MERCURY_GEMINI_API_BASE = `${base}/v1beta`
+  process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = `${base}/token`
+  process.env.MERCURY_COMPAT_BASE_URL = `${base}/v1`
+  process.env.MERCURY_COMPAT_MODELS = 'fixture-model'
+  process.env.MERCURY_COMPAT_LABEL = 'the fixture endpoint'
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '1000'
+  process.env.MERCURY_RECONNECT_SCALE = '0.01'
+  for (const name of ['GOOGLE_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_MODEL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_RECONNECT_BUDGET_MINUTES']) delete process.env[name]
+  const { enableConfigs } = await import('../../src/utils/config.js')
+  enableConfigs()
+  const bootstrap = await import('../../src/bootstrap/state.js')
+  bootstrap.setIsInteractive(false)
+  const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.js')
+  const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.js')
+  const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.js')
+  const { geminiCallModel } = await import('../../src/services/providers/gemini/geminiCallModel.js')
+  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+
+  const sseBody = (chunks: unknown[], done = false): string => chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + (done ? 'data: [DONE]\n\n' : '')
+  const usage = { input_tokens: 12, output_tokens: 8, input_tokens_details: { cached_tokens: 0 } }
+  const answerFor = (url: string): string => {
+    if (url.endsWith('/responses')) {
+      return sseBody([
+        { type: 'response.created', response: { id: 'resp_fixture' } },
+        { type: 'response.output_text.delta', delta: ROAD_ANSWER },
+        { type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: ROAD_ANSWER }] } },
+        { type: 'response.completed', response: { id: 'resp_fixture', usage } },
+      ])
+    }
+    if (url.includes('/chat/completions')) return sseBody([{ choices: [{ delta: { content: ROAD_ANSWER }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }], true)
+    return sseBody([
+      { candidates: [{ content: { role: 'model', parts: [{ text: ROAD_ANSWER }] } }] },
+      { candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
+    ])
+  }
+  type Listener = { hits: string[]; close: () => Promise<void> }
+  async function openListener(mode: 'answer' | 'stall', faultsFirst = 0): Promise<Listener> {
+    const hits: string[] = []
+    const sockets = new Set<Socket>()
+    let faulted = 0
+    const server = http.createServer((req, res) => {
+      const url = req.url ?? ''
+      if (req.method !== 'POST') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] }))
+        return
+      }
+      if (mode === 'stall') return
+      hits.push(url)
+      if (faulted < faultsFirst) {
+        faulted++
+        res.writeHead(500, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ error: { message: 'a hiccup' } }))
+        return
+      }
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(answerFor(url))
+    })
+    server.on('connection', s => {
+      sockets.add(s)
+      s.on('error', () => {})
+      s.on('close', () => sockets.delete(s))
+    })
+    await new Promise<void>((r, reject) => server.listen(closedPort, '127.0.0.1', r).once('error', reject))
+    return {
+      hits,
+      close: async () => {
+        for (const s of sockets) s.destroy()
+        await new Promise<void>(r => server.close(() => r()))
+      },
+    }
+  }
+
+  const stamp = (): { uuid: string; timestamp: string } => ({ uuid: randomUUID(), timestamp: new Date().toISOString() })
+  const userRow = (content: string): unknown => ({ type: 'user', ...stamp(), message: { role: 'user', content } })
+  const assistantRow = (model: string): unknown => ({ type: 'assistant', ...stamp(), message: { id: `msg_${randomUUID()}`, type: 'message', role: 'assistant', model, content: [{ type: 'text', text: 'an earlier answer' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } })
+  const roadParams = (model: string, onWait: (wait: unknown) => void, warm: boolean): unknown => ({
+    messages: warm ? [userRow('Say hello.'), assistantRow(model), userRow('Say hello again.')] : [userRow('Say hello.')],
+    systemPrompt: asSystemPrompt(['Only answer the request.']),
+    thinkingConfig: { type: 'disabled' },
+    tools: [],
+    signal: new AbortController().signal,
+    options: { model, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, onWait },
+  })
+  async function driveRoad(door: RoadDoor, opts: { warm?: boolean; onNotice?: (count: number) => Promise<void> } = {}): Promise<RoadRun> {
+    const seat = budget.makeRecoveryBudget()
+    const waits: Array<Record<string, unknown>> = []
+    const items: RoadItem[] = []
+    const notices: RoadItem[] = []
+    const kinds: string[] = []
+    const words: string[] = []
+    const startedAt = Date.now()
+    door.before?.()
+    try {
+      for await (const raw of door.call(roadParams(door.model, wait => { if (wait !== null && typeof wait === 'object') waits.push(wait as Record<string, unknown>) }, opts.warm === true))) {
+        const item = raw as RoadItem
+        items.push(item)
+        if (item.type !== 'system' || item.subtype !== 'api_error') continue
+        notices.push(item)
+        const facts = budget.recoveryNoticeFacts(item)
+        if (facts === null) {
+          kinds.push('?')
+          words.push('<not a notice>')
+        } else {
+          kinds.push(facts.kind)
+          const h = budget.honourRecoveryWait(seat, facts)
+          words.push(budget.retryWaitWords({ facts, honoredMs: h.honoredMs, budget: seat }))
+        }
+        await opts.onNotice?.(notices.length)
+      }
+    } finally {
+      door.after?.()
+    }
+    const red = items.filter(i => i.type === 'assistant' && i.isApiErrorMessage === true).map(i => i.message?.content.map(b => b.text ?? '').join('') ?? '')
+    const answered = items.some(i => i.type === 'assistant' && i.isApiErrorMessage !== true && (i.message?.content.some(b => b.text === ROAD_ANSWER) ?? false))
+    return { items, notices, kinds, words, red, seat, waits, answered, ms: Date.now() - startedAt }
+  }
+
+  const door = (ladder as { outageCauseOfFetchFailure?: (e: unknown) => { code: string; words: string } | null } | null)?.outageCauseOfFetchFailure
+  const viaDoor = (e: unknown): string | null => (door === undefined ? '<no fetch-failure door>' : (door(e)?.words ?? null))
+  const nodeFetchFailed = (inner: Error): Error => new TypeError('fetch failed', { cause: inner })
+  const bunRefused = (): Error => errno('Unable to connect. Is the computer able to access the url?', 'ConnectionRefused', { errno: 0 })
+  check('the one classifier has a fetch-failure door for the roads that keep the cause: undici\'s refused connect, DNS failure and connect timeout, the OS connect timeout, and Bun\'s refused connect are outages', viaDoor(nodeFetchFailed(errno('connect ECONNREFUSED 127.0.0.1:1', 'ECONNREFUSED', { syscall: 'connect' }))) === 'connection refused' && viaDoor(nodeFetchFailed(errno('getaddrinfo ENOTFOUND api.example.invalid', 'ENOTFOUND', { syscall: 'getaddrinfo' }))) === 'host not found' && viaDoor(undiciConnectTimeout()) === 'connect timed out' && viaDoor(nodeFetchFailed(errno('connect ETIMEDOUT 203.0.113.9:443', 'ETIMEDOUT', { syscall: 'connect' }))) === 'connect timed out' && viaDoor(nodeFetchFailed(errno('connect ENETUNREACH 203.0.113.9:443', 'ENETUNREACH', { syscall: 'connect' }))) === 'no route to the host' && viaDoor(bunRefused()) === 'connection refused', [nodeFetchFailed(errno('connect ECONNREFUSED 127.0.0.1:1', 'ECONNREFUSED', { syscall: 'connect' })), undiciConnectTimeout(), bunRefused()].map(viaDoor).join(','))
+  check('…and the same door refuses what the SDK door refuses: TLS, a proxy 407, a sandbox EPERM, a stale socket, a read timeout, the deadline\'s abort, a cause-less failure, an answered status, a non-error', viaDoor(nodeFetchFailed(errno('certificate has expired', 'CERT_HAS_EXPIRED'))) === null && viaDoor(nodeFetchFailed(errno('Proxy response (407) !== 200 when HTTP Tunneling', 'UND_ERR_ABORTED'))) === null && viaDoor(nodeFetchFailed(errno('connect EPERM 203.0.113.9:443', 'EPERM', { syscall: 'connect' }))) === null && viaDoor(nodeFetchFailed(errno('other side closed', 'UND_ERR_SOCKET'))) === null && viaDoor(nodeFetchFailed(errno('read ETIMEDOUT', 'ETIMEDOUT', { syscall: 'read' }))) === null && viaDoor(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })) === null && viaDoor(new TypeError('fetch failed')) === null && viaDoor(Object.assign(new Error('answered'), { status: 503, code: 'ECONNREFUSED' })) === null && viaDoor('ECONNREFUSED') === null)
+  check('the SDK door is unchanged by the refactor: the refused, DNS and unreachable signatures, the ring read and every refusal from S4', ladder !== null && ladder.outageCauseOf(refusedNode())?.words === 'connection refused' && ladder.outageCauseOf(dnsNode())?.words === 'host not found' && ladder.outageCauseOf(unreachable())?.words === 'no route to the host' && ladder.outageCauseOf(tls()) === null && ladder.outageCauseOf(stale()) === null && ladder.outageCauseOf(firstByte()) === null && ladder.outageCauseOf(answered(503)) === null && ladder.outageCauseOf(new APIConnectionError({})) === null && ladder.outageCauseOf(errno('connect ECONNREFUSED', 'ECONNREFUSED')) === null)
+
+  const oauthFile = join(home, '.gemini-auth.json')
+  const doors: RoadDoor[] = [
+    { name: 'openai', provider: 'OpenAI', model: 'gpt-5.6-sol', path: /\/v1\/responses$/, call: p => openaiCallModel(p as never) as AsyncGenerator<unknown> },
+    { name: 'zai', provider: 'Z.AI', model: 'glm-5.2', path: /\/v4\/chat\/completions$/, call: p => zaiCallModel(p as never) as AsyncGenerator<unknown> },
+    { name: 'openai-compat', provider: 'the fixture endpoint', model: 'compat/fixture-model', path: /\/v1\/chat\/completions$/, call: p => compatCallModel(p as never) as AsyncGenerator<unknown> },
+    { name: 'gemini', provider: 'Gemini', model: 'gemini-3.5-flash', path: /\/v1beta\/openai\/chat\/completions$/, call: p => geminiCallModel(p as never) as AsyncGenerator<unknown> },
+    {
+      name: 'gemini-oauth',
+      provider: 'Gemini',
+      model: 'gemini-3.5-flash',
+      path: /:streamGenerateContent\?alt=sse$/,
+      call: p => geminiCallModel(p as never) as AsyncGenerator<unknown>,
+      before: () => {
+        mkdirSync(home, { recursive: true })
+        writeFileSync(oauthFile, JSON.stringify({ version: 1, preferredSource: 'oauth', client: { clientId: 'proof-client' }, tokens: { accessToken: 'ya29.proof-access-not-a-real-token', refreshToken: 'proof-refresh', accessTokenExpiresAtMs: Date.now() + 3_600_000 } }))
+      },
+      after: () => { if (existsSync(oauthFile)) unlinkSync(oauthFile) },
+    },
+  ]
+  const TYPED_END = /^API Error: the network was unreachable through (\d+) reconnects? over \d+ s \(connection refused\) — the 0s reconnect budget is spent and the turn was ended; check the connection and send again, or raise MERCURY_RECONNECT_BUDGET_MINUTES$/
+  for (const door of doors) {
+    console.log(`  · the ${door.provider} road (${door.name})`)
+    process.env.MERCURY_RECONNECT_BUDGET_MINUTES = '0.005'
+    const spent = await driveRoad(door)
+    delete process.env.MERCURY_RECONNECT_BUDGET_MINUTES
+    roadRuns.set(door.name, spent)
+    check(`${door.name}: every notice through the road's own loop is classed an OUTAGE by the seat road (never a fault)`, spent.notices.length >= 2 && spent.kinds.every(k => k === 'outage'), `kinds=${spent.kinds.join(',') || '(none)'}`)
+    check(`${door.name}: the reconnect ladder walked from the first rung (50 ms at proof scale), doubling, and ended on the zero-wait spent notice`, (spent.notices[0]?.retryInMs ?? -1) === 50 && spent.notices.slice(1, -1).every((n, i) => (n.retryInMs ?? 0) > 0 && (n.retryInMs ?? 0) <= 100 * 2 ** i) && spent.notices.at(-1)?.retryInMs === 0, spent.notices.map(n => `${n.retryAttempt}:${n.retryInMs}`).join(','))
+    check(`${door.name}: THE FAULT COUNTER IS UNCHANGED and the API retry budget unspent (spentMs 0, no waits, no faults)`, spent.seat.spentMs === 0 && spent.seat.waits === 0 && spent.seat.faults === 0, `spentMs=${spent.seat.spentMs} waits=${spent.seat.waits} faults=${spent.seat.faults}`)
+    check(`${door.name}: every row reads the network grammar — never "connection lost", never the provider's name`, spent.words.length >= 2 && spent.words.slice(0, -1).every(w => NETWORK_ROW.test(w)) && /^network unreachable \(connection refused\) — no further reconnect; the 0s reconnect budget is spent after \d+ reconnects?$/.test(spent.words.at(-1) ?? '') && spent.words.every(w => !/connection lost|retry budget|stream failed/.test(w)), spent.words.join(' | '))
+    check(`${door.name}: the turn ends on the typed reconnect-budget-spent line the Anthropic road ends on, and the workflow rescue recognises it`, spent.red.length === 1 && TYPED_END.test(spent.red[0] ?? '') && budget.isRecoveryBudgetSpentLine(spent.red[0] ?? '') && !spent.answered, spent.red[0] ?? '(no red line)')
+    check(`${door.name}: the seat road saw the spending wait and the zero-wait cut (the dispatched agent's typed stop)`, spent.seat.outage?.spent === true && spent.seat.outage.waitMs === 0, JSON.stringify(spent.seat.outage))
+    for (const w of spent.words) console.log(`    row: ${w}`)
+    console.log(`    end: ${spent.red[0] ?? '(no red line)'}`)
+
+    let listener: Listener | null = null
+    const recovered = await driveRoad(door, {
+      onNotice: async count => {
+        if (count === 2 && listener === null) listener = await openListener('answer', 1)
+      },
+    })
+    const hits = listener === null ? [] : (listener as Listener).hits
+    if (listener !== null) await (listener as Listener).close()
+    check(`${door.name}: the network came back after two reconnects, the provider answered a 500 and the road's OWN single retry still served it: outage, outage, fault, then the answer`, recovered.kinds.join(',') === 'outage,outage,fault' && recovered.answered && recovered.red.length === 0 && hits.length === 2 && hits.every(h => door.path.test(h)), `kinds=${recovered.kinds.join(',')} answered=${recovered.answered} hits=${JSON.stringify(hits)} red=${recovered.red[0] ?? ''}`)
+    check(`${door.name}: the seat charged exactly the one 500 wait (a fault of 400 ms) and nothing for the outage`, recovered.seat.waits === 1 && recovered.seat.faults === 1 && recovered.seat.spentMs === 400 && recovered.seat.outage === undefined, `waits=${recovered.seat.waits} faults=${recovered.seat.faults} spentMs=${recovered.seat.spentMs}`)
+    check(`${door.name}: the reconnect rows then the fault row keep their own grammars`, NETWORK_ROW.test(recovered.words[0] ?? '') && NETWORK_ROW.test(recovered.words[1] ?? '') && /^provider error \(HTTP 500\) — waiting 0 s before retry 1 of 1; /.test(recovered.words[2] ?? ''), recovered.words.join(' | '))
+    for (const w of recovered.words) console.log(`    row: ${w}`)
+
+    const stall = await openListener('stall')
+    const stalled = await driveRoad(door, { warm: true })
+    await stall.close()
+    check(`${door.name}: a loopback listener that accepts and never answers is NOT an outage — the first-byte budget fires, the road's own retry runs once as a charged fault, and the turn ends on the road's own line`, stalled.kinds.join(',') === 'fault' && stalled.seat.faults === 1 && budget.recoveryNoticeFacts(stalled.notices[0])?.cause === 'no first byte' && stalled.red.length === 1 && /first-byte-timeout/.test(stalled.red[0] ?? '') && stall.hits.length === 0, `kinds=${stalled.kinds.join(',')} faults=${stalled.seat.faults} red=${stalled.red[0] ?? ''} ms=${stalled.ms}`)
+    console.log(`    stall: ${stalled.words[0] ?? ''}`)
+  }
+}
+
+section('S9 — the status row: during an outage the row says what the transcript row says, on every road, never "connection error"')
+if (ladder === null) {
+  check('the reconnect ladder module exists', false, 'src/services/api/reconnectLadder.ts is absent')
+} else {
+  const idle = await import('../../src/services/providers/streamIdleBudget.js')
+  const bar = await import('../../src/components/SwitchboardTagBar.tsx')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.js')
+  delete process.env.MERCURY_RECONNECT_SCALE
+  const cause = { code: 'ECONNREFUSED', words: 'connection refused' }
+  const l = ladder.openReconnectLadder(0, cause, 10 * 60_000, 1)
+  ladder.nextReconnect(l, cause, 0)
+  ladder.nextReconnect(l, cause, 5_100)
+  const third = ladder.nextReconnect(l, cause, 15_300)
+  const outageError = new ladder.NetworkOutageError(third, refusedNode())
+  const reason = idle.retryReasonWords((outageError as { status?: number }).status, outageError.message)
+  check('the reason words the Anthropic road hands the row for an outage notice are the outage words, not "a connection error"', reason === NETWORK_HEAD, reason)
+  const wait = { kind: 'retry' as const, attempt: third.reconnect, of: third.of, reason, delayMs: third.waitMs, sinceMs: 0 }
+  const line = idle.requestWaitLine(wait)
+  check('the row: reconnecting — reconnect 3 of 13 after network unreachable (connection refused) · in 20 s', line === 'reconnecting — reconnect 3 of 13 after network unreachable (connection refused) · in 20 s', line)
+  const live = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const, agentsWaiting: 0, turnStartedAtMs: 0 }
+  const seat = { title: 'a chat', projectLabel: 'proj', interrupting: false, hardStopping: false, wait, quietMs: 4_000, watchdogMs: 90_000, phaseMs: null, toolBudgetMs: null, stuck: false }
+  const painted = bar.statusLine(live, seat)
+  check('the focused chat\'s status row paints that line', painted === line, painted)
+  check('the compact row too', bar.statusLine(live, seat, null, true) === line, bar.statusLine(live, seat, null, true))
+  const tripped = idle.decodeRequestWait(idle.requestWaitFromWire(idle.requestWaitToWire(wait)))
+  check('the wait keeps its words across the runner\'s status frame', tripped !== null && idle.requestWaitLine(tripped) === line, tripped === null ? 'null' : idle.requestWaitLine(tripped))
+  check('a 529, a first-byte timeout and a bare connection error keep their words', idle.retryReasonWords(529) === 'a 529' && idle.retryReasonWords(undefined, 'no first byte from Opus 5 after 90 s (the request was accepted and nothing arrived)') === 'a first-byte timeout' && idle.retryReasonWords(undefined, 'Connection error.') === 'a connection error' && idle.retryReasonWords(503, 'network unreachable (connection refused) — waiting') === 'a 503')
+  check('the plain retry row is unchanged', idle.requestWaitLine({ kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 0 }) === 'retrying — attempt 2 of 10 after a 529 · in 4 s')
+  for (const [name, run] of roadRuns) {
+    const retries = run.waits.filter(w => w.kind === 'retry')
+    const lines = retries.map(w => idle.requestWaitLine(w as Parameters<typeof idle.requestWaitLine>[0]))
+    const timed = retries.filter(w => typeof w.delayMs === 'number' && w.delayMs > 0)
+    check(`${name}: the road published a reconnect wait for every reconnect (and the zero-wait spent one), each with the outage words`, timed.length >= 2 && retries.length === timed.length + 1 && retries.every(w => w.reason === NETWORK_HEAD) && timed.every((w, i) => w.attempt === i + 1) && lines.every((w, i) => w.startsWith(`reconnecting — reconnect ${Math.min(i + 1, timed.length)} of `) && w.includes(` after ${NETWORK_HEAD}`)) && !(lines.at(-1) ?? '').includes(' · in '), `${retries.length} retry waits of ${run.waits.length}: ${lines.join(' | ') || JSON.stringify(run.waits.map(w => w.kind))}`)
+    const first = retries[0]
+    check(`${name}: the status row paints the first one`, first !== undefined && bar.statusLine(live, { ...seat, wait: first as typeof wait }) === (lines[0] ?? '') && !/connection error/.test(lines[0] ?? ''), lines[0] ?? '(no wait)')
+    if (lines[0] !== undefined) console.log(`    status row: ${lines[0]}`)
+  }
+}
+
 clearTimeout(guard)
 console.log(failures === 0 ? '\nprove-reconnect-ladder: all green' : `\nprove-reconnect-ladder: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
