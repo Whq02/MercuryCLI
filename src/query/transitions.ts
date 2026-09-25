@@ -13,6 +13,7 @@ export type Terminal =
   | { reason: 'aborted_tools' }
   | { reason: 'stop_hook_prevented' }
   | { reason: 'hook_stopped' }
+  | { reason: 'loop_stopped'; cycle: string[] }
 
 export type Continue =
   | { reason: 'next_turn' }
@@ -25,5 +26,6 @@ export type Continue =
   | { reason: 'stream_fault_recovery'; attempt: number }
   | { reason: 'tool_call_refusal_recovery'; attempt: number }
   | { reason: 'empty_reply_retry'; attempt: number }
+  | { reason: 'chant_recovery'; attempt: number }
   | { reason: 'checkpoint_settle_guard' }
   | { reason: 'overflow_recovery'; rung: 'prune' | 'fold'; source: 'provider' | 'estimate' }

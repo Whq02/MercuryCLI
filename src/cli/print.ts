@@ -3141,6 +3141,12 @@ export async function runHeadless(
         process.stderr,
         'Valid structured output was not produced within the retry limit\n',
       )
+    } else if (last.subtype === 'error_loop_stopped') {
+      const why = last.errors?.[0]
+      await flushWrite(
+        process.stderr,
+        `${why ?? 'The loop guard ended the turn: a cycle of tool calls repeated with identical arguments and results'}\n`,
+      )
     }
   }
 
