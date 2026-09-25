@@ -69,9 +69,9 @@ section('§2b the PowerShell family applies the in-memory head + tail cut Bash d
   )
   check(
     'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
-    bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined })') && bash.includes('stdout: formatted.truncatedContent,'),
+    bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: formatted.truncatedContent,'),
   )
-  check('the error throws keep uncut output beside scrub attribution on both shells', ps.includes("throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("throw new ShellError('', [out, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)"))
+  check('the error throws keep today’s bytes beside scrub attribution on both shells; Bash applies a per-call budget there only when one is given', ps.includes("throw new ShellError(out, [annotated, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)") && bash.includes("const thrown = windowed && budget.requested !== undefined ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : out") && bash.includes("throw new ShellError('', [thrown, outputBudgetNotice, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\\n'), result.code, result.interrupted)"))
 }
 
 section('§3 the notebook path still receives a bounded string')
