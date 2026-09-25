@@ -25,3 +25,4 @@ prove-list-home-end-wheel-drive.ts
 prove-notice-rows-drive.ts
 prove-model-picker-one-row-drive.ts
 prove-panel-dismissal-drive.ts
+prove-diff-wrap-drive.ts
