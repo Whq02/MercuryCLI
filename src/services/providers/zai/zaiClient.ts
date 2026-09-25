@@ -1,6 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
+import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
 import {
   createStreamActivityRelay,
@@ -116,6 +117,7 @@ export interface ZaiFault {
   retryable: boolean
   status?: number
   retryAfterMs?: number
+  outage?: OutageCause
 }
 
 
@@ -279,6 +281,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
         }
         return
       }
+      const outage = cancelled ? null : outageCauseOfFetchFailure(error)
       yield {
         type: 'stream-fault',
         fault: cancelled
@@ -288,6 +291,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
               code: 'fetch-failed',
               message: error instanceof Error ? error.message : String(error),
               retryable: true,
+              ...(outage !== null ? { outage } : {}),
             },
       }
       return

@@ -84,8 +84,9 @@ import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitS
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
-import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
@@ -591,6 +592,7 @@ export async function* openaiCallModel(
   let attemptStartedAtMs = turnStartedAtMs
   let recovery: 'retried' | 'no-new-credential' | undefined
   let busy: { ladder: BusyRetryLadder; fault: OpenaiFault } | undefined
+  let reconnect: ReconnectLadder | undefined
   const busyPrefix = (line: string, fault: OpenaiFault, typed: string): string =>
     busy !== undefined && takesBusyLadder(fault, typed)
       ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
@@ -667,6 +669,26 @@ export async function* openaiCallModel(
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
+    const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
+    if (outage !== undefined) {
+      const now = Date.now()
+      const ladder = reconnect ?? openReconnectLadder(now, outage)
+      reconnect = ladder
+      const step = nextReconnect(ladder, outage, now)
+      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(outcome.fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
+      logForDebugging(`[openai] network outage (${wireDetail}) — ${notice.error.message}`)
+      yield notice
+      options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
+      if (step.waitMs <= 0) {
+        yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code)
+        return
+      }
+      await sleep(step.waitMs, signal)
+      if (signal.aborted) return
+      attempt--
+      continue
+    }
+    if (outcome.fault.status !== undefined) reconnect = undefined
     if (outcome.retryEligible && !singleShot && !reissueAtServedWord && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Message } from '../../../types/message.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
+import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
 import {
   createStreamActivityRelay, createStreamIdleWatchdog, firstByteBudgetMs,
   firstByteTimeoutLine, streamIdleTimeoutMs, StreamIdleTimeoutError, streamIdleFaultWords,
@@ -209,13 +210,14 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
   } catch (error) {
     const cancelled = options.signal?.aborted === true
     const idle = error instanceof StreamIdleTimeoutError
+    const outage = cancelled || firstByteFired || idle || headersReceived ? null : outageCauseOfFetchFailure(error)
     yield { type: 'stream-fault', fault: cancelled
       ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled', retryable: false }
       : firstByteFired
         ? { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true }
         : idle
           ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-          : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: !headersReceived } }
+          : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: !headersReceived, ...(outage !== null ? { outage } : {}) } }
   } finally {
     if (firstTimer) clearTimeout(firstTimer)
     options.firstByte?.onWait?.(null)
