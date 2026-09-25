@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     check('scope is edit', rule?.scope === 'edit', String(rule?.scope))
     check('comment lines are NOT skipped (the placeholder usually is a comment line)', rule?.skipCommentLines === false, String(rule?.skipCommentLines))
     check('only genuinely new content counts (newContentOnly)', rule?.newContentOnly === true, String(rule?.newContentOnly))
-    check('lines are matched with their indentation removed (trimLines), so the pattern is start-anchored', rule?.trimLines === true && rule.patterns.every(p => p.startsWith('^')), String(rule?.trimLines))
+    check('lines are matched trimmed with blank runs folded to one space (foldLines), so the pattern is start-anchored', rule?.foldLines === true && rule.patterns.every(p => p.startsWith('^')), String(rule?.foldLines))
     check('the rule is gated by no path (every file a Write or Edit can reach)', rule !== undefined && rule.pathPattern === undefined)
   }
 
@@ -79,6 +79,8 @@ async function main(): Promise<void> {
   {
     const moved = edit(file, '  (unchanged code ...)\nconst after = 2', '(unchanged code ...)\nconst before = 1')
     check('the same placeholder line present in old_string ⇒ allowed (delta-aware, indentation aside)', deniedBy(moved) === null, denialText(moved))
+    const respaced = edit(file, '\t\t(unchanged   code ...)\nconst after = 2', '  (unchanged\tcode  ...)  \nconst before = 1')
+    check('a kept placeholder with irregular spacing on both sides ⇒ allowed (old_string is folded the same way)', deniedBy(respaced) === null, denialText(respaced))
     const kept = edit(file, '// rest of methods ...\nconst after = 2', 'const before = 1\n// rest of methods ...')
     check('a real placeholder kept across the edit ⇒ allowed', deniedBy(kept) === null, denialText(kept))
     const extra = edit(file, '// rest of methods ...\n// rest of code ...', '// rest of methods ...')
@@ -177,6 +179,27 @@ async function main(): Promise<void> {
     check('an AstEdit rewrite carrying the placeholder ⇒ denied', deniedBy(ast) === RULE, denialText(ast))
     const astClean = { toolName: 'AstEdit', input: { pattern: 'console.log($A)', rewrite: 'logger.info($A)' } }
     check('a clean AstEdit rewrite ⇒ allowed', deniedBy(astClean) === null, denialText(astClean))
+    const indented = { toolName: 'ChangeSet', input: { op: 'preview', patch: `  file ${file} fa:0123456789ab\n  replace 2\n| // ... existing code ...\n` } }
+    check('an indented patch header (the parser trims op lines) ⇒ the body row is still judged ⇒ denied', deniedBy(indented) === RULE, denialText(indented))
+    const tabbed = { toolName: 'ChangeSet', input: { op: 'preview', patch: `file\t${file}\tfa:0123456789ab\nreplace\t2\n| // ... existing code ...\n` } }
+    check('a tab-separated patch header (the parser splits on whitespace) ⇒ denied', deniedBy(tabbed) === RULE, denialText(tabbed))
+    const structure = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: 'function $TEXT() {\n  // ... existing code ...\n}' } }
+    check('a Structure preview whose replacement carries the placeholder ⇒ denied (the preview is never minted)', deniedBy(structure) === RULE, denialText(structure))
+    const structureOut = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'rewrite', out: '// ... rest of the code unchanged' } }
+    check('a Structure rewrite template (out) carrying the placeholder ⇒ denied', deniedBy(structureOut) === RULE, denialText(structureOut))
+    const structureValue = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'set-value', newValue: '`\n// ... existing code ...\n`' } }
+    check('a Structure set-value carrying the placeholder ⇒ denied', deniedBy(structureValue) === RULE, denialText(structureValue))
+    const structureClean = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: 'logger.info($TEXT)' } }
+    check('a clean Structure preview ⇒ allowed', deniedBy(structureClean) === null, denialText(structureClean))
+    const structureApply = { toolName: 'Structure', input: { op: 'apply', previewId: 'sp-1' } }
+    check('a Structure apply by previewId carries no bytes ⇒ allowed (judged at preview)', deniedBy(structureApply) === null, denialText(structureApply))
+    const gitResolve = { toolName: 'Git', input: { op: 'resolve', path: 'src/service.ts', content: 'export function a() {}\n// ... rest of the file unchanged\n' } }
+    const gitVerdict = verdictOf(gitResolve)
+    check('a Git resolve whose content carries the placeholder ⇒ denied, at the resolved path', deniedBy(gitResolve) === RULE && !gitVerdict.allow && gitVerdict.target === 'src/service.ts' && gitVerdict.line === 2, denialText(gitResolve))
+    const gitClean = { toolName: 'Git', input: { op: 'resolve', path: 'src/service.ts', content: 'export function a() {}\n' } }
+    check('a clean Git resolve ⇒ allowed', deniedBy(gitClean) === null, denialText(gitClean))
+    const gitTake = { toolName: 'Git', input: { op: 'resolve', path: 'src/service.ts', take: 'ours' } }
+    check('a Git resolve by take carries no bytes ⇒ allowed', deniedBy(gitTake) === null, denialText(gitTake))
   }
 
   section('G. the fixed phrase set — the seven Gemini prefixes, their normalisation, and the ellipsis-led idiom')
@@ -238,6 +261,22 @@ async function main(): Promise<void> {
       ['é'.repeat(100_000) + ' ...', false],
       ['😀'.repeat(100_000) + ' ...', false],
       ['"content": "' + 'text\\n'.repeat(8_000) + '... ' + 'more text\\n'.repeat(1_000) + '"', false],
+      ['// ... existing code' + ' '.repeat(4_000) + 'x', false],
+      ['// ... existing code' + ' '.repeat(100_000) + 'x', false],
+      ['// ... existing code' + '\t'.repeat(100_000) + 'x', false],
+      ['//' + ' '.repeat(100_000) + 'x ...', false],
+      ['#' + ' '.repeat(100_000) + 'x ...', false],
+      ['... ' + ' '.repeat(100_000) + 'x', false],
+      ['unchanged' + ' '.repeat(100_000) + 'x ...', false],
+      ['rest of code ...' + ' '.repeat(100_000) + '.', true],
+      ['// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(100), false],
+      [('x' + ' '.repeat(7_000)).repeat(100) + '// ... existing code ...', false],
+      ['// ... existing code' + ')'.repeat(100_000) + 'x', false],
+      ['// ... existing code' + '*/'.repeat(50_000) + 'x', false],
+      ['// ... existing code' + '-->'.repeat(30_000) + 'x', false],
+      ['// ... existing code ...' + ' .'.repeat(12_500) + 'x', false],
+      ['// ... existing code ...' + ' ..'.repeat(12_500) + 'x', false],
+      ['rest of' + ' the'.repeat(100_000) + ' ...', false],
     ]
     for (const [line, deny] of lines) {
       const t0 = performance.now()
@@ -250,6 +289,17 @@ async function main(): Promise<void> {
     const vi = verdictOf(write(file, indented))
     const msi = performance.now() - t1
     check(`10 000 deeply indented near-miss lines evaluate in ${msi.toFixed(1)}ms (< 250ms) and pass`, msi < 250 && vi.allow)
+    const padded = Array(5_000).fill(' '.repeat(200) + '// ... existing code' + ' '.repeat(200) + 'x').join('\n')
+    const t2 = performance.now()
+    const vp = verdictOf(write(file, padded))
+    const msp = performance.now() - t2
+    check(`5 000 lines padded on both sides of the phrase evaluate in ${msp.toFixed(1)}ms (< 250ms) and pass`, msp < 250 && vp.allow)
+    const growth = [25_000, 50_000, 100_000].map(n => {
+      const t = performance.now()
+      verdictOf(write(file, '// ... existing code ...' + ' ..'.repeat(n) + 'x'))
+      return performance.now() - t
+    })
+    check(`a space-separated dot run after the phrase grows linearly (${growth.map(g => g.toFixed(0)).join(' / ')}ms at 25k / 50k / 100k; each doubling < 3x)`, growth[1]! < growth[0]! * 3 + 5 && growth[2]! < growth[1]! * 3 + 5)
     const big = around('const x = 1').repeat(2000)
     const t0 = performance.now()
     const v = verdictOf(write(file, big))
@@ -279,10 +329,24 @@ async function main(): Promise<void> {
     check('the hook denies a ChangeSet carrying the placeholder', typeof changeSet === 'string' && changeSet.includes(`Ward '${RULE}'`), String(changeSet).slice(0, 200))
     const ast = await cb([], undefined as never, ctx('AstEdit', { pattern: 'f($A)', rewrite: 'g($A)\n// ... rest of the code unchanged' }))
     check('the hook denies an AstEdit rewrite carrying the placeholder', typeof ast === 'string' && ast.includes(`Ward '${RULE}'`), String(ast).slice(0, 200))
-    const t0 = performance.now()
-    const blank = await cb([], undefined as never, ctx('Write', { file_path: file, content: ' '.repeat(100_000) }))
-    const ms = performance.now() - t0
-    check(`the hook passes a 100 000-space Write in ${ms.toFixed(1)}ms (< 50ms)`, blank === true && ms < 50)
+    const structure = await cb([], undefined as never, ctx('Structure', { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: '// ... existing code ...' }))
+    check('the hook denies a Structure preview whose replacement carries the placeholder', typeof structure === 'string' && structure.includes(`Ward '${RULE}'`), String(structure).slice(0, 200))
+    const git = await cb([], undefined as never, ctx('Git', { op: 'resolve', path: 'src/service.ts', content: '// ... rest of the file unchanged\n' }))
+    check('the hook denies a Git resolve whose content carries the placeholder', typeof git === 'string' && git.includes(`Ward '${RULE}'`), String(git).slice(0, 200))
+    const timed = async (label: string, content: string): Promise<void> => {
+      const armed = performance.now()
+      let fired = -1
+      const timer = new Promise<void>(resolve => setTimeout(() => { fired = performance.now() - armed; resolve() }, 100))
+      const t0 = performance.now()
+      const result = await cb([], undefined as never, ctx('Write', { file_path: file, content }))
+      const ms = performance.now() - t0
+      await timer
+      check(`${label}: the hook answers in ${ms.toFixed(1)}ms (< 50ms) and passes; the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms, the loop was never blocked)`, result === true && ms < 50 && fired < 1000)
+    }
+    await timed('100 000 spaces', ' '.repeat(100_000))
+    await timed('the phrase, 4 000 spaces, then x (4 021 chars)', '// ... existing code' + ' '.repeat(4_000) + 'x')
+    await timed('a 700 000-char line with 100 interior blank runs', '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(100))
+    await timed('a comment leader, 100 000 spaces, then x ...', '//' + ' '.repeat(100_000) + 'x ...')
     resetWardsEngagedSessionsForTest()
   }
 

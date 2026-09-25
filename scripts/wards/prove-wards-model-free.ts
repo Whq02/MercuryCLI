@@ -55,6 +55,7 @@ async function main(): Promise<void> {
       './sessionHooks.js',
       '../../context/notifications.js',
       '../messages/systemMessages.js',
+      '../path.js',
     ])
     const hookImports = importSpecifiers(hookSrc)
     check('the hook imports something (parse sanity)', hookImports.length > 0)
