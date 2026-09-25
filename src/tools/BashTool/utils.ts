@@ -3,7 +3,7 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { setCwd } from '../../utils/Shell.js'
 import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'
 import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
-import { getMaxOutputLength, OUTPUT_HEAD_SHARE } from '../../utils/shell/outputLimits.js'
+import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import type { ToolPermissionContext } from '../../Tool.js'
@@ -82,12 +82,12 @@ function mediaSubtype(mediaType: string): string {
 
 const HEAD_SHARE = OUTPUT_HEAD_SHARE
 
-export function formatOutput(content: string, opts?: { preExcerpted?: boolean }): { totalLines: number; truncatedContent: string; isImage?: boolean } {
+export function formatOutput(content: string, opts?: { preExcerpted?: boolean; maxLength?: number }): { totalLines: number; truncatedContent: string; isImage?: boolean } {
   const isImage = isImageOutput(content)
   if (isImage) {
     return { totalLines: 1, truncatedContent: content, isImage: true }
   }
-  const maxLength = getMaxOutputLength()
+  const maxLength = opts?.maxLength ?? getMaxOutputLength()
   const totalLines = countCharInString(content, '\n') + 1
   if (content.length <= maxLength || opts?.preExcerpted === true) {
     return { totalLines, truncatedContent: content, isImage: false }
@@ -101,9 +101,14 @@ export function formatOutput(content: string, opts?: { preExcerpted?: boolean })
   const tailNewline = tail.indexOf('\n')
   if (tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
   const middle = content.slice(head.length, content.length - tail.length)
-  const removedLines = Math.max(1, countCharInString(middle, '\n'))
+  const removedLines = Math.max(1, countCharInString(middle, '\n') - (middle.startsWith('\n') && middle.endsWith('\n') ? 1 : 0))
   const notice = `\n\n[${removedLines} ${plural(removedLines, 'line')} truncated from the middle — the head and the tail of the output are shown]\n\n`
   return { totalLines, truncatedContent: head + notice + tail, isImage: false }
+}
+
+export function outputBudgetClause(budget: OutputBudget): string | undefined {
+  if (budget.clampedTo === undefined) return undefined
+  return `[max_output_chars clamped to ${budget.effective} chars (the ${budget.clampedTo})]`
 }
 
 

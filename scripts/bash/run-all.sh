@@ -39,6 +39,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-task-outcome-envelope.ts" || { __r
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-scratch-leases.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-scratch-leases.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-baseline-worktree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-baseline-worktree.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-output-tail-truth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-output-tail-truth.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-output-budget.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-output-budget.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worktree-janitor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worktree-janitor.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-resolved-invocation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resolved-invocation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-win32-console-close-cleanup.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-win32-console-close-cleanup.ts" "$__t" "$__rc"

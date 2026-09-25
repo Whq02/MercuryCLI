@@ -288,6 +288,7 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
         run_in_background?: boolean
         dangerouslyDisableSandbox?: boolean
         inherit_session_env?: boolean
+        max_output_chars?: number
       }>(tool, input)
       const command = stripCwdChangePrefix(parsed.command)
         .replaceAll('\\\\;', '\\;')
@@ -301,6 +302,9 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       }
       if (parsed.inherit_session_env !== undefined) {
         rebuilt.inherit_session_env = parsed.inherit_session_env
+      }
+      if (parsed.max_output_chars !== undefined) {
+        rebuilt.max_output_chars = parsed.max_output_chars
       }
       return rebuilt as unknown as Input
     }
