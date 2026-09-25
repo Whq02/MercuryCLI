@@ -10,7 +10,6 @@ import {
   DEEPSEEK_DISPLAY_PINS,
   deepseekCurrentModelId,
   deepseekDisplayName,
-  isDeepseekModelId,
   type DeepseekDisplayPin,
 } from './deepseekPins.js'
 
@@ -21,6 +20,7 @@ const DEEPSEEK_CATALOGUE_FAILURE_RETRY_MS = 10_000
 export interface DeepseekLiveModel {
   id: string
   ownedBy?: string
+  displayName?: string
 }
 
 function str(v: unknown): string | undefined {
@@ -33,7 +33,12 @@ export function decodeDeepseekModel(raw: unknown): DeepseekLiveModel | undefined
   const id = str(r.id)
   if (!id) return undefined
   const ownedBy = str(r.owned_by)
-  return { id: id.trim(), ...(ownedBy !== undefined ? { ownedBy } : {}) }
+  const displayName = str(r.display_name)
+  return {
+    id: id.trim(),
+    ...(ownedBy !== undefined ? { ownedBy } : {}),
+    ...(displayName !== undefined ? { displayName: displayName.trim() } : {}),
+  }
 }
 
 export async function fetchDeepseekLiveModels(opts: {
@@ -71,11 +76,6 @@ export async function fetchDeepseekLiveModels(opts: {
     const model = decodeDeepseekModel(raw)
     if (model) models.push(model)
   }
-  if (models.length > 0 && !models.some(m => isDeepseekModelId(m.id))) {
-    throw new Error(
-      `the models endpoint answered a non-catalogue view (0/${models.length} listed ids ride the DeepSeek lane)`,
-    )
-  }
   return { models, fetchedAtMs: Date.now() }
 }
 
@@ -99,6 +99,21 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
 export function getCachedDeepseekCatalogue(env: NodeJS.ProcessEnv = process.env): DeepseekCatalogueSnapshot | null {
   if (!resolveDeepseekApiKey(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
+}
+
+const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
+const liveIdSets = new WeakMap<DeepseekCatalogueSnapshot, ReadonlySet<string>>()
+
+export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+  if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
+  const snapshot = getCachedDeepseekCatalogue(env)
+  if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
+  let ids = liveIdSets.get(snapshot)
+  if (ids === undefined) {
+    ids = new Set(snapshot.models.map(m => deepseekCurrentModelId(m.id.trim().toLowerCase())))
+    liveIdSets.set(snapshot, ids)
+  }
+  return ids
 }
 
 function nothingUsable(snapshot: DeepseekCatalogueSnapshot | null): boolean {
@@ -203,9 +218,9 @@ export function deepseekCatalogueRows(env: NodeJS.ProcessEnv = process.env): {
   const taken = new Set(rows.map(row => row.id))
   for (const model of snapshot.models) {
     const id = deepseekCurrentModelId(model.id.trim().toLowerCase())
-    if (taken.has(id) || !isDeepseekModelId(id)) continue
+    if (taken.has(id)) continue
     taken.add(id)
-    rows.push({ id, displayName: deepseekDisplayName(id) ?? id, observedAt: dateOf(snapshot.fetchedAtMs), listedLive: true })
+    rows.push({ id, displayName: model.displayName ?? deepseekDisplayName(id), observedAt: dateOf(snapshot.fetchedAtMs), listedLive: true })
   }
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
