@@ -4,17 +4,18 @@ import { statSync } from 'node:fs'
 export type DaemonVerb =
   | { kind: 'run'; args: string[] }
   | { kind: 'status' }
-  | { kind: 'stop'; args: string[] }
+  | { kind: 'stop' }
   | { kind: 'restart' }
   | { kind: 'help' }
   | { kind: 'unknown'; word: string }
+  | { kind: 'unknown-flag'; verb: 'stop'; word: string }
 
 export const DAEMON_USAGE = [
-  'usage: mercury daemon [run [dir] | status | stop [--keep|--any] | restart | --help]',
+  'usage: mercury daemon [run [dir] | status | stop | restart | --help]',
   '  (bare)          start the supervisor for the current folder (same as run)',
   '  run [dir]       start the supervisor scheduling for dir (default: the current folder)',
   '  status          probe the running supervisor and print its state',
-  '  stop [--keep|--any]  ask the supervisor to shut down (--any reaps in-flight workers first — the default; --keep skips that reap in the stop handler, but the daemon\'s own teardown still ends every worker, so none survives either way)',
+  '  stop            ask the supervisor to shut down; every in-flight worker is reaped with it',
   '  restart         re-execute the daemon as the deployed build when idle',
 ].join('\n')
 
@@ -42,7 +43,7 @@ export function parseDaemonVerb(args: readonly string[], isDir: (p: string) => b
     case 'status':
       return { kind: 'status' }
     case 'stop':
-      return { kind: 'stop', args: args.slice(1) }
+      return args.length === 1 ? { kind: 'stop' } : { kind: 'unknown-flag', verb: 'stop', word: args[1] ?? '' }
     case 'restart':
       return { kind: 'restart' }
     case 'help':
