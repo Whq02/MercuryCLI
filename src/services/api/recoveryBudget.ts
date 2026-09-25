@@ -199,6 +199,11 @@ export function isReconnectBudgetSpentLine(text: string): boolean {
   return text.includes('reconnect budget is spent') && /^(?:API Error: )?the network was unreachable through \d+ reconnects? /.test(text)
 }
 
+export function outageCauseWordsOf(text: string): string | undefined {
+  const head = text.split(' — ')[0] ?? ''
+  return /^network unreachable \(.+\)$/.test(head) ? head : undefined
+}
+
 function outageFactsOf(error: unknown): OutageWaitFacts | null {
   const e = error as { networkOutage?: unknown; outage?: unknown } | null | undefined
   if (e === null || e === undefined || typeof e !== 'object' || e.networkOutage !== true) return null

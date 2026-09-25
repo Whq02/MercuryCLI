@@ -1,5 +1,6 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
+import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -116,6 +117,7 @@ export async function* streamOpenaiResponses(
         }
         return
       }
+      const outage = cancelled ? null : outageCauseOfFetchFailure(error)
       yield {
         type: 'stream-fault',
         fault: cancelled
@@ -125,6 +127,7 @@ export async function* streamOpenaiResponses(
               code: 'fetch-failed',
               message: errorMessageWithCause(error),
               retryable: true,
+              ...(outage !== null ? { outage } : {}),
             },
       }
       return

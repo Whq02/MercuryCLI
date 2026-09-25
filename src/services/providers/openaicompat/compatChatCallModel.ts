@@ -17,8 +17,9 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
+import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
@@ -433,6 +434,7 @@ export async function* compatChatCallModel(
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
   let busy: { ladder: BusyRetryLadder; fault: CompatFault } | undefined
+  let reconnect: ReconnectLadder | undefined
   for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const outcome = yield* streamOneCompatAttempt({
@@ -482,6 +484,26 @@ export async function* compatChatCallModel(
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
+    const outage = outcome.retryEligible && !singleShot ? outcome.fault.outage : undefined
+    if (outage !== undefined) {
+      const now = Date.now()
+      const ladder = reconnect ?? openReconnectLadder(now, outage)
+      reconnect = ladder
+      const step = nextReconnect(ladder, outage, now)
+      const notice = createSystemAPIErrorMessage(new NetworkOutageError(step, Object.assign(new Error(outcome.fault.message), { code: outage.code })), step.waitMs, step.reconnect, step.of)
+      logForDebugging(`[compat:${profile.lane}] network outage (${wireDetail}) — ${notice.error.message}`)
+      yield notice
+      options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
+      if (step.waitMs <= 0) {
+        yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code)
+        return
+      }
+      await sleep(step.waitMs, signal)
+      if (signal.aborted) return
+      attempt--
+      continue
+    }
+    if (outcome.fault.status !== undefined) reconnect = undefined
     if (outcome.retryEligible && !singleShot && takesBusyLadder(outcome.fault, typed) && !providerWaitIsWindow(askedMs)) {
       const ladder = busy?.ladder ?? openBusyRetryLadder(Date.now())
       busy = { ladder, fault: outcome.fault }
