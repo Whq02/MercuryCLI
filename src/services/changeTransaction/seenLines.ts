@@ -108,6 +108,34 @@ export function seenLinesOf(
   return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
 }
 
+export function lineCountOfText(text: string): number {
+  if (text === '') return 0
+  return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
+}
+
+export function generationOfWrittenBytes(path: string, bytes: Uint8Array): string | null {
+  try {
+    const st = statSync(path)
+    if (st.size !== bytes.byteLength || !readFileSync(path).equals(bytes)) return null
+    return `${generationOf(st)}:${contentDigestOf(bytes)}`
+  } catch {
+    return null
+  }
+}
+
+export function recordWholeFileSeen(owner: OwnerKey, path: string, generation: string, content: string): void {
+  recordSeenLines(owner, path, generation, 1, lineCountOfText(content))
+}
+
+export function wholeFileSeen(owner: OwnerKey, path: string, content: string): boolean {
+  const generation = fileGeneration(path)
+  if (generation === null) return false
+  const entry = store.peek(owner)?.files.get(path)
+  if (entry === undefined || entry.generation !== generation) return false
+  const lastLine = lineCountOfText(content)
+  return lastLine > 0 && entry.ranges.some(range => range.start <= 1 && range.end >= lastLine)
+}
+
 export type SeenLinesVerdict =
   | { ok: true }
   | {

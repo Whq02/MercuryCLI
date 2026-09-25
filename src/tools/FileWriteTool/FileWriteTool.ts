@@ -5,6 +5,7 @@ import {
   recordNoChangeOutcome,
   serializeIntentDigest,
 } from '../../services/changeTransaction/repetitionPolicy.js'
+import { generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
@@ -36,6 +37,7 @@ import type { UUID } from 'node:crypto'
 
 import type { FileState } from '../../utils/fileStateCache.js'
 import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../FileEditTool/constants.js'
+import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
 import {
@@ -245,18 +247,31 @@ export const FileWriteTool = buildTool({
     if (fileExists) {
       const entry = context.readFileState.get(expandedPath)
       if (!entry || entry.isPartialView) {
-        throw new Error(UNREAD_FILE_MESSAGE)
-      }
-      const mtime = getFileModificationTime(expandedPath)
-      if (
-        mtime > entry.timestamp &&
-        !(isFullReadEntry(entry) && entry.content === normalizedContent)
-      ) {
-        throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        if (!wholeFileSeen(ownerFromToolUseContext(context), expandedPath, normalizedContent)) {
+          throw new Error(UNREAD_FILE_MESSAGE)
+        }
+      } else {
+        const mtime = getFileModificationTime(expandedPath)
+        if (
+          mtime > entry.timestamp &&
+          !(isFullReadEntry(entry) && entry.content === normalizedContent)
+        ) {
+          throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        }
       }
     }
 
     writeTextContent(expandedPath, input.content, encoding, 'LF', { keepBom: hadBom })
+    const writtenContent = input.content.replaceAll('\r\n', '\n')
+    const writtenAt = getFileModificationTime(expandedPath)
+    try {
+      const writtenGeneration = generationOfWrittenBytes(expandedPath, Buffer.from(producedContent, encoding))
+      if (writtenGeneration !== null) {
+        recordWholeFileSeen(ownerFromToolUseContext(context), expandedPath, writtenGeneration, writtenContent)
+      }
+    } catch (err) {
+      logError(err)
+    }
 
     const lspManager = getLspServerManager()
     if (lspManager) {
@@ -270,8 +285,8 @@ export const FileWriteTool = buildTool({
     notifyVscodeFileUpdated(expandedPath, fileExists ? normalizedContent : '', input.content)
 
     context.readFileState.set(expandedPath, {
-      content: input.content.replaceAll('\r\n', '\n'),
-      timestamp: getFileModificationTime(expandedPath),
+      content: writtenContent,
+      timestamp: writtenAt,
       offset: undefined,
       limit: undefined,
     })
@@ -357,13 +372,13 @@ export const FileWriteTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `File created successfully at: ${data.filePath}`,
+        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `The file ${data.filePath} has been updated successfully.`,
+      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}`,
     }
   },
   extractSearchText(): string {
