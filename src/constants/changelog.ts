@@ -1,6 +1,30 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.20
+- Added a JEV second-opinion tool. Off by default, your own TypeSafe key, one switch in the boot settings, /config and /jev. Spend shows in /usage
+- Added usage bars for Kimi and Z.AI plans on the usage popup and the sidebar card
+- Added the session's sample count to the status row
+- Added a hint to send a long shell command to the background after 100 seconds
+- Changed the model picker: your default Opus leads its block, the header says signed in, and the box fits with a queued line or a narrow window
+- Changed the model picker to show a Kimi plan's own models, with the plan's names
+- Changed the logins cards to say where each key comes from, and /logins is the one name for signing in
+- Changed a Kimi alias row to name the model it serves, and a refused id to name the alias it is served under
+- Changed the usage read to refresh an expired sign-in itself, so the numbers are live after a night idle
+- Changed the usage card and popup to agree on OpenAI
+- Changed the client contract to heal itself: a too-old refusal reads the current version once and retries, /health names it
+- Changed the cockpit rail: the TASKS card is gone, RUNS opens /tasks, and ctrl+t opens the ledger tree
+- Changed popups to own the keys they list while open
+- Fixed a background click typing into the config popup's search box
+- Fixed the config popup spilling into the right column beside /health
+- Fixed a Claude sign-in being named by anything other than its own credential
+- Fixed a typed bracket being eaten as a mouse report
+- Fixed a missing JEV number crashing the screen
+- Fixed two sessions racing on the client-contract record
+- Changed live model lists to keep every model a provider lists, whatever it is named, so a Kimi plan's K3 shows up
+- Fixed the Kimi model list never staying in the picker: it is kept under the account, not under a sign-in token that changes on every request
+- Changed a Kimi sign-in to refresh its token once near expiry instead of before every request
+
 ## 1.0.0-beta.19
 - Added a live Anthropic model list. New models show up in the picker when they ship. Same for every provider
 - Added a reason when a model is refused, on its picker row and in the doctor
