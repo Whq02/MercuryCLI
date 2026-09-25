@@ -1,6 +1,6 @@
 
 import { resolveProjectConfigPath } from '../projectConfig.js'
-import { readFileSync } from 'node:fs'
+import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from 'node:fs'
 import { join } from 'node:path'
 import { enqueueNotification } from '../../context/notifications.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
@@ -24,6 +24,29 @@ import { addFunctionHook } from './sessionHooks.js'
 export const WARDS_HOOK_ID = 'wards-content-rules'
 
 const WARD_DENIAL_CAP = 25
+
+const TARGET_HEAD_BYTES = 2048
+
+export function readTargetHead(path: string): string | undefined {
+  let fd: number
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+  } catch {
+    return undefined
+  }
+  const buffer = Buffer.alloc(TARGET_HEAD_BYTES)
+  let read = 0
+  try {
+    if (!fstatSync(fd).isFile()) return undefined
+    read = readSync(fd, buffer, 0, TARGET_HEAD_BYTES, 0)
+  } catch {
+    return undefined
+  } finally {
+    closeSync(fd)
+  }
+  const head = buffer.subarray(0, read)
+  return head.includes(0) ? undefined : head.toString('utf8')
+}
 
 export type WardsLevel = 'off' | 'warn' | 'enforce'
 
@@ -124,6 +147,8 @@ export function registerWardsHook(
               : {},
         }
         pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
+        pending.projectRoot = getCwd()
+        pending.readHead = readTargetHead
         const refusal = evaluateWards(REFUSAL_WARDS, pending)
         if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
         if (denials < WARD_DENIAL_CAP) {
