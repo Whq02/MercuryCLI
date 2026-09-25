@@ -98,7 +98,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === 'GET' && path.endsWith('/models')) {
       res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(path.startsWith('/openai/') ? JSON.stringify(OPENAI_MODELS_BODY) : JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
+      res.end(path.startsWith('/openai/') ? JSON.stringify(OPENAI_MODELS_BODY) : path.startsWith('/moonshot/') ? JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot' }] }) : JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
       return
     }
     const dialect: Dialect | undefined = path.endsWith('/v1/messages') ? 'anthropic' : path.endsWith('/responses') ? 'responses' : path.endsWith('/chat/completions') ? 'chat' : undefined

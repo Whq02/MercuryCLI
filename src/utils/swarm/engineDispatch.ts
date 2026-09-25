@@ -28,7 +28,7 @@ import {
 import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
-import { getMainLoopModel, parseUserSpecifiedModel } from '../model/model.js'
+import { getMainLoopModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
@@ -81,7 +81,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   if (typeof modelParam !== 'string') return
   const word = modelParam.trim()
   if (word === '' || qualifiedIdSpaceOf(word) !== undefined) return
-  const verdict = classifyModelRoute(parseUserSpecifiedModel(word))
+  const verdict = classifyModelRoute(parseUserSpecifiedModelRaw(word))
   if (verdict.kind !== 'unrecognised' || verdict.carrierShaped) return
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
