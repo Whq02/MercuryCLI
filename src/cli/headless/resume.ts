@@ -180,7 +180,7 @@ export async function loadInitialMessages(
       if (!options.forkSession && result.sessionId) {
         switchSession(
           asSessionId(result.sessionId),
-          result.fullPath ? dirname(result.fullPath) : null,
+          result.fullPath ? dirname(result.fullPath) : homePin,
         )
         if (persistSession) {
           await resetSessionFilePointer()
