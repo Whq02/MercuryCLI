@@ -43,7 +43,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome, isEnvTruthy } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { getMCPUserAgent } from '../../utils/http.js'
-import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
+import { createImageMetadataText, type ImageDimensions, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
 import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { mcpContentNeedsTruncation, truncateMcpContent } from '../../utils/mcpValidation.js'
@@ -1159,18 +1159,41 @@ async function persistBlob(bytes: Buffer, mimeType: string | undefined, serverNa
   return { type: 'text', text: getBinaryBlobSavedMessage(saved.filepath, mimeType, saved.size, source) } as ContentBlockParam
 }
 
-async function resizedImageBlock(base64: string, mimeType: string | undefined): Promise<ContentBlockParam> {
+async function resizedImageBlock(base64: string, mimeType: string | undefined): Promise<{ block: ContentBlockParam; dimensions?: ImageDimensions }> {
   const subtype = mimeType?.split('/')[1] ?? 'png'
   const bytes = Buffer.from(base64, 'base64')
   const resized = await maybeResizeAndDownsampleImageBuffer(bytes, bytes.length, subtype, { role: 'tool-result' })
-  return {
+  const block = {
     type: 'image',
     source: { type: 'base64', media_type: `image/${resized.mediaType}`, data: resized.buffer.toString('base64') },
   } as ContentBlockParam
+  return { block, dimensions: resized.dimensions }
+}
+
+type MCPResource = { uri?: string; text?: string; blob?: string; mimeType?: string } | undefined
+
+function isImageResource(resource: MCPResource): boolean {
+  return resource?.text === undefined && resource?.blob !== undefined && resource.mimeType !== undefined && IMAGE_MIME_TYPES.has(resource.mimeType)
+}
+
+function isImageContent(block: unknown): boolean {
+  if (typeof block !== 'object' || block === null) return false
+  const record = block as Record<string, unknown>
+  return record.type === 'image' || (record.type === 'resource' && isImageResource(record.resource as MCPResource))
 }
 
 export async function transformResultContent(content: unknown[], serverName: string): Promise<ContentBlockParam[]> {
   const out: ContentBlockParam[] = []
+  const count = content.filter(isImageContent).length
+  const notes: string[] = []
+  let ordinal = 0
+  const pushImage = async (base64: string, mimeType: string | undefined): Promise<void> => {
+    ordinal++
+    const image = await resizedImageBlock(base64, mimeType)
+    out.push(image.block)
+    const note = image.dimensions === undefined ? null : createImageMetadataText(image.dimensions, undefined, { index: ordinal, count })
+    if (note !== null) notes.push(note)
+  }
   for (const block of content) {
     const record = block as Record<string, unknown>
     switch (record.type) {
@@ -1183,17 +1206,17 @@ export async function transformResultContent(content: unknown[], serverName: str
         break
       }
       case 'image':
-        out.push(await resizedImageBlock(String(record.data ?? ''), record.mimeType as string | undefined))
+        await pushImage(String(record.data ?? ''), record.mimeType as string | undefined)
         break
       case 'resource': {
-        const resource = record.resource as { uri?: string; text?: string; blob?: string; mimeType?: string } | undefined
+        const resource = record.resource as MCPResource
         const marker = `Resource from ${serverName} at ${resource?.uri ?? 'unknown'}`
         if (resource?.text !== undefined) {
           out.push({ type: 'text', text: `${marker}:\n${resource.text}` } as ContentBlockParam)
         } else if (resource?.blob !== undefined) {
-          if (resource.mimeType && IMAGE_MIME_TYPES.has(resource.mimeType)) {
+          if (isImageResource(resource)) {
             out.push({ type: 'text', text: marker } as ContentBlockParam)
-            out.push(await resizedImageBlock(resource.blob, resource.mimeType))
+            await pushImage(resource.blob, resource.mimeType)
           } else {
             out.push(await persistBlob(Buffer.from(resource.blob, 'base64'), resource.mimeType, serverName, marker))
           }
@@ -1210,6 +1233,7 @@ export async function transformResultContent(content: unknown[], serverName: str
         break
     }
   }
+  for (const text of notes) out.push({ type: 'text', text } as ContentBlockParam)
   return out
 }
 
