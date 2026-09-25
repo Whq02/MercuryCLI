@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -42,16 +42,23 @@ const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
 const lr = (await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
 const queue = await import('../../src/input-core/command-queue.ts')
-const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getAgentTranscriptPath, getAgentMetadataPath, readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
 const { asAgentId, toAgentId } = await import('../../src/types/ids.ts')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { GENERAL_PURPOSE_AGENT } = await import('../../src/tools/AgentTool/built-in/generalPurposeAgent.ts')
+const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { buildPostCompactMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/services/compact/compact.ts')
+const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
+const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
+const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
 type Message = import('../../src/types/message.ts').Message
 type AppState = import('../../src/state/AppStateStore.ts').AppState
 type NamedReceipt = { toolUseId: string; agentId: string; name: string; description: string; launchedAt: number }
 type Reader = (messages: readonly Message[]) => NamedReceipt[]
 type ByName = (messages: readonly Message[], name: string) => NamedReceipt[]
+type Sidecar = { agentType?: string; description?: string; model?: string; name?: string; launchedAt?: number } | null
 
 const FAKE_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string } }
@@ -149,6 +156,58 @@ const settleResumed = (store: Store, id: string): void => {
   queue.resetCommandQueue()
 }
 const rowOf = (store: Store, id: string): { status?: string; prompt?: string } | undefined => store.get().tasks[id] as { status?: string; prompt?: string } | undefined
+const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const makeLaunchCtx = (store: Store, messages: Message[], toolUseId: string): never =>
+  ({
+    ...(makeCtx(store, messages) as object),
+    options: { tools: [], commands: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'claude-fable-5-1', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [GENERAL_PURPOSE_AGENT] }, debug: false, verbose: false },
+    readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+    toolUseId,
+    setResponseLength: () => {},
+  }) as never
+const launchReal = async (store: Store, transcript: Message[], name: string, description: string): Promise<{ id: string; receipt: string }> => {
+  const toolUseId = `toolu_real_${++n}`
+  const parent = { type: 'assistant', requestId: `req_real_${n}`, message: { id: `msg_real_${n}`, content: [] } } as never
+  const answer = (await AgentTool.call(
+    { description, prompt: `work as ${description}`, subagent_type: 'mercury-general', run_in_background: true, name } as never,
+    makeLaunchCtx(store, transcript, toolUseId),
+    (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
+    parent,
+  )) as { data: { agentId: string } }
+  const id = answer.data.agentId
+  killAsyncAgent(id, store.set as never)
+  const block = mintReceipt(answer.data, toolUseId)
+  transcript.push(launchRow(toolUseId, name, description), { type: 'user', uuid: `u-${++n}`, timestamp: stamp(), message: { role: 'user', content: [block] } } as unknown as Message)
+  seedTranscript(id, `work as ${description}`, `${description}: done`)
+  return { id, receipt: textOf(transcript[transcript.length - 1]) }
+}
+const sidecarOf = async (id: string, until: (meta: Sidecar) => boolean = meta => meta !== null): Promise<Sidecar> => {
+  let meta = (await readAgentMetadata(asAgentId(id))) as Sidecar
+  for (let i = 0; i < 100 && !until(meta); i++) {
+    await settle(50)
+    meta = (await readAgentMetadata(asAgentId(id))) as Sidecar
+  }
+  return meta
+}
+const evictKilled = async (store: Store, id: string, description: string): Promise<void> => {
+  enqueueAgentNotification({ taskId: id, description, status: 'killed', setAppState: store.set as never })
+  store.set(prev => ({ ...prev, tasks: { ...prev.tasks, [id]: { ...prev.tasks[id], evictAfter: 0 } as never } }))
+  applyTaskOffsetsAndEvictions(store.set as never, {}, [id])
+  await settle(150)
+  store.set(prev => {
+    const tasks = { ...prev.tasks }
+    delete tasks[id]
+    return { ...prev, tasks }
+  })
+  queue.resetCommandQueue()
+}
+const foldOf = async (store: Store, messages: Message[], summary: string): Promise<Message[]> => {
+  const last = messages[messages.length - 1] as unknown as { uuid: string }
+  const boundary = createCompactBoundaryMessage('auto', 120_000, last.uuid as never)
+  const summaryRow = createUserMessage({ content: getCompactUserSummaryMessage(summary, false, join(home, 'session.jsonl'), false), isCompactSummary: true, isVisibleInTranscriptOnly: true })
+  const attachments = await createAsyncAgentAttachmentsIfNeeded(makeCtx(store, messages))
+  return buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summaryRow], attachments, hookResults: [], preCompactTokenCount: 120_000, postCompactTokenCount: 0 })
+}
 
 console.log('============================================================')
 console.log(' resume by name — a finished agent answers to its name as it answers to its id')
@@ -310,6 +369,114 @@ section('§11 THE SEAMS IN SOURCE')
   const helperEnd = receipts.indexOf('export function settledLaunchIds')
   const helper = helperAt >= 0 && helperEnd > helperAt ? receipts.slice(helperAt, helperEnd) : ''
   check('the read helper writes nothing: no state setter, no registry write (RED on the base: no helper)', helper.includes('export function launchesNamed') && !/setAppState|registerAgentName|writeFileSync/.test(helper))
+}
+
+section('§12 THE RECORD — a REAL named launch through the Agent tool writes the name and its launch clock into the sidecar beside the transcript (RED on the base: the sidecar carries no name)')
+const durable = makeStore()
+const durableTranscript: Message[] = []
+const before = Date.now()
+const beacon = await launchReal(durable, durableTranscript, 'harbour-count', 'count the harbour')
+check('the launch is a sub-agent launch whose receipt promises the name (the Agent tool\'s own words)', beacon.receipt.startsWith(lr.BACKGROUND_LAUNCH_LINE) && beacon.receipt.includes(`agentId: ${beacon.id}`) && beacon.receipt.includes('or to its name "harbour-count"'), beacon.receipt.slice(0, 300))
+check('…and the registry routes the name while the row lives', durable.get().agentNameRegistry.get('harbour-count') === beacon.id)
+const launched = await sidecarOf(beacon.id)
+console.log(`  the sidecar: ${JSON.stringify(launched)}`)
+check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getAgentMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
+check('the sidecar carries the launch name (RED on the base)', launched?.name === 'harbour-count', JSON.stringify(launched))
+check('…and the launch clock, the Agent tool\'s own start time (RED on the base)', typeof launched?.launchedAt === 'number' && launched.launchedAt >= before && launched.launchedAt <= Date.now(), JSON.stringify(launched))
+check('…beside the launch facts it always carried: the kind, the description, the dispatched model', launched?.agentType === 'mercury-general' && launched?.description === 'count the harbour' && typeof launched?.model === 'string', JSON.stringify(launched))
+const launchClock = launched?.launchedAt
+const launchWrite = existsSync(getAgentMetadataPath(asAgentId(beacon.id))) ? statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs : 0
+await evictKilled(durable, beacon.id, 'count the harbour')
+check('the settled row is evicted and the registry drops the name (the mechanism, as §1)', durable.get().tasks[beacon.id] === undefined && !durable.get().agentNameRegistry.has('harbour-count'))
+
+section('§13 THE FOLD — the messages a compaction leaves, minted with the compaction\'s own builders: the receipts are gone, the roster attachment carries no evicted row, the registry holds no name — and the name still resolves, from the sidecar (RED on the base: today\'s "spawn a team" words)')
+const folded = await foldOf(durable, durableTranscript, '<summary>\nA background agent named harbour-count was launched to count the harbour and completed.\n</summary>')
+const foldCtx = makeCtx(durable, folded)
+check('the post-fold messages open with the compact boundary and the compact summary, in the compaction\'s one fixed order', (folded[0] as unknown as { subtype?: string })?.subtype === 'compact_boundary' && (folded[1] as unknown as { isCompactSummary?: boolean })?.isCompactSummary === true, JSON.stringify(folded.map(m => (m as unknown as { type: string; subtype?: string }).subtype ?? m.type)))
+const summaryText = (folded[1] as unknown as { message?: { content?: unknown } })?.message?.content
+check('the summary names the agent only in prose', typeof summaryText === 'string' && summaryText.includes('harbour-count'), JSON.stringify(summaryText).slice(0, 200))
+check('no launch receipt survives the fold: the receipts reader finds nothing', (lr.namedLaunchReceipts as Reader)(folded).length === 0)
+const rosters = folded.filter(m => m.type === 'attachment' && (m as unknown as { attachment?: { type?: string } }).attachment?.type === 'agent_roster')
+check('the fold\'s roster attachment re-tells live rows only: an evicted finished agent has no row in it', rosters.every(row => !JSON.stringify(row).includes(beacon.id)), JSON.stringify(rosters).slice(0, 300))
+check('the registry holds no name either', !durable.get().agentNameRegistry.has('harbour-count'))
+const afterFold = await send(foldCtx, 'harbour-count', 'a word after the fold', 'req_fold')
+console.log(`  the answer: ${JSON.stringify(afterFold.data)}`)
+check('THE PIN: the name resolves after the fold and the finished agent is resumed (RED on the base)', afterFold.data.success === true && /resumed in the background with your message/.test(afterFold.data.message), afterFold.data.message)
+check('the words never say "spawn a team" for a name the session\'s own launch carried', !/spawn a team/i.test(afterFold.data.message), afterFold.data.message)
+check('the answer names the id the sidecar resolved the name to', afterFold.data.message.includes(beacon.id), afterFold.data.message)
+const rowAfterFold = rowOf(durable, beacon.id)
+check('…and a running row stands under the same id, its prompt the notice carrying the message', rowAfterFold?.status === 'running' && (rowAfterFold.prompt ?? '').includes('a word after the fold'), JSON.stringify({ status: rowAfterFold?.status }))
+settleResumed(durable, beacon.id)
+
+section('§14 THE REWRITE — the resume re-persists the sidecar and the run loop writes it again: both keep the name and the launch clock, so a later message to the name still resolves')
+const rewritten = await sidecarOf(beacon.id, meta => meta !== null && statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
+await settle(300)
+const kept = (await readAgentMetadata(asAgentId(beacon.id))) as Sidecar
+console.log(`  the sidecar after the resume: ${JSON.stringify(kept)}`)
+check('the resume rewrote the sidecar (its clock moved past the launch write)', rewritten !== null && statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs > launchWrite)
+check('…and the rewrite kept the launch name (RED on the base)', kept?.name === 'harbour-count', JSON.stringify(kept))
+check('…and the launch clock, carried rather than re-stamped (RED on the base)', typeof launchClock === 'number' && kept?.launchedAt === launchClock, JSON.stringify({ kept: kept?.launchedAt, launchClock }))
+const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
+const rePersist = resumeSrc.slice(resumeSrc.indexOf('void writeAgentMetadata(agentId as AgentId, {'), resumeSrc.indexOf('}).catch(() => {})', resumeSrc.indexOf('void writeAgentMetadata(agentId as AgentId, {')))
+const runLoopCall = resumeSrc.slice(resumeSrc.indexOf('runAgent({', resumeSrc.indexOf('const runLifecycle')), resumeSrc.indexOf('onCacheSafeParams: onCacheSafeParams as never', resumeSrc.indexOf('const runLifecycle')))
+check('the resume hands the recorded name and clock to both of its writers: its own re-persist and the run loop it starts (RED on the base)', /name: launchName/.test(rePersist) && /launchedAt/.test(rePersist) && /name: launchName/.test(runLoopCall) && /launchedAt/.test(runLoopCall), JSON.stringify({ rePersist: rePersist.length, runLoopCall: runLoopCall.length }))
+const again = await send(foldCtx, 'harbour-count', 'a second word after the fold', 'req_fold_again')
+check('a second message to the name after the resume resolves again from the rewritten record (RED on the base)', again.data.success === true && /resumed in the background/.test(again.data.message) && again.data.message.includes(beacon.id), again.data.message)
+settleResumed(durable, beacon.id)
+
+section('§15 TWO LAUNCHES, ONE NAME, THE RECEIPTS GONE — the newest by its launch clock is resumed and the answer says so; a differently-cased spelling reaches it; a structured message names the id (RED on the base)')
+{
+  const twin = makeStore()
+  const twinTranscript: Message[] = []
+  const older = await launchReal(twin, twinTranscript, 'scout', 'scout the harbour')
+  await sidecarOf(older.id)
+  await evictKilled(twin, older.id, 'scout the harbour')
+  await settle(5)
+  const newer = await launchReal(twin, twinTranscript, 'scout', 'scout the harbour again')
+  const newerSidecar = await sidecarOf(newer.id)
+  await evictKilled(twin, newer.id, 'scout the harbour again')
+  const olderSidecar = (await readAgentMetadata(asAgentId(older.id))) as Sidecar
+  check('both launches wrote their sidecars, the newer with the later clock (RED on the base)', typeof olderSidecar?.launchedAt === 'number' && typeof newerSidecar?.launchedAt === 'number' && newerSidecar.launchedAt > olderSidecar.launchedAt, JSON.stringify({ older: olderSidecar, newer: newerSidecar }))
+  const twinFold = makeCtx(twin, await foldOf(twin, twinTranscript, '<summary>\nTwo scouts were launched and both completed.\n</summary>'))
+  check('the fold left no receipt and no registry name', (lr.namedLaunchReceipts as Reader)((twinFold as unknown as { messages: Message[] }).messages).length === 0 && !twin.get().agentNameRegistry.has('scout'))
+  const toScout = await send(twinFold, 'scout', 'which of you', 'req_fold_scout')
+  console.log(`  the answer: ${JSON.stringify(toScout.data)}`)
+  check('the newest launch is the one resumed', toScout.data.success === true && rowOf(twin, newer.id)?.status === 'running' && twin.get().tasks[older.id] === undefined, toScout.data.message)
+  check('…and the answer says two launches carried the name and the newest was taken, naming its id', /newest of 2 launches/.test(toScout.data.message) && toScout.data.message.includes(newer.id), toScout.data.message)
+  settleResumed(twin, newer.id)
+  const cased = await send(twinFold, 'SCOUT', 'which of you, loudly', 'req_fold_scout_cased')
+  check('a differently-cased spelling reaches the same launch when no exact name matches', cased.data.success === true && rowOf(twin, newer.id)?.status === 'running', cased.data.message)
+  settleResumed(twin, newer.id)
+  const question = await send(twinFold, 'scout', { type: 'question', content: 'still there?' }, 'req_fold_q')
+  console.log(`  the answer: ${JSON.stringify(question.data)}`)
+  check('a structured message after the fold is refused with the id and the plain-message door, never "spawn a team"', question.data.success === false && question.data.message.includes(newer.id) && /plain message/.test(question.data.message) && !/spawn a team/i.test(question.data.message), question.data.message)
+}
+
+section('§16 THE RECEIPTS ROAD FIRST — a receipt still in the messages answers before any record on disk, unchanged; the resolver reads the records only after the receipts')
+{
+  const mixed = makeStore()
+  const mixedTranscript: Message[] = []
+  const aside: Message[] = []
+  const receipted = launchNamed(mixed, mixedTranscript, 'scout', 'scout by receipt')
+  finishAndEvict(mixed, receipted, 'scout by receipt')
+  const recorded = await launchReal(mixed, aside, 'scout', 'scout by record')
+  await sidecarOf(recorded.id)
+  await evictKilled(mixed, recorded.id, 'scout by record')
+  const toReceipt = await send(makeCtx(mixed, mixedTranscript), 'scout', 'a word for the receipt', 'req_mixed')
+  console.log(`  the answer: ${JSON.stringify(toReceipt.data)}`)
+  check('the launch the receipt names is the one resumed, though a newer record on disk carries the same name', toReceipt.data.success === true && toReceipt.data.message.includes(receipted) && !toReceipt.data.message.includes(recorded.id) && rowOf(mixed, receipted)?.status === 'running' && mixed.get().tasks[recorded.id] === undefined, toReceipt.data.message)
+  check('…in the receipts road\'s own words: one receipt, no "newest of" count', !/newest of/.test(toReceipt.data.message), toReceipt.data.message)
+  settleResumed(mixed, receipted)
+  const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
+  const roadAt = sendSrc.indexOf('async function routeToLocalAgent(')
+  const receiptsAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
+  const recordsAt = sendSrc.indexOf('recordedLaunchesNamed(', roadAt)
+  check('the resolver reads the records on disk only after the receipts, inside the local-agent road (RED on the base)', roadAt > 0 && receiptsAt > roadAt && recordsAt > receiptsAt && recordsAt < sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt), JSON.stringify({ roadAt, receiptsAt, recordsAt }))
+  const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
+  const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
+  const helperEnd = receipts.indexOf('export function settledLaunchIds')
+  const helper = helperAt >= 0 && helperEnd > helperAt ? receipts.slice(helperAt, helperEnd) : ''
+  check('the record readers sit beside the receipt readers and write nothing (RED on the base)', helper.includes('export async function recordedLaunchesNamed') && !/setAppState|registerAgentName|writeFileSync|writeAgentMetadata/.test(helper))
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
