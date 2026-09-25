@@ -6,9 +6,11 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 import type { AppState } from '../../state/AppState.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
+import { clampWait } from '../../utils/waitCeiling.js'
 import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
 
 const MAX_SLEEP_SECONDS = 3600
+const MIN_SLEEP_SECONDS = 1
 
 export const TRACKED_SETTLE_POLL_MS = 250
 
@@ -58,10 +60,10 @@ export function countTrackedRunningAgents(
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    seconds: semanticNumber(z.number().positive().max(MAX_SLEEP_SECONDS))
+    seconds: semanticNumber(z.number().min(0))
       .describe(
-        'How many seconds to wait before returning. The user can interrupt the ' +
-          'sleep at any time (it resolves early, reporting the elapsed time).',
+        `How many seconds to wait before returning (min ${MIN_SLEEP_SECONDS}, max ${MAX_SLEEP_SECONDS}; a value outside the bounds is clamped to them and the result says so). ` +
+          'The user can interrupt the sleep at any time (it resolves early, reporting the elapsed time).',
       ),
   }),
 )
@@ -72,6 +74,7 @@ const outputSchema = lazySchema(() =>
     message: z.string().describe('Human-readable result of the wait'),
     slept_seconds: z.number().describe('Seconds actually waited'),
     interrupted: z.boolean().describe('True if the user/turn interrupted the wait'),
+    clamped: z.string().optional().describe('The clamp applied to the requested seconds, when one was'),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -133,7 +136,8 @@ export const SleepTool = buildTool({
         'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.',
       )
     }
-    const ms = Math.max(0, Math.min(seconds, MAX_SLEEP_SECONDS)) * 1000
+    const wait = clampWait('seconds', seconds, MIN_SLEEP_SECONDS, MAX_SLEEP_SECONDS, 's')
+    const ms = wait.value * 1000
     const start = Date.now()
     let interrupted = false
     let armed = countTrackedRunningAgents(getAppState, agentId) > 0
@@ -192,6 +196,7 @@ export const SleepTool = buildTool({
             : `Slept for ${sleptSeconds}s`,
         slept_seconds: sleptSeconds,
         interrupted,
+        ...(wait.clause !== null ? { clamped: wait.clause } : {}),
       },
     }
   },

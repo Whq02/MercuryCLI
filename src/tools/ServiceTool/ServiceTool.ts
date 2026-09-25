@@ -21,6 +21,7 @@ import {
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
+import { clampWait } from '../../utils/waitCeiling.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -30,6 +31,10 @@ import {
 export const SERVICE_TOOL_NAME = 'Service' as const
 
 const OPS = ['start', 'list', 'describe', 'wait', 'logs', 'input', 'stop', 'restart'] as const
+
+const WAIT_DEFAULT_MS = 30_000
+const WAIT_MIN_MS = 100
+const WAIT_MAX_MS = 300_000
 
 const readinessSchema = () =>
   z.union([
@@ -58,7 +63,7 @@ const inputSchema = lazySchema(() =>
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
-    timeoutMs: semanticNumber(z.number().int().min(100).max(300_000).optional()).describe('wait: readiness deadline (default 30000)'),
+    timeoutMs: semanticNumber(z.number().int().min(0).optional()).describe(`wait: readiness deadline in ms (default ${WAIT_DEFAULT_MS}, min ${WAIT_MIN_MS}, max ${WAIT_MAX_MS}; a value outside the bounds is clamped to them and the result says so)`),
     cursor: semanticNumber(z.number().int().min(0).optional()).describe('logs: byte cursor from a previous read (omit for the tail)'),
     limitLines: semanticNumber(z.number().int().min(1).max(1000).optional()).describe('logs: max lines (default 100)'),
     filterRegex: z.string().optional().describe('logs: keep only matching lines'),
@@ -157,10 +162,12 @@ async function runOp(input: Input, sessionId: string): Promise<Output> {
     }
     case 'wait': {
       if (!input.name) need('name')
-      const outcome = await waitForReady(input.cwd ?? cwd, input.name!, input.timeoutMs ?? 30_000)
-      if (!outcome.record) return { op: 'wait', result: `no service '${input.name}' in this project`, state: 'absent' }
+      const wait = clampWait('timeoutMs', input.timeoutMs ?? WAIT_DEFAULT_MS, WAIT_MIN_MS, WAIT_MAX_MS, 'ms')
+      const said = wait.clause === null ? '' : `\n${wait.clause}`
+      const outcome = await waitForReady(input.cwd ?? cwd, input.name!, wait.value)
+      if (!outcome.record) return { op: 'wait', result: `no service '${input.name}' in this project${said}`, state: 'absent' }
       if (outcome.ready) {
-        return { op: 'wait', result: `service '${input.name}' is READY\n${describeRecord(outcome.record)}`, state: outcome.record.state, name: input.name }
+        return { op: 'wait', result: `service '${input.name}' is READY\n${describeRecord(outcome.record)}${said}`, state: outcome.record.state, name: input.name }
       }
       const unmet = outcome.statuses.filter(s => !s.met)
       return {
@@ -168,7 +175,8 @@ async function runOp(input: Input, sessionId: string): Promise<Output> {
         result:
           `service '${input.name}' did NOT become ready (state ${outcome.record.state}) — unmet condition(s):\n` +
           unmet.map(s => `  · ${s.detail}`).join('\n') +
-          (outcome.record.state === 'failed' ? `\nThe process exited (${outcome.record.lastExitCode ?? '?'}) — op:"logs" shows why.` : ''),
+          (outcome.record.state === 'failed' ? `\nThe process exited (${outcome.record.lastExitCode ?? '?'}) — op:"logs" shows why.` : '') +
+          said,
         state: outcome.record.state,
         name: input.name,
       }

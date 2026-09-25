@@ -89,6 +89,15 @@ t(
     false,
 )
 
+const { formatZodValidationError } = await import(
+  '../../src/utils/toolErrors.ts'
+)
+type Parsed<T> = { success: true; data: T } | { success: false; error: never }
+const refusal = (tool: string, r: { success: boolean; error?: unknown }): string =>
+  r.success ? '' : `InputValidationError: ${formatZodValidationError(tool, r.error as never).replace(/\n/g, ' ')}`
+const describes = (schema: unknown, key: string): string =>
+  ((schema as { shape: Record<string, { description?: string }> }).shape[key]?.description ?? '')
+
 const { TaskOutputTool } = await import(
   '../../src/tools/TaskOutputTool/TaskOutputTool.tsx'
 )
@@ -101,11 +110,25 @@ const { TaskOutputTool } = await import(
     'TaskOutput timeout accepts a quoted number',
     r.success === true && (r as { data?: { timeout?: number } }).data?.timeout === 5000,
   )
+  const above = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: '900000' }) as Parsed<{ timeout: number }>
   t(
-    'TaskOutput timeout keeps its 600000 bound',
-    TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: '900000' })
-      .success === false,
+    'TaskOutput timeout above the ceiling passes the schema (the tool clamps it to 600000 and says so)',
+    above.success === true && above.data.timeout === 900000,
+    refusal('TaskOutput', above),
   )
+  const atCeiling = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: 600000 }) as Parsed<{ timeout: number }>
+  t('TaskOutput timeout at the ceiling parses as before', atCeiling.success === true && atCeiling.data.timeout === 600000, refusal('TaskOutput', atCeiling))
+  const negative = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: -1 })
+  t(
+    'TaskOutput timeout below zero keeps a typed refusal',
+    negative.success === false && refusal('TaskOutput', negative).includes('The parameter `timeout` must have a minimum of 0'),
+    refusal('TaskOutput', negative),
+  )
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, 'ten minutes']) {
+    t(`TaskOutput timeout ${String(bad)} keeps a typed refusal`, TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: bad }).success === false)
+  }
+  const words = describes(TaskOutputTool.inputSchema, 'timeout')
+  t("the timeout parameter's own words name the ceiling and say a value above it is clamped", words.includes('600000') && /clamped/.test(words), words)
 }
 
 const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
@@ -119,12 +142,22 @@ const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
     'Sleep seconds keeps its positive bound',
     SleepTool.inputSchema.safeParse({ seconds: '-5' }).success === false,
   )
+  const above = SleepTool.inputSchema.safeParse({ seconds: '4000' }) as Parsed<{ seconds: number }>
+  t(
+    'Sleep seconds above the ceiling passes the schema (the tool clamps it to 3600 and says so)',
+    above.success === true && above.data.seconds === 4000,
+    refusal('Sleep', above),
+  )
+  const zero = SleepTool.inputSchema.safeParse({ seconds: 0 }) as Parsed<{ seconds: number }>
+  t('Sleep seconds of zero passes the schema (the tool clamps it up to the one-second floor and says so)', zero.success === true && zero.data.seconds === 0, refusal('Sleep', zero))
+  const words = describes(SleepTool.inputSchema, 'seconds')
+  t("the seconds parameter's own words name both bounds and say a value outside them is clamped", words.includes('min 1') && words.includes('max 3600') && /clamped/.test(words), words)
 }
 
 const monitorModule = await import('../../src/tools/MonitorTool/MonitorTool.ts')
 {
   const MonitorTool = monitorModule.MonitorTool as {
-    inputSchema: { safeParse: (v: unknown) => { success: boolean } }
+    inputSchema: { safeParse: (v: unknown) => { success: boolean; data?: { timeout_ms?: number }; error?: unknown } }
   }
   const base = { description: 'watch', command: 'echo hi' }
   t(
@@ -137,11 +170,26 @@ const monitorModule = await import('../../src/tools/MonitorTool/MonitorTool.ts')
     MonitorTool.inputSchema.safeParse({ ...base, persistent: 'true' })
       .success === true,
   )
+  const above = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: '99999999' })
   t(
-    'Monitor timeout_ms keeps its refine ceiling',
-    MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: '99999999' })
-      .success === false,
+    'Monitor timeout_ms above the ceiling passes the schema (the tool clamps it to 3600000 and says so)',
+    above.success === true && above.data?.timeout_ms === 99999999,
+    refusal('Monitor', above),
   )
+  const under = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 500 })
+  t(
+    'Monitor timeout_ms under the floor passes the schema (the tool clamps it up to 1000 and says so)',
+    under.success === true && under.data?.timeout_ms === 500,
+    refusal('Monitor', under),
+  )
+  const negative = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: -1 })
+  t(
+    'Monitor timeout_ms below zero keeps a typed refusal',
+    negative.success === false && refusal('Monitor', negative).includes('The parameter `timeout_ms` must have a minimum of 0'),
+    refusal('Monitor', negative),
+  )
+  const words = describes(monitorModule.MonitorTool.inputSchema, 'timeout_ms')
+  t("the timeout_ms parameter's own words name both bounds and say a value outside them is clamped", words.includes('3600000') && words.includes('1000') && /clamped/.test(words), words)
 }
 
 const { AskUserQuestionTool } = await import(
@@ -200,9 +248,6 @@ const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
   )
 }
 
-const { formatZodValidationError } = await import(
-  '../../src/utils/toolErrors.ts'
-)
 const { z } = await import('zod/v4')
 
 {

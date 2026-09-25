@@ -278,6 +278,23 @@ section('B. WorkshopTool — nested transaction, recursion guard, cancel')
     b1.data.cells[0].state === 'succeeded' && b1.data.cells[0].valuePreview === 'true',
     JSON.stringify(b1.data.cells[0]))
   check('B2 the tool effect names the cell', b1.effect.operation === 'workshop.cell' && b1.effect.outcome === 'succeeded')
+  check('B2a a cell budget inside the bounds carries no clause — byte for byte as before', !b1.data.result.includes('clamped'), b1.data.result)
+
+  const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
+  const schema = (WorkshopTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: unknown } } }).inputSchema
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Workshop', r.error as never).replace(/\n/g, ' ')}`)
+  const above = schema.safeParse({ cells: [{ language: 'js', code: '1 + 1', timeoutMs: 900_000 }] })
+  check('B2b a cell budget above the ceiling passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
+  const b2c = await (WorkshopTool as { call: Function }).call(
+    { cells: [{ language: 'js', code: '1 + 1', timeoutMs: 900_000 }] },
+    makeCtx(),
+    ALLOW,
+    PARENT,
+  )
+  check('B2c the cell ran under the clamped budget and its text says so in the ScheduleWakeup grammar',
+    b2c.data.cells[0].state === 'succeeded' && b2c.data.result.split('\n')[1] === 'timeoutMs clamped to 600000 ms (the maximum)', b2c.data.result)
+  const negative = schema.safeParse({ cells: [{ language: 'js', code: '1 + 1', timeoutMs: -1 }] })
+  check('B2d a negative cell budget has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('must have a minimum of 0'), refusal(negative))
 
   const b3 = await (WorkshopTool as { call: Function }).call(
     { cells: [{ language: 'js', code: "await mercury.tool('Workshop', { cells: [] })" }] },
