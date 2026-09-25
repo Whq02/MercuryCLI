@@ -102,18 +102,23 @@ function knowledgeCutoffSentence(modelId: string): string | null {
 export async function computeEnvInfo(
   modelId: string,
   additionalWorkingDirectories?: string[],
+  agentId?: string,
 ): Promise<string> {
   const cwd = getCwd()
   const extraDirs =
     additionalWorkingDirectories && additionalWorkingDirectories.length > 0
       ? `\nAdditional working directories: ${additionalWorkingDirectories.join(', ')}`
       : ''
+  const scratchpad =
+    agentId === undefined
+      ? scratchpadPromptLine(ensureScratchpadDir())
+      : scratchpadPromptLine(ensureScratchpadDir(agentId), 'agent')
   const cutoff = knowledgeCutoffSentence(modelId)
   const currency = `\n\n${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
   return `The environment this session runs in:
 <env>
 Working directory: ${cwd}${extraDirs}
-${scratchpadPromptLine(ensureScratchpadDir())}
+${scratchpad}
 Platform: ${platform()}
 ${shellLine()}
 OS Version: ${getUnameSR()}
@@ -404,6 +409,7 @@ export async function enhanceSystemPromptWithEnvDetails(
   model: string,
   additionalWorkingDirectories?: string[],
   enabledToolNames?: readonly string[] | ReadonlySet<string>,
+  agentId?: string,
 ): Promise<string[]> {
   void enabledToolNames
   const notes = [
@@ -416,7 +422,7 @@ export async function enhanceSystemPromptWithEnvDetails(
       'Do not write a colon before a tool call: "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',
     ]),
   ].join('\n')
-  const envBlock = await computeEnvInfo(model, additionalWorkingDirectories)
+  const envBlock = await computeEnvInfo(model, additionalWorkingDirectories, agentId)
   return [...existing, notes, envBlock]
 }
 
