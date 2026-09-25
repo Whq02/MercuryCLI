@@ -2,16 +2,7 @@
 import type { UUID } from 'crypto'
 import { join } from 'path'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
-import type {
-  AttributionSnapshotMessage,
-  ContextCollapseCommitEntry,
-  ContextCollapseSnapshotEntry,
-  FileHistorySnapshotMessage,
-  PersistedWorktreeSession,
-  TranscriptMessage,
-} from '../../types/logs.js'
 import { logError } from '../log.js'
-import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { getProjectDir } from './paths.js'
 import { computeResumeLeaves, readTranscript } from './transcriptReader.js'
@@ -25,7 +16,7 @@ export {
   type TranscriptLoadDegradation,
 } from './transcriptReader.js'
 
-type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> & {
+export type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> & {
   leafUuids: Set<UUID>
 }
 
@@ -79,19 +70,7 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
   }
 }
 
-export async function loadSessionFile(sessionId: UUID): Promise<{
-  messages: Map<UUID, TranscriptMessage>
-  summaries: Map<UUID, string>
-  customTitles: Map<UUID, string>
-  tags: Map<UUID, string>
-  agentSettings: Map<UUID, string>
-  worktreeStates: Map<UUID, PersistedWorktreeSession | null>
-  fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
-  contentReplacements: Map<UUID, ContentReplacementRecord[]>
-  contextCollapseCommits: ContextCollapseCommitEntry[]
-  contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
-}> {
+export async function loadSessionFile(sessionId: UUID): Promise<TranscriptLoadResult> {
   const sessionFile = join(
     getSessionProjectDir() ?? getProjectDir(getOriginalCwd()),
     `${sessionId}.jsonl`,
