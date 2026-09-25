@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/edit-tools/fixtures/**
-# gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/**
+# gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/** src/tools/FileWriteTool/**
 # gate-watch: src/services/changeTransaction/** src/services/ide/** src/services/resources/**
 # gate-watch: src/services/repoHost/** src/tools/GitTool/** src/tools/TestTool/** src/tools/LaunchTool/** src/utils/healthReport.ts
 set -u

@@ -35,7 +35,7 @@ const {
 const { addLineNumbers, stripLineNumberPrefix } = await import('../../src/utils/file.ts')
 const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
-const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { FileEditTool, APPLIED_NO_REREAD_NOTE } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
@@ -703,8 +703,8 @@ section('N. read-free chaining (the success answer)')
     ctxD,
   )
   check(
-    'N4 plain hunks keep the pre-hashline result text exactly',
-    n4.ok && n4.ok === true && n4.text === `The file ${fileD} has been updated successfully.` && !n4.text.includes('fresh anchors'),
+    'N4 plain hunks keep the plain result text exactly, with no fresh-anchor block',
+    n4.ok && n4.ok === true && n4.text === `The file ${fileD} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}` && !n4.text.includes('fresh anchors'),
   )
 
   const fileE = join(fixtures, 'exact.txt')
@@ -714,7 +714,7 @@ section('N. read-free chaining (the success answer)')
   const n5 = await editViaTool({ file_path: fileE, old_string: 'two', new_string: 'TWO' }, ctxE)
   check(
     'N5 the exact-string result text is byte-identical to the plain surface',
-    n5.ok && n5.ok === true && n5.text === `The file ${fileE} has been updated successfully.`,
+    n5.ok && n5.ok === true && n5.text === `The file ${fileE} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}`,
   )
 }
 
