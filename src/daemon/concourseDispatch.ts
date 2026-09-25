@@ -1,9 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { recordRefusedDurableFile } from '../substrate/storeRecovery.js'
-import { daemonHomeStands } from './daemonHome.js'
+import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
@@ -179,10 +178,15 @@ function publishDispatches(dispatches: Record<string, ConcourseDispatchRecordV1>
   for (const stale of settled.slice(200)) delete dispatches[stale.clientMessageId]
   const path = concourseDispatchesPath(dir)
   try {
-    durableAtomicPublishSync(
-      path,
-      `${JSON.stringify({ version: 1, dispatches } satisfies DispatchFileV1, null, 1)}\n`,
+    if (
+      publishInDaemonHome(
+        'the dispatch ledger',
+        path,
+        `${JSON.stringify({ version: 1, dispatches } satisfies DispatchFileV1, null, 1)}\n`,
+        { dir },
+      ) === 'home-gone'
     )
+      return
   } catch (err) {
     ledgerMemo.delete(path)
     throw err
@@ -325,7 +329,7 @@ export function recordConcourseControlOp(rec: ConcourseControlOpRecordV1, dir?: 
   ops[rec.clientOpId] = rec
   const stale = Object.values(ops).sort((a, b) => b.atMs - a.atMs).slice(200)
   for (const s of stale) delete ops[s.clientOpId]
-  durableAtomicPublishSync(concourseControlOpsPath(dir), `${JSON.stringify({ version: 1, ops }, null, 1)}\n`)
+  publishInDaemonHome('the control-op ledger', concourseControlOpsPath(dir), `${JSON.stringify({ version: 1, ops }, null, 1)}\n`, { dir })
 }
 
 export function envelopeDigestOf(req: ConcourseDispatchRequest): string {

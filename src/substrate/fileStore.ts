@@ -10,7 +10,7 @@ import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { groupCommitLane } from './groupCommit.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
-import { durableAtomicPublish } from './durablePublish.js'
+import { durableAtomicPublish, durableAtomicPublishSync, type DurablePublishOptions, type DurablePublishReport } from './durablePublish.js'
 import { quarantineDamagedStore } from './storeRecovery.js'
 import {
   nextRevision,
@@ -102,6 +102,14 @@ export async function publishAtomic(
   contents: string,
 ): Promise<void> {
   await durableAtomicPublish(path, contents)
+}
+
+export function publishAtomicSync(
+  path: string,
+  contents: string | Uint8Array,
+  opts?: DurablePublishOptions,
+): DurablePublishReport {
+  return durableAtomicPublishSync(path, contents, opts)
 }
 
 export type ReadFailurePolicy = 'empty' | 'throw'

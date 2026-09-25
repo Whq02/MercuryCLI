@@ -5,8 +5,8 @@ import { recordToEntry } from '../fabric/entryCodec.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../utils/model/retainedModel.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
-import { durableAtomicPublishSync, renameWithWin32RetrySync } from '../substrate/durablePublish.js'
-import { daemonHomeStands } from './daemonHome.js'
+import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
+import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
@@ -265,9 +265,11 @@ export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
 export function recordCollisionEvidence(row: CollisionEvidenceV1, dir?: string): void {
   const rows = [...readCollisionEvidence(dir), row].slice(-COLLISION_EVIDENCE_CAP)
   if (!daemonHomeStands('the collision evidence', dir)) return
-  durableAtomicPublishSync(
+  publishInDaemonHome(
+    'the collision evidence',
     concourseCollisionsPath(dir),
     `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
+    { dir },
   )
 }
 
@@ -286,9 +288,11 @@ export function markCollisionEvidenceConsumed(
       : row,
   )
   if (!daemonHomeStands('the collision evidence', dir)) return
-  durableAtomicPublishSync(
+  publishInDaemonHome(
+    'the collision evidence',
     concourseCollisionsPath(dir),
     `${JSON.stringify({ version: 1, rows } satisfies CollisionFileV1, null, 1)}\n`,
+    { dir },
   )
 }
 
@@ -449,9 +453,11 @@ function stampConcourseDelta(dir?: string): void {
   try {
     if (!daemonHomeStands('the delta stamp', dir)) return
     concourseDeltaRevision += 1
-    durableAtomicPublishSync(
+    publishInDaemonHome(
+      'the delta stamp',
       concourseDeltaPath(dir),
       `${JSON.stringify({ version: 1, revision: concourseDeltaRevision, pid: process.pid, at: Date.now() } satisfies ConcourseDeltaStampV1)}\n`,
+      { dir },
     )
   } catch {
   }
@@ -465,9 +471,11 @@ function publishConcourseWorkers(workers: Record<string, ConcourseWorkerRecordV1
     }
   }
   if (!daemonHomeStands('the session records', dir)) return
-  durableAtomicPublishSync(
+  publishInDaemonHome(
+    'the session records',
     concourseWorkersPath(dir),
     `${JSON.stringify({ version: 1, workers } satisfies ConcourseWorkerFileV1, null, 1)}\n`,
+    { dir },
   )
   stampConcourseDelta(dir)
 }
