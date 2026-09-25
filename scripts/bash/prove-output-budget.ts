@@ -108,8 +108,7 @@ check('2000 resolves to 2000, unclamped', resolveOutputBudget?.(2000).effective 
 check('999999 clamps to the cap and says maximum', resolveOutputBudget?.(999_999).effective === cap && resolveOutputBudget?.(999_999).clampedTo === 'maximum', JSON.stringify(resolveOutputBudget?.(999_999)))
 check('10 clamps up to the floor and says minimum', resolveOutputBudget?.(10).effective === floor && resolveOutputBudget?.(10).clampedTo === 'minimum', JSON.stringify(resolveOutputBudget?.(10)))
 check('the cap itself and the floor itself pass unclamped', resolveOutputBudget?.(cap).clampedTo === undefined && resolveOutputBudget?.(floor).clampedTo === undefined)
-check('a raw quoted "2000" (the unparsed serve road) reads as 2000', resolveOutputBudget?.('2000' as never).effective === 2000 && resolveOutputBudget?.('2000' as never).requested === 2000, JSON.stringify(resolveOutputBudget?.('2000' as never)))
-check('a raw string with no lawful reading counts as omitted', resolveOutputBudget?.('ten' as never).effective === cap && resolveOutputBudget?.('ten' as never).requested === undefined)
+check('the resolver reads numbers only — a raw string is not its business', resolveOutputBudget?.('2000' as never).requested === undefined && resolveOutputBudget?.('2000' as never).effective === cap)
 process.env.BASH_MAX_OUTPUT_LENGTH = '100'
 check('an operator cap under the floor lowers the floor to it (the cap is the law)', resolveOutputBudget?.(10).effective === 100 && resolveOutputBudget?.(10).clampedTo === 'minimum' && resolveOutputBudget?.(2000).effective === 100 && resolveOutputBudget?.(2000).clampedTo === 'maximum', JSON.stringify(resolveOutputBudget?.(10)))
 delete process.env.BASH_MAX_OUTPUT_LENGTH
@@ -155,6 +154,15 @@ check('…and the result says so in one clause', under.content.includes(underCla
 check('…still the head, the notice and the verdict', under.out.stdout.startsWith('line 00001:') && under.out.stdout.endsWith(VERDICT) && /truncated from the middle/.test(under.out.stdout), `${under.out.stdout.slice(0, 80)} … ${under.out.stdout.slice(-60)}`)
 const rawQuoted = await run({ command, max_output_chars: '2000' })
 check('a raw quoted "2000" handed straight to the tool (the serve road parses nothing) still gets the window', rawQuoted.out.stdout.length >= 1500 && rawQuoted.out.stdout.length <= 2200 && !/clamped to/.test(rawQuoted.content), `${rawQuoted.out.stdout.length} chars`)
+const rawDecimal = await run({ command, max_output_chars: '2000.0' })
+check('a raw "2000.0" reads as the schema reads it: 2000', rawDecimal.out.stdout.length >= 1500 && rawDecimal.out.stdout.length <= 2200 && !/clamped to/.test(rawDecimal.content), `${rawDecimal.out.stdout.length} chars`)
+type Verdict = { result: boolean; message?: string }
+const validate = async (value: unknown): Promise<Verdict> => (await BashTool.validateInput({ command: 'true', max_output_chars: value } as never, toolContext)) as Verdict
+for (const [raw, word] of [[' 2000 ', /string/], ['0', />0|greater than 0/], ['-5', />0|greater than 0/], ['2.5', /int/], ['ten', /string/]] as const) {
+  const verdict = await validate(raw)
+  check(`the serve road’s refusal channel (validateInput) refuses a raw ${JSON.stringify(raw)} exactly as the schema does`, verdict.result === false && (verdict.message ?? '').startsWith('max_output_chars: ') && word.test(verdict.message ?? ''), JSON.stringify(verdict))
+}
+check('…and admits what the schema admits', (await validate('2000.0')).result === true && (await validate(2000)).result === true && (await validate(undefined)).result === true)
 
 section('§4b a FAILING command (the error road) takes the same window and the same clause')
 const { formatError } = await import('../../src/utils/toolErrors.ts')
@@ -197,12 +205,40 @@ check('…byte-identical to the same call without the field, but for the task id
 const spilledOver = await run({ command: bigCommand, max_output_chars: 999_999 })
 check('a value above the cap on the spill road adds no clause: the window played no part', !/clamped to/.test(spilledOver.content) && withoutPaths(spilledOver.out.stdout) === withoutPaths(spilledPlain.out.stdout), spilledOver.content.slice(-200))
 
+section('§5b a FAILING command over the cap: the thrown text takes the window and keeps the spill notice with its path')
+const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
+const bigFailing = `${bigCommand}; exit 3`
+const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at ([^\n]*?\.output)\]\n\n/
+async function sinkExcerpt(text: string): Promise<string> {
+  const path = SPILL_NOTICE.exec(text)?.[2] ?? ''
+  const taskId = path.slice(path.lastIndexOf('/') + 1, -'.output'.length)
+  return await new TaskOutput(taskId, null, true).getStdout()
+}
+const bigFailPlain = await fail({ command: bigFailing })
+const sinkOwn = await sinkExcerpt(bigFailPlain.text)
+check('omitted keeps today’s thrown bytes: the spill sink’s own excerpt (re-read from its file), then the exit line, nothing else', sinkOwn.length > 0 && bigFailPlain.text === `${sinkOwn.trimEnd()}\n\nExited with code 3`, `${bigFailPlain.text.length} chars vs sink ${sinkOwn.length}`)
+check('…and the model text is today’s fixed error window, which loses the path (the base’s own loss)', bigFailPlain.model.length > 10_000 && bigFailPlain.model.length < 10_200 && /characters removed/.test(bigFailPlain.model) && !/saved at/.test(bigFailPlain.model), `${bigFailPlain.model.length} chars`)
+const bigFailBudgeted = await fail({ command: bigFailing, max_output_chars: 2000 })
+const budgetedNotice = SPILL_NOTICE.exec(bigFailBudgeted.text)
+check('max_output_chars: 2000 → the thrown text is about 2 000 characters', bigFailBudgeted.text.length >= 1500 && bigFailBudgeted.text.length <= 2400, `${bigFailBudgeted.text.length} chars`)
+check('…the head, ONE middle notice — the spill sink’s own, its path kept — and the exit line at the tail', bigFailBudgeted.text.startsWith('line 00001:') && budgetedNotice !== null && (bigFailBudgeted.text.match(/truncated from the middle/g) ?? []).length === 1 && existsSync(budgetedNotice?.[2] ?? '') && bigFailBudgeted.text.endsWith('\n\nExited with code 3') && !/clamped to/.test(bigFailBudgeted.text), `${bigFailBudgeted.text.slice(0, 60)} … ${bigFailBudgeted.text.slice(-200)}`)
+if (budgetedNotice !== null) {
+  const shownOutput = bigFailBudgeted.text.slice(0, budgetedNotice.index) + bigFailBudgeted.text.slice(budgetedNotice.index + budgetedNotice[0].length).replace(/\nExited with code 3$/, '')
+  check('…and the notice’s byte count is honest: shown bytes + the count = the whole 90 000-byte output', Buffer.byteLength(shownOutput, 'utf8') + Number(budgetedNotice[1]) === 90_000, `${Buffer.byteLength(shownOutput, 'utf8')} shown + ${budgetedNotice[1]}`)
+}
+check('…and the model text carries it whole, with the path — no fixed-window marker', bigFailBudgeted.model.length < 2600 && !/characters removed/.test(bigFailBudgeted.model) && /saved at .*\.output/.test(bigFailBudgeted.model) && /exit code 3/.test(bigFailBudgeted.model), `${bigFailBudgeted.model.length} chars`)
+const bigFailOver = await fail({ command: bigFailing, max_output_chars: 999_999 })
+const bigFailOverSink = await sinkExcerpt(bigFailOver.text)
+check('a value above the cap on this road: today’s bytes (the sink’s excerpt fits the cap) plus the clause, once', bigFailOver.text === `${bigFailOverSink.trimEnd()}\n\nExited with code 3\n${overClause}` && (bigFailOver.text.match(/clamped to/g) ?? []).length === 1, `${bigFailOver.text.length} chars; tail ${JSON.stringify(bigFailOver.text.slice(-140))}`)
+const bigFailUnder = await fail({ command: bigFailing, max_output_chars: 10 })
+check('a value below the floor on this road: a floor-sized window keeping the path, plus the clause', bigFailUnder.text.length <= floor + 400 && SPILL_NOTICE.test(bigFailUnder.text) && bigFailUnder.text.includes(underClause) && /Exited with code 3/.test(bigFailUnder.text), `${bigFailUnder.text.length} chars; tail ${JSON.stringify(bigFailUnder.text.slice(-200))}`)
+
 section('§6 the seams: one owner for the cut, and the carry-through')
 const bashSrc = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
 check('the settled result is cut by formatOutput with the resolved window (spill-aware, one owner)', bashSrc.includes('formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })'))
-check('the schema field rides the same coercion as timeout', /max_output_chars: semanticNumber\(z\.number\(\)\.int\(\)\.positive\(\)\.optional\(\)\)/.test(bashSrc))
-check('the error throw applies the window only when a budget is given and carries the clause beside the scrub notice', bashSrc.includes('const thrown = windowed && budget.requested !== undefined ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : out') && bashSrc.includes("throw new ShellError('', [thrown, outputBudgetNotice, sessionEnvNoticeForResult("))
-check('the clause exists only where the window can act (never on the spill road)', bashSrc.includes('const outputBudgetNotice = windowed ? outputBudgetClause(budget) : undefined'))
+check('the schema field rides the same coercion as timeout, and that one parser is the reader for a raw serve-road value', bashSrc.includes('const maxOutputCharsField = semanticNumber(z.number().int().positive().optional())') && bashSrc.includes('max_output_chars: maxOutputCharsField.describe(') && bashSrc.includes('resolveOutputBudget(readMaxOutputChars(input.max_output_chars))') && bashSrc.includes('const parsed = maxOutputCharsField.safeParse(input.max_output_chars)'))
+check('the error throw applies the window only when a budget is given — the in-memory cut, or the spill-aware cut that keeps the sink’s notice — and carries the clause beside the scrub notice', bashSrc.includes('const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)') && bashSrc.includes("throw new ShellError('', [thrown, clause, sessionEnvNoticeForResult("))
+check('the settled result carries the clause only where the window acts (never the settled spill road)', bashSrc.includes('const outputBudgetNotice = windowed ? clause : undefined'))
 const apiSrc = readFileSync(join(ROOT, 'src/utils/api.ts'), 'utf8')
 check('the normaliser’s rebuilt Bash input carries max_output_chars', apiSrc.includes('rebuilt.max_output_chars = parsed.max_output_chars'))
 

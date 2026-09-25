@@ -22,11 +22,10 @@ export function getMinOutputLength(): number {
   return Math.min(BASH_MAX_OUTPUT_FLOOR, getMaxOutputLength())
 }
 
-export function resolveOutputBudget(requested: number | string | undefined): OutputBudget {
+export function resolveOutputBudget(requested: number | undefined): OutputBudget {
   const cap = getMaxOutputLength()
-  const asked = typeof requested === 'string' && /^\d+$/.test(requested.trim()) ? Number(requested) : requested
-  if (typeof asked !== 'number' || !Number.isFinite(asked)) return { effective: cap }
-  const wanted = Math.floor(asked)
+  if (typeof requested !== 'number' || !Number.isFinite(requested)) return { effective: cap }
+  const wanted = Math.floor(requested)
   const floor = getMinOutputLength()
   if (wanted > cap) return { effective: cap, requested: wanted, clampedTo: 'maximum' }
   if (wanted < floor) return { effective: floor, requested: wanted, clampedTo: 'minimum' }
