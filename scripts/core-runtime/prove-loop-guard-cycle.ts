@@ -122,7 +122,60 @@ function makeTool(name: string, concurrent = false): never {
   } as never
 }
 
-const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read', true), makeTool('Grep', true), makeTool('Glob', true)]
+const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
+let nestSeq = 0
+const nestedAllow = async (_tool: unknown, input: Record<string, unknown>) =>
+  ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
+function makeNestTool(): never {
+  return {
+    name: 'Nest',
+    async description() {
+      return 'rig tool that runs one nested call through the real transaction'
+    },
+    async prompt() {
+      return 'rig nest'
+    },
+    inputSchema: z.object({}).catchall(z.unknown()),
+    userFacingName: () => 'Nest',
+    isEnabled: () => true,
+    isConcurrencySafe: () => true,
+    isReadOnly: () => true,
+    isMcp: false,
+    needsPermissions: () => false,
+    async validateInput() {
+      return { result: true }
+    },
+    async call(input: Record<string, unknown>, context: Record<string, unknown>) {
+      const inners = (Array.isArray(input.inners) ? input.inners : [input.inner]) as Array<{ name: string; input: Record<string, unknown> }>
+      const texts: string[] = []
+      for (const inner of inners) {
+        const id = `toolu_nest_${++nestSeq}`
+        let text = ''
+        for await (const update of runToolUse(
+          { type: 'tool_use', id, name: inner.name, input: inner.input } as never,
+          { uuid: 'nest-parent', requestId: 'nest-req', message: { id: 'nest-msg' } } as never,
+          nestedAllow as never,
+          context as never,
+        )) {
+          const content = (update as { message?: { message?: { content?: unknown } } }).message?.message?.content
+          if (!Array.isArray(content)) continue
+          for (const block of content as Array<{ type?: string; content?: unknown }>) {
+            if (block.type === 'tool_result') text = String(block.content)
+          }
+        }
+        texts.push(text)
+      }
+      const joined = texts.join('|')
+      return { data: input.unique === true ? `Nest#${nestSeq}:${joined}` : `Nest:${joined}` }
+    },
+    mapToolResultToToolResultBlockParam: (data: unknown, toolUseId: string) => ({
+      type: 'tool_result',
+      tool_use_id: toolUseId,
+      content: String(data),
+    }),
+  } as never
+}
+const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read', true), makeTool('Grep', true), makeTool('Glob', true), makeNestTool()]
 
 function makeCtx(agentId?: string): { ctx: Record<string, unknown>; abortController: AbortController } {
   let appState: Record<string, unknown> = {
@@ -274,6 +327,11 @@ function firstRequestWith(run: Run, needle: string | RegExp): number {
     if (typeof needle === 'string' ? text.includes(needle) : needle.test(text)) return i
   }
   return -1
+}
+function toolResultTextOf(run: Run, toolUseId: string): string {
+  const at = resultYieldIndex(run, toolUseId)
+  const m = run.yields[at] as { message?: { content?: Array<{ content?: unknown }> } } | undefined
+  return String(m?.message?.content?.[0]?.content ?? '')
 }
 function resultYieldIndex(run: Run, toolUseId: string): number {
   return run.yields.findIndex(m => {
@@ -530,6 +588,81 @@ section('C17 — the round is Mercury\'s own, never the wire\'s message id: an a
     check(`message.id ${shape}, key on: twelve serial pairs end the turn loop_stopped at the 20th call`, pairsRun.terminal.reason === 'loop_stopped' && pairsRun.calls.length === 20, `calls=${pairsRun.calls.length} ${JSON.stringify(pairsRun.terminal)}`)
   }
   wireId = 'per-response'
+}
+
+section('C18 — a nested call (a tool that runs runToolUse inside its own execution, the Workshop\'s shape) JOINS the response\'s open round: the earlier calls of the response are kept, and no detection is ever counted that the model never saw')
+{
+  const GLOB = { pattern: '*.md', path: '/tmp' }
+  const NINE: Step[] = []
+  for (let i = 0; i < 9; i++) NINE.push(i % 2 === 0 ? { name: 'Grep', input: GREP } : { name: 'Glob', input: GLOB })
+  const nineRounds = NINE.map(step => [step])
+  const bundled = (): Array<Step[]> => [
+    ...nineRounds,
+    [{ name: 'Read', input: { file_path: '/tmp/z.ts' } }, { name: 'Nest', input: { unique: true, inner: { name: 'Glob', input: GLOB } } }],
+    ...Array.from({ length: 12 }, (_, i) => [i % 2 === 0 ? { name: 'Grep', input: GREP } : { name: 'Glob', input: GLOB }]),
+  ]
+  const serial = (): Array<Step[]> => [
+    ...nineRounds,
+    [{ name: 'Read', input: { file_path: '/tmp/z.ts' } }],
+    [{ name: 'Nest', input: { unique: true, inner: { name: 'Glob', input: GLOB } } }],
+    ...Array.from({ length: 12 }, (_, i) => [i % 2 === 0 ? { name: 'Grep', input: GREP } : { name: 'Glob', input: GLOB }]),
+  ]
+  const nestResult: ResultScript = (name, input, i) => (name === 'Nest' ? `Nest:${i}` : identicalResults(name, input, i))
+  const noticeRequests = (run: Run): number[] => {
+    const out: number[] = []
+    let settled = 0
+    for (const m of run.yields) {
+      if (m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content)) settled++
+      if (m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder') out.push(settled)
+    }
+    return out
+  }
+  setStopKey(true)
+  const tip = await runScript([], nestResult, undefined, bundled())
+  const nestOk = tip.ids.some(id => /^Nest#\d+:Glob:/.test(toolResultTextOf(tip, id)))
+  check('the nested Glob really ran through the transaction inside Nest (its result is inside Nest\'s)', nestOk, tip.ids.map(id => toolResultTextOf(tip, id)).filter(t => t.startsWith('Nest')).join(' | '))
+  check('KEY ON, [Read /z, Nest(Glob)] after nine alternating calls: no stop — the response is judged whole, with Read in it, so the cycle is broken', tip.terminal.reason === 'completed' && attachmentsOf(tip, 'loop_stopped').length === 0, `calls=${tip.calls.length} ${JSON.stringify(tip.terminal)} rows=${JSON.stringify(noticeRows(tip).map(r => r.content))}`)
+  check('…and the first notice the model receives is the first detection (after the tenth fresh call), never a stop claiming an earlier notice', noticeRequests(tip).length >= 1 && noticeRows(tip).every(r => r.level === 'info') && !noticeRows(tip).some(r => /ended the turn/.test(String(r.content))), `notices after calls ${JSON.stringify(noticeRequests(tip))} rows=${JSON.stringify(noticeRows(tip).map(r => r.content))}`)
+  const control = await runScript([], nestResult, undefined, serial())
+  check('control, one call per response ([Read /z], [Nest(Glob)]): the same outcome — completed, the notice after the same settled count (the nested result is consumed inside Nest, never a turn-level result)', control.terminal.reason === 'completed' && attachmentsOf(control, 'loop_stopped').length === 0 && JSON.stringify(noticeRequests(control)) === JSON.stringify(noticeRequests(tip)), `tip=${JSON.stringify(noticeRequests(tip))} control=${JSON.stringify(noticeRequests(control))}`)
+  setStopKey(null)
+  const dflt = await runScript([], nestResult, undefined, bundled())
+  check('DEFAULT, the same bundled shape: completed, no stop, the notice reaches the model', dflt.terminal.reason === 'completed' && attachmentsOf(dflt, 'loop_stopped').length === 0 && noticeRequests(dflt).length >= 1, `calls=${dflt.calls.length} notices=${JSON.stringify(noticeRequests(dflt))}`)
+  const nestOnly = await runScript([], identicalResults, undefined, Array.from({ length: 5 }, () => [{ name: 'Nest', input: { inner: { name: 'Grep', input: GREP } } }]))
+  check('a nested call is recorded in its parent\'s round: five Nest(Grep a) responses with identical results are the two-call cycle Grep -> Nest, nudged after the fifth and seen by the model', noticeRequests(nestOnly).length === 1 && noticeRequests(nestOnly)[0] === 5 && /Grep -> Nest/.test(requestText(nestOnly, 5)), `notices=${JSON.stringify(noticeRequests(nestOnly))} request5=${requestText(nestOnly, 5).slice(-300)}`)
+}
+
+section('C19 — nested calls keep the model\'s issue order at any depth and any count: a round is ordered by the top-level call, then by the order the calls were recorded')
+{
+  const GLOB = { pattern: '*.md', path: '/tmp' }
+  const glob = { name: 'Glob', input: GLOB }
+  const read = (path: string): Step => ({ name: 'Read', input: { file_path: path } })
+  const nest = (...inners: Step[]): Step => ({ name: 'Nest', input: { unique: true, inners } })
+  const remindersOf = (run: Run): string[] => run.yields.filter(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder').map(m => String((m as { attachment: { content?: unknown } }).attachment.content))
+  setStopKey(null)
+  const depthTwo = await runScript([], identicalResults, undefined, [[glob], [glob], [nest(read('/tmp/z.ts'), nest(glob))]])
+  check('depth 2 with an earlier call in the cell — [Glob n] x2 then [Nest(Read /z, Nest(Glob n))]: the cell\'s Read comes before its Glob, so Glob\'s run is broken and nothing fires', remindersOf(depthTwo).length === 0 && noticeRows(depthTwo).length === 0, `reminders=${JSON.stringify(remindersOf(depthTwo))} rows=${JSON.stringify(noticeRows(depthTwo).map(r => r.content))}`)
+  const depthTwoSerial = await runScript([], identicalResults, undefined, [[glob], [glob], [nest(read('/tmp/z.ts'))], [nest(nest(glob))]])
+  check('control: the same calls one per response fire nothing', remindersOf(depthTwoSerial).length === 0, JSON.stringify(remindersOf(depthTwoSerial)))
+  const depthThree = await runScript([], identicalResults, undefined, [[glob], [glob], [read('/tmp/z.ts'), nest(nest(nest(glob)))]])
+  check('depth 3 — [Read /z, Nest(Nest(Nest(Glob n)))] after [Glob n] x2: the Read is before the Glob however deep the Glob sits, nothing fires', remindersOf(depthThree).length === 0 && noticeRows(depthThree).length === 0, `reminders=${JSON.stringify(remindersOf(depthThree))}`)
+  const depthThreeAlone = await runScript([], identicalResults, undefined, [[glob], [glob], [nest(nest(nest(glob)))]])
+  check('depth 3 without a sibling — [Nest(Nest(Nest(Glob n)))] after [Glob n] x2 IS the third identical Glob: the reminder rides', remindersOf(depthThreeAlone).length === 1 && /third identical tool call/.test(remindersOf(depthThreeAlone)[0] ?? ''), JSON.stringify(remindersOf(depthThreeAlone)))
+  const manyReads = Array.from({ length: 501 }, (_, i) => read(`/tmp/r${i}.ts`))
+  const bigParent = await runScript([], identicalResults, undefined, [[nest(...manyReads, glob)], [glob], [glob], [glob]])
+  const afterCalls = (run: Run): number[] => {
+    const out: number[] = []
+    let settled = 0
+    for (const m of run.yields) {
+      if (m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content)) settled++
+      if (m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder') out.push(settled)
+    }
+    return out
+  }
+  check('a parent with 501 nested Reads then a Glob, followed by [Glob n] x3: the nested Glob stays before its parent (the parent\'s own fresh result breaks the run), so the third identical Glob is the fourth top-level result — the reminder rides there, never a response early', JSON.stringify(afterCalls(bigParent)) === JSON.stringify([4]) && /third identical tool call/.test(remindersOf(bigParent)[0] ?? ''), `after=${JSON.stringify(afterCalls(bigParent))} reminders=${remindersOf(bigParent).length}`)
+  const tenReads = Array.from({ length: 10 }, (_, i) => read(`/tmp/r${i}.ts`))
+  const smallParent = await runScript([], identicalResults, undefined, [[nest(...tenReads, glob)], [glob], [glob], [glob]])
+  check('control: the same shape with 10 nested Reads reminds at the same place', JSON.stringify(afterCalls(smallParent)) === JSON.stringify(afterCalls(bigParent)), `small=${JSON.stringify(afterCalls(smallParent))} big=${JSON.stringify(afterCalls(bigParent))}`)
 }
 
 setStopKey(null)

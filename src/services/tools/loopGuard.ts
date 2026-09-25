@@ -49,6 +49,7 @@ export interface LoopGuardVerdict {
 
 interface RoundEntry {
   ordinal: number
+  sequence: number
   toolName: string
   toolUseID: string
   key: string
@@ -65,6 +66,8 @@ interface LoopGuardState {
   ring: string[]
   roundID: string | null
   roundEntries: RoundEntry[]
+  roundCalls: Map<string, number>
+  roundSequence: number
   detections: Map<string, { count: number; tools: string[] }>
 }
 
@@ -77,6 +80,8 @@ function freshState(): LoopGuardState {
     ring: [],
     roundID: null,
     roundEntries: [],
+    roundCalls: new Map(),
+    roundSequence: 0,
     detections: new Map(),
   }
 }
@@ -284,21 +289,84 @@ function rememberDetection(state: LoopGuardState, keys: readonly string[]): Cycl
   return { length: keys.length, tools, detection: count }
 }
 
+function walkEntry(state: LoopGuardState, entry: RoundEntry, seen: Set<string>): { ringEntry: string; step: number | null } | null {
+  const sameCall = state.lastKey === entry.key
+  const digest = sameCall && state.lastResult !== null && entry.unchangedRead ? state.lastResult : entry.digest
+  const ringEntry = `${entry.key}${KEY_SEPARATOR}${digest}`
+  if (seen.has(ringEntry)) return null
+  seen.add(ringEntry)
+  const learnedNothing = sameCall && state.lastResult === digest
+  if (sameCall && !learnedNothing) state.ring.length = 0
+  state.run = learnedNothing ? state.run + 1 : 1
+  state.lastKey = entry.key
+  state.lastResult = digest
+  state.ring.push(ringEntry)
+  if (state.ring.length > CYCLE_WINDOW) state.ring.splice(0, state.ring.length - CYCLE_WINDOW)
+  return { ringEntry, step: IDENTICAL_CALL_REMINDER_STEPS.includes(state.run) ? state.run : null }
+}
+
+function takeRound(state: LoopGuardState): RoundEntry[] {
+  const entries = state.roundEntries.sort((a, b) => a.ordinal - b.ordinal || a.sequence - b.sequence)
+  state.roundEntries = []
+  state.roundCalls = new Map()
+  state.roundSequence = 0
+  state.roundID = null
+  return entries
+}
+
+function switchRound(state: LoopGuardState, roundID: string): void {
+  if (state.roundID === roundID) return
+  if (state.roundEntries.length > 0) {
+    const seen = new Set<string>()
+    for (const entry of takeRound(state)) walkEntry(state, entry, seen)
+  }
+  state.roundID = roundID
+  state.roundEntries = []
+  state.roundCalls = new Map()
+  state.roundSequence = 0
+}
+
+function settleBoundary(state: LoopGuardState, messages: readonly unknown[] | undefined): void {
+  const boundary = humanTurnBoundaryOf(messages)
+  if (state.boundary !== boundary) {
+    Object.assign(state, freshState())
+    state.boundary = boundary
+  }
+}
+
+export function openRoundCall(owner: OwnerKey, roundID: string, toolUseID: string, ordinal: number, messages: readonly unknown[] | undefined): void {
+  try {
+    const state = store.get(owner)
+    settleBoundary(state, messages)
+    switchRound(state, roundID)
+    state.roundCalls.set(toolUseID, ordinal)
+  } catch {
+    return
+  }
+}
+
+export function ambientRound(owner: OwnerKey, parentToolUseID: string | undefined): { id: string; ordinal: number } | null {
+  try {
+    if (parentToolUseID === undefined) return null
+    const state = store.peek(owner)
+    if (state === undefined || state.roundID === null) return null
+    const parent = state.roundCalls.get(parentToolUseID)
+    if (parent === undefined) return null
+    return { id: state.roundID, ordinal: parent }
+  } catch {
+    return null
+  }
+}
+
 export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservation): void {
   try {
     const state = store.get(owner)
-    const boundary = humanTurnBoundaryOf(observation.messages)
-    if (state.boundary !== boundary) {
-      Object.assign(state, freshState())
-      state.boundary = boundary
-    }
-    if (state.roundID !== observation.roundID) {
-      state.roundID = observation.roundID
-      state.roundEntries = []
-    }
+    settleBoundary(state, observation.messages)
+    switchRound(state, observation.roundID)
     if (isBookkeepingTool(observation.toolName)) return
     state.roundEntries.push({
       ordinal: observation.roundOrdinal,
+      sequence: state.roundSequence++,
       toolName: observation.toolName,
       toolUseID: observation.toolUseID,
       key: toolCallKey(observation.toolName, observation.arguments),
@@ -315,9 +383,7 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
   try {
     const state = store.peek(owner)
     if (state === undefined || state.roundID !== roundID) return quiet(state?.run ?? 0)
-    const entries = state.roundEntries.sort((a, b) => a.ordinal - b.ordinal)
-    state.roundEntries = []
-    state.roundID = null
+    const entries = takeRound(state)
     if (!complete || entries.length === 0) return quiet(state.run)
     const seen = new Set<string>()
     const reminders: string[] = []
@@ -325,21 +391,11 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
     let step: number | null = null
     let last: RoundEntry = entries[0]!
     for (const entry of entries) {
-      const sameCall = state.lastKey === entry.key
-      const digest = sameCall && state.lastResult !== null && entry.unchangedRead ? state.lastResult : entry.digest
-      const ringEntry = `${entry.key}${KEY_SEPARATOR}${digest}`
-      if (seen.has(ringEntry)) continue
-      seen.add(ringEntry)
+      const walked = walkEntry(state, entry, seen)
+      if (walked === null) continue
       last = entry
-      const learnedNothing = sameCall && state.lastResult === digest
-      if (sameCall && !learnedNothing) state.ring.length = 0
-      state.run = learnedNothing ? state.run + 1 : 1
-      state.lastKey = entry.key
-      state.lastResult = digest
-      state.ring.push(ringEntry)
-      if (state.ring.length > CYCLE_WINDOW) state.ring.splice(0, state.ring.length - CYCLE_WINDOW)
-      if (IDENTICAL_CALL_REMINDER_STEPS.includes(state.run)) {
-        step = state.run
+      if (walked.step !== null) {
+        step = walked.step
         reminders.push(reminderText(entry.toolName, state.run, entry.preview))
         rows.push(`Loop check: ${entry.toolName} called ${state.run} times with identical arguments and the same result`)
       }
