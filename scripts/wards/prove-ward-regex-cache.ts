@@ -51,12 +51,13 @@ section('W1 · counted operations — zero constructions after the first call')
   const builtin = wards.BUILTIN_WARDS
   const heads: Record<string, string> = { '/p/gen.ts': '// @generated\nexport const a = 1\n', '/p/plain.ts': 'export const a = 1\n' }
   const readHead = (path: string): string | undefined => heads[path]
+  const resolvePath = (path: string) => ({ path, root: '/p' })
   const edits = [
-    { toolName: 'Edit', input: { file_path: '/p/plain.ts', old_string: 'a', new_string: 'const b = 2' }, projectRoot: '/p', readHead },
-    { toolName: 'Edit', input: { file_path: '/p/gen.ts', old_string: 'a', new_string: 'const b = 2' }, projectRoot: '/p', readHead },
-    { toolName: 'Write', input: { file_path: '/p/scripts/settings/settings-schema.json', content: '{}' }, projectRoot: '/p', readHead },
-    { toolName: 'Write', input: { file_path: '/p/plain.ts', content: 'export function a() {}\n// rest of methods ...\n' }, projectRoot: '/p', readHead },
-    { toolName: 'ChangeSet', input: { op: 'apply', changes: [{ file_path: '/p/plain.ts', expected_anchor: 'fa:0', hunks: [{ lines: '1', replace: '// ... existing code ...' }] }] }, projectRoot: '/p', readHead },
+    { toolName: 'Edit', input: { file_path: '/p/plain.ts', old_string: 'a', new_string: 'const b = 2' }, resolvePath, readHead },
+    { toolName: 'Edit', input: { file_path: '/p/gen.ts', old_string: 'a', new_string: 'const b = 2' }, resolvePath, readHead },
+    { toolName: 'Write', input: { file_path: '/p/scripts/settings/settings-schema.json', content: '{}' }, resolvePath, readHead },
+    { toolName: 'Write', input: { file_path: '/p/plain.ts', content: 'export function a() {}\n// rest of methods ...\n' }, resolvePath, readHead },
+    { toolName: 'ChangeSet', input: { op: 'apply', changes: [{ file_path: '/p/plain.ts', expected_anchor: 'fa:0', hunks: [{ lines: '1', replace: '// ... existing code ...' }] }] }, resolvePath, readHead },
   ] as never[]
   for (const call of edits) wards.evaluateWards(builtin, call)
   counting = true

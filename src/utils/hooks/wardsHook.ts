@@ -1,13 +1,14 @@
 
 import { resolveProjectConfigPath } from '../projectConfig.js'
-import { closeSync, constants, fstatSync, openSync, readFileSync, readSync } from 'node:fs'
-import { join } from 'node:path'
+import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { enqueueNotification } from '../../context/notifications.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import type { SetAppState } from '../messageQueueManager.js'
 import { createSystemMessage } from '../messages/systemMessages.js'
+import { expandPath } from '../path.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
@@ -17,6 +18,7 @@ import {
   evaluateWards,
   parseProjectWardsWithReport,
   type PendingToolCall,
+  type ResolvedPath,
   type WardRule,
 } from '../wards/wards.js'
 import { addFunctionHook } from './sessionHooks.js'
@@ -46,6 +48,45 @@ export function readTargetHead(path: string): string | undefined {
   }
   const head = buffer.subarray(0, read)
   return head.includes(0) ? undefined : head.toString('utf8')
+}
+
+export function realTargetPath(path: string): string {
+  let head = path
+  let tail = ''
+  for (;;) {
+    try {
+      const real = realpathSync(head)
+      return tail === '' ? real : join(real, tail)
+    } catch {
+      const parent = dirname(head)
+      if (parent === head) return path
+      tail = tail === '' ? basename(head) : join(basename(head), tail)
+      head = parent
+    }
+  }
+}
+
+export function repositoryRootOf(path: string): string | undefined {
+  let dir = dirname(path)
+  for (;;) {
+    if (existsSync(join(dir, '.git'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return undefined
+    dir = parent
+  }
+}
+
+export function makeTargetResolver(fallbackRoot: string): (path: string) => ResolvedPath {
+  return (path: string): ResolvedPath => {
+    let expanded: string
+    try {
+      expanded = expandPath(path)
+    } catch {
+      return { path, root: undefined }
+    }
+    const real = realTargetPath(expanded)
+    return { path: real, root: repositoryRootOf(real) ?? realTargetPath(fallbackRoot) }
+  }
 }
 
 export type WardsLevel = 'off' | 'warn' | 'enforce'
@@ -125,6 +166,7 @@ export function registerWardsHook(
     ...(deleteWardActive() ? AUTONOMOUS_WARDS : []),
     ...projectReport.rules,
   ]
+  const resolveTarget = makeTargetResolver(getCwd())
   let denials = 0
   addFunctionHook(
     setAppState,
@@ -147,8 +189,8 @@ export function registerWardsHook(
               : {},
         }
         pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
-        pending.projectRoot = getCwd()
         pending.readHead = readTargetHead
+        pending.resolvePath = resolveTarget
         const refusal = evaluateWards(REFUSAL_WARDS, pending)
         if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
         if (denials < WARD_DENIAL_CAP) {

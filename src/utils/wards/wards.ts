@@ -20,7 +20,7 @@ export type WardRule = {
   skipCommentLines?: boolean
   outsideQuotes?: boolean
   refusal?: boolean
-  trimLines?: boolean
+  foldLines?: boolean
   generatedPaths?: GeneratedPath[]
   leadingMarker?: string
 }
@@ -38,25 +38,33 @@ export type WardVerdict =
       check?: string | null
     }
 
+export type ResolvedPath = {
+  path: string
+  root: string | undefined
+}
+
 export type PendingToolCall = {
   toolName: string
   input: Record<string, unknown>
   shellCommand?: string
-  projectRoot?: string
   readHead?: (path: string) => string | undefined
+  resolvePath?: (path: string) => ResolvedPath
 }
 
 const EDIT_TOOLS = new Set(['Edit', 'NotebookEdit'])
 const WRITE_TOOLS = new Set(['Write'])
 const CHANGESET_TOOLS = new Set(['ChangeSet'])
 const AST_EDIT_TOOLS = new Set(['AstEdit'])
+const STRUCTURE_TOOLS = new Set(['Structure'])
+const GIT_TOOLS = new Set(['Git'])
+const LSP_TOOLS = new Set(['LSP'])
 export const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
 
 const OMISSION_MARK = '(?:\\.{3,}(?!\\.)|\\u2026+)'
 const OMISSION_LEADER = '(?:\\/\\/+|#+|--+|;+|%+|<!--|\\{\\/\\*+|\\/\\*+|\\*+)[ \\t]*'
-const OMISSION_CLOSE = '(?:[ \\t]*(?:\\*+\\/\\}?|-->|[\\)\\]\\}>]))*[ \\t]*\\.?'
+const OMISSION_CLOSE = '(?=((?:[ \\t]*(?:\\*+\\/\\}?|-->|[\\)\\]\\}>]))*))\\1[ \\t]*\\.?'
 const OMISSION_NOUN = '(?:code|methods?|functions?|file|class|implementation|logic|markup|imports|lines|content|template)'
 const OMISSION_STATE =
   '(?:unchanged|omitted|is[ \\t]+unchanged|is[ \\t]+the[ \\t]+same|remains?[ \\t]+(?:unchanged|the[ \\t]+same)|stays?[ \\t]+the[ \\t]+same)'
@@ -77,7 +85,7 @@ const OMISSION_LEADING = (gap: string): string =>
 export const OMISSION_PLACEHOLDER =
   `^(?=[^\\n]*?${OMISSION_MARK})` +
   `(?:${OMISSION_LEADER}(?:${OMISSION_TRAILING}|${OMISSION_LEADING('[ \\t]*')})|${OMISSION_TRAILING}|${OMISSION_LEADING('[ \\t]+')})` +
-  `${OMISSION_CLOSE}(?=[ \\t\\r]*$)`
+  `${OMISSION_CLOSE}$`
 
 const GENERATOR_SCRIPT = '((?:[A-Za-z0-9_.-]+\\/)*[A-Za-z0-9_.-]+\\.(?:ts|tsx|mts|mjs|cjs|js|sh|py|rb|go|rs))'
 const GENERATOR_RUNNER = '`?(?:bun run |bun |node |bash |sh |python3? |deno run |deno )?'
@@ -110,7 +118,7 @@ const GENERATED_PATHS: GeneratedPath[] = [
   { pattern: '^scripts/consistency-census/basename-census\\.json$', generator: 'bun scripts/consistency-census/gen-basename-census.ts', sources: 'src/**/*.{ts,tsx,mjs}', check: 'bun scripts/consistency-census/prove-basename-census.ts' },
   { pattern: '^assets/completions/(?:mercury\\.bash|_mercury|mercury\\.fish)$', generator: 'bun run build.ts && bun scripts/project-services/gen-completions.ts', sources: 'src/main.tsx src/commands/mcp/addCommand.ts', check: 'bun scripts/project-services/gen-completions.ts --check' },
   { pattern: '^(?:mercury-skills|src/skills/bundled)/extension-maker/references/CONTRACT\\.md$', generator: 'bun scripts/extensions/gen-contract.ts', sources: 'src/extensions/manifest.ts src/extensions/catalogue.ts', check: 'bun scripts/extensions/prove-contract-in-sync.ts' },
-  { pattern: '^src/skills/bundled/[^/]+/.+$', generator: 'bun scripts/skills/gen-bundled.ts', sources: 'mercury-skills/**', check: null },
+  { pattern: '^src/skills/bundled/[^/.]+(?:/.*)?$', generator: 'bun scripts/skills/gen-bundled.ts', sources: 'mercury-skills/**', check: null },
   { pattern: '^src/services/blender/bridgeFiles\\.generated\\.ts$', generator: 'node scripts/blender-bridge/regen-bridge.mjs', sources: 'assets/blender/bridge/**', check: 'node scripts/blender-bridge/regen-bridge.mjs --check' },
   { pattern: '^src/services/unity/bridgeFiles\\.generated\\.ts$', generator: 'node scripts/unity-bridge/regen-bridge.mjs', sources: 'assets/unity/bridge/**', check: 'node scripts/unity-bridge/regen-bridge.mjs --check' },
   { pattern: '^src/services/vulcan/addonFiles\\.generated\\.ts$', generator: 'node scripts/vulcan/regen-addon.mjs', sources: 'assets/vulcan/addon/**', check: 'node scripts/vulcan/regen-addon.mjs --check' },
@@ -193,7 +201,7 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
     flags: 'i',
     newContentOnly: true,
     skipCommentLines: false,
-    trimLines: true,
+    foldLines: true,
   },
   {
     name: 'no-hand-edit-generated-file',
@@ -315,6 +323,7 @@ const compiledAllowPathPatterns = new WeakMap<WardRule, RegExp | null>()
 const compiledGeneratedPaths = new WeakMap<WardRule, Array<{ re: RegExp; row: GeneratedPath }>>()
 const compiledLeadingMarkers = new WeakMap<WardRule, RegExp | null>()
 const LEADING_SLASH = /^\//
+const BLANK_RUN = /[ \t]+/g
 let generatedDeclaration: RegExp | null | undefined
 
 function declaredGenerator(lines: string[]): string | undefined {
@@ -431,10 +440,15 @@ type WardTarget = {
   text: string
   oldText: string | undefined
   whole: boolean
+  asGiven?: boolean
 }
 
 function editTarget(path: string, text: string): WardTarget {
   return { scope: 'edit', path, text, oldText: undefined, whole: false }
+}
+
+function stringOf(value: unknown): string {
+  return typeof value === 'string' ? value : ''
 }
 
 function patchTargets(patch: string): WardTarget[] {
@@ -449,11 +463,18 @@ function patchTargets(patch: string): WardTarget[] {
   for (const raw of patch.split('\n')) {
     if (raw === '|') {
       body.push('')
-    } else if (raw.startsWith('| ')) {
+      continue
+    }
+    if (raw.startsWith('| ')) {
       body.push(raw.slice(2))
-    } else if (raw.startsWith('file ')) {
+      continue
+    }
+    const tokens = raw.trim().split(/\s+/)
+    if (tokens[0] === 'file' && tokens.length >= 2) {
       flush()
-      path = raw.slice(5).trim().split(/\s+/)[0] ?? ''
+      path = tokens[1]!
+    } else if (tokens[0] === 'move-to' && tokens.length >= 2) {
+      out.push(editTarget(tokens[1]!, ''))
     }
   }
   flush()
@@ -489,7 +510,19 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
     return out
   }
   if (AST_EDIT_TOOLS.has(pending.toolName)) {
-    return [editTarget(typeof input.path === 'string' ? input.path : '', typeof input.rewrite === 'string' ? input.rewrite : '')]
+    return [editTarget(stringOf(input.path), stringOf(input.rewrite))]
+  }
+  if (STRUCTURE_TOOLS.has(pending.toolName)) {
+    const parts = [input.replacement, input.out, input.newValue, input.to, input.newModule].filter(part => typeof part === 'string')
+    return parts.length === 0 ? [] : [editTarget('', parts.join('\n'))]
+  }
+  if (GIT_TOOLS.has(pending.toolName)) {
+    if (input.op !== 'resolve' || typeof input.content !== 'string') return []
+    return [{ scope: 'edit', path: stringOf(input.path), text: input.content, oldText: undefined, whole: true, asGiven: true }]
+  }
+  if (LSP_TOOLS.has(pending.toolName)) {
+    if (input.apply !== true) return []
+    return [input.filePath, input.targetPath, input.newPath].filter(path => typeof path === 'string' && path !== '').map(path => editTarget(path as string, ''))
   }
   if (pending.shellCommand !== undefined) {
     return [{ scope: 'bash', path: '', text: pending.shellCommand, oldText: undefined, whole: false }]
@@ -497,13 +530,32 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
   return []
 }
 
-function projectPath(path: string, root: string | undefined): string {
-  if (!path.startsWith('/')) return path
-  if (root !== undefined && root !== '') {
-    const base = root.endsWith('/') ? root : `${root}/`
-    if (path.startsWith(base)) return path.slice(base.length)
+function normalisePath(path: string): string {
+  const absolute = path.startsWith('/')
+  const out: string[] = []
+  for (const segment of path.split('/')) {
+    if (segment === '' || segment === '.') continue
+    if (segment === '..') {
+      if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
+      else if (!absolute) out.push('..')
+      continue
+    }
+    out.push(segment)
   }
-  return path.slice(path.lastIndexOf('/') + 1)
+  return (absolute ? '/' : '') + out.join('/')
+}
+
+function bindPath(target: WardTarget, pending: PendingToolCall): { relative: string; absolute: string } {
+  const given = normalisePath(target.path)
+  if (target.asGiven === true && !given.startsWith('/')) return { relative: given, absolute: '' }
+  const resolved = pending.resolvePath?.(given) ?? { path: given, root: undefined }
+  const path = resolved.path
+  if (resolved.root !== undefined && resolved.root !== '') {
+    const base = resolved.root.endsWith('/') ? resolved.root : `${resolved.root}/`
+    if (path.startsWith(base)) return { relative: path.slice(base.length), absolute: path }
+  }
+  if (!path.startsWith('/')) return { relative: path, absolute: path }
+  return { relative: path.slice(path.lastIndexOf('/') + 1), absolute: path }
 }
 
 export function evaluateWards(
@@ -519,8 +571,9 @@ export function evaluateWards(
 
 function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, target: WardTarget): WardVerdict {
   let words: string | undefined
+  let oldFolded: string | undefined
   let head: string | undefined | null = null
-  let relative: string | null = null
+  let bound: { relative: string; absolute: string } | null = null
 
   for (const rule of rules) {
     if (rule.scope !== target.scope) continue
@@ -534,9 +587,9 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
         if (re !== null && re.test(target.path)) continue
       }
       if (rule.generatedPaths !== undefined && target.path) {
-        if (relative === null) relative = projectPath(target.path, pending.projectRoot)
+        if (bound === null) bound = bindPath(target, pending)
         for (const { re, row } of cachedGeneratedPaths(rule)) {
-          const m = re.exec(relative)
+          const m = re.exec(bound.relative)
           if (!m) continue
           return {
             allow: false,
@@ -552,7 +605,10 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
       }
       const marker = rule.leadingMarker === undefined ? null : cachedLeadingMarker(rule)
       if (marker !== null) {
-        if (head === null) head = target.path !== '' && pending.readHead !== undefined ? pending.readHead(target.path) : undefined
+        if (head === null) {
+          if (bound === null && target.path !== '') bound = bindPath(target, pending)
+          head = bound !== null && bound.absolute !== '' && pending.readHead !== undefined ? pending.readHead(bound.absolute) : undefined
+        }
         const hit = (head === undefined ? null : leadingMarkerHit(marker, head)) ?? (target.whole ? leadingMarkerHit(marker, target.text) : null)
         if (hit !== null) {
           return {
@@ -571,18 +627,19 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
     if (regexes.length === 0) continue
 
     const skipComments = rule.skipCommentLines !== false
-    const trim = rule.trimLines === true
+    const fold = rule.foldLines === true
     const text = rule.outsideQuotes === true && target.scope === 'bash' ? (words ??= commandOutsideQuotes(target.text)) : target.text
     const lines = text.split('\n')
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? ''
       if (skipComments && isCommentLine(line)) continue
-      const view = trim ? line.trimStart() : line
+      const view = fold ? line.trim().replace(BLANK_RUN, ' ') : line
       for (const re of regexes) {
         const m = view.match(re)
         if (!m || m[0] === undefined) continue
-        if (rule.newContentOnly && target.oldText !== undefined && target.oldText.includes(m[0])) {
-          continue
+        if (rule.newContentOnly && target.oldText !== undefined) {
+          const previous = fold ? (oldFolded ??= target.oldText.replace(BLANK_RUN, ' ')) : target.oldText
+          if (previous.includes(m[0])) continue
         }
         return {
           allow: false,
