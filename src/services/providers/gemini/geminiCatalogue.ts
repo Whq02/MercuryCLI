@@ -302,6 +302,23 @@ export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): 
   return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
 }
 
+const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
+const liveIdSets = new WeakMap<GeminiCatalogueSnapshot, ReadonlySet<string>>()
+
+export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+  if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
+  const account = resolveGeminiAccount(env)
+  if (!account) return EMPTY_LIVE_IDS
+  const snapshot = getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key', env)
+  if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
+  let ids = liveIdSets.get(snapshot)
+  if (ids === undefined) {
+    ids = new Set(geminiGenerateModels(snapshot).map(m => m.id.toLowerCase()))
+    liveIdSets.set(snapshot, ids)
+  }
+  return ids
+}
+
 export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined): string {
   const http = status === undefined ? '' : ` (HTTP ${status})`
   if (account.kind === 'oauth') return `the Google account's token was refused${http} · /logins re-connects`

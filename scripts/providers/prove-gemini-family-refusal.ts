@@ -88,9 +88,12 @@ try {
   __resetGeminiCatalogueForTest()
   await refreshGeminiCatalogue('oauth', { force: true })
   resetComputedDefaultMemo()
+  const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
+  const gemmaRouted = declaredRouteOf('gemma-fixture') === 'gemini'
   for (const arm of ['session', 'crew'] as const) {
-    const unroutable = await validateWorkerModelChoice('gemini', arm)
-    check(`${arm}: a ready catalogue without selectable rows retains the sign-in`, !unroutable.ok && unroutable.reason === 'not-runnable:no-selectable-models', unroutable)
+    const listed = await validateWorkerModelChoice('gemini', arm)
+    if (gemmaRouted) check(`${arm}: a live-listed id outside the gemini- grammar resolves under the family word (the routing law routes it by where it came from)`, listed.ok && listed.entry.modelId === 'gemma-fixture', listed)
+    else check(`${arm}: a ready catalogue whose only row the routing law does not route retains the sign-in`, !listed.ok && listed.reason === 'not-runnable:no-selectable-models', listed)
   }
   models = []
   __resetGeminiCatalogueForTest()

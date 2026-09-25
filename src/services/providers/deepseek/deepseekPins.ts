@@ -59,10 +59,9 @@ export function deepseekDisplayPin(id: string): DeepseekDisplayPin | undefined {
   return DEEPSEEK_DISPLAY_PINS.find(p => p.id === current)
 }
 
-export function deepseekDisplayName(id: string): string | undefined {
+export function deepseekDisplayName(id: string): string {
   const pin = deepseekDisplayPin(id)
   if (pin) return pin.displayName
-  if (!isDeepseekModelId(id)) return undefined
   return id
     .trim()
     .toLowerCase()
