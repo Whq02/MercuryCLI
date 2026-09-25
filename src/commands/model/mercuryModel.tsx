@@ -62,6 +62,20 @@ import {
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { resolveHuggingfaceApiKey } from '../../services/providers/huggingface/huggingfaceAccounts.js'
 import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
+import {
+  getCachedMoonshotCatalogue,
+  moonshotCatalogueSourceWords,
+  refreshMoonshotCatalogue,
+  type MoonshotCatalogueSnapshot,
+} from '../../services/providers/moonshot/moonshotCatalogue.js'
+import {
+  kimiAccountKey,
+  kimiCodingBase,
+  moonshotApiBase,
+  moonshotStoredTokens,
+  resolveMoonshotAccount,
+  resolveMoonshotApiKey,
+} from '../../services/providers/moonshot/moonshotAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -239,6 +253,24 @@ const HUGGINGFACE_ROAD: CatalogueRoad<HuggingfaceCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
+const MOONSHOT_ROAD: CatalogueRoad<MoonshotCatalogueSnapshot> = {
+  family: 'Moonshot',
+  identity: () => {
+    const account = resolveMoonshotAccount()
+    if (!account) return undefined
+    if (account.kind === 'kimi-oauth') {
+      const tokens = moonshotStoredTokens()
+      return tokens ? `kimi-oauth:${kimiAccountKey(tokens)}:${kimiCodingBase(account.region)}` : undefined
+    }
+    return `${account.keySource}:${credentialFingerprint(resolveMoonshotApiKey()?.key ?? '')}:${moonshotApiBase()}`
+  },
+  cached: () => getCachedMoonshotCatalogue(),
+  refresh: () => refreshMoonshotCatalogue({ force: true }),
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
 const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
   family: 'Local',
   identity: () => {
@@ -390,7 +422,11 @@ function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Recor
     [OPENAI_MODEL_GROUP]:
       (gptAvailability.state === 'ready' ? `${gptAvailability.source} · signed in` : gptAvailability.reason) + seatDetail('openai'),
     [ZAI_MODEL_GROUP]: credentialWords('zai'),
-    [MOONSHOT_MODEL_GROUP]: credentialWords('moonshot'),
+    [MOONSHOT_MODEL_GROUP]: ((): string => {
+      const words = credentialWords('moonshot')
+      const live = moonshotCatalogueSourceWords()
+      return live === undefined ? words : `${words} · ${live}`
+    })(),
     [DEEPSEEK_MODEL_GROUP]: credentialWords('deepseek'),
     [OPENROUTER_MODEL_GROUP]: ((): string => {
       const availability = getOpenrouterAvailability()
@@ -537,6 +573,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -869,6 +906,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -962,6 +1000,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1023,6 +1062,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
