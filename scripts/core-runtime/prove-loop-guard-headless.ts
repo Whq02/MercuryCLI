@@ -126,6 +126,17 @@ function toolTurn(step: Step): unknown[] {
   m.message.stop_reason = 'tool_use'
   return [m]
 }
+function parallelTurn(calls: Step[]): unknown[] {
+  const responseId = `msg_round_${++idSeq}`
+  return calls.map((call, i) => {
+    const m = createAssistantMessage({
+      content: [{ type: 'tool_use', id: `tu_${++idSeq}`, name: call.name, input: call.input }] as never,
+    })
+    m.message.id = responseId
+    m.message.stop_reason = i === calls.length - 1 ? 'tool_use' : null
+    return m
+  })
+}
 function textTurn(text: string): unknown[] {
   const m = createAssistantMessage({ content: text })
   m.message.stop_reason = 'end_turn'
@@ -153,11 +164,13 @@ function makeEngine(): InstanceType<typeof QueryEngine> {
   } as never)
 }
 
-async function runHeadless(steps: Step[]): Promise<{ yields: AnyMsg[]; modelCalls: number }> {
+async function runHeadless(steps: Step[], rounds?: Step[][]): Promise<{ yields: AnyMsg[]; modelCalls: number }> {
   let modelCalls = 0
   async function* callModel(): AsyncGenerator<never, void> {
-    const step = steps[modelCalls++]
-    const turn = step ? toolTurn(step) : textTurn('done: the model ended the turn itself')
+    const index = modelCalls++
+    const turn = rounds !== undefined
+      ? (rounds[index] ? parallelTurn(rounds[index]!) : textTurn('done: the model ended the turn itself'))
+      : steps[index] ? toolTurn(steps[index]!) : textTurn('done: the model ended the turn itself')
     for (const m of turn) yield m as never
   }
   scriptedDeps = {
@@ -211,6 +224,31 @@ section('H2 — KEY ON: a loop-stopped run settles as its own error subtype, nev
   check('its subtype is error_loop_stopped with is_error true', result?.subtype === 'error_loop_stopped' && result.is_error === true, JSON.stringify({ subtype: result?.subtype, is_error: result?.is_error }))
   check('its errors name the cycle that fired', Array.isArray(result?.errors) && /the same cycle of tool calls \(Edit -> Bash\)/.test(String((result?.errors as string[])[0])), JSON.stringify(result?.errors))
   check('no success envelope with an empty result rode the stream', !run.yields.some(m => m.type === 'result' && m.subtype === 'success'))
+  setStopKey(null)
+}
+
+section('H3 — KEY ON, a parallel round on the live shape: the settlement lands only after every issued call is paired with a result')
+{
+  setStopKey(true)
+  const rounds: Step[][] = [[{ name: 'Bash', input: TEST }], ...Array.from({ length: 10 }, () => [{ name: 'Edit', input: EDIT }, { name: 'Bash', input: TEST }])]
+  const run = await runHeadless([], rounds)
+  const result = resultOf(run.yields)
+  const issued: string[] = []
+  const paired = new Set<string>()
+  for (const m of run.yields) {
+    const content = (m as { message?: { content?: unknown } }).message?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content as Array<{ type?: string; id?: string; tool_use_id?: string }>) {
+      if (m.type === 'assistant' && block.type === 'tool_use' && block.id) issued.push(block.id)
+      if (m.type === 'user' && block.type === 'tool_result' && block.tool_use_id) paired.add(block.tool_use_id)
+    }
+  }
+  const unpaired = issued.filter(id => !paired.has(id))
+  check('the run settled as error_loop_stopped', result?.subtype === 'error_loop_stopped' && result.is_error === true, JSON.stringify({ subtype: result?.subtype }))
+  check('every tool_use the engine yielded has a tool_result in the engine stream: the round drained before the settlement', issued.length > 0 && unpaired.length === 0, `issued=${issued.length} paired=${paired.size} unpaired=${JSON.stringify(unpaired)}`)
+  const resultAt = run.yields.findIndex(m => m.type === 'result')
+  const lastResultAt = run.yields.reduce((at, m, i) => (m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content) ? i : at), -1)
+  check('the settlement is the last thing on the stream, after the last tool result', resultAt === run.yields.length - 1 && lastResultAt < resultAt, `result=${resultAt} lastResult=${lastResultAt} yields=${run.yields.length}`)
   setStopKey(null)
 }
 

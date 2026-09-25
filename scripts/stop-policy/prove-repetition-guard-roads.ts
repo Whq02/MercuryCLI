@@ -174,7 +174,34 @@ if (import.meta.main) {
     else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)
   }
 
-  section('§3 KEY ROAD on the built product (loopGuardStopEnabled: true): a two-call cycle repeated ten times ends the turn with error_loop_stopped naming the cycle')
+  section('§3 DEFAULT ROAD on the built product, the discriminating case: the same two-call cycle repeated twelve times is nudged at the fifth repeat and again at the tenth, and the turn ends only when the model ends it')
+  {
+    const home = join(SCRATCH_ROOT, `mercury-guard-default-cycle-${process.pid}`)
+    const cwd = join(home, 'repo')
+    seedHome(home, cwd)
+    const fixture = await startCycleFixture(cwd)
+    const failedAtOpen = failed()
+    const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Bash,Grep'] })
+    runner.send(user(CYCLE_ASK, '00000000-0000-4000-8000-000000000002'))
+    const init = await runner.waitFor('the init frame', isInit, bound(90_000))
+    const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+    await runner.stop(bound(8_000))
+    await fixture.close()
+    const hits = fixture.hits
+    const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
+    const wire = hits.filter(h => h.arm !== 'svc')
+    const resultText = String(result?.result ?? '')
+    check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
+    check(`the model was answered ${CYCLE_PAIRS} Bash and ${CYCLE_PAIRS} Grep calls and then its own end`, arms('bash').length === CYCLE_PAIRS && arms('grep').length === CYCLE_PAIRS && arms('end').length === 1, j(hits.map(h => [h.n, h.arm, h.step])))
+    const firstNudged = wire.find(h => h.nudged)
+    check('the loop reminder rode the wire after the fifth repeat of the pair (ten tool results), and not before', firstNudged !== undefined && firstNudged.step === 10 && wire.filter(h => h.step < 10).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
+    check('the turn ended only when the model ended it: the result is the model\u2019s own last words, not a stop', result?.subtype === 'success' && resultText === CYCLE_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
+    check('no request carried a stop note: the default road never ends a cycle', wire.every(h => !h.stopped), j(wire.filter(h => h.stopped).map(h => h.n)))
+    if (failed() === failedAtOpen) await removeWorld(home)
+    else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)
+  }
+
+  section('§4 KEY ROAD on the built product (loopGuardStopEnabled: true): a two-call cycle repeated ten times ends the turn with error_loop_stopped naming the cycle')
   {
     const home = join(SCRATCH_ROOT, `mercury-guard-key-${process.pid}`)
     const cwd = join(home, 'repo')

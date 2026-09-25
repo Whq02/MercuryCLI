@@ -295,6 +295,7 @@ export async function* runToolUse(
   assistantMessage: AssistantMessage,
   canUseTool: CanUseToolFn,
   toolUseContext: ToolUseContext,
+  roundOrdinal = 0,
 ): AsyncGenerator<MessageUpdateLazy> {
   const toolUseID = toolUse.id
   const requestedName = toolUse.name
@@ -366,7 +367,8 @@ export async function* runToolUse(
   const loopVerdict = observeToolCall(ownerFromToolUseContext(toolUseContext), {
     toolName: resolved.name,
     toolUseID,
-    roundID: String(assistantMessage.uuid),
+    roundID: String(assistantMessage.message.id ?? assistantMessage.uuid),
+    roundOrdinal,
     arguments: rawInput,
     result: settledResult,
     messages: toolUseContext.messages,

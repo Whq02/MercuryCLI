@@ -802,6 +802,7 @@
   "instructionExcludes",
   "instructionProfile",
   "language",
+  "loopGuardStopEnabled",
   "memoryUpkeepEnabled",
   "model",
   "modelOverrides",

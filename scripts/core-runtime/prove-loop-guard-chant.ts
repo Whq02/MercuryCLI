@@ -30,7 +30,7 @@ bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const settingsRoad = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
@@ -69,7 +69,7 @@ const ANY_NOTICE = /Loop (check|notice|guard)/
 type AnyMsg = Record<string, unknown> & { type?: string }
 const MODEL = 'claude-opus-4-8'
 
-function makeCtx(): Record<string, unknown> {
+function makeCtx(agentId?: string): Record<string, unknown> {
   let appState: Record<string, unknown> = {
     ...(getDefaultAppState() as unknown as Record<string, unknown>),
     effortValue: 'high',
@@ -98,7 +98,7 @@ function makeCtx(): Record<string, unknown> {
     setResponseLength: () => {},
     updateFileHistoryState: () => {},
     updateAttributionState: () => {},
-    agentId: undefined,
+    agentId,
   }
 }
 
@@ -107,16 +107,29 @@ function textTurn(text: string): unknown[] {
   m.message.stop_reason = 'end_turn'
   return [m]
 }
+const CAPPED = '\u0000capped'
+function cappedTurn(text: string): unknown[] {
+  const m = createAssistantMessage({ content: text })
+  m.message.stop_reason = 'max_tokens'
+  const cap = createAssistantAPIErrorMessage({
+    content: "API Error: Mercury's response exceeded the 8192 output token maximum.",
+    apiError: 'max_output_tokens',
+    error: 'max_output_tokens',
+  })
+  cap.message.id = m.message.id
+  return [m, cap]
+}
 
 type Run = { calls: unknown[][]; yields: AnyMsg[]; terminal: Record<string, unknown> }
 
-async function runReplies(replies: string[]): Promise<Run> {
+async function runReplies(replies: string[], agentId?: string): Promise<Run> {
   const calls: unknown[][] = []
   async function* callModel(req: { messages: unknown[] }): AsyncGenerator<never, void> {
     const idx = calls.length
     calls.push([...req.messages])
     const reply = replies[idx] ?? 'the script is exhausted'
-    for (const m of textTurn(reply)) yield m as never
+    const turn = reply.endsWith(CAPPED) ? cappedTurn(reply.slice(0, -CAPPED.length)) : textTurn(reply)
+    for (const m of turn) yield m as never
   }
   const gen = query({
     messages: [createUserMessage({ content: 'please write the thing' })] as never,
@@ -124,7 +137,7 @@ async function runReplies(replies: string[]): Promise<Run> {
     userContext: {},
     systemContext: {},
     canUseTool: (async () => ({ behavior: 'allow' })) as never,
-    toolUseContext: makeCtx() as never,
+    toolUseContext: makeCtx(agentId) as never,
     querySource: 'sdk' as never,
     deps: {
       callModel: callModel as never,
@@ -190,6 +203,38 @@ section('P3 — KEY ON (loopGuardStopEnabled: true): the second chant ends the t
   check('the operator got the continuation row and then the warning row naming the key', rows(run).length === 2 && rows(run).every(r => r.level === 'warning') && /loopGuardStopEnabled/.test(String(rows(run)[1]?.content)), JSON.stringify(rows(run).map(r => r.content)))
   const single = await runReplies([CHANT, HONEST])
   check('with the key on, a single chant is still only cut once and the continuation completes the turn', single.calls.length === 2 && single.terminal.reason === 'completed' && stops(single).length === 0, `calls=${single.calls.length} ${JSON.stringify(single.terminal)}`)
+  setStopKey(null)
+}
+
+section('P4 — a chant cut by the output cap takes the chant road, not the resume road (both roads)')
+{
+  setStopKey(null)
+  const once = await runReplies([CHANT + CAPPED, HONEST])
+  check('DEFAULT: two model calls — the capped chant, then the continuation on the chant nudge', once.calls.length === 2 && once.terminal.reason === 'completed', `calls=${once.calls.length} ${JSON.stringify(once.terminal)}`)
+  check('the second request carries the chant nudge and no "Resume directly" resume nudge', requestText(once, 1).includes(NUDGE) && !/Resume directly/.test(requestText(once, 1)), requestText(once, 1).slice(-300))
+  check('one chant warning row, no output-cap notice row', rows(once).length === 1 && String(rows(once)[0]?.content).startsWith(NOTICE) && !once.yields.some(m => m.type === 'system' && /Output token limit/.test(String((m as { content?: unknown }).content ?? ''))), JSON.stringify(rows(once).map(r => r.content)))
+  const twice = await runReplies([CHANT + CAPPED, CHANT + CAPPED, HONEST])
+  check('DEFAULT: a second capped chant stands — two model calls, never a resume, the turn completes', twice.calls.length === 2 && twice.terminal.reason === 'completed' && !/Resume directly/.test(requestText(twice, 1)) && stops(twice).length === 0, `calls=${twice.calls.length} ${JSON.stringify(twice.terminal)}`)
+  setStopKey(true)
+  const ended = await runReplies([CHANT + CAPPED, CHANT + CAPPED, HONEST])
+  check('KEY ON: the second capped chant ends the turn typed as loop_stopped for the reply', ended.calls.length === 2 && ended.terminal.reason === 'loop_stopped' && stops(ended).length === 1, `calls=${ended.calls.length} ${JSON.stringify(ended.terminal)}`)
+  setStopKey(null)
+}
+
+section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as a typed failure, and the chant is never returned as its report')
+{
+  setStopKey(true)
+  const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+  const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
+  const run = await runReplies([CHANT, CHANT, HONEST], 'agent-rig-chant')
+  check('the sub-agent turn ended typed as loop_stopped for the reply', run.terminal.reason === 'loop_stopped' && stops(run).length === 1, JSON.stringify(run.terminal))
+  const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
+  const finalized = finalizeAgentTool(collected as never, 'agent-rig-chant', { prompt: 'write', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'general-purpose', isAsync: false })
+  check('the finalized outcome is a typed failure with the loop-stopped reason', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped', JSON.stringify(finalized.outcome))
+  check('the finalized content carries none of the chant', (finalized.content ?? []).length === 0, JSON.stringify(finalized.content).slice(0, 200))
+  const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'write', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
+  const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
+  check('the parent receives is_error, the failure names the loop guard, and the chant sentence appears nowhere in it', block.is_error === true && /Agent execution failed: The loop guard ended the turn/.test(parentText) && !parentText.includes(SENTENCE.trim()), parentText.slice(0, 400))
   setStopKey(null)
 }
 
