@@ -1,13 +1,14 @@
 
 import { resolveProjectConfigPath } from '../projectConfig.js'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
+import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../../context/notifications.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import type { SetAppState } from '../messageQueueManager.js'
 import { createSystemMessage } from '../messages/systemMessages.js'
+import { expandPath } from '../path.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
@@ -17,6 +18,7 @@ import {
   evaluateWards,
   parseProjectWardsWithReport,
   type PendingToolCall,
+  type ResolvedPath,
   type WardRule,
 } from '../wards/wards.js'
 import { addFunctionHook } from './sessionHooks.js'
@@ -24,6 +26,85 @@ import { addFunctionHook } from './sessionHooks.js'
 export const WARDS_HOOK_ID = 'wards-content-rules'
 
 const WARD_DENIAL_CAP = 25
+
+const TARGET_HEAD_BYTES = 2048
+
+export function readTargetHead(path: string): string | undefined {
+  let fd: number
+  try {
+    fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+  } catch {
+    return undefined
+  }
+  const buffer = Buffer.alloc(TARGET_HEAD_BYTES)
+  let read = 0
+  try {
+    if (!fstatSync(fd).isFile()) return undefined
+    read = readSync(fd, buffer, 0, TARGET_HEAD_BYTES, 0)
+  } catch {
+    return undefined
+  } finally {
+    closeSync(fd)
+  }
+  const head = buffer.subarray(0, read)
+  return head.includes(0) ? undefined : head.toString('utf8')
+}
+
+export const TARGET_PATH_MAX = 4096
+
+function deepestExisting(path: string): { real: string; tail: string[] } {
+  const segments = path.split(sep).filter(Boolean)
+  const tail: string[] = []
+  for (let depth = segments.length; depth > 0; depth--) {
+    const candidate = sep + segments.slice(0, depth).join(sep)
+    try {
+      return { real: realpathSync(candidate), tail }
+    } catch {
+      tail.unshift(segments[depth - 1]!)
+    }
+  }
+  return { real: sep, tail }
+}
+
+export function realTargetPath(path: string): string {
+  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return path
+  const { real, tail } = deepestExisting(path)
+  return tail.length === 0 ? real : join(real, ...tail)
+}
+
+export function repositoryRootOf(path: string): string | undefined {
+  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return undefined
+  let dir = deepestExisting(path).real
+  if (dir === realTargetPath(path)) dir = dirname(dir)
+  for (;;) {
+    if (existsSync(join(dir, '.git'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return undefined
+    dir = parent
+  }
+}
+
+export function makeTargetResolver(fallbackRoot: string): (path: string) => ResolvedPath {
+  const fallback = realTargetPath(fallbackRoot)
+  return (path: string): ResolvedPath => {
+    let expanded: string
+    try {
+      expanded = expandPath(path)
+    } catch {
+      return { path, root: undefined }
+    }
+    if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
+    const { real, tail } = deepestExisting(expanded)
+    const resolved = tail.length === 0 ? real : join(real, ...tail)
+    let dir = tail.length === 0 ? dirname(real) : real
+    for (;;) {
+      if (existsSync(join(dir, '.git'))) return { path: resolved, root: dir }
+      const parent = dirname(dir)
+      if (parent === dir) return { path: resolved, root: fallback }
+      dir = parent
+    }
+  }
+}
 
 export type WardsLevel = 'off' | 'warn' | 'enforce'
 
@@ -102,6 +183,7 @@ export function registerWardsHook(
     ...(deleteWardActive() ? AUTONOMOUS_WARDS : []),
     ...projectReport.rules,
   ]
+  const resolveTarget = makeTargetResolver(getCwd())
   let denials = 0
   addFunctionHook(
     setAppState,
@@ -124,6 +206,8 @@ export function registerWardsHook(
               : {},
         }
         pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
+        pending.readHead = readTargetHead
+        pending.resolvePath = resolveTarget
         const refusal = evaluateWards(REFUSAL_WARDS, pending)
         if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
         if (denials < WARD_DENIAL_CAP) {
