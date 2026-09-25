@@ -38,6 +38,7 @@ writeFileSync(join(home, '.gemini-auth.json'), JSON.stringify({ version: 1, pref
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const busy = await import('../../src/services/providers/busyRetry.ts')
+const idle = await import('../../src/services/providers/streamIdleBudget.ts')
 const budgetModule = await import('../../src/services/api/recoveryBudget.ts')
 const agentModule = (await import('../../src/tools/AgentTool/runAgent.ts')) as { makeRecoveryAccountant?: (args: { budget: unknown; cut: (cutting: { declaredMs: number; honoredMs: number }) => void; words?: (line: string | null) => void }) => { wait: (facts: unknown, loud: boolean) => { honoredMs: number; spent: boolean }; spoke: () => void; end: () => void; standing: () => boolean } }
 const heldNoticeOf = (busy as { heldBusyRetryNotice?: (wait: unknown) => { retryInMs?: number; retryAttempt?: number; maxRetries?: number; subtype?: string } | null }).heldBusyRetryNotice ?? ((): null => null)
@@ -126,6 +127,10 @@ async function drain(generator: AsyncGenerator<unknown>): Promise<Item[]> {
   return out
 }
 const notices = (items: Item[]) => items.filter(item => item.type === 'system' && item.subtype === 'api_error')
+const isRetryWait = (wait: unknown): boolean => (wait as { kind?: unknown } | null)?.kind === 'retry'
+const retryRows = (door: unknown[]): string[] => door.filter(isRetryWait).map(wait => idle.requestWaitLine(wait as Parameters<typeof idle.requestWaitLine>[0]))
+const doorKinds = (door: unknown[]): string => JSON.stringify(door.map(wait => (wait as { kind?: unknown } | null)?.kind ?? null))
+const doorDetail = (door: unknown[]): string => `${door.filter(isRetryWait).length} retry waits of ${door.length}: ${retryRows(door).join(' | ') || doorKinds(door)}`
 const stamped = (items: Item[]) => items.filter(item => item.type === 'assistant' && item.busyRecovery !== undefined)
 const redLines = (items: Item[]) => items.filter(item => item.type === 'assistant' && item.isApiErrorMessage === true).map(item => item.message?.content.map(block => block.text ?? '').join('') ?? '')
 const answered = (items: Item[], text: string) => items.some(item => item.type === 'assistant' && item.message?.content.some(block => block.text === text))
@@ -268,15 +273,24 @@ try {
     const agentDoor: unknown[] = []
     const heldRun = await drain(road.call(params(undefined, road.model, { agentId: 'agent-held', onWait: wait => agentDoor.push(wait) })))
     const held = agentDoor.map(heldNoticeOf).filter(notice => notice !== null)
-    check(`${road.name}: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands nothing`, held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === RUNGS[i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldRun).length === 1 && hits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldRun).length} notices, ${hits.length} requests`)
+    check(`${road.name}: on an agent's road each of the five quiet retries hands its held notice through the wait door — attempt n of 6 with the rung as its wait — and the loud sixth mints the notice and hands no held notice`, held.length === 5 && held.every((notice, i) => notice?.subtype === 'api_error' && notice.retryInMs === RUNGS[i] && notice.retryAttempt === i + 1 && notice.maxRetries === 6) && notices(heldRun).length === 1 && hits.length === 7, `${held.length} held, ${JSON.stringify(held.map(notice => [notice?.retryInMs, notice?.retryAttempt, notice?.maxRetries]))}, ${notices(heldRun).length} notices, ${hits.length} requests`)
+    const loudRow = `retrying — attempt 6 of 6 after a ${road.busy.status} · in 2 s`
+    const agentRows = retryRows(agentDoor.filter(wait => heldNoticeOf(wait) === null))
+    check(`${road.name}: on the agent's road the loud sixth also publishes its wait in the row's words beside the five held notices — ${loudRow}`, agentRows.length === 1 && agentRows[0] === loudRow, doorDetail(agentDoor.filter(wait => heldNoticeOf(wait) === null)))
     reset(LADDER_SCALE, { status: road.busy.status, body: road.busy.body })
     const mainDoor: unknown[] = []
     await drain(road.call(params(undefined, road.model, { onWait: wait => mainDoor.push(wait) })))
     check(`${road.name}: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel`, mainDoor.every(wait => heldNoticeOf(wait) === null) && hits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
+    const mainRows = retryRows(mainDoor)
+    check(`${road.name}: the loud sixth busy retry publishes its wait through the main chat's door in the row's words — ${loudRow} — so the status row says what the transcript row says while the road sleeps; the five quiet retries publish none`, mainRows.length === 1 && mainRows[0] === loudRow, doorDetail(mainDoor))
 
     reset(LADDER_SCALE, { status: road.rate.status, body: road.rate.body })
-    const roadRate = await drain(road.call(params(undefined, road.model)))
+    const rateDoor: unknown[] = []
+    const roadRate = await drain(road.call(params(undefined, road.model, { onWait: wait => rateDoor.push(wait) })))
     check(`${road.name}: a rate limit without a wait keeps the one-retry road: two requests, one notice of 400 ms as attempt 1 of 1, the rate-limit line`, hits.length === 2 && notices(roadRate).length === 1 && notices(roadRate)[0]?.retryInMs === 400 && notices(roadRate)[0]?.retryAttempt === 1 && notices(roadRate)[0]?.maxRetries === 1 && roadRate.some(item => item.type === 'assistant' && item.error === 'rate_limit') && redLines(roadRate).length === 1 && !/stayed busy/.test(redLines(roadRate)[0] ?? ''), `${hits.length} requests, ${JSON.stringify(notices(roadRate).map(n => [n.retryInMs, n.retryAttempt, n.maxRetries]))}, ${redLines(roadRate)[0] ?? ''}`)
+    const plainRow = `retrying — attempt 1 of 1 after a ${road.rate.status} · in 1 s`
+    const rateRows = retryRows(rateDoor)
+    check(`${road.name}: the one plain retry publishes its wait through the main chat's door in the row's words — ${plainRow}`, rateRows.length === 1 && rateRows[0] === plainRow, doorDetail(rateDoor))
 
     reset(LADDER_SCALE, { status: road.rate.status, body: road.rate.body, refusals: 1, retryAfter: '1' })
     const roadRateAsked = await drain(road.call(params(undefined, road.model)))
@@ -408,6 +422,8 @@ try {
     const run = homeCall({ refusals: Infinity }, { door: { onWait: wait => mainDoor.push(wait) } })
     await drain(run.generator)
     check("home: the main chat's door (no agent) receives no held notice — the quiet window stays silent on every channel", mainDoor.every(wait => heldNoticeOf(wait) === null) && run.homeHits.length === 7, `${mainDoor.filter(wait => heldNoticeOf(wait) !== null).length} held on the main door`)
+    const homeRows = retryRows(mainDoor)
+    check("home: the loud sixth publishes its wait through the main chat's door in the row's words — retrying — attempt 6 of 6 after a 529 · in 2 s — the words every road's row shares", homeRows.length === 1 && homeRows[0] === 'retrying — attempt 6 of 6 after a 529 · in 2 s', doorDetail(mainDoor))
   }
   reset(LADDER_SCALE)
   {
@@ -532,6 +548,7 @@ check('no profile seam decides the ladder: every lane rides it', !source('openai
 for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
   const text = source(name)
   check(`${name} hands a quiet step's held notice through the wait door only on an agent's road`, text.includes("else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))"))
+  check(`${name} publishes the loud busy step's wait and the plain retry's wait through the same door, each read off its own notice`, text.split('options.onWait?.(retryNoticeWait(notice))').length === 3, `${text.split('options.onWait?.(retryNoticeWait(notice))').length - 1} publishes`)
 }
 const retrySource = readFileSync(new URL('../../src/services/api/withRetry.ts', import.meta.url), 'utf8')
 check('the home road\'s retry seam opens the one ladder for an overload and hands a quiet step\'s held notice through its door', retrySource.includes('openBusyRetryLadder(') && retrySource.includes('nextBusyRetry(') && retrySource.includes('heldBusyRetryWait(step, notice)') && retrySource.includes('await sleep(step.waitMs, options.signal)'))
