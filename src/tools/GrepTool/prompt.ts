@@ -24,5 +24,6 @@ Usage:
 - Three output modes: "files_with_matches" lists only the paths that hit (the default), "content" prints the matching lines, "count" tallies matches
 - For open-ended hunts that will take several rounds of searching, delegate the hunt instead of repeating searches here
 - Pattern dialect: ripgrep's, not grep's — literal braces need escaping (\`interface\\{\\}\` reaches \`interface{}\` in Go code)
+- Lookaround (\`(?<=\`, \`(?!\`) and backreferences (\`\\1\`) fall back to PCRE2 automatically when ripgrep carries it, and the result says so
 - Multiline: patterns stay within one line unless asked otherwise. A cross-line pattern (say \`struct \\{[\\s\\S]*?field\`) wants \`multiline: true\`${steeringSuffix(offered)}`
 }
