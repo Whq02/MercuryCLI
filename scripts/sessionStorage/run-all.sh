@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/sessionStorage/** src/utils/sessionStoragePortable.ts src/history.ts
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/goldenReplay.ts
+# gate-watch: scripts/staleness/prove-stale-registry.ts src/Tool.ts src/bootstrap/state.ts
+# gate-watch: src/daemon/concourseSupervisor.ts src/fabric/transcriptDecode.ts src/hooks/useHistorySearch.ts
+# gate-watch: src/screens/REPL.tsx src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/services/switchboard/hopIntoSession.ts src/services/tools/toolExecution.ts src/utils/*
+# gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

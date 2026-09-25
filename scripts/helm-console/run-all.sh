@@ -2,6 +2,12 @@
 # gate-class: cpu
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py src/components/mercury-ui/glyphs*
 # gate-watch: src/constants/spinnerVerbs* src/utils/cockpit/**
+# gate-watch: src/commands.ts src/commands/console/console.tsx src/commands/console/index.ts src/components/*
+# gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/components/Spinner/SpinnerAnimationRow.tsx src/components/Spinner/SpinnerGlyph.tsx
+# gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/routeLaw.ts
+# gate-watch: src/services/tools/toolExecution.ts src/state/telemetryBus.ts src/substrate/flagRegistry.ts
+# gate-watch: src/utils/* src/utils/model/subModelSlots.ts src/utils/sessionStorage/writer.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -3,6 +3,7 @@
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
 # gate-watch: src/tools/WorkflowTool/agentHooks*
 # gate-watch: src/utils/swarm/teammatePromptAddendum*
+# gate-watch: src/prompt/mercuryContract.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

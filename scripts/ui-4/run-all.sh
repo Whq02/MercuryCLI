@@ -5,6 +5,15 @@
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
 # gate-watch: src/services/run/** src/state/AppState* src/utils/**
+# gate-watch: design-system/live/manifest.json scripts/lib/* scripts/notifications/concourseReferenceSeed.ts
+# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
+# gate-watch: src/commands/feedback/issueForms.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
+# gate-watch: src/history.ts src/native-ts/color-diff/index.ts src/screens/REPL.tsx src/services/api/errors.ts
+# gate-watch: src/services/api/usage.ts src/services/claudeAiLimits.ts src/services/mockRateLimits.ts
+# gate-watch: src/services/providers/huggingface/huggingfaceCatalogue.ts
+# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
+# gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
+# gate-watch: src/tools/WorkflowTool/runManifest.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

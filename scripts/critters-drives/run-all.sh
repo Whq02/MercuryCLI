@@ -3,6 +3,9 @@
 # gate-watch: src/components/mercury-ui/sessionAccent* src/utils/config/**
 # gate-watch: src/utils/cockpit/**
 # gate-watch: src/components/MercuryHome.tsx src/components/MercuryFrame.tsx src/components/MercuryTurnRollup.tsx src/commands/critter/** src/utils/settings/types.ts
+# gate-watch: scripts/critters/* scripts/engine-durability/harness.ts scripts/lib/* scripts/ui/*
+# gate-watch: src/components/FullscreenLayout.tsx src/utils/sessionStorage/vnext.ts
+# gate-watch: src/utils/sessionStoragePortable.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/ink/**
+# gate-watch: scripts/lib/generated-assets-map.mjs scripts/ui/run-viewport-proof.ts
+# gate-watch: scripts/ui/viewportRuntime.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

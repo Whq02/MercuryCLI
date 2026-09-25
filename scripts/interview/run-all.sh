@@ -3,6 +3,12 @@
 # gate-watch: scripts/interview/**
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/utils/planModeV2.ts src/utils/messages/attachmentText.ts src/tools/EnterPlanModeTool/**
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
+# gate-watch: scripts/streaming/artifactArena.ts src/commands/console/console.tsx
+# gate-watch: src/components/CustomSelect/* src/components/mercury-ui/glyphs.ts
+# gate-watch: src/input-core/composer-document.ts src/services/acp/acpServer.ts src/services/interview/*
+# gate-watch: src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts src/utils/*
+# gate-watch: src/utils/messages/rejectionText.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -5,6 +5,28 @@
 # gate-watch: src/utils/teammateMailbox*
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: src/tools/SendMessageTool/**
+# gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
+# gate-watch: scripts/lib/fixtureApi.ts src/Task.ts src/bootstrap/state.ts src/cli/print.ts
+# gate-watch: src/commands/exit/exit.tsx src/components/MercuryExitConfirm.tsx
+# gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
+# gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
+# gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts
+# gate-watch: src/services/agentResults/normalize.ts src/services/agents/operatorResume.ts
+# gate-watch: src/services/agents/operatorStop.ts src/services/api/errors.ts src/services/compact/compact.ts
+# gate-watch: src/services/compact/prompt.ts src/services/concourse/workerModels.ts
+# gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/crew/dispatch.ts
+# gate-watch: src/services/engine-connector/* src/services/notices/idleNudge.ts
+# gate-watch: src/services/notices/unreadLedger.ts src/services/resources/adapters/agent.ts
+# gate-watch: src/services/resources/adapters/transcript.ts src/services/resources/contracts.ts
+# gate-watch: src/state/AppStateStore.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
+# gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
+# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tasks/stopTask.ts src/tools/AgentTool/*
+# gate-watch: src/tools/AgentTool/built-in/generalPurposeAgent.ts src/tools/TaskOutputTool/TaskOutputTool.tsx
+# gate-watch: src/tools/shared/spawnMultiAgent.ts src/types/ids.ts src/utils/*
+# gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts
+# gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
+# gate-watch: src/utils/swarm/busEnvelopes.ts src/utils/swarm/spawnInProcess.ts src/utils/task/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

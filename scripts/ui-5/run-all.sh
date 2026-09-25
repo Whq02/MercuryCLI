@@ -5,6 +5,11 @@
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
 # gate-watch: src/services/run/** src/state/AppState* src/utils/**
+# gate-watch: scripts/lib/* scripts/notifications/concourseReferenceSeed.ts
+# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/fabric/entryCodec.ts
+# gate-watch: src/fabric/ordinal.ts src/services/api/errors.ts src/substrate/startupMenu.ts
+# gate-watch: src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
+# gate-watch: src/tools/WorkflowTool/runManifest.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

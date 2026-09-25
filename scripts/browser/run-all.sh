@@ -2,6 +2,11 @@
 # gate-class: cpu
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
 # gate-watch: scripts/browser/**
+# gate-watch: scripts/lib/executionProfile.ts scripts/lib/provisionManagedBrowser.ts src/Tool.ts
+# gate-watch: src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx
+# gate-watch: src/components/permissions/PermissionRequest.tsx src/services/run/ownerLifecycle.ts
+# gate-watch: src/services/run/resolveOwner.ts src/tools/AgentTool/runAgent.ts
+# gate-watch: src/utils/permissions/decision/engine.ts src/utils/subprocessEnv.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

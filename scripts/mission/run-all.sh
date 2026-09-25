@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/hooks/missionHook* src/commands/mission/**
+# gate-watch: src/bootstrap/state.ts src/components/HelmLanesRail.tsx
+# gate-watch: src/services/engine-connector/focusedConnector.ts
+# gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/mission/missionCard.ts
+# gate-watch: src/services/mission/projection.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

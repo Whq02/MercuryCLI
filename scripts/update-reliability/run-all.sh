@@ -3,6 +3,7 @@
 # gate-watch: scripts/update-reliability/**
 # gate-watch: src/services/privateChannel/** scripts/release/** scripts/updater/**
 # gate-watch: .github/workflows/private-release.yml
+# gate-watch: scripts/engine-durability/harness.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

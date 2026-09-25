@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/cache/cacheClock* src/utils/cache/cacheClockCore* src/utils/modelCost*
+# gate-watch: src/bootstrap/state.ts src/cli/print.ts src/commands/cost/cost.ts src/components/*
+# gate-watch: src/components/Settings/Usage.tsx src/cost-tracker.ts src/services/engine-connector/types.ts
+# gate-watch: src/services/providers/anthropic/** src/services/providers/deepseek/deepseekPins.ts
+# gate-watch: src/services/providers/gemini/geminiPins.ts
+# gate-watch: src/services/providers/huggingface/huggingfacePins.ts
+# gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
+# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
+# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
+# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/glmPins.ts
+# gate-watch: src/substrate/flagRegistry.ts src/utils/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

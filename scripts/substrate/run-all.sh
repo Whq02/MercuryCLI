@@ -11,6 +11,25 @@
 # gate-watch: src/tools/FileWriteTool/prompt* src/tools/NotebookEditTool/constants*
 # gate-watch: src/tools/ScheduleCronTool/prompt* src/tools/ToolSearchTool/prompt*
 # gate-watch: src/tools/WorkflowTool/** src/tools/shared/spawnMultiAgent* src/utils/**
+# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs package.json src/* src/*.ts
+# gate-watch: src/bootstrap/runtime/posture.ts src/cli/print.ts src/cli/update.ts src/commands/daemon/index.ts
+# gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
+# gate-watch: src/commands/login/index.ts src/commands/logout/index.ts src/components/*
+# gate-watch: src/components/mercury-ui/components.tsx
+# gate-watch: src/components/mercury-ui/parity/DaemonSupervisorView.tsx
+# gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
+# gate-watch: src/hooks/useInboxPoller.ts src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
+# gate-watch: src/screens/REPL.tsx src/services/compact/* src/services/coordination/coordinationService.ts
+# gate-watch: src/services/gitGraph/observe.ts src/services/primitives/executionPlane.ts
+# gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
+# gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
+# gate-watch: src/services/run/resolveOwner.ts src/services/switchboard/hopIntoSession.ts
+# gate-watch: src/services/workbench/projection.ts src/state/telemetryBus.ts
+# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
+# gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TeamBriefTool/TeamBriefTool.ts
+# gate-watch: src/tools/TeamCreateTool/TeamCreateTool.ts src/tools/TeamDeleteTool/TeamDeleteTool.ts
+# gate-watch: src/types/command.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -2,6 +2,13 @@
 # gate-class: pty
 # gate-watch: src/components/messages/TurnReceiptRow.tsx src/components/KitMenuScreen.tsx src/services/kitMenu/** src/utils/cockpit/turnReceipt.ts src/ink/** src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts src/components/Messages.tsx src/components/LiveStreamingTail.tsx src/screens/REPL.tsx
 # gate-watch: src/components/StructuredDiff.tsx src/components/StructuredDiff/** src/components/StructuredDiffList.tsx src/components/FileEditToolUpdatedMessage.tsx src/native-ts/color-diff/** src/tools/FileWriteTool/UI.tsx
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/crew/crew-stop-fixture.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/journey/cap-offer-fixture-server.ts scripts/lib/*
+# gate-watch: scripts/stop-policy/prove-no-stagnation-governor.ts scripts/ui/* src/commands/login/login.tsx
+# gate-watch: src/components/MercurySetupFrame.tsx src/components/Onboarding.tsx
+# gate-watch: src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts
+# gate-watch: src/services/providers/deepseek/deepseekPins.ts src/utils/accounts/signInLedger.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStoragePortable.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -3,6 +3,9 @@
 # gate-watch: src/services/dap/dapClient* src/services/lsp/** src/services/run/effectObserver*
 # gate-watch: src/services/run/ownerKey* src/services/tcpBridge/entry* src/substrate/flagRegistry*
 # gate-watch: src/tools/LSPTool/** src/utils/**
+# gate-watch: src/Tool.ts src/bootstrap/state.ts src/commands/ide/ide.tsx src/constants/subagentDoctrine.ts
+# gate-watch: src/entrypoints/cli.tsx src/services/changeTransaction/changeSetCommit.ts
+# gate-watch: src/services/changeTransaction/contracts.ts src/tools.ts src/tools/DebugTool/DebugTool.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -3,6 +3,9 @@
 # gate-watch: scripts/notifications/**
 # gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/** src/services/notifier.ts
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
+# gate-watch: scripts/streaming/artifactArena.ts src/components/concourse/ConcourseScreen.tsx
+# gate-watch: src/components/concourse/NeedsYouRail.tsx src/components/mercury-ui/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -3,6 +3,11 @@
 # gate-watch: src/utils/attachments/**
 # gate-watch: src/utils/imageResizer* src/utils/imagePaste* src/utils/imageStore* src/utils/imageValidation*
 # gate-watch: src/constants/apiLimits* src/tools/FileReadTool/imageProcessor* src/hooks/usePasteHandler* src/hooks/useClipboardImageHint*
+# gate-watch: docs/SESSIONS.md scripts/lib/goldenReplay.ts scripts/lib/hermetic.ts src/Tool.ts
+# gate-watch: src/bootstrap/state.ts src/constants/prompts.ts src/constants/systemPromptSections.ts
+# gate-watch: src/keybindings/defaultBindings.ts src/services/mcp/client.ts
+# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts src/utils/cockpit/runProtocol.ts
+# gate-watch: src/utils/messages.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

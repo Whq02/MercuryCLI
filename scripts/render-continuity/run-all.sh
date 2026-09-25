@@ -2,6 +2,10 @@
 # gate-class: pty
 # gate-watch: src/components/PromptInput/** src/state/selectors* src/state/teammateViewHelpers*
 # gate-watch: src/components/LiveStreamingTail* src/components/Messages* src/ink/** assets/splash/**
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/* scripts/ui/vshot.py src/commands.ts
+# gate-watch: src/components/SurfaceRouter.tsx src/components/concourse/SessionMirror.tsx
+# gate-watch: src/components/tasks/* src/substrate/flagRegistry.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx
+# gate-watch: src/utils/config/globalConfig.ts src/utils/crashReport.ts src/utils/theme.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -5,6 +5,15 @@
 # gate-watch: src/utils/profile/appearanceSnapshot* src/utils/profile/mercuryProfile*
 # gate-watch: src/utils/cockpit/promptProvenance* src/utils/cockpit/runProtocol*
 # gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/tools/**
+# gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt
+# gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts src/components/Messages.tsx
+# gate-watch: src/components/concourse/workerTranscriptFold.ts
+# gate-watch: src/components/messages/nullRenderingAttachments.ts src/daemon/concourseSupervisor.ts
+# gate-watch: src/entrypoints/init.ts src/prompt/behaviourContract.ts
+# gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
+# gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts
+# gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts
+# gate-watch: src/utils/messages/attachmentText.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

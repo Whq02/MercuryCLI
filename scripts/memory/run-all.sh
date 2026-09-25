@@ -6,6 +6,12 @@
 # gate-watch: src/utils/evolution/evolutionLedger* src/utils/evolution/ledgerScan*
 # gate-watch: src/utils/frontmatterParser* src/utils/sanitization*
 # gate-watch: src/utils/cockpit/traceSnapshot*
+# gate-watch: src/components/memory/MemoryCentreView.tsx src/services/compact/compact.ts
+# gate-watch: src/services/eval/evalBridge.ts src/services/instructions/engine.ts
+# gate-watch: src/services/memoryUpkeep/autoMemCanUseTool.ts src/services/memoryUpkeep/memoryUpkeep.ts
+# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/tools.ts
+# gate-watch: src/tools/MemoryTools/MemoryTools.ts src/utils/attachments/memorySurfacing.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/model/model.ts src/utils/model/providerFrontier.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

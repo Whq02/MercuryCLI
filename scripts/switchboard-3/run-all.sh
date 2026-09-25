@@ -5,6 +5,12 @@
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
+# gate-watch: scripts/lib/* src/bootstrap/state.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts
+# gate-watch: src/services/crew/obligations.ts src/services/engine-connector/*
+# gate-watch: src/services/providers/openai/qualificationStore.ts src/services/providers/routeLaw.ts
+# gate-watch: src/utils/config.ts src/utils/config/globalConfig.ts src/utils/model/configs.ts
+# gate-watch: src/utils/model/model.ts src/utils/router/providers/zai.ts src/utils/sessionRestore.ts
+# gate-watch: src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -3,6 +3,10 @@
 # gate-watch: src/utils/router/** src/utils/swarm/agentLaunchPlan* src/utils/swarm/roleResolver*
 # gate-watch: src/services/providers/**
 # gate-watch: src/query/deps* src/utils/swarm/engineDispatch* src/tools/AgentTool/AgentTool*
+# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cost-tracker.ts src/services/api/errors.ts
+# gate-watch: src/services/api/recoveryBudget.ts src/tasks/LocalAgentTask/*
+# gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/builtInAgents.ts src/utils/*
+# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/factories.ts src/utils/task/framework.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

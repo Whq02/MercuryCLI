@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/services/wallet/** src/services/providers/primaryBackend.ts src/cli/handlers/auth.ts src/utils/secureStorage/**
 # gate-watch: src/services/providers/credentialIdentity* src/services/providers/accountSlots.ts src/services/providers/*/*Accounts.ts src/services/providers/*/*Login.ts src/services/oauth/** src/utils/accounts/** src/utils/auth.ts src/components/mercury-ui/screens/anthropicLoginModel.ts
+# gate-watch: src/ink/stringWidth.ts src/utils/config/globalConfig.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -6,6 +6,7 @@
 # gate-watch: src/tools/** src/utils/ripgrep*
 # gate-watch: src/utils/gracefulShutdown* src/utils/proxy* src/utils/mtls* src/utils/lockfile* src/utils/caCerts*
 # gate-watch: src/entrypoints/cli* src/entrypoints/init*
+# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

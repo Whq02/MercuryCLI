@@ -3,6 +3,9 @@
 # gate-env: MERCURY_SHELL_ENGINE
 # gate-watch: src/utils/shell/** scripts/bash/prove-shell-engine-drive.ts build.ts
 # gate-watch: scripts/bash/prove-session-shell-guard-drive.ts src/daemon/ownedDaemon.ts src/substrate/envStamps.ts scripts/lib/suite-env.sh
+# gate-watch: scripts/bash/prove-sub-agent-shell-board-drive.ts scripts/bash/shell-engine-parity.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/streaming/ptydrive.py
+# gate-watch: scripts/substrate/run-all.sh scripts/ui/vshot.py src/daemon/controlSocket.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: LICENSE.md package.json scripts/release/releaseDocuments.mjs scripts/splash/deploy.sh
+# gate-watch: scripts/vendor/fetch-node.ts src/components/geminiConnectGuide.ts src/constants/oauth.ts
+# gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/gemini/geminiPins.ts
+# gate-watch: src/services/providers/huggingface/huggingfacePins.ts
+# gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
+# gate-watch: src/services/providers/typedModelIds.ts src/services/providers/zai/glmPins.ts
+# gate-watch: src/utils/model/model.ts src/utils/router/providers/zai.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
