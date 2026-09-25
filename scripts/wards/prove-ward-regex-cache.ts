@@ -48,6 +48,33 @@ section('W1 · counted operations — zero constructions after the first call')
     constructions === 0,
     `constructions=${constructions}`,
   )
+  const builtin = wards.BUILTIN_WARDS
+  const heads: Record<string, string> = { '/p/gen.ts': '// @generated\nexport const a = 1\n', '/p/plain.ts': 'export const a = 1\n' }
+  const readHead = (path: string): string | undefined => heads[path]
+  const edits = [
+    { toolName: 'Edit', input: { file_path: '/p/plain.ts', old_string: 'a', new_string: 'const b = 2' }, projectRoot: '/p', readHead },
+    { toolName: 'Edit', input: { file_path: '/p/gen.ts', old_string: 'a', new_string: 'const b = 2' }, projectRoot: '/p', readHead },
+    { toolName: 'Write', input: { file_path: '/p/scripts/settings/settings-schema.json', content: '{}' }, projectRoot: '/p', readHead },
+    { toolName: 'Write', input: { file_path: '/p/plain.ts', content: 'export function a() {}\n// rest of methods ...\n' }, projectRoot: '/p', readHead },
+    { toolName: 'ChangeSet', input: { op: 'apply', changes: [{ file_path: '/p/plain.ts', expected_anchor: 'fa:0', hunks: [{ lines: '1', replace: '// ... existing code ...' }] }] }, projectRoot: '/p', readHead },
+  ] as never[]
+  for (const call of edits) wards.evaluateWards(builtin, call)
+  counting = true
+  constructions = 0
+  for (let i = 0; i < 20; i++) for (const call of edits) wards.evaluateWards(builtin, call)
+  counting = false
+  console.log(`  · RegExp constructions across 100 warmed edit-scope calls over the builtin rules: ${constructions}`)
+  check(
+    '100 warmed edit-scope calls over the builtin rules (path table, leading marker, declaration, placeholder, a ChangeSet member) construct ZERO regexes',
+    constructions === 0,
+    `constructions=${constructions}`,
+  )
+  const verdicts = edits.map(call => wards.evaluateWards(builtin, call))
+  check(
+    'the five verdicts are allow, deny (marker), deny (name), deny (placeholder), deny (placeholder in a ChangeSet member)',
+    verdicts[0]!.allow === true && verdicts[1]!.allow === false && verdicts[2]!.allow === false && verdicts[3]!.allow === false && verdicts[4]!.allow === false,
+    JSON.stringify(verdicts.map(v => (v.allow ? 'allow' : v.rule.name))),
+  )
 }
 
 section('W2 · verdict stability across cached calls')
