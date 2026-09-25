@@ -1010,9 +1010,16 @@ export function getAccountInformation(): UserAccountInfo | null {
   if (tokenSource === 'claude.ai' || apiKeySource === '/logins managed key') {
     const account = getGlobalConfig().oauthAccount
     if (account?.organizationName) info.organization = account.organizationName
-    if (account?.emailAddress) info.email = account.emailAddress
+    const email = tokenSource === 'claude.ai' ? anthropicSignInEmailLazily() : account?.emailAddress
+    if (email) info.email = email
   }
   return info
+}
+
+function anthropicSignInEmailLazily(): string | undefined {
+  const { anthropicSignInEmail } =
+    require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
+  return anthropicSignInEmail()
 }
 
 
