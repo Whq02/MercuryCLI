@@ -102,7 +102,6 @@ check('the tree has a checked contract for its release day', tree.findings.lengt
 if (tree.info) console.log(tree.info)
 
 console.log('Client-contract clock: a learned number presents with its own date; the constant stays the baseline the clock checks')
-const envUtils = await import('../../src/utils/envUtils.ts')
 const LEARNED_AT = Date.parse('2000-03-01T12:00:00Z')
 const patchOf = (delta: number): string => CONTRACT.replace(/\d+$/, patch => String(Number(patch) + delta))
 const learnedHomes: string[] = []
@@ -110,11 +109,13 @@ function describeWithLearned(version: string): ReturnType<typeof oauth.describeA
   const home = mkdtempSync(join(tmpdir(), 'client-contract-clock-'))
   learnedHomes.push(home)
   writeFileSync(join(home, 'client-contract.json'), JSON.stringify({ learned: { version, learnedAtMs: LEARNED_AT, from: 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', by: 'heal' }, _v: 1 }))
-  envUtils.setAuthScope(home)
+  const pinned = process.env.MERCURY_CONFIG_DIR
+  process.env.MERCURY_CONFIG_DIR = home
   try {
     return oauth.describeAnthropicClientContract()
   } finally {
-    envUtils.clearAuthScope()
+    if (pinned === undefined) delete process.env.MERCURY_CONFIG_DIR
+    else process.env.MERCURY_CONFIG_DIR = pinned
   }
 }
 const learnedOverride = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
