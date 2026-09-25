@@ -47,6 +47,7 @@ export function buildCronCreatePrompt(): string {
 - The submission travels to the daemon on the session's next facts beat and is applied to the SESSION RECORD there — this call answers "submitted", and ${CRON_LIST_TOOL_NAME} shows the applied schedule with its id shortly after (the id is minted by the daemon, not by this call).
 - The schedule runs on THIS session's own model and account. If the account's sign-in expires or rate-limits at fire time, the fire is HELD and receipted ("/logins releases held fires") — never dropped silently, never run on another account.
 - A fire due while the session is parked wakes it by default; pass onParked: "queue" to hold the fire for the session's own next wake instead.
+- Give the schedule a short title ("morning brief") when the user named the task: the chat row of every fire and ${CRON_LIST_TOOL_NAME} show it in place of the id. One line; it is stored with the schedule, so never a secret.
 - A fire that comes due while the machine was asleep runs late within the catch-up window (receipted as late); beyond it, it is recorded as missed — never silently dropped.
 
 ## Result

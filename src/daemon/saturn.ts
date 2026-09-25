@@ -60,6 +60,7 @@ export interface SaturnScheduleV1 {
   preflightAtWrite?: ScheduleAccountVerdictV1
   paused?: true
   note?: string
+  title?: string
 }
 
 
@@ -101,6 +102,7 @@ export interface SaturnScheduleSubmissionV1 {
   modelKey?: string
   effort?: string
   note?: string
+  title?: string
 }
 
 export type SaturnValidation =
@@ -189,9 +191,23 @@ function validateBirth(raw: unknown): { ok: true; birth: SaturnBirthSpecV1 } | {
   return { ok: true, birth }
 }
 
-export function saturnSecretProseRefusal(field: 'prompt' | 'opening', text: string): string | null {
+export function saturnSecretProseRefusal(field: 'prompt' | 'opening' | 'title', text: string): string | null {
   if (detectSecrets(text).length === 0) return null
-  return `the ${field} appears to contain a secret (it is persisted with the schedule and re-fed when it fires) — keep credentials in the environment or keychain, and retry without them`
+  const where = field === 'title' ? 'it is persisted with the schedule and painted on its rows' : 'it is persisted with the schedule and re-fed when it fires'
+  return `the ${field} appears to contain a secret (${where}) — keep credentials in the environment or keychain, and retry without them`
+}
+
+export const SATURN_TITLE_SHAPE = `one line of at most ${SATURN_TITLE_CAP} characters`
+
+export function cleanSaturnTitle(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  return cleanString(v.replace(/\s+/g, ' '), SATURN_TITLE_CAP)
+}
+
+export function saturnTitleRefusal(raw: unknown): string | null {
+  const title = cleanSaturnTitle(raw)
+  if (title === null) return `title must be ${SATURN_TITLE_SHAPE}`
+  return saturnSecretProseRefusal('title', title)
 }
 
 function cleanOpening(v: unknown): string | null {
@@ -245,6 +261,11 @@ export function validateSaturnSubmission(raw: unknown): SaturnValidation {
     const note = cleanString(raw.note, SATURN_NOTE_CAP)
     if (note === null) return { ok: false, reason: 'note is malformed' }
     submission.note = note
+  }
+  if (raw.title !== undefined) {
+    const titleReason = saturnTitleRefusal(raw.title)
+    if (titleReason !== null) return { ok: false, reason: titleReason }
+    submission.title = cleanSaturnTitle(raw.title)!
   }
   return { ok: true, submission }
 }
@@ -342,6 +363,7 @@ export function applyConcourseScheduleOp(
         const effort = sub.effort ?? rec.effort
         if (effort !== undefined) schedule.effort = effort
         if (sub.note !== undefined) schedule.note = sub.note
+        if (sub.title !== undefined) schedule.title = sub.title
         if (deps.preflight) {
           schedule.preflightAtWrite = deps.preflight(derived.account, saturnNextFireMs(sub.when, Date.now()))
         }
@@ -566,6 +588,7 @@ export interface SaturnFactsRowV1 {
   nextFireMs: number | null
   kind: 'fire' | 'birth'
   paused?: true
+  title?: string
 }
 
 export function saturnFactsOf(
@@ -580,6 +603,7 @@ export function saturnFactsOf(
       nextFireMs: s.paused === true ? null : saturnNextFireMs(s.when, nowMs),
       kind: s.action.kind,
       ...(s.paused === true ? { paused: true as const } : {}),
+      ...(typeof s.title === 'string' && s.title !== '' ? { title: s.title } : {}),
     }))
   }
   if (Array.isArray(rec.heldFires)) out.heldFireCount = rec.heldFires.length

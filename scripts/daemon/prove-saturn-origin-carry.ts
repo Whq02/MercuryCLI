@@ -16,7 +16,8 @@ delete process.env.CI
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn.ts')
+const saturn = await import('../../src/daemon/saturn.ts')
+const { applyConcourseScheduleOp } = saturn
 const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
 const ticker = await import('../../src/daemon/saturnTicker.ts')
 const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
@@ -118,7 +119,16 @@ const wakeSchedule = (prompt: string, note?: string): unknown => ({
   ...(note !== undefined ? { note } : {}),
 })
 const CRON_SPELLING = 'Every minute'
-const cronSchedule = (prompt: string): unknown => ({ when: { kind: 'every', cron: '* * * * *', spelling: CRON_SPELLING }, action: { kind: 'fire', prompt } })
+const TITLE = 'morning brief'
+const cronSchedule = (prompt: string, title?: string): unknown => ({ when: { kind: 'every', cron: '* * * * *', spelling: CRON_SPELLING }, action: { kind: 'fire', prompt }, ...(title !== undefined ? { title } : {}) })
+const clearSchedules = (): void => {
+  updateConcourseWorkers(workers => {
+    for (const r of Object.values(workers)) {
+      delete (r as { schedules?: unknown }).schedules
+      delete (r as { heldFires?: unknown }).heldFires
+    }
+  }, DAEMON_DIR)
+}
 
 console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a due fire delivers the schedule\'s own facts beside the prompt')
 {
@@ -142,6 +152,35 @@ console.log('§1 THE CARRIER (red on the base: the delivery has no origin): a du
   check("the fired wake's receipt names the fire time and the reason (red on the base: neither is on it)", wakeReceipt !== undefined && wakeReceipt.details.firedAt === T0 && wakeReceipt.details.note === REASON && wakeReceipt.summary === `fired (in ~900s) · reason: ${REASON}`, j(wakeReceipt))
   const cronReceipt = fireReceipts().find(x => x.details.scheduleId === cronId)
   check('a fire without a reason names the fire time and no reason clause', cronReceipt !== undefined && cronReceipt.details.firedAt === T0 && !('note' in cronReceipt.details) && cronReceipt.summary.startsWith('fired') && cronReceipt.summary.includes(`(${CRON_SPELLING})`) && !cronReceipt.summary.includes('reason'), j(cronReceipt))
+}
+
+console.log("§1b THE TITLE (red on the base: the writer drops it): a cron schedule made with a title keeps it on the record, and its fire's origin carries it beside the id and the spelling")
+{
+  delivered.length = 0
+  clearSchedules()
+  seedRecord()
+  publishFacts(openWindow())
+  const titledId = addVia(cronSchedule(CRON_PROMPT, TITLE))
+  const plainId = addVia(cronSchedule('the untitled fire'))
+  const stored = ((rawRecord().schedules ?? []) as Raw[]).find(s => s.id === titledId)
+  check('the record row carries the title as stored', stored?.title === TITLE, j(stored))
+  const plainStored = ((rawRecord().schedules ?? []) as Raw[]).find(s => s.id === plainId)
+  check('a schedule made without one carries no title key', plainStored !== undefined && !('title' in plainStored), j(plainStored))
+  updateConcourseWorkers(workers => {
+    for (const rec of Object.values(workers)) {
+      for (const row of ((rec as { schedules?: Raw[] }).schedules ?? [])) row.createdAt = T0 - 120_000
+    }
+  }, DAEMON_DIR)
+  const r = await ticker.tickSaturnOnce(ports)
+  check('both fires deliver', r.fired === 2 && delivered.length === 2, j({ r, delivered }))
+  const titled = originOf(delivered.find(d => d.prompt === CRON_PROMPT))
+  check("the titled schedule's delivery carries the title in its origin, the id and the spelling beside it", j(titled) === j({ kind: 'saturn', fire: 'cron', firedAt: FIRED_AT, scheduleId: titledId, title: TITLE, spelling: CRON_SPELLING }), j(titled))
+  const plain = originOf(delivered.find(d => d.prompt === 'the untitled fire'))
+  check("the untitled schedule's origin carries no title key", plain !== undefined && !('title' in plain) && plain.scheduleId === plainId, j(plain))
+  const line = rows.saturnFirstLine(titled as never, FIRED_AT)
+  check("the row's first line reads the title, then the spelling", line === `${TITLE} · every minute`, line)
+  const facts = saturn.saturnFactsOf(rawRecord() as never, T0).schedules ?? []
+  check('the facts the daemon pushes carry the title on its row and none on the other', facts.find(f => f.id === titledId)?.title === TITLE && !('title' in (facts.find(f => f.id === plainId) ?? {})), j(facts))
 }
 
 console.log('§2 a wake held for a parked session replays once with the hold named in its origin')

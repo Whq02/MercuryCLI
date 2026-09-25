@@ -61,7 +61,7 @@ function emitConsumption(kind: QueueConsumptionEvent['kind'], commands: readonly
   }
 }
 
-function logOperation(operation: QueueOperation, content?: string, identity?: Pick<QueuedCommand, 'uuid' | 'mode' | 'isMeta' | 'sentAt'>): void {
+function logOperation(operation: QueueOperation, content?: string, identity?: Pick<QueuedCommand, 'uuid' | 'mode' | 'isMeta' | 'sentAt' | 'origin'>): void {
   const queueOp: QueueOperationMessage = {
     type: 'queue-operation',
     operation,
@@ -72,6 +72,7 @@ function logOperation(operation: QueueOperation, content?: string, identity?: Pi
     ...(identity?.mode !== undefined && { mode: identity.mode }),
     ...(identity?.isMeta === true && { isMeta: true }),
     ...(identity?.sentAt !== undefined && { sentAt: identity.sentAt }),
+    ...(identity?.origin !== undefined && { origin: identity.origin }),
   }
   void recordQueueOperation(queueOp)
 }

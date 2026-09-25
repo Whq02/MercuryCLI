@@ -785,6 +785,36 @@ console.log('§L4 the four re-homed tools against the new engine')
   const listData = (listed as { data: { schedules: Array<{ id: string }>; rosterKnown: boolean } }).data
   check('L4 CronList speaks the pushed roster with the real id', listData.rosterKnown && listData.schedules.length === 1 && listData.schedules[0]!.id === landedId)
 
+  const titledCreate = await CronCreateTool.call({ cron: '0 9 * * 1-5', prompt: 'morning audit', title: '  morning\n brief ' } as never, {} as never)
+  check('L4t CronCreate with a title submits, the title folded to one line on its answer', (titledCreate as { data: { submitted: boolean; title?: string } }).data.submitted === true && (titledCreate as { data: { title?: string } }).data.title === 'morning brief', JSON.stringify(titledCreate))
+  const titledEdits = bridge.takePendingScheduleEdits()
+  check('L4t the latched add carries the title', titledEdits.length === 1 && (titledEdits[0]!.schedule as { title?: string }).title === 'morning brief', JSON.stringify(titledEdits))
+  const titledApplied = applyConcourseScheduleOp(SESSION, titledEdits[0]!, `model:${SESSION}`, okDeps, DAEMON_DIR)
+  const titledRow = scheduleRows().find(r => r.id === titledApplied.scheduleId)
+  check('L4t the landed row carries the title', titledApplied.outcome === 'applied' && titledRow?.title === 'morning brief', JSON.stringify(titledRow))
+  bridge.latchSessionScheduleRoster(saturn.saturnFactsOf({ schedules: [landed, titledRow] } as never, Date.now()).schedules ?? [])
+  const titledListed = await CronListTool.call({} as never, {} as never)
+  const titledListText = String((CronListTool.mapToolResultToToolResultBlockParam((titledListed as { data: unknown }).data as never, 'tu-t') as { content: string }).content)
+  check("L4t CronList's row names the title beside the id, and the untitled row reads as before", titledListText.includes(`${titledApplied.scheduleId} · morning brief: Weekdays at 9:00 AM (fire)`) && titledListText.includes(`${landedId}: Every day at 9:00 AM (fire)`), titledListText)
+  let refusedTitle = ''
+  try {
+    await CronCreateTool.call({ cron: '0 9 * * 1-5', prompt: 'morning audit', title: 'brief AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' } as never, {} as never)
+  } catch (e) {
+    refusedTitle = String(e)
+  }
+  const strayEdits = bridge.takePendingScheduleEdits()
+  check('L4t a secret-bearing title refuses typed at the tool, never echoing the bytes, and latches nothing', refusedTitle.includes('title') && refusedTitle.includes('secret') && !refusedTitle.includes('AKIA') && strayEdits.length === 0, refusedTitle || JSON.stringify(strayEdits))
+  const longTitle = await CronCreateTool.validateInput!({ cron: '0 9 * * 1-5', prompt: 'morning audit', title: 'x'.repeat(saturn.SATURN_TITLE_CAP + 1) } as never, {} as never)
+  check('L4t an over-long title refuses at validation, naming the shape', longTitle.result === false && String((longTitle as { message?: string }).message).includes(saturn.SATURN_TITLE_SHAPE), JSON.stringify(longTitle))
+  const emptyTitle = await CronCreateTool.validateInput!({ cron: '0 9 * * 1-5', prompt: 'morning audit', title: '   ' } as never, {} as never)
+  check('L4t a blank title refuses at validation', emptyTitle.result === false, JSON.stringify(emptyTitle))
+  const secretSubmission = saturn.validateSaturnSubmission({ when: { kind: 'every', cron: '0 9 * * 1-5' }, action: { kind: 'fire', prompt: 'morning audit' }, title: 'brief AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' })
+  check("L4t the daemon validator refuses a secret-bearing title on its own (the belt behind the tool's early refusal)", !secretSubmission.ok && (secretSubmission as { reason: string }).reason.includes('title') && !(secretSubmission as { reason: string }).reason.includes('AKIA'), JSON.stringify(secretSubmission))
+  for (const row of scheduleRows()) {
+    if (row.id !== landedId) applyConcourseScheduleOp(SESSION, { op: 'remove', scheduleId: String(row.id) }, `model:${SESSION}`, okDeps, DAEMON_DIR)
+  }
+  bridge.latchSessionScheduleRoster(saturn.saturnFactsOf({ schedules: [landed] } as never, Date.now()).schedules ?? [])
+
   const deleteOk = await CronDeleteTool.validateInput!({ id: landedId } as never)
   check('L4 CronDelete validates against the roster', deleteOk.result === true)
   await CronDeleteTool.call({ id: landedId } as never, {} as never)
