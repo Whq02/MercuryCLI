@@ -167,7 +167,7 @@ section('§4 the shape: provenance first, the grammar only for a typed id with n
   const source = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCatalogue.ts'), 'utf8')
   check('the catalogue exports the seam\'s read by its exact name and shape', source.includes('export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string>'))
   const evaluate = source.slice(source.indexOf('export function evaluateGptCandidate'), source.indexOf('export function qualifiedGptCandidates'))
-  check('the qualifier looks the id up in the list before the grammar decides anything', evaluate.indexOf('snapshot?.models.find(') < evaluate.indexOf("reason: 'not-gpt-family'") && evaluate.includes('if (!identity && !live)'))
+  check('the qualifier looks the id up in the list before the grammar decides anything', evaluate.includes('snapshot?.models.find(') && evaluate.includes("reason: 'not-gpt-family'") && evaluate.indexOf('snapshot?.models.find(') < evaluate.indexOf("reason: 'not-gpt-family'") && evaluate.includes('if (!identity && !live)'))
   check('an unparsed candidate carries the honest minimal identity', evaluate.includes("identity ?? { family: 'gpt', canonicalId, unparsed: true }"))
   const qualified = source.slice(source.indexOf('export function qualifiedGptCandidates'), source.indexOf('export type GptSeatDisabledWhy'))
   check('the qualified order lists unparsed rows after the parsed rows', qualified.includes('unparsed === true ? 1 : 0'))
