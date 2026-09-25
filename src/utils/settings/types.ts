@@ -158,6 +158,7 @@ export const SettingsSchema = lazySchema(() => {
     autoMemoryEnabled: z.boolean().optional(),
     autoMemoryDirectory: z.string().optional().describe('Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
     memoryUpkeepEnabled: z.boolean().optional().describe('Background memory upkeep: the notes consolidation pass between sessions'),
+    loopGuardStopEnabled: z.boolean().optional().describe('Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, the guard only reminds and no turn is ended'),
 
     env: EnvironmentVariablesSchema().optional(),
     attribution: z.object({ commit: z.string().optional(), pr: z.string().optional() }).optional(),

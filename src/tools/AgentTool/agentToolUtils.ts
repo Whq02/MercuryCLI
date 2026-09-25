@@ -226,7 +226,7 @@ export function resolveAgentTools(
 
 export type AgentTerminalOutcome =
   | { status: 'completed'; promotedNarration: boolean }
-  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch'; error: string }
+  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch' | 'loop-stopped'; error: string }
 
 const GENERIC_API_ERROR_PHRASE = 'API error'
 
@@ -242,9 +242,26 @@ export function getLastRealAssistantMessage(
   return undefined
 }
 
+export function loopStoppedRecordOf(
+  messages: readonly Message[],
+): { cycle: string[]; message: string } | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type === 'assistant') return null
+    if (message.type === 'attachment' && message.attachment.type === 'loop_stopped') {
+      return { cycle: message.attachment.cycle, message: message.attachment.message }
+    }
+  }
+  return null
+}
+
 export function deriveAgentTerminalOutcome(
   messages: readonly Message[],
 ): AgentTerminalOutcome {
+  const stopped = loopStoppedRecordOf(messages)
+  if (stopped !== null) {
+    return { status: 'failed', reason: 'loop-stopped', error: stopped.message }
+  }
   const last = getLastAssistantMessage(messages as Message[])
   if (last && isSyntheticApiErrorMessage(last)) {
     const text = extractTextContent(last.message.content, '\n')
@@ -272,7 +289,7 @@ export const agentToolResultSchema = lazySchema(() =>
         }),
         z.object({
           status: z.literal('failed'),
-          reason: z.enum(['provider-declined', 'schema-mismatch']),
+          reason: z.enum(['provider-declined', 'schema-mismatch', 'loop-stopped']),
           error: z.string(),
         }),
       ])
@@ -377,13 +394,19 @@ export function finalizeAgentTool(
   const lastReal = getLastRealAssistantMessage(messages)
   const anchor =
     outcome.status === 'failed' ? (lastReal ?? lastAssistant) : lastAssistant
+  const chantStopped =
+    outcome.status === 'failed' &&
+    outcome.reason === 'loop-stopped' &&
+    (loopStoppedRecordOf(messages)?.cycle ?? []).join() === 'reply'
 
-  let content = textBlocksOf(
-    outcome.status === 'failed' ? lastReal : anchor,
-  ).filter(block => block.text.trim() !== '')
+  let content = chantStopped
+    ? []
+    : textBlocksOf(
+        outcome.status === 'failed' ? lastReal : anchor,
+      ).filter(block => block.text.trim() !== '')
 
   let promotedNarration = false
-  if (content.length === 0) {
+  if (content.length === 0 && !chantStopped) {
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i]!
       if (message.type !== 'assistant') continue

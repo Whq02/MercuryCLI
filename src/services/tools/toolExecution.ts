@@ -36,6 +36,7 @@ import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../mcp/normalization.js'
 import { observeToolStart, observeToolTerminal } from '../run/effectObserver.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { ambientRound, closeRound, openRoundCall, recordToolCall, toolResultBlockOf } from './loopGuard.js'
 import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
@@ -297,6 +298,7 @@ export async function* runToolUse(
   assistantMessage: AssistantMessage,
   canUseTool: CanUseToolFn,
   toolUseContext: ToolUseContext,
+  round?: { id: string; ordinal: number },
 ): AsyncGenerator<MessageUpdateLazy> {
   const toolUseID = toolUse.id
   const requestedName = toolUse.name
@@ -329,12 +331,19 @@ export async function* runToolUse(
     return
   }
 
+  const owner = ownerFromToolUseContext(toolUseContext)
+  const joined = round ?? ambientRound(owner, toolUseContext.toolUseId)
+  const ownRound = joined === null ? `call:${toolUseID}` : null
+  const roundID = joined?.id ?? ownRound!
+  const roundOrdinal = joined?.ordinal ?? 0
+  const roundHandle = openRoundCall(owner, roundID, toolUseID, roundOrdinal, joined !== null && round === undefined ? (toolUseContext.roundHandle ?? toolUseContext.toolUseId ?? null) : null, toolUseContext.messages)
   const stream = new Stream<MessageUpdateLazy>()
   const resolved = tool
   const body = runTransactionBody({
     tool: resolved,
     toolUse,
     toolUseID,
+    roundHandle,
     rawInput,
     assistantMessage,
     canUseTool,
@@ -345,20 +354,39 @@ export async function* runToolUse(
     () => stream.done(),
     error => stream.error(error),
   )
+  let settledResult: ToolResultBlockParam | undefined
   try {
     for await (const update of stream) {
+      settledResult = toolResultBlockOf(update.message, toolUseID) ?? settledResult
       yield update
     }
     await body
   } catch (error) {
     logError(error)
     const message = error instanceof Error ? error.message : String(error)
-    yield errorResultUpdate({
+    const escaped = errorResultUpdate({
       toolUseID,
       content: `Error calling tool ${resolved.name}: ${message}`,
       toolUseResult: `Error calling tool ${resolved.name}: ${message}`,
       sourceToolAssistantUUID: assistantMessage.uuid,
     })
+    settledResult = toolResultBlockOf(escaped.message, toolUseID) ?? settledResult
+    yield escaped
+  }
+  if (toolUseContext.abortController.signal.aborted) return
+  recordToolCall(owner, {
+    toolName: resolved.name,
+    toolUseID,
+    roundHandle,
+    roundID,
+    roundOrdinal,
+    arguments: rawInput,
+    result: settledResult,
+    messages: toolUseContext.messages,
+  })
+  if (ownRound === null) return
+  for (const message of closeRound(owner, ownRound).messages) {
+    yield { message }
   }
 }
 
@@ -366,6 +394,7 @@ async function runTransactionBody(args: {
   tool: Tool
   toolUse: ToolUseBlock
   toolUseID: string
+  roundHandle: string
   rawInput: AnyObject
   assistantMessage: AssistantMessage
   canUseTool: CanUseToolFn
@@ -719,6 +748,7 @@ async function runTransactionBody(args: {
     const contextForCall: ToolUseContext = {
       ...toolUseContext,
       toolUseId: toolUseID,
+      roundHandle: args.roundHandle,
       userModifiedInput: (decision as { userModified?: boolean }).userModified,
     }
     let callAbandoned = false

@@ -670,6 +670,19 @@ export class QueryEngine {
                 ...buildResultEnvelope(),
               })
               return
+            } else if (attachmentType === 'loop_stopped') {
+              if (eagerFlush) await flushSessionStorage()
+              const stopped = attachment as { message?: string; cycle?: string[] }
+              yield asSdk({
+                type: 'result',
+                subtype: 'error_loop_stopped',
+                is_error: true,
+                num_turns: this.#turnCounter,
+                stop_reason: capturedStopReason,
+                errors: [stopped.message ?? `The loop guard ended the turn: the cycle ${(stopped.cycle ?? []).join(' -> ')} repeated with identical arguments and results`],
+                ...buildResultEnvelope(),
+              })
+              return
             } else if (attachmentType === 'queued_command' && config.replayUserMessages) {
               yield asSdk({
                 type: 'user',

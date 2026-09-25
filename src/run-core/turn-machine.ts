@@ -113,6 +113,15 @@ import {
 } from '../utils/messages.js'
 import { generateToolUseSummary } from '../services/toolUseSummary/toolUseSummaryGenerator.js'
 import {
+  CHANT_RECOVERY_LIMIT,
+  chantNoticeLine,
+  chantNudgeText,
+  chantStopText,
+  decideChantRecovery,
+  detectChant,
+} from '../services/tools/chantGuard.js'
+import { isLoopGuardStopEnabled, LOOP_GUARD_STOP_SETTING } from '../services/tools/loopGuard.js'
+import {
   buildRewindRecordIfSettled,
   createSettleGuardWarning,
   findActiveCheckpoint,
@@ -216,6 +225,7 @@ type TurnState = {
   turnCount: number
   transition: Continue | undefined
   emptyReplyRecoveryCount?: number
+  chantRecoveryCount?: number
   overflowEpisode: OverflowEpisode
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
 }
@@ -409,6 +419,17 @@ function isBriefTerminalTurn(
         ),
     )
   )
+}
+
+function replyTextOf(messages: readonly AssistantMessage[]): string {
+  const parts: string[] = []
+  for (const message of messages) {
+    if (message.isApiErrorMessage === true) continue
+    for (const block of message.message.content) {
+      if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
+    }
+  }
+  return parts.join('')
 }
 
 function toolUpdateEvent(message: Message, emit: EventMint): RunEvent {
@@ -1311,7 +1332,9 @@ export async function* runEventCore(
         return terminal
       }
 
-      if (isWithheldMaxOutputTokens(lastMessage)) {
+      const chant = lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null
+
+      if (chant === null && isWithheldMaxOutputTokens(lastMessage)) {
         const decision = decideMaxOutputTokensRecovery({
           capEnabled: false,
           envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,
@@ -1515,6 +1538,73 @@ export async function* runEventCore(
         }
       }
 
+      if (chant !== null) {
+        const chantRecoveryCount = state.chantRecoveryCount ?? 0
+        const decision = decideChantRecovery({ recoveryCount: chantRecoveryCount })
+        const replyMessages = assistantMessages.filter(m => m.isApiErrorMessage !== true)
+        if (decision.kind === 'continue') {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              chantNoticeLine(chant, `asked the model to continue past it (continuation ${decision.attempt} of ${CHANT_RECOVERY_LIMIT})`),
+              'warning',
+            ),
+          })
+          const nudge = createUserMessage({ content: chantNudgeText(chant), isMeta: true })
+          const next: TurnState = {
+            messages: [...messagesForQuery, ...replyMessages, nudge],
+            toolUseContext,
+            autoCompactTracking: tracking,
+            maxOutputTokensRecoveryCount,
+            maxOutputTokensOverride,
+            streamFaultRecoveryCount,
+            toolCallRefusalRecoveryCount,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            overflowEpisode,
+            pendingOverflow: undefined,
+            emptyReplyRecoveryCount: state.emptyReplyRecoveryCount,
+            chantRecoveryCount: chantRecoveryCount + 1,
+            transition: { reason: 'chant_recovery', attempt: decision.attempt },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        if (isLoopGuardStopEnabled()) {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${LOOP_GUARD_STOP_SETTING})`),
+              'warning',
+            ),
+          })
+          yield emit({
+            kind: 'attachment',
+            message: createAttachmentMessage({
+              type: 'loop_stopped',
+              toolUseID: '',
+              cycle: ['reply'],
+              message: chantStopText(chant),
+            }),
+          })
+          const terminal: Terminal = { reason: 'loop_stopped', cycle: ['reply'] }
+          yield emit({ kind: 'run_terminal', terminal })
+          return terminal
+        }
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the reply stands, and the loop guard ends no turn without ${LOOP_GUARD_STOP_SETTING}`),
+            'warning',
+          ),
+        })
+        if (isWithheldMaxOutputTokens(lastMessage)) {
+          yield emit({ kind: 'withheld_surfaced', message: lastMessage })
+        }
+      }
+
       if (lastMessage?.isApiErrorMessage) {
         void executeStopFailureHooks(lastMessage, toolUseContext)
         const terminal: Terminal = { reason: 'completed' }
@@ -1603,6 +1693,8 @@ export async function* runEventCore(
     }
 
     let shouldPreventContinuation = false
+    let loopStoppedCycle: string[] | null = null
+    let loopStoppedRecord: Message | null = null
     let updatedToolUseContext = toolUseContext
 
 
@@ -1623,6 +1715,14 @@ export async function* runEventCore(
 
     for await (const update of toolUpdates) {
       if (update.message) {
+        if (
+          update.message.type === 'attachment' &&
+          update.message.attachment.type === 'loop_stopped'
+        ) {
+          loopStoppedCycle = update.message.attachment.cycle
+          loopStoppedRecord = update.message
+          continue
+        }
         yield toolUpdateEvent(update.message, emit)
 
         if (
@@ -1766,6 +1866,12 @@ export async function* runEventCore(
 
     if (shouldPreventContinuation) {
       const terminal: Terminal = { reason: 'hook_stopped' }
+      yield emit({ kind: 'run_terminal', terminal })
+      return terminal
+    }
+    if (loopStoppedCycle !== null) {
+      if (loopStoppedRecord !== null) yield emit({ kind: 'attachment', message: loopStoppedRecord })
+      const terminal: Terminal = { reason: 'loop_stopped', cycle: loopStoppedCycle }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
     }
