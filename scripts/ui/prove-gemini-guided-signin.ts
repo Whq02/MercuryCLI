@@ -110,8 +110,10 @@ check('a box without a browser is told to open the address itself', guide.gemini
 check("the storage sentence is the previous card's, byte for byte", opened[3]!.text === 'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY env vars always win over the store (GOOGLE_API_KEY outranks — the documented precedence).')
 
 section('§6 one owner of the addresses and the words; the card consumes the model')
-const spellers = walk('src').filter(rel => /aistudio\.google\.com|console\.cloud\.google\.com|console\.developers\.google\.com/.test(read(rel)))
-check('no source file but the model spells a Console or AI Studio address', spellers.length === 1 && spellers[0] === 'src/components/geminiConnectGuide.ts', spellers.join(','))
+const studioSpellers = walk('src').filter(rel => /aistudio\.google\.com/.test(read(rel)))
+check('the AI Studio key page has one owner: KEY_PAGES.gemini in loginFamilyRows.ts spells it and the guide reads it', studioSpellers.length === 1 && studioSpellers[0] === 'src/components/loginFamilyRows.ts' && read('src/components/geminiConnectGuide.ts').includes('address: `https://${KEY_PAGES.gemini}`'), studioSpellers.join(','))
+const consoleSpellers = walk('src').filter(rel => /console\.cloud\.google\.com|console\.developers\.google\.com/.test(read(rel)))
+check('no source file but the model spells a Console address', consoleSpellers.length === 1 && consoleSpellers[0] === 'src/components/geminiConnectGuide.ts', consoleSpellers.join(','))
 const card = read('src/components/GeminiConnect.tsx')
 check('the card reads its rows, its pane, its return step and the key page from the model', ['geminiConnectRows(', 'geminiGuidePaneLines(', 'geminiGuideReturnStep(', 'geminiGuideOpeningStep(', 'GEMINI_API_KEY_PAGE.address', 'geminiKeyLegLines('].every(n => card.includes(n)))
 check('the card opens the pages through the one browser opener and keeps the login doors', ['openBrowser(', 'finishGeminiOauthConnect(', 'storeGeminiApiKeyLogin(', 'keyPasteGuardNote(', 'GEMINI_CLIENT_STORED_UNVERIFIED_NOTE', 'writeGeminiOauthClientConfig('].every(n => card.includes(n)))

@@ -160,13 +160,24 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     const r = resolveModule(full)
     if (r) out.add(r)
   }
+  const anchored = (anchor: string, rest: string): string | null => (ROOT_ANCHORS.has(anchor) ? join(root, rest) : DIR_ANCHORS.has(anchor) ? join(dir, rest) : null)
   lines.forEach((line, i) => {
     const c = ctx[i]!
     if (c.read) return
-    if (!TYPE_IMPORT.test(line)) for (const m of line.matchAll(/(?:from|import|require)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) add(join(dir, m[1]!))
+    if (!TYPE_IMPORT.test(line)) {
+      for (const m of line.matchAll(/(?:from|import|require)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/g)) add(join(dir, m[1]!))
+      for (const m of line.matchAll(/(?:from|import|require)\s*\(?\s*`\$\{([A-Za-z_.]+)\}\/([^`$]+)`/g)) {
+        const p = anchored(m[1]!, m[2]!)
+        if (p) add(p)
+      }
+    }
     if (!c.spawn) return
     if (line.includes(PREFLIGHT)) return
     for (const m of line.matchAll(/['"`](scripts\/[A-Za-z0-9_./-]+\.(?:ts|tsx|mjs|js|py|sh))['"`]/g)) add(join(root, m[1]!))
+    for (const m of line.matchAll(/`\$\{([A-Za-z_.]+)\}\/([A-Za-z0-9_./-]+\.(?:ts|tsx|mjs|js|py|sh))`/g)) {
+      const p = anchored(m[1]!, m[2]!)
+      if (p) add(p)
+    }
     for (const m of line.matchAll(/\b(?:join|resolve)\(\s*([A-Za-z_.]+)\s*((?:,\s*['"][^'"]+['"])+)\s*\)/g)) {
       const anchor = m[1]!
       const segs = [...m[2]!.matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]!)
@@ -202,6 +213,7 @@ export interface SuiteCensus {
   suite: string
   cls: string
   files: number
+  executed: string[]
   drivers: string[]
   chain: string[]
   evidence: string
@@ -274,14 +286,16 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     if (complement) for (const [sib, set] of members) if (sib.startsWith(`${complement}-`)) for (const f of set) start.delete(f)
     start.delete(runner)
     const drivers: string[] = []
+    const executed: string[] = []
     let first: { chain: string[]; evidence: string } | null = null
     for (const f of [...start].sort()) {
+      executed.push(relative(root, f))
       const c = chainOf(f)
       if (!c) continue
       drivers.push(relative(root, f))
       first ??= c
     }
-    out.push({ suite: s, cls, files: start.size, drivers, chain: first?.chain ?? [], evidence: first?.evidence ?? '' })
+    out.push({ suite: s, cls, files: start.size, executed, drivers, chain: first?.chain ?? [], evidence: first?.evidence ?? '' })
   }
   return { engines, suites: out }
 }
@@ -327,10 +341,14 @@ function selfTest(): boolean {
   w('scripts/file-test/prove-n.ts', 'export const n = 1\n')
   w('scripts/resolved-drive/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-m.ts"\n`)
   w('scripts/resolved-drive/prove-m.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nspawnSync(d.python, [captureEngineEntry(d, ROOT), '--preflight'], { encoding: 'utf8' })\nspawnSync(d.python, [captureEngineEntry(d, ROOT), cfgPath], { encoding: 'utf8' })\n")
+  w('scripts/template-import/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-o.ts"\n`)
+  w('scripts/template-import/prove-o.ts', "const ROOT = join(import.meta.dir, '..', '..')\nconst { run } = await import(`${ROOT}/scripts/lib/arena.ts`)\nrun('.')\n")
+  w('scripts/template-spawn/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-p.ts"\n`)
+  w('scripts/template-spawn/prove-p.ts', "import { spawnSync } from 'node:child_process'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst res = spawnSync(\n  process.execPath,\n  [`${ROOT}/scripts/ui/engine.py`, '--cols', '80'],\n)\n")
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['multi-line', 'named-list', 'py-direct', 'resolved-drive', 'via-import-2']
+  const want = ['multi-line', 'named-list', 'py-direct', 'resolved-drive', 'template-import', 'template-spawn', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
