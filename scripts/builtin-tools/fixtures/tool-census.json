@@ -497,6 +497,32 @@
       }
     },
     {
+      "name": "ContextLeft",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": "scripts/tools/prove-context-left-tool.ts",
+      "declared": {
+        "intents": [
+          "ask how full the context window is",
+          "check the tokens left before the fold",
+          "budget a large read or edit against the context window"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/tools/prove-context-left-tool.ts"
+      }
+    },
+    {
       "name": "Correct",
       "category": "other",
       "risk": "medium",
@@ -1049,6 +1075,36 @@
         "latency": "fast",
         "gate": "MERCURY_REFS",
         "proof": "scripts/project-services/prove-resource-plane.ts"
+      }
+    },
+    {
+      "name": "JevEval",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "cancel",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "web-access"
+      ],
+      "proof": "scripts/jev/run-all.sh",
+      "declared": {
+        "intents": [
+          "rank hypotheses against the evidence with a second opinion",
+          "get a probability on a yes/no judgement",
+          "make a qualitative call after the numbers are measured",
+          "check a proposal against recorded rulings"
+        ],
+        "units": [
+          "web-access"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "conditions": [
+          "the JEV switch on with a TypeSafe API key stored through /jev; a sub-agent only when the sub-agents setting is on"
+        ],
+        "proof": "scripts/jev/run-all.sh"
       }
     },
     {

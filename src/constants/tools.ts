@@ -2,6 +2,7 @@ import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
 import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
+import { CONTEXT_LEFT_TOOL_NAME } from '../tools/ContextLeftTool/constants.js'
 import {
   EXIT_PLAN_MODE_TOOL_NAME,
   EXIT_PLAN_MODE_V2_TOOL_NAME,
@@ -73,6 +74,7 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   EXIT_WORKTREE_TOOL_NAME,
   SLEEP_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
+  CONTEXT_LEFT_TOOL_NAME,
 ])
 
 export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS: Set<string> = new Set([
