@@ -5,6 +5,8 @@ import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'
 import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
+import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
+import { clampClause } from '../../utils/waitCeiling.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type {
@@ -106,30 +108,14 @@ export function formatOutput(content: string, opts?: { preExcerpted?: boolean; m
   return { totalLines, truncatedContent: head + notice + tail, isImage: false }
 }
 
-const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at [^\n]*?\]\n\n/
-
 export function formatExcerpt(content: string, maxLength: number): string {
   if (content.length <= maxLength) return content
-  const match = SPILL_NOTICE.exec(content)
-  if (match === null) return formatOutput(content, { maxLength }).truncatedContent
-  const before = content.slice(0, match.index)
-  const after = content.slice(match.index + match[0].length)
-  const headBudget = Math.floor(maxLength * HEAD_SHARE)
-  const tailBudget = maxLength - headBudget
-  let head = before.slice(0, headBudget)
-  const headNewline = head.lastIndexOf('\n')
-  if (head.length < before.length && headNewline > headBudget / 2) head = head.slice(0, headNewline)
-  let tail = after.slice(Math.max(0, after.length - tailBudget))
-  const tailNewline = tail.indexOf('\n')
-  if (tail.length < after.length && tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
-  const dropped = Buffer.byteLength(before, 'utf8') - Buffer.byteLength(head, 'utf8') + Buffer.byteLength(after, 'utf8') - Buffer.byteLength(tail, 'utf8')
-  const notice = match[0].replace(match[1] as string, String(Number(match[1]) + dropped))
-  return head + notice + tail
+  return cutAroundSpillNotice(content, maxLength) ?? formatOutput(content, { maxLength }).truncatedContent
 }
 
 export function outputBudgetClause(budget: OutputBudget): string | undefined {
   if (budget.clampedTo === undefined) return undefined
-  return `[max_output_chars clamped to ${budget.effective} chars (the ${budget.clampedTo})]`
+  return `[${clampClause('max_output_chars', budget.effective, budget.clampedTo, 'chars')}]`
 }
 
 

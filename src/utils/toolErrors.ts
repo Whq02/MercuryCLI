@@ -1,12 +1,41 @@
 import type { z } from 'zod/v4'
 
 import { describeInvalidArgTypeError, isAbortError, ShellError } from './errors.js'
-import { INTERRUPT_MESSAGE } from './messages.js'
+import { INTERRUPT_MESSAGE } from './messages/rejectionText.js'
+import { OUTPUT_HEAD_SHARE } from './shell/outputLimits.js'
 
 
 const MAX_ERROR_LENGTH = 10_000
 const ERROR_HEAD = 5_000
 const ERROR_TAIL = 5_000
+
+const SPILL_NOTICE = /\n\n\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at [^\n]*?\]\n\n/
+
+const windowedErrors = new WeakSet<Error>()
+
+export function windowedError<E extends Error>(error: E): E {
+  windowedErrors.add(error)
+  return error
+}
+
+export function cutAroundSpillNotice(content: string, maxLength: number): string | null {
+  const match = SPILL_NOTICE.exec(content)
+  if (match === null) return null
+  if (content.length <= maxLength) return content
+  const before = content.slice(0, match.index)
+  const after = content.slice(match.index + match[0].length)
+  const headBudget = Math.floor(maxLength * OUTPUT_HEAD_SHARE)
+  const tailBudget = maxLength - headBudget
+  let head = before.slice(0, headBudget)
+  const headNewline = head.lastIndexOf('\n')
+  if (head.length < before.length && headNewline > headBudget / 2) head = head.slice(0, headNewline)
+  let tail = after.slice(Math.max(0, after.length - tailBudget))
+  const tailNewline = tail.indexOf('\n')
+  if (tail.length < after.length && tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
+  const dropped = Buffer.byteLength(before, 'utf8') - Buffer.byteLength(head, 'utf8') + Buffer.byteLength(after, 'utf8') - Buffer.byteLength(tail, 'utf8')
+  const notice = match[0].replace(match[1] as string, String(Number(match[1]) + dropped))
+  return head + notice + tail
+}
 
 export function getErrorParts(error: Error): string[] {
   if (error instanceof ShellError) {
@@ -39,7 +68,9 @@ export function formatError(error: unknown): string {
   if (joined === '') {
     return 'The command failed and produced no output.'
   }
-  if (joined.length > MAX_ERROR_LENGTH) {
+  if (joined.length > MAX_ERROR_LENGTH && !windowedErrors.has(error)) {
+    const kept = cutAroundSpillNotice(joined, MAX_ERROR_LENGTH)
+    if (kept !== null) return kept
     const removed = joined.length - MAX_ERROR_LENGTH
     return `${joined.slice(0, ERROR_HEAD)}\n\n… [${removed} characters removed] …\n\n${joined.slice(-ERROR_TAIL)}`
   }

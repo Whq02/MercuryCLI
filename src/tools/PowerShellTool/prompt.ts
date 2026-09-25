@@ -1,4 +1,5 @@
 import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeouts.js'
+import { maxOutputCharsBullet } from '../BashTool/prompt.js'
 
 export function getDefaultTimeoutMs(): number {
   return getDefaultBashTimeoutMs()
@@ -21,7 +22,7 @@ export async function getPrompt(): Promise<string> {
     'Executes a PowerShell command and returns its combined output. Use this on Windows for PowerShell-native work; prefer the dedicated file and search tools when one exists.',
     'Command output comes back to you, the model — the operator does not reliably see it. Anything they need from a command belongs in your reply.',
     'The current working directory carries over between commands; other session state does not.',
-    `# Instructions\n- Always quote any path carrying spaces.\n- Absolute paths over Set-Location; reach for Set-Location only on the user's ask.\n- The optional \`timeout\` rides in milliseconds, capped at ${maxMs} ms (${minutes(maxMs)} minutes); it defaults to ${defaultMs} ms (${minutes(defaultMs)} minutes) when omitted.`,
+    `# Instructions\n- Always quote any path carrying spaces.\n- Absolute paths over Set-Location; reach for Set-Location only on the user's ask.\n- The optional \`timeout\` rides in milliseconds, capped at ${maxMs} ms (${minutes(maxMs)} minutes); it defaults to ${defaultMs} ms (${minutes(defaultMs)} minutes) when omitted.\n- ${maxOutputCharsBullet()}`,
   ]
   if (!BACKGROUND_DISABLED) {
     sections.push(
