@@ -24,6 +24,7 @@ export interface GptModelIdentity {
   minor: number
   variant: string
   canonicalId: string
+  unparsed?: false
 }
 
 export function parseGptModelId(id: string): GptModelIdentity | undefined {

@@ -131,8 +131,8 @@ if (!catalogue) {
   check('a 401 names a refused credential', refused.includes('refused the credential (HTTP 401)'), refused)
   const down = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: statusFetch(503) }).then(() => '', (e: Error) => e.message)
   check('a 503 names the status', down.includes('returned HTTP 503'), down)
-  const foreign = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: pageFetch({ object: 'list', data: [{ id: 'gpt-4', object: 'model' }] }) }).then(() => '', (e: Error) => e.message)
-  check('a page whose ids do not ride the DeepSeek lane is refused as a non-catalogue view', foreign.includes('non-catalogue view'), foreign)
+  const foreign = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: pageFetch({ object: 'list', data: [{ id: 'gpt-4', object: 'model' }] }) }).then(r => r.models.map(m => m.id).join(','), (e: Error) => `threw: ${e.message}`)
+  check("a page whose ids carry no deepseek- prefix still lands as the account's list (provenance, never the grammar, decides what a list is)", foreign === 'gpt-4', foreign)
   const htmlFetch = (async () => new Response('<html>not a list</html>', { status: 200, headers: { 'content-type': 'text/html' } })) as typeof fetch
   const notJson = await catalogue.fetchDeepseekLiveModels({ baseUrl: 'https://deepseek.fixture.invalid', key: 'sk-fixture', fetchImpl: htmlFetch }).then(() => '', (e: Error) => e.message)
   check("a 200 with a body that is not JSON reads the reader's own sentence, never the runtime's parse words", notJson === 'the models endpoint answered a body that is not JSON', notJson)
