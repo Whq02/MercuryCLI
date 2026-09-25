@@ -34,7 +34,7 @@ import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../mcp/normalization.js'
 import { observeToolStart, observeToolTerminal } from '../run/effectObserver.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
-import { observeToolCall, toolResultBlockOf } from './loopGuard.js'
+import { closeRound, recordToolCall, toolResultBlockOf } from './loopGuard.js'
 import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
@@ -295,7 +295,7 @@ export async function* runToolUse(
   assistantMessage: AssistantMessage,
   canUseTool: CanUseToolFn,
   toolUseContext: ToolUseContext,
-  roundOrdinal = 0,
+  round?: { id: string; ordinal: number },
 ): AsyncGenerator<MessageUpdateLazy> {
   const toolUseID = toolUse.id
   const requestedName = toolUse.name
@@ -364,16 +364,19 @@ export async function* runToolUse(
     yield escaped
   }
   if (toolUseContext.abortController.signal.aborted) return
-  const loopVerdict = observeToolCall(ownerFromToolUseContext(toolUseContext), {
+  const owner = ownerFromToolUseContext(toolUseContext)
+  const ownRound = round === undefined ? `call:${toolUseID}` : null
+  recordToolCall(owner, {
     toolName: resolved.name,
     toolUseID,
-    roundID: String(assistantMessage.message.id ?? assistantMessage.uuid),
-    roundOrdinal,
+    roundID: ownRound ?? round!.id,
+    roundOrdinal: round?.ordinal ?? 0,
     arguments: rawInput,
     result: settledResult,
     messages: toolUseContext.messages,
   })
-  for (const message of loopVerdict.messages) {
+  if (ownRound === null) return
+  for (const message of closeRound(owner, ownRound).messages) {
     yield { message }
   }
 }

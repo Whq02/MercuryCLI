@@ -87,12 +87,15 @@ Mercury never stops or parks a runner for its memory use.
 A repeated tool call is never refused, and by default no turn is ended for
 repeating itself: the loop guard only reminds. A reminder rides into context
 after the third, fifth and eighth identical call whose result is identical
-too, counted across model responses — the calls of one response, issued in
-parallel, count once, whatever order they settle in — and a cycle of one to
-five calls repeated five times over with identical results draws a stronger
-reminder on every detection; a call whose answer changed is progress and
-resets the count, so a poll of a growing log is never a loop. The operator
-sees each reminder as a recorded informational row.
+too, counted across model responses — a response is judged once, after all
+of its calls have settled, in the order the model issued them, so the calls
+of one response count once whatever order they settle in, and a response
+that mixes a new call into a repeating cycle breaks that cycle — and a cycle
+of one to five calls repeated five times over with identical results draws a
+stronger reminder on every detection; a call whose answer changed is
+progress and resets the count, so a poll of a growing log is never a loop.
+The response is Mercury's own unit, never an id the provider sent. The
+operator sees each reminder as a recorded informational row.
 With `loopGuardStopEnabled: true` in settings, the second detection of the
 same cycle of two to five calls ends the turn after the round it landed in
 has settled: the model's context carries a `loop_stopped` note naming the

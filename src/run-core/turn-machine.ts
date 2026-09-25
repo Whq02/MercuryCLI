@@ -1333,76 +1333,8 @@ export async function* runEventCore(
       }
 
       const chant = lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null
-      let chantStood = false
-      if (chant !== null) {
-        const chantRecoveryCount = state.chantRecoveryCount ?? 0
-        const decision = decideChantRecovery({ recoveryCount: chantRecoveryCount })
-        const replyMessages = assistantMessages.filter(m => m.isApiErrorMessage !== true)
-        if (decision.kind === 'continue') {
-          yield emit({
-            kind: 'notice',
-            message: createSystemMessage(
-              chantNoticeLine(chant, `asked the model to continue past it (continuation ${decision.attempt} of ${CHANT_RECOVERY_LIMIT})`),
-              'warning',
-            ),
-          })
-          const nudge = createUserMessage({ content: chantNudgeText(chant), isMeta: true })
-          const next: TurnState = {
-            messages: [...messagesForQuery, ...replyMessages, nudge],
-            toolUseContext,
-            autoCompactTracking: tracking,
-            maxOutputTokensRecoveryCount,
-            maxOutputTokensOverride,
-            streamFaultRecoveryCount,
-            toolCallRefusalRecoveryCount,
-            pendingToolUseSummary: undefined,
-            stopHookActive: undefined,
-            turnCount,
-            overflowEpisode,
-            pendingOverflow: undefined,
-            emptyReplyRecoveryCount: state.emptyReplyRecoveryCount,
-            chantRecoveryCount: chantRecoveryCount + 1,
-            transition: { reason: 'chant_recovery', attempt: decision.attempt },
-          }
-          yield emit({ kind: 'turn_settled', transition: next.transition! })
-          state = next
-          continue
-        }
-        if (isLoopGuardStopEnabled()) {
-          yield emit({
-            kind: 'notice',
-            message: createSystemMessage(
-              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${LOOP_GUARD_STOP_SETTING})`),
-              'warning',
-            ),
-          })
-          yield emit({
-            kind: 'attachment',
-            message: createAttachmentMessage({
-              type: 'loop_stopped',
-              toolUseID: '',
-              cycle: ['reply'],
-              message: chantStopText(chant),
-            }),
-          })
-          const terminal: Terminal = { reason: 'loop_stopped', cycle: ['reply'] }
-          yield emit({ kind: 'run_terminal', terminal })
-          return terminal
-        }
-        yield emit({
-          kind: 'notice',
-          message: createSystemMessage(
-            chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the reply stands and the turn ends on the model's own words`),
-            'warning',
-          ),
-        })
-        chantStood = true
-        if (isWithheldMaxOutputTokens(lastMessage)) {
-          yield emit({ kind: 'withheld_surfaced', message: lastMessage })
-        }
-      }
 
-      if (!chantStood && isWithheldMaxOutputTokens(lastMessage)) {
+      if (chant === null && isWithheldMaxOutputTokens(lastMessage)) {
         const decision = decideMaxOutputTokensRecovery({
           capEnabled: false,
           envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,
@@ -1603,6 +1535,73 @@ export async function* runEventCore(
           yield emit({ kind: 'turn_settled', transition: next.transition! })
           state = next
           continue
+        }
+      }
+
+      if (chant !== null) {
+        const chantRecoveryCount = state.chantRecoveryCount ?? 0
+        const decision = decideChantRecovery({ recoveryCount: chantRecoveryCount })
+        const replyMessages = assistantMessages.filter(m => m.isApiErrorMessage !== true)
+        if (decision.kind === 'continue') {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              chantNoticeLine(chant, `asked the model to continue past it (continuation ${decision.attempt} of ${CHANT_RECOVERY_LIMIT})`),
+              'warning',
+            ),
+          })
+          const nudge = createUserMessage({ content: chantNudgeText(chant), isMeta: true })
+          const next: TurnState = {
+            messages: [...messagesForQuery, ...replyMessages, nudge],
+            toolUseContext,
+            autoCompactTracking: tracking,
+            maxOutputTokensRecoveryCount,
+            maxOutputTokensOverride,
+            streamFaultRecoveryCount,
+            toolCallRefusalRecoveryCount,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            overflowEpisode,
+            pendingOverflow: undefined,
+            emptyReplyRecoveryCount: state.emptyReplyRecoveryCount,
+            chantRecoveryCount: chantRecoveryCount + 1,
+            transition: { reason: 'chant_recovery', attempt: decision.attempt },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        if (isLoopGuardStopEnabled()) {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${LOOP_GUARD_STOP_SETTING})`),
+              'warning',
+            ),
+          })
+          yield emit({
+            kind: 'attachment',
+            message: createAttachmentMessage({
+              type: 'loop_stopped',
+              toolUseID: '',
+              cycle: ['reply'],
+              message: chantStopText(chant),
+            }),
+          })
+          const terminal: Terminal = { reason: 'loop_stopped', cycle: ['reply'] }
+          yield emit({ kind: 'run_terminal', terminal })
+          return terminal
+        }
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the reply stands, and the loop guard ends no turn without ${LOOP_GUARD_STOP_SETTING}`),
+            'warning',
+          ),
+        })
+        if (isWithheldMaxOutputTokens(lastMessage)) {
+          yield emit({ kind: 'withheld_surfaced', message: lastMessage })
         }
       }
 

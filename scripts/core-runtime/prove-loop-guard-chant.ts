@@ -108,6 +108,13 @@ function textTurn(text: string): unknown[] {
   return [m]
 }
 const CAPPED = '\u0000capped'
+const REFUSED = '\u0000refused'
+function refusedTurn(text: string): unknown[] {
+  const m = createAssistantMessage({ content: text })
+  m.message.stop_reason = 'end_turn'
+  ;(m as { refusedToolCalls?: unknown[] }).refusedToolCalls = [{ id: 'call_refused_1', name: 'Grpe', argumentsRaw: '{}', code: 'unknown-tool', reason: 'no tool of that name' }]
+  return [m]
+}
 function cappedTurn(text: string): unknown[] {
   const m = createAssistantMessage({ content: text })
   m.message.stop_reason = 'max_tokens'
@@ -128,7 +135,7 @@ async function runReplies(replies: string[], agentId?: string): Promise<Run> {
     const idx = calls.length
     calls.push([...req.messages])
     const reply = replies[idx] ?? 'the script is exhausted'
-    const turn = reply.endsWith(CAPPED) ? cappedTurn(reply.slice(0, -CAPPED.length)) : textTurn(reply)
+    const turn = reply.endsWith(CAPPED) ? cappedTurn(reply.slice(0, -CAPPED.length)) : reply.endsWith(REFUSED) ? refusedTurn(reply.slice(0, -REFUSED.length)) : textTurn(reply)
     for (const m of turn) yield m as never
   }
   const gen = query({
@@ -189,7 +196,7 @@ section('P2 — DEFAULT (no key): a chanting reply is cut once with the loop nud
   check('the turn completed on the continuation\'s own words, no loop_stopped', once.terminal.reason === 'completed' && stops(once).length === 0, JSON.stringify(once.terminal))
   const twice = await runReplies([CHANT, CHANT])
   check('a second chant after the nudge is not cut again: two model calls, the reply stands, the turn completes', twice.calls.length === 2 && twice.terminal.reason === 'completed' && stops(twice).length === 0, `calls=${twice.calls.length} ${JSON.stringify(twice.terminal)}`)
-  check('the operator got the continuation row and then the row saying the reply stands', rows(twice).length === 2 && /the reply stands and the turn ends on the model's own words/.test(String(rows(twice)[1]?.content)), JSON.stringify(rows(twice).map(r => r.content)))
+  check('the operator got the continuation row and then the row saying the reply stands, claiming no end', rows(twice).length === 2 && /the reply stands, and the loop guard ends no turn without loopGuardStopEnabled/.test(String(rows(twice)[1]?.content)) && !/turn ends/.test(String(rows(twice)[1]?.content)), JSON.stringify(rows(twice).map(r => r.content)))
 }
 
 section('P3 — KEY ON (loopGuardStopEnabled: true): the second chant ends the turn typed as loop_stopped')
@@ -236,6 +243,18 @@ section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as 
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
   check('the parent receives is_error, the failure names the loop guard, and the chant sentence appears nowhere in it', block.is_error === true && /Agent execution failed: The loop guard ended the turn/.test(parentText) && !parentText.includes(SENTENCE.trim()), parentText.slice(0, 400))
   setStopKey(null)
+}
+
+section('P6 — a chanting reply that also carries a wire-refused tool call takes the refusal correction first; the chant road judges the reply after it')
+{
+  setStopKey(null)
+  const withRefusal = await runReplies([CHANT + REFUSED, HONEST])
+  check('the refusal correction ("None of these calls ran") rides in the second request', /None of these calls ran|was refused before execution|refused/.test(requestText(withRefusal, 1)) && withRefusal.calls.length === 2, requestText(withRefusal, 1).slice(-500))
+  check('the chant nudge does not displace the correction on that request', !requestText(withRefusal, 1).includes(NUDGE), requestText(withRefusal, 1).slice(-300))
+  const chantThenRefused = await runReplies([CHANT, CHANT + REFUSED, HONEST])
+  const rowTexts = rows(chantThenRefused).map(r => String(r.content))
+  check('chant, then chant plus a refused call: the correction follows and a third request is made', chantThenRefused.calls.length === 3 && /refused/.test(requestText(chantThenRefused, 2)), `calls=${chantThenRefused.calls.length}`)
+  check('no operator row claims that the turn ends on the model\'s own words while the turn carries on', rowTexts.every(t => !/turn ends on the model/.test(t)), JSON.stringify(rowTexts))
 }
 
 console.log('\n' + '='.repeat(76))

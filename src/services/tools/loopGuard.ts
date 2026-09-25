@@ -47,6 +47,16 @@ export interface LoopGuardVerdict {
   messages: Message[]
 }
 
+interface RoundEntry {
+  ordinal: number
+  toolName: string
+  toolUseID: string
+  key: string
+  digest: string
+  unchangedRead: boolean
+  preview: string
+}
+
 interface LoopGuardState {
   boundary: string | null
   lastKey: string | null
@@ -54,8 +64,8 @@ interface LoopGuardState {
   run: number
   ring: string[]
   roundID: string | null
-  roundEntries: Array<{ ordinal: number; entry: string }>
-  detections: Map<string, number>
+  roundEntries: RoundEntry[]
+  detections: Map<string, { count: number; tools: string[] }>
 }
 
 function freshState(): LoopGuardState {
@@ -203,11 +213,10 @@ export function detectCycle(ring: readonly string[]): { length: number; keys: st
   return null
 }
 
-export function reminderText(toolName: string, run: number, args: unknown): string {
+export function reminderText(toolName: string, run: number, preview: string): string {
   if (run <= 3) {
     return 'Loop check: this is the third identical tool call, and its result has not changed. Read the result you already have before calling again, then change the approach or finish if the work is done.'
   }
-  const preview = argumentPreview(args)
   if (run <= 5) {
     return `Loop notice: ${toolName} has been called ${run} times with identical arguments (${preview}) and the result has not changed. Inspect the result you already have, then take a different action or finish.`
   }
@@ -234,37 +243,48 @@ export function cycleStopText(cycle: CycleDetection): string {
   return `The loop guard ended the turn: ${cycleShape(cycle)} repeated five more times after the loop notice, with identical arguments and identical results each time. When the turn resumes, report what was found and what a different approach would be.`
 }
 
-function rowText(toolName: string, run: number, step: number | null, cycle: CycleDetection | null, endTurn: boolean, stopEnabled: boolean): string {
-  if (endTurn && cycle !== null) {
+function rowText(cycle: CycleDetection, endTurn: boolean, stopEnabled: boolean): string {
+  if (endTurn) {
     return `Loop guard ended the turn: the cycle ${cycle.tools.join(' -> ')} repeated five more times after the loop notice, with identical arguments and results (${LOOP_GUARD_STOP_SETTING})`
   }
-  const parts: string[] = []
-  if (step !== null) parts.push(`Loop check: ${toolName} called ${run} times with identical arguments and the same result`)
-  if (cycle !== null && cycle.length === 1 && step === null) parts.push(`Loop check: ${cycle.tools[0]} called ${run} times with identical arguments and the same result`)
-  if (cycle !== null && cycle.length > 1) {
-    const shape = `the cycle ${cycle.tools.join(' -> ')}`
-    if (cycle.detection === 1) parts.push(`Loop check: ${shape} repeated five times with identical arguments and results${stopEnabled ? '; the turn ends if it repeats five more times' : ''}`)
-    else parts.push(`Loop check: ${shape} repeated five more times with identical arguments and results (detection ${cycle.detection}); the turn continues (${LOOP_GUARD_STOP_SETTING} is off)`)
+  if (cycle.length === 1) {
+    return `Loop check: ${cycle.tools[0]} returned the same result five more times for the same call; a run of one call never ends a turn`
   }
-  return parts.join('; ')
+  const shape = `the cycle ${cycle.tools.join(' -> ')}`
+  if (cycle.detection === 1) {
+    return `Loop check: ${shape} repeated five times with identical arguments and results${stopEnabled ? '; the turn ends if it repeats five more times' : ''}`
+  }
+  return `Loop check: ${shape} repeated five more times with identical arguments and results (detection ${cycle.detection}); the turn continues (${LOOP_GUARD_STOP_SETTING} is off)`
 }
 
 function quiet(run: number): LoopGuardVerdict {
   return { run, step: null, cycle: null, endTurn: false, messages: [] }
 }
 
-function rememberDetection(state: LoopGuardState, cycleID: string): number {
-  const count = (state.detections.get(cycleID) ?? 0) + 1
+export function canonicalCycleID(keys: readonly string[]): string {
+  let best: string | null = null
+  for (let start = 0; start < keys.length; start++) {
+    const rotation = [...keys.slice(start), ...keys.slice(0, start)].join(CYCLE_SEPARATOR)
+    if (best === null || rotation < best) best = rotation
+  }
+  return best ?? ''
+}
+
+function rememberDetection(state: LoopGuardState, keys: readonly string[]): CycleDetection {
+  const cycleID = canonicalCycleID(keys)
+  const known = state.detections.get(cycleID)
+  const tools = known?.tools ?? keys.map(toolOfKey)
+  const count = (known?.count ?? 0) + 1
   state.detections.delete(cycleID)
-  state.detections.set(cycleID, count)
+  state.detections.set(cycleID, { count, tools })
   if (state.detections.size > DETECTION_MEMORY) {
     const oldest = state.detections.keys().next().value
     if (oldest !== undefined) state.detections.delete(oldest)
   }
-  return count
+  return { length: keys.length, tools, detection: count }
 }
 
-export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservation): LoopGuardVerdict {
+export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservation): void {
   try {
     const state = store.get(owner)
     const boundary = humanTurnBoundaryOf(observation.messages)
@@ -272,41 +292,63 @@ export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservati
       Object.assign(state, freshState())
       state.boundary = boundary
     }
-    if (isBookkeepingTool(observation.toolName)) return quiet(state.run)
-    const key = toolCallKey(observation.toolName, observation.arguments)
-    const sameCall = state.lastKey === key
-    const digest =
-      sameCall && state.lastResult !== null && isUnchangedReadAnswer(observation.result)
-        ? state.lastResult
-        : resultDigest(observation.result, observation.toolUseID)
-    const entry = `${key}${KEY_SEPARATOR}${digest}`
     if (state.roundID !== observation.roundID) {
-      state.ring.push(...state.roundEntries.map(item => item.entry))
-      if (state.ring.length > CYCLE_WINDOW) state.ring.splice(0, state.ring.length - CYCLE_WINDOW)
       state.roundID = observation.roundID
       state.roundEntries = []
-    } else if (state.roundEntries.some(item => item.entry === entry)) {
-      return quiet(state.run)
     }
-    const learnedNothing = sameCall && state.lastResult === digest
-    if (sameCall && !learnedNothing) {
-      state.ring.length = 0
-      state.roundEntries.length = 0
+    if (isBookkeepingTool(observation.toolName)) return
+    state.roundEntries.push({
+      ordinal: observation.roundOrdinal,
+      toolName: observation.toolName,
+      toolUseID: observation.toolUseID,
+      key: toolCallKey(observation.toolName, observation.arguments),
+      digest: resultDigest(observation.result, observation.toolUseID),
+      unchangedRead: isUnchangedReadAnswer(observation.result),
+      preview: argumentPreview(observation.arguments),
+    })
+  } catch {
+    return
+  }
+}
+
+export function closeRound(owner: OwnerKey, roundID: string, complete = true): LoopGuardVerdict {
+  try {
+    const state = store.peek(owner)
+    if (state === undefined || state.roundID !== roundID) return quiet(state?.run ?? 0)
+    const entries = state.roundEntries.sort((a, b) => a.ordinal - b.ordinal)
+    state.roundEntries = []
+    state.roundID = null
+    if (!complete || entries.length === 0) return quiet(state.run)
+    const seen = new Set<string>()
+    const reminders: string[] = []
+    const rows: string[] = []
+    let step: number | null = null
+    let last: RoundEntry = entries[0]!
+    for (const entry of entries) {
+      const sameCall = state.lastKey === entry.key
+      const digest = sameCall && state.lastResult !== null && entry.unchangedRead ? state.lastResult : entry.digest
+      const ringEntry = `${entry.key}${KEY_SEPARATOR}${digest}`
+      if (seen.has(ringEntry)) continue
+      seen.add(ringEntry)
+      last = entry
+      const learnedNothing = sameCall && state.lastResult === digest
+      if (sameCall && !learnedNothing) state.ring.length = 0
+      state.run = learnedNothing ? state.run + 1 : 1
+      state.lastKey = entry.key
+      state.lastResult = digest
+      state.ring.push(ringEntry)
+      if (state.ring.length > CYCLE_WINDOW) state.ring.splice(0, state.ring.length - CYCLE_WINDOW)
+      if (IDENTICAL_CALL_REMINDER_STEPS.includes(state.run)) {
+        step = state.run
+        reminders.push(reminderText(entry.toolName, state.run, entry.preview))
+        rows.push(`Loop check: ${entry.toolName} called ${state.run} times with identical arguments and the same result`)
+      }
     }
-    state.run = learnedNothing ? state.run + 1 : 1
-    state.lastKey = key
-    state.lastResult = digest
-    state.roundEntries.push({ ordinal: observation.roundOrdinal, entry })
-    state.roundEntries.sort((a, b) => a.ordinal - b.ordinal)
-    const view = [...state.ring, ...state.roundEntries.map(item => item.entry)].slice(-CYCLE_WINDOW)
-    const step = IDENTICAL_CALL_REMINDER_STEPS.includes(state.run) ? state.run : null
-    const found = detectCycle(view)
+    const found = detectCycle(state.ring)
     let cycle: CycleDetection | null = null
     if (found !== null) {
       state.ring.length = 0
-      state.roundEntries.length = 0
-      const detection = rememberDetection(state, found.keys.join(CYCLE_SEPARATOR))
-      cycle = { length: found.length, tools: found.keys.map(toolOfKey), detection }
+      cycle = rememberDetection(state, found.keys)
     }
     if (step === null && cycle === null) return quiet(state.run)
     const stopEnabled = isLoopGuardStopEnabled()
@@ -316,28 +358,32 @@ export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservati
       messages.push(
         createAttachmentMessage({
           type: 'loop_stopped',
-          toolUseID: observation.toolUseID,
+          toolUseID: last.toolUseID,
           cycle: cycle.tools,
           message: cycleStopText(cycle),
         }),
       )
-    } else {
-      const parts: string[] = []
-      if (step !== null) parts.push(reminderText(observation.toolName, state.run, observation.arguments))
-      if (cycle !== null && !(cycle.length === 1 && step !== null)) parts.push(cycleNudgeText(cycle, state.run, stopEnabled))
-      messages.push(createAttachmentMessage({ type: 'critical_system_reminder', content: parts.join(' ') }))
+      messages.push(createSystemMessage(rowText(cycle, true, stopEnabled), 'warning', last.toolUseID))
+      return { run: state.run, step, cycle, endTurn, messages }
     }
-    messages.push(
-      createSystemMessage(
-        rowText(observation.toolName, state.run, step, cycle, endTurn, stopEnabled),
-        endTurn ? 'warning' : 'info',
-        observation.toolUseID,
-      ),
-    )
+    const parts = [...reminders]
+    if (cycle !== null && !(cycle.length === 1 && step !== null)) parts.push(cycleNudgeText(cycle, state.run, stopEnabled))
+    messages.push(createAttachmentMessage({ type: 'critical_system_reminder', content: parts.join(' ') }))
+    if (cycle !== null) {
+      const cycleRow = rowText(cycle, false, stopEnabled)
+      if (cycle.length === 1 && step !== null) rows.push(`the turn continues (${LOOP_GUARD_STOP_SETTING} is ${stopEnabled ? 'on, and a run of one call never ends a turn' : 'off'})`)
+      else rows.push(cycleRow)
+    }
+    messages.push(createSystemMessage(rows.join('; '), 'info', last.toolUseID))
     return { run: state.run, step, cycle, endTurn, messages }
   } catch {
     return quiet(0)
   }
+}
+
+export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservation): LoopGuardVerdict {
+  recordToolCall(owner, observation)
+  return closeRound(owner, observation.roundID)
 }
 
 export function _resetLoopGuardForTesting(): void {

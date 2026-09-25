@@ -122,7 +122,7 @@ function makeTool(name: string, concurrent = false): never {
   } as never
 }
 
-const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read'), makeTool('Grep', true), makeTool('Glob', true)]
+const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read', true), makeTool('Grep', true), makeTool('Glob', true)]
 
 function makeCtx(agentId?: string): { ctx: Record<string, unknown>; abortController: AbortController } {
   let appState: Record<string, unknown> = {
@@ -182,6 +182,9 @@ function toolTurn(name: string, input: Record<string, unknown>): { turn: unknown
   const m = createAssistantMessage({
     content: [{ type: 'tool_use', id, name, input }] as never,
   })
+  if (wireId === 'constant') m.message.id = 'msg_fixture'
+  else if (wireId === 'empty') m.message.id = ''
+  else if (wireId === 'absent') (m.message as { id?: string }).id = undefined as never
   m.message.stop_reason = 'tool_use'
   return { turn: [m], id }
 }
@@ -199,14 +202,16 @@ type Run = {
   terminal: Record<string, unknown>
 }
 
+type WireId = 'per-response' | 'absent' | 'constant' | 'empty'
+let wireId: WireId = 'per-response'
 function parallelTurn(calls: Step[]): { turn: unknown[]; ids: string[] } {
   const ids = calls.map(() => `tu_${++idSeq}`)
-  const responseId = `msg_round_${idSeq}`
+  const responseId = wireId === 'per-response' ? `msg_round_${idSeq}` : wireId === 'constant' ? 'msg_fixture' : wireId === 'empty' ? '' : undefined
   const envelopes = calls.map((call, i) => {
     const m = createAssistantMessage({
       content: [{ type: 'tool_use', id: ids[i], name: call.name, input: call.input }] as never,
     })
-    m.message.id = responseId
+    ;(m.message as { id?: string }).id = responseId as never
     m.message.stop_reason = i === calls.length - 1 ? 'tool_use' : null
     return m
   })
@@ -468,6 +473,63 @@ section('C14 — KEY ON: a sub-agent the guard ends settles to its parent as a t
   const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'loop', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
   check('the parent receives is_error with "Agent execution failed: The loop guard ended the turn"', block.is_error === true && /Agent execution failed: The loop guard ended the turn/.test(parentText), parentText.slice(0, 300))
+}
+
+section('C15 — KEY ON: the round is judged only when it is complete, in issue order, whatever order the calls settle in — a cycle boundary inside a parallel response never decides by timing')
+{
+  const ALT: Step[] = []
+  for (let i = 0; i < 19; i++) ALT.push(i % 2 === 0 ? { name: 'Grep', input: GREP } : { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } })
+  const serialRounds = ALT.map(step => [step])
+  const foreign = (first: 'Read' | 'Glob'): Array<Step[]> => [...serialRounds, [{ name: 'Read', input: { file_path: '/tmp/z.ts' } }, { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }]]
+  for (const settlesFirst of ['Glob', 'Read'] as const) {
+    const run = await runScript([], identicalResults, undefined, foreign(settlesFirst), (name, index) => (index >= 19 ? (name === settlesFirst ? 0 : 30) : 0))
+    const lastTwo = run.ids.slice(-2).map(id => resultYieldIndex(run, id))
+    const order = settlesFirst === 'Glob' ? lastTwo[1]! < lastTwo[0]! : lastTwo[0]! < lastTwo[1]!
+    check(`19 alternating then [Read z, Glob b] with ${settlesFirst} settling first: the settle order was forced as intended`, order, `order=${JSON.stringify(lastTwo)}`)
+    check(`…and the round with a call outside the cycle breaks the cycle: no stop, the turn completes (${settlesFirst} first)`, run.terminal.reason === 'completed' && attachmentsOf(run, 'loop_stopped').length === 0 && run.calls.length === 21, `calls=${run.calls.length} ${JSON.stringify(run.terminal)}`)
+  }
+  const continuation = (): Array<Step[]> => [...serialRounds, [{ name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }, { name: 'Grep', input: GREP }]]
+  for (const settlesFirst of ['Grep', 'Glob'] as const) {
+    const run = await runScript([], identicalResults, undefined, continuation(), (name, index) => (index >= 19 ? (name === settlesFirst ? 0 : 30) : 0))
+    check(`19 alternating then the continuation [Glob b, Grep a] with ${settlesFirst} settling first: the second detection lands and the turn ends loop_stopped naming Grep -> Glob`, run.terminal.reason === 'loop_stopped' && JSON.stringify((run.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['Grep', 'Glob']) && run.calls.length === 20, `calls=${run.calls.length} ${JSON.stringify(run.terminal)}`)
+  }
+  const broken = await runScript([], identicalResults, undefined, [...serialRounds, [{ name: 'Grep', input: GREP }, { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }]], (name, index) => (index >= 19 && name === 'Glob' ? 0 : index >= 19 ? 30 : 0))
+  check('19 alternating (ending Grep) then [Grep a, Glob b] is a BROKEN alternation in issue order (Grep twice), so it does not stop even though Glob settles first', broken.terminal.reason === 'completed' && attachmentsOf(broken, 'loop_stopped').length === 0, `calls=${broken.calls.length} ${JSON.stringify(broken.terminal)}`)
+}
+
+section('C16 — DEFAULT: the same law for the first detection — a parallel round carrying a foreign call never completes a cycle, whichever order it settles in')
+{
+  setStopKey(null)
+  const NINE: Step[] = []
+  for (let i = 0; i < 9; i++) NINE.push(i % 2 === 0 ? { name: 'Grep', input: GREP } : { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } })
+  const nineRounds = NINE.map(step => [step])
+  for (const shape of [['Read', 'Glob'], ['Glob', 'Read']] as const) {
+    for (const settlesFirst of ['Glob', 'Read'] as const) {
+      const rounds: Array<Step[]> = [...nineRounds, shape.map(name => (name === 'Read' ? { name: 'Read', input: { file_path: '/tmp/z.ts' } } : { name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }))]
+      const run = await runScript([], identicalResults, undefined, rounds, (name, index) => (index >= 9 ? (name === settlesFirst ? 0 : 30) : 0))
+      check(`(Grep,Glob)x4 + Grep, then [${shape.join(', ')}] with ${settlesFirst} settling first: no nudge either way`, firstRequestWith(run, NUDGE) === -1 && run.terminal.reason === 'completed', `first=${firstRequestWith(run, NUDGE)}`)
+    }
+  }
+  const clean = await runScript([], identicalResults, undefined, [...nineRounds, [{ name: 'Glob', input: { pattern: '*.md', path: '/tmp' } }]])
+  check('control: the plain continuation [Glob] nudges after the 10th call', firstRequestWith(clean, NUDGE) === 10, `first=${firstRequestWith(clean, NUDGE)}`)
+  setStopKey(true)
+}
+
+section('C17 — the round is Mercury\'s own, never the wire\'s message id: an absent, constant or empty message.id changes nothing')
+{
+  for (const shape of ['absent', 'constant', 'empty'] as const) {
+    wireId = shape
+    const parallel = await runScript([], identicalResults, undefined, [[{ name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }, { name: 'Grep', input: GREP }]])
+    check(`message.id ${shape}: three identical parallel Greps in one response fire nothing`, firstRequestWith(parallel, ANY_NOTICE) === -1 && parallel.terminal.reason === 'completed', `first=${firstRequestWith(parallel, ANY_NOTICE)}`)
+    const serial = await runScript(Array.from({ length: 10 }, () => ({ name: 'Grep', input: GREP })))
+    const reminders = serial.yields.filter(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder').length
+    check(`message.id ${shape}: ten identical Greps over ten responses draw the reminders at 3, 5, 8 and the length-one detection at 10 (never silent)`, reminders === 4 && firstRequestWith(serial, ANY_NOTICE) === 3, `reminders=${reminders} first=${firstRequestWith(serial, ANY_NOTICE)}`)
+    const twenty = await runScript([], identicalResults, undefined, [Array.from({ length: 10 }, () => [{ name: 'Edit', input: EDIT }, { name: 'Bash', input: TEST }]).flat()])
+    check(`message.id ${shape}, key on: one response of twenty parallel blocks is one round — the turn is not ended`, twenty.terminal.reason === 'completed' && twenty.calls.length === 2, `calls=${twenty.calls.length} ${JSON.stringify(twenty.terminal)}`)
+    const pairsRun = await runScript(pairs(12, () => TEST))
+    check(`message.id ${shape}, key on: twelve serial pairs end the turn loop_stopped at the 20th call`, pairsRun.terminal.reason === 'loop_stopped' && pairsRun.calls.length === 20, `calls=${pairsRun.calls.length} ${JSON.stringify(pairsRun.terminal)}`)
+  }
+  wireId = 'per-response'
 }
 
 setStopKey(null)
