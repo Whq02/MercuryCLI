@@ -260,16 +260,16 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       ? { kind: 'provider', source: 'glm', vocabulary: [...vocabulary], thinkingGated: false }
       : { kind: 'none', source: 'glm' }
   }
-  if (isKimiModelId(model)) {
+  const route = declaredRouteOf(model)
+  if (isKimiModelId(model) || route === 'moonshot') {
     return KIMI_EFFORT_MODELS.has(model.trim().toLowerCase())
       ? { kind: 'provider', source: 'kimi', vocabulary: [...KIMI_EFFORTS], thinkingGated: false }
       : { kind: 'none', source: 'kimi' }
   }
-  if (isDeepseekModelId(model)) {
+  if (isDeepseekModelId(model) || route === 'deepseek') {
     return { kind: 'provider', source: 'deepseek', vocabulary: [...DEEPSEEK_EFFORTS], thinkingGated: true }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
-  const route = declaredRouteOf(model)
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
       require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
@@ -640,7 +640,7 @@ export function resolveContextWindow(
         require('../router/providers/zai.js') as typeof import('../router/providers/zai.js')
       return GLM_STATIC_CATALOGUE.find(e => e.id === id)?.contextWindow
     }
-    if (isKimiModelId(id)) return kimiDisplayPin(id)?.contextWindow
+    if (isKimiModelId(id) || carrierRoute === 'moonshot') return kimiDisplayPin(id)?.contextWindow
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
     return undefined
   })()

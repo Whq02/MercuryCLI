@@ -67,8 +67,9 @@ export async function* moonshotCallModel(
       params.signal.addEventListener('abort', onAbort, { once: true })
     })
     let qualification: Awaited<ReturnType<typeof qualifyMoonshotModel>> | null
+    const asked = normalizeModelStringForAPI(params.options.model)
     try {
-      qualification = await Promise.race([qualifyMoonshotModel(normalizeModelStringForAPI(params.options.model)), cancelled])
+      qualification = await Promise.race([qualifyMoonshotModel(asked), cancelled])
     } finally {
       params.signal.removeEventListener('abort', onAbort)
     }
@@ -79,6 +80,11 @@ export async function* moonshotCallModel(
     }
     if (qualification.kind === 'degraded') {
       yield* compatChatCallModel({ ...moonshotLaneProfile, leadingNotes: [qualification.note] }, params)
+      return
+    }
+    if (qualification.modelId !== asked) {
+      const served = qualification.modelId
+      yield* compatChatCallModel({ ...moonshotLaneProfile, wireModelId: () => served }, params)
       return
     }
   }

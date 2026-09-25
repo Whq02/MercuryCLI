@@ -317,5 +317,23 @@ section('8 · the remainder-era name stays dead (the kill ratchet)')
   check('no src file calls or imports the retired resolveCallModelRoute', regrown.length === 0, regrown.join(' · '))
 }
 
+section('9 · provenance before grammar: an id a signed-in account\'s live list holds belongs to that family whatever its spelling; the grammar answers only with no list to check')
+{
+  const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
+  const liveIds = (): ReadonlySet<string> => (moonshot as { cachedLiveIds?: () => ReadonlySet<string> }).cachedLiveIds?.() ?? new Set()
+  const listFetch = (async () => Response.json({ object: 'list', data: [{ id: 'k3', object: 'model', owned_by: 'moonshot', created: 1 }] })) as typeof fetch
+  check("with no list to check, 'k3' is unrecognised and 'kimi-k3' routes to moonshot by its prefix", classifyModelRoute('k3').kind === 'unrecognised' && declaredRouteOf('kimi-k3') === 'moonshot')
+  process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key-route-law'
+  process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/platform'
+  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  await moonshot.refreshMoonshotCatalogue({ force: true, fetchImpl: listFetch })
+  check("a signed-in account whose list holds 'k3' routes 'k3' to moonshot — by where it came from, not by its prefix", liveIds().has('k3') && declaredRouteOf('k3') === 'moonshot' && classifyModelRoute('K3[1m]').kind === 'route')
+  check('the §1 grammar rows still land their families beside the listed id', routes.every(([id, lane]) => declaredRouteOf(id ?? '') === lane))
+  delete process.env.MOONSHOT_API_KEY
+  delete process.env.MERCURY_MOONSHOT_API_BASE
+  moonshot.__resetMoonshotCatalogueForTest()
+  check("signed out again, 'k3' is unrecognised: the list was the only provenance", classifyModelRoute('k3').kind === 'unrecognised' && liveIds().size === 0)
+}
+
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)
