@@ -22,6 +22,7 @@ const READ_ONLY_BUCKET = new Set([
   'ProviderSearch',
   'TaskStop',
   'TaskOutput',
+  'ContextLeft',
   'ListMcpResources',
   'ReadMcpResource',
 ])
