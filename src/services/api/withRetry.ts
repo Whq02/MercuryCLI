@@ -25,6 +25,7 @@ import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLa
 import { isClientContractRefusalError } from './clientContractGate.js'
 import { healClientContractRefusal, noteClientContractHeal, type ClientContractHeal } from './clientContractLearned.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
+import { NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
@@ -200,6 +201,7 @@ type WithRetryOptions = {
   initialConsecutive529Errors?: number
   onHeldWait?: (wait: HeldBusyRetryWait) => void
   healClientContract?: boolean
+  reconnect?: boolean
 }
 
 export async function* withRetry<T>(
@@ -222,6 +224,7 @@ export async function* withRetry<T>(
   let contractHealTried = false
   let contractHeal: ClientContractHeal | undefined
   let busy: BusyRetryLadder | undefined
+  let reconnect: ReconnectLadder | undefined
 
   for (let attempt = 1; attempt <= maxRetries + 1 || busy !== undefined; attempt++) {
     if (options.signal?.aborted) throw new APIUserAbortError()
@@ -252,7 +255,23 @@ export async function* withRetry<T>(
         })
       }
 
+      const outage = maxRetries === 0 || options.reconnect === false ? null : outageCauseOf(error)
+      if (outage !== null) {
+        const now = Date.now()
+        const ladder = reconnect ?? openReconnectLadder(now, outage)
+        reconnect = ladder
+        const step = nextReconnect(ladder, outage, now)
+        yield createSystemAPIErrorMessage(new NetworkOutageError(step, error), step.waitMs, step.reconnect, step.of)
+        if (step.waitMs <= 0) {
+          throw new CannotRetryError(new ReconnectBudgetSpentError(ladder, now, error), retryContext)
+        }
+        await sleep(step.waitMs, options.signal)
+        attempt--
+        continue
+      }
+
       const status = statusOf(error)
+      if (status !== undefined) reconnect = undefined
       if (status === 401 || isRevokedTokenError(error)) {
         const helperFailed = apiKeyHelperFailedLast()
         clearApiKeyHelperCache()
