@@ -230,6 +230,10 @@ try {
   check("a closed window with a known reopen waits until the reopen plus the grace, the wall's own delay", first.step === 'wait' && first.delayMs === 30_000 + REOPEN_GRACE_MS && first.heldSince === FIRED_AT, j(first))
   const unknown = localWakeStep({ closed: true }, T0, FIRED_AT, undefined, facts)
   check('a closed window with no reopen waits one recheck', unknown.step === 'wait' && unknown.delayMs === WALL_RECHECK_MS, j(unknown))
+  const far = localWakeStep({ closed: true, reopensAtMs: T0 + 5 * 60_000 }, T0, FIRED_AT, undefined, facts)
+  check("a window five minutes out re-arms once, for the five minutes and the grace — never the beat five times over (red on the base: the beat)", far.step === 'wait' && far.delayMs === 5 * 60_000 + REOPEN_GRACE_MS, j(far))
+  const stale = localWakeStep({ closed: true, reopensAtMs: T0 - 1 }, T0, FIRED_AT, undefined, facts)
+  check('a window whose named reopen has already passed rechecks at the beat, never in a one-second loop (red on the base: one second)', stale.step === 'wait' && stale.delayMs === WALL_RECHECK_MS, j(stale))
   const again = localWakeStep({ closed: true }, T0 + WALL_RECHECK_MS, FIRED_AT, FIRED_AT, facts)
   check('a window still closed at the recheck waits again and keeps the first held-since', again.step === 'wait' && again.heldSince === FIRED_AT, j(again))
   const landed = localWakeStep({ closed: false }, T0 + 2 * WALL_RECHECK_MS, FIRED_AT, FIRED_AT, facts)
@@ -254,6 +258,45 @@ console.log("§7 the seatless arm hands the wake's facts to the sink (red on the
   await new Promise(resolve => setTimeout(resolve, 1_300))
   check('the sink receives the prompt and the facts the tool armed it with', seen.length === 1 && seen[0]!.prompt === 'wake up and continue' && j(seen[0]!.facts) === j({ spelling: 'in ~60s', reason: REASON }), j(seen))
   bridge._resetScheduleBridgeForTesting()
+}
+
+console.log("§8 one fire instant: the row's fire time is the tick's own stamp — the instant the record and the receipt name — never the delivery's clock (red on the base: the origin reads the clock at the delivery)")
+{
+  delivered.length = 0
+  updateConcourseWorkers(workers => {
+    for (const r of Object.values(workers)) {
+      delete (r as { schedules?: unknown }).schedules
+      delete (r as { heldFires?: unknown }).heldFires
+    }
+  }, DAEMON_DIR)
+  seedRecord()
+  publishFacts(openWindow())
+  addVia(cronSchedule('the first delivery, slow'))
+  addVia(cronSchedule('the cron fire after it'))
+  updateConcourseWorkers(workers => {
+    for (const rec of Object.values(workers)) {
+      for (const row of ((rec as { schedules?: Raw[] }).schedules ?? [])) row.createdAt = Date.now() - 120_000
+    }
+  }, DAEMON_DIR)
+  const ticking = {
+    ...(ports as Record<string, unknown>),
+    now: () => Date.now(),
+    deliver: async (d: Raw) => {
+      delivered.push({ ...d })
+      if (delivered.length === 1) await new Promise(resolve => setTimeout(resolve, 1_200))
+      return { ok: true }
+    },
+  } as never
+  const before = Date.now()
+  const r = await ticker.tickSaturnOnce(ticking)
+  check('two cron fires deliver in one tick, the first delivery taking a beat', r.fired === 2 && delivered.length === 2, j({ r, delivered }))
+  const second = originOf(delivered[1])
+  const secondId = second?.scheduleId
+  const receipt = fireReceipts().find(x => x.details.scheduleId === secondId)
+  const stamped = ((rawRecord().schedules ?? []) as Raw[]).find(s => s.id === secondId)?.lastFiredAt
+  check("the second fire's row names the fire time its receipt names, not the clock after the first delivery's wait", second !== undefined && receipt !== undefined && Date.parse(String(second.firedAt)) === receipt.details.firedAt, j({ origin: second, receipt: receipt?.details }))
+  check("the record's own stamp is that same instant", receipt !== undefined && stamped === receipt.details.firedAt, j({ stamped, receipt: receipt?.details }))
+  check("the instant is the tick's start, before any delivery waited", receipt !== undefined && typeof receipt.details.firedAt === 'number' && receipt.details.firedAt >= before && receipt.details.firedAt < before + 1_200, j({ before, receipt: receipt?.details }))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} saturn origin carry: ${checks - failures}/${checks} checks passed`)

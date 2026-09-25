@@ -267,7 +267,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
             refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
           }
           const heldSchedule = scheduleList.find(s => s.id === h.scheduleId)
-          const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by, {
+          const outcome = await replayEnvelope(ports, rec, h.envelope, parked, by, now, {
             schedule: heldSchedule,
             heldAt: h.heldAt,
             heldReason: h.reason,
@@ -413,7 +413,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
 
       const marked = markSaturnFired(sessionId, schedule.id, now, ports.dir)
       if (marked === 'missing') continue
-      const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by, { schedule })
+      const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by, now, { schedule })
       if (effect.ok) {
         report.fired++
         const movedClause =
@@ -600,6 +600,7 @@ async function replayEnvelope(
   envelope: SaturnFireEnvelopeV1,
   parked: boolean,
   by: string,
+  firedAtMs: number,
   facts: SaturnFireFactsV1,
 ): Promise<{ ok: boolean; sessionId?: string; detail?: string }> {
   if (envelope.kind === 'birth') {
@@ -615,7 +616,7 @@ async function replayEnvelope(
     by,
     clientMessageId: `saturn-${rec.sessionId}-${envelope.scheduleId}-${envelope.dueAt}`,
     parked,
-    origin: saturnFireOrigin(envelope, ports.now(), facts),
+    origin: saturnFireOrigin(envelope, firedAtMs, facts),
   })
 }
 
