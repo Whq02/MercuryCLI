@@ -25,6 +25,7 @@ export function longLivedBackoffMs(
   cfg: LongLivedSupervisorConfig = DEFAULT_LONG_LIVED_CONFIG,
 ): number {
   const n = Math.max(1, respawns)
+  if (n === 1) return 0
   return Math.min(cfg.backoffCapMs, cfg.backoffBaseMs * 2 ** (n - 1))
 }
 
