@@ -177,11 +177,11 @@ export async function* runPreToolUseHooks(
             kind: 'additionalContext',
             message: createAttachmentMessage({
               type: 'hook_additional_context',
-              content: result.additionalContexts.join('\n'),
+              content: result.additionalContexts,
               hookName,
               toolUseID,
               hookEvent: 'PreToolUse',
-            } as never),
+            }),
           }
         }
       } catch (error) {
@@ -270,12 +270,12 @@ export async function* runPostToolUseHooks<Output>(
             kind: 'message',
             message: createAttachmentMessage({
               type: 'hook_stopped_continuation',
-              content:
+              message:
                 result.stopReason ?? 'A post-tool hook stopped execution',
               hookName,
               toolUseID,
               hookEvent: 'PostToolUse',
-            } as never),
+            }),
           }
           return
         }
@@ -284,11 +284,11 @@ export async function* runPostToolUseHooks<Output>(
             kind: 'message',
             message: createAttachmentMessage({
               type: 'hook_additional_context',
-              content: result.additionalContexts.join('\n'),
+              content: result.additionalContexts,
               hookName,
               toolUseID,
               hookEvent: 'PostToolUse',
-            } as never),
+            }),
           }
         }
         if (result.updatedMCPToolOutput !== undefined) {
@@ -375,11 +375,11 @@ export async function* runPostToolUseFailureHooks(
             kind: 'message',
             message: createAttachmentMessage({
               type: 'hook_additional_context',
-              content: result.additionalContexts.join('\n'),
+              content: result.additionalContexts,
               hookName,
               toolUseID,
               hookEvent: 'PostToolUseFailure',
-            } as never),
+            }),
           }
         }
       } catch (perResultError) {

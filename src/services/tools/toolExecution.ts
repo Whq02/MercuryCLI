@@ -898,11 +898,11 @@ async function runTransactionBody(args: {
       push({
         message: createAttachmentMessage({
           type: 'hook_stopped_continuation',
-          content: stopReason ?? 'Tool execution was stopped by a pre-tool hook',
+          message: stopReason ?? 'Tool execution was stopped by a pre-tool hook',
           hookName: `PreToolUse:${tool.name}`,
           toolUseID,
           hookEvent: 'PreToolUse',
-        } as never),
+        }),
       })
     }
   } catch (error) {
