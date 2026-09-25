@@ -11,6 +11,7 @@ import type { AppState } from '../../state/AppStateStore.js'
 import type { Message } from '../../types/message.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { sliceHeadAtGrapheme } from '../../utils/intl.js'
+import { isSaturnOrigin, type SaturnOrigin } from '../../utils/messages/noticeRows.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { listAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
@@ -316,6 +317,7 @@ export type QueueLogRow = {
   isMeta?: boolean
   sentAt?: string
   at?: string
+  origin?: SaturnOrigin
 }
 
 type QueueOperationLine = {
@@ -327,6 +329,7 @@ type QueueOperationLine = {
   isMeta?: unknown
   sentAt?: unknown
   timestamp?: unknown
+  origin?: unknown
   payload?: { kind?: unknown; metaKind?: unknown; fields?: Record<string, unknown> }
 }
 
@@ -353,6 +356,7 @@ function queueLogRowOf(line: string): QueueLogRow | null {
     ...(fields.isMeta === true ? { isMeta: true } : {}),
     ...(typeof fields.sentAt === 'string' ? { sentAt: fields.sentAt } : {}),
     ...(typeof fields.timestamp === 'string' ? { at: fields.timestamp } : {}),
+    ...(isSaturnOrigin(fields.origin) ? { origin: fields.origin } : {}),
   }
 }
 

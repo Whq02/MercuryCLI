@@ -8,7 +8,7 @@ import {
   sessionScheduleRoster,
   submitSessionScheduleEdit,
 } from '../../services/saturn/sessionScheduleBridge.js'
-import { SATURN_SCHEDULE_CAP, saturnSecretProseRefusal } from '../../daemon/saturn.js'
+import { cleanSaturnTitle, SATURN_SCHEDULE_CAP, SATURN_TITLE_SHAPE, saturnSecretProseRefusal, saturnTitleRefusal } from '../../daemon/saturn.js'
 import {
   buildCronCreateDescription,
   buildCronCreatePrompt,
@@ -35,6 +35,12 @@ const inputSchema = lazySchema(() =>
       .describe(
         "What a fire does when the session is parked: 'wake' (default) reactivates the session and delivers; 'queue' holds the fire for the session's own next wake.",
       ),
+    title: z
+      .string()
+      .optional()
+      .describe(
+        'A short name for the schedule (one line of at most 200 characters), shown on its rows in the chat and the list in place of the id — "morning brief", "nightly audit".',
+      ),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -45,6 +51,7 @@ const outputSchema = lazySchema(() =>
     submitted: z.boolean(),
     humanSchedule: z.string(),
     recurring: z.boolean(),
+    title: z.string().optional(),
     note: z.string(),
   }),
 )
@@ -94,6 +101,9 @@ export const CronCreateTool = buildTool({
         3,
       )
     }
+    if (input.title !== undefined && cleanSaturnTitle(input.title) === null) {
+      return refuse(`The title must be ${SATURN_TITLE_SHAPE}.`, 4)
+    }
     return { result: true }
   },
   async call(input: Input) {
@@ -101,6 +111,11 @@ export const CronCreateTool = buildTool({
     if (secretReason !== null) {
       throw new Error(`${CRON_CREATE_TOOL_NAME}: ${secretReason}`)
     }
+    const titleReason = input.title === undefined ? null : saturnTitleRefusal(input.title)
+    if (titleReason !== null) {
+      throw new Error(`${CRON_CREATE_TOOL_NAME}: ${titleReason}`)
+    }
+    const title = input.title === undefined ? undefined : cleanSaturnTitle(input.title) ?? undefined
     const recurring = input.recurring ?? true
     const humanSchedule = cronToHuman(input.cron)
     const when = recurring
@@ -119,6 +134,7 @@ export const CronCreateTool = buildTool({
           prompt: input.prompt,
           ...(input.onParked !== undefined ? { onParked: input.onParked } : {}),
         },
+        ...(title !== undefined ? { title } : {}),
       },
     })
     if (submitted.road === 'refused') {
@@ -129,16 +145,18 @@ export const CronCreateTool = buildTool({
         submitted: true,
         humanSchedule,
         recurring,
+        ...(title !== undefined ? { title } : {}),
         note: `Submitted to the session's schedule — the daemon applies it at the facts beat and mints the id; ${CRON_LIST_TOOL_NAME} then shows it, and the session receipt confirms.`,
       } satisfies CreateOutput,
     }
   },
   mapToolResultToToolResultBlockParam(output: CreateOutput, toolUseID: string) {
     const kind = output.recurring ? 'Recurring' : 'One-shot'
+    const named = output.title !== undefined ? ` "${output.title}"` : ''
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `${kind} schedule submitted: ${output.humanSchedule}. ${output.note}`,
+      content: `${kind} schedule${named} submitted: ${output.humanSchedule}. ${output.note}`,
     }
   },
   renderToolUseMessage: renderCreateToolUseMessage,

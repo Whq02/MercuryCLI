@@ -1191,7 +1191,11 @@ export async function runHeadless(
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
     const batchTail: BatchedPrompt[] =
       command.mode === 'prompt'
-        ? batch.slice(1).map(member => ({ value: member.value, ...(member.uuid !== undefined ? { uuid: member.uuid } : {}) }))
+        ? batch.slice(1).map(member => ({
+            value: member.value,
+            ...(member.uuid !== undefined ? { uuid: member.uuid } : {}),
+            ...(member.origin !== undefined ? { origin: member.origin } : {}),
+          }))
         : []
     emitTaskNotificationFrames(taskNotificationPayloads(command))
     abortSuggestion()
@@ -2197,6 +2201,7 @@ export async function runHeadless(
                     nextFireMs: typeof r.next_fire_ms === 'number' ? r.next_fire_ms : null,
                     kind,
                     ...(r.paused === true ? { paused: true as const } : {}),
+                    ...(typeof r.title === 'string' && r.title !== '' ? { title: r.title } : {}),
                   },
                 ]
               })

@@ -85,7 +85,10 @@ export async function processUserInput(
   const { input, mode, context, isMeta, setUserInputOnProcessing } = options
 
   if (mode === 'prompt' && options.batchTail && options.batchTail.length > 0) {
-    const prompts = [{ value: input, uuid: options.uuid }, ...options.batchTail]
+    const prompts: Array<{ value: string | ContentBlockParam[]; uuid?: string; origin?: MessageOrigin }> = [
+      { value: input, uuid: options.uuid, origin: options.origin },
+      ...options.batchTail,
+    ]
     const lead: ProcessUserInputBaseResult['messages'] = []
     const rows: UserMessage[] = []
     const remaining: ProcessUserInputBaseResult['messages'] = []
@@ -102,7 +105,7 @@ export async function processUserInput(
         ...(index === 0 ? {} : {
           skipSlashCommands: true,
           bridgeOrigin: false,
-          origin: undefined,
+          origin: prompt.origin,
           preExpansionInput: undefined,
           pastedContents: undefined,
           ideSelection: undefined,

@@ -127,7 +127,7 @@ export type QueuedCommand = {
   waitsForTurnEnd?: true
 }
 
-export type BatchedPrompt = Pick<QueuedCommand, 'value' | 'uuid'>
+export type BatchedPrompt = Pick<QueuedCommand, 'value' | 'uuid' | 'origin'>
 
 export function isValidImagePaste(content: PastedContent): boolean {
   return content.type === 'image' && content.content.length > 0

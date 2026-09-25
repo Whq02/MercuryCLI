@@ -6,6 +6,7 @@ export type SaturnOrigin = {
   fire: 'wake' | 'cron'
   firedAt: string
   scheduleId?: string
+  title?: string
   spelling?: string
   reason?: string
   heldSince?: string
@@ -73,7 +74,9 @@ export function saturnFirstLine(origin: SaturnOrigin, rowStamp?: string): string
     else if (origin.spelling !== undefined && origin.spelling !== '') parts.push(lowerFirst(origin.spelling))
     if (origin.reason !== undefined && origin.reason.trim() !== '') parts.push(`reason: ${origin.reason.replace(/[\r\n]+/g, ' ').trim()}`)
   } else {
-    parts.push(origin.scheduleId !== undefined && origin.scheduleId !== '' ? `${SATURN_SCHEDULE_WORD} ${origin.scheduleId}` : SATURN_SCHEDULE_WORD)
+    const title = origin.title?.trim() ?? ''
+    if (title !== '') parts.push(title)
+    else parts.push(origin.scheduleId !== undefined && origin.scheduleId !== '' ? `${SATURN_SCHEDULE_WORD} ${origin.scheduleId}` : SATURN_SCHEDULE_WORD)
     if (origin.spelling !== undefined && origin.spelling !== '') parts.push(lowerFirst(origin.spelling))
   }
   const held = clockOf(origin.heldSince)

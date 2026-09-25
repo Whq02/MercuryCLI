@@ -21,7 +21,7 @@ export function renderCreateResultMessage(output: CreateOutput): React.ReactNode
   return (
     <MessageResponse height={1}>
       <Text>
-        Schedule submitted <Text dimColor>({output.humanSchedule})</Text>
+        Schedule{output.title !== undefined ? ` "${output.title}"` : ''} submitted <Text dimColor>({output.humanSchedule})</Text>
       </Text>
     </MessageResponse>
   )
@@ -58,7 +58,7 @@ export function renderListResultMessage(output: ListOutput): React.ReactNode {
       <Box flexDirection="column">
         {output.schedules.map(row => (
           <Text key={row.id}>
-            <Text bold>{row.id}</Text> <Text dimColor>{row.when}</Text>
+            <Text bold>{row.id}</Text>{row.title !== undefined ? ` · ${row.title}` : ''} <Text dimColor>{row.when}</Text>
           </Text>
         ))}
       </Box>
