@@ -1,5 +1,6 @@
 
 import type { SessionId } from './ids.js'
+import type { MessageOrigin } from './message.js'
 
 export type QueueOperation =
   | 'enqueue'
@@ -19,4 +20,5 @@ export type QueueOperationMessage = {
   mode?: string
   isMeta?: boolean
   sentAt?: string
+  origin?: MessageOrigin
 }

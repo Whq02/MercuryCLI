@@ -77,6 +77,7 @@ export function requeueUndeliveredLines(lines: Iterable<string>): number {
       priority: 'next',
       uuid,
       ...(row.sentAt !== undefined ? { sentAt: row.sentAt } : row.at !== undefined ? { sentAt: row.at } : {}),
+      ...(row.origin !== undefined ? { origin: row.origin } : {}),
     } as QueuedCommand
     enqueue(command)
     requeued++

@@ -74,7 +74,9 @@ cannot read refuses typed, naming a working form.
 ## In-session schedules
 
 Inside a session, the model schedules through four tools: `CronCreate` (a
-prompt on a recurrence or a one-shot, `onParked` included), `CronList`,
+prompt on a recurrence or a one-shot, `onParked` included, and an optional
+`title` — one line, capped, scanned for secrets like the prompt — that the
+chat row and the list show in place of the id), `CronList`,
 `CronDelete`, and `ScheduleWakeup` (a single self-paced wake, the tool the
 session uses to put itself down and come back). A self-paced wake takes the
 queue arm: a session parked by the operator is never woken by its own wake,
@@ -90,8 +92,10 @@ A scheduled fire arrives as its own muted row plated `[Saturn]`, never as a
 line typed by you: the clock, the dim plate, and the schedule's own words on
 the first line — a self-paced wake names its cadence and the reason it gave
 (`self-paced wake · fifteen-minute cadence · reason: …`), a cron schedule
-names its id and the spelling it was scheduled with (`schedule 3f9a2c1d ·
-every weekday at 09:00`) — with the prompt's own words dim beneath. Mercury's
+names its title and the spelling it was scheduled with (`morning brief ·
+every weekday at 09:00`), or its id when it was given no title (`schedule
+3f9a2c1d · every weekday at 09:00`) — with the prompt's own words dim
+beneath. Mercury's
 reply follows as it always does, and the words the model reads are exactly
 the prompt the schedule was given. The row keeps its delivery stamp; when the
 fire landed a minute or more before the row could be delivered, the first

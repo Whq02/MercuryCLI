@@ -1,13 +1,18 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'saturn-row-home-'))
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_OPERATOR = 'sam'
 const ROOT = resolve(import.meta.dir, '..', '..')
+const frameDir = ((): string | null => {
+  const at = process.argv.indexOf('--frames')
+  return at >= 0 && process.argv[at + 1] !== undefined ? resolve(process.argv[at + 1]!) : null
+})()
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -32,6 +37,14 @@ const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normal
 const { buildMessageLookups } = await import(join(ROOT, 'src/utils/messages/lookups.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { entryToRecord, recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
+const { processUserInput } = await import(join(ROOT, 'src/utils/processUserInput/processUserInput.ts'))
+const queue = await import(join(ROOT, 'src/input-core/command-queue.ts'))
+const { recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
+const { queueLogRows, undeliveredLines } = await import(join(ROOT, 'src/tasks/LocalAgentTask/launchReceipts.ts'))
+const { requeueUndeliveredLines } = await import(join(ROOT, 'src/cli/headless/restartCarry.ts'))
+const saturn = await import(join(ROOT, 'src/daemon/saturn.ts'))
+const { CronListTool } = await import(join(ROOT, 'src/tools/ScheduleCronTool/CronListTool.ts'))
+const { CronCreateTool } = await import(join(ROOT, 'src/tools/ScheduleCronTool/CronCreateTool.ts'))
 const rows = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
 const figures = (await import('figures')).default
 
@@ -55,11 +68,19 @@ const WAKE_TEXT = `[self-paced wake — why you woke: ${REASON}]\n\n${WAKE_BODY}
 const CRON_BODY = 'Read the overnight notes under records/ and give me the three things that need my ruling, shortest first.'
 const OPERATOR_LINE = 'take the first two as my defaults'
 const REPLY = 'Three rulings wait, shortest first.'
+const TITLE = 'morning brief'
+const CRON_ID = '3f9a2c1d'
+const CRON_SPELLING = 'Every weekday at 09:00'
 const wakeOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, spelling: 'in ~900s', reason: REASON, ...extra })
-const cronOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'cron', firedAt: FIRED_AT, scheduleId: '3f9a2c1d', spelling: 'Every weekday at 09:00', ...extra })
+const cronOrigin = (extra: Raw = {}): Raw => ({ kind: 'saturn', fire: 'cron', firedAt: FIRED_AT, scheduleId: CRON_ID, spelling: CRON_SPELLING, ...extra })
+const titledOrigin = (extra: Raw = {}): Raw => cronOrigin({ title: TITLE, ...extra })
+const SIZES: Array<[number, number]> = [
+  [178, 51],
+  [80, 21],
+]
 
-function fakeIo(columns: number): { stdout: NodeJS.WriteStream; stdin: NodeJS.ReadStream } {
-  const stdout = Object.assign(new Writable({ write(_chunk, _enc, cb) { cb() } }), { columns, rows: 51, isTTY: false }) as unknown as NodeJS.WriteStream
+function fakeIo(columns: number, rowCount = 51): { stdout: NodeJS.WriteStream; stdin: NodeJS.ReadStream } {
+  const stdout = Object.assign(new Writable({ write(_chunk, _enc, cb) { cb() } }), { columns, rows: rowCount, isTTY: false }) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
   return { stdout, stdin }
 }
@@ -78,10 +99,10 @@ async function paintText(props: Raw, meta: Raw, columns = 178): Promise<string> 
   return oneLine(frame)
 }
 
-async function paintChat(messages: Raw[], columns: number): Promise<string[]> {
+async function paintChat(messages: Raw[], columns: number, rowCount = 51): Promise<string[]> {
   const normalized = normalizeMessages([...(messages as never[])])
   const lookups = buildMessageLookups(normalized, [...(messages as never[])])
-  const io = fakeIo(columns)
+  const io = fakeIo(columns, rowCount)
   const body = h(
     Box as never,
     { flexDirection: 'column' },
@@ -111,19 +132,102 @@ async function paintChat(messages: Raw[], columns: number): Promise<string[]> {
   return strip(instance.lastFrame()).split('\n').map(line => line.trimEnd()).filter(line => line.trim() !== '')
 }
 
-section('§0 the words: the first line the schedule composes from its own facts (red on the base: the word home does not exist there)')
+const userRow = (text: string, uuid: string, at: string, origin?: Raw): Raw => ({ ...createUserMessage({ content: text, uuid: uuid as never, ...(origin !== undefined ? { origin: origin as never } : {}) }), timestamp: at })
+const replyRow = (at: string): Raw => ({ ...createAssistantMessage({ content: REPLY }), timestamp: at })
+const U1 = 'a5b6c7d8-0000-4000-8000-000000000010'
+const U2 = 'a5b6c7d8-0000-4000-8000-000000000011'
+const U3 = 'a5b6c7d8-0000-4000-8000-000000000012'
+const U4 = 'a5b6c7d8-0000-4000-8000-000000000013'
+
+function journalLines(): string[] {
+  const lines: string[] = []
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name)
+      if (statSync(path).isDirectory()) walk(path)
+      else if (name.endsWith('.jsonl')) lines.push(...readFileSync(path, 'utf8').split('\n'))
+    }
+  }
+  try {
+    walk(join(process.env.MERCURY_CONFIG_DIR!, 'projects'))
+  } catch {
+    return []
+  }
+  return lines
+}
+
+async function carriedAcrossRestart(): Promise<Raw[]> {
+  queue.resetCommandQueue()
+  queue.enqueue({ value: OPERATOR_LINE, mode: 'prompt', uuid: U1 as never, sentAt: ROW_AT })
+  queue.enqueue({ value: WAKE_TEXT, mode: 'prompt', uuid: U4 as never, priority: 'later', sentAt: ROW_AT, origin: wakeOrigin() as never })
+  await recordTranscript([createUserMessage({ content: 'a real message materializes the file' })])
+  const deadline = Date.now() + 5000
+  let lines: string[] = []
+  while (Date.now() < deadline) {
+    lines = journalLines()
+    if (queueLogRows(lines).filter(row => row.operation === 'enqueue').length >= 2) break
+    await settle(100)
+  }
+  queue.resetCommandQueue()
+  requeueUndeliveredLines(lines)
+  const carried = queue.getCommandQueue().map(command => ({ ...command })) as Raw[]
+  queue.resetCommandQueue()
+  return carried
+}
+
+async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise<Raw[]> {
+  const appState: Raw = {
+    toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
+    sessionHooks: new Map(),
+    tasks: {},
+    mcp: { clients: [], tools: [], commands: [], resources: {} },
+    todos: {},
+  }
+  const context = {
+    options: { commands: [], tools: [], mcpClients: [], isNonInteractiveSession: true },
+    getAppState: () => appState,
+    setAppState: (f: (prev: Raw) => Raw): void => {
+      Object.assign(appState, f(appState))
+    },
+    messages: [],
+    abortController: new AbortController(),
+    readFileState: new Map(),
+    setToolJSX: () => {},
+  }
+  const out = await processUserInput({
+    input: head,
+    mode: 'prompt',
+    setToolJSX: () => {},
+    context: context as never,
+    messages: [],
+    querySource: 'sdk',
+    uuid: U1,
+    skipAttachments: true,
+    batchUuids: [U1, U2],
+    batchTail: [{ value: tail, uuid: U2 as never, origin: tailOrigin as never }],
+  })
+  return (out.messages as Raw[]).filter(m => m.type === 'user').map(m => ({ ...m, timestamp: ROW_AT }))
+}
+
+section('§0 the words: the first line the schedule composes from its own facts')
 try {
   check("the plate name is Saturn, one home", attachedPlateName('saturn' as never) === 'Saturn' && rows.SATURN_PLATE_NAME === 'Saturn')
   check('a 900 s wake reads fifteen-minute cadence', rows.cadenceWords(900) === 'fifteen-minute cadence')
   check('a 120 s wake reads two-minute cadence, 1800 s thirty-minute, 3600 s sixty-minute', rows.cadenceWords(120) === 'two-minute cadence' && rows.cadenceWords(1800) === 'thirty-minute cadence' && rows.cadenceWords(3600) === 'sixty-minute cadence')
   check('a 25-minute wake reads with digits, a 90 s wake in seconds', rows.cadenceWords(1500) === '25-minute cadence' && rows.cadenceWords(90) === '90-second cadence')
-  check("the wake's own spelling round-trips", rows.wakeDelaySpelling(900) === 'in ~900s' && rows.wakeDelayOfSpelling('in ~900s') === 900 && rows.wakeDelayOfSpelling('Every weekday at 09:00') === null && rows.wakeDelayOfSpelling(undefined) === null)
+  check("the wake's own spelling round-trips", rows.wakeDelaySpelling(900) === 'in ~900s' && rows.wakeDelayOfSpelling('in ~900s') === 900 && rows.wakeDelayOfSpelling(CRON_SPELLING) === null && rows.wakeDelayOfSpelling(undefined) === null)
   const wakeLine = rows.saturnFirstLine(wakeOrigin(), ROW_AT)
   check('a self-paced wake: the word, the cadence, the reason', wakeLine === `self-paced wake · fifteen-minute cadence · reason: ${REASON}`, wakeLine)
   const bare = rows.saturnFirstLine(wakeOrigin({ reason: undefined, spelling: undefined }), ROW_AT)
   check('a wake with no reason and no spelling is the word alone', bare === 'self-paced wake', bare)
   const cronLine = rows.saturnFirstLine(cronOrigin(), ROW_AT)
-  check("a cron fire: the schedule's id and its own spelling, lowercased into the line", cronLine === 'schedule 3f9a2c1d · every weekday at 09:00', cronLine)
+  check("a cron fire without a title: the schedule's id and its own spelling, lowercased into the line", cronLine === `schedule ${CRON_ID} · every weekday at 09:00`, cronLine)
+  const titledLine = rows.saturnFirstLine(titledOrigin(), ROW_AT)
+  check("a cron fire with a title: the title in place of the id, then the schedule's own spelling (red on the base: the id)", titledLine === `${TITLE} · every weekday at 09:00`, titledLine)
+  const blankTitle = rows.saturnFirstLine(titledOrigin({ title: '   ' }), ROW_AT)
+  check('a blank title falls back to the id', blankTitle === `schedule ${CRON_ID} · every weekday at 09:00`, blankTitle)
+  const titledWake = rows.saturnFirstLine(wakeOrigin({ title: TITLE }), ROW_AT)
+  check('a self-paced wake keeps its own word whatever a title says', titledWake.startsWith('self-paced wake · '), titledWake)
   const late = rows.saturnFirstLine(wakeOrigin(), LATE_ROW_AT)
   check('delivery a minute or more after the fire names the fire time on the row', late.endsWith(` · fired ${clock(FIRED_AT)}`), late)
   const prompt = rows.saturnFirstLine(wakeOrigin(), ROW_AT)
@@ -134,7 +238,7 @@ try {
   check('a fire held for a parked session says so', parked.endsWith(`held since ${clock(HELD_SINCE)} · the session was parked`), parked)
   check("the prompt's own words drop the reason line and keep the rest", JSON.stringify(rows.saturnPromptLines(WAKE_TEXT)) === JSON.stringify([WAKE_BODY]), JSON.stringify(rows.saturnPromptLines(WAKE_TEXT)))
   check('a prompt without the reason line is kept whole', JSON.stringify(rows.saturnPromptLines(CRON_BODY)) === JSON.stringify([CRON_BODY]))
-  check('the guard admits a saturn origin and refuses the others', rows.isSaturnOrigin(wakeOrigin()) && rows.isSaturnOrigin(cronOrigin()) && !rows.isSaturnOrigin({ kind: 'channel', server: 'x' }) && !rows.isSaturnOrigin(undefined) && !rows.isSaturnOrigin({ kind: 'saturn' }))
+  check('the guard admits a saturn origin and refuses the others', rows.isSaturnOrigin(wakeOrigin()) && rows.isSaturnOrigin(cronOrigin()) && rows.isSaturnOrigin(titledOrigin()) && !rows.isSaturnOrigin({ kind: 'channel', server: 'x' }) && !rows.isSaturnOrigin(undefined) && !rows.isSaturnOrigin({ kind: 'saturn' }))
   const plate = rows.noticePlate({ kind: 'saturn', origin: wakeOrigin(), lines: [] } as never, ROW_AT)
   check('the notice plate of a saturn block opens with the Saturn name', plate === `[Saturn] · self-paced wake · fifteen-minute cadence · reason: ${REASON}`, plate)
   check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === 'monitor · the build watch')
@@ -142,30 +246,32 @@ try {
   check('the Saturn word home stands (saturnFirstLine, cadenceWords, saturnPromptLines, isSaturnOrigin)', false, String(error))
 }
 
-section("§1 THE DEFECT PIN (red on the base): a wake's row with the saturn origin paints the muted Saturn row, never the operator's line")
-for (const columns of [178, 120]) {
+section("§1 the row: a wake's row with the saturn origin paints the muted Saturn row, never the operator's line; a titled cron fire reads its title")
+for (const [columns] of SIZES) {
   const frame = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
   check(`${columns} columns: the clock stays, then the dim [Saturn] plate and the schedule's own words`, frame.includes(`${clock(ROW_AT)} ${SATURN} · self-paced wake · fifteen-minute cadence · reason: ${REASON}`), frame.slice(0, 260))
   check(`${columns} columns: no accent dot on the row`, !frame.includes(DOT), frame.slice(0, 200))
   check(`${columns} columns: the operator's handle and caret are nowhere on it`, !frame.includes(HANDLE) && !frame.includes(CARET), frame.slice(0, 200))
   check(`${columns} columns: the prompt's own words stand beneath, without the reason line`, frame.includes(WAKE_BODY) && !frame.includes('[self-paced wake — why you woke'), frame.slice(0, 300))
+  const titled = await paintText({ param: { type: 'text', text: CRON_BODY }, origin: titledOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
+  check(`${columns} columns: a cron fire with a title paints the Saturn plate, the title, the spelling, the prompt dim beneath (red on the base: the id)`, titled.includes(`${clock(ROW_AT)} ${SATURN} · ${TITLE} · every weekday at 09:00`) && titled.includes(CRON_BODY) && !titled.includes(HANDLE) && !titled.includes(DOT) && !titled.includes(`schedule ${CRON_ID}`), titled.slice(0, 260))
 }
 {
   const cron = await paintText({ param: { type: 'text', text: CRON_BODY }, origin: cronOrigin() }, { type: 'user', timestamp: ROW_AT })
-  check("a cron fire: the same plate, the schedule's id and spelling on the first line, the prompt dim beneath", cron.includes(`${clock(ROW_AT)} ${SATURN} · schedule 3f9a2c1d · every weekday at 09:00`) && cron.includes(CRON_BODY) && !cron.includes(HANDLE) && !cron.includes(DOT), cron.slice(0, 260))
+  check("a cron fire without a title: the same plate, the schedule's id and spelling on the first line, the prompt dim beneath", cron.includes(`${clock(ROW_AT)} ${SATURN} · schedule ${CRON_ID} · every weekday at 09:00`) && cron.includes(CRON_BODY) && !cron.includes(HANDLE) && !cron.includes(DOT), cron.slice(0, 260))
   const late = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin() }, { type: 'user', timestamp: LATE_ROW_AT })
   check('a wake delivered later keeps its delivery stamp and names the fire time on the first line', late.startsWith(`${clock(LATE_ROW_AT)} ${SATURN}`) && late.includes(` · fired ${clock(FIRED_AT)}`), late.slice(0, 260))
   const held = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin({ heldSince: HELD_SINCE, heldWhy: 'window' }) }, { type: 'user', timestamp: LATE_ROW_AT })
   check('a wake that met a closed usage window says so in the same row', held.includes(`held since ${clock(HELD_SINCE)} · the usage window was closed`), held.slice(0, 300))
   const record = entryToRecord(
-    { type: 'user', message: { role: 'user', content: WAKE_TEXT }, uuid: 'a5b6c7d8-0000-4000-8000-000000000001', timestamp: ROW_AT, origin: wakeOrigin() },
+    { type: 'user', message: { role: 'user', content: CRON_BODY }, uuid: 'a5b6c7d8-0000-4000-8000-000000000001', timestamp: ROW_AT, origin: titledOrigin() },
     { sessionId: 'sess-saturn' as never, nextOrdinal: () => 1 as never, observedAt: ROW_AT, source: { channel: 'sdk' } as never },
   )
   const restored = recordToEntry(record) as Raw
-  check('the transcript keeps the origin whole through the codec', JSON.stringify(restored.origin) === JSON.stringify(wakeOrigin()) && (restored.message as Raw).content === WAKE_TEXT, JSON.stringify(restored.origin))
+  check('the transcript keeps the origin whole through the codec, the title with it', JSON.stringify(restored.origin) === JSON.stringify(titledOrigin()) && (restored.message as Raw).content === CRON_BODY, JSON.stringify(restored.origin))
   const resumed = await paintText({ param: { type: 'text', text: String((restored.message as Raw).content) }, origin: restored.origin }, { type: 'user', timestamp: String(restored.timestamp) })
-  const fresh = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin() }, { type: 'user', timestamp: ROW_AT })
-  check('a resumed record paints the same Saturn row as the live one', resumed === fresh && resumed.includes(SATURN), resumed.slice(0, 200))
+  const fresh = await paintText({ param: { type: 'text', text: CRON_BODY }, origin: titledOrigin() }, { type: 'user', timestamp: ROW_AT })
+  check('a resumed record paints the same Saturn row as the live one', resumed === fresh && resumed.includes(`${SATURN} · ${TITLE}`), resumed.slice(0, 200))
   const stray = await paintText({ param: { type: 'text', text: OPERATOR_LINE }, origin: { kind: 'channel', server: 'x' } }, { type: 'user', timestamp: ROW_AT })
   check('another origin is not plated Saturn', !stray.includes(SATURN), stray.slice(0, 120))
 }
@@ -181,15 +287,96 @@ section("§2 the neighbours are byte-identical (a guard, green on both trees): t
   const completed = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE }, { type: 'user', timestamp: ROW_AT })
   check('a notice delivered later keeps its completed clock exactly', completed === `${clock(ROW_AT)} ${DOT} notice · completed ${clock(HELD_SINCE)} the saved work is ready`, completed)
 }
-for (const columns of [178, 120]) {
-  const chat = [
-    { ...createUserMessage({ content: OPERATOR_LINE, uuid: 'a5b6c7d8-0000-4000-8000-000000000010' }), timestamp: ROW_AT },
-    { ...createAssistantMessage({ content: REPLY }), timestamp: LATE_ROW_AT },
-  ]
-  const frame = await paintChat(chat as Raw[], columns)
+for (const [columns, rowCount] of SIZES) {
+  const frame = await paintChat([userRow(OPERATOR_LINE, U1, ROW_AT), replyRow(LATE_ROW_AT)], columns, rowCount)
   const operatorRows = frame.filter(l => l === `${clock(ROW_AT)} ${HANDLE} ${CARET} ${OPERATOR_LINE}`)
   check(`${columns} columns: the chat around the row paints the operator's line once, handle and caret as today, and the reply beneath it without a handle`, operatorRows.length === 1 && frame.some(l => l.includes(REPLY) && !l.includes(HANDLE)), frame.join('\n'))
   check(`${columns} columns: no Saturn plate where no origin says so`, !frame.some(l => l.includes(SATURN)), frame.join('\n'))
+}
+
+section("§3 THE BATCHED WAKE (red on the base): a fire taken into the operator's turn keeps its own origin, so its row is the Saturn row, never the operator's line")
+{
+  const turn = await batchedTurn(OPERATOR_LINE, WAKE_TEXT, wakeOrigin())
+  const tail = turn.find(m => m.uuid === U2)
+  check('the batch keeps one row per prompt under its own identity', turn.length === 2 && turn[0]!.uuid === U1 && tail !== undefined, JSON.stringify(turn.map(m => m.uuid)))
+  check("the head, the operator's words, carries no origin", turn[0]!.origin === undefined, JSON.stringify(turn[0]!.origin))
+  check("the tail, the wake, keeps the saturn origin it was queued with (red on the base: the batch strips it)", tail !== undefined && JSON.stringify(tail.origin) === JSON.stringify(wakeOrigin()), JSON.stringify(tail?.origin))
+  for (const [columns, rowCount] of SIZES) {
+    const frame = await paintChat([...turn, replyRow(LATE_ROW_AT)], columns, rowCount)
+    const operatorRows = frame.filter(l => l.includes(`${HANDLE} ${CARET}`))
+    check(`${columns} columns: the operator's line paints once with the handle, and the wake beneath it paints the Saturn row (red on the base: "${HANDLE} ${CARET} [self-paced wake — …]")`, operatorRows.length === 1 && operatorRows[0]!.includes(OPERATOR_LINE) && frame.some(l => l.includes(`${SATURN} · self-paced wake · fifteen-minute cadence`)) && !frame.some(l => l.includes('[self-paced wake — why you woke')), frame.join('\n'))
+  }
+  const runner = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const at = runner.indexOf('const batchTail: BatchedPrompt[] =')
+  const block = at >= 0 ? runner.slice(at, runner.indexOf(': []', at)) : ''
+  check("the runner's batch tail carries each member's origin beside its words and identity (red on the base: value and uuid alone)", block.includes('member.origin') && block.includes('member.uuid') && block.includes('member.value'), block)
+}
+
+section('§4 the title crosses the daemon frame and the tools (red on the base: the validator drops it, the list never shows it)')
+{
+  const submission = { when: { kind: 'every', cron: '0 9 * * 1-5', spelling: CRON_SPELLING }, action: { kind: 'fire', prompt: CRON_BODY }, title: TITLE }
+  const kept = saturn.validateSaturnSubmission(submission)
+  check('a submission with a title keeps it through the validator, cleaned as a name', kept.ok && (kept as { submission: Raw }).submission.title === TITLE, JSON.stringify(kept))
+  const folded = saturn.validateSaturnSubmission({ ...submission, title: '  morning\n  brief\t ' })
+  check('a title spanning lines folds to one line, trimmed', folded.ok && (kept as { submission: Raw }).submission.title === TITLE && (folded as { submission: Raw }).submission.title === TITLE, JSON.stringify(folded))
+  const none = saturn.validateSaturnSubmission({ when: submission.when, action: submission.action })
+  check('a submission without a title stores none', none.ok && !('title' in (none as { submission: Raw }).submission), JSON.stringify(none))
+  const long = saturn.validateSaturnSubmission({ ...submission, title: 'x'.repeat(saturn.SATURN_TITLE_CAP + 1) })
+  check('an over-long title refuses typed, naming the shape', !long.ok && (long as { reason: string }).reason.includes(saturn.SATURN_TITLE_SHAPE), JSON.stringify(long))
+  const secret = saturn.validateSaturnSubmission({ ...submission, title: 'brief AKIAIOSFODNN7EXAMPLE wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY' })
+  check('a secret-bearing title refuses typed without echoing the bytes', !secret.ok && (secret as { reason: string }).reason.includes('title') && (secret as { reason: string }).reason.includes('secret') && !(secret as { reason: string }).reason.includes('AKIA'), JSON.stringify(secret))
+  const facts = saturn.saturnFactsOf({ schedules: [{ schema: 1, id: CRON_ID, when: submission.when, action: submission.action, account: { family: 'anthropic', source: 'oauth' }, modelKey: 'm', createdAt: 1, createdBy: 'operator:test', title: TITLE }] } as never, Date.parse(ROW_AT))
+  check('the facts row the daemon pushes carries the title', facts.schedules?.[0]?.title === TITLE, JSON.stringify(facts))
+  const listed = CronListTool.mapToolResultToToolResultBlockParam({ rosterKnown: true, schedules: [{ id: CRON_ID, when: CRON_SPELLING, kind: 'fire', nextFireMs: null, paused: true, title: TITLE }, { id: '0badcafe', when: 'Every 5 minutes', kind: 'fire', nextFireMs: null }] } as never, 'tu-1')
+  const listText = String((listed as { content: string }).content)
+  check("the list's row names the title beside the id, and a row without one reads as before", listText.includes(`${CRON_ID} · ${TITLE}: ${CRON_SPELLING} (fire) — paused`) && listText.includes('0badcafe: Every 5 minutes (fire) — no future fire'), listText)
+  const schema = CronCreateTool.inputSchema as { shape?: Record<string, { description?: string }> }
+  check("the create tool's strict input takes an optional title", schema.shape !== undefined && 'title' in schema.shape, JSON.stringify(Object.keys(schema.shape ?? {})))
+  check("the title field's words name the shape the daemon holds", schema.shape?.title?.description?.includes(saturn.SATURN_TITLE_SHAPE) === true, JSON.stringify(schema.shape?.title?.description))
+  const refused = await CronCreateTool.validateInput!({ cron: '0 9 * * 1-5', prompt: CRON_BODY, title: 'x'.repeat(saturn.SATURN_TITLE_CAP + 1) } as never, {} as never)
+  check('the tool refuses an over-long title where the model hears it', refused.result === false && String((refused as { message?: string }).message).includes(saturn.SATURN_TITLE_SHAPE), JSON.stringify(refused))
+  const fine = await CronCreateTool.validateInput!({ cron: '0 9 * * 1-5', prompt: CRON_BODY, title: TITLE } as never, {} as never)
+  check('a fine title passes', fine.result === true, JSON.stringify(fine))
+}
+
+section("§5 THE RESTART CARRY (red on the base): a wake re-queued from the journal after the runner died keeps its origin, so its row is the Saturn row, never the operator's line")
+const carried = await carriedAcrossRestart()
+{
+  const wake = carried.find(c => c.uuid === U4)
+  const words = carried.find(c => c.uuid === U1)
+  check('the journal replays both undelivered lines under their own identities, the words and the wake', carried.length === 2 && words !== undefined && wake !== undefined && wake.value === WAKE_TEXT, JSON.stringify(carried.map(c => c.uuid)))
+  check("the operator's re-queued line carries no origin", words !== undefined && words.origin === undefined, JSON.stringify(words?.origin))
+  check('the re-queued wake carries the saturn origin it was queued with (red on the base: the journal row has none and the re-queue restores none)', wake !== undefined && JSON.stringify(wake.origin) === JSON.stringify(wakeOrigin()), JSON.stringify(wake?.origin))
+  const rows = queueLogRows(journalLines()).filter(row => row.operation === 'enqueue')
+  check('the journal row the writer wrote carries the origin, and the reader hands it on', rows.some(row => row.uuid === U4 && JSON.stringify(row.origin) === JSON.stringify(wakeOrigin())) && rows.some(row => row.uuid === U1 && row.origin === undefined), JSON.stringify(rows.map(row => [row.uuid, row.origin])))
+  check('a journal row with a foreign origin is handed on without one', undeliveredLines(queueLogRows([JSON.stringify({ type: 'queue-operation', operation: 'enqueue', timestamp: ROW_AT, sessionId: 's', content: 'x', commandUuid: U2, mode: 'prompt', origin: { kind: 'channel', server: 'x' } })]))[0]?.origin === undefined)
+  for (const [columns, rowCount] of SIZES) {
+    const frame = await paintChat([userRow(WAKE_TEXT, U4, ROW_AT, wake?.origin as Raw | undefined), replyRow(LATE_ROW_AT)], columns, rowCount)
+    check(`${columns} columns: the carried wake paints the Saturn row (red on the base: "${HANDLE} ${CARET} [self-paced wake — …]")`, frame.some(l => l.includes(`${SATURN} · self-paced wake · fifteen-minute cadence`)) && !frame.some(l => l.includes(HANDLE)), frame.join('\n'))
+  }
+}
+
+if (frameDir !== null) {
+  section(`frames → ${frameDir}`)
+  mkdirSync(frameDir, { recursive: true })
+  const scenes: Array<[string, string, Raw[]]> = [
+    ['wake', "a self-paced wake's fire, then Mercury's reply", [userRow(WAKE_TEXT, U1, ROW_AT, wakeOrigin()), replyRow(LATE_ROW_AT)]],
+    ['cron-title', "a cron schedule with a title fires, Mercury replies, the operator answers", [userRow(CRON_BODY, U1, ROW_AT, titledOrigin()), replyRow(LATE_ROW_AT), userRow(OPERATOR_LINE, U3, LATE_ROW_AT)]],
+    ['cron-id', 'the same cron fire when the schedule was given no title', [userRow(CRON_BODY, U1, ROW_AT, cronOrigin()), replyRow(LATE_ROW_AT)]],
+    ['batched-wake', "the operator's queued line and a wake taken into one turn, then Mercury's reply", [...(await batchedTurn(OPERATOR_LINE, WAKE_TEXT, wakeOrigin())), replyRow(LATE_ROW_AT)]],
+    ['restart-carry', "a wake re-queued from the journal after the runner died, then Mercury's reply", [userRow(WAKE_TEXT, U4, ROW_AT, carried.find(c => c.uuid === U4)?.origin as Raw | undefined), replyRow(LATE_ROW_AT)]],
+  ]
+  const index: string[] = ['the Saturn row frames — the chat rows as the product paints them, transcript rows only, at the named width', '']
+  for (const [name, words, messages] of scenes) {
+    for (const [columns, rowCount] of SIZES) {
+      const frame = await paintChat(messages, columns, rowCount)
+      const file = `${name}-${columns}x${rowCount}.txt`
+      writeFileSync(join(frameDir, file), `${frame.join('\n')}\n`)
+      index.push(`${file} — ${words}`)
+      console.log(`  wrote ${file}`)
+    }
+  }
+  writeFileSync(join(frameDir, 'index.txt'), `${index.join('\n')}\n`)
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} saturn row: ${checks - failures}/${checks} checks passed`)
