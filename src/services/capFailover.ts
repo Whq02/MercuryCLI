@@ -13,7 +13,7 @@ export type CapAction =
   | { kind: 'none' }
   | {
       kind: 'offer'
-      trigger: 'warning' | 'rejected' | 'reset'
+      trigger: 'rejected' | 'reset'
     }
   | { kind: 'auto-handoff'; trigger: 'rejected' | 'reset' }
 
@@ -28,9 +28,7 @@ function windowStateOf(state: CapWindowState | CapQuota): CapWindowState {
 
 export function decideCapAction(posture: CapPosture, state: CapWindowState | CapQuota): CapAction {
   if (posture === 'off') return { kind: 'none' }
-  const window = windowStateOf(state)
-  if (window === 'allowed' || window === 'unknown') return { kind: 'none' }
-  if (window === 'warning') return { kind: 'none' }
+  if (windowStateOf(state) !== 'rejected') return { kind: 'none' }
   return posture === 'auto'
     ? { kind: 'auto-handoff', trigger: 'rejected' }
     : { kind: 'offer', trigger: 'rejected' }

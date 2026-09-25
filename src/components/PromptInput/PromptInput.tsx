@@ -633,7 +633,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     refreshed: boolean
   } | null>(null)
   const [capOffer, setCapOffer] = useState<{
-    trigger: 'warning' | 'rejected' | 'reset'
+    trigger: 'rejected' | 'reset'
     direction: 'handoff' | 'return'
     windowName: string | null
     resetText: string | null

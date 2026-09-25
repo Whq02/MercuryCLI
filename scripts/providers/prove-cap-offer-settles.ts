@@ -299,7 +299,7 @@ section('§H the card: ↑↓ over the rows, ↵ for the highlighted row, esc st
   check('↵ hands the HIGHLIGHTED row to the pick site; an at-cap row keeps enter inert', card.includes('if (usable) onAccept(chosen)') && card.includes('highlighted.usable && !highlighted.atCap'))
   check('the guide says ↑↓ choose only when listing, beside the one true enter line', card.includes('↑↓ choose ${GLYPH.dot} ') && card.includes('`enter opens the transition preview ${GLYPH.dot} ${escKey} stays put`'))
   check('each row prints the family, the landing row and its usage words; at-cap rows carry the mark', card.includes('capUsageWords(row.window, rowReset)') && card.includes("row.atCap ? `${GLYPH.warn} ` : ''"))
-  check("the binding window is named as the wire named it — never a second 'window' after it", card.includes('`approaching the ${homeName} ${windowNoun}`') && !card.includes("${windowName ?? 'usage'} window"))
+  check("the binding window is named as the wire named it — never a second 'window' after it; a warning never builds the card", card.includes('`the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`') && !card.includes("${windowName ?? 'usage'} window") && !card.includes('approaching the'))
   check('the card owns the keyboard while it stands (esc never doubles as the turn interrupt)', card.includes("useRegisterOverlay('cap-offer')"))
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
   check('the composer reads the home window FOR the seat model (the pool that binds)', composer.includes('model: onFailoverLane ? (noted?.homeModel ?? null) : effective'))

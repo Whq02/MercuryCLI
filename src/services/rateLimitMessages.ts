@@ -2,6 +2,7 @@ import { getSubscriptionType } from '../utils/auth.js'
 import { formatResetTime } from '../utils/format.js'
 import { getMarketingNameForModel } from '../utils/model/model.js'
 import type { ClaudeAILimits, RateLimitType } from './claudeAiLimits.js'
+import { usageWarningTier } from './providers/usageTiers.js'
 
 
 const SEPARATOR = ' · '
@@ -184,7 +185,7 @@ export function getRateLimitMessage(limits: ClaudeAILimits, model: string): Rate
     return { message: limitReachedMessage(limits, model), severity: 'error' }
   }
   if (limits.status === 'allowed_warning') {
-    if (limits.utilization !== undefined && limits.utilization < 0.7) return null
+    if (limits.utilization !== undefined && usageWarningTier(limits.utilization * 100) === null) return null
     const message = earlyWarningMessage(limits)
     return message !== null ? { message, severity: 'warning' } : null
   }
