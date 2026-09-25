@@ -52,17 +52,30 @@ let requests = 0
 let answer: ((response: Response) => void) | undefined
 const realFetch = globalThis.fetch
 let doorRequests = 0
-const fetchFixture = (async (url: string | URL | Request) => {
+const ledger: string[] = []
+const fetchFixture = (async (url: string | URL | Request, init?: RequestInit) => {
   const spelled = String(url instanceof Request ? url.url : url)
+  const headers = new Headers(init?.headers as HeadersInit | undefined)
   if (spelled.includes('/anthropic/v1/models')) {
     doorRequests++
+    ledger.push(headers.has('x-api-key') ? 'anthropic:api-key' : headers.has('anthropic-beta') ? 'anthropic:subscription' : 'anthropic:bearer')
     return new Response(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'fixture: no list here' } }), { status: 404, headers: { 'content-type': 'application/json' } })
   }
   if (!(spelled.includes('/openai/') && spelled.includes('/models'))) throw new Error(`Unexpected request: ${spelled}`)
+  ledger.push('gpt')
   requests++
   return new Promise<Response>(resolve => { answer = resolve })
 }) as typeof fetch
 globalThis.fetch = fetchFixture
+const { anthropicDoors } = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
+const credentialedRoads = (): string[] => ['gpt', ...anthropicDoors().map(door => `anthropic:${door.door}`)]
+const ledgerSince = (from: number): { words: string; oncePerRoad: boolean } => {
+  const counts = new Map<string, number>()
+  for (const road of ledger.slice(from)) counts.set(road, (counts.get(road) ?? 0) + 1)
+  const roads = credentialedRoads()
+  const words = [...counts.entries()].map(([road, n]) => `${road} ${n}`).join(' · ') || 'nothing'
+  return { words, oncePerRoad: roads.every(road => counts.get(road) === 1) && [...counts.keys()].every(road => roads.includes(road)) }
+}
 const mount = async (model = 'gpt-5.6-sol') => {
   let output = ''
   const stdout = Object.assign(new PassThrough(), { columns: 120, rows: 40 })
@@ -81,11 +94,13 @@ try {
   await settle(first.seen, frame => frame.includes('GPT-5.6 Terra') && frame.includes('GPT-5.6 Sol'))
   check('the open paints the cached rows without waiting for the request (the request is still held)', first.seen().includes('GPT-5.6 Terra') && first.seen().includes('GPT-5.6 Sol') && answer !== undefined, `requests ${requests}`)
   check('the open starts one background refresh despite the primed cache', requests === 1, `requests ${requests}`)
-  const { anthropicDoors } = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
   check('each signed-in Anthropic door read its own list once on the same open, counted apart from the GPT refresh', doorRequests === anthropicDoors().length && doorRequests >= 1, `doors ${anthropicDoors().length} door requests ${doorRequests}`)
+  const firstOpen = ledgerSince(0)
+  check('one open makes exactly one list request per credentialed road, the ledger naming each road once (three roads, three requests, never one road three times)', firstOpen.oncePerRoad && ledger.length === credentialedRoads().length, `ledger: ${firstOpen.words} · roads: ${credentialedRoads().join(', ')}`)
   first.rerender()
   await flush()
   check('a re-render does not start another refresh', requests === 1, `requests ${requests}`)
+  check('a re-render adds nothing to the ledger of any road', ledger.length === credentialedRoads().length, `ledger: ${ledgerSince(0).words}`)
   const action = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
   const duplicate = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
   check('the action row shares the in-flight request', action === duplicate)
@@ -100,8 +115,11 @@ try {
   check('the changed list uses the existing notice', first.seen().includes('GPT — the live list changed'))
   first.unmount()
 
+  const beforeSecond = ledger.length
   const second = await mount()
   check('a second open makes its own refresh within the span', requests === 2, `requests ${requests}`)
+  const secondOpen = ledgerSince(beforeSecond)
+  check('a second open adds exactly one request per credentialed road, none twice', secondOpen.oncePerRoad && ledger.length - beforeSecond === credentialedRoads().length, `ledger since the first open: ${secondOpen.words}`)
   const unchanged = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
   await flush()
   const before = catalogueEpoch()
