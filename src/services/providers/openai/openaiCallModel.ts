@@ -84,7 +84,7 @@ import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitS
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
-import { coldPrefixOf, estimateRequestTokens, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
@@ -704,8 +704,10 @@ export async function* openaiCallModel(
           step.attempt,
           step.of,
         )
-        if (!step.quiet) yield notice
-        else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
+        if (!step.quiet) {
+          yield notice
+          options.onWait?.(retryNoticeWait(notice))
+        } else if (options.agentId !== undefined) options.onWait?.(heldBusyRetryWait(step, notice))
         await sleep(step.waitMs, signal)
         if (signal.aborted) return
         continue
@@ -717,7 +719,7 @@ export async function* openaiCallModel(
       (reissueAtServedWord || (busy === undefined && !singleShot && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {
       const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
-      yield createSystemAPIErrorMessage(
+      const notice = createSystemAPIErrorMessage(
         Object.assign(new Error(outcome.fault.message), {
           ...(outcome.fault.status !== undefined ? { status: outcome.fault.status } : {}),
           ...(askedMs !== undefined ? { headers: { 'retry-after': String(Math.ceil(askedMs / 1000)) } } : {}),
@@ -726,6 +728,8 @@ export async function* openaiCallModel(
         attempt,
         OPENAI_MAX_ATTEMPTS - 1,
       )
+      yield notice
+      options.onWait?.(retryNoticeWait(notice))
       await sleep(delayMs, signal)
       if (signal.aborted) return
       continue

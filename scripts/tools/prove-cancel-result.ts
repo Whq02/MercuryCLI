@@ -225,6 +225,76 @@ section('D the source census: the settle sites in toolExecution.ts')
   check('the facts are minted in turnCut.ts and nowhere in toolExecution.ts', !PARTIAL.test(src) && PARTIAL.test(readFileSync(join(ROOT, 'src/utils/messages/turnCut.ts'), 'utf8')))
   check('the three never-started gates still settle through the shared shape with its default words', (src.match(/push\(interruptResultUpdate\(toolUseID, sourceUUID\)\)/g) ?? []).length === 3)
   check('CANCEL_MESSAGE is minted in rejectionText.ts and is the stop block factory\'s content', /export const CANCEL_MESSAGE =/.test(readFileSync(join(ROOT, 'src/utils/messages/rejectionText.ts'), 'utf8')) && /content: CANCEL_MESSAGE,/.test(readFileSync(join(ROOT, 'src/utils/messages/factories.ts'), 'utf8')))
+  check("the answered-abort settle keys on the turn's signal, runs the failure hooks, and reads the same words for the signal's reason", /const cutByTurn = isInterrupt && signal\.aborted[\s\S]*?runPostToolUseFailureHooks\([\s\S]*?if \(cutByTurn\) \{\s*push\(interruptResultUpdate\(toolUseID, sourceUUID, turnCutResultText\(turnCutOf\(signal\.reason\), tool\.name\)\)\)/.test(src))
+}
+
+section("E a started call that answers the interrupt with a bare AbortError settles as the cut; a tool's own AbortError stays an error")
+{
+  const abortNamed = (words: string): Error => Object.assign(new Error(words), { name: 'AbortError' })
+  const answersAbortWith = (name: string, words: string, onStart: () => void): Record<string, unknown> =>
+    makeTool(name, (...args: unknown[]) => {
+      const callContext = args[1] as { abortController: AbortController }
+      onStart()
+      return new Promise<unknown>((_resolve, reject) => {
+        callContext.abortController.signal.addEventListener('abort', () => reject(abortNamed(words)), { once: true })
+      })
+    })
+  const OWN_WORDS = 'The search was interrupted before it finished.'
+  {
+    resetTaps()
+    let started = false
+    const tool = answersAbortWith('Walks', OWN_WORDS, () => {
+      started = true
+    })
+    const ctx = makeContext([tool])
+    const updates: Yielded[] = []
+    const run = driveOne(tool, 'toolu_walk', ctx, updates)
+    await waitFor(() => started)
+    const abortedAt = Date.now()
+    ctx.abortController.abort()
+    await Promise.race([run, sleep(8_000)])
+    const settledIn = Date.now() - abortedAt
+    const result = resultsOf(updates)[0]
+    const text = result?.text ?? ''
+    check("the call answered the operator's interrupt with an AbortError in its own words and settled once, inside the grace (the answer road, not the abandon road)", resultsOf(updates).length === 1 && settledIn < 700, `${resultsOf(updates).length} result(s), ${settledIn}ms`)
+    check("the started call settles with the interrupt result's shape, in turnCut's words for the signal's reason, naming the tool", isInterruptedResultText(text) && text === turnCutResultText(turnCutOf(ctx.abortController.signal.reason), 'Walks'), JSON.stringify(text))
+    check("never the AbortError's own words wrapped as an ordinary error", !text.includes(OWN_WORDS) && !/<tool_use_error>/.test(text), JSON.stringify(text))
+    check('the reader classifies it a stop, not an ordinary failure', isDenialResultText(text), JSON.stringify(text))
+    check('an error block whose non-model-visible field carries the same words', result?.isError === true && result.toolUseResult === text, JSON.stringify(result))
+    check('observed once as started and once as terminal ok:false', starts.length === 1 && terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify({ starts, terminals }))
+  }
+  {
+    resetTaps()
+    let started = false
+    const tool = answersAbortWith('Listens', 'The request was interrupted.', () => {
+      started = true
+    })
+    const ctx = makeContext([tool])
+    const updates: Yielded[] = []
+    const run = driveOne(tool, 'toolu_listen', ctx, updates)
+    await waitFor(() => started)
+    abortWithCut(ctx.abortController, 'stalled')
+    await Promise.race([run, sleep(8_000)])
+    const text = resultsOf(updates)[0]?.text ?? ''
+    check("a watchdog's cut answered with an AbortError: the cut's own words, from the one table", text === turnCutResultText(turnCutOf('stalled'), 'Listens') && text === 'Cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(text))
+    check('still a stop for the reader, observed once as terminal ok:false', isDenialResultText(text) && terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify({ text, terminals }))
+  }
+  {
+    resetTaps()
+    const OWN_DEADLINE = 'The walk was cancelled by its own deadline.'
+    const tool = makeTool('Deadlines', async () => {
+      await sleep(20)
+      throw abortNamed(OWN_DEADLINE)
+    })
+    const ctx = makeContext([tool])
+    const updates: Yielded[] = []
+    await driveOne(tool, 'toolu_deadline', ctx, updates)
+    const result = resultsOf(updates)[0]
+    const text = result?.text ?? ''
+    check("a tool's own AbortError while the turn's signal never aborted stays an error in the tool's own words — the signal tells the two apart", !ctx.abortController.signal.aborted && result?.isError === true && text === `<tool_use_error>${OWN_DEADLINE}</tool_use_error>` && result.toolUseResult === `Error: ${OWN_DEADLINE}`, JSON.stringify(result))
+    check('the reader classifies it an ordinary failure, not a stop', !isDenialResultText(text), JSON.stringify(text))
+    check('observed once as terminal ok:false', terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify(terminals))
+  }
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR, { recursive: true, force: true })
