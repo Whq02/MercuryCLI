@@ -14,3 +14,4 @@ prove-model-picker-refresh.ts
 prove-model-picker-refresh-drive.ts
 prove-model-picker-refresh-families.ts
 prove-model-picker-refresh-families-drive.ts
+prove-model-picker-refresh-moonshot-drive.ts
