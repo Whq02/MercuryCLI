@@ -149,6 +149,32 @@ section('S5 — Retry-After: both spellings name the wait')
   check('the six-hour ceiling holds', retry.getRetryDelay(1, String(48 * 3600)) === 6 * 3600 * 1000)
   check('retryAfterHeaderMs reads both forms and refuses junk', retryAfter.retryAfterHeaderMs('5', now) === 5_000 && retryAfter.retryAfterHeaderMs(new Date(now + 10_000).toUTCString(), now) === 10_000 && retryAfter.retryAfterHeaderMs('soon', now) === undefined && retryAfter.retryAfterHeaderMs(undefined, now) === undefined && retryAfter.retryAfterHeaderMs('0', now) === undefined)
   check('retryAfterOf reads the header off an error, either spelling', retryAfter.retryAfterOf({ headers: { 'Retry-After': '7' } }) === '7' && retryAfter.retryAfterOf({ headers: new Headers({ 'retry-after': '9' }) }) === '9' && retryAfter.retryAfterOf({}) === undefined && retryAfter.retryAfterOf(null) === undefined)
+  const sleepFor = (headers: Record<string, string>): number => retry.getRetryDelay(3, retryAfter.retryAfterOf({ headers }))
+  check('retry-after-ms alone: the ladder sleeps 1500 ms, not its own back-off', sleepFor({ 'retry-after-ms': '1500' }) === 1_500, String(sleepFor({ 'retry-after-ms': '1500' })))
+  check('retry-after-ms outranks a coarser retry-after beside it', sleepFor({ 'retry-after-ms': '1500', 'retry-after': '2' }) === 1_500, String(sleepFor({ 'retry-after-ms': '1500', 'retry-after': '2' })))
+  check('the ms header is read off a Headers object too', retry.getRetryDelay(3, retryAfter.retryAfterOf({ headers: new Headers({ 'retry-after-ms': '1500', 'retry-after': '2' }) })) === 1_500)
+  check('an odd millisecond count is honoured exactly', sleepFor({ 'retry-after-ms': '1001' }) === 1_001, String(sleepFor({ 'retry-after-ms': '1001' })))
+  check('junk retry-after-ms falls through to retry-after', sleepFor({ 'retry-after-ms': 'soon', 'retry-after': '2' }) === 2_000, String(sleepFor({ 'retry-after-ms': 'soon', 'retry-after': '2' })))
+  check('zero retry-after-ms falls through to retry-after', sleepFor({ 'retry-after-ms': '0', 'retry-after': '2' }) === 2_000, String(sleepFor({ 'retry-after-ms': '0', 'retry-after': '2' })))
+  const junkMs = sleepFor({ 'retry-after-ms': '-40' })
+  check('a negative ms value alone falls through to the ladder', junkMs >= 2_000 && junkMs <= 2_500, String(junkMs))
+  check('neither header: no provider ask', retryAfter.retryAfterOf({ headers: { 'content-type': 'application/json' } }) === undefined)
+  check('the retry budget reads the ms header first as well', budget.providerAskedWaitMs({ headers: { 'retry-after-ms': '1500', 'retry-after': '2' } }, now) === 1_500 && budget.providerAskedWaitMs({ headers: { 'retry-after-ms': '1500' } }, now) === 1_500, String(budget.providerAskedWaitMs({ headers: { 'retry-after-ms': '1500', 'retry-after': '2' } }, now)))
+  const askedMs = factsOf(notice({ retryInMs: 1_500, status: 503, headers: { 'retry-after-ms': '1500' } }))
+  check('a 503 carrying only retry-after-ms is a wait the provider asked for', askedMs.kind === 'throttle' && askedMs.providerDeclared === true, JSON.stringify(askedMs))
+  check('a sub-millisecond retry-after-ms falls through to retry-after', sleepFor({ 'retry-after-ms': '0.4', 'retry-after': '2' }) === 2_000 && budget.providerAskedWaitMs({ headers: { 'retry-after-ms': '0.4', 'retry-after': '2' } }, now) === 2_000, String(sleepFor({ 'retry-after-ms': '0.4', 'retry-after': '2' })))
+  const subMsAlone = sleepFor({ 'retry-after-ms': '0.4' })
+  check('a sub-millisecond retry-after-ms alone is no ask: the ladder', subMsAlone >= 2_000 && subMsAlone <= 2_500 && retryAfter.retryAfterOf({ headers: { 'retry-after-ms': '0.4' } }) === undefined, String(subMsAlone))
+  const shapes: unknown[] = [null, 42, ['1500']]
+  const readShape = (value: unknown, beside?: string): string => {
+    try {
+      return String(retryAfter.retryAfterOf({ headers: { 'retry-after-ms': value, ...(beside === undefined ? {} : { 'retry-after': beside }) } }))
+    } catch (e) {
+      return `threw ${String(e)}`
+    }
+  }
+  check('a non-string ms value on a record never throws and yields the seconds header beside it', shapes.every(v => readShape(v, '2') === '2'), shapes.map(v => readShape(v, '2')).join(' | '))
+  check('a non-string ms value alone yields no ask', shapes.every(v => readShape(v) === 'undefined'), shapes.map(v => readShape(v)).join(' | '))
 }
 
 section('S6 — the words name the answer and the wait')
