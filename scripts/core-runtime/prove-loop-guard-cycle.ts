@@ -124,19 +124,20 @@ function makeTool(name: string, concurrent = false): never {
 
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 let nestSeq = 0
+const nestSettled: string[] = []
 const nestedAllow = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
-function makeNestTool(): never {
+function makeNestTool(name = 'Nest', parallel = false, collidingIds = false): never {
   return {
-    name: 'Nest',
+    name,
     async description() {
-      return 'rig tool that runs one nested call through the real transaction'
+      return 'rig tool that runs nested calls through the real transaction'
     },
     async prompt() {
       return 'rig nest'
     },
     inputSchema: z.object({}).catchall(z.unknown()),
-    userFacingName: () => 'Nest',
+    userFacingName: () => name,
     isEnabled: () => true,
     isConcurrencySafe: () => true,
     isReadOnly: () => true,
@@ -147,9 +148,10 @@ function makeNestTool(): never {
     },
     async call(input: Record<string, unknown>, context: Record<string, unknown>) {
       const inners = (Array.isArray(input.inners) ? input.inners : [input.inner]) as Array<{ name: string; input: Record<string, unknown> }>
-      const texts: string[] = []
-      for (const inner of inners) {
-        const id = `toolu_nest_${++nestSeq}`
+      let localSeq = 0
+      const one = async (inner: { name: string; input: Record<string, unknown> }): Promise<string> => {
+        const id = collidingIds ? `toolu_workshop_${++localSeq}` : `toolu_nest_${++nestSeq}`
+        if (collidingIds) nestSeq++
         let text = ''
         for await (const update of runToolUse(
           { type: 'tool_use', id, name: inner.name, input: inner.input } as never,
@@ -163,10 +165,17 @@ function makeNestTool(): never {
             if (block.type === 'tool_result') text = String(block.content)
           }
         }
-        texts.push(text)
+        nestSettled.push(inner.name)
+        return text
+      }
+      const texts: string[] = []
+      if (parallel) {
+        texts.push(...(await Promise.all(inners.map(inner => one(inner)))))
+      } else {
+        for (const inner of inners) texts.push(await one(inner))
       }
       const joined = texts.join('|')
-      return { data: input.unique === true ? `Nest#${nestSeq}:${joined}` : `Nest:${joined}` }
+      return { data: input.unique === true ? `${name}#${nestSeq}:${joined}` : `${name}:${joined}` }
     },
     mapToolResultToToolResultBlockParam: (data: unknown, toolUseId: string) => ({
       type: 'tool_result',
@@ -175,7 +184,7 @@ function makeNestTool(): never {
     }),
   } as never
 }
-const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read', true), makeTool('Grep', true), makeTool('Glob', true), makeNestTool()]
+const TOOLS = [makeTool('Edit'), makeTool('Bash'), makeTool('Read', true), makeTool('Grep', true), makeTool('Glob', true), makeNestTool(), makeNestTool('NestPar', true), makeNestTool('WS', false, true)]
 
 function makeCtx(agentId?: string): { ctx: Record<string, unknown>; abortController: AbortController } {
   let appState: Record<string, unknown> = {
@@ -663,6 +672,48 @@ section('C19 — nested calls keep the model\'s issue order at any depth and any
   const tenReads = Array.from({ length: 10 }, (_, i) => read(`/tmp/r${i}.ts`))
   const smallParent = await runScript([], identicalResults, undefined, [[nest(...tenReads, glob)], [glob], [glob], [glob]])
   check('control: the same shape with 10 nested Reads reminds at the same place', JSON.stringify(afterCalls(smallParent)) === JSON.stringify(afterCalls(bigParent)), `small=${JSON.stringify(afterCalls(smallParent))} big=${JSON.stringify(afterCalls(bigParent))}`)
+}
+
+section('C20 — nested calls dispatched TOGETHER (the hosts\' Promise.all shape) are ordered by when they started, each parent after its own nested calls: the order is the issue order under concurrency too')
+{
+  const GLOB = { pattern: '*.md', path: '/tmp' }
+  const glob = { name: 'Glob', input: GLOB }
+  const read = (path: string): Step => ({ name: 'Read', input: { file_path: path } })
+  const nestPar = (...inners: Step[]): Step => ({ name: 'NestPar', input: { unique: true, inners } })
+  const nest = (...inners: Step[]): Step => ({ name: 'Nest', input: { unique: true, inners } })
+  const remindersOf = (run: Run): string[] => run.yields.filter(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder').map(m => String((m as { attachment: { content?: unknown } }).attachment.content))
+  const slow = (slowName: string) => (name: string, index: number) => (index >= 2 && name === slowName ? 40 : 0)
+  setStopKey(null)
+  nestSettled.length = 0
+  const readSlow = await runScript([], identicalResults, undefined, [[glob], [glob], [nestPar(read('/tmp/z.ts'), glob)]], slow('Read'))
+  check('[NestPar(Read /z slow, Glob n)] after [Glob n] x2: the Glob really settled before the Read inside the cell (the shape that mis-ordered by settle time)', JSON.stringify(nestSettled) === JSON.stringify(['Glob', 'Read']), `settled=${JSON.stringify(nestSettled)}`)
+  check('…and NO reminder: the cell issued the Read first, so Glob\'s run is broken whatever settled first', remindersOf(readSlow).length === 0 && noticeRows(readSlow).length === 0, `reminders=${JSON.stringify(remindersOf(readSlow))}`)
+  nestSettled.length = 0
+  const globSlow = await runScript([], identicalResults, undefined, [[glob], [glob], [nestPar(glob, read('/tmp/z.ts'))]], slow('Glob'))
+  check('…the Read really settled before the Glob inside the cell', JSON.stringify(nestSettled) === JSON.stringify(['Read', 'Glob']), `settled=${JSON.stringify(nestSettled)}`)
+  check('[NestPar(Glob n slow, Read /z)] after [Glob n] x2: the Glob was issued first, so it IS the third identical Glob — the reminder rides though the Read settled first', remindersOf(globSlow).length === 1 && /third identical tool call/.test(remindersOf(globSlow)[0] ?? ''), `reminders=${JSON.stringify(remindersOf(globSlow))}`)
+  const serial = await runScript([], identicalResults, undefined, [[glob], [glob], [nest(glob, read('/tmp/z.ts'))]])
+  check('control: the same cell run serially reminds the same way', remindersOf(serial).length === 1, JSON.stringify(remindersOf(serial)))
+  const depthTwoPar = await runScript([], identicalResults, undefined, [[glob], [glob], [nestPar(read('/tmp/z.ts'), nestPar(glob))]], slow('Read'))
+  check('depth 2 in parallel — [NestPar(Read /z slow, NestPar(Glob n))]: the Read was started first, the Glob sits under the later sibling — no reminder', remindersOf(depthTwoPar).length === 0, JSON.stringify(remindersOf(depthTwoPar)))
+  const depthTwoParFlipped = await runScript([], identicalResults, undefined, [[glob], [glob], [nestPar(nestPar(glob), read('/tmp/z.ts'))]], slow('Glob'))
+  check('depth 2 in parallel, flipped — [NestPar(NestPar(Glob n slow), Read /z)]: the Glob\'s branch was started first — the reminder rides though the Read settled first', remindersOf(depthTwoParFlipped).length === 1, JSON.stringify(remindersOf(depthTwoParFlipped)))
+}
+
+section('C21 — the guard\'s defence: two cells in one response whose nested calls reuse the same tool-use ids (the Workshop\'s old per-call counter) are still ordered as issued — an id already open in the round is never overwritten')
+{
+  const GLOB = { pattern: '*.md', path: '/tmp' }
+  const glob = { name: 'Glob', input: GLOB }
+  const read = (path: string): Step => ({ name: 'Read', input: { file_path: path } })
+  const ws = (...inners: Step[]): Step => ({ name: 'WS', input: { unique: true, inners } })
+  const remindersOf = (run: Run): string[] => run.yields.filter(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'critical_system_reminder').map(m => String((m as { attachment: { content?: unknown } }).attachment.content))
+  setStopKey(null)
+  const mixed = await runScript([], identicalResults, undefined, [[glob], [glob], [ws(read('/tmp/z.ts'), glob), ws({ name: 'Grep', input: GREP })]])
+  check('[WS(Read /z, Glob n), WS(Grep a)] after [Glob n] x2, both cells minting toolu_workshop_1: the first cell\'s Read stays before its Glob — NO reminder', remindersOf(mixed).length === 0 && noticeRows(mixed).length === 0, `reminders=${JSON.stringify(remindersOf(mixed))}`)
+  const twice = await runScript([], identicalResults, undefined, [[glob], [glob], [ws(glob), ws(glob)]])
+  check('[WS(Glob n), WS(Glob n)] after [Glob n] x2, both minting toolu_workshop_1: the first cell\'s Glob IS the third identical Glob — the reminder rides (and the second cell\'s Glob is its own call, not a lost twin)', remindersOf(twice).length === 1 && /third identical tool call/.test(remindersOf(twice)[0] ?? ''), `reminders=${JSON.stringify(remindersOf(twice))}`)
+  const serial = await runScript([], identicalResults, undefined, [[glob], [glob], [ws(glob)], [ws(glob)]])
+  check('control: the same two cells one per response remind the same way', remindersOf(serial).length === 1, JSON.stringify(remindersOf(serial)))
 }
 
 setStopKey(null)

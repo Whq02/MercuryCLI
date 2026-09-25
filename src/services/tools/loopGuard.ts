@@ -26,6 +26,7 @@ const DETECTION_MEMORY = 16
 export interface LoopGuardObservation {
   toolName: string
   toolUseID: string
+  roundHandle: string
   roundID: string
   roundOrdinal: number
   arguments: unknown
@@ -49,7 +50,7 @@ export interface LoopGuardVerdict {
 
 interface RoundEntry {
   ordinal: number
-  sequence: number
+  handle: string
   toolName: string
   toolUseID: string
   key: string
@@ -66,7 +67,7 @@ interface LoopGuardState {
   ring: string[]
   roundID: string | null
   roundEntries: RoundEntry[]
-  roundCalls: Map<string, number>
+  roundCalls: Map<string, { ordinal: number; parent: string | null; started: number }>
   roundSequence: number
   detections: Map<string, { count: number; tools: string[] }>
 }
@@ -305,8 +306,32 @@ function walkEntry(state: LoopGuardState, entry: RoundEntry, seen: Set<string>):
   return { ringEntry, step: IDENTICAL_CALL_REMINDER_STEPS.includes(state.run) ? state.run : null }
 }
 
+function issueOrder(state: LoopGuardState): Map<string, number> {
+  const children = new Map<string | null, string[]>()
+  for (const [id, call] of state.roundCalls) {
+    const parent = call.parent !== null && state.roundCalls.has(call.parent) ? call.parent : null
+    const list = children.get(parent) ?? []
+    list.push(id)
+    children.set(parent, list)
+  }
+  const byStart = (a: string, b: string): number => {
+    const ca = state.roundCalls.get(a)!
+    const cb = state.roundCalls.get(b)!
+    return ca.ordinal - cb.ordinal || ca.started - cb.started
+  }
+  const order = new Map<string, number>()
+  const visit = (id: string): void => {
+    for (const child of (children.get(id) ?? []).sort(byStart)) visit(child)
+    order.set(id, order.size)
+  }
+  for (const root of (children.get(null) ?? []).sort(byStart)) visit(root)
+  return order
+}
+
 function takeRound(state: LoopGuardState): RoundEntry[] {
-  const entries = state.roundEntries.sort((a, b) => a.ordinal - b.ordinal || a.sequence - b.sequence)
+  const order = issueOrder(state)
+  const rank = (entry: RoundEntry): number => order.get(entry.handle) ?? Number.MAX_SAFE_INTEGER
+  const entries = state.roundEntries.sort((a, b) => rank(a) - rank(b) || a.ordinal - b.ordinal)
   state.roundEntries = []
   state.roundCalls = new Map()
   state.roundSequence = 0
@@ -334,14 +359,18 @@ function settleBoundary(state: LoopGuardState, messages: readonly unknown[] | un
   }
 }
 
-export function openRoundCall(owner: OwnerKey, roundID: string, toolUseID: string, ordinal: number, messages: readonly unknown[] | undefined): void {
+export function openRoundCall(owner: OwnerKey, roundID: string, toolUseID: string, ordinal: number, parentHandle: string | null, messages: readonly unknown[] | undefined): string {
   try {
     const state = store.get(owner)
     settleBoundary(state, messages)
     switchRound(state, roundID)
-    state.roundCalls.set(toolUseID, ordinal)
+    const parent = parentHandle !== null && state.roundCalls.has(parentHandle) ? parentHandle : null
+    const started = state.roundSequence++
+    const handle = state.roundCalls.has(toolUseID) ? `${toolUseID}${KEY_SEPARATOR}${started}` : toolUseID
+    state.roundCalls.set(handle, { ordinal, parent, started })
+    return handle
   } catch {
-    return
+    return toolUseID
   }
 }
 
@@ -352,7 +381,7 @@ export function ambientRound(owner: OwnerKey, parentToolUseID: string | undefine
     if (state === undefined || state.roundID === null) return null
     const parent = state.roundCalls.get(parentToolUseID)
     if (parent === undefined) return null
-    return { id: state.roundID, ordinal: parent }
+    return { id: state.roundID, ordinal: parent.ordinal }
   } catch {
     return null
   }
@@ -366,8 +395,8 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
     if (isBookkeepingTool(observation.toolName)) return
     state.roundEntries.push({
       ordinal: observation.roundOrdinal,
-      sequence: state.roundSequence++,
       toolName: observation.toolName,
+      handle: observation.roundHandle,
       toolUseID: observation.toolUseID,
       key: toolCallKey(observation.toolName, observation.arguments),
       digest: resultDigest(observation.result, observation.toolUseID),

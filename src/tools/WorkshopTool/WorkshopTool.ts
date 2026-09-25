@@ -1,4 +1,5 @@
 
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod/v4'
 import { buildTool, findToolByName, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -154,6 +155,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
     const startedAt = Date.now()
 
     let bridgeSeq = 0
+    const bridgeScope = context.toolUseId ?? randomUUID()
     const runNestedTool = async (name: string, nestedInput: unknown): Promise<unknown> => {
       if (name === WORKSHOP_TOOL_NAME) {
         throw new Error('recursive Workshop calls are refused — compose within the current cell')
@@ -164,7 +166,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
         throw new Error(`no tool '${name}' in this session's catalog`)
       }
       const { runToolUse } = await import('../../services/tools/toolExecution.js')
-      const toolUseId = `toolu_workshop_${++bridgeSeq}`
+      const toolUseId = `toolu_workshop_${bridgeScope}_${++bridgeSeq}`
       let resultText = ''
       let isError = false
       let shellRun: ShellRunFact | undefined

@@ -97,10 +97,11 @@ progress and resets the count, so a poll of a growing log is never a loop.
 The response is Mercury's own unit, never an id the provider sent, and a
 call a tool makes from inside its own execution (a Workshop cell, an Eval
 re-entry) joins the response it runs in rather than opening one of its own,
-taking its place under the call the model issued and, within that call, in
-the order the calls were made, however deep the nesting and however many
-there are, so nothing the model issued earlier in that response is dropped
-or reordered. The operator sees each reminder as a recorded informational
+taking its place under the call the model issued: the calls of one cell are
+ordered by when each was started, not by when it settled, and a call comes
+after every call made on its behalf, however deep the nesting and however
+many there are, so nothing the model issued earlier in that response is
+dropped or reordered. The operator sees each reminder as a recorded informational
 row.
 With `loopGuardStopEnabled: true` in settings, the second detection of the
 same cycle of two to five calls ends the turn after the round it landed in
