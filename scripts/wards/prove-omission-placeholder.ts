@@ -215,6 +215,16 @@ async function main(): Promise<void> {
     check('a Godot script_create from the template carries no model bytes ⇒ allowed', deniedBy(godotTemplate) === null, denialText(godotTemplate))
     const godotRead = { toolName: 'Godot', input: { op: 'script_read', args: { path: 'res://player.gd' } } }
     check('a Godot read op ⇒ allowed', deniedBy(godotRead) === null, denialText(godotRead))
+    const godotBoth = { toolName: 'Godot', input: { op: 'script_edit', args: { path: 'res://player.gd', content: 'extends Node\n# ... existing code ...\n', find: '# ... existing code ...', replace: 'x' } } }
+    check('a Godot script_edit whose non-empty content carries the placeholder ⇒ denied even when find carries it too (the addon writes content and never reads find)', deniedBy(godotBoth) === RULE, denialText(godotBoth))
+    const godotEmptyContent = { toolName: 'Godot', input: { op: 'script_edit', args: { path: 'res://player.gd', content: '', find: '# ... existing code ...\nfunc _ready():', replace: '# ... existing code ...\nfunc _ready() -> void:' } } }
+    check('a Godot script_edit with EMPTY content falls to find/replace (as the addon does), so a placeholder kept from find ⇒ allowed', deniedBy(godotEmptyContent) === null, denialText(godotEmptyContent))
+    const shaderEdit = { toolName: 'Godot', input: { op: 'shader_edit', args: { path: 'res://glow.gdshader', code: 'shader_type canvas_item;\n// ... rest of the code unchanged\n' } } }
+    check('a Godot shader_edit whose code carries the placeholder ⇒ denied', deniedBy(shaderEdit) === RULE, denialText(shaderEdit))
+    const shaderCreate = { toolName: 'Godot', input: { op: 'shader_create', args: { path: 'res://glow.gdshader', code: '// ... existing code ...\n' } } }
+    check('a Godot shader_create whose code carries the placeholder ⇒ denied', deniedBy(shaderCreate) === RULE, denialText(shaderCreate))
+    const shaderClean = { toolName: 'Godot', input: { op: 'shader_edit', args: { path: 'res://glow.gdshader', code: 'shader_type canvas_item;\n' } } }
+    check('a clean Godot shader_edit ⇒ allowed', deniedBy(shaderClean) === null, denialText(shaderClean))
   }
 
   section('G. the fixed phrase set — the seven Gemini prefixes, their normalisation, and the ellipsis-led idiom')
