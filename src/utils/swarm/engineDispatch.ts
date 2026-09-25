@@ -32,6 +32,8 @@ import { getMainLoopModel, parseUserSpecifiedModel } from '../model/model.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
+import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
   geminiGenerateModels,
@@ -56,12 +58,32 @@ function isOpenrouterModelId(v: string): boolean {
 export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
+    liveListedRouteOf(v) !== undefined ||
     /^(gpt|glm|kimi|moonshot|deepseek|gemini)-/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
     isOpenrouterModelId(v)
   )
+}
+
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'gemini' | undefined {
+  const listed = liveListedRouteOf(id)
+  if (listed !== undefined) return listed
+  if (/^gpt-/i.test(id)) return 'openai'
+  if (/^(kimi|moonshot)-/i.test(id)) return 'moonshot'
+  if (/^deepseek-/i.test(id)) return 'deepseek'
+  if (/^gemini-/i.test(id)) return 'gemini'
+  return undefined
+}
+
+async function readLiveListsForBareId(modelParam: string | undefined): Promise<void> {
+  if (typeof modelParam !== 'string') return
+  const word = modelParam.trim()
+  if (word === '' || qualifiedIdSpaceOf(word) !== undefined) return
+  const verdict = classifyModelRoute(parseUserSpecifiedModel(word))
+  if (verdict.kind !== 'unrecognised' || verdict.carrierShaped) return
+  await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
 const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
@@ -360,22 +382,24 @@ export async function resolveEngineDispatch(
     }
     return { backend: 'openai-compat', model: first, displayLabel: first }
   }
+  await readLiveListsForBareId(modelParam)
   if (isExactEngineModelId(modelParam)) {
     const id = modelParam!.trim()
-    if (/^gpt-/i.test(id)) {
+    const family = exactEngineFamilyOf(id)
+    if (family === 'openai') {
       await requireProviderAvailable('openai')
       return resolveGptExactModel(id.toLowerCase())
     }
-    if (/^(kimi|moonshot)-/i.test(id)) {
+    if (family === 'moonshot') {
       await requireProviderAvailable('moonshot')
       const qualification = await qualifyMoonshotModel(id.toLowerCase())
       if (qualification.kind === 'refused') throw new Error(qualification.message)
       return {
         backend: 'moonshot', model: qualification.modelId,
-        displayLabel: `${kimiDisplayName(id) ?? id}${qualification.kind === 'degraded' ? ` (${qualification.note})` : ''}`,
+        displayLabel: `${kimiDisplayName(qualification.modelId) ?? kimiDisplayName(id) ?? qualification.modelId}${qualification.kind === 'degraded' ? ` (${qualification.note})` : ''}`,
       }
     }
-    if (/^deepseek-/i.test(id)) {
+    if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')
       const pin = deepseekCatalogueEntry(id)
       if (!pin) {
@@ -385,7 +409,7 @@ export async function resolveEngineDispatch(
       }
       return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
     }
-    if (/^gemini-/i.test(id)) {
+    if (family === 'gemini') {
       await requireProviderAvailable('gemini')
       return resolveGeminiExactModel(id.toLowerCase())
     }

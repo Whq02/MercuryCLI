@@ -17,7 +17,8 @@ import {
   resolveMoonshotDispatchCredential,
   type MoonshotDispatchSource,
 } from './moonshotAccounts.js'
-import { KIMI_DISPLAY_PINS, kimiDisplayName, kimiDisplayPin, kimiShortName, isKimiModelId } from './kimiPins.js'
+import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
+import { KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiShortName } from './kimiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -78,8 +79,8 @@ export async function fetchMoonshotLiveModels(opts: {
   }
   const data = (parsed as { data: unknown[] }).data
   const models = data.map(decodeMoonshotModel).filter((model): model is MoonshotLiveModel => model !== undefined)
-  if (data.length > 0 && !models.some(model => isKimiModelId(model.id))) {
-    throw new Error('the models endpoint answered a non-catalogue view (no listed id rides the Moonshot family)')
+  if (data.length > 0 && models.length === 0) {
+    throw new Error('the models endpoint answered a non-catalogue view (no listed row carries a model id)')
   }
   return { models, fetchedAtMs: Date.now() }
 }
@@ -107,6 +108,31 @@ function catalogueIdentity(env: NodeJS.ProcessEnv): string {
 export function getCachedMoonshotCatalogue(env: NodeJS.ProcessEnv = process.env): MoonshotCatalogueSnapshot | null {
   if (!resolveMoonshotAccount(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
+}
+
+const NO_IDS: ReadonlySet<string> = new Set()
+const liveIdSets = new WeakMap<MoonshotCatalogueSnapshot, ReadonlySet<string>>()
+let identityMemo: { epoch: number; spellings: string; identity: string } | null = null
+
+function memoisedIdentity(env: NodeJS.ProcessEnv): string {
+  const epoch = signInLedgerEpoch()
+  const spellings = `${env.MOONSHOT_API_KEY ?? ''}\u0000${env.MERCURY_MOONSHOT_API_BASE ?? ''}\u0000${env.MERCURY_MOONSHOT_CODING_BASE ?? ''}`
+  if (env === process.env && identityMemo !== null && identityMemo.epoch === epoch && identityMemo.spellings === spellings) return identityMemo.identity
+  const identity = catalogueIdentity(env)
+  if (env === process.env) identityMemo = { epoch, spellings, identity }
+  return identity
+}
+
+export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+  const identity = memoisedIdentity(env)
+  if (identity === 'none') return NO_IDS
+  const snapshot = catalogueCache.get(identity)
+  if (snapshot === undefined || snapshot.fetchedAtMs === 0) return NO_IDS
+  const known = liveIdSets.get(snapshot)
+  if (known !== undefined) return known
+  const ids: ReadonlySet<string> = new Set(snapshot.models.map(model => model.id.trim().toLowerCase()))
+  liveIdSets.set(snapshot, ids)
+  return ids
 }
 
 export function refreshMoonshotCatalogue(opts?: {
@@ -214,6 +240,14 @@ function baseAliasLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
   return ordered
 }
 
+const PLAN_HEADS = ['k3', 'k3-256k'] as const
+
+function planHeadLeads(rows: MoonshotCatalogueRow[]): MoonshotCatalogueRow[] {
+  const head = PLAN_HEADS.map(id => rows.find(row => row.id === id)).find(row => row !== undefined)
+  if (head === undefined) return rows
+  return [head, ...rows.filter(row => row !== head)]
+}
+
 export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: MoonshotCatalogueRow[]; source: MoonshotCatalogueSource } {
   if (resolveMoonshotAccount(env) === undefined) {
     return {
@@ -227,22 +261,22 @@ export function moonshotCatalogueRows(env: NodeJS.ProcessEnv = process.env): { r
   const rows: MoonshotCatalogueRow[] = []
   const served = moonshotServedModels(env)
   for (const model of snapshot.models.toSorted((a, b) => (b.created ?? 0) - (a.created ?? 0))) {
-    const id = model.id.toLowerCase()
-    if (!isKimiModelId(id) || taken.has(id)) continue
+    const id = model.id.trim().toLowerCase()
+    if (id === '' || taken.has(id)) continue
     taken.add(id)
     const pin = kimiDisplayPin(id)
     const contextWindow = model.contextWindow ?? pin?.contextWindow
     const observed = served.find(record => record.requested === id && record.served !== id)
     rows.push({
       id,
-      displayName: pin?.displayName ?? model.displayName ?? kimiDisplayName(id) ?? id,
+      displayName: pin?.displayName ?? model.displayName ?? kimiMechanicalName(id),
       observedAt: pin?.observedAt ?? new Date(snapshot.fetchedAtMs).toISOString().slice(0, 10),
       ...(contextWindow !== undefined ? { contextWindow } : {}),
       listedLive: true,
       ...(observed !== undefined ? { servedAs: { id: observed.served, displayName: kimiShortName(observed.served) ?? observed.served } } : {}),
     })
   }
-  return { rows: baseAliasLeads(rows), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
+  return { rows: baseAliasLeads(planHeadLeads(rows)), source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
 export function moonshotCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
@@ -261,6 +295,8 @@ export async function qualifyMoonshotModel(modelId: string): Promise<
   if (source.kind === 'live') {
     const wanted = modelId.toLowerCase()
     if (rows.some(row => row.id === wanted)) return { kind: 'ok', modelId }
+    const unprefixed = wanted.startsWith('kimi-') ? wanted.slice('kimi-'.length) : undefined
+    if (unprefixed !== undefined && unprefixed !== '' && rows.some(row => row.id === unprefixed)) return { kind: 'ok', modelId: unprefixed }
     const offered = rows.map(row => row.id)
     const servedAs = moonshotAliasesServing(wanted).filter(alias => offered.includes(alias))
     return { kind: 'refused', message: modelNotOfferedByCatalogue(modelId, resolveMoonshotAccount()?.label ?? 'Moonshot account', offered, servedAs) }

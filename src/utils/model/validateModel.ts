@@ -212,6 +212,12 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   const { declaredRouteOf } = await import(
     '../../services/providers/callModelRouter.js'
   )
+  const { classifyModelRoute, LIVE_LIST_FAMILIES } = await import('../../services/providers/idSpaces.js')
+  const early = classifyModelRoute(trimmed)
+  if (early.kind === 'unrecognised' && !early.carrierShaped) {
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
+  }
   const route = declaredRouteOf(trimmed)
   if (route !== null && route !== 'anthropic') {
     const verdict = await validateNonAnthropicModel(route, trimmed)
