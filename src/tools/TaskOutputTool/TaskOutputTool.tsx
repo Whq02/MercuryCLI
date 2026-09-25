@@ -23,6 +23,7 @@ import { getTaskOutput } from '../../utils/task/diskOutput.js'
 import { updateTaskState } from '../../utils/task/framework.js'
 import { formatTaskOutput } from '../../utils/task/outputFormatting.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
+import { clampWait } from '../../utils/waitCeiling.js'
 import { AgentPromptDisplay, AgentResponseDisplay } from '../AgentTool/UI.js'
 import BashToolResultMessage from '../BashTool/BashToolResultMessage.js'
 import { TASK_OUTPUT_TOOL_NAME } from './constants.js'
@@ -55,8 +56,8 @@ const inputSchema = lazySchema(() =>
     block: semanticBoolean(z.boolean().default(true)).describe(
       'Whether to wait for the task to finish (default true)',
     ),
-    timeout: semanticNumber(z.number().min(0).max(MAX_TIMEOUT_MS).default(DEFAULT_TIMEOUT_MS)).describe(
-      'How long to wait, in milliseconds (default 30000, max 600000)',
+    timeout: semanticNumber(z.number().min(0).default(DEFAULT_TIMEOUT_MS)).describe(
+      `How long to wait, in milliseconds (default ${DEFAULT_TIMEOUT_MS}, max ${MAX_TIMEOUT_MS}; a value above the maximum is clamped to it and the result says so)`,
     ),
   }),
 )
@@ -81,6 +82,7 @@ export type Output = {
   retrieval_status: RetrievalStatus
   task: TaskRecord | null
   interrupted_by?: { task_id: string; description: string; status: string; error?: string }
+  clamped?: string
 }
 
 
@@ -217,20 +219,23 @@ export const TaskOutputTool = buildTool({
   ) {
     const { task_id: taskId } = input
     const block = input.block ?? true
-    const timeout = input.timeout ?? DEFAULT_TIMEOUT_MS
+    const wait = clampWait('timeout', input.timeout ?? DEFAULT_TIMEOUT_MS, 0, MAX_TIMEOUT_MS, 'ms')
+    const timeout = wait.value
+    const said = wait.clause === null ? {} : { clamped: wait.clause }
     const readTask = (): TaskState | undefined => context.getAppState().tasks?.[taskId] as TaskState | undefined
 
     let task = readTask()
     if (!task) {
-      return { data: await answerFromDurableOutcome(taskId) }
+      const durable = await answerFromDurableOutcome(taskId)
+      return { data: { ...durable, ...said } satisfies Output }
     }
 
     if (!block) {
       if (isSettled(task.status)) {
         markNotified(taskId, context)
-        return { data: { retrieval_status: 'success', task: await extractTaskRecord(task) } satisfies Output }
+        return { data: { retrieval_status: 'success', task: await extractTaskRecord(task), ...said } satisfies Output }
       }
-      return { data: { retrieval_status: 'not_ready', task: await extractTaskRecord(task) } satisfies Output }
+      return { data: { retrieval_status: 'not_ready', task: await extractTaskRecord(task), ...said } satisfies Output }
     }
 
     onProgress?.({
@@ -246,21 +251,21 @@ export const TaskOutputTool = buildTool({
       await sleep(POLL_INTERVAL_MS)
       const next = readTask()
       if (!next) {
-        return { data: { retrieval_status: 'timeout', task: null } satisfies Output }
+        return { data: { retrieval_status: 'timeout', task: null, ...said } satisfies Output }
       }
       task = next
       const sibling = siblingEndedSince(context, taskId, startedAt)
       if (sibling !== null) {
-        return { data: { retrieval_status: 'timeout', task: await extractTaskRecord(task), interrupted_by: sibling } satisfies Output }
+        return { data: { retrieval_status: 'timeout', task: await extractTaskRecord(task), interrupted_by: sibling, ...said } satisfies Output }
       }
     }
 
     if (!isSettled(task.status)) {
       const current = readTask() ?? task
-      return { data: { retrieval_status: 'timeout', task: await extractTaskRecord(current) } satisfies Output }
+      return { data: { retrieval_status: 'timeout', task: await extractTaskRecord(current), ...said } satisfies Output }
     }
     markNotified(taskId, context)
-    return { data: { retrieval_status: 'success', task: await extractTaskRecord(task) } satisfies Output }
+    return { data: { retrieval_status: 'success', task: await extractTaskRecord(task), ...said } satisfies Output }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     const parts = [tagged('retrieval_status', output.retrieval_status)]
@@ -287,6 +292,7 @@ export const TaskOutputTool = buildTool({
         ),
       )
     }
+    if (output.clamped) parts.push(tagged('clamped', output.clamped))
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,

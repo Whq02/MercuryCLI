@@ -7,6 +7,7 @@ import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { exec } from '../../utils/Shell.js'
+import { clampWait } from '../../utils/waitCeiling.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, createWatchMailbox } from './watchMailbox.js'
@@ -15,6 +16,7 @@ import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
 export { MONITOR_TOOL_NAME }
 
 const DEFAULT_TIMEOUT_MS = 300_000
+const MIN_TIMEOUT_MS = 1_000
 const MAX_TIMEOUT_MS = 3_600_000
 
 const RATE_BURST = 20
@@ -37,30 +39,31 @@ export function monitorExpiryNotice(description: string, taskId: string, timeout
   return `[Monitor "${description}" (task ${taskId}) expired after ${Math.round(timeoutMs / 1000)}s with ${events} event${events === 1 ? '' : 's'}. Re-arm it by calling Monitor again with the same command if the watch is still wanted; set persistent: true for a watch that must outlive the deadline.]`
 }
 
+export function monitorDeadline(timeoutMs: number | undefined, persistent: boolean | undefined): { timeoutMs: number; clamped: string | null } {
+  if (persistent) return { timeoutMs: 0, clamped: null }
+  const wait = clampWait('timeout_ms', timeoutMs ?? DEFAULT_TIMEOUT_MS, MIN_TIMEOUT_MS, MAX_TIMEOUT_MS, 'ms')
+  return { timeoutMs: wait.value, clamped: wait.clause }
+}
+
 const inputSchema = lazySchema(() =>
-  z
-    .strictObject({
-      description: z
-        .string()
-        .describe(
-          'Short human-readable description of what you are monitoring (shown in notifications).',
-        ),
-      timeout_ms: semanticNumber(
-        z.number().min(1000).optional().default(DEFAULT_TIMEOUT_MS),
-      ).describe(
-        `Kill the monitor after this deadline. Default ${DEFAULT_TIMEOUT_MS}ms, max ${MAX_TIMEOUT_MS}ms. Ignored when persistent is true.`,
+  z.strictObject({
+    description: z
+      .string()
+      .describe(
+        'Short human-readable description of what you are monitoring (shown in notifications).',
       ),
-      persistent: semanticBoolean(
-        z.boolean().optional().default(false),
-      ).describe(
-        'Run for the lifetime of the session (no timeout): the watch runs until TaskStop or the session ends. Use for session-length watches like PR monitoring, log tails or a file other agents append to.',
-      ),
-      command: z.string().describe(COMMAND_DESCRIPTION),
-    })
-    .refine(v => v.persistent || v.timeout_ms <= MAX_TIMEOUT_MS, {
-      message: `timeout_ms must be ≤ ${MAX_TIMEOUT_MS}`,
-      path: ['timeout_ms'],
-    }),
+    timeout_ms: semanticNumber(
+      z.number().min(0).optional().default(DEFAULT_TIMEOUT_MS),
+    ).describe(
+      `Kill the monitor after this deadline. Default ${DEFAULT_TIMEOUT_MS}ms, min ${MIN_TIMEOUT_MS}ms, max ${MAX_TIMEOUT_MS}ms; a value outside the bounds is clamped to them and the result says so. Ignored when persistent is true.`,
+    ),
+    persistent: semanticBoolean(
+      z.boolean().optional().default(false),
+    ).describe(
+      'Run for the lifetime of the session (no timeout): the watch runs until TaskStop or the session ends. Use for session-length watches like PR monitoring, log tails or a file other agents append to.',
+    ),
+    command: z.string().describe(COMMAND_DESCRIPTION),
+  }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
@@ -74,6 +77,10 @@ const outputSchema = lazySchema(() =>
       .boolean()
       .optional()
       .describe('No timeout — runs until TaskStop or session end.'),
+    clamped: z
+      .string()
+      .optional()
+      .describe('The clamp applied to timeout_ms, when one was.'),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -121,7 +128,7 @@ export const MonitorTool = buildTool({
       content: `${WATCH_STARTED_LINE}${output.taskId}, ${
         output.persistent
           ? 'persistent — runs until TaskStop or session end'
-          : `timeout ${output.timeoutMs}ms`
+          : `timeout ${output.timeoutMs}ms${output.clamped ? `; ${output.clamped}` : ''}`
       }). You will be notified on each event. Keep working — do not poll or sleep. Events may arrive while you are waiting for the user — an event is not their reply.`,
     }
   },
@@ -132,9 +139,7 @@ export const MonitorTool = buildTool({
     const { abortController, toolUseId, agentId } = context
     const setAppState = context.setAppStateForTasks ?? context.setAppState
     const getAppState = context.getAppState
-    const timeoutMs = persistent
-      ? 0
-      : Math.min(timeout_ms ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS)
+    const { timeoutMs, clamped } = monitorDeadline(timeout_ms, persistent)
 
     let taskId: string | undefined
     let stopped = false
@@ -234,7 +239,7 @@ export const MonitorTool = buildTool({
     })
 
     return {
-      data: { taskId: handle.taskId, timeoutMs, persistent: persistent ?? false },
+      data: { taskId: handle.taskId, timeoutMs, persistent: persistent ?? false, ...(clamped !== null ? { clamped } : {}) },
     }
   },
 } satisfies ToolDef<InputSchema, Output>)

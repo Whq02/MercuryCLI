@@ -20,6 +20,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { unwrapToolUseError } from '../../utils/messages/rejectionText.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
+import { clampWait } from '../../utils/waitCeiling.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -27,6 +28,8 @@ import {
 } from './UI.js'
 
 export const WORKSHOP_TOOL_NAME = 'Workshop' as const
+
+const MIN_CELL_TIMEOUT_MS = 100
 
 const cellSchema = () =>
   z.strictObject({
@@ -36,8 +39,8 @@ const cellSchema = () =>
     title: z.string().max(120).optional().describe('Short cell title for the transcript'),
     code: z.string().min(1).describe('The cell body. State persists across cells and Workshop calls.'),
     timeoutMs: semanticNumber(
-      z.number().int().min(100).max(MAX_CELL_TIMEOUT_MS).optional(),
-    ).describe(`Active-runtime budget per cell (default ${DEFAULT_CELL_TIMEOUT_MS}ms; nested tool/agent waits pause it)`),
+      z.number().int().min(0).optional(),
+    ).describe(`Active-runtime budget per cell (default ${DEFAULT_CELL_TIMEOUT_MS}ms, min ${MIN_CELL_TIMEOUT_MS}ms, max ${MAX_CELL_TIMEOUT_MS}ms; a value outside the bounds is clamped to them and the result says so; nested tool/agent waits pause it)`),
     reset: semanticBoolean(z.boolean().optional()).describe(
       'true = discard this language runtime\'s retained state BEFORE running this cell (explicit, visible)',
     ),
@@ -55,7 +58,7 @@ export type Output = {
   result: string
 }
 
-function renderCellText(cell: WorkshopCellResult): string {
+function renderCellText(cell: WorkshopCellResult, clamped: string | null): string {
   const head =
     `[${cell.cellId}] ${cell.state}` +
     ` · ${cell.durationMs}ms · gen ${cell.generation}` +
@@ -63,6 +66,7 @@ function renderCellText(cell: WorkshopCellResult): string {
     (cell.compiler ? ` · ${cell.compiler}` : '') +
     (cell.nestedCalls > 0 ? ` · ${cell.nestedCalls} bridge call(s)` : '')
   const lines: string[] = [head]
+  if (clamped !== null) lines.push(clamped)
   if (cell.runtimeKilled) {
     lines.push('RUNTIME KILLED — retained state was lost; the next cell starts a fresh generation.')
   }
@@ -218,7 +222,10 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
     }
 
     const cells: WorkshopCellResult[] = []
+    const clauses: Array<string | null> = []
     for (const cell of input.cells) {
+      const budget = cell.timeoutMs === undefined ? null : clampWait('timeoutMs', cell.timeoutMs, MIN_CELL_TIMEOUT_MS, MAX_CELL_TIMEOUT_MS, 'ms')
+      const bounded = budget === null ? { ...cell, reset: false } : { ...cell, reset: false, timeoutMs: budget.value }
       let result: WorkshopCellResult
       if (cell.language === 'py') {
         const { resetPythonRuntime, runPythonCell } = await import(
@@ -228,7 +235,7 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
         result = await runPythonCell({
           owner,
           cwd,
-          cell: { ...cell, reset: false },
+          cell: bounded,
           bridge,
           signal: context.abortController.signal,
         })
@@ -237,16 +244,17 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
         result = await runWorkshopCell({
           owner,
           cwd,
-          cell: { ...cell, reset: false },
+          cell: bounded,
           bridge,
           signal: context.abortController.signal,
         })
       }
       cells.push(result)
+      clauses.push(budget === null ? null : budget.clause)
       if (result.state === 'cancelled') break
     }
 
-    const rendered = cells.map(renderCellText).join('\n\n')
+    const rendered = cells.map((cell, index) => renderCellText(cell, clauses[index] ?? null)).join('\n\n')
     const anyFailed = cells.some(c => c.state === 'failed' || c.state === 'timed-out')
     const cancelled = cells.some(c => c.state === 'cancelled')
     return {
