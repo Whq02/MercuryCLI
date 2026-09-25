@@ -14,7 +14,7 @@ export const DAEMON_USAGE = [
   '  (bare)          start the supervisor for the current folder (same as run)',
   '  run [dir]       start the supervisor scheduling for dir (default: the current folder)',
   '  status          probe the running supervisor and print its state',
-  '  stop [--keep|--any]  ask the supervisor to shut down (--keep leaves in-flight workers running; --any reaps them — the default)',
+  '  stop [--keep|--any]  ask the supervisor to shut down (--any reaps in-flight workers first — the default; --keep skips that reap in the stop handler, but the daemon\'s own teardown still ends every worker, so none survives either way)',
   '  restart         re-execute the daemon as the deployed build when idle',
 ].join('\n')
 
