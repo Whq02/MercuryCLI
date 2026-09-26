@@ -29,7 +29,7 @@
 | REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (-p · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 77)
+## Slash routes — modal-slot views (local-jsx: 74)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -50,7 +50,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /cards | flat | `src/commands/cards` |
 | /cockpit | irow | `src/commands/cockpit` |
 | /color | — | `src/commands/color` |
-| /config | — | `src/commands/config` |
 | /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
@@ -99,7 +98,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /showcase | — | `src/commands/showcase` |
 | /skills | ilist irow | `src/commands/skills` |
 | /sovereign | — | `src/commands/sovereign` |
-| /status | ilist irow | `src/commands/status` |
 | /strategy | — | `src/commands/plan` |
 | /submodels | ilist irow | `src/commands/submodels` |
 | /substrate | — | `src/commands/substrate` |
@@ -111,13 +109,12 @@ the interaction primitives the view actually mounts (1-hop join).
 | /terminal-setup | — | `src/commands/terminalSetup` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
-| /usage | — | `src/commands/usage` |
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 33)
+## Slash routes — transcript prints (local: 37)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/subagents` · `/supervisor` · `/update-notes` · `/view` · `/vim` · `/voice`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/jev` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/note` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/supervisor` · `/update-notes` · `/usage` · `/view` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 
