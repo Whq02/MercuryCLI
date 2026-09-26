@@ -4,6 +4,7 @@ import ThemedText from '../design-system/ThemedText.js'
 import { useAppState } from '../../state/AppState.js'
 import { permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
+import { reasonForRule } from '../../utils/permissions/ruleReason.js'
 
 export type PermissionRuleExplanationProps = {
   permissionResult: PermissionDecision
@@ -18,6 +19,7 @@ export function PermissionRuleExplanation({
   toolType,
 }: PermissionRuleExplanationProps): React.ReactNode {
   const mode = useAppState(state => state.toolPermissionContext.mode)
+  const ruleReasons = useAppState(state => state.toolPermissionContext.ruleReasons)
   const reason =
     'decisionReason' in permissionResult ? permissionResult.decisionReason : undefined
   if (!reason) return null
@@ -25,12 +27,14 @@ export function PermissionRuleExplanation({
   switch (reason.type) {
     case 'rule': {
       const ruleString = permissionRuleValueToString(reason.rule.ruleValue)
+      const words = reasonForRule({ ruleReasons }, reason.rule)
       const managed = reason.rule.source === 'policySettings'
       return (
         <Box flexDirection="column">
           <Text wrap="truncate-middle">
             The rule <Text bold>{ruleString}</Text> requires confirmation for this {toolType}
           </Text>
+          {words ? <Text wrap="truncate-middle">{words}</Text> : null}
           {managed ? null : <Text dimColor wrap="truncate-middle">{RULES_HINT}</Text>}
         </Box>
       )

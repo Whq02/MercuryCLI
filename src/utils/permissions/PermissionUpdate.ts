@@ -44,12 +44,30 @@ type MutableContext = {
   alwaysAllowRules: Record<string, string[]>
   alwaysDenyRules: Record<string, string[]>
   alwaysAskRules: Record<string, string[]>
+  ruleReasons?: Record<string, Record<string, string>>
   additionalWorkingDirectories: Map<string, AdditionalWorkingDirectory>
   mode: ToolPermissionContext['mode']
 }
 
 function ruleString(value: PermissionRuleValue): string {
   return permissionRuleValueToString(value)
+}
+
+function stampReasons(next: MutableContext, destination: string, rules: PermissionRuleValue[]): void {
+  for (const rule of rules) {
+    if (rule.reason === undefined) continue
+    const reasons = next.ruleReasons ?? (next.ruleReasons = {})
+    const forSource = reasons[destination] ?? (reasons[destination] = {})
+    forSource[ruleString(rule)] = rule.reason
+  }
+}
+
+function dropReasons(next: MutableContext, destination: string, spellings: Iterable<string>): void {
+  const forSource = next.ruleReasons?.[destination]
+  if (forSource === undefined) return
+  for (const spelling of spellings) delete forSource[spelling]
+  if (Object.keys(forSource).length === 0) delete next.ruleReasons![destination]
+  if (Object.keys(next.ruleReasons!).length === 0) delete next.ruleReasons
 }
 
 export function applyPermissionUpdate(
@@ -63,12 +81,15 @@ export function applyPermissionUpdate(
       const key = ruleMapKey(update.behavior)
       const existing = next[key][update.destination] ?? []
       next[key][update.destination] = [...existing, ...update.rules.map(ruleString)]
+      stampReasons(next, update.destination, update.rules)
       logUpdate('addRules', update.destination, update.behavior, update.rules.map(ruleString))
       break
     }
     case 'replaceRules': {
       const key = ruleMapKey(update.behavior)
+      dropReasons(next, update.destination, next[key][update.destination] ?? [])
       next[key][update.destination] = update.rules.map(ruleString)
+      stampReasons(next, update.destination, update.rules)
       logUpdate('replaceRules', update.destination, update.behavior, update.rules.map(ruleString))
       break
     }
@@ -77,6 +98,7 @@ export function applyPermissionUpdate(
       const toRemove = new Set(update.rules.map(ruleString))
       const existing = next[key][update.destination] ?? []
       next[key][update.destination] = existing.filter(entry => !toRemove.has(entry))
+      dropReasons(next, update.destination, toRemove)
       logUpdate('removeRules', update.destination, update.behavior, [...toRemove])
       break
     }
@@ -265,6 +287,7 @@ function structuredCloneContext(context: ToolPermissionContext): MutableContext 
     alwaysAllowRules: cloneRuleMap(c.alwaysAllowRules),
     alwaysDenyRules: cloneRuleMap(c.alwaysDenyRules),
     alwaysAskRules: cloneRuleMap(c.alwaysAskRules),
+    ...(c.ruleReasons === undefined ? {} : { ruleReasons: cloneReasonMap(c.ruleReasons) }),
     additionalWorkingDirectories: new Map(c.additionalWorkingDirectories),
     mode: c.mode,
   } as MutableContext
@@ -273,6 +296,12 @@ function structuredCloneContext(context: ToolPermissionContext): MutableContext 
 function cloneRuleMap(map: Record<string, string[]> | undefined): Record<string, string[]> {
   const out: Record<string, string[]> = {}
   for (const [key, value] of Object.entries(map ?? {})) out[key] = [...value]
+  return out
+}
+
+function cloneReasonMap(map: Record<string, Record<string, string>>): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {}
+  for (const [key, value] of Object.entries(map)) out[key] = { ...value }
   return out
 }
 
