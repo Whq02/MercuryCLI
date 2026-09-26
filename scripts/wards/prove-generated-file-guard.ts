@@ -15,7 +15,7 @@ const PROJECT = '/work/project'
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
-  const { mkdtempSync, openSync, readSync, closeSync, readFileSync, readdirSync, rmSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs')
+  const { mkdtempSync, openSync, readSync, closeSync, readFileSync, readdirSync, realpathSync, rmSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
   const { execFileSync } = await import('node:child_process')
@@ -26,6 +26,7 @@ async function main(): Promise<void> {
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
   const { parseGeneratedAssetsMap, GENERATED_ASSETS_MAP } = await import('../../src/utils/hooks/generatedAssets.js')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+  const { measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
 
   const ROOT = join(import.meta.dir, '..', '..')
   type Resolved = { path: string; root: string | undefined }
@@ -442,21 +443,28 @@ async function main(): Promise<void> {
       check('a path under no repository falls back to the session root given at registration', resolve(outside).root === real(scratch), JSON.stringify(resolve(outside)))
       const relative = runWithCwdOverride(join(repo, 'src'), () => resolve('./a.ts'))
       check('a relative spelling resolves against the live cwd, then binds to the repository root', relative.path === join(real(repo), 'src', 'a.ts') && relative.root === real(repo), JSON.stringify(relative))
-      const deep = join(repo, 'src', 'a/'.repeat(40_000) + 'x.ts')
-      const t0 = performance.now()
+      const segmented = (n: number): string => join(repo, 'src', 'a/'.repeat(n) + 'x.ts')
+      const growthOf = (sizes: readonly number[]) => {
+        const paths = new Map(sizes.map(n => [n, segmented(n)] as const))
+        return measureGrowth(n => { resolve(paths.get(n)!) }, sizes)
+      }
+      const deep = segmented(40_000)
       const deepResolved = resolve(deep)
-      const deepMs = performance.now() - t0
-      check(`a 40 000-segment path (${deep.length} chars, over PATH_MAX) resolves in ${deepMs.toFixed(1)}ms (< 5ms): the walks are skipped and the fallback root answers`, deepMs < 5 && deepResolved.root === real(scratch), JSON.stringify(deepResolved).slice(0, 120))
-      const huge = join(repo, 'src', 'a/'.repeat(80_000) + 'x.ts')
-      const t1 = performance.now()
-      resolve(huge)
-      const hugeMs = performance.now() - t1
-      check(`a 160 KB path resolves in ${hugeMs.toFixed(1)}ms (< 5ms)`, hugeMs < 5)
-      const underMax = join(repo, 'src', 'a/'.repeat(1_900) + 'x.ts')
-      const t2 = performance.now()
+      const deepGrowth = growthOf([20_000, 40_000])
+      check(`a 40 000-segment path (${deep.length} chars, over PATH_MAX): the walks are skipped and the fallback root answers; the cost grows linearly in the path (${deepGrowth.summary})`, deepGrowth.linear && deepResolved.root === real(scratch), JSON.stringify(deepResolved).slice(0, 120))
+      const hugeGrowth = growthOf([40_000, 80_000])
+      check(`a 160 KB path resolves with the same linear cost (${hugeGrowth.summary})`, hugeGrowth.linear && resolve(segmented(80_000)).root === real(scratch))
+      const underMax = segmented(1_900)
       const underResolved = resolve(underMax)
-      const underMs = performance.now() - t2
-      check(`a ${underMax.length}-char path under PATH_MAX still resolves to its repository in ${underMs.toFixed(1)}ms (< 50ms)`, underMs < 50 && underResolved.root === real(repo), JSON.stringify(underResolved).slice(0, 120))
+      const underGrowth = growthOf([950, 1_900])
+      const absent = join(repo, 'src', 'absent', 'x.ts')
+      const reference = measureGrowth(n => { for (let i = 0; i < n; i++) { try { realpathSync(absent) } catch {} } }, [950, 1_900])
+      const walk = underGrowth.points[1]!.ms
+      const perSegment = reference.points[1]!.ms
+      check(`a ${underMax.length}-char path under PATH_MAX still resolves to its repository; the walk grows linearly (${underGrowth.summary}) and costs no more than one realpath per absent segment (${walk.toFixed(1)}ms against ${perSegment.toFixed(1)}ms for 1 900 realpaths of one absent path, + 1ms)`, underGrowth.linear && walk <= perSegment + 1 && underResolved.root === real(repo), JSON.stringify(underResolved).slice(0, 120))
+      let sink = 0
+      const planted = measureGrowth(n => { let s = 0; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) s += j & 1; sink += s }, [8_000, 16_000], { attempts: 1 })
+      check(`the growth law has teeth: a planted quadratic walk, measured the same way, is refused (${planted.summary})`, !planted.linear && sink >= 0)
       const gitFile = join(repo, 'src', 'generated', 'new.ts')
       check('the .git walk starts at the deepest EXISTING ancestor, so a planted .git deeper than any existing directory cannot be reached', resolve(gitFile).root === real(repo))
       check('the resolver factory realpaths its fallback once and answers it for a path over PATH_MAX', resolve('/' + 'b/'.repeat(3_000) + 'y.ts').root === real(scratch))
@@ -485,8 +493,23 @@ async function main(): Promise<void> {
     }
     const census = join(ROOT, 'scripts', 'builtin-tools', 'fixtures', 'tool-census.json')
     const schema = join(ROOT, 'scripts', 'settings', 'settings-schema.json')
-    const marked = await fresh(ROOT, 'Edit', { file_path: join(ROOT, 'src', 'skills', 'bundled', 'app-proof.ts'), old_string: 'a', new_string: 'b' }, 'w-g1')
-    check('the hook denies an Edit to a real marker-headed file in the worktree, naming its generator', typeof marked === 'string' && marked.includes(`Ward '${RULE}'`) && marked.includes('Regenerated by: scripts/skills/gen-bundled.ts'), String(marked).slice(0, 240))
+    const repo = join(scratch, 'repo')
+    mkdirSync(join(repo, 'lib'), { recursive: true })
+    mkdirSync(join(repo, '.git'))
+    const generated = join(repo, 'lib', 'gen.ts')
+    writeFileSync(generated, '// AUTO-GENERATED by scripts/gen/lib.ts — DO NOT EDIT BY HAND.\nexport const a = 1\n')
+    const marked = await fresh(repo, 'Edit', { file_path: generated, old_string: 'a', new_string: 'b' }, 'w-g1')
+    check('the hook denies an Edit to a real marker-headed file on disk (its head read at the resolved path), naming its generator', typeof marked === 'string' && marked.includes(`Ward '${RULE}'`) && marked.includes('matched "AUTO-GENERATED"') && marked.includes('Regenerated by: scripts/gen/lib.ts'), String(marked).slice(0, 240))
+    const tracked = join(ROOT, 'src', 'skills', 'bundled', 'app-proof.ts')
+    const trackedDeclares = /AUTO-GENERATED by scripts\/skills\/gen-bundled\.ts/.test(realReader(tracked) ?? '')
+    const trackedVerdict = await fresh(ROOT, 'Edit', { file_path: tracked, old_string: 'a', new_string: 'b' }, 'w-g1b')
+    check(
+      trackedDeclares
+        ? "the tracked bundled-skill module carries its generator's declaration on this tree, so the hook denies an Edit to it naming scripts/skills/gen-bundled.ts"
+        : 'the tracked bundled-skill module carries no declaration on this tree (a published tree keeps no comment line), so the hook passes an Edit to it: the verdict follows the bytes on disk',
+      trackedDeclares ? typeof trackedVerdict === 'string' && trackedVerdict.includes('Regenerated by: scripts/skills/gen-bundled.ts') : trackedVerdict === true,
+      String(trackedVerdict).slice(0, 240),
+    )
     const named = await fresh(ROOT, 'Write', { file_path: schema, content: '{}\n' }, 'w-g2')
     check('the hook denies a Write over a registered asset by name, with the gate and its check', typeof named === 'string' && named.includes('Regenerated by: bun scripts/settings/gen-settings-schema.ts') && named.includes(`${GATE}; its check: bun scripts/settings/prove-settings-schema.ts.`), String(named).slice(0, 300))
     for (const sub of ['scripts', 'src', join('scripts', 'builtin-tools'), join('src', 'skills'), 'assets']) {
@@ -510,12 +533,12 @@ async function main(): Promise<void> {
     check('a ChangeSet member reaching a bundled skill file through .. is denied by name', typeof bundledDotDot === 'string' && bundledDotDot.includes('Regenerated by: bun scripts/skills/gen-bundled.ts'), String(bundledDotDot).slice(0, 200))
     const astDotDot = await fresh(ROOT, 'AstEdit', { pattern: 'a', rewrite: 'b', path: join(ROOT, 'src', '..', 'src', 'skills', 'bundled', 'app-proof') }, 'w-g11')
     check('an AstEdit path reaching a bundled skill folder through .. is denied by name', typeof astDotDot === 'string' && astDotDot.includes('Regenerated by: bun scripts/skills/gen-bundled.ts'), String(astDotDot).slice(0, 200))
-    const changeSet = await fresh(ROOT, 'ChangeSet', { op: 'apply', changes: [member(join(ROOT, 'src', 'skills', 'bundled', 'app-proof.ts'))] }, 'w-g12')
-    check('the hook denies a ChangeSet on a real marker-headed file', typeof changeSet === 'string' && changeSet.includes(`Ward '${RULE}'`), String(changeSet).slice(0, 240))
+    const changeSet = await fresh(repo, 'ChangeSet', { op: 'apply', changes: [member(generated)] }, 'w-g12')
+    check('the hook denies a ChangeSet on a real marker-headed file', typeof changeSet === 'string' && changeSet.includes(`Ward '${RULE}'`) && changeSet.includes('matched "AUTO-GENERATED"'), String(changeSet).slice(0, 240))
     const gitLock = await fresh(join(ROOT, 'src'), 'Git', { op: 'resolve', path: 'bun.lock', content: '{}\n' }, 'w-g13')
     check('the hook denies a Git resolve that hand-writes bun.lock, whatever the cwd', typeof gitLock === 'string' && gitLock.includes('Regenerated by: its package manager (bun), from package.json'), String(gitLock).slice(0, 200))
-    const lsp = await fresh(ROOT, 'LSP', { operation: 'organizeImports', filePath: join(ROOT, 'src', 'skills', 'bundled', 'app-proof.ts'), apply: true, plan: 'lsp-1' }, 'w-g14')
-    check('the hook denies an LSP apply on a real marker-headed file', typeof lsp === 'string' && lsp.includes(`Ward '${RULE}'`), String(lsp).slice(0, 240))
+    const lsp = await fresh(repo, 'LSP', { operation: 'organizeImports', filePath: generated, apply: true, plan: 'lsp-1' }, 'w-g14')
+    check('the hook denies an LSP apply on a real marker-headed file', typeof lsp === 'string' && lsp.includes(`Ward '${RULE}'`) && lsp.includes('matched "AUTO-GENERATED"'), String(lsp).slice(0, 240))
     const ordinary = await fresh(ROOT, 'Edit', { file_path: join(ROOT, 'src', 'utils', 'wards', 'wards.ts'), old_string: 'a', new_string: 'b' }, 'w-g15')
     check('the hook passes an Edit to an ordinary file', ordinary === true, JSON.stringify(ordinary))
     const ordinaryMoved = await fresh(join(ROOT, 'scripts'), 'Edit', { file_path: join(ROOT, 'src', 'utils', 'wards', 'wards.ts'), old_string: 'a', new_string: 'b' }, 'w-g16')
@@ -530,20 +553,20 @@ async function main(): Promise<void> {
     check('a project under a folder named generated/ passes (its own .git is the root)', elsewhere === true, JSON.stringify(elsewhere))
     const elsewhereGenerated = await fresh(project, 'Write', { file_path: join(project, 'src', 'generated', 'x.ts'), content: 'x' }, 'w-g19')
     check("that project's own src/generated/ is still refused", typeof elsewhereGenerated === 'string' && elsewhereGenerated.includes(`Ward '${RULE}'`), String(elsewhereGenerated).slice(0, 200))
-    const timed = async (label: string, toolName: string, input: Record<string, unknown>, id: string): Promise<void> => {
+    const timed = async (label: string, toolName: string, build: (n: number) => Record<string, unknown>, n: number, id: string): Promise<void> => {
+      const inputs = new Map([n / 2, n].map(size => [size, build(size)] as const))
       const armed = performance.now()
       let fired = -1
       const timer = new Promise<void>(resolve => setTimeout(() => { fired = performance.now() - armed; resolve() }, 100))
-      const t0 = performance.now()
-      const result = await fresh(ROOT, toolName, input, id)
-      const ms = performance.now() - t0
+      const result = await fresh(ROOT, toolName, inputs.get(n)!, id)
       await timer
-      check(`${label}: the hook answers in ${ms.toFixed(1)}ms (< 50ms) and passes (fail open: the OS refuses the path); the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms)`, result === true && ms < 50 && fired < 1000, JSON.stringify(result).slice(0, 120))
+      const growth = await measureGrowthAsync(async size => { await fresh(ROOT, toolName, inputs.get(size)!, id) }, [n / 2, n])
+      check(`${label}: the hook passes (fail open: the OS refuses the path); the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms); the answer grows linearly in the path (${growth.summary})`, result === true && fired < 1000 && growth.linear, JSON.stringify(result).slice(0, 120))
     }
-    await timed('a Write whose path has 40 000 segments (80 KB)', 'Write', { file_path: join(ROOT, 'src', 'a/'.repeat(40_000) + 'x.ts'), content: 'export const a = 1\n' }, 'w-g20')
-    await timed('a Write whose path is 160 KB', 'Write', { file_path: join(ROOT, 'src', 'a/'.repeat(80_000) + 'x.ts'), content: 'export const a = 1\n' }, 'w-g21')
-    await timed('a Git resolve whose absolute path has 40 000 segments', 'Git', { op: 'resolve', path: join(ROOT, 'a/'.repeat(40_000) + 'x.ts'), content: 'x\n' }, 'w-g22')
-    await timed('a ChangeSet member whose path has 40 000 segments', 'ChangeSet', { op: 'apply', changes: [member(join(ROOT, 'src', 'a/'.repeat(40_000) + 'x.ts'))] }, 'w-g23')
+    await timed('a Write whose path has 40 000 segments (80 KB)', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 40_000, 'w-g20')
+    await timed('a Write whose path is 160 KB', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 80_000, 'w-g21')
+    await timed('a Git resolve whose absolute path has 40 000 segments', 'Git', n => ({ op: 'resolve', path: join(ROOT, 'a/'.repeat(n) + 'x.ts'), content: 'x\n' }), 40_000, 'w-g22')
+    await timed('a ChangeSet member whose path has 40 000 segments', 'ChangeSet', n => ({ op: 'apply', changes: [member(join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'))] }), 40_000, 'w-g23')
     resetWardsEngagedSessionsForTest()
     rmSync(scratch, { recursive: true, force: true })
   }
