@@ -31,7 +31,13 @@ export function renderToolUseMessage(
   if (input.op === 'functionBreakpoints' && input.functions) {
     parts.push(input.functions.join(','));
   }
-  if ((input.op === 'disassemble' || input.op === 'readMemory') && input.memoryReference) {
+  if (input.op === 'dataBreakpoints' && input.dataBreakpoints) {
+    parts.push(input.dataBreakpoints.map(b => `${b.name}${b.accessType ? `:${b.accessType}` : ''}`).join(',') || '(clear)');
+  }
+  if (input.op === 'instructionBreakpoints' && input.instructionBreakpoints) {
+    parts.push(input.instructionBreakpoints.map(b => `${b.instructionReference}${b.offset ? `+${b.offset}` : ''}`).join(',') || '(clear)');
+  }
+  if ((input.op === 'disassemble' || input.op === 'readMemory' || input.op === 'writeMemory') && input.memoryReference) {
     parts.push(input.memoryReference);
   }
   if (input.op === 'evaluate' && input.expression) parts.push(input.expression);
