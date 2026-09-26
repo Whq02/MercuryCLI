@@ -257,7 +257,7 @@ import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
@@ -410,6 +410,7 @@ export async function runHeadless(
 ): Promise<void> {
   setAskChannel(options.permissionChannel !== undefined || options.permissionPromptToolName !== undefined ? 'sdk' : 'none')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
+  markSessionBootRules(getAppState().toolPermissionContext)
   const shellRoadNotice = windowsShellRoadNotice()
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   const streamingInput = typeof inputPrompt !== 'string'

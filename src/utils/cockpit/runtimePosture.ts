@@ -4,6 +4,8 @@ import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks } from '../../bootstrap/state.js'
+import type { ToolPermissionContext } from '../../Tool.js'
+import type { PermissionResult } from '../permissions/PermissionResult.js'
 
 export function runtimePostureEnabled(): boolean {
   if (flagEnv('MERCURY_RUNTIME_POSTURE') === '0') return false
@@ -12,10 +14,83 @@ export function runtimePostureEnabled(): boolean {
 
 let nonInteractive = false
 let bootPermissionMode: string | undefined
+let bootRules: ToolPermissionContext | undefined
 
 export function markSessionNonInteractive(permissionMode?: string): void {
   nonInteractive = true
   if (permissionMode) bootPermissionMode = permissionMode
+}
+
+export function markSessionBootRules(context: ToolPermissionContext): void {
+  bootRules = context
+}
+
+const PUSH_PROBE = 'git push'
+const PUSH_RULE_SHAPE = '`Bash(git push:*)`'
+const PUSH_ROADS = `an allow rule such as ${PUSH_RULE_SHAPE} (permissions.allow in settings, or --allowed-tools)`
+const HUMAN_CALLS = 'a question to the operator (AskUserQuestion), a plan approval (ExitStrategyMode) and every other tool that requires a human'
+
+function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const bash = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
+    return bash.bashToolCheckPermission({ command: PUSH_PROBE }, context)
+  } catch {
+    return null
+  }
+}
+
+function ruleWordsOf(verdict: PermissionResult): string {
+  const reason = 'decisionReason' in verdict ? verdict.decisionReason : undefined
+  if (reason?.type !== 'rule') return ''
+  const { toolName, ruleContent } = reason.rule.ruleValue
+  return `\`${ruleContent ? `${toolName}(${ruleContent})` : toolName}\` (${reason.rule.source})`
+}
+
+function modeRoad(mode: string): string {
+  switch (mode) {
+    case 'flow':
+      return 'and under flow any call the flow check blocks — anything visible outside this machine (`git push` among them), anything destructive or outside the workspace, a new install'
+    case 'default':
+      return 'and under default any call no allow rule covers (the read-only lane aside)'
+    case 'implement':
+      return 'and under implement any call no allow rule covers (the read-only lane and workspace file edits aside)'
+    case 'strategy':
+      return 'and under strategy the plan approval itself — a shell command that would change anything is refused until the plan is approved'
+    case 'sovereign':
+    case 'autopilot':
+      return `and nothing else under ${mode}: every other call runs under the bypass posture (a deny rule still refuses)`
+    default:
+      return 'and any call no allow rule covers'
+  }
+}
+
+function pushClause(mode: string, verdict: PermissionResult | null): string | null {
+  if (verdict === null) return null
+  const bypass = mode === 'sovereign' || mode === 'autopilot'
+  if (verdict.behavior === 'allow') return `\`git push\` is pre-authorised at boot by the allow rule ${ruleWordsOf(verdict)} and runs without the channel`
+  if (verdict.behavior === 'deny') return `\`git push\` is refused at boot by the deny rule ${ruleWordsOf(verdict)} and is never asked`
+  if (verdict.behavior === 'ask') {
+    if (mode === 'dontAsk') return `\`git push\` is pinned to the operator at boot by the ask rule ${ruleWordsOf(verdict)}, which dontAsk turns into a denial`
+    if (bypass) return `the ask rule ${ruleWordsOf(verdict)} on \`git push\` stands down under the bypass posture`
+    return `\`git push\` is pinned to the operator at boot by the ask rule ${ruleWordsOf(verdict)}`
+  }
+  const unruled = '`git push` is not pre-authorised at boot by the permission rules this seat carries'
+  if (bypass) return `${unruled} and runs under the bypass posture`
+  if (mode === 'dontAsk') return `${unruled} and is denied under dontAsk — ${PUSH_ROADS} lets it run`
+  if (mode === 'strategy') return `${unruled} and is refused until the plan is approved; after that a push waits on the operator unless ${PUSH_ROADS} pre-authorises it`
+  return `${unruled}, so a push waits on the operator — ${PUSH_ROADS} lets it run without the channel`
+}
+
+export function composeOperatorNeedsLine(mode: string | undefined, context: ToolPermissionContext | undefined): string | null {
+  if (context === undefined) return null
+  const road = mode ?? context.mode
+  const push = pushClause(road, pushVerdictAtBoot(context))
+  const tail = push === null ? '' : `; ${push}`
+  if (road === 'dontAsk') {
+    return `- Needs a present operator at boot: nothing travels the channel under dontAsk — every ask, a question to the operator included, is denied${tail}.`
+  }
+  return `- Needs a present operator at boot (the call travels the channel and waits for the client's answer): ${HUMAN_CALLS}, ${modeRoad(road)}${tail}.`
 }
 
 export function isSessionMarkedNonInteractive(): boolean {
@@ -38,6 +113,8 @@ export function getRuntimePostureSection(): string | null {
       '- Session: NON-INTERACTIVE (headless `-p`/stream-json) with a permission channel: a tool call that needs approval is put to the connected client, which answers allow or deny; a question to the operator travels the same channel. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
+    const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
+    if (needs !== null) lines.push(needs)
   } else if (nonInteractive) {
     lines.push(
       '- Session: NON-INTERACTIVE (headless `-p`/stream-json). There is no human at a prompt and no permission channel: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
@@ -87,4 +164,5 @@ export function resetRuntimePostureForTest(): void {
   memo = undefined
   nonInteractive = false
   bootPermissionMode = undefined
+  bootRules = undefined
 }
