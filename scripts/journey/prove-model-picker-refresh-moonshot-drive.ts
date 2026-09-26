@@ -38,7 +38,11 @@ const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? '
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}\\S`).test(frame)
 const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}\\S+ {2,}current`).test(frame)
-const headingOf = (frame: string, title: string): string => (frame.split('\n').find(line => line.includes(title)) ?? '').replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()
+const headingOf = (frame: string, title: string): string => {
+  const line = frame.split('\n').find(row => row.includes(title)) ?? ''
+  const at = line.indexOf(title)
+  return at < 1 ? '' : line.slice(at - 1).split('│')[0]!.trim()
+}
 
 const encode = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 const nowS = Math.floor(Date.now() / 1000)
@@ -123,7 +127,9 @@ for (const [cols, rows] of SIZES) {
     if (!address || typeof address === 'string') throw new Error('fixture has no port')
     const base = `http://127.0.0.1:${address.port}`
     const env: NodeJS.ProcessEnv = {
-      PATH: process.env.PATH, HOME: home, TMPDIR: realpathSync(tmpdir()),
+      PATH: process.env.PATH, HOME: home, TMPDIR: '.',
+      VSHOT_SLOTS: process.env.VSHOT_SLOTS,
+      MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE,
       TERM: 'xterm-256color', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: DEAD, MERCURY_CUSTOM_OAUTH_URL: DEAD,
@@ -180,7 +186,8 @@ for (const [cols, rows] of SIZES) {
     const turn = wire.find(event => event.kind === 'turn')
     const turnAt = turn?.at ?? Infinity
     const atBirth = models.filter(event => event.at < turnAt)
-    const between = models.filter(event => event.at >= turnAt && event.at < openAt)
+    const chatAt = receiptAt('chat')
+    const between = models.filter(event => event.at >= chatAt && event.at < openAt)
     const afterOpen = models.filter(event => event.at >= openAt)
     const headingLine = headingOf(liveFrame, MOONSHOT_TITLE)
     const planRows = [K3_NAME, K3_256K_NAME].filter(name => live(liveFrame, name))
@@ -189,7 +196,7 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: every fixture request carried the sign-in's bearer`, !wire.some(event => event.kind === 'refused'), JSON.stringify(wire.filter(event => event.kind === 'refused')))
     check(`${tag}: the birth read the account's list before the first turn`, atBirth.length >= 1 && atBirth.every(event => event.phase === 'before'), `reads at birth ${atBirth.length}`)
     check(`${tag}: the first turn ran the list's head, ${ALIAS}, on the fixture`, turn?.model === ALIAS && turn.status === 200, JSON.stringify(turn))
-    check(`${tag}: nothing polls the list between the turn and the open`, between.length === 0, `reads ${between.length}`)
+    check(`${tag}: nothing polls the list after the reply paints and before the open`, Number.isFinite(chatAt) && chatAt < openAt && between.length === 0, `reads ${between.length}`)
     check(`${tag}: the open makes exactly one list request before any keypress`, afterOpen.length === 1 && afterOpen[0]!.phase === 'after' && afterOpen[0]!.at <= liveAt, `reads after open ${afterOpen.length} (${afterOpen.map(event => event.phase).join(',')}); liveAt ${liveAt}`)
     check(`${tag}: the picker opened on the session's own row`, opened.includes('Mercury · model') && (!wide || current(opened, ALIAS_NAME)), opened.split('\n').filter(line => line.includes(ALIAS_NAME)).join(' | '))
     check(`${tag}: the Moonshot block is live on open: the plan's K3 rows paint around the current row`, planRows.length >= (wide ? 2 : 1) && current(liveFrame, ALIAS_NAME), liveFrame.split('\n').filter(line => /K3|Kimi/.test(line)).join(' | '))

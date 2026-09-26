@@ -554,6 +554,7 @@ export async function runHeadless(
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   let sessionFactsHoldSpent = false
   let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
+  let recoveredCommandIds: string[] = []
   if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
@@ -674,6 +675,7 @@ export async function runHeadless(
             }
           },
         })
+        recoveredCommandIds = carried.recoveredCommandIds
         logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
       }
     } catch (error) {
@@ -2177,6 +2179,7 @@ export async function runHeadless(
               projectRoot: getProjectRoot(),
               instructionRoots: getAddedDirectories(),
             },
+            recoveredCommandIds,
             queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({
               ...(command.uuid !== undefined ? { uuid: String(command.uuid) } : {}),
               value:

@@ -51,10 +51,9 @@ if (!existsSync(DIST)) {
     { requireAwait: true, minTick: 5, awaitText: 'heard: hello there', awaitSettleTicks: 3, data: `${RELAUNCH_TURN_ASK}\r`, mark: 'answered' },
     { requireAwait: true, minTick: 5, awaitText: AGENT_DESCRIPTION, awaitSettleTicks: 8, data: `${LINE}\r`, mark: 'sent' },
     { requireAwait: true, minTick: 5, awaitText: QUEUED_PLATE, awaitSettleTicks: 1, data: '', mark: 'queued' },
-    { requireAwait: true, minTick: 5, awaitText: RESTART_HINT, awaitSettleTicks: 5, data: '', mark: 'relaunched' },
+    { requireAwait: true, minTick: 5, awaitText: `heard: ${LINE}`, awaitSettleTicks: 5, data: '', mark: 'relaunched' },
     { afterPrevTicks: 50, data: '', mark: 'relaunched+10s' },
-    { afterPrevTicks: 10, data: `${LINE}\r`, mark: 'resent' },
-    { requireAwait: true, minTick: 2, awaitText: `heard: ${LINE}`, awaitSettleTicks: 5, data: '', mark: 'end' },
+    { afterPrevTicks: 10, data: '', mark: 'end' },
     { afterPrevTicks: 50, data: '', mark: 'end+10s' },
   ]
   const hostProfile = WIN && !process.env.WT_SESSION ? { hostProfile: 'wt' } : {}
@@ -106,7 +105,7 @@ if (!existsSync(DIST)) {
   if (existsSync(out)) {
     const payload = JSON.parse(readFileSync(out, 'utf8')) as { marks?: Array<{ label: string; grid: Grid }>; endReason?: string }
     for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
-    check("the capture ended on the re-sent line's answer", payload.endReason === 'ready', String(payload.endReason))
+    check("the capture ended on the recovered line's answer", payload.endReason === 'ready', String(payload.endReason))
   }
   const operatorRows = (frame: string | undefined): string[] =>
     (frame ?? '')
@@ -129,30 +128,28 @@ if (!existsSync(DIST)) {
     const b = secondsOfDay(clockText(ms))
     return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= CLOCK_TOLERANCE_MS / 1000
   }
-  let resentMs: number | null = null
-  let lostCount: number | null = null
+  let sendsAfterKill = 0
+  let traceRead = false
+  let lostCount = 0
   try {
     const trace = readFileSync(join(PTY_HOME, 'connector-trace.jsonl'), 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as { t: number; ev: string; state?: string; reason?: string; count?: number })
-    const lost = trace.find(r => r.ev === 'lost' && r.reason === 'runner-relaunched')
-    if (lost !== undefined) lostCount = lost.count ?? null
-    const sendsAfterKill = trace.filter(r => r.ev === 'send' && killedAtMs !== null && r.t > killedAtMs)
-    if (sendsAfterKill.length > 0) resentMs = sendsAfterKill[0]!.t
+    traceRead = true
+    lostCount = trace.filter(r => r.ev === 'lost' && r.reason === 'runner-relaunched').reduce((count, row) => count + (row.count ?? 0), 0)
+    sendsAfterKill = trace.filter(r => r.ev === 'send' && killedAtMs !== null && r.t > killedAtMs).length
   } catch {
   }
   const queuedRows = operatorRows(marks.queued)
   check('while the sub-agent runs, the line paints once, as a queued row', queuedRows.length === 1 && /(^|[^A-Za-z])queued\s+\[sam\]/.test(queuedRows[0]!), j(queuedRows))
-  check('the connector retired exactly one send as lost with the relaunched runner', lostCount === 1, j(lostCount))
-  check('past the relaunch, ten seconds after its hint, no row carries the line (a row standing here would be the stray)', marks['relaunched+10s'] !== undefined && operatorRows(marks['relaunched+10s']).length === 0, j(operatorRows(marks['relaunched+10s'])))
-  check('at relaunched: the hint names the line as not taken and no row carries the line', hintRows(marks.relaunched).length >= 1 && operatorRows(marks.relaunched).length === 0, j({ hint: hintRows(marks.relaunched), rows: operatorRows(marks.relaunched) }))
-  check('at relaunched+10s: no row carries the line (the hint has had its eight seconds)', marks['relaunched+10s'] !== undefined && operatorRows(marks['relaunched+10s']).length === 0, j(operatorRows(marks['relaunched+10s'])))
-  for (const label of ['end', 'end+10s']) {
+  check('the connector never reports the recovered line as lost and the operator never resends it', traceRead && lostCount === 0 && sendsAfterKill === 0, j({ lostCount, sendsAfterKill }))
+  check('at relaunched: the recovered line paints once and no false not-taken hint asks for a duplicate', operatorRows(marks.relaunched).length === 1 && hintRows(marks.relaunched).length === 0, j({ hint: hintRows(marks.relaunched), rows: operatorRows(marks.relaunched) }))
+  for (const label of ['relaunched+10s', 'end', 'end+10s']) {
     const rows = operatorRows(marks[label])
-    check(`at ${label}: exactly one row carries the line — the re-sent one, stamped with its own send clock (${resentMs === null ? '-' : clockText(resentMs)})`, rows.length === 1 && near(rows[0]!, resentMs), j(rows))
+    check(`at ${label}: exactly one recovered line stands without a not-taken hint`, rows.length === 1 && hintRows(marks[label]).length === 0, j(rows))
   }
   const requests = requestsOf(pfx.wire)
   check("no request of the sub-agent carried the line, before or after the relaunch", requests.filter(r => r.arm === 'subrelaunch').every(r => (r.counts?.[LINE] ?? 0) === 0), j(requests.map(r => [r.n, r.arm, r.step, r.counts?.[LINE]])))
   const carriers = carriersOf(join(PTY_HOME, 'projects'), LINE)
-  check("no sub-agent's transcript holds the line; the session's transcript holds only the re-sent row", carriers.every(inMainFile) && carriers.filter(inMainFile).length === 1 && resentMs !== null && Date.parse(carriers[0]!.occurredAt) >= resentMs - CLOCK_TOLERANCE_MS, briefly(carriers))
+  check("no sub-agent's transcript holds the line; the session persists the recovered row exactly once after the restart", carriers.every(inMainFile) && carriers.filter(inMainFile).length === 1 && killedAtMs !== null && Date.parse(carriers[0]!.occurredAt) >= killedAtMs && near(operatorRows(marks.end)[0] ?? '', Date.parse(carriers[0]!.occurredAt)), briefly(carriers))
   exportWorld('terminal-relaunch', PTY_HOME, { ...Object.fromEntries(Object.entries(marks).map(([label, text]) => [`${label}.txt`, `${text}\n`])), 'capture-stderr.txt': stderr.join(''), 'kill.json': j({ killedAtMs, killedPid, worker }) })
   if (failed() === 0) await removeWorld(PTY_HOME)
   else {

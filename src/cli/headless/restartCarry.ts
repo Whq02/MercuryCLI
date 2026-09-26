@@ -40,7 +40,7 @@ export type RestartCarryPorts = {
   now?: number
 }
 
-export type RestartCarryOutcome = RestartCarryCounts & { requeued: number; row: string | null }
+export type RestartCarryOutcome = RestartCarryCounts & { requeued: number; recoveredCommandIds: string[]; row: string | null }
 
 export function transcriptTailLines(path: string): string[] {
   try {
@@ -68,7 +68,7 @@ function relaunchNoteFor(held: HeldAgentNotice | undefined): string {
   return `${AGENT_RELAUNCH_NOTE} Before the restart, ${held.landedWrites}.`
 }
 
-export function requeueUndeliveredLines(lines: Iterable<string>): number {
+export function requeueUndeliveredLines(lines: Iterable<string>, recoveredCommandIds: string[] = []): number {
   let requeued = 0
   for (const row of undeliveredLines(queueLogRows(lines))) {
     const uuid = (row.uuid ?? randomUUID()) as UUID
@@ -81,6 +81,7 @@ export function requeueUndeliveredLines(lines: Iterable<string>): number {
       ...saturnQueueStamp(row.origin),
     } as QueuedCommand
     enqueue(command)
+    recoveredCommandIds.push(uuid)
     requeued++
   }
   return requeued
@@ -88,10 +89,11 @@ export function requeueUndeliveredLines(lines: Iterable<string>): number {
 
 export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promise<RestartCarryOutcome> {
   const lines = transcriptTailLines(ports.transcriptPath ?? getTranscriptPath())
-  const requeued = requeueUndeliveredLines(lines)
+  const recoveredCommandIds: string[] = []
+  const requeued = requeueUndeliveredLines(lines, recoveredCommandIds)
   const orphans = orphanedBackgroundLaunches(ports.messages, new Set(Object.keys(ports.getAppState().tasks ?? {})))
   if (orphans.length === 0) {
-    return { relaunched: 0, delivered: 0, stopped: 0, requeued, row: null }
+    return { relaunched: 0, delivered: 0, stopped: 0, requeued, recoveredCommandIds, row: null }
   }
   const now = ports.now ?? Date.now()
   const noticed = queuedNoticeIds(ports.messages)
@@ -147,5 +149,5 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
     if (notice.status !== 'killed') emitTaskTerminatedSdk(receipt.agentId, notice.status, { toolUseId: receipt.toolUseId, summary: receipt.description })
     enqueuePendingNotification({ value: notice.value, mode: 'task-notification', priority: 'next', ...(notice.at !== undefined ? { sentAt: notice.at } : {}) })
   }
-  return { ...counts, requeued, row }
+  return { ...counts, requeued, recoveredCommandIds, row }
 }

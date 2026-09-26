@@ -273,7 +273,7 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
     server.listen(port, '127.0.0.1', () => resolveListen())
   })
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`,
     hits,
     state,
     close: () => new Promise<void>(resolveClose => server.close(() => resolveClose())),
@@ -447,7 +447,7 @@ const KEEP = process.env.OVERLOAD_DRIVE_KEEP === '1'
 const { home, cwd } = seedWorld()
 const laneCwd = GONE_CWD ? join(cwd, 'helper') : undefined
 if (laneCwd !== undefined) mkdirSync(laneCwd)
-const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 25311), laneCwd)
+const fixture = await startFixture(Number(process.env.OVERLOAD_DRIVE_PORT ?? 0), laneCwd)
 const FRAMES = 30
 const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },

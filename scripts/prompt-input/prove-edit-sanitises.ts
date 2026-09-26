@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
-const SCRATCH = mkdtempSync(join(process.env.TMPDIR ?? '/private/tmp/mw', 'edit-sanitises-'))
+const SCRATCH = mkdtempSync(join(tmpdir(), 'edit-sanitises-'))
 process.env.MERCURY_CONFIG_DIR = SCRATCH
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 

@@ -62,7 +62,11 @@ section('§B owner liveness is the heartbeat — a recycled pid cannot hold a ru
     recordedOwnerAlive({ status: 'running' }, NOW - 5_000, NOW) === true)
   check('running + stale heartbeat ⇒ the recorded owner is gone',
     recordedOwnerAlive({ status: 'running' }, NOW - RUN_MANIFEST_STALE_MS - 1_000, NOW) === false)
-  check('a settled run has no live owner', recordedOwnerAlive({ status: 'paused' }, NOW, NOW) === false)
+  check('a paused run keeps its live owner while its heartbeat is fresh', recordedOwnerAlive({ status: 'paused' }, NOW - 5_000, NOW) === true)
+  check('a paused run loses its owner when its heartbeat is stale', recordedOwnerAlive({ status: 'paused' }, NOW - RUN_MANIFEST_STALE_MS - 1_000, NOW) === false)
+  for (const status of ['completed', 'completed_with_failures', 'failed', 'killed'] as const) {
+    check(`a ${status} run has no live owner even with a fresh heartbeat`, recordedOwnerAlive({ status }, NOW, NOW) === false)
+  }
 
   const dir = mkdtempSync(join(tmpdir(), 'run-ownership-resume-'))
   writeFileSync(join(dir, 'workflow.js'), "export const meta={name:'x',description:'y'}\nreturn 1\n")

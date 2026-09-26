@@ -131,9 +131,9 @@ function drive(tag: string, home: string, port: number, sends: unknown[], total:
 
 const lines = (screen: string, needle: string): string => screen.split('\n').filter(l => l.includes(needle)).join(' · ')
 const groupLine = (screen: string, heading: string): string => {
-  const ls = screen.split('\n')
-  const at = ls.findIndex(l => l.includes(heading))
-  return at >= 0 ? (ls[at + 1] ?? '') : ''
+  const line = screen.split('\n').find(row => row.includes(heading)) ?? ''
+  const at = line.indexOf(heading)
+  return at < 0 ? '' : line.slice(at).split('│')[0]!.trim()
 }
 const ledgerHits = (ledger: string): number =>
   existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.includes('GET /models')).length : 0
@@ -157,8 +157,7 @@ const seededHome = (name: string, settings?: Record<string, unknown>): string =>
 
 const PICKER_REGION = [0, 0, 64, 40]
 const ESC = '\x1b'
-const END = '\x1b[F'
-const UP = '\x1b[A'
+const DOWN = '\x1b[B'
 const openSends: unknown[] = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
   { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
@@ -182,9 +181,9 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   daemonDirs.push(join(scratch, 'daemon-live'))
   const res = drive('live', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: END },
-    { requireAwait: true, awaitText: 'Deepseek Fixture Next', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'live', data: UP + UP },
-    { requireAwait: true, awaitText: 'deepseek-flash · model IDs', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'flash', data: ESC },
+    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
+    { requireAwait: true, awaitText: 'deepseek-fixture-next', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'live', data: DOWN },
+    { requireAwait: true, awaitText: '│ │ DeepSeek V4.1', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'flash', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 220)
   fixture.stop()
@@ -192,12 +191,19 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   const live = res.marks.get('live') ?? ''
   const flash = res.marks.get('flash') ?? ''
   check('live: the fixture answered the model list at least once (the ledger)', ledgerHits(ledger) >= 1, `hits ${ledgerHits(ledger)}`)
-  check('live: the two pinned rows paint with their pin labels', live.includes('DeepSeek V4 Pro') && live.includes('DeepSeek V4.1 Flash'), lines(live, 'DeepSeek'))
-  check('live: the unpinned live id paints with its mechanical name, after the pinned rows', live.indexOf('Deepseek Fixture Next') > live.indexOf('DeepSeek V4.1 Flash'), lines(live, 'Deepseek'))
-  check("live: the unpinned row paints the conservative window Mercury budgets for an unrecorded id (200k), never a pin's", lines(live, 'Deepseek Fixture Next').includes('200k ctx') && !lines(live, 'Deepseek Fixture Next').includes('1M ctx'), lines(live, 'Deepseek Fixture Next'))
-  check('live: the pinned rows keep their pinned window', lines(live, 'DeepSeek V4 Pro                ').includes('1M ctx') || lines(live, '│ DeepSeek V4 Pro').includes('1M ctx'), lines(live, 'DeepSeek V4 Pro'))
-  check('live: the group line names the key and no frontier row stands under any heading', groupLine(live, 'DEEPSEEK MODELS').includes('key present') && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK MODELS'))
-  check('live: the Flash row persists the current id (deepseek-flash on the id line)', flash.includes('deepseek-flash · model IDs'), lines(flash, 'model IDs'))
+  const proRow = lines(live, 'deepseek-v4-pro')
+  const flashRow = lines(live, 'deepseek-flash')
+  const nextRow = lines(live, 'deepseek-fixture-next')
+  check('live: the two pinned labels keep their exact ids beside the clipped names', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(proRow) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(flashRow), proRow + '\n' + flashRow)
+  check('live: the unpinned live id paints with its clipped mechanical name after both pins',
+    live.includes('deepseek-v4-pro') && live.includes('deepseek-flash') && live.includes('deepseek-fixture-next') &&
+    /Deepseek Fixture …\s+deepseek-fixture-next/.test(nextRow) &&
+    live.indexOf('deepseek-fixture-next') > live.indexOf('deepseek-flash') &&
+    live.indexOf('deepseek-flash') > live.indexOf('deepseek-v4-pro'), nextRow)
+  check('live: the unrecorded id states no provider context window rather than presenting an internal budget as a provider fact', nextRow !== '' && !/\d+[kM]? ctx/.test(nextRow), nextRow)
+  check('live: both pinned rows keep their pinned window', proRow.includes('1M ctx') && flashRow.includes('1M ctx'), proRow + '\n' + flashRow)
+  check('live: the group line names the key and three live rows, never a frontier row', /DEEPSEEK · API key · …0001 · 3 live$/.test(groupLine(live, 'DEEPSEEK ·')) && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK ·'))
+  check('live: the focused Flash row keeps its exact current id beside its pin label', /│ │ DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(lines(flash, 'deepseek-flash')), lines(flash, 'deepseek-flash'))
   check('live: the retired id is nowhere on the screen', !live.includes('deepseek-v4-flash') && !flash.includes('deepseek-v4-flash'))
   dumpOnRed('live', before, res)
 }
@@ -211,18 +217,18 @@ console.log('\n[2] the pins stand in: the fixture refuses the list (HTTP 503)')
   daemonDirs.push(join(scratch, 'daemon-refuse'))
   const res = drive('refuse', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: END },
-    { requireAwait: true, awaitText: '│ │ Custom endpoint', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'rows', data: UP + UP },
-    { requireAwait: true, awaitText: 'deepseek-v4-pro · model IDs', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'pro', data: ESC },
+    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'open', data: '' },
+    { requireAwait: true, awaitText: 'deepseek-flash', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'rows', data: '' },
+    { requireAwait: true, awaitText: '│ │ DeepSeek V4 Pro', awaitStableTicks: 2, awaitStableRegion: PICKER_REGION, mark: 'pro', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 200)
   fixture.stop()
   check('refuse: the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${res.stderr.slice(-300)}`)
   const rows = res.marks.get('rows') ?? ''
   check('refuse: the list was asked for (the ledger records the refused request)', ledgerHits(ledger) >= 1, `hits ${ledgerHits(ledger)}`)
-  check('refuse: the two dated pins stand in', rows.includes('DeepSeek V4 Pro') && rows.includes('DeepSeek V4.1 Flash'), lines(rows, 'DeepSeek'))
-  check('refuse: no fixture row is invented', !rows.includes('Deepseek Fixture Next'))
-  check(`refuse: the group line names the key alone — no frontier row, no date (${PIN_DATE}), no live count`, groupLine(rows, 'DEEPSEEK MODELS').includes('key present') && !rows.includes('frontier:') && !groupLine(rows, 'DEEPSEEK MODELS').includes(PIN_DATE) && !groupLine(rows, 'DEEPSEEK MODELS').includes('models live'), groupLine(rows, 'DEEPSEEK MODELS'))
+  check('refuse: the two dated pins stand in with their exact ids and windows', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(rows) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(rows) && lines(rows, 'deepseek-v4-pro').includes('1M ctx') && lines(rows, 'deepseek-flash').includes('1M ctx'), lines(rows, 'DeepSeek'))
+  check('refuse: no fixture row is invented', !rows.includes('deepseek-fixture-next'))
+  check(`refuse: the group names the key and its two selectable pins, never a frontier row or date (${PIN_DATE})`, /DEEPSEEK · API key · …0001 · 2 live$/.test(groupLine(rows, 'DEEPSEEK ·')) && !rows.includes('frontier:') && !groupLine(rows, 'DEEPSEEK ·').includes(PIN_DATE), groupLine(rows, 'DEEPSEEK ·'))
   dumpOnRed('refuse', before, res)
 }
 
@@ -235,14 +241,14 @@ console.log('\n[3] the alias: a saved deepseek-v4-flash setting opens on the Fla
   daemonDirs.push(join(scratch, 'daemon-alias'))
   const res = drive('alias', home, fixture.port, [
     ...openSends,
-    { requireAwait: true, awaitText: '│ │ DeepSeek V4.1 Flash', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'alias', data: ESC },
+    { requireAwait: true, awaitText: '│ │ DeepSeek V4.1', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'alias', data: ESC },
     { afterPrevTicks: 3, data: '' },
   ], 160)
   fixture.stop()
   check('alias: the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${res.stderr.slice(-300)}`)
   const alias = res.marks.get('alias') ?? ''
-  check('alias: the picker opens on the Flash row, marked current', lines(alias, 'DeepSeek V4.1 Flash').includes('current'), lines(alias, 'DeepSeek V4.1 Flash'))
-  check('alias: the id line paints the current id (deepseek-flash), never the retired one', alias.includes('deepseek-flash · model IDs') && !alias.includes('deepseek-v4-flash'), lines(alias, 'model IDs'))
+  check('alias: the picker opens on the focused Flash row, marked current', /│ │ DeepSeek V4\.1 Fla…\s+deepseek-flash\s+current/.test(lines(alias, 'deepseek-flash')), lines(alias, 'deepseek-flash'))
+  check('alias: the row paints the current id (deepseek-flash), never the retired one', /DeepSeek V4\.1 Fla…\s+deepseek-flash\s/.test(alias) && !alias.includes('deepseek-v4-flash'), lines(alias, 'deepseek-flash'))
   check('alias: the saved setting still holds the retired spelling (nothing rewritten on open)', readFileSync(join(home, 'settings.json'), 'utf8').includes('deepseek-v4-flash'))
   dumpOnRed('alias', before, res)
 }

@@ -33,17 +33,20 @@ function renderScenario(name: string, cols: number, rows: number): string[] {
   return gridLines(join(scratch, `${name}-${cols}x${rows}.json`))
 }
 
-t.section(`§1 — the modal family closes inside the floor viewport (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the full tier)`)
+t.section(`§1 — the modal family closes inside the view (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the compact popup)`)
 {
   const lines = renderScenario('model-picker-home', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const all = lines.join('\n')
   const closes = lines.some(l => l.trimStart().startsWith('╰'))
   if (!closes) lines.forEach((l, i) => console.log(`      grid[${String(i).padStart(2, '0')}] ${JSON.stringify(l)}`))
   t.check('the card CLOSES: a bottom border row is on screen', closes, lines[lines.length - 1] ?? '(empty)')
-  t.check('selection survives as the focused row\'s frame (the full tier)', lines.some(l => /│\s*╭/.test(l)), lines.find(l => /│\s*╭/.test(l)) ?? '(no framed row)')
+  const focused = lines.filter(l => /│\s*❯\s+\S.+\bcurrent\b/.test(l))
+  t.check('selection survives as one current row with a caret inside the view-bounded compact popup', focused.length === 1, focused.join('\n') || '(no current row with a caret)')
+  const roomy = renderScenario('model-picker-home', 120, 40)
+  t.check('a roomy view keeps the focused row frame and the current marker', roomy.some(l => /│\s*╭/.test(l)) && roomy.some(l => /\bcurrent\b/.test(l)), roomy.join('\n'))
   t.check('the cut is NAMED', /↓ \d+ more/.test(all), lines.find(l => l.includes('more')) ?? '(no counter)')
   t.check('the footer keeps its close hint', /esc (?:or click outside )?closes/.test(all), lines.find(l => l.includes('esc')) ?? '(no footer)')
-  t.check('the title STAYS: the floor holds the full tier (the plain "Mercury · model" line and a provider heading)', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all), lines.find(l => l.includes('Mercury · model')) ?? '(no title row)')
+  t.check('the title STAYS inside the compact view (the plain "Mercury · model" line and a provider heading)', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all), lines.find(l => l.includes('Mercury · model')) ?? '(no title row)')
 }
 
 t.section(`§2 — the inline REPL keeps its input line at the floor (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the frame whole)`)

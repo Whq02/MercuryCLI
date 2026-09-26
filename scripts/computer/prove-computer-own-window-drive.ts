@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { actLog, check, drive, endLeg, finish, netlines, nonLoopback, OPENING, printFrame, requireCaptureDriver, scratch, section, SIZES, startLeg } from './computerDriveKit.ts'
 
@@ -6,8 +6,9 @@ const driver = requireCaptureDriver('computer-drives')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg < 0 ? undefined : resolve(process.argv[framesArg + 1]!)
 if (frames) mkdirSync(frames, { recursive: true })
-const cwd = join(scratch, 'project')
-mkdirSync(cwd)
+const project = join(scratch, 'project')
+mkdirSync(project)
+const cwd = realpathSync(project)
 const own = { identity: 'com.example.Terminal', name: 'Terminal', pid: 4100, title: 'mercury', windowId: '101', bounds: { x: 0, y: 700, width: 1440, height: 200 } }
 const sibling = { ...own, title: 'shell', windowId: '102', bounds: { x: 0, y: 0, width: 800, height: 600 } }
 const other = { identity: 'com.example.TextEdit', name: 'TextEdit', pid: 4200, title: 'Document', bounds: sibling.bounds }

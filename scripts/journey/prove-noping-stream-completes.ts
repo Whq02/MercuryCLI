@@ -88,7 +88,7 @@ const cfg = {
   argv: ['node', DIST],
   cwd: FIXTURE_CWD,
   sends: [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'stream the plan\r' },
   ],
   readyText: ['re-arm it instantly'],

@@ -457,7 +457,7 @@ for (const journey of JOURNEYS) {
     const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_MID}`)
     check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     check(`${tag}: an event line stands beneath the plate, not under a caret`, runFrames(frames, r => plate(r) && r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
-    check(`${tag}: the queued dress precedes the plate while the runner's queue holds the notice`, rowFrames(frames, r => r.startsWith('queued') && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
+    check(`${tag}: the held dress and arrival clock precede the plate while the runner's queue holds the notice`, rowFrames(frames, r => /^held\s+since \d{2}:\d{2}:\d{2}\s/.test(r) && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
     check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'notice-between-turns') {

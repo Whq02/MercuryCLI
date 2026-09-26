@@ -45,6 +45,7 @@ export interface SessionFactsAnswerV1 {
   effortSent?: string | null
   workspace: WorkspaceFactsV1
   queue: QueuedFactV1[]
+  recoveredCommandIds?: string[]
   work?: WorkRowV1[]
   mission?: MissionRowV1[]
   samples?: SampleRowV1[]

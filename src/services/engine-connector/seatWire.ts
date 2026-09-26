@@ -182,6 +182,7 @@ const CATALOGUE: KeyTable = {
   fetchedAtMs: 'fetched_at_ms',
 }
 const FACTS: KeyTable = {
+  recoveredCommandIds: 'recovered_command_ids',
   permissionMode: 'permission_mode',
   effortSent: 'effort_sent',
   pendingScheduleEdits: 'pending_schedule_edits',
@@ -334,7 +335,8 @@ export function sessionFactsFromWire(raw: unknown): SessionFactsAnswerV1 | null 
     !Array.isArray(raw.mcp) ||
     typeof raw.permission_mode !== 'string' ||
     !isRow(workspace) ||
-    !Array.isArray(raw.queue)
+    !Array.isArray(raw.queue) ||
+    (raw.recovered_command_ids !== undefined && (!Array.isArray(raw.recovered_command_ids) || raw.recovered_command_ids.some(id => typeof id !== 'string')))
   ) {
     return null
   }

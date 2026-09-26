@@ -64,7 +64,9 @@ for (const [cols, rows] of SIZES) {
     const env: NodeJS.ProcessEnv = {
       PATH: process.env.PATH,
       HOME: home,
-      TMPDIR: process.env.TMPDIR,
+      TMPDIR: '.',
+      VSHOT_SLOTS: process.env.VSHOT_SLOTS,
+      MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE,
       TERM: 'xterm-256color', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
@@ -89,7 +91,9 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: 'sol answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
       { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', minTick: 1, awaitSettleTicks: 1, data: '', mark: 'cached' },
-      { afterPrevTicks: 60, awaitText: 'GPT — the live list changed', awaitSettleTicks: 2, data: '', mark: 'refreshed' },
+      { afterPrevTicks: 60, awaitText: 'GPT — the live list changed', awaitSettleTicks: 2, data: '\x1b[A', mark: 'refreshed' },
+      { requireAwait: true, awaitText: 'gpt-6-astra', awaitSettleTicks: 3, data: '\x1b[B\x1b[B', mark: 'new-row' },
+      { requireAwait: true, awaitText: 'gpt-5.6-terra', awaitSettleTicks: 3, data: '\x1b', mark: 'retired-row' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST, '--model', 'gpt-5.6-sol'], cwd, cols, rows, total: 450, stableTicks: 4, sends, out }))
     const status = await new Promise<number>((resolveCapture, reject) => {
@@ -104,6 +108,10 @@ for (const [cols, rows] of SIZES) {
     const refreshed = payload.marks?.find(mark => mark.label === 'refreshed')
     const before = cached ? text(cached.grid) : ''
     const after = refreshed ? text(refreshed.grid) : text(payload.grid)
+    const newRowMark = payload.marks?.find(mark => mark.label === 'new-row')
+    const retiredRowMark = payload.marks?.find(mark => mark.label === 'retired-row')
+    const newRow = newRowMark ? text(newRowMark.grid) : ''
+    const retiredRow = retiredRowMark ? text(retiredRowMark.grid) : ''
     if (FRAMES) {
       writeFileSync(join(FRAMES, `${tag}-cached.txt`), before + '\n')
       writeFileSync(join(FRAMES, `${tag}-refreshed.txt`), after + '\n')
@@ -122,9 +130,10 @@ for (const [cols, rows] of SIZES) {
     const landed = wire.find(event => event.kind === 'models-landed' && event.at > openAt)
     check(`${tag}: the cached rows paint before the delayed refresh`, liveTerra(before) && !liveAstra(before) && (landed === undefined || cachedAt < landed.at))
     check(`${tag}: opening makes exactly one background models request within the cache span`, refreshes.length === 1 && refreshes[0]!.at >= openAt && refreshes[0]!.at - turn!.at < 300_000, `refresh requests ${refreshes.length}`)
-    check(`${tag}: the new rows replace the old live rows in place`, liveAstra(after) && !liveTerra(after), after)
+    check(`${tag}: the refreshed live row is reachable and the retired row is unavailable in the same popup`, liveAstra(newRow) && !liveTerra(retiredRow) && /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}unavailable/.test(retiredRow), newRow + '\n' + retiredRow)
     check(`${tag}: focus stays on Sol after its row moves`, /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after) || /❯ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after))
-    if (rows >= 20 && after.includes('Mercury · model')) check(`${tag}: the existing notice names the changed list`, after.includes('GPT — the live list changed'))
+    if (cols >= 100 && rows >= 26) check(`${tag}: the roomy popup notice names the changed list`, after.includes('GPT — the live list changed'))
+    else check(`${tag}: the compact popup sheds the notice without losing the current row`, !after.includes('GPT — the live list changed') && /gpt-5\.6-sol\s+current/.test(after))
   } finally {
     fixture.kill('SIGTERM')
   }
