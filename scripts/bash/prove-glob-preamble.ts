@@ -21,7 +21,7 @@ const zshPre = getGlobPreambleCommand('/bin/zsh')
 const bashPre = getGlobPreambleCommand('/bin/bash')
 t(
   'zsh branch carries NO_NOMATCH and keeps NO_EXTENDED_GLOB (security invariant)',
-  zshPre === 'setopt NO_EXTENDED_GLOB NO_NOMATCH 2>/dev/null || true',
+  zshPre === 'setopt NO_EXTENDED_GLOB NO_NOMATCH SH_WORD_SPLIT 2>/dev/null || true',
   String(zshPre),
 )
 t(
@@ -37,7 +37,7 @@ delete process.env.MERCURY_SHELL_PREFIX
 t(
   'shell-prefix both-shells leg carries NO_NOMATCH on the setopt (zsh-only) side',
   prefixPre ===
-    '{ shopt -u extglob || setopt NO_EXTENDED_GLOB NO_NOMATCH; } >/dev/null 2>&1 || true',
+    '{ shopt -u extglob || setopt NO_EXTENDED_GLOB NO_NOMATCH SH_WORD_SPLIT; } >/dev/null 2>&1 || true',
   String(prefixPre),
 )
 
