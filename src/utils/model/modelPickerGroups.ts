@@ -148,6 +148,14 @@ function doorLines<T extends PickerRow>(group: PickerGroup<T>, rows: readonly T[
   return out
 }
 
+function reachOfGroup<T extends PickerRow>(group: PickerGroup<T>, fullRows: (group: string) => T[] | undefined): readonly T[] {
+  return group.door !== undefined ? (fullRows(group.group) ?? group.rows) : group.rows
+}
+
+export function pickerReachTotal<T extends PickerRow>(groups: readonly PickerGroup<T>[], fullRows: (group: string) => T[] | undefined): number {
+  return groups.reduce((sum, group) => sum + reachOfGroup(group, fullRows).filter(isModelRow).length, 0)
+}
+
 export function composePickerLines<T extends PickerRow>(
   groups: readonly PickerGroup<T>[],
   folds: Record<string, FoldState>,
@@ -157,7 +165,7 @@ export function composePickerLines<T extends PickerRow>(
   const out: PickerLine<T>[] = []
   const filtering = filter.trim() !== ''
   for (const group of groups) {
-    const reachOf = (): readonly T[] => (group.door !== undefined ? (fullRows(group.group) ?? group.rows) : group.rows)
+    const reachOf = (): readonly T[] => reachOfGroup(group, fullRows)
     if (filtering) {
       const pool = [...group.rows.filter(row => !isModelRow(row) && row.expand === undefined), ...reachOf().filter(isModelRow)]
       const matches = pool.filter(row => matchesPickerFilter(row, filter))
@@ -239,7 +247,7 @@ export function headingWords(
 ): string {
   const name = heading?.name ?? providerNameOfGroup(group)
   const count = countWords(counts.live, counts.matched, counts.total)
-  if (heading === undefined) return `${name} · ${count}`
+  if (heading === undefined) return counts.live === 0 && counts.matched === undefined ? name : `${name} · ${count}`
   const parts = [name]
   if (heading.doors.length === 1) {
     const [door] = heading.doors

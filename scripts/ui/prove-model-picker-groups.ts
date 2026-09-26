@@ -331,8 +331,8 @@ section('§7 the wrapper: a row under the door that is not the wire\'s active sl
 {
   const wrapper = await Bun.file(new URL('../../src/commands/model/mercuryModel.tsx', import.meta.url)).text()
   check('the select reads the row\'s door against the heading\'s active door', wrapper.includes("const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)"))
-  check('the flip rides the one slot-switch owner (the same road as s)', wrapper.includes('const slotReceipt = otherDoor ? handleSlotSwitch(ANTHROPIC_MODEL_GROUP) : null') && wrapper.includes('const outcome = switchActiveSlot(family)'))
-  check('the switch sentence carries the slot receipt on every apply road', (wrapper.match(/\$\{lossNote\}\$\{slotNote\}/g) ?? []).length === 4 && wrapper.includes('applySelection(held.value, held.id, held.slotNote)'))
+  check('the flip rides the one slot-switch owner (the same road as s)', wrapper.includes('const receipt = handleSlotSwitch(ANTHROPIC_MODEL_GROUP)') && wrapper.includes('const outcome = switchActiveSlot(family)'))
+  check('the switch sentence carries the slot receipt on every apply road', (wrapper.match(/\$\{lossNote\}\$\{slotNote\}/g) ?? []).length === 4 && wrapper.includes('applySelection(held.value, held.id, held.pick)'))
   check('the use record lands on the apply roads, never on a turn', (wrapper.match(/noteModelUse\(/g) ?? []).length >= 3 && !wrapper.includes('noteModelUse(servedModel'))
 }
 
