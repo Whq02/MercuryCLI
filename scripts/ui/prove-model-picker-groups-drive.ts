@@ -27,6 +27,11 @@ const TAB = '\t'
 const LLAMA_ID = 'openrouter/meta-llama/llama-5-405b-instruct'
 const LLAMA_STEM = 'openrouter/meta-llama/llama-5'
 const LLAMA_NAME = 'Meta: Llama 5 405B Instruct'
+const GROWN_ID = 'nvidia/nemotron-3-ultra:free'
+const CHANGED_NOTICE = 'OpenRouter — the live list changed; rows updated'
+const DRAFT = 'the quick brown fox'
+const PICKER_CHORD = '\x18j'
+const CLICK_OUTSIDE = '\x1b[<0;90;43M\x1b[<0;90;43m'
 const KEEP = process.env.MODEL_PICKER_GROUPS_KEEP === '1'
 
 let failures = 0
@@ -50,7 +55,7 @@ function childEnv(home: string, openrouterBase: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ANTHROPIC_API_KEY: KEY,
-    OPENROUTER_API_KEY,
+    OPENROUTER_API_KEY: OPENROUTER_KEY,
     MERCURY_CRITTER: 'clam',
     MERCURY_CONFIG_DIR: home,
     MERCURY_CREDENTIAL_STORE: 'file',
@@ -101,6 +106,7 @@ function seededHome(tag: string): string {
   const home = join(ROOT, `home-${tag}`)
   seedFirstRun(home, [CWD])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'keybindings.json'), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+x j': 'command:model' } }] }))
   writeFileSync(
     join(home, 'critter-profile.json'),
     JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),
@@ -151,7 +157,7 @@ if (!existsSync(BIN)) {
 }
 
 section('the picker on the built product: open · filter · fold · switch · a second session sees the top group change')
-const fixture = spawn(process.execPath, ['run', FIXTURE, '0'], { stdio: ['ignore', 'pipe', 'pipe'] })
+const fixture = spawn(process.execPath, ['run', FIXTURE, '0', '2'], { stdio: ['ignore', 'pipe', 'pipe'] })
 try {
   const port = await new Promise<number>((resolvePort, reject) => {
     const timer = setTimeout(() => reject(new Error('the OpenRouter fixture did not print PORT')), vshotBudgetMs(15_000))
@@ -196,14 +202,24 @@ try {
     { requireAwait: true, awaitText: '/ llama', awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: `Set model to ${LLAMA_NAME}`, awaitStableTicks: 3, mark: 'switched', data: '' },
     ...openPicker,
-    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: ESC },
-    { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, data: SHIFT_LEFT },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '/' },
+    { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: '(' },
+    { requireAwait: true, awaitText: '/ (', awaitStableTicks: 3, mark: 'metacharacter', data: ESC },
+    { requireAwait: true, awaitText: 'filter by name or id', awaitStableTicks: 2, data: ESC },
+    { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, data: DRAFT },
+    { requireAwait: true, awaitText: DRAFT, awaitStableTicks: 2, data: PICKER_CHORD[0]! },
+    { afterPrevTicks: 2, data: PICKER_CHORD[1]! },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'draft-open', data: CLICK_OUTSIDE },
+    { afterPrevTicks: 12, mark: 'draft-closed', data: ESC },
+    { afterPrevTicks: 2, data: ESC },
+    { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, data: SHIFT_LEFT },
     { requireAwait: true, awaitText: 'STATUS & TITLE', awaitStableTicks: 3, data: '' },
     ...birth,
     ...openPicker,
-    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'second', data: ESC },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'second', data: '' },
+    { afterPrevTicks: 8, mark: 'refreshed', data: ESC },
     { afterPrevTicks: 4, data: '' },
-  ], { total: 900, ready: ['esc focused chat', 'Type a prompt'] })
+  ], { total: 1100, ready: ['esc focused chat', 'Type a prompt'] })
   if (FRAMES !== undefined) {
     mkdirSync(FRAMES, { recursive: true })
     for (const [mark, lines] of c.marks) writeFileSync(join(FRAMES, `groups-178x51-${mark}.txt`), lines.join('\n') + '\n')
@@ -215,7 +231,11 @@ try {
   const unfolded = c.marks.get('unfolded') ?? []
   const switched = c.marks.get('switched') ?? []
   const reopened = c.marks.get('reopened') ?? []
+  const metacharacter = c.marks.get('metacharacter') ?? []
+  const draftOpen = c.marks.get('draft-open') ?? []
+  const draftClosed = c.marks.get('draft-closed') ?? []
   const second = c.marks.get('second') ?? []
+  const refreshed = c.marks.get('refreshed') ?? []
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   check('the picker opens with the plain title and no CHOOSE A MODEL line', open.some(l => innerOf(l) === 'Mercury · model') && !open.some(l => l.includes('CHOOSE A MODEL')), open.slice(2, 6).map(innerOf).join(' | '))
   check("the seat's own provider leads: ANTHROPIC · API key · its tail · N live, its current row boxed", /^▾ ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(open, 'ANTHROPIC')) && headingRow(open, 'ANTHROPIC') < headingRow(open, 'OPENROUTER') && /\S.* {2,}claude-\S+ {2,}current {2,}/.test(boxedRow(open)), `${headingOf(open, 'ANTHROPIC')} · ${boxedRow(open)}`)
@@ -229,6 +249,13 @@ try {
   check('↵ on the filtered row switches the session: the receipt names the row', switched.some(l => l.includes(`Set model to ${LLAMA_NAME}`)), switched.filter(l => l.includes('Set model')).map(innerOf).join(' | '))
   check('re-opened from the session now on an OpenRouter model: OPENROUTER leads, its row current, ANTHROPIC after it', headingRow(reopened, 'OPENROUTER') >= 0 && headingRow(reopened, 'OPENROUTER') < headingRow(reopened, 'ANTHROPIC') && /\S.* {2,}openrouter\/meta-llama\/llama-5\S* {2,}current {2,}/.test(rowOf(reopened, LLAMA_STEM) || boxedRow(reopened)), `${headingOf(reopened, 'OPENROUTER')} · ${boxedRow(reopened)}`)
   check("a second session on the default: ANTHROPIC leads again (the seat's own), OPENROUTER next by most recent use, OPENAI after it in today's order", headingRow(second, 'ANTHROPIC') >= 0 && headingRow(second, 'ANTHROPIC') < headingRow(second, 'OPENROUTER') && headingRow(second, 'OPENROUTER') < headingRow(second, 'OPENAI'), `${headingRow(second, 'ANTHROPIC')} / ${headingRow(second, 'OPENROUTER')} / ${headingRow(second, 'OPENAI')}`)
+  check('a regex metacharacter in the filter is text: "(" matches nothing and the header counts the whole reach, never 0 of 0', metacharacter.some(l => /Mercury · model · 0 of [1-9]\d* match/.test(l)) && !metacharacter.some(l => l.includes('0 of 0 match')) && metacharacter.some(l => innerOf(l) === '/ ('), metacharacter.filter(l => l.includes('Mercury · model') || l.includes('/ (')).map(innerOf).join(' | '))
+  const composerOf = (lines: string[]): string => (lines.find(l => l.includes('│❯ ')) ?? '').replace(/^.*?│❯ /, '').replace(/\s*│?\s*$/, '').trim()
+  check('the picker opened by the chord over a typed draft and the draft stays under it', draftOpen.some(l => innerOf(l) === 'Mercury · model') && composerOf(draftOpen).startsWith(DRAFT), `composer "${composerOf(draftOpen)}"`)
+  check('a click outside the picker closes it and leaves the draft exactly as typed', !draftClosed.some(l => l.includes('Mercury · model')) && draftClosed.some(l => l.includes('Kept model as')) && composerOf(draftClosed) === DRAFT, `composer "${composerOf(draftClosed)}"`)
+  const laterOpens = [reopened, metacharacter, draftOpen, second, refreshed]
+  check('the refresh on a later open re-reads the list and repaints in place: the changed-list notice names OpenRouter on the open that first saw the grown list', laterOpens.some(frame => frame.some(l => l.includes(CHANGED_NOTICE))), laterOpens.map(frame => frame.filter(l => l.includes('live list')).map(innerOf).join(' | ') || '-').join(' / '))
+  check('the last open lists the grown id as a row and its heading counts six', refreshed.some(l => l.includes(GROWN_ID)) && /^[▾▸❯] OPENROUTER · API key · …\S+ · 6 live$/.test(headingOf(refreshed, 'OPENROUTER')), `${headingOf(refreshed, 'OPENROUTER')} · ${refreshed.filter(l => l.includes(GROWN_ID)).map(innerOf).join(' | ')}`)
   const ledger = join(home, '.model-use.json')
   check('the use record landed under the config home and names the OpenRouter switch', existsSync(ledger) && (JSON.parse(readFileSync(ledger, 'utf8')) as { uses?: Record<string, { model?: string }> }).uses?.openrouter?.model === LLAMA_ID, existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
 } finally {

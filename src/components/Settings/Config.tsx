@@ -10,6 +10,7 @@ import React, {
 import { basename } from 'node:path'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
+import { ModalContext } from '../../context/modalContext.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { escapeFromOutsidePress } from '../../ink/recessLayer.js'
 import wrapText from '../../ink/wrap-text.js'
@@ -1320,6 +1321,7 @@ export function Config({
   if (subMenu === 'teammate-model') {
     const current = config.teammateDefaultModel
     return (
+      <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
       <MercuryModelChoicePicker
         leading={[TEAMMATE_DEFAULT_ROW, TEAMMATE_LEADER_ROW]}
         current={current === undefined || current === TEAMMATE_DEFAULT_ROW.id ? TEAMMATE_DEFAULT_ROW.id : current === null || current === TEAMMATE_LEADER_ROW.id ? TEAMMATE_LEADER_ROW.id : modelChoiceRow(current)}
@@ -1339,10 +1341,12 @@ export function Config({
         onSignIn={signInFromDoor}
         onClose={() => setSubMenu(null)}
       />
+      </ModalContext.Provider>
     )
   }
   if (subMenu === 'agent-model') {
     return (
+      <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
       <MercuryModelChoicePicker
         leading={[AGENT_INHERIT_ROW]}
         current={agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.id : modelChoiceRow(agentDefaults.model)}
@@ -1355,6 +1359,7 @@ export function Config({
         onSignIn={signInFromDoor}
         onClose={() => setSubMenu(null)}
       />
+      </ModalContext.Provider>
     )
   }
   if (subMenu === 'language') {

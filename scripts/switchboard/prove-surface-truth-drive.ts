@@ -179,9 +179,9 @@ try {
   const statusModelRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => (r.includes(SEAT_MODEL_LABEL) || r.includes('Fable 5')) && !r.includes('▚▛▀▜▞')))
   check(`P3 /status names the session's model (${SEAT_MODEL_LABEL}), never the screen's`, statusModelRows.some(r => r.includes(SEAT_MODEL_LABEL)) && !statusModelRows.some(r => r.includes('Fable 5')), statusModelRows.join(' | ').slice(0, 300))
 
-  const currentRows = allRows('● current')
-  check('P4 the picker painted (a current dot)', currentRows.length > 0)
-  check(`P4 the picker's current dot is the session's model (${SEAT_MODEL_LABEL})`, currentRows.length > 0 && currentRows.every(r => r.includes(SEAT_MODEL_LABEL)), currentRows.join(' | ').slice(0, 300))
+  const currentRows = distinct.flatMap(f => f.text.split('\n').filter(r => /\s{2,}current\s{2,}/.test(r)))
+  check('P4 the picker painted (a current row)', currentRows.length > 0)
+  check(`P4 the picker's current row is the session's model (${SEAT_MODEL_LABEL})`, currentRows.length > 0 && currentRows.every(r => r.includes(SEAT_MODEL_LABEL)), currentRows.join(' | ').slice(0, 300))
   const keptRows = allRows('Kept model as')
   check(`P4 closing the picker keeps the SESSION's model ("Kept model as ${SEAT_MODEL_LABEL}"), never the screen's`, keptRows.length > 0 && keptRows.every(r => r.includes(`Kept model as ${SEAT_MODEL_LABEL}`)), keptRows.join(' | ').slice(0, 300))
 

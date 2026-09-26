@@ -2,6 +2,9 @@ prove-adaptive-ink.ts
 prove-alt-lifetime.ts
 prove-branch-chip.ts
 prove-model-picker-groups.ts
+prove-model-picker-hardening.ts
+prove-model-picker-door-flip.ts
+prove-model-picker-reader-census.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
 prove-contract-card-fit.ts
