@@ -264,6 +264,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'addInvokedSkill', 'addToToolDuration',
     'canAnswerAsks', 'getAskChannel', 'setAskChannel',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
+    'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
     'addToTurnClassifierDuration', 'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState', 'consumePostCompaction',
