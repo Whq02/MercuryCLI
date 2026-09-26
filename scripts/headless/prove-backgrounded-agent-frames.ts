@@ -73,12 +73,14 @@ tally.check("the child's frames land before its end notification", frameAt >= 0 
 const uuids = runner.frames.filter(f => f.type === 'assistant' && f.parent_tool_use_id === agentToolUseId).map(f => String(f.uuid ?? ''))
 tally.check('every tagged frame carries a uuid', uuids.length > 0 && uuids.every(u => u.length > 0), uuids.join(','))
 tally.check('the SDK bookend does not deliver the held notice to the model before the operator speaks', fixture.requests.filter(req => !isChild(req)).length === 1)
+const NEXT_LINE = 'read the held result'
+const isNextLine = (req: ScriptedRequest): boolean => !isChild(req) && req.allTexts.some(text => text.includes(NEXT_LINE))
 const beforeNextLine = runner.frames.length
-runner.send(user('read the held result', randomUUID()))
-const nextResult = await runner.waitFor('the next operator turn', isResult, bound(30_000), beforeNextLine)
-const nextRequest = fixture.requests.find(req => !isChild(req) && req.allTexts.some(text => text.includes('read the held result')))
+runner.send(user(NEXT_LINE, randomUUID()))
+const nextResult = await runner.waitFor('the next operator turn', f => isResult(f) && fixture.requests.some(isNextLine), bound(30_000), beforeNextLine)
+const nextRequest = fixture.requests.find(isNextLine)
 const nextTexts = nextRequest?.allTexts.join('\n') ?? ''
-tally.check('the next operator turn reads the held notice before its own line', nextResult !== null && nextTexts.includes('<task-notification>') && nextTexts.indexOf('<task-notification>') < nextTexts.indexOf('read the held result'))
+tally.check('the next operator turn reads the held notice before its own line', nextResult !== null && nextTexts.includes('<task-notification>') && nextTexts.indexOf('<task-notification>') < nextTexts.indexOf(NEXT_LINE))
 tally.check('model delivery never repeats the SDK bookend', runner.frames.filter(isChildNotice).length === 1, String(runner.frames.filter(isChildNotice).length))
 await runner.stop(bound(5_000))
 await fixture.close()
