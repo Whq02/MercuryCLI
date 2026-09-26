@@ -1,7 +1,27 @@
-import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
+import { modeBypassesPermissions, permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
+import { EXIT_PLAN_MODE_TOOL_NAME } from '../ExitPlanModeTool/constants.js'
+import { findMutatingSegment } from './strategyMutation.js'
+
+export function strategyShellRefusal(segment: string, reason: string): string {
+  return `${permissionModeTitle('strategy')} refused running \`${segment}\`: ${reason}. The user wants a plan before any execution — until they approve one, nothing may change: no file edits, no config changes, no commits. Present the plan with ${EXIT_PLAN_MODE_TOOL_NAME}; the command can run once the plan is approved.`
+}
+
+export function checkStrategyShellRefusal<I extends { command: string }>(
+  input: I,
+  toolPermissionContext: ToolPermissionContext,
+): PermissionResult<I> | null {
+  if (toolPermissionContext.mode !== 'strategy') return null
+  const finding = findMutatingSegment(input.command)
+  if (finding === null) return null
+  return {
+    behavior: 'deny',
+    message: strategyShellRefusal(finding.segment, finding.reason),
+    decisionReason: { type: 'mode', mode: 'strategy' },
+  }
+}
 
 const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'mkdir',

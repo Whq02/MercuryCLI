@@ -7,10 +7,13 @@ import {
   deriveSecurityFlags,
   getPipelineSegments,
   isPowerShellParameter,
+  pinnedCommandAnalysis,
   type ParsedPowerShellCommand,
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
+import { strategyShellRefusal } from '../BashTool/modeValidation.js'
+import { judgeCommandWords, type MutationFinding } from '../BashTool/strategyMutation.js'
 import {
   resolveToCanonical,
   isCwdChangingCmdlet,
@@ -18,6 +21,81 @@ import {
   isAllowlistedPipelineTail,
   argLeaksValue,
 } from './readOnlyValidation.js'
+
+export const POWERSHELL_MUTATING_COMMANDS: Readonly<Record<string, string>> = {
+  'remove-item': 'Remove-Item removes files',
+  'move-item': 'Move-Item moves or renames files',
+  'rename-item': 'Rename-Item renames files',
+  'copy-item': 'Copy-Item writes its destination',
+  'new-item': 'New-Item creates files, directories or links',
+  'set-content': 'Set-Content rewrites a file',
+  'add-content': 'Add-Content appends to a file',
+  'clear-content': 'Clear-Content empties a file',
+  'out-file': 'Out-File writes a file',
+  'export-csv': 'Export-Csv writes a file',
+  'export-clixml': 'Export-Clixml writes a file',
+  'set-item': 'Set-Item rewrites an item',
+  'clear-item': 'Clear-Item empties an item',
+  'set-itemproperty': 'Set-ItemProperty rewrites item properties',
+  'new-itemproperty': 'New-ItemProperty creates item properties',
+  'remove-itemproperty': 'Remove-ItemProperty removes item properties',
+  'rename-itemproperty': 'Rename-ItemProperty renames item properties',
+  'clear-itemproperty': 'Clear-ItemProperty empties item properties',
+  'expand-archive': 'Expand-Archive unpacks files into its directory',
+  'compress-archive': 'Compress-Archive writes an archive file',
+  'set-acl': 'Set-Acl changes access lists',
+}
+
+const SHELL_APPLICATIONS: ReadonlySet<string> = new Set(['git', 'npm', 'pnpm', 'yarn', 'bun'])
+const OUT_FILE_PARAMETER = /^[-–—―]outfile(?::|$)/i
+const VARIABLE_PARAMETER = /^[-–—―]var(?:iable)?(?::|$)/i
+
+function judgePowerShellCommand(command: ParsedCommandElement): MutationFinding | null {
+  const canonical = resolveToCanonical(command.name)
+  const segment = command.text.trim()
+  const always = POWERSHELL_MUTATING_COMMANDS[canonical]
+  if (always !== undefined) return { segment, reason: always }
+  if (canonical === 'tee-object') {
+    return command.args.some(arg => VARIABLE_PARAMETER.test(arg)) ? null : { segment, reason: 'Tee-Object writes its file' }
+  }
+  if (canonical === 'invoke-webrequest' || canonical === 'invoke-restmethod') {
+    return command.args.some(arg => OUT_FILE_PARAMETER.test(arg)) ? { segment, reason: `${command.name} -OutFile writes a file` } : null
+  }
+  if (SHELL_APPLICATIONS.has(canonical)) return judgeCommandWords([canonical, ...command.args], segment)
+  return null
+}
+
+export function findMutatingPowerShellCommand(parsed: ParsedPowerShellCommand): MutationFinding | null {
+  if (!parsed.valid) return null
+  for (const statement of getPipelineSegments(parsed)) {
+    for (const command of [...statement.commands, ...statement.nestedCommands]) {
+      const finding = judgePowerShellCommand(command)
+      if (finding !== null) return finding
+    }
+  }
+  const redirection = pinnedCommandAnalysis.getFileRedirections(parsed)[0]
+  if (redirection === undefined) return null
+  const owner = getPipelineSegments(parsed).find(
+    statement =>
+      statement.redirections.includes(redirection) ||
+      [...statement.commands, ...statement.nestedCommands].some(command => command.redirections?.includes(redirection) === true),
+  )
+  return { segment: (owner?.text ?? parsed.originalCommand).trim(), reason: `a file redirection writes ${redirection.target}` }
+}
+
+export function checkStrategyShellRefusal(
+  parsed: ParsedPowerShellCommand,
+  toolPermissionContext: ToolPermissionContext,
+): PermissionResult | null {
+  if (toolPermissionContext.mode !== 'strategy') return null
+  const finding = findMutatingPowerShellCommand(parsed)
+  if (finding === null) return null
+  return {
+    behavior: 'deny',
+    message: strategyShellRefusal(finding.segment, finding.reason),
+    decisionReason: { type: 'mode', mode: 'strategy' } as PermissionDecisionReason,
+  }
+}
 
 const PS_DASH = /[-–—―]/
 
