@@ -96,7 +96,7 @@ function g(needle: string, data: string, extra: Send = {}): Send {
   return { requireAwait: true, awaitText: needle, awaitSettleTicks: 2, data, ...extra }
 }
 const composerLive: Send = { atTick: 200, awaitRaw: `${ESC}[?2004h`, minTick: 30, awaitSettleTicks: 6, data: '' }
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const BASE_AB = process.env.MERCURY_UNIFY_BASE === '1'
 const enterNewChat: Send[] =
   BASE_AB
@@ -488,10 +488,10 @@ for (const [cols, rows] of [
   })
 }
 
-function processCensus(rigPid = 0): { screens: number[]; daemons: number[]; runners: Array<{ pid: number; sessionId: string }> } {
+function processCensus(home: string, rigPid = 0): { screens: number[]; daemons: number[]; runners: Array<{ pid: number; sessionId: string }> } {
   const out = { screens: [] as number[], daemons: [] as number[], runners: [] as Array<{ pid: number; sessionId: string }> }
   try {
-    const ps = execFileSync('ps', ['-axo', 'pid=,ppid=,command='], { encoding: 'utf8' })
+    const ps = execFileSync('ps', ['eww', '-axo', 'pid=,ppid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     for (const line of ps.split('\n')) {
       const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)
       if (!m) continue
@@ -502,7 +502,8 @@ function processCensus(rigPid = 0): { screens: number[]; daemons: number[]; runn
         out.screens.push(pid)
         continue
       }
-      if (!cmd.includes(BIN_UNDER_TEST)) continue
+      const pin = ` MERCURY_CONFIG_DIR=${home}`
+      if (!cmd.includes(BIN_UNDER_TEST) || !(cmd.includes(`${pin} `) || cmd.endsWith(pin))) continue
       if (cmd.includes(` daemon run ${CWD}`) || cmd.includes(` daemon ${CWD}`)) {
         out.daemons.push(pid)
         continue
@@ -533,11 +534,11 @@ drives.push({
     const deadline = Date.now() + 60_000
     while (Date.now() < deadline) {
       const live = BASE_AB
-        ? processCensus(rigPid).screens
+        ? processCensus(home, rigPid).screens
         : Object.values(liveRecords(home)).filter(x => x.pid !== undefined && isAlive(x.pid))
       if (live.length > 0) {
         if (BASE_AB) await new Promise(res => setTimeout(res, 6000))
-        u9Before = processCensus(rigPid)
+        u9Before = processCensus(home, rigPid)
         return
       }
       await new Promise(res => setTimeout(res, 250))
@@ -569,7 +570,7 @@ drives.push({
     while (Date.now() < deadline && (runnerPids.some(isAlive) || daemonPids.some(isAlive) || screenPids.some(isAlive))) {
       await new Promise(res => setTimeout(res, 250))
     }
-    const after = processCensus()
+    const after = processCensus(r.home)
     console.log(`  [CENSUS] u9: AFTER the close (${((Date.now() - started) / 1000).toFixed(1)} s) — screen alive=${JSON.stringify(screenPids.map(isAlive))} · daemon alive=${JSON.stringify(daemonPids.map(isAlive))} · runners alive=${JSON.stringify(runnerPids.map(isAlive))} · ps now: screens ${JSON.stringify(after.screens)} daemons ${JSON.stringify(after.daemons)} runners ${JSON.stringify(after.runners)}`)
     check('u9: the screen died with the terminal', screenPids.length > 0 && screenPids.every(pid => !isAlive(pid)))
     if (!BASE_AB) {
@@ -693,9 +694,9 @@ for (const [cols, rows] of [[120, 40]] as const) {
       ...enterNewChat,
       { afterPrevTicks: 2, data: 'run the bash round' },
       { afterPrevTicks: 4, data: '\r' },
-      { afterPrevTicks: 12, data: '', mark: 'running-1' },
-      { afterPrevTicks: 6, data: '', mark: 'running-2' },
-      { afterPrevTicks: 6, data: '', mark: 'running-3' },
+      g('Running 1 bash command', '', { awaitSettleTicks: 1, mark: 'running-1' }),
+      { afterPrevTicks: 1, data: '', mark: 'running-2' },
+      { afterPrevTicks: 1, data: '', mark: 'running-3' },
       { atTick: 100, awaitText: 'Round done.', minTick: 5, awaitSettleTicks: 3, data: 'now make the directory' },
       { afterPrevTicks: 3, data: '\r' },
       { atTick: 220, awaitText: 'Do you want to', minTick: 5, awaitSettleTicks: 3, data: '1', mark: 'ask-card', requireAwait: true },
@@ -728,8 +729,8 @@ for (const [cols, rows] of [[120, 40]] as const) {
       const markText = (label: string): string => (marks.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join('')).join('\n')
       const ask = markText('ask-card')
       const running = [markText('running-1'), markText('running-2'), markText('running-3')]
-      const runningCardOn = running.some(f => f.includes('Bash') && (f.includes('◐') || f.includes('sleep 3')))
-      console.log(`  [ROUND] u12 ${cols}x${rows}: running-card frames ${running.map(f => (f.includes('Bash') ? 'CARD' : '—')).join(' · ')}`)
+      const runningCardOn = running.some(f => /◐\s+Running 1 bash command/.test(f) && f.includes(`sleep ${Math.round(3 * PACE)} && echo bash-round-done`))
+      console.log(`  [ROUND] u12 ${cols}x${rows}: running-card frames ${running.map(f => (/Running 1 bash command/.test(f) ? 'CARD' : '—')).join(' · ')}`)
       check(`u12 ${cols}x${rows}: the RUNNING card is on frame while the tool executes (never a silent gap until the collapse)`, runningCardOn)
       check(`u12 ${cols}x${rows}: the ask card carries the COMMAND TEXT (lifecycle C2/C3)`, /Do you want to/.test(ask) && ask.includes('rm -rf ./round-made-dir'), ask === '' ? 'no mark' : '')
       check(`u12 ${cols}x${rows}: the settled frame carries the round's reply and the collapsed row`, r.text.includes('Made it.') && r.text.includes('Ran 1 bash command'))
