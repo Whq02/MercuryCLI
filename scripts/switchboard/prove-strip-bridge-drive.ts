@@ -45,7 +45,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
@@ -257,7 +257,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       { afterPrevTicks: 3, data: '\x18' },
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18', mark: 'hint' },
-      g(EMPTY_BOARD, '', { awaitSettleTicks: 2, mark: 'receipt' }),
+      g('removed from the board — the chat held no message', '', { awaitSettleTicks: 2, mark: 'receipt' }),
       g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
