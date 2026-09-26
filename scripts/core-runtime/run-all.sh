@@ -12,6 +12,7 @@
 # gate-watch: src/commands/caching/**
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
 # gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
+# gate-watch: src/run-core/pauseGate* src/run-core/turn-machine* src/services/tools/toolOrchestration*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
@@ -49,6 +50,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-geometry-contract.ts
 
 echo "── core-runtime: runloop contract (T8)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-runloop-contract.ts "$__t" "$__rc"
+
+echo "── core-runtime: the pause gate parks every loop at its two safe points"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-pause-gate.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-pause-gate.ts "$__t" "$__rc"
 
 echo "── core-runtime: the queue owner refuses a sub-agent the operator's line"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-drain-owner-guard.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-drain-owner-guard.ts "$__t" "$__rc"
