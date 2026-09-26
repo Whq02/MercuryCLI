@@ -287,7 +287,7 @@ section('§1 the stored profile beside the token names the account; the config r
     }
     check(`${stamp} face: the config record's email is nowhere on the face`, !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, RECORD_EMAIL))
     check(`${stamp} usage popup: the Anthropic subscription slot says Signed in as <email>`, frames.popup.includes(`Signed in as ${PROFILE_EMAIL}`), lineWith(frames.popup, 'Subscription') ?? frames.popup.split('\n').slice(0, 6).join(' | '))
-    check(`${stamp} usage popup: the identity line sits under the Subscription heading`, lineAfter(frames.popup, 'Subscription').includes(`Signed in as ${PROFILE_EMAIL}`), lineAfter(frames.popup, 'Subscription'))
+    check(`${stamp} usage popup: the identity line sits under the Anthropic usage title`, lineAfter(frames.popup, 'Anthropic usage').includes(`Signed in as ${PROFILE_EMAIL}`), lineAfter(frames.popup, 'Anthropic usage'))
     check(`${stamp} usage popup: the config record's email is nowhere`, !frames.popup.includes(RECORD_EMAIL))
     if (size.columns >= 150) {
       check(`${stamp} usage card: the line under Anthropic usage is the credential's own email`, lineAfter(frames.card, 'Anthropic usage').includes(PROFILE_EMAIL), lineAfter(frames.card, 'Anthropic usage'))
@@ -375,8 +375,10 @@ section('§7 the surfaces read the one credential-account owner')
   const owner = read('src/services/providers/providerUsage.ts')
   check('the presence owner reads the credential\'s own account, never the config record', owner.includes('anthropicCredentialAccount(') && !owner.includes('getOauthAccountInfo()?.emailAddress'))
   check('the slot builder reads the presence owner\'s sign-in email for the signed-in scope', read('src/services/providers/accountSlots.ts').includes('anthropicSignInEmail('))
-  check('the usage popup reads the presence owner\'s sign-in email', read('src/components/Settings/Usage.tsx').includes('anthropicSignInEmail('))
-  check('the usage card reads the presence owner\'s sign-in email', read('src/components/HelmTelemetryRail.tsx').includes('anthropicSignInEmail('))
+  const composer = read('src/services/providers/providerIdentityLine.ts')
+  check('the identity composer reads the presence owner, whose Anthropic identity is the sign-in email', composer.includes('presenceIdentityWords(') && owner.includes('anthropicSignInEmail(reads)'))
+  check('the usage popup reads the identity composer', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
+  check('the usage card reads the identity composer', read('src/components/HelmTelemetryRail.tsx').includes('providerIdentityLine('))
 }
 
 type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState

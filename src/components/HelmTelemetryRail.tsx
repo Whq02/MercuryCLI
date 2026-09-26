@@ -21,7 +21,8 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
 import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
-import { anthropicSignInEmail, scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { providerIdentityLine } from '../services/providers/providerIdentityLine.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
@@ -241,14 +242,11 @@ function HelmTelemetryRailImpl({
       )
     }
   }
-  const signInEmailLine = (source: ActiveSourceUsage, key: string): void => {
-    if (source.provider !== 'anthropic' || source.sourceKind !== 'subscription-oauth') return
-    const email = anthropicSignInEmail()
-    if (email === undefined) return
+  const identityLine = (source: ActiveSourceUsage, key: string): void => {
     usageNodes.push(
       <Box key={key} width={rowW}>
         <Text wrap="truncate-end">
-          <Text color={tok.textMuted}>{`  ${email}`}</Text>
+          <Text color={tok.textMuted}>{`  ${providerIdentityLine(source.provider).text}`}</Text>
         </Text>
       </Box>,
     )
@@ -261,7 +259,7 @@ function HelmTelemetryRailImpl({
       </Text>
     </Box>,
   )
-  signInEmailLine(usage, 'usage:account')
+  identityLine(usage, 'usage:account')
   if (usage.provider === 'zai' && usage.absence !== undefined) {
     for (const [index, line] of wrapPlain(usage.absence, rowW - 2).entries()) {
       usageNodes.push(
@@ -381,7 +379,7 @@ function HelmTelemetryRailImpl({
         </Text>
       </Box>,
     )
-    signInEmailLine(other, `usage:other:${other.provider}:account`)
+    identityLine(other, `usage:other:${other.provider}:account`)
     const otherRows: Array<{ w: UsageWindowView; pool: boolean }> = [
       ...other.windows.filter(x => x.state === 'live').map(w => ({ w, pool: false })),
       ...other.pools.filter(x => x.state === 'live').map(w => ({ w, pool: true })),
