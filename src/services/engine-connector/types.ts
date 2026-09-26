@@ -119,6 +119,10 @@ export type UsageFactsV1 = {
 }
 
 export type JevFactsV1 = {
+  road?: 'official' | 'openrouter'
+  lastCostUsd?: number | null
+  lastRequestId?: string | null
+  lastFailure?: { status?: number; detail: string; requestId?: string }
   spendUsd: number
   calls: number
   attempts: number

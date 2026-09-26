@@ -1,8 +1,9 @@
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
-import { JEV_SUBAGENT_CALL_BUDGET, jevUsdLabel } from './jevContract.js'
+import { JEV_SUBAGENT_CALL_BUDGET, type JevRoad, jevRoadWords, jevUsdLabel } from './jevContract.js'
 
 export interface JevSettings {
   enabled: boolean
+  road: JevRoad
   allowanceUsd: number
   pacePerMinute: number
   requestCeiling: number | null
@@ -14,6 +15,7 @@ export const JEV_DEFAULT_PACE_PER_MINUTE = 10
 
 export const JEV_DEFAULT_SETTINGS: Readonly<JevSettings> = Object.freeze({
   enabled: false,
+  road: 'official',
   allowanceUsd: JEV_DEFAULT_ALLOWANCE_USD,
   pacePerMinute: JEV_DEFAULT_PACE_PER_MINUTE,
   requestCeiling: null,
@@ -31,9 +33,11 @@ function positiveCount(value: unknown): number | undefined {
 }
 
 export function jevSettingsFromStored(stored: StoredJev | undefined): JevSettings {
+  const road = stored?.road === 'openrouter' ? 'openrouter' : 'official'
   return {
     enabled: stored?.enabled === true,
-    allowanceUsd: positiveMoney(stored?.allowanceUsd) ?? JEV_DEFAULT_ALLOWANCE_USD,
+    road,
+    allowanceUsd: positiveMoney(road === 'openrouter' ? stored?.openrouterAllowanceUsd : stored?.allowanceUsd) ?? JEV_DEFAULT_ALLOWANCE_USD,
     pacePerMinute: positiveCount(stored?.pacePerMinute) ?? JEV_DEFAULT_PACE_PER_MINUTE,
     requestCeiling: positiveCount(stored?.requestCeiling) ?? null,
     subagents: stored?.subagents === true,
@@ -55,7 +59,9 @@ function writeJev(mutate: (stored: StoredJev) => StoredJev): JevSettings {
     const next = mutate({ ...(config.jev ?? {}) })
     const trimmed: StoredJev = {}
     if (next.enabled === true) trimmed.enabled = true
+    if (next.road === 'openrouter') trimmed.road = next.road
     if (positiveMoney(next.allowanceUsd) !== undefined && next.allowanceUsd !== JEV_DEFAULT_ALLOWANCE_USD) trimmed.allowanceUsd = next.allowanceUsd
+    if (positiveMoney(next.openrouterAllowanceUsd) !== undefined && next.openrouterAllowanceUsd !== JEV_DEFAULT_ALLOWANCE_USD) trimmed.openrouterAllowanceUsd = next.openrouterAllowanceUsd
     if (positiveCount(next.pacePerMinute) !== undefined && next.pacePerMinute !== JEV_DEFAULT_PACE_PER_MINUTE) trimmed.pacePerMinute = next.pacePerMinute
     if (positiveCount(next.requestCeiling) !== undefined) trimmed.requestCeiling = next.requestCeiling
     if (next.subagents === true) trimmed.subagents = true
@@ -68,14 +74,18 @@ function writeJev(mutate: (stored: StoredJev) => StoredJev): JevSettings {
   return out
 }
 
-export function setJevEnabled(next: boolean): JevSettings {
-  return writeJev(stored => ({ ...stored, enabled: next }))
+export function setJevEnabled(next: boolean, road?: JevRoad): JevSettings {
+  return writeJev(stored => ({ ...stored, enabled: next, ...(road === undefined ? {} : { road }) }))
+}
+
+export function setJevRoad(road: JevRoad): JevSettings {
+  return writeJev(stored => ({ ...stored, road }))
 }
 
 export function setJevAllowanceUsd(next: number): JevSettings {
   const value = positiveMoney(next)
   if (value === undefined) throw new Error(`the JEV session allowance is a positive dollar amount, not ${String(next)}`)
-  return writeJev(stored => ({ ...stored, allowanceUsd: value }))
+  return writeJev(stored => ({ ...stored, [stored.road === 'openrouter' ? 'openrouterAllowanceUsd' : 'allowanceUsd']: value }))
 }
 
 export function setJevPacePerMinute(next: number): JevSettings {
@@ -104,13 +114,13 @@ export function setJevSubagents(next: boolean): JevSettings {
 export const JEV_DOORS = '/jev, the JEV row of /config, or the JEV row of the Boot Menu (one switch)'
 
 export function jevValueWords(settings: JevSettings = readJevSettings()): string {
-  return settings.enabled ? 'on' : 'off'
+  return `${settings.enabled ? 'on' : 'off'} · ${jevRoadWords(settings.road)}`
 }
 
 export function jevReceiptWords(settings: JevSettings): string {
   return settings.enabled
-    ? 'JEV on — JevEval joins the roster at the next turn boundary once a key is stored'
-    : 'JEV off — JevEval leaves the roster at the next turn boundary; nothing is sent'
+    ? `JEV on — ${jevRoadWords(settings.road)}; JevEval joins the roster next turn with this road's key`
+    : `JEV off — ${jevRoadWords(settings.road)} saved; nothing is sent; JevEval leaves the roster next turn`
 }
 
 export function jevCeilingWords(settings: JevSettings): string {
@@ -119,7 +129,7 @@ export function jevCeilingWords(settings: JevSettings): string {
 
 export function jevSettingLines(settings: JevSettings = readJevSettings()): string[] {
   return [
-    `session allowance: ${jevUsdLabel(settings.allowanceUsd)} — a runaway stop, not a budget; Mercury's own count, reset by /clear`,
+    `session allowance: ${jevUsdLabel(settings.allowanceUsd)} — a runaway stop, not a budget; ${jevRoadWords(settings.road)} road only, reset by /clear`,
     `pace: ${settings.pacePerMinute} requests a minute`,
     `request ceiling: ${jevCeilingWords(settings)}`,
     `sub-agents: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each, on the same allowance` : 'off'}`,
@@ -136,14 +146,14 @@ export const JEV_MENU_ROW = {
   defaultLabel: 'off',
   applicationClass: 'live',
   summary:
-    "a second opinion for the main model — TypeSafe's Jev answers typed questions (yes/no, choice, score) with numbers, never an approval; off by default; needs the key you paste in /jev",
+    "a second opinion from TypeSafe's Jev, never an approval; off by default; /jev chooses official or OpenRouter, each with its own key, spend and cap",
   detail: {
     controls:
-      'Whether the JevEval tool is in the roster. On, with a key stored through /jev, the main model can rank hypotheses, make a qualitative call after the frames are measured, or check a proposal against your recorded rulings. It never answers a permission request. Applies at the next turn boundary.',
+      'Whether JevEval is in the roster on the road saved in /jev. Official needs a TypeSafe key in /jev; OpenRouter uses its sign-in from /logins. It never answers a permission request. Applies at the next turn boundary.',
     on: [
-      'JevEval is offered to the main model; each call is one batched request, counted on the session allowance shown in /jev and /usage',
-      'the allowance ($20 by default) is a runaway stop; the pace (10 a minute) and the optional request ceiling do the real work',
-      'no key stored ⇒ the tool is absent and /jev says no key; nothing is sent',
+      'JevEval is offered to the main model; each call is one batched request, counted on the selected road in /jev and /usage',
+      'each road has its own allowance ($20 by default), a runaway stop; the pace (10 a minute) and optional request ceiling also apply',
+      'no key for the selected road ⇒ the tool is absent; no fallback and nothing sent; sign-in alone never switches JEV on',
     ],
     off: ['JevEval is not in the roster; no request leaves the machine; nothing about permissions changes either way'],
   },

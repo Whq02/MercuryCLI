@@ -1,6 +1,6 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Box, Text, measureElement, useInput, type DOMElement } from '../../ink.js'
+import { Box, Text, measureElement, useInput, wrapText, type DOMElement } from '../../ink.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
   type RateLimit,
@@ -26,7 +26,8 @@ import {
   type ProviderSessionSpend,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
-import { jevUsdLabel } from '../../services/jev/jevContract.js'
+import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
+import { jevCreditsWords } from './Jev.js'
 import { type JevSessionFacts, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
 import { JEV_STATUS_HEADWORDS } from '../../services/jev/jevStatus.js'
@@ -874,19 +875,21 @@ export function usageWindow(bands: ReadonlyArray<{ height: number; count: number
   return { ...current, previous, next }
 }
 
-export const JEV_USAGE_LABEL = "JEV · Mercury's count"
+export const JEV_USAGE_LABEL = 'JEV'
 
 export function jevUsageRow(session: JevSessionFacts = jevSessionFacts()): string {
   const settings = readJevSettings()
   const headword = JEV_STATUS_HEADWORDS[jevSessionStatus(session, settings).kind]
   const count = session.state === 'reported' ? `${jevUsdLabel(session.facts.spendUsd)} · ${session.facts.calls} call${session.facts.calls === 1 ? '' : 's'} (${session.facts.unconfirmedCharges} unconfirmed)` : jevSessionAbsenceWords(session)
-  return `${JEV_USAGE_LABEL}: ${count} · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${CREDITS_UNREPORTED_WORDS}`
+  const stated = settings.road === 'openrouter' && session.state === 'reported' && session.facts.lastCostUsd != null ? ` · last stated $${session.facts.lastCostUsd}` : ''
+  const credits = settings.road === 'openrouter' ? jevCreditsWords(settings.road) : CREDITS_UNREPORTED_WORDS
+  return `${JEV_USAGE_LABEL} ${jevRoadWords(settings.road)} · Mercury's count: ${count}${stated} · allowance ${jevUsdLabel(settings.allowanceUsd)} · ${headword} · credits: ${credits}`
 }
 
-export function usageBodyRows(budget: number): { footerRows: number; jevRows: number; capacity: number } {
+export function usageBodyRows(budget: number, requestedJevRows = 1): { footerRows: number; jevRows: number; capacity: number } {
   const rows = Math.max(0, Math.floor(budget))
   const footerRows = rows > 1 ? 1 : 0
-  const jevRows = rows > 2 ? 1 : 0
+  const jevRows = rows > 2 ? Math.min(rows - 2, Math.max(1, requestedJevRows)) : 0
   return { footerRows, jevRows, capacity: rows - footerRows - jevRows }
 }
 
@@ -904,8 +907,11 @@ export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: 
   }, [])
   useLayoutEffect(measure)
   const budget = Math.max(0, Math.floor(rowBudget))
-  const { footerRows, jevRows, capacity } = usageBodyRows(budget)
   useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
+  const jevLine = jevUsageRow()
+  const routerRoad = readJevSettings().road === 'openrouter'
+  const requestedJevRows = routerRoad ? wrapText(jevLine, Math.max(1, Math.floor(width)), 'wrap').split('\n').length : 1
+  const { footerRows, jevRows, capacity } = usageBodyRows(budget, requestedJevRows)
   const view = usageWindow(bands.map((band, index) => ({ height: heights[index] ?? 1, count: band.length })), capacity, position)
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return
@@ -936,7 +942,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: 
             </Box>
           </Box>
         </Box>
-        {jevRows > 0 ? <Box height={1} flexShrink={0}><Text wrap="truncate-end">{jevUsageRow()}</Text></Box> : null}
+        {jevRows > 0 ? <Box height={jevRows} flexShrink={0} overflow="hidden"><Text wrap={routerRoad ? 'wrap' : 'truncate-end'}>{jevLine}</Text></Box> : null}
         {footerRows > 0 ? <Box height={1} flexShrink={0}><Text dimColor wrap="truncate-end">{more}</Text></Box> : null}
       </Box>
     </UsageLayoutContext.Provider>

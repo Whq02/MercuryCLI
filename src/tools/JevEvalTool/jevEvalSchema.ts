@@ -56,7 +56,7 @@ export const jevEvalInputSchema = lazySchema(() =>
       evidence: z
         .record(z.string(), z.string())
         .describe(
-          "Named facts, sent verbatim as Jev's state: filtered excerpts and measured values only — never whole files, the transcript, environment values, secrets or stack traces; everything here leaves the machine and is retained by the provider",
+          "Named facts, sent verbatim as Jev's state: filtered excerpts and measured values only — never whole files, the transcript, environment values, secrets or stack traces; everything here leaves the machine under the selected road's data policy",
         ),
       questions: z.array(questionSchema()).min(1).describe('Every question you want answered against this evidence, in one call'),
     })

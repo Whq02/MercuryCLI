@@ -146,6 +146,10 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const T0 = Date.UTC(2026, 0, 15, 14, 30)
 const RELAYED: JevFactsV1 = {
+  road: 'official',
+  lastCostUsd: null,
+  lastRequestId: 'fixture-answer-id',
+  lastFailure: { status: 403, detail: 'fixture refusal', requestId: 'fixture-refusal-id' },
   spendUsd: 0.42,
   calls: 3,
   attempts: 4,
@@ -174,6 +178,7 @@ section('§1 the wire: the row crosses under usage.jev in snake_case and decodes
   const encoded = wire.sessionFactsToWire({ ...baseAnswer, usage: { ...ZERO_USAGE, jev: RELAYED } } as never) as { usage: Record<string, unknown> }
   const row = encoded.usage.jev as Record<string, unknown> | undefined
   check('the row rides under usage.jev and every key on it is snake_case', row !== undefined && Object.keys(row).every(key => SNAKE.test(key)), j(row))
+  check('the additive road and last-call evidence ride in snake_case too', row?.road === 'official' && row.last_request_id === 'fixture-answer-id' && row.last_cost_usd === null && (row.last_failure as Record<string, unknown>)?.request_id === 'fixture-refusal-id' && Object.keys(row.last_failure as object).every(key => SNAKE.test(key)))
   check('the renamed keys carry the figures', row !== undefined && row.spend_usd === 0.42 && row.unconfirmed_charges === 1 && row.hold_until_ms === 0 && row.last_answered_at_ms === T0 + 2000 && row.last_model === 'jev-1.13.0' && row.input_tokens === 10_000_000, j(row))
   check('the keys that were already one word ride as they are, the status nested with kind and words', row !== undefined && row.calls === 3 && row.attempts === 4 && row.refusals === 0 && j(row.status) === j(RELAYED.status), j(row))
   check('no internal spelling survives on the wire', row !== undefined && ['spendUsd', 'unconfirmedCharges', 'holdUntilMs', 'lastAnsweredAtMs', 'lastModel', 'inputTokens'].every(key => !(key in row)), j(row))
@@ -203,12 +208,12 @@ section('§2 the runner-side fold: the ledger and the resolver become the facts 
   check('the fold carries the ledger figures: $0.42, 3 calls, 4 attempts, 1 unconfirmed, the last answer and the served model', contract.jevUsdLabel(folded.spendUsd) === '$0.42' && folded.calls === 3 && folded.attempts === 4 && folded.unconfirmedCharges === 1 && folded.inputTokens === 10_000_000 && folded.lastAnsweredAtMs === T0 + 2000 && folded.lastModel === 'jev-1.13.0', j(folded))
   check("the fold carries the unreadable reply's hold and refusal streak", folded.holdUntilMs === T0 + 3000 + ledger.JEV_COOL_DOWN_BASE_MS && folded.refusals === 1, j(folded))
   check("the fold carries the resolver's status verbatim: allowance hit in Mercury's count", folded.status.kind === 'allowance-hit' && folded.status.words.startsWith('allowance hit — Mercury counts $0.42 of the $0.40 session allowance'), folded.status.words)
-  check('the fold names exactly the keys the wire table and the type declare', Object.keys(folded).sort().join(',') === 'attempts,calls,holdUntilMs,inputTokens,lastAnsweredAtMs,lastModel,refusals,spendUsd,status,unconfirmedCharges', Object.keys(folded).join(','))
+  check('the fold names exactly the keys the wire table and the type declare', Object.keys(folded).sort().join(',') === 'attempts,calls,holdUntilMs,inputTokens,lastAnsweredAtMs,lastCostUsd,lastFailure,lastModel,lastRequestId,refusals,road,spendUsd,status,unconfirmedCharges', Object.keys(folded).join(','))
   reported = folded
   ledger.resetJevLedger()
 }
 
-const expectedRow = `${usage.JEV_USAGE_LABEL}: $0.42 · 3 calls (1 unconfirmed) · allowance $0.40 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
+const expectedRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: $0.42 · 3 calls (1 unconfirmed) · allowance $0.40 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
 section("§3 a focused session reports its facts while the cockpit's own ledger is empty: the surfaces paint the session's figures")
 {
   check('the local ledger is empty going in', ledger.jevLedgerSnapshot().spendUsd === 0 && ledger.jevLedgerSnapshot().calls === 0 && status.jevStatus().kind === 'ready')
@@ -220,11 +225,11 @@ section("§3 a focused session reports its facts while the cockpit's own ledger 
   check("the /usage row paints the session's count, calls, unconfirmed charge and the allowance-hit headword", row === expectedRow, row)
   check('the row fits the popup body', stringWidth(row) <= 146, String(stringWidth(row)))
   const facts = jevBody.jevFacts()
-  check("the /jev facts carry the runner's words and the popup line reads the session's spend against the allowance", facts.status.words === reported.status.words && jevBody.jevPopupLine(facts) === 'switch on · key stored · spend $0.42 of $0.40 · allowance hit', jevBody.jevPopupLine(facts))
+  check("the /jev facts carry the runner's words and the popup line reads the session's spend against the allowance", facts.status.words === reported.status.words && jevBody.jevPopupLine(facts) === 'on · official · key stored · spend $0.42 / $0.40 · allowance hit', jevBody.jevPopupLine(facts))
   const m = await openJev()
   const lines = m.lines()
   check("the /jev popup's status line is the runner's words verbatim", popupText(lines).includes(collapse(status.jevStatusLine(reported.status))), popupText(lines))
-  check("the Spend row is the session's count with its last answer and served model", /Spend\s+spend so far: \$0\.42 · 3 calls · 1 unconfirmed/.test(spendRow(m)) && spendRow(m).includes(`last answered ${contract.jevClockLabel(T0 + 2000)} · jev-1.13.0`), spendRow(m))
+  check("the Spend row is the session's count and the last-call line reports its newer failure", /Spend\s+spend so far: \$0\.42 · 3 calls · 1 unconfirmed/.test(spendRow(m)) && popupText(lines).includes('last call: HTTP 200 · not json'), spendRow(m))
   check('the context line is painted', has(lines, jevBody.jevPopupLine(facts)))
   check('the frame paints no zero count and no ready word', !has(lines, 'spend so far: $0.00') && !has(lines, 'JEV ready'))
   check('the key value appears nowhere on the frame', !lines.join('\n').includes(PROOF_KEY))
@@ -245,12 +250,12 @@ section("§4 the reverse: the cockpit's own ledger carries spend while the focus
   slot.setFocusedSessionConnector(stubConnector(undefined))
   const session = reader.jevSessionFacts()
   check('the reader answers unknown for a session whose runner omitted the row', slot.hasFocusedSession() && session.state === 'unknown', j(session))
-  check('the status falls to what shared state supports: ready (switch on, key stored), never the local allowance hit', j(reader.jevSessionStatus()) === j({ kind: 'ready', words: 'ready' }), j(reader.jevSessionStatus()))
+  check('the status falls to what shared state supports: ready (switch on, key stored), never the local allowance hit', j(reader.jevSessionStatus()) === j({ kind: 'ready', words: 'ready — official road' }), j(reader.jevSessionStatus()))
   const row = usage.jevUsageRow()
-  check('the /usage row says the session spend is not reported, keeps the shared allowance and the shared headword', row === `${usage.JEV_USAGE_LABEL}: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row says the session spend is not reported, keeps the shared allowance and the shared headword', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   check('the row carries none of the local figures', !row.includes('$0.42') && !row.includes('1 call') && !row.includes('allowance hit'))
   const facts = jevBody.jevFacts()
-  check('the popup line names the absence in its short form beside the allowance', jevBody.jevPopupLine(facts) === `switch on · key stored · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · allowance $0.40 · ready`, jevBody.jevPopupLine(facts))
+  check('the popup line names the absence in its short form beside the allowance', jevBody.jevPopupLine(facts) === `on · official · key stored · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · cap $0.40 · ready`, jevBody.jevPopupLine(facts))
   const m = await openJev()
   const lines = m.lines()
   check('the Spend row reads the not-reported words', new RegExp(`Spend\\s+${reader.JEV_SPEND_UNREPORTED_WORDS}`).test(spendRow(m)), spendRow(m))
@@ -269,10 +274,10 @@ section('§5 no session in the slot: the honest no-chat form')
   const session = reader.jevSessionFacts()
   check('the reader answers no-session while the slot rests', !slot.hasFocusedSession() && session.state === 'no-session', j(session))
   const row = usage.jevUsageRow()
-  check('the /usage row says no chat is open beside the shared parts', row === `${usage.JEV_USAGE_LABEL}: ${reader.JEV_NO_SESSION_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row says no chat is open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_NO_SESSION_WORDS} · allowance $0.40 · ready · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   check('the local ledger still carries spend and the row still paints none of it', contract.jevUsdLabel(ledger.jevLedgerSnapshot().spendUsd) === '$0.42' && !row.includes('$0.42'))
   const facts = jevBody.jevFacts()
-  check('the popup line (short form) and the Spend row (full words) read no chat', jevBody.jevPopupLine(facts) === `switch on · key stored · ${reader.JEV_NO_SESSION_SHORT_WORDS} · allowance $0.40 · ready` && jevBody.jevRowWords('spend', facts) === reader.JEV_NO_SESSION_WORDS, jevBody.jevPopupLine(facts))
+  check('the popup line (short form) and the Spend row (full words) read no chat', jevBody.jevPopupLine(facts) === `on · official · key stored · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $0.40 · ready` && jevBody.jevRowWords('spend', facts) === reader.JEV_NO_SESSION_WORDS, jevBody.jevPopupLine(facts))
   const m = await openJev()
   check('the mounted popup paints the no-chat words on the Spend row', new RegExp(`Spend\\s+${reader.JEV_NO_SESSION_WORDS}`).test(spendRow(m)) && !has(m.lines(), '$0.42'), spendRow(m))
   await closePopup(m)
@@ -297,7 +302,7 @@ section('§6 the source pins')
   const types = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
   check('the field is declared OPTIONAL on UsageFactsV1 and the kind rides a type-only import', /^\s+jev\?: JevFactsV1$/m.test(types) && types.includes("import type { JevStatusKind } from '../jev/jevContract.js'") && !/^import \{[^}]*\} from '\.\.\/jev\//m.test(types))
   const wireSrc = readFileSync(join(REPO, 'src/services/engine-connector/seatWire.ts'), 'utf8')
-  check('the wire table names every renamed key and the usage codec applies it', ["spendUsd: 'spend_usd'", "inputTokens: 'input_tokens'", "unconfirmedCharges: 'unconfirmed_charges'", "holdUntilMs: 'hold_until_ms'", "lastAnsweredAtMs: 'last_answered_at_ms'", "lastModel: 'last_model'"].every(needle => wireSrc.includes(needle)) && wireSrc.includes('if (isRow(jev)) out.jev = renamed(jev, jevTable)') && wireSrc.includes('t(LANE_WINDOW), laneWindowKeys, t(JEV))'))
+  check('the wire table names every renamed key and the usage codec applies it', ["spendUsd: 'spend_usd'", "inputTokens: 'input_tokens'", "unconfirmedCharges: 'unconfirmed_charges'", "holdUntilMs: 'hold_until_ms'", "lastAnsweredAtMs: 'last_answered_at_ms'", "lastModel: 'last_model'"].every(needle => wireSrc.includes(needle)) && wireSrc.includes('const next = renamed(jev, jevTable)') && wireSrc.includes('out.jev = next') && wireSrc.includes("{ requestId: 'request_id' }") && wireSrc.includes('t(LANE_WINDOW), laneWindowKeys, t(JEV))'))
   const readerSrc = readFileSync(join(REPO, 'src/services/jev/jevSessionFacts.ts'), 'utf8')
   check('the reader answers from the focused slot alone, never a ledger snapshot', readerSrc.includes('getFocusedSessionConnector().usage().jev') && readerSrc.includes('if (!hasFocusedSession()) return { state: \'no-session\' }') && !readerSrc.includes('jevLedgerSnapshot'))
   const boot = readFileSync(join(REPO, 'src/components/BootSettingsScreen.tsx'), 'utf8')

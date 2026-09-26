@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { jevReceiptWords, setJevEnabled } from '../../services/jev/jevSetting.js'
 import { JEV_POPUP_HINT, JEV_POPUP_WIDTH, Jev, jevPopupLine } from '../../components/Settings/Jev.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
@@ -20,7 +21,12 @@ export function jevPopupRequest(): SettingsPopupRequest {
   }
 }
 
-export const call = async (_args: string, _context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
-  openSettingsPopup(jevPopupRequest())
-  return { type: 'skip' }
+export const call = async (args: string, _context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
+  const words = args.trim().split(/\s+/).join(' ')
+  if (words === '') {
+    openSettingsPopup(jevPopupRequest())
+    return { type: 'skip' }
+  }
+  if (words === 'on' || words === 'off') return { type: 'text', value: jevReceiptWords(setJevEnabled(words === 'on', 'official')) }
+  return { type: 'text', value: 'Use /jev on or /jev off for the official road. Bare /jev opens the card; /jevor on selects OpenRouter.' }
 }

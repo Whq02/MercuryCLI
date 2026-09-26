@@ -23,7 +23,7 @@ void _admission
 type Snapshot = ReturnType<typeof jevLedgerSnapshot>
 const T0 = 1_700_000_000_000
 const mid = (): number => 0.5
-const on = { enabled: true, allowanceUsd: 20, pacePerMinute: 10, requestCeiling: null, subagents: false }
+const on = { enabled: true, road: 'official' as const, allowanceUsd: 20, pacePerMinute: 10, requestCeiling: null, subagents: false }
 const stored = { present: true, source: 'stored' } as const
 const absent = { present: false } as const
 const emptyLedger = (): Snapshot => {
@@ -62,7 +62,10 @@ record('a 529 on record inside its hold', resolveJevStatus({ settings: on, key: 
 record('a refusal naming credit', resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'provider-refused', status: 402, detail: 'insufficient credits' }), now: T0 + 1000 }), 'provider-credit')
 record('a refusal naming nothing known', resolveJevStatus({ settings: on, key: stored, ledger: wired({ kind: 'provider-refused', status: 418, detail: 'I am a teapot' }), now: T0 + 1000 }), 'provider-refused')
 record('on, key, nothing on record', resolveJevStatus({ settings: on, key: stored, ledger: emptyLedger(), now: T0 }), 'ready')
-check('all twelve kinds were reached', seen.size === JEV_STATUS_KINDS.length && JEV_STATUS_KINDS.every(k => seen.has(k)), [...seen.keys()].join(','))
+record('OpenRouter in-flight credits wait', resolveJevStatus({ settings: { ...on, road: 'openrouter' }, key: stored, ledger: wired({ kind: 'in-flight-budget', status: 402, detail: 'credits', retryAfterMs: 4000 }), now: T0 + 1000 }), 'in-flight-budget')
+record('OpenRouter key cap used up', resolveJevStatus({ settings: { ...on, road: 'openrouter' }, key: stored, ledger: wired({ kind: 'key-limit', status: 402, detail: 'key limit' }), now: T0 + 1000 }), 'key-limit')
+record('OpenRouter does not serve the model', resolveJevStatus({ settings: { ...on, road: 'openrouter' }, key: stored, ledger: wired({ kind: 'model-not-served', status: 404, detail: 'missing' }), now: T0 + 1000 }), 'model-not-served')
+check('all status kinds were reached', seen.size === JEV_STATUS_KINDS.length && JEV_STATUS_KINDS.every(k => seen.has(k)), [...seen.keys()].join(','))
 check('no two kinds share their words', new Set(seen.values()).size === seen.size)
 check('no two headwords collide', new Set(Object.values(JEV_STATUS_HEADWORDS)).size === JEV_STATUS_KINDS.length)
 check('no state ever calls itself experimental', ![...seen.values()].some(w => /experimental/i.test(w)))

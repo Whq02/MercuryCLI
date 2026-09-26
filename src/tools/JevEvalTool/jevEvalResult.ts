@@ -1,5 +1,6 @@
 import {
-  JEV_MAX_CALL_USD,
+  jevMaxCallUsd,
+  type JevRoad,
   type JevAnswer,
   type JevResponse,
   type JevStatus,
@@ -58,8 +59,9 @@ export function jevEvalAnswerLine(id: string, answer: JevAnswer): string {
   return `${id} score ${jevEvalScore(answer.score)} of 0..${Math.max(0, indices.length - 1)} conf ${jevEvalProbability(answer.confidence)} { ${distribution} } levels: ${levels}`
 }
 
-export function jevEvalAnsweredText(response: JevResponse, chargeUsd: number, order: readonly string[]): string {
-  const header = `JEV ${response.model} | in ${response.usage.input_tokens} tok | ${jevUsdLabel(chargeUsd)} | ok`
+export function jevEvalAnsweredText(response: JevResponse, chargeUsd: number, order: readonly string[], requestId?: string): string {
+  const stated = response.usage.cost !== undefined ? ` | stated $${response.usage.cost}` : ''
+  const header = `JEV ${response.model} | in ${response.usage.input_tokens} tok | ${jevUsdLabel(chargeUsd)}${stated}${requestId ? ` | id=${requestId}` : ''} | ok`
   const lines = order.filter(id => id in response.answers).map(id => jevEvalAnswerLine(id, response.answers[id]!))
   return [header, ...lines].join('\n')
 }
@@ -81,14 +83,14 @@ export function jevEvalRefusedText(reason: string): string {
 
 export function jevEvalBadRequestText(failure: JevWireFailure): string {
   const status = failure.status !== undefined ? ` (${failure.status})` : ''
-  return `JEV — | status=bad-request | the provider refused the request${status}: ${failure.detail} — fix the named field and call again; no answer arrived`
+  return `JEV — | status=bad-request | the provider refused the request${status}: ${failure.detail}${failure.requestId ? ` | id=${failure.requestId}` : ''} — fix the named field and call again; no answer arrived`
 }
 
 export function jevEvalFailureText(failure: JevWireFailure): string {
   const status = failure.status !== undefined ? `${failure.status} ` : ''
-  return `JEV — | status=${failure.kind} | ${status}${failure.detail}`
+  return `JEV — | status=${failure.kind} | ${status}${failure.detail}${failure.requestId ? ` | id=${failure.requestId}` : ''}`
 }
 
-export function jevEvalAbortedText(): string {
-  return `JEV — | status=aborted | cancelled after the request was sent; no answer was read, the charge is unconfirmed and counted at the ${jevUsdLabel(JEV_MAX_CALL_USD)} ceiling; nothing was retried`
+export function jevEvalAbortedText(road: JevRoad = 'official'): string {
+  return `JEV — | status=aborted | cancelled after the request was sent; no answer was read, the charge is unconfirmed and counted at the ${jevUsdLabel(jevMaxCallUsd(road))} ceiling; nothing was retried`
 }

@@ -2,7 +2,9 @@ import * as React from 'react'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import {
-  JEV_MAX_CALL_USD,
+  jevMaxCallUsd,
+  jevRoadWords,
+  type JevRoad,
   JEV_SUBAGENT_CALL_BUDGET,
   JEV_USD_PER_INPUT_TOKEN,
   type JevStatus,
@@ -21,14 +23,15 @@ import {
   readJevSettings,
   setJevAllowanceUsd,
   setJevEnabled,
+  setJevRoad,
   setJevPacePerMinute,
   setJevRequestCeiling,
   setJevSubagents,
 } from '../../services/jev/jevSetting.js'
 import { JEV_STATUS_HEADWORDS, jevStatusLine } from '../../services/jev/jevStatus.js'
+import { openrouterObservedKeyUsage } from '../../services/providers/openrouter/openrouterUsageState.js'
 import type { JevFactsV1 } from '../../services/engine-connector/types.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
-import { providerSecretsPathForDisplay } from '../../utils/router/providerSecrets.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -43,10 +46,23 @@ export const JEV_CEILING_RUNGS: readonly number[] = [10, 20, 50, 100, 200, 500]
 export const JEV_ROW_MARK = GLYPH.chevronRight
 const LABEL_CELLS = 18
 
-export type JevRowId = 'switch' | 'key' | 'spend' | 'allowance' | 'pace' | 'ceiling' | 'subagents'
-export const JEV_ROWS: readonly JevRowId[] = ['switch', 'key', 'spend', 'allowance', 'pace', 'ceiling', 'subagents']
+export function jevSpendLabel(road: JevRoad): string {
+  return road === 'openrouter' ? "OpenRouter states each call's cost; unstated costs use the token rate" : JEV_SPEND_LABEL
+}
+
+export function jevCreditsWords(road: JevRoad): string {
+  if (road === 'official') return 'not reported by the provider'
+  const { usage, lastError } = openrouterObservedKeyUsage()
+  if (usage?.limitRemaining === undefined) return 'not yet reported'
+  const amount = usage.limitRemaining === null ? 'no key cap' : `${jevUsdLabel(usage.limitRemaining)} under key cap`
+  return `${amount} (read ${jevClockLabel(usage.observedAtMs)}${lastError ? ', stale' : ''})`
+}
+
+export type JevRowId = 'switch' | 'road' | 'key' | 'spend' | 'allowance' | 'pace' | 'ceiling' | 'subagents'
+export const JEV_ROWS: readonly JevRowId[] = ['switch', 'road', 'key', 'spend', 'allowance', 'pace', 'ceiling', 'subagents']
 export const JEV_ROW_LABELS: Readonly<Record<JevRowId, string>> = {
   switch: 'Switch',
+  road: 'Road',
   key: 'Key',
   spend: 'Spend',
   allowance: 'Allowance',
@@ -68,14 +84,14 @@ export function jevSpendWords(facts: JevFactsV1): string {
 }
 
 export function jevLastAnswerWords(facts: JevFactsV1): string | null {
+  if (facts.lastFailure) return `last call: ${facts.lastFailure.status !== undefined ? `HTTP ${facts.lastFailure.status}` : 'no HTTP status'} · ${facts.lastFailure.detail}${facts.lastFailure.requestId ? ` · id ${facts.lastFailure.requestId}` : ''}`
   if (facts.lastAnsweredAtMs === null) return null
-  return `last answered ${jevClockLabel(facts.lastAnsweredAtMs)}${facts.lastModel !== null ? ` · ${facts.lastModel}` : ''}`
+  return `last answered ${jevClockLabel(facts.lastAnsweredAtMs)}${facts.lastModel !== null ? ` · ${facts.lastModel}` : ''}${facts.lastCostUsd != null ? ` · stated $${facts.lastCostUsd}` : ''}${facts.lastRequestId ? ` · id ${facts.lastRequestId}` : ''}`
 }
 
 export function jevSessionSpendWords(session: JevSessionFacts): string {
   if (session.state !== 'reported') return jevSessionAbsenceWords(session)
-  const last = jevLastAnswerWords(session.facts)
-  return `${jevSpendWords(session.facts)}${last === null ? '' : ` · ${last}`}`
+  return jevSpendWords(session.facts)
 }
 
 function settingValue(line: string): string {
@@ -98,9 +114,11 @@ export function jevRowWords(id: JevRowId, facts: JevFacts): string {
   const values = jevRowValues(facts.settings)
   switch (id) {
     case 'switch':
-      return jevValueWords(facts.settings)
+      return facts.settings.enabled ? 'on' : 'off'
+    case 'road':
+      return facts.settings.road === 'official' ? '[official] · OpenRouter' : 'official · [OpenRouter]'
     case 'key':
-      return jevKeySourceWords(facts.key)
+      return jevKeySourceWords(facts.key, facts.settings.road)
     case 'spend':
       return jevSessionSpendWords(facts.session)
     case 'allowance':
@@ -116,16 +134,20 @@ export function jevRowWords(id: JevRowId, facts: JevFacts): string {
 
 const RATE_WORDS = `$${(JEV_USD_PER_INPUT_TOKEN * 1_000_000).toFixed(3)} a million input tokens, output free`
 
-export function jevRowNote(id: JevRowId): string {
+export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road): string {
+  const maxCall = jevMaxCallUsd(road)
   switch (id) {
     case 'switch':
       return '↵, space or ←/→ flip the one switch — the same switch as the JEV row of /config and the JEV row of the Boot Menu; JevEval joins or leaves the roster at the next turn boundary and never answers a permission request'
+    case 'road':
+      return '↵ or ←/→ selects official · OpenRouter, without changing the switch; each road keeps its own key, spend and cap. /jev on selects official; /jevor on selects OpenRouter. No automatic fallback.'
     case 'key':
+      if (road === 'openrouter') return 'OpenRouter uses the existing sign-in or pasted key from /logins; OPENROUTER_API_KEY outranks the store. Manage it at /logins; this card never stores an OpenRouter key as a TypeSafe key.'
       return `↵ pastes a TypeSafe API key (masked; the value never enters the transcript, receipts or logs) · ⌫ clears the stored key · ${JEV_KEY_ENV} in the environment outranks the store · Mercury ships no key`
     case 'spend':
-      return `${JEV_SPEND_LABEL} — counted at the published rate (${RATE_WORDS}); an unconfirmed charge is a call whose answer Mercury did not read (a timeout or an unreadable reply), counted at the most a call can cost (${jevUsdLabel(JEV_MAX_CALL_USD)}) · resets with the cost ledger on /clear`
+      return `${jevSpendLabel(road)} · credits: ${jevCreditsWords(road)} — published rate (${RATE_WORDS}); an unconfirmed charge is a call whose answer Mercury did not read (a timeout or an unreadable reply), counted at the most a call can cost (${jevUsdLabel(maxCall)}) · resets with the cost ledger on /clear`
     case 'allowance':
-      return `a runaway stop, not a budget — one call costs at most ${jevUsdLabel(JEV_MAX_CALL_USD)}; the pace and the request ceiling do the real work · ←/→ walk ${JEV_ALLOWANCE_RUNGS.map(usd => jevUsdLabel(usd)).join(' · ')} · ↵ types a dollar amount · ⌫ returns to ${jevUsdLabel(JEV_DEFAULT_ALLOWANCE_USD)}`
+      return `a runaway stop, not a budget — one call costs at most ${jevUsdLabel(maxCall)}; the pace and the request ceiling do the real work · ←/→ walk ${JEV_ALLOWANCE_RUNGS.map(usd => jevUsdLabel(usd)).join(' · ')} · ↵ types a dollar amount · ⌫ returns to ${jevUsdLabel(JEV_DEFAULT_ALLOWANCE_USD)}`
     case 'pace':
       return `requests admitted a minute; past it a request is refused with the wait until the minute turns · ←/→ move by one · ↵ types a count · ⌫ returns to ${JEV_DEFAULT_PACE_PER_MINUTE}`
     case 'ceiling':
@@ -135,14 +157,15 @@ export function jevRowNote(id: JevRowId): string {
   }
 }
 
-export function jevKeyShortWords(key: JevKeyPresence): string {
+export function jevKeyShortWords(key: JevKeyPresence, road: JevRoad = readJevSettings().road): string {
   if (!key.present) return 'no key'
+  if (road === 'openrouter') return key.source === 'env' ? 'key from env' : key.source === 'oauth' ? 'signed in' : 'key stored'
   return key.source === 'env' ? `key from ${JEV_KEY_ENV}` : 'key stored'
 }
 
 export function jevPopupLine(facts: JevFacts = jevFacts()): string {
-  const spend = facts.session.state === 'reported' ? `spend ${jevUsdLabel(facts.session.facts.spendUsd)} of ${jevUsdLabel(facts.settings.allowanceUsd)}` : `${jevSessionAbsenceShortWords(facts.session)} · allowance ${jevUsdLabel(facts.settings.allowanceUsd)}`
-  return `switch ${jevValueWords(facts.settings)} · ${jevKeyShortWords(facts.key)} · ${spend} · ${JEV_STATUS_HEADWORDS[facts.status.kind]}`
+  const spend = facts.session.state === 'reported' ? `spend ${jevUsdLabel(facts.session.facts.spendUsd)} / ${jevUsdLabel(facts.settings.allowanceUsd)}` : `${jevSessionAbsenceShortWords(facts.session)} · cap ${jevUsdLabel(facts.settings.allowanceUsd)}`
+  return `${jevValueWords(facts.settings)} · ${jevKeyShortWords(facts.key, facts.settings.road)} · ${spend} · ${JEV_STATUS_HEADWORDS[facts.status.kind]}`
 }
 
 export function nextRung(rungs: readonly number[], current: number, direction: 1 | -1): number {
@@ -162,13 +185,13 @@ export function nextCeiling(current: number | null, direction: 1 | -1): number |
 
 export function jevKeyStoredReceipt(): string {
   const envShadow = Boolean(process.env[JEV_KEY_ENV]?.trim())
-  return `TypeSafe API key stored (auth-scoped, mode 600): ${providerSecretsPathForDisplay()}${envShadow ? ` — NOTE: ${JEV_KEY_ENV} is set in the environment and outranks the store this session` : ''} · ⌫ on the Key row clears it`
+  return `TypeSafe API key stored (auth-scoped, mode 600)${envShadow ? ` — ${JEV_KEY_ENV} outranks the store` : ''} · ⌫ on the Key row clears it`
 }
 
 export function jevKeyClearedReceipt(hadKey: boolean): string {
   const envShadow = Boolean(process.env[JEV_KEY_ENV]?.trim())
   const tail = envShadow ? ` · ${JEV_KEY_ENV} in the environment still supplies a key this session` : ''
-  return hadKey ? `stored TypeSafe API key cleared from ${providerSecretsPathForDisplay()}${tail}` : `no stored TypeSafe API key — nothing to clear${tail}`
+  return hadKey ? `stored TypeSafe API key cleared (auth-scoped)${tail}` : `no stored TypeSafe API key — nothing to clear${tail}`
 }
 
 export const JEV_KEY_ENTRY_PROMPT = 'Paste the TypeSafe API key — input is masked (the last 6 characters stay visible so you can confirm the paste); the value never enters the transcript, receipts or logs. ↵ saves to the auth-scoped secret store; esc cancels.'
@@ -239,16 +262,25 @@ export function Jev({
   const openEntry = (kind: JevEntryKind): void => setEntry({ kind, value: '', cursor: 0 })
   const toggleSwitch = (): void => settle(() => jevReceiptWords(setJevEnabled(!facts.settings.enabled)))
   const toggleSubagents = (): void => settle(() => `sub-agents ${jevRowValues(setJevSubagents(!facts.settings.subagents)).subagents}`)
+  const toggleRoad = (): void => settle(() => {
+    const settings = setJevRoad(facts.settings.road === 'official' ? 'openrouter' : 'official')
+    return `${jevRoadWords(settings.road)} road selected — ${settings.enabled ? 'on' : 'off'}; its own key, spend and allowance; no fallback`
+  })
+  const routerKeyReceipt = (): void => setReceipt({ words: 'Manage the OpenRouter sign-in or pasted key at /logins; no key written here', refused: false })
 
   const activate = (index: number): void => {
     const id = JEV_ROWS[index]
     if (id === 'switch') toggleSwitch()
+    else if (id === 'road') toggleRoad()
+    else if (id === 'key' && facts.settings.road === 'openrouter') routerKeyReceipt()
     else if (id === 'subagents') toggleSubagents()
     else if (id === 'key' || id === 'allowance' || id === 'pace' || id === 'ceiling') openEntry(id)
   }
   const step = (index: number, direction: 1 | -1): void => {
     const id = JEV_ROWS[index]
     if (id === 'switch') toggleSwitch()
+    else if (id === 'road') toggleRoad()
+    else if (id === 'key' && facts.settings.road === 'openrouter') routerKeyReceipt()
     else if (id === 'subagents') toggleSubagents()
     else if (id === 'allowance') settle(() => jevSettingLines(setJevAllowanceUsd(nextRung(JEV_ALLOWANCE_RUNGS, facts.settings.allowanceUsd, direction)))[0] ?? '')
     else if (id === 'pace') settle(() => jevSettingLines(setJevPacePerMinute(Math.max(1, facts.settings.pacePerMinute + direction)))[1] ?? '')
@@ -257,6 +289,8 @@ export function Jev({
   const reset = (index: number): void => {
     const id = JEV_ROWS[index]
     if (id === 'switch') settle(() => jevReceiptWords(setJevEnabled(false)))
+    else if (id === 'road') settle(() => `${jevValueWords(setJevRoad('official'))} — official road selected`)
+    else if (id === 'key' && facts.settings.road === 'openrouter') routerKeyReceipt()
     else if (id === 'key') {
       const hadKey = facts.key.present && facts.key.source === 'stored'
       settle(() => {
@@ -330,13 +364,14 @@ export function Jev({
     { isActive: entry === null },
   )
 
+  const compact = rowBudget < 20
   const statusColor = facts.status.kind === 'ready' ? tokens.success : facts.status.kind === 'off' ? tokens.textSecondary : tokens.warning
   const band = width + 2
   const doors = jevRowValues(facts.settings).doors
   return (
     <Box flexDirection="column" width={width} flexShrink={0} maxHeight={Math.max(1, rowBudget)} overflow="hidden">
-      <Text color={statusColor} bold={true}>{jevStatusLine(facts.status)}</Text>
-      <Box height={1} />
+      <Text color={statusColor} bold={true} wrap={compact ? 'truncate-end' : 'wrap'}>{jevStatusLine(facts.status)}</Text>
+      {!compact ? <Box height={1} /> : null}
       {JEV_ROWS.map((id, index) => {
         const isSelected = index === selected
         const words = jevRowWords(id, facts)
@@ -367,13 +402,16 @@ export function Jev({
               </InteractiveRow>
             </Box>
             {id === 'spend' ? (
-              <Text color={tokens.textMuted} wrap="truncate-end">{' '.repeat(LABEL_CELLS)}{JEV_SPEND_LABEL}</Text>
+              <Box flexDirection="column" flexShrink={0}>
+                <Text color={tokens.textMuted} wrap="truncate-end">{' '.repeat(LABEL_CELLS)}{jevSpendLabel(facts.settings.road)}</Text>
+                {facts.session.state === 'reported' && jevLastAnswerWords(facts.session.facts) !== null ? <Text color={tokens.textSecondary} wrap="wrap">{jevLastAnswerWords(facts.session.facts)}</Text> : null}
+                {facts.settings.road === 'openrouter' ? <Text color={tokens.textMuted} wrap="wrap">credits: {jevCreditsWords(facts.settings.road)}</Text> : null}
+              </Box>
             ) : null}
           </Box>
         )
       })}
-      <Text color={tokens.textMuted} wrap="truncate-end">{'  '}{doors}</Text>
-      <Box height={1} />
+      {!compact ? <><Text color={tokens.textMuted} wrap="truncate-end">{'  '}{doors}</Text><Box height={1} /></> : null}
       {entry !== null ? (
         <Box flexDirection="column" flexShrink={0}>
           <Text color={tokens.textSecondary}>{entryPrompt(entry.kind, facts)}</Text>
@@ -393,7 +431,7 @@ export function Jev({
           </Box>
         </Box>
       ) : (
-        <Text color={tokens.textSecondary} wrap="wrap">{'  '}{jevRowNote(JEV_ROWS[selected] ?? 'switch')}</Text>
+        <Text color={tokens.textSecondary} wrap={compact ? 'truncate-end' : 'wrap'}>{'  '}{jevRowNote(JEV_ROWS[selected] ?? 'switch')}</Text>
       )}
       {receipt !== null ? (
         <Text color={receipt.refused ? tokens.warning : tokens.success} wrap="wrap">{'  '}{receipt.words}</Text>

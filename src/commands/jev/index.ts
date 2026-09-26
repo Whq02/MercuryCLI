@@ -6,6 +6,7 @@ export default {
   seat: 'screen',
   userPrivate: true,
   supportsNonInteractive: false,
-  description: "JEV — the one switch, the key, this session's spend, the allowance, the pace, the request ceiling and the truthful status",
+  description: "JEV — official or OpenRouter, each road's key, spend and allowance; the switch, pace and truthful status",
+  argumentHint: '[on | off]',
   load: () => import('./jev.js'),
 } satisfies Command

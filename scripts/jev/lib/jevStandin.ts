@@ -113,7 +113,15 @@ function send(response: ServerResponse, status: number, headers: Record<string, 
   response.end(text)
 }
 
-export async function startJevStandin(): Promise<JevStandin> {
+export function openrouterFailure(status: number, limitSource?: string): StandinScript {
+  return {
+    status,
+    body: { error: { code: status, message: status === 402 ? 'Insufficient credits for this request' : 'Request refused', metadata: { ...(limitSource ? { limit_source: limitSource } : {}), provider_code: 'fixture-code' } } },
+    headers: { 'x-generation-id': 'gen-dec-fixture-failure', 'retry-after': '2' },
+  }
+}
+
+export async function startJevStandin(road: 'official' | 'openrouter' = 'official'): Promise<JevStandin> {
   const queue: StandinScript[] = []
   const received: StandinRecord[] = []
   const timers = new Set<ReturnType<typeof setTimeout>>()
@@ -141,9 +149,16 @@ export async function startJevStandin(): Promise<JevStandin> {
             return
           }
           if (request.method !== 'POST') return send(response, 405, {}, JSON.stringify({ error: { message: 'method not allowed' } }))
-          if (request.url !== STANDIN_PATH) return send(response, 404, {}, JSON.stringify({ error: { message: 'not found' } }))
+          if (request.url !== (road === 'openrouter' ? '/api/v1/systemone' : STANDIN_PATH)) return send(response, 404, {}, JSON.stringify({ error: { message: 'not found' } }))
           if (body === undefined) return send(response, 400, {}, JSON.stringify({ error: { message: 'the body is not JSON' } }))
-          send(response, 200, {}, JSON.stringify(defaultResponseFor(body, rawBody)))
+          const answer = defaultResponseFor(body, rawBody) as Record<string, unknown>
+          if (road === 'openrouter') {
+            answer.id = 'gen-dec-fixture-body'
+            answer.provider = 'TypeSafe'
+            answer.model = 'typesafe/jev-1.13-20260917'
+            answer.usage = { ...(answer.usage as object), cost: 0.0007319 }
+          }
+          send(response, 200, road === 'openrouter' ? { 'x-generation-id': 'gen-dec-fixture-header' } : {}, JSON.stringify(answer))
         } catch {
           gone = true
         }

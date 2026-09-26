@@ -2,6 +2,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { retryAfterHeaderMs } from '../api/retryAfter.js'
 import { deadlineBreachLine } from '../providers/fetchDeadline.js'
+import { openrouterApiBase } from '../providers/openrouter/openrouterAccounts.js'
+import { JEV_OPENROUTER_MODEL_PIN, type JevRoad } from './jevContract.js'
 import {
   JEV_BASE_URL,
   JEV_MODEL_PIN,
@@ -26,6 +28,7 @@ export const JEV_DETAIL_CLIP = 400
 export type JevRequestInput = Pick<JevRequest, 'state' | 'questions'>
 
 export interface JevClientIo {
+  road?: JevRoad
   fetchImpl?: typeof fetch
   signal?: AbortSignal
   timeoutMs?: number
@@ -40,16 +43,21 @@ export function jevBaseUrl(): string {
   return (pinned || JEV_BASE_URL).replace(/\/+$/, '')
 }
 
-export function jevSystemOneUrl(): string {
-  return `${jevBaseUrl()}${JEV_SYSTEMONE_PATH}`
+export function jevSystemOneUrl(road: JevRoad = 'official'): string {
+  return road === 'openrouter' ? `${openrouterApiBase().replace(/\/+$/, '')}/systemone` : `${jevBaseUrl()}${JEV_SYSTEMONE_PATH}`
 }
 
 export function jevUserAgent(): string {
   return `mercury/${MACRO.VERSION}`
 }
 
-export function jevWireRequest(input: JevRequestInput): JevRequest {
-  return { model: JEV_MODEL_PIN, state: input.state, questions: input.questions }
+export function jevWireRequest(input: JevRequestInput, road: JevRoad = 'official'): JevRequest {
+  return {
+    model: road === 'openrouter' ? JEV_OPENROUTER_MODEL_PIN : JEV_MODEL_PIN,
+    state: input.state,
+    questions: input.questions,
+    ...(road === 'openrouter' ? { provider: { data_collection: 'deny' as const, allow_fallbacks: false as const } } : {}),
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -123,9 +131,10 @@ export function decodeJevResponse(body: unknown, questions: Record<string, JevQu
   if (!isRecord(body.usage)) return { ok: false, path: 'usage', reason: 'missing or not an object' }
   if (!isCount(body.usage.input_tokens)) return { ok: false, path: 'usage.input_tokens', reason: 'missing or not a non-negative number' }
   if (!isCount(body.usage.output_tokens)) return { ok: false, path: 'usage.output_tokens', reason: 'missing or not a non-negative number' }
+  if (body.usage.cost !== undefined && !isCount(body.usage.cost)) return { ok: false, path: 'usage.cost', reason: 'not a non-negative number' }
   return {
     ok: true,
-    response: { model: body.model, answers, usage: { input_tokens: body.usage.input_tokens, output_tokens: body.usage.output_tokens } },
+    response: { model: body.model, answers, usage: { input_tokens: body.usage.input_tokens, output_tokens: body.usage.output_tokens, ...(body.usage.cost !== undefined ? { cost: body.usage.cost as number } : {}) } },
   }
 }
 
@@ -167,7 +176,8 @@ export function jevRetryAfterMs(headers: Headers, nowMs: number = Date.now()): n
 }
 
 export async function jevSystemOne(input: JevRequestInput, key: string, io: JevClientIo = {}): Promise<JevWireOutcome> {
-  const request = jevWireRequest(input)
+  const road = io.road ?? 'official'
+  const request = jevWireRequest(input, road)
   const timeoutMs = io.timeoutMs ?? JEV_TIMEOUT_MS
   const deadline = AbortSignal.timeout(timeoutMs)
   const signal = io.signal ? AbortSignal.any([io.signal, deadline]) : deadline
@@ -176,12 +186,12 @@ export async function jevSystemOne(input: JevRequestInput, key: string, io: JevC
   const scrub = (text: string): string => (key.length >= 8 ? text.split(key).join('<key>') : text)
   const failed = (error: unknown): JevWireOutcome => {
     if (io.signal?.aborted) return { ok: false, failure: { kind: 'aborted', detail: 'cancelled before an answer arrived' } }
-    if (deadline.aborted) return { ok: false, failure: { kind: 'provider-down', detail: deadlineBreachLine(JEV_PROVIDER_NAME, timeoutMs) } }
+    if (deadline.aborted) return { ok: false, failure: { kind: 'provider-down', detail: deadlineBreachLine(road === 'openrouter' ? 'OpenRouter' : JEV_PROVIDER_NAME, timeoutMs) } }
     return { ok: false, failure: { kind: 'provider-down', detail: scrub(`no connection — ${error instanceof Error ? error.message : String(error)}`) } }
   }
   let response: Response
   try {
-    response = await fetchImpl(jevSystemOneUrl(), {
+    response = await fetchImpl(jevSystemOneUrl(road), {
       ...transport,
       method: 'POST',
       headers: {
@@ -196,33 +206,41 @@ export async function jevSystemOne(input: JevRequestInput, key: string, io: JevC
   } catch (error) {
     return failed(error)
   }
-  const requestId = response.headers.get(JEV_REQUEST_ID_HEADER)?.trim() || undefined
   let text: string
   try {
     text = await response.text()
   } catch (error) {
     return failed(error)
   }
+  const parsed = parseJson(text)
+  const headerId = response.headers.get(road === 'openrouter' ? 'x-generation-id' : JEV_REQUEST_ID_HEADER)?.trim()
+  const bodyId = road === 'openrouter' && isRecord(parsed) && typeof parsed.id === 'string' ? parsed.id.trim() : undefined
+  const rawId = headerId || bodyId
+  const requestId = rawId ? scrub(rawId) : undefined
   if (response.status < 200 || response.status >= 300) {
-    const retryAfterMs = jevRetryAfterMs(response.headers)
+    const retryAfterMs = road === 'openrouter' ? retryAfterHeaderMs(response.headers.get(JEV_RETRY_AFTER_HEADER), Date.now()) : jevRetryAfterMs(response.headers)
+    const metadata = road === 'openrouter' && isRecord(parsed) && isRecord(parsed.error) && isRecord(parsed.error.metadata) ? parsed.error.metadata : {}
+    const limitSource = typeof metadata.limit_source === 'string' ? scrub(metadata.limit_source) : undefined
+    const providerCode = typeof metadata.provider_code === 'string' || typeof metadata.provider_code === 'number' ? scrub(String(metadata.provider_code)) : undefined
     return {
       ok: false,
       failure: {
-        kind: jevWireFailureKindForStatus(response.status),
+        kind: jevWireFailureKindForStatus(response.status, road, limitSource),
         status: response.status,
         detail: scrub(jevFailureDetail(text)),
+        ...(limitSource !== undefined ? { limitSource } : {}),
+        ...(providerCode !== undefined ? { providerCode } : {}),
         ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
         ...(requestId !== undefined ? { requestId } : {}),
       },
     }
   }
-  const parsed = parseJson(text)
   if (parsed === undefined) {
     return { ok: false, failure: { kind: 'parse-failed', status: response.status, detail: 'the body is not JSON', ...(requestId !== undefined ? { requestId } : {}) } }
   }
   const decoded = decodeJevResponse(parsed, request.questions)
   if (!decoded.ok) {
-    return { ok: false, failure: { kind: 'parse-failed', status: response.status, detail: `${decoded.path}: ${decoded.reason}`, ...(requestId !== undefined ? { requestId } : {}) } }
+    return { ok: false, failure: { kind: 'parse-failed', status: response.status, detail: scrub(`${decoded.path}: ${decoded.reason}`), ...(requestId !== undefined ? { requestId } : {}) } }
   }
   return { ok: true, response: decoded.response, ...(requestId !== undefined ? { requestId } : {}) }
 }

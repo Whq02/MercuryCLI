@@ -42,7 +42,7 @@ tally.check('and it answered the turn', c.stdout.includes('settings probe answer
 
 const specials: Array<{ name: string; make: (settings: string) => void }> = [
   { name: 'a named pipe (no writer)', make: settings => execFileSync('mkfifo', [settings]) },
-  { name: 'a socket', make: settings => execFileSync('python3', ['-c', 'import socket, sys; s = socket.socket(socket.AF_UNIX); s.bind(sys.argv[1])', settings]) },
+  { name: 'a socket', make: settings => execFileSync('python3', ['-c', 'import os, socket, sys; os.chdir(os.path.dirname(sys.argv[1])); s = socket.socket(socket.AF_UNIX); s.bind(os.path.basename(sys.argv[1]))', settings]) },
   { name: 'a device (a link to /dev/null)', make: settings => symlinkSync('/dev/null', settings) },
 ]
 for (const special of specials) {

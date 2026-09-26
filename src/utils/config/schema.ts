@@ -188,6 +188,8 @@ export type GlobalConfig = {
   motion?: 'auto' | 'full' | 'reduced' | 'off'
   jev?: {
     enabled?: boolean
+    road?: 'official' | 'openrouter'
+    openrouterAllowanceUsd?: number
     allowanceUsd?: number
     pacePerMinute?: number
     requestCeiling?: number
