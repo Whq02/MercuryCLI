@@ -151,7 +151,7 @@ try {
   const plain = await load()
   check('the transcript resolves through the session-id road and carries the worktree record', plain.worktreeSession?.worktreePath === worktree && plain.fullPath === transcriptPath, j({ worktree: plain.worktreeSession, fullPath: plain.fullPath }))
   state.switchSession(asSessionId(plain.sessionId), dirname(plain.fullPath!))
-  restoreSessionStateFromLog(plain, noop)
+  await restoreSessionStateFromLog(plain, noop)
   restoreSessionMetadata(plain)
   const plainResumed = await build(grownPool)
   check('the plain road re-sends the first request byte for byte although the task tools joined the pool', plainResumed === first, firstDifference(first, plainResumed))

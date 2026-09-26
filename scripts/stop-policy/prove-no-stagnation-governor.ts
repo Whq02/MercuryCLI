@@ -72,7 +72,7 @@ function lastToolResultIsError(items: Item[]): boolean {
   }
   return false
 }
-function userTextItems(items: Item[]): string[] {
+export function userTextItems(items: Item[]): string[] {
   const out: string[] = []
   for (const item of items) {
     if (item.role !== 'user' || hasToolResult(item)) continue

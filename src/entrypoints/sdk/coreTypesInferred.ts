@@ -58,6 +58,7 @@ export type WorktreeRemoveHookInput = z.infer<ReturnType<S["WorktreeRemoveHookIn
 export type CwdChangedHookInput = z.infer<ReturnType<S["CwdChangedHookInputSchema"]>>;
 export type FileChangedHookInput = z.infer<ReturnType<S["FileChangedHookInputSchema"]>>;
 export type SessionEndHookInput = z.infer<ReturnType<S["SessionEndHookInputSchema"]>>;
+export type InterruptHookInput = z.infer<ReturnType<S["InterruptHookInputSchema"]>>;
 export type HookInput = z.infer<ReturnType<S["HookInputSchema"]>>;
 export type AsyncHookJSONOutput = z.infer<ReturnType<S["AsyncHookJSONOutputSchema"]>>;
 export type PreToolUseHookSpecificOutput = z.infer<ReturnType<S["PreToolUseHookSpecificOutputSchema"]>>;

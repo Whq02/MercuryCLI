@@ -26,6 +26,7 @@ export {
   executeFileChangedHooks,
   executeFileSuggestionCommand,
   executeInstructionsLoadedHooks,
+  executeInterruptHooks,
   executeNotificationHooks,
   executePermissionDeniedHooks,
   executePermissionRequestHooks,

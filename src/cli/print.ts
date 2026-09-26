@@ -49,7 +49,8 @@ import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } f
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
-import { getCurrentProjectConfig, getGlobalConfig, readGlobalConfigAgain } from '../utils/config.js'
+import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
+import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
@@ -115,6 +116,7 @@ import {
   setupSdkMcpClients,
 } from '../services/mcp/client.js'
 import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'
+import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
@@ -899,7 +901,7 @@ export async function runHeadless(
   ): Promise<void> => {
     client.client.setRequestHandler(
       'elicitation/create',
-      async (request, ctx) => {
+      (request, ctx) => withElicitationEntered(client.client, async () => {
         const params = request.params
         const mode = params.mode === 'url' ? 'url' : 'form'
         const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
@@ -939,7 +941,7 @@ export async function runHeadless(
           return resultHook.elicitationResultResponse
         }
         return hostResult
-      },
+      }),
     )
     client.client.setNotificationHandler(
       'notifications/elicitation/complete',
@@ -1255,6 +1257,7 @@ export async function runHeadless(
           ...(batchTail.length > 0 ? { batchTail } : {}),
           isMeta: command.isMeta,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
+          ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
@@ -1764,7 +1767,7 @@ export async function runHeadless(
         mode: 'prompt',
         uuid: randomUUID(),
         priority: 'later',
-        isMeta: true,
+        skipSlashCommands: true,
         workload: 'cron',
         origin: next.origin,
       })
@@ -2032,7 +2035,7 @@ export async function runHeadless(
             }
             switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
             if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
-            restoreSessionStateFromLog(resumed, setAppState)
+            await restoreSessionStateFromLog(resumed, setAppState)
             restoreSessionMetadata(resumed)
             messages.splice(0, messages.length, ...resumed.messages)
             contentReplacementState = {
@@ -2128,7 +2131,7 @@ export async function runHeadless(
               firstPartyApi: is1PApiCustomer(),
               consoleBilling: hasConsoleBillingAccess(),
               claudeAiBilling: hasClaudeAiBillingAccess(),
-              accountEmail: getGlobalConfig().oauthAccount?.emailAddress ?? null,
+              accountEmail: anthropicSignInEmail() ?? null,
             },
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),

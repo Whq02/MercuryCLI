@@ -37,6 +37,7 @@ export const HOOK_EVENTS = [
   'InstructionsLoaded',
   'CwdChanged',
   'FileChanged',
+  'Interrupt',
 ] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]
