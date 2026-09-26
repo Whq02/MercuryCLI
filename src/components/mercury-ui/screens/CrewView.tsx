@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { crewEnabled } from '../../../daemon/crewSpawn.js'
@@ -12,6 +12,8 @@ import {
   crewCountLabel,
   crewElapsedLabel,
   crewModelLabel,
+  crewOperatorPauseParts,
+  crewPauseChipWords,
   crewStateLabel,
   crewStatusWords,
   crewWaitLine,
@@ -20,6 +22,7 @@ import {
   type CrewAgentFacts,
   crewWaitHolders,
 } from '../../../services/engine-connector/crewFacts.js'
+import { operatorPauseGate } from '../../../run-core/pauseGate.js'
 import { WORK_UNREPORTED_LINE, workUnreported } from '../../../services/engine-connector/workCounts.js'
 import {
   getFocusedSessionConnector,
@@ -33,7 +36,7 @@ import {
   focusedSessionIdOrNull,
   useFocusedWorkRoster,
 } from '../../tasks/useFocusedWork.js'
-import { CommandCenter, SectionHeader, useNowTick } from '../components.js'
+import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
 import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
 import { WorkingGlyph } from '../LiveGlyphs.js'
 import { decodeNavKey } from '../navSemantics.js'
@@ -42,6 +45,7 @@ import { useMercuryTokens } from '../useMercuryTokens.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
+import { crewPauseDoorKey, crewPauseDoorNote, pressCrewPause } from './crewPauseDoor.js'
 import { TeammateChatsView } from './TeammateChatsView.js'
 
 
@@ -105,6 +109,9 @@ export function CrewView({
   const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
   const [doorNote, setDoorNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
   const armedTarget = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (agents.find(a => a.id === stopArm.id) ?? null) : null
+  const gateState = useSyncExternalStore(operatorPauseGate.subscribe, operatorPauseGate.state, operatorPauseGate.state)
+  const pauseChip = crewPauseChipWords(agents, gateState)
+  const pauseDoor = crewPauseDoorKey(pauseChip !== null)
 
   useEffect(() => {
     if (listMode) pokeTelemetry()
@@ -132,6 +139,12 @@ export function CrewView({
         .then(receipt => {
           if (receipt.outcome === 'refused') setDoorNote({ tone: 'warning', text: `the stop of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` })
         })
+      return
+    }
+    if (input === 'p') {
+      setStopArm(null)
+      const reach = hasFocusedSession() ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier } : { kind: 'blank' as const }
+      setDoorNote(crewPauseDoorNote(pressCrewPause(reach, operatorPauseGate)))
       return
     }
     if (input === 'r' && target !== null && !target.running) {
@@ -190,7 +203,7 @@ export function CrewView({
   }
 
   const doorKeys = (target: CrewAgentFacts | null): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : target === null ? [] : target.running ? ['x x stop'] : ['r resume']
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : ['r resume']), pauseDoor]
 
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
@@ -230,6 +243,11 @@ export function CrewView({
         ) : null}
         {presence === 'dormant' ? (
           <Text color={tokens.textMuted}>the session has no live runner — ↵ in the chat revives it</Text>
+        ) : null}
+        {pauseChip !== null ? (
+          <Text>
+            <Chip tone="warn">{pauseChip}</Chip>
+          </Text>
         ) : null}
         <SectionHeader marginTop={0} count={agents.length}>
           Sub-agents
@@ -298,6 +316,7 @@ function AgentRow({
   const wait = crewWaitLine(facts)
   const holders = crewWaitHolders(facts)
   const unread = crewUnreadLabel(facts)
+  const parkedByOperator = crewOperatorPauseParts(facts)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
@@ -318,6 +337,7 @@ function AgentRow({
 }
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
           {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
+          {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
         </Text>
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}

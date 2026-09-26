@@ -5,6 +5,7 @@ import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import { decodeAgentPause, pauseLineWords, pauseStatusWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
+import { operatorPauseWaitParts, pauseGateChipWords } from '../../run-core/pauseGate.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
@@ -187,9 +188,25 @@ export const CREW_ASK_WAIT_WORDS = 'waiting for your answer'
 
 export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
   if (facts.running && facts.pendingAsks > 0) return CREW_ASK_WAIT_WORDS
+  const parkedByOperator = crewOperatorPauseParts(facts)
+  if (parkedByOperator !== null) return parkedByOperator.gate
   if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
   if (!facts.running && facts.paused !== null) return pauseStatusWords(facts.paused, nowMs)
   return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
+}
+
+export function crewOperatorPauseParts(facts: Pick<CrewAgentFacts, 'running' | 'wait'>): { gate: string; detail: string; door: string } | null {
+  if (!facts.running) return null
+  return operatorPauseWaitParts(facts.wait)
+}
+
+export function crewOperatorPaused(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
+  return agents.filter(a => crewOperatorPauseParts(a) !== null)
+}
+
+export function crewPauseChipWords(agents: readonly CrewAgentFacts[], gate: { paused: boolean; parked: number }): string | null {
+  const parkedRows = crewOperatorPaused(agents).length
+  return pauseGateChipWords({ paused: gate.paused || parkedRows > 0, parked: Math.max(gate.parked, parkedRows) })
 }
 
 export function crewPauseLine(facts: CrewAgentFacts, nowMs: number): string | null {
