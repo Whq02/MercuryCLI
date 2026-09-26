@@ -19,6 +19,14 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const settle = (): Promise<void> => sleep(750)
+const until = async (pred: () => boolean, ms: number): Promise<boolean> => {
+  const deadline = Date.now() + ms
+  while (Date.now() < deadline) {
+    if (pred()) return true
+    await sleep(25)
+  }
+  return pred()
+}
 
 const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
 const projections = await import('../../src/services/engine-connector/seatProjections.ts')
@@ -197,8 +205,7 @@ section('§8 the live channel ticks once a second only while a turn is in flight
   check('an idle chat ticks nothing (no emit in 1.3s with nothing moving)', idleEmits === 0, `${idleEmits} emit(s)`)
   facts({ streamIdleTimeoutMs: 120_000, busy: true })
   tail({ lastEventAtMs: Date.now(), streamBlock: 'thinking', blockSinceMs: Date.now() })
-  await settle()
-  check('fixture: in flight again', c.live().inFlight === true, show())
+  check('fixture: in flight again (the busy edge reaches the live view well inside the idle floor)', await until(() => c.live().inFlight === true, 5_000), show())
   let busyEmits = 0
   const offBusy = c.subscribeLive(() => busyEmits++)
   await sleep(2_300)

@@ -184,6 +184,7 @@ try {
   check('the ask delivered into the opened session', run.ok === true && run.sessionId === sid, JSON.stringify(run))
   check('Q1 the seat\'s stream is held alive by the fixture (the parent waits on it)', await untilAsync(() => wire().some(c => c.kind === 'held-alive' && c.arm === ARM), 45_000), JSON.stringify(wire().map(c => c.kind)))
   check('Q1 the parent is busy in its wait', await untilAsync(() => readFacts(sid)?.busy === true, 10_000))
+  check("Q1 the chat's own connector reads the turn in flight (its facts feed heard the busy edge, well inside the idle floor)", await untilAsync(() => conn.turnActive(), 5_000), JSON.stringify(conn.live()))
   await sleep(1_500)
 
   const receipt = await conn.sendWords(TYPED)
