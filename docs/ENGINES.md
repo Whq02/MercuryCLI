@@ -643,6 +643,25 @@ priced nothing reads "unpriced", and a figure that includes such turns says
 headline and rows, and the deck and frame vitals alike. No family is ever
 priced at another family's rates.
 
+### JEV
+
+JevEval is a second opinion from TypeSafe's Jev, not the model running the
+chat. Bare `/jev` opens its card. `/jev on` selects the official road with
+its own TypeSafe key; `/jevor on` selects the OpenRouter road using the
+credential already connected through `/logins`. `/jev off` and `/jevor off`
+turn JEV off. The card's Road row shows the selected road, and the JEV
+switches in `/config` and the Boot face preserve that choice. A sign-in
+never switches JEV on, and a missing key never falls through to the other
+road.
+
+Each road keeps its own session spend meter and allowance cap. `/clear`
+starts a fresh chat with fresh meters; the stored caps stay unchanged.
+OpenRouter's meter uses the response's `usage.cost` when stated, or the
+published token rate when unstated. Its requests deny data collection and
+provider fallback. The card and the tool result name the model that
+answered, the stated cost and the generation id, or the refusal's own code
+and words.
+
 ## Transitions
 
 A model switch previews as a frozen plan — what would switching this
