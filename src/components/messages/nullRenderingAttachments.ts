@@ -53,6 +53,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'user_context',
   'bound_prefix',
   'dead_thinking',
+  'compact_operator_messages',
 ] as const
 
 export type NullRenderingAttachmentType =
