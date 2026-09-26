@@ -27,6 +27,7 @@ import {
   verifyControlAuth,
 } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
@@ -458,6 +459,8 @@ async function routeControlRequest(
   }
   if (op === 'hello') {
     const facts = deps.hello?.()
+    const presenceKind = clientPresenceKindOf(raw.clientKind)
+    if (presenceKind !== undefined && typeof raw.clientPid === 'number') noteClientPresence(raw.clientPid, presenceKind)
     logForDebugging(
       `[daemon] hello from client v${typeof raw.clientVersion === 'string' ? raw.clientVersion : '?'} proto ${
         typeof raw.proto === 'number' ? raw.proto : '?'

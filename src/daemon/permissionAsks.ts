@@ -21,6 +21,7 @@ import {
   decodeDecisionReasonFromWire,
   type DecisionReasonWireV1,
 } from '../utils/permissions/decisionReasonWire.js'
+import { clientPresenceVerdict } from './clientPresence.js'
 import { daemonDir, supervisorStatePath } from './controlSocket.js'
 import { nextLiveCockpitOwner, readSessionWorkers } from './concourseSupervisor.js'
 import { initGitRepository } from './concourseWorktrees.js'
@@ -80,7 +81,9 @@ export const NO_CLIENT_ATTACHED_CAUSE = 'no operator client is attached to the s
 
 export type OperatorClientPresence = 'attached' | 'absent' | 'unknown'
 
-export function operatorClientPresence(dir?: string): OperatorClientPresence {
+export function operatorClientPresence(dir?: string, now: number = Date.now()): OperatorClientPresence {
+  const beat = clientPresenceVerdict(now)
+  if (beat === 'attached') return 'attached'
   let record: { ownerPid?: unknown } | null
   try {
     record = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { ownerPid?: unknown } | null
@@ -89,7 +92,8 @@ export function operatorClientPresence(dir?: string): OperatorClientPresence {
   }
   if (record === null || typeof record !== 'object') return 'unknown'
   if (typeof record.ownerPid === 'number' && isProcessAlive(record.ownerPid)) return 'attached'
-  return nextLiveCockpitOwner(null, dir) === undefined ? 'absent' : 'attached'
+  if (nextLiveCockpitOwner(null, dir) !== undefined) return 'attached'
+  return beat
 }
 
 export function unattendedAskDenialMessage(toolName: string): string {

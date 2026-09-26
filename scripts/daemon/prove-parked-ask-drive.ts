@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -208,8 +209,6 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     ANTHROPIC_BASE_URL: base,
     OPENAI_API_KEY: '',
     MERCURY_PERMISSION_ASK_EXPIRY_MINUTES: '0.05',
-    MERCURY_DAEMON_OWNER_PID: String(process.pid),
-    MERCURY_DAEMON_NO_SELF_WARM: '1',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -219,7 +218,9 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
   },
   stdio: ['ignore', logFd, logFd],
 })
+const clientBeat = startDaemonClientBeat()
 const cleanup = async (): Promise<void> => {
+  clientBeat.stop()
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {

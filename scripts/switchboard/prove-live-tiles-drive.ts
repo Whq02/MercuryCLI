@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { startDaemonClientBeat, type DaemonClientBeat } from '../lib/daemonClientBeat.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'tiles-drive-')))
 const daemonDir = join(SCRATCH, 'daemon')
@@ -74,6 +75,7 @@ writeFileSync(
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
+let clientBeat: DaemonClientBeat | null = null
 const spawnDaemonWithHome = (configHome: string, projectDir: string): void => {
   process.env.MERCURY_CONFIG_DIR = configHome
   daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', projectDir], {
@@ -86,11 +88,10 @@ const spawnDaemonWithHome = (configHome: string, projectDir: string): void => {
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
-      MERCURY_DAEMON_OWNER_PID: String(process.pid),
-      MERCURY_DAEMON_NO_SELF_WARM: '1',
     },
     stdio: ['ignore', logFd, logFd],
   })
+  clientBeat ??= startDaemonClientBeat()
 }
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
@@ -238,6 +239,7 @@ try {
     run.cleanup()
   }
 } finally {
+  clientBeat?.stop()
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {

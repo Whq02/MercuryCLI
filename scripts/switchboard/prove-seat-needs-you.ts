@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { startDaemonClientBeat, type DaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -48,6 +49,7 @@ const api = await startFixtureApi([
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
+let clientBeat: DaemonClientBeat | null = null
 const spawnDaemonWithHome = (configHome: string): void => {
   process.env.MERCURY_CONFIG_DIR = configHome
   daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', work], {
@@ -60,11 +62,10 @@ const spawnDaemonWithHome = (configHome: string): void => {
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
-      MERCURY_DAEMON_OWNER_PID: String(process.pid),
-      MERCURY_DAEMON_NO_SELF_WARM: '1',
     },
     stdio: ['ignore', logFd, logFd],
   })
+  clientBeat ??= startDaemonClientBeat()
 }
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
@@ -203,6 +204,7 @@ try {
     if (process.env.SWITCH_KEEP !== '1') run.cleanup()
   }
 } finally {
+  clientBeat?.stop()
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {

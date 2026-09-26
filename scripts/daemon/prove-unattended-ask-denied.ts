@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'unattended-ask-')))
@@ -62,7 +63,22 @@ const onAsk = asks.onWorkerControlRequest as unknown as (
   expiryMs?: number,
   presence?: (dir?: string) => Presence,
 ) => void
-const presenceOf = (asks as { operatorClientPresence?: (dir?: string) => Presence }).operatorClientPresence
+const presenceOf = (asks as { operatorClientPresence?: (dir?: string, now?: number) => Presence }).operatorClientPresence
+type PresenceTable = {
+  noteClientPresence: (pid: number, kind: 'screen', now?: number) => void
+  clientPresenceVerdict: (now?: number) => Presence
+  resetClientPresenceForProofs: (opts?: { since?: number }) => void
+  CLIENT_PRESENCE_STALE_MS: number
+}
+const presenceTable = (await import('../../src/daemon/clientPresence.ts').catch(() => null)) as PresenceTable | null
+type ScreenBeat = {
+  screenPresenceFrame: (pid?: number) => { op: string; clientPid: number; clientKind: string }
+  startScreenPresenceBeat: () => boolean
+  stopScreenPresenceBeat: () => void
+  screenPresenceBeatArmed: () => boolean
+}
+const screenBeat = (await import('../../src/services/switchboard/screenPresence.ts').catch(() => null)) as ScreenBeat | null
+const warmTable = (): void => presenceTable?.resetClientPresenceForProofs({ since: Date.now() - presenceTable.CLIENT_PRESENCE_STALE_MS - 1 })
 const denialOf = (asks as { unattendedAskDenialMessage?: (toolName: string) => string }).unattendedAskDenialMessage
 const CAUSE = (asks as { NO_CLIENT_ATTACHED_CAUSE?: string }).NO_CLIENT_ATTACHED_CAUSE
 const EXPECTED_LEAD = (tool: string): RegExp => new RegExp(`^Permission to use ${tool} has been denied: the operator's client was not there to answer \\(no operator client is attached to the switchboard\\), so the action was not run\\. `)
@@ -129,6 +145,7 @@ section('A2 the parking law stands with a client attached, and when presence can
 
 section('A3 the production presence fact reads the daemon\'s own cockpit facts: the owner pid and the live focus/attach stamps')
 {
+  warmTable()
   rmSync(supervisorStatePath(), { force: true })
   check('red on the base: operatorClientPresence exists', presenceOf !== undefined)
   if (presenceOf !== undefined) {
@@ -151,27 +168,72 @@ section('A3 the production presence fact reads the daemon\'s own cockpit facts: 
   }
 }
 
-type Row = { occurredAt?: string; payload?: { kind?: string; content?: Array<{ kind?: string; callId?: string; body?: unknown; text?: string }> } }
-type SeatWorld = { transcript: () => Row[]; rawTranscript: () => string; sessionId: string; daemonLog: () => string; requests: () => number; close: () => Promise<void> }
 
-async function bootSeatWorld(label: string, owned: boolean): Promise<SeatWorld | null> {
+section('A4 the screen-presence beat: a live client that keeps beating is attached whatever chat it shows; a dead or silent one is not')
+{
+  check('red on the base: the daemon keeps a client-presence table (clientPresence.ts) and the screen has a beat (screenPresence.ts)', presenceTable !== null && screenBeat !== null && presenceOf !== undefined)
+  if (presenceTable !== null && screenBeat !== null && presenceOf !== undefined) {
+    const beatModule = presenceTable
+    const screen = screenBeat
+    const stale = beatModule.CLIENT_PRESENCE_STALE_MS
+    const now = Date.now()
+    writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
+    writeWorkers({ 'concourse-w1': record('concourse-w1') })
+    beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
+    check('a persistent daemon, no owner, no stamp, a warm table with no beat → absent', presenceOf(pureDaemonDir, now) === 'absent', String(presenceOf(pureDaemonDir, now)))
+    beatModule.noteClientPresence(process.pid, 'screen', now)
+    check('...a live screen beating (this process) → attached, no stamp needed (the blank chat)', presenceOf(pureDaemonDir, now) === 'attached', String(presenceOf(pureDaemonDir, now)))
+    rmSync(supervisorStatePath(), { force: true })
+    check('...the beat wins even when the daemon record cannot be read', presenceOf(pureDaemonDir, now) === 'attached', String(presenceOf(pureDaemonDir, now)))
+    writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
+    check('...a beat older than the stale window counts for nothing → absent', presenceOf(pureDaemonDir, now + stale + 1) === 'absent', String(presenceOf(pureDaemonDir, now + stale + 1)))
+    beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
+    beatModule.noteClientPresence(999999, 'screen', now)
+    check('...a beat from a dead pid is dropped → absent', presenceOf(pureDaemonDir, now) === 'absent', String(presenceOf(pureDaemonDir, now)))
+    beatModule.resetClientPresenceForProofs({ since: now })
+    check('a daemon younger than one stale window that has heard no client yet → unknown (parks: a client may still be announcing itself)', presenceOf(pureDaemonDir, now) === 'unknown', String(presenceOf(pureDaemonDir, now)))
+    check('...and absent once the window has passed with nobody heard', presenceOf(pureDaemonDir, now + stale + 1) === 'absent', String(presenceOf(pureDaemonDir, now + stale + 1)))
+    beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
+    rmSync(supervisorStatePath(), { force: true })
+    const frame = screen.screenPresenceFrame(4242)
+    check('the screen\'s beat is a keyless hello naming its pid and kind', frame.op === 'hello' && frame.clientPid === 4242 && frame.clientKind === 'screen', j(frame))
+    const bootstrap = await import('../../src/bootstrap/state.ts')
+    bootstrap.setIsInteractive(false)
+    check('a non-interactive process (a headless seat, a daemon child) never beats', screen.startScreenPresenceBeat() === false && !screen.screenPresenceBeatArmed())
+    bootstrap.setIsInteractive(true)
+    check('the interactive screen arms the beat once, idempotently', screen.startScreenPresenceBeat() === true && screen.startScreenPresenceBeat() === true && screen.screenPresenceBeatArmed())
+    screen.stopScreenPresenceBeat()
+    bootstrap.setIsInteractive(false)
+    check('...and disarms', !screen.screenPresenceBeatArmed())
+    const door = readFileSync(join(REPO, 'src', 'services', 'switchboard', 'ensureDaemon.ts'), 'utf8')
+    check('the screen\'s daemon door starts the beat on every usable daemon (ensureOwnedDaemon)', /if \(usableNow\) startScreenPresenceBeat\(\)/.test(door))
+    const server = readFileSync(join(REPO, 'src', 'daemon', 'controlServer.ts'), 'utf8')
+    check('the daemon notes a client\'s hello (screen or client kind, its pid) in the presence table', server.includes("const presenceKind = clientPresenceKindOf(raw.clientKind)") && server.includes("if (presenceKind !== undefined && typeof raw.clientPid === 'number') noteClientPresence(raw.clientPid, presenceKind)"))
+  }
+}
+
+type Row = { occurredAt?: string; payload?: { kind?: string; content?: Array<{ kind?: string; callId?: string; body?: unknown; text?: string }> } }
+type Session = { sessionId: string; transcript: () => Row[]; rawTranscript: () => string }
+type SeatWorld = { root: string; daemonDir: string; work2: string; dispatch: (tag: string, prompt: string, folder?: string) => Promise<Session | null>; daemonLog: () => string; requests: () => number; close: () => Promise<void> }
+type Turn = ScriptedTurn
+const askTurn = (extra: Record<string, unknown> = {}): Turn => ({ kind: 'tool_use', whenModel: 'opus', name: 'AskUserQuestion', input: { questions: [{ question: 'Which one?', header: 'Pick', options: [{ label: 'a', description: 'first' }, { label: 'b', description: 'second' }], multiSelect: false }] }, preText: 'let me ask. ', ...extra }) as Turn
+const doneTurn = (extra: Record<string, unknown> = {}): Turn => ({ kind: 'text', whenModel: 'opus', text: 'carried on without the answer.', ...extra }) as Turn
+
+async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Promise<SeatWorld | null> {
   const root = realpathSync(mkdtempSync(join(SCRATCH, `${label}-`)))
   const home = join(root, 'home')
   const daemonDir = join(root, 'daemon')
   const work = join(root, 'work')
-  for (const d of [home, daemonDir, work]) mkdirSync(d, { recursive: true })
+  const work2 = join(root, 'work-two')
+  for (const d of [home, daemonDir, work, work2]) mkdirSync(d, { recursive: true })
   const { ALL_MODEL_CONFIGS, newestGenerationKey } = await import('../../src/utils/model/configs.ts')
   const modelKey = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-  seedFirstRun(home, [work])
+  seedFirstRun(home, [work, work2])
   writeFileSync(join(work, 'README.md'), '# fixture\n')
+  writeFileSync(join(work2, 'README.md'), '# fixture two\n')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-  const api = await startFixtureApi([
-    { kind: 'tool_use', whenModel: 'opus', name: 'AskUserQuestion', input: { questions: [{ question: 'Which one?', header: 'Pick', options: [{ label: 'a', description: 'first' }, { label: 'b', description: 'second' }], multiSelect: false }] }, preText: 'let me ask. ' },
-    { kind: 'text', whenModel: 'opus', text: 'carried on without the answer.' },
-    { kind: 'text', text: 'Spare.' },
-    { kind: 'text', text: 'Spare.' },
-  ])
+  const api = await startFixtureApi([...turns, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const launcher = join(root, 'launcher.ts')
   writeFileSync(launcher, `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\ndelete process.env.NODE_ENV\nawait import(${j(join(REPO, 'src', 'entrypoints', 'cli.tsx'))})\n`)
   const logPath = join(root, 'daemon.log')
@@ -207,28 +269,32 @@ async function bootSeatWorld(label: string, owned: boolean): Promise<SeatWorld |
     await api.close()
   }
   const serves = await until(async () => ((await daemonControlRpc({ op: 'ping' } as never)) as { ok?: boolean }).ok === true, 60_000)
-  check(`${label}: the daemon serves from the source (${owned ? 'owned by this process' : 'ownerless, no screen ever attached'})`, serves)
+  check(`${label}: the daemon serves from the source (${owned ? 'owned by this process' : 'ownerless'})`, serves)
   if (!serves) {
     await close()
     return null
   }
-  const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-ask`, prompt: 'probe: ask the operator a question', workspaceDir: work, title: 'Ask probe', modelKey, effort: 'high' } as never)) as { ok?: boolean; sessionId?: string; error?: string }
-  check(`${label}: the session dispatched`, d.ok === true && typeof d.sessionId === 'string', j(d))
-  const sessionId = d.sessionId ?? ''
-  const file = join(paths.getProjectDir(work), `${sessionId}.jsonl`)
-  const rawTranscript = (): string => (existsSync(file) ? readFileSync(file, 'utf8') : '')
-  const transcript = (): Row[] =>
-    rawTranscript()
-      .split('\n')
-      .filter(l => l.trim() !== '')
-      .map(l => {
-        try {
-          return JSON.parse(l) as Row
-        } catch {
-          return {}
-        }
-      })
-  return { transcript, rawTranscript, sessionId, daemonLog: () => (existsSync(logPath) ? readFileSync(logPath, 'utf8') : ''), requests: () => api.messageRequests().length, close }
+  const dispatch = async (tag: string, prompt: string, folder: string = work): Promise<Session | null> => {
+    const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-${tag}`, prompt, workspaceDir: folder, title: `Ask probe ${tag}`, modelKey, effort: 'high' } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+    check(`${label}: session ${tag} dispatched`, d.ok === true && typeof d.sessionId === 'string', j(d))
+    if (d.ok !== true || typeof d.sessionId !== 'string') return null
+    const sessionId = d.sessionId
+    const file = join(paths.getProjectDir(folder), `${sessionId}.jsonl`)
+    const rawTranscript = (): string => (existsSync(file) ? readFileSync(file, 'utf8') : '')
+    const transcript = (): Row[] =>
+      rawTranscript()
+        .split('\n')
+        .filter(l => l.trim() !== '')
+        .map(l => {
+          try {
+            return JSON.parse(l) as Row
+          } catch {
+            return {}
+          }
+        })
+    return { sessionId, transcript, rawTranscript }
+  }
+  return { root, daemonDir, work2, dispatch, daemonLog: () => (existsSync(logPath) ? readFileSync(logPath, 'utf8') : ''), requests: () => api.messageRequests().length, close }
 }
 const partsOf = (row: Row | undefined): Array<{ kind?: string; callId?: string; body?: unknown; text?: string }> => {
   const content = row?.payload?.content
@@ -241,46 +307,96 @@ const bodyText = (row: Row | undefined): string => {
   return typeof body === 'string' ? body : Array.isArray(body) ? (body as Array<{ text?: string }>).map(b => b.text ?? '').join('') : j(body ?? '')
 }
 const openAsksFor = async (sessionId: string): Promise<number> => (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.sessionId === sessionId && (o.ref ?? '').startsWith('permission:')).length
+const TYPED_DENIAL = /<tool_use_error>Permission to use AskUserQuestion has been denied: the operator's client was not there to answer \(no operator client is attached to the switchboard\)/
 
-section('B the seat under the real daemon, from the source, nobody attached: the ask is denied at once and the turn goes on')
+async function expectDeniedAtOnce(label: string, world: SeatWorld, session: Session): Promise<void> {
+  const asked = await until(() => rowAt(session.transcript(), 'tool-use') !== undefined, 40_000)
+  check(`${label}: the seat raised its ask (the tool-use row landed)`, asked)
+  const denied = await until(() => /was not there to answer/.test(bodyText(rowAt(session.transcript(), 'tool-result'))), 8_000)
+  const rows = session.transcript()
+  const askRow = rowAt(rows, 'tool-use')
+  const resultRow = rowAt(rows, 'tool-result')
+  const text = bodyText(resultRow)
+  check(`${label}: red on the base: the ask's tool_result is the typed denial (the base parks it and no result comes)`, denied && TYPED_DENIAL.test(text), `open asks=${await openAsksFor(session.sessionId)} result=${j(text).slice(0, 200)}`)
+  const gapMs = askRow?.occurredAt !== undefined && resultRow?.occurredAt !== undefined ? Date.parse(resultRow.occurredAt) - Date.parse(askRow.occurredAt) : Number.NaN
+  check(`${label}: ...landing within a second of the ask (the transcript's own clocks)`, Number.isFinite(gapMs) && gapMs >= 0 && gapMs < 1_000, `${gapMs}ms`)
+  check(`${label}: ...the turn carried on: the model's next request was issued and its reply landed`, await until(() => session.rawTranscript().includes('carried on without the answer.'), 15_000), `requests=${world.requests()}`)
+  check(`${label}: ...nothing parked: no open needs-you row for the session`, (await openAsksFor(session.sessionId)) === 0)
+  const receipt = await until(async () => {
+    const rows2 = (await obligations.listObligations({ scope: 'switchboard' } as never)) as Array<{ sessionId?: string; ref?: string; status?: string; settlement?: { by?: string } }>
+    return rows2.some(o => o.sessionId === session.sessionId && (o.ref ?? '').startsWith('permission:') && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
+  }, 5_000)
+  check(`${label}: ...the receipt row is settled withdrawn by the daemon with the cause`, receipt)
+  check(`${label}: ...the daemon log names it`, /denied at once — no operator client is attached to the switchboard — the child was told/.test(world.daemonLog()), world.daemonLog().split('\n').filter(l => /permission ask/.test(l)).slice(-2).join(' | ').slice(0, 300))
+}
+
+async function expectParked(label: string, world: SeatWorld, session: Session, requestsBefore: number): Promise<void> {
+  const parkedRow = await until(async () => (await openAsksFor(session.sessionId)) > 0, 40_000)
+  check(`${label}: the ask parks: an open needs-you row for the session`, parkedRow, `open asks=0 · transcript result=${j(bodyText(rowAt(session.transcript(), 'tool-result'))).slice(0, 160)}`)
+  await sleep(3_000)
+  check(`${label}: ...still parked after 3 s, no denial reached the seat, the turn waits`, (await openAsksFor(session.sessionId)) > 0 && !/was not there to answer/.test(session.rawTranscript()) && world.requests() === requestsBefore + 1, `requests=${world.requests()}`)
+}
+
+section('B the seat under the real daemon, from the source, nobody attached and nobody ever beating: the ask is denied at once and the turn goes on')
 {
-  const world = await bootSeatWorld('unattended', false)
+  const world = await bootSeatWorld('unattended', false, [askTurn(), doneTurn()])
   if (world !== null) {
     try {
-      const asked = await until(() => rowAt(world.transcript(), 'tool-use') !== undefined, 40_000)
-      check('the seat raised its ask (the tool-use row landed)', asked)
-      const denied = await until(() => /was not there to answer/.test(bodyText(rowAt(world.transcript(), 'tool-result'))), 8_000)
-      const rows = world.transcript()
-      const askRow = rowAt(rows, 'tool-use')
-      const resultRow = rowAt(rows, 'tool-result')
-      const text = bodyText(resultRow)
-      check('red on the base: the ask\'s tool_result is the typed denial (the base parks it and no result comes)', denied && /<tool_use_error>Permission to use AskUserQuestion has been denied: the operator's client was not there to answer \(no operator client is attached to the switchboard\)/.test(text), `open asks=${await openAsksFor(world.sessionId)} result=${j(text).slice(0, 200)}`)
-      const gapMs = askRow?.occurredAt !== undefined && resultRow?.occurredAt !== undefined ? Date.parse(resultRow.occurredAt) - Date.parse(askRow.occurredAt) : Number.NaN
-      check('...landing within a second of the ask (the transcript\'s own clocks)', Number.isFinite(gapMs) && gapMs >= 0 && gapMs < 1_000, `${gapMs}ms`)
-      check('...the turn carried on: the model\'s next request was issued and its reply landed', await until(() => world.rawTranscript().includes('carried on without the answer.'), 15_000) && world.requests() >= 2, `requests=${world.requests()}`)
-      check('...nothing parked: no open needs-you row for the session', (await openAsksFor(world.sessionId)) === 0)
-      const receipt = await until(async () => {
-        const rows2 = (await obligations.listObligations({ scope: 'switchboard' } as never)) as Array<{ sessionId?: string; ref?: string; status?: string; settlement?: { by?: string } }>
-        return rows2.some(o => o.sessionId === world.sessionId && (o.ref ?? '').startsWith('permission:') && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
-      }, 5_000)
-      check('...the receipt row is settled withdrawn by the daemon with the cause', receipt)
-      check('...the daemon log names it', /denied at once — no operator client is attached to the switchboard — the child was told/.test(world.daemonLog()), world.daemonLog().split('\n').filter(l => /permission ask/.test(l)).slice(-2).join(' | ').slice(0, 300))
+      await sleep(31_000)
+      const session = await world.dispatch('ask', 'probe: ask the operator a question')
+      if (session !== null) await expectDeniedAtOnce('B', world, session)
     } finally {
       await world.close()
     }
   }
 }
 
-section('C the same seat with a client attached (the daemon owned by a live terminal): the ask parks as before, no clock')
+section('C the same seat with the daemon owned by a live terminal: the ask parks as before, no clock')
 {
-  const world = await bootSeatWorld('attended', true)
+  const world = await bootSeatWorld('attended', true, [askTurn(), doneTurn()])
   if (world !== null) {
     try {
-      const parkedRow = await until(async () => (await openAsksFor(world.sessionId)) > 0, 40_000)
-      check('the ask parks: an open needs-you row for the session', parkedRow)
-      await sleep(3_000)
-      check('...still parked after 3 s, no denial reached the seat, the turn waits', (await openAsksFor(world.sessionId)) > 0 && !/was not there to answer/.test(world.rawTranscript()) && world.requests() === 1, `requests=${world.requests()}`)
+      const session = await world.dispatch('ask', 'probe: ask the operator a question')
+      if (session !== null) await expectParked('C', world, session, 0)
     } finally {
+      await world.close()
+    }
+  }
+}
+
+section('D the blank-chat row: a persistent, ownerless daemon with a live screen attached on a blank chat PARKS the ask; the same daemon once that screen\'s pid is dead denies at once')
+{
+  const world = await bootSeatWorld('blank-chat', false, [askTurn({ whenBody: 'probe one' }), askTurn({ whenBody: 'probe two' }), doneTurn({ whenBody: 'probe two' })])
+  if (world !== null) {
+    const screenScript = join(world.root, 'screen.ts')
+    writeFileSync(
+      screenScript,
+      `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\n` +
+        `const { daemonControlRpc } = await import(${j(join(REPO, 'src', 'daemon', 'controlSocket.ts'))})\n` +
+        `const { screenPresenceFrame } = await import(${j(join(REPO, 'src', 'services', 'switchboard', 'screenPresence.ts'))})\n` +
+        `const beat = async (): Promise<void> => { try { await daemonControlRpc(screenPresenceFrame(), { timeoutMs: 1000, protoRetry: false }) } catch {} }\n` +
+        `await beat()\nconsole.log('BEATING ' + process.pid)\nsetInterval(() => void beat(), 2000)\n`,
+    )
+    const screen = spawn(process.execPath, ['run', screenScript], { env: { ...process.env, MERCURY_DAEMON_DIR: world.daemonDir }, stdio: ['ignore', 'pipe', 'pipe'] })
+    let screenOut = ''
+    screen.stdout.on('data', (c: Buffer) => (screenOut += c.toString('utf8')))
+    const screenExited = new Promise<void>(resolve => screen.on('exit', () => resolve()))
+    try {
+      check('D: a screen process is attached to the daemon and beating (a blank chat: no session focused, nothing owned)', await until(() => /BEATING \d+/.test(screenOut), 20_000), screenOut.slice(0, 200))
+      await sleep(31_000)
+      const first = await world.dispatch('one', 'probe one: ask the operator a question')
+      if (first !== null) await expectParked('D1 (screen alive)', world, first, 0)
+      screen.kill('SIGKILL')
+      await screenExited
+      check('D: the screen\'s pid is dead (killed and reaped)', screen.exitCode !== null || screen.signalCode !== null, `exit=${String(screen.exitCode)} signal=${String(screen.signalCode)}`)
+      const second = await world.dispatch('two', 'probe two: ask the operator a question', world.work2)
+      if (second !== null) await expectDeniedAtOnce('D2 (screen dead)', world, second)
+      if (first !== null) check('D: the first ask, parked while the screen lived, still waits for the operator (the daemon never re-judges a parked ask)', (await openAsksFor(first.sessionId)) > 0)
+    } finally {
+      try {
+        screen.kill('SIGKILL')
+      } catch {
+      }
       await world.close()
     }
   }
