@@ -20,6 +20,7 @@ import type { ContentReplacementRecord } from './toolResultStorage.js'
 export type ResumedConversationLog = {
   messages: Message[]
   sessionId?: string
+  fullPath?: string
   fileHistorySnapshots?: FileHistorySnapshot[]
   contentReplacements?: ContentReplacementRecord[]
   teamName?: string
@@ -49,10 +50,10 @@ export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; t
   return null
 }
 
-export function restoreSessionStateFromLog(
+export async function restoreSessionStateFromLog(
   result: ResumedConversationLog,
   setAppState: (updater: (prev: AppState) => AppState) => void,
-): void {
+): Promise<void> {
   if (result.fileHistorySnapshots && result.fileHistorySnapshots.length > 0) {
     fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, state => {
       setAppState(prev => ({ ...prev, fileHistory: state }))
@@ -65,7 +66,7 @@ export function restoreSessionStateFromLog(
   }
 
   const adopted = adoptedSessionIdOf(result)
-  if (adopted === getSessionId()) restoreCostStateForSession(adopted)
+  if (adopted === getSessionId()) await restoreCostStateForSession(adopted, result.fullPath)
 
   if (result.teamName && result.agentName) {
     initializeTeammateContextFromSession(setAppState, result.teamName, result.agentName)
