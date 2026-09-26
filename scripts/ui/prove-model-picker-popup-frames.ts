@@ -130,6 +130,7 @@ function windowOf(lines: string[]): Window | null {
 }
 const inner = (row: string): string => Array.from(row).slice(2, -2).join('').replace(/\s+$/, '')
 const describe = (window: Window | null): string => (window === null ? 'no closed window' : `left ${window.left} · top ${window.top} · width ${window.width} · height ${window.height} (rows ${window.top}..${window.bottom})`)
+const wholeBottom = (window: Window): boolean => Array.from(window.rows[window.height - 1]!).at(-1) === '╯'
 const save = (name: string, lines: string[]): void => {
   if (frameDir === undefined) return
   writeFileSync(join(frameDir, `${name}-${COLS}x${ROWS}.txt`), `${lines.join('\n')}\n`)
@@ -249,7 +250,11 @@ if (bootWindow !== null && sessionWindow !== null) {
   check('the lanes rail stays visible left of the window', cells.slice(0, sessionWindow.left).join('').trim() !== '', 'nothing painted left of the window')
   const viewLeft = cellsOf(session.frame[0] ?? '').indexOf('╭')
   const viewBottom = session.frame.findIndex((line, row) => row > 0 && cellsOf(line)[viewLeft] === '╰')
-  check(`the window ends above the view's bottom border (row ${viewBottom})`, viewBottom > 0 && sessionWindow.bottom < viewBottom, `window bottom ${sessionWindow.bottom}`)
+  const viewRows = viewBottom - sessionWindow.top
+  const viewBudget = Math.min(bootWindow.height, viewRows)
+  console.log(`the view's bottom border row ${viewBottom} · the window's bottom border row ${sessionWindow.bottom} · the composer's input row ${composerRow} · the Boot face's ${bootWindow.height} rows against the view's ${viewRows} inner rows from row ${sessionWindow.top}`)
+  check(`the window's height is the view's budget (${viewBudget}: the lesser of the Boot face's ${bootWindow.height} and the view's ${viewRows} inner rows from row ${sessionWindow.top})`, sessionWindow.height === viewBudget, `session ${sessionWindow.height}`)
+  check(`the window ends above the view's bottom border (row ${viewBottom}) and its bottom border paints whole`, viewBottom > 0 && sessionWindow.bottom < viewBottom && wholeBottom(sessionWindow), `window bottom ${sessionWindow.bottom} · last cell ${JSON.stringify(Array.from(sessionWindow.rows[sessionWindow.height - 1]!).at(-1))}`)
 }
 if (sessionWindow !== null) {
   const before = session.scene.lines()
@@ -264,7 +269,7 @@ if (sessionWindow !== null) {
   save('session-picker-scrolled', after)
   const afterWindow = windowOf(after)
   console.log(`session window after ↓×60: ${describe(afterWindow)}`)
-  check('after ↓ past the last visible row the window keeps its place', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width, describe(afterWindow))
+  check('after ↓ past the last visible row the window keeps its place and its height', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width && afterWindow.height === beforeWindow.height, describe(afterWindow))
   check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[3]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : afterWindow.rows.slice(1, 5).map(inner).join(' | '))
   const footer = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 2]!)
   check('the footer stays the window\'s last inner row while the rows scroll', footer.startsWith(KEYS), footer)

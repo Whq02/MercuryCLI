@@ -18,7 +18,7 @@ export function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: numb
   const shared = modelPickerPopupGeometry(host, terminalRows)
   const width = Math.min(CREW_POPUP_WIDTH, Math.max(CREW_POPUP_MIN_WIDTH, host.columns))
   const left = Math.max(0, Math.floor((host.columns - width) / 2))
-  return { left, top: Math.max(0, shared.top - host.top), width, rows: shared.rows }
+  return { left, top: Math.max(0, shared.top - host.top), width, rows: Math.min(shared.rows, host.top + host.rows - shared.top) }
 }
 
 export function CrewViewSlot({ hostRef, framed }: { hostRef: React.RefObject<DOMElement | null>; framed: boolean }): React.ReactNode {
