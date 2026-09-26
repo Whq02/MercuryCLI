@@ -56,7 +56,8 @@ section('§1 off by default, and an off-shape stored block reads as the defaults
 const first = readJevSettings()
 check('enabled is false (a stored "yes" is not true)', first.enabled === false)
 check('allowance is the $20 default (a negative stored figure is ignored)', first.allowanceUsd === 20 && JEV_DEFAULT_ALLOWANCE_USD === 20)
-check('pace is the 10-a-minute default (a fractional stored figure is ignored)', first.pacePerMinute === 10 && JEV_DEFAULT_PACE_PER_MINUTE === 10)
+check('pace is the 100-a-minute default (a fractional stored figure is ignored)', first.pacePerMinute === 100 && JEV_DEFAULT_PACE_PER_MINUTE === 100, `read ${first.pacePerMinute}; constant ${JEV_DEFAULT_PACE_PER_MINUTE}`)
+check('an explicit stored pace of 10 is retained, not mistaken for the new default', jevSettingsFromStored({ pacePerMinute: 10 }).pacePerMinute === 10)
 check('request ceiling is off (a stored 0 is not a ceiling)', first.requestCeiling === null)
 check('sub-agents are off (a stored 1 is not true)', first.subagents === false)
 check('jevEnabled() is the same truth as readJevSettings().enabled', jevEnabled() === first.enabled)
@@ -89,8 +90,8 @@ check('the default allowance is not stored (absent = $20)', !('allowanceUsd' in 
 
 const paced = setJevPacePerMinute(3)
 check('pace 3 lands', paced.pacePerMinute === 3 && readJevSettings().pacePerMinute === 3)
-setJevPacePerMinute(10)
-check('the default pace is not stored', !('pacePerMinute' in (readConfig().jev as Record<string, unknown>)))
+setJevPacePerMinute(100)
+check('the 100-a-minute default pace is not stored', !('pacePerMinute' in (readConfig().jev as Record<string, unknown>)))
 
 const capped = setJevRequestCeiling(40)
 check('request ceiling 40 lands', capped.requestCeiling === 40 && readJevSettings().requestCeiling === 40)
@@ -142,13 +143,13 @@ check('value words: on', jevValueWords({ ...readJevSettings(), enabled: true }) 
 check('the on receipt names the roster and the key', /roster/.test(jevReceiptWords({ ...readJevSettings(), enabled: true })) && /key/.test(jevReceiptWords({ ...readJevSettings(), enabled: true })))
 check('the off receipt says nothing is sent', /nothing is sent/.test(jevReceiptWords(readJevSettings())))
 const lines = jevSettingLines(readJevSettings())
-check('the setting lines carry allowance, pace, ceiling, sub-agents and the doors', lines.length === 5 && /\$20/.test(lines[0]!) && /10 requests a minute/.test(lines[1]!) && /off/.test(lines[2]!) && /off/.test(lines[3]!) && lines[4]!.includes(JEV_DOORS))
+check('the setting lines carry allowance, pace, ceiling, sub-agents and the doors', lines.length === 5 && /\$20/.test(lines[0]!) && /100 requests a minute/.test(lines[1]!) && /off/.test(lines[2]!) && /off/.test(lines[3]!) && lines[4]!.includes(JEV_DOORS))
 check('the allowance line calls it a runaway stop, never a budget', /runaway stop, not a budget/.test(lines[0]!))
 check('the doors name the three surfaces', /\/jev/.test(JEV_DOORS) && /\/config/.test(JEV_DOORS) && /Boot Menu/.test(JEV_DOORS))
 const ceilingLine = jevSettingLines({ ...readJevSettings(), requestCeiling: 7 })[2]!
 check('a set ceiling reads as a count', /7 requests a session/.test(ceilingLine))
 const agentLine = jevSettingLines({ ...readJevSettings(), subagents: true })[3]!
-check('sub-agents on names the 2-call budget on the same allowance', /2 calls each/.test(agentLine) && /same allowance/.test(agentLine))
+check('sub-agents on names the 200-call cap and shared 50/min session pace on the same allowance', /200 calls each/.test(agentLine) && /50 a minute per session/.test(agentLine) && /same allowance/.test(agentLine), agentLine)
 
 section('§5 the Boot Menu row is a config-backed toggle on the Motion pattern')
 check('env is the config key', JEV_MENU_ROW.env === 'jev')

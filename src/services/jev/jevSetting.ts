@@ -1,5 +1,5 @@
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
-import { JEV_SUBAGENT_CALL_BUDGET, type JevRoad, jevRoadWords, jevUsdLabel } from './jevContract.js'
+import { JEV_SUBAGENT_CALL_BUDGET, JEV_SUBAGENT_PACE_PER_MINUTE, type JevRoad, jevRoadWords, jevUsdLabel } from './jevContract.js'
 
 export interface JevSettings {
   enabled: boolean
@@ -11,7 +11,7 @@ export interface JevSettings {
 }
 
 export const JEV_DEFAULT_ALLOWANCE_USD = 20
-export const JEV_DEFAULT_PACE_PER_MINUTE = 10
+export const JEV_DEFAULT_PACE_PER_MINUTE = 100
 
 export const JEV_DEFAULT_SETTINGS: Readonly<JevSettings> = Object.freeze({
   enabled: false,
@@ -132,7 +132,7 @@ export function jevSettingLines(settings: JevSettings = readJevSettings()): stri
     `session allowance: ${jevUsdLabel(settings.allowanceUsd)} — a runaway stop, not a budget; ${jevRoadWords(settings.road)} road only, reset by /clear`,
     `pace: ${settings.pacePerMinute} requests a minute`,
     `request ceiling: ${jevCeilingWords(settings)}`,
-    `sub-agents: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each, on the same allowance` : 'off'}`,
+    `sub-agents: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each; ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
     `doors: ${JEV_DOORS}`,
   ]
 }
@@ -152,7 +152,7 @@ export const JEV_MENU_ROW = {
       'Whether JevEval is in the roster on the road saved in /jev. Official needs a TypeSafe key in /jev; OpenRouter uses its sign-in from /logins. It never answers a permission request. Applies at the next turn boundary.',
     on: [
       'JevEval is offered to the main model; each call is one batched request, counted on the selected road in /jev and /usage',
-      'each road has its own allowance ($20 by default), a runaway stop; the pace (10 a minute) and optional request ceiling also apply',
+      `each road has its own allowance ($20 by default), a runaway stop; the main pace (${JEV_DEFAULT_PACE_PER_MINUTE} a minute by default) and optional request ceiling also apply`,
       'no key for the selected road ⇒ the tool is absent; no fallback and nothing sent; sign-in alone never switches JEV on',
     ],
     off: ['JevEval is not in the roster; no request leaves the machine; nothing about permissions changes either way'],

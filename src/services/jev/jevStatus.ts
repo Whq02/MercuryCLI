@@ -25,6 +25,7 @@ export const JEV_STATUS_HEADWORDS: Readonly<Record<JevStatusKind, string>> = Obj
   'pace-hit': 'pace hit',
   'ceiling-hit': 'request ceiling hit',
   'subagent-budget-hit': 'sub-agent budget hit',
+  'subagent-pace-hit': 'sub-agent pace hit',
   'rate-limited': 'rate limited by the provider',
   'provider-down': 'provider down',
   'provider-credit': 'provider refused for credit',

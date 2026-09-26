@@ -6,6 +6,7 @@ import {
   jevRoadWords,
   type JevRoad,
   JEV_SUBAGENT_CALL_BUDGET,
+  JEV_SUBAGENT_PACE_PER_MINUTE,
   JEV_USD_PER_INPUT_TOKEN,
   type JevStatus,
   jevClockLabel,
@@ -149,11 +150,11 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'allowance':
       return `a runaway stop, not a budget — one call costs at most ${jevUsdLabel(maxCall)}; the pace and the request ceiling do the real work · ←/→ walk ${JEV_ALLOWANCE_RUNGS.map(usd => jevUsdLabel(usd)).join(' · ')} · ↵ types a dollar amount · ⌫ returns to ${jevUsdLabel(JEV_DEFAULT_ALLOWANCE_USD)}`
     case 'pace':
-      return `requests admitted a minute; past it a request is refused with the wait until the minute turns · ←/→ move by one · ↵ types a count · ⌫ returns to ${JEV_DEFAULT_PACE_PER_MINUTE}`
+      return `main-model requests admitted a minute; past it a request is refused with the wait until the minute turns · ←/→ move by one · ↵ types a count · ⌫ returns to ${JEV_DEFAULT_PACE_PER_MINUTE}`
     case 'ceiling':
       return `an optional cap on requests a session, off by default; the count resets with the cost ledger on /clear · ←/→ walk off · ${JEV_CEILING_RUNGS.join(' · ')} · ↵ types a count or off · ⌫ returns to off`
     case 'subagents':
-      return `off: JevEval is not offered to sub-agents · on: each sub-agent may make ${JEV_SUBAGENT_CALL_BUDGET} calls, one batched request each, counted on the same allowance · ↵, space or ←/→ flip it`
+      return `off: JevEval is not offered to sub-agents · on: each sub-agent may make ${JEV_SUBAGENT_CALL_BUDGET} calls; all sub-agents share ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, separate from the main pace, counted on the same allowance · ↵, space or ←/→ flip it`
   }
 }
 

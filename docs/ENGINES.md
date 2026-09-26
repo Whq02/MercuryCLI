@@ -688,6 +688,10 @@ road.
 
 Each road keeps its own session spend meter and allowance cap. `/clear`
 starts a fresh chat with fresh meters; the stored caps stay unchanged.
+The main model's default pace is 100 requests a minute. Sub-agents stay off
+by default; once enabled, they share 50 requests a minute per session on
+each road, separately from the main pace, with a cap of 200 calls per
+sub-agent. An explicitly stored main pace stays as the operator set it.
 OpenRouter's meter uses the response's `usage.cost` when stated, or the
 published token rate when unstated. Its requests deny data collection and
 provider fallback. The card and the tool result name the model that

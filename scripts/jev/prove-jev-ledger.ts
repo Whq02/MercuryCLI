@@ -31,7 +31,9 @@ const {
   takeJevNotice,
 } = ledger
 
-const defaults = { enabled: true, road: 'official' as const, allowanceUsd: 20, pacePerMinute: 10, requestCeiling: null, subagents: false }
+const { JEV_DEFAULT_SETTINGS } = await import('../../src/services/jev/jevSetting.js')
+const defaults = { ...JEV_DEFAULT_SETTINGS, enabled: true }
+check('main default pace is 100/min and the per-agent cap is 200', defaults.pacePerMinute === 100 && contract.JEV_SUBAGENT_CALL_BUDGET === 200, `main ${defaults.pacePerMinute}; cap ${contract.JEV_SUBAGENT_CALL_BUDGET}`)
 const mid = (): number => 0.5
 const T0 = 1_700_000_000_000
 
@@ -58,15 +60,20 @@ const afterOne = jevLedgerSnapshot(T0 + 400)
 check('one call, one attempt, 2,000 tokens, the model that answered, the time it answered', afterOne.calls === 1 && afterOne.attempts === 1 && afterOne.inputTokens === 2000 && near(afterOne.spendUsd, 0.000084) && afterOne.lastModel === 'jev-1.13.0' && afterOne.lastAnsweredAt === T0 + 400)
 check('output tokens are free and uncounted', afterOne.spendUsd === charge)
 
-section('§4 the pace: attempts in the last minute against the setting')
+section('§4 the main pace: 100 admitted, the 101st waits for the sliding minute')
 resetJevLedger()
-for (let i = 0; i < 10; i++) noteJevAttempt(T0 + i * 1000)
-const paced = jevAdmission(defaults, T0 + 9500)
-check('the tenth attempt inside a minute closes the door', paced.ok === false && paced.kind === 'pace-hit')
-check('the pace refusal names the count, the setting and the wait', !paced.ok && /10 requests in the last minute/.test(paced.words) && /10 a minute/.test(paced.words) && /admitted in/.test(paced.words))
-check('the wait is until the oldest attempt leaves the window', !paced.ok && paced.retryInMs === T0 + JEV_PACE_WINDOW_MS - (T0 + 9500))
-check('a minute after the oldest attempt the door reopens', jevAdmission(defaults, T0 + JEV_PACE_WINDOW_MS + 1).ok === true)
-check('attemptsThisMinute follows the window as the clock moves on', jevLedgerSnapshot(T0 + 65_500).attemptsThisMinute === 4)
+let admittedMain = 0
+for (let i = 0; i < 100; i++) {
+  if (jevAdmission(defaults, T0 + i * 100).ok) admittedMain++
+  noteJevAttempt(T0 + i * 100)
+}
+check('the main default admits all 100 requests in a minute', admittedMain === 100, `admitted ${admittedMain}`)
+const paced = jevAdmission(defaults, T0 + 9950)
+check('the 101st main attempt inside a minute is refused', paced.ok === false && paced.kind === 'pace-hit')
+check('the main refusal names 100 requests, its 100-a-minute setting and the wait', !paced.ok && /100 requests in the last minute/.test(paced.words) && /100 a minute/.test(paced.words) && /admitted in/.test(paced.words), !paced.ok ? paced.words : 'admitted')
+check('the wait is until the oldest main attempt leaves the window', !paced.ok && paced.retryInMs === T0 + JEV_PACE_WINDOW_MS - (T0 + 9950))
+check('a minute after the oldest attempt the main door reopens', jevAdmission(defaults, T0 + JEV_PACE_WINDOW_MS + 1).ok === true)
+check('attemptsThisMinute follows the window as the clock moves on', jevLedgerSnapshot(T0 + 65_500).attemptsThisMinute === 44)
 resetJevLedger()
 for (let i = 0; i < 3; i++) noteJevAttempt(T0 + i)
 const paceThree = jevAdmission({ ...defaults, pacePerMinute: 3 }, T0 + 3)
@@ -96,15 +103,45 @@ check('two attempts against a ceiling of two: refused', ceiling.ok === false && 
 check('a ceiling of three admits', jevAdmission({ ...defaults, requestCeiling: 3 }, T0 + 2).ok === true)
 check('no ceiling admits', jevAdmission(defaults, T0 + 2).ok === true)
 
-section('§7 the sub-agent budget: two calls each, on the same ledger')
-resetJevLedger()
-noteJevAttempt(T0, 'agent-a')
-noteJevAttempt(T0 + 1, 'agent-a')
-const agentA = jevAdmission(defaults, T0 + 2, 'agent-a')
-check('agent-a used its two calls', agentA.ok === false && agentA.kind === 'subagent-budget-hit' && /2 JEV calls/.test(agentA.words))
-check('agent-b still has its two', jevAdmission(defaults, T0 + 2, 'agent-b').ok === true)
-check('the main model is not budgeted per agent', jevAdmission(defaults, T0 + 2).ok === true)
-check('the attempts counted on the one ledger', jevLedgerSnapshot(T0 + 2).attempts === 2 && jevLedgerSnapshot(T0 + 2).subagentAttempts['agent-a'] === 2)
+section('§7 the sub-agent budget: 200 each, a shared 50/min session pace, separate from the main pace')
+for (const road of ['official', 'openrouter'] as const) {
+  resetJevLedger()
+  const settings = { ...defaults, road, subagents: true }
+  let admittedAgents = 0
+  for (let i = 0; i < 50; i++) {
+    const id = i % 2 === 0 ? 'agent-a' : 'agent-b'
+    if (jevAdmission(settings, T0 + i * 100, id).ok) admittedAgents++
+    noteJevAttempt(T0 + i * 100, id, road)
+  }
+  check(`${road}: sub-agents share 50 admitted requests per minute`, admittedAgents === 50, `admitted ${admittedAgents}`)
+  const pacedAgent = jevAdmission(settings, T0 + 5000, 'agent-c')
+  check(`${road}: a new agent cannot evade the shared 51st-request refusal`, !pacedAgent.ok && pacedAgent.kind === 'subagent-pace-hit' && pacedAgent.retryInMs === 55_000 && /50/.test(pacedAgent.words) && /session/.test(pacedAgent.words), JSON.stringify(pacedAgent))
+  check(`${road}: sub-agent pace is a wait, not a final refusal`, !pacedAgent.ok && !(await import('../../src/services/jev/jevStatus.js')).jevStatusIsFinalForSession(pacedAgent.kind))
+  check(`${road}: the 50 sub-agent attempts leave the main pace free`, jevAdmission(settings, T0 + 5000).ok)
+  const attemptsBefore = jevLedgerSnapshot(T0 + 5000, road).attempts
+  jevAdmission(settings, T0 + 5000, 'agent-c')
+  check(`${road}: refused admission spends no attempt`, jevLedgerSnapshot(T0 + 5000, road).attempts === attemptsBefore)
+  check(`${road}: an agent is admitted exactly when the oldest request leaves the minute`, jevAdmission(settings, T0 + 60_000, 'agent-c').ok)
+  check(`${road}: the shared request ceiling still counts sub-agent traffic`, !jevAdmission({ ...settings, requestCeiling: 50 }, T0 + 60_000).ok)
+  resetJevLedger()
+  for (let i = 0; i < 100; i++) noteJevAttempt(T0 + i, undefined, road)
+  check(`${road}: a full main minute does not spend the agents' own pace`, jevAdmission(settings, T0 + 100, 'agent-a').ok)
+  resetJevLedger()
+  let admittedBudget = 0
+  for (let i = 0; i < 200; i++) {
+    const now = T0 + Math.floor(i / 50) * JEV_PACE_WINDOW_MS + i % 50
+    if (jevAdmission(settings, now, 'agent-a').ok) admittedBudget++
+    noteJevAttempt(now, 'agent-a', road)
+  }
+  const afterWindows = T0 + 4 * JEV_PACE_WINDOW_MS
+  check(`${road}: all 200 calls are admitted across four windows`, admittedBudget === 200, `admitted ${admittedBudget}`)
+  const agentA = jevAdmission(settings, afterWindows, 'agent-a')
+  check(`${road}: the 201st call is the agent's own final cap`, !agentA.ok && agentA.kind === 'subagent-budget-hit' && /200 JEV calls/.test(agentA.words), JSON.stringify(agentA))
+  check(`${road}: another agent and the main model retain their budgets`, jevAdmission(settings, afterWindows, 'agent-b').ok && jevAdmission(settings, afterWindows).ok)
+  check(`${road}: the shared ledger counts all 200 attempts`, jevLedgerSnapshot(afterWindows, road).attempts === 200 && jevLedgerSnapshot(afterWindows, road).subagentAttempts['agent-a'] === 200)
+  resetJevLedger()
+  check(`${road}: session reset clears agent cap and pace`, jevAdmission(settings, afterWindows, 'agent-a').ok)
+}
 
 section('§8 wire failures: the hold ladder, the provider\'s wait, and what clears them')
 resetJevLedger()
