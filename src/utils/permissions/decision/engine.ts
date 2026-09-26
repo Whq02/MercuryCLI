@@ -17,6 +17,7 @@ import type {
   PermissionResult,
 } from '../PermissionResult.js'
 import type { BypassedAskRoad, PermissionMode } from '../../../types/permissions.js'
+import { refusalWithReason, wholeToolDenyRulesCovering, withRuleReason } from '../ruleReason.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
   getAskRuleForTool,
@@ -152,10 +153,11 @@ async function runDecisionChain(
 
   const denyRule = getDenyRuleForTool(permissionContext, tool)
   if (denyRule) {
+    const said = withRuleReason(permissionContext, denyRule, () => wholeToolDenyRulesCovering(permissionContext, tool))
     return decided('toolDenyRule', {
       behavior: 'deny',
-      decisionReason: { type: 'rule', rule: denyRule },
-      message: `Permission to use ${tool.name} has been denied.`,
+      decisionReason: { type: 'rule', rule: said },
+      message: refusalWithReason(`Permission to use ${tool.name} has been denied.`, said.ruleValue.reason),
     })
   }
   pass('toolDenyRule')

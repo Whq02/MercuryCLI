@@ -144,6 +144,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "reasons": {
+          "description": "The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": {}
