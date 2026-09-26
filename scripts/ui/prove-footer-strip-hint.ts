@@ -49,9 +49,15 @@ section('§2 the footer wiring (source locks)')
     'POISON: no surface-name literal in the footer source',
     !/['"`][^'"`]*(?:concourse|boot face)[^'"`]*['"`]/i.test(footer.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')),
   )
+  const hintsRow =
+    /<Text dimColor wrap="truncate-end">\s*\{getNewlineInstructions\(\)\}\s*\{composerCrewmate !== null \? ` · \$\{crewmateComposerHint\([^`]*\)\}` : ''\}\s*\{fullscreen && stripHint !== '' \? ` · \$\{stripHint\}` : ''\}\s*<\/Text>/
   check(
-    'the strip hint rides the newline row (one hints row, kit-joined)',
-    /getNewlineInstructions\(\)\}\s*\{fullscreen && stripHint/.test(footer),
+    'the strip hint rides the newline row (one hints row, kit-joined: the newline chord · the crewmate clause · the strip chord)',
+    hintsRow.test(footer),
+  )
+  check(
+    'one hints row (the newline chord paints once; no second row carries a chord)',
+    (footer.match(/getNewlineInstructions\(\)/g) ?? []).length === 1 && (footer.match(/stripHint\}/g) ?? []).length === 1,
   )
 }
 
