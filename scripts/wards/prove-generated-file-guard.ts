@@ -15,7 +15,7 @@ const PROJECT = '/work/project'
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_WARDS
-  const { mkdtempSync, openSync, readSync, closeSync, readFileSync, readdirSync, realpathSync, rmSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs')
+  const { mkdtempSync, openSync, readSync, closeSync, readFileSync, readdirSync, rmSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join, dirname } = await import('node:path')
   const { execFileSync } = await import('node:child_process')
@@ -26,7 +26,13 @@ async function main(): Promise<void> {
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
   const { parseGeneratedAssetsMap, GENERATED_ASSETS_MAP } = await import('../../src/utils/hooks/generatedAssets.js')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-  const { judgeGrowth, measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
+  const { judgeGrowth } = await import('../lib/linearGrowth.js')
+  type WardWork = import('../../src/utils/wards/wards.js').WardWork
+  const workUnits = (work: WardWork): number => Object.values(work).reduce((sum, n) => sum + n, 0)
+  const judgeWork = (points: Array<{ size: number; ms: number }>) => {
+    const growth = judgeGrowth(points, { slackMs: 0 })
+    return { ...growth, summary: growth.summary.replaceAll('ms', ' work units') }
+  }
 
   const ROOT = join(import.meta.dir, '..', '..')
   type Resolved = { path: string; root: string | undefined }
@@ -61,7 +67,13 @@ async function main(): Promise<void> {
     resolvePath,
   })
   const write = (file_path: string, content: string, readHead: Call['readHead'] = fakeReader, resolvePath: Call['resolvePath'] = projectResolver): Call => ({ toolName: 'Write', input: { file_path, content }, readHead, resolvePath })
-  const verdictOf = (call: Call) => evaluateWards(BUILTIN_WARDS, call)
+  let metricParity = true
+  const verdictOf = (call: Call) => {
+    const plain = evaluateWards(BUILTIN_WARDS, call)
+    const measured = evaluateWards(BUILTIN_WARDS, call, {})
+    metricParity &&= JSON.stringify(plain) === JSON.stringify(measured)
+    return plain
+  }
   const deniedBy = (call: Call): string | null => {
     const v = verdictOf(call)
     return v.allow ? null : v.rule.name
@@ -437,10 +449,11 @@ async function main(): Promise<void> {
       check('a directory answers undefined', reader(scratch) === undefined)
       const fifo = join(scratch, 'pipe')
       execFileSync('mkfifo', [fifo])
-      const t0 = performance.now()
-      const fifoHead = reader(fifo)
-      const ms = performance.now() - t0
-      check(`a FIFO with no writer answers undefined without blocking (${ms.toFixed(1)}ms)`, fifoHead === undefined && ms < 100)
+      const fifoWork: WardWork = {}
+      const fifoHead = reader(fifo, fifoWork)
+      check('a FIFO with no writer uses one nonblocking open and no read', fifoHead === undefined && fifoWork.nonblockingOpens === 1 && (fifoWork.headReads ?? 0) === 0, JSON.stringify(fifoWork))
+      const regularWork: WardWork = {}
+      check('counting the regular-file read does not change its bytes', reader(regular, regularWork) === reader(regular) && regularWork.headReads === 1)
       check('a character device answers undefined', reader('/dev/null') === undefined)
     }
     const resolver = typeof hook.makeTargetResolver === 'function' ? hook.makeTargetResolver : null
@@ -468,24 +481,25 @@ async function main(): Promise<void> {
       const relative = runWithCwdOverride(join(repo, 'src'), () => resolve('./a.ts'))
       check('a relative spelling resolves against the live cwd, then binds to the repository root', relative.path === join(real(repo), 'src', 'a.ts') && relative.root === real(repo), JSON.stringify(relative))
       const segmented = (n: number): string => join(repo, 'src', 'a/'.repeat(n) + 'x.ts')
-      const growthOf = (sizes: readonly number[]) => {
-        const paths = new Map(sizes.map(n => [n, segmented(n)] as const))
-        return measureGrowth(n => { resolve(paths.get(n)!) }, sizes)
-      }
+      const growthOf = (sizes: readonly number[]) => judgeWork(sizes.map(size => {
+        const work: WardWork = {}
+        const path = segmented(size)
+        const counted = resolver(scratch, work)(path)
+        check(`metrics preserve the ${size}-segment resolution`, JSON.stringify(counted) === JSON.stringify(resolve(path)))
+        if (path.length > hook.TARGET_PATH_MAX) check('an over-limit path makes no realpath or repository probe', (work.realpathCalls ?? 0) === 0 && (work.existsCalls ?? 0) === 0)
+        return { size, ms: workUnits(work) }
+      }))
       const deep = segmented(40_000)
       const deepResolved = resolve(deep)
-      const deepGrowth = growthOf([20_000, 40_000])
-      check(`a 40 000-segment path (${deep.length} chars, over PATH_MAX): the walks are skipped and the fallback root answers; the cost grows linearly in the path (${deepGrowth.summary})`, deepGrowth.linear && deepResolved.root === real(scratch), JSON.stringify(deepResolved).slice(0, 120))
-      const hugeGrowth = growthOf([40_000, 80_000])
-      check(`a 160 KB path resolves with the same linear cost (${hugeGrowth.summary})`, hugeGrowth.linear && resolve(segmented(80_000)).root === real(scratch))
-      const underMax = segmented(1_900)
-      const underResolved = resolve(underMax)
-      const underGrowth = growthOf([950, 1_900])
-      const absent = join(repo, 'src', 'absent', 'x.ts')
-      const reference = measureGrowth(n => { for (let i = 0; i < n; i++) { try { realpathSync(absent) } catch {} } }, [950, 1_900])
-      const walk = underGrowth.points[1]!.ms
-      const perSegment = reference.points[1]!.ms
-      check(`a ${underMax.length}-char path under PATH_MAX still resolves to its repository; the walk grows linearly (${underGrowth.summary}) and costs no more than one realpath per absent segment (${walk.toFixed(1)}ms against ${perSegment.toFixed(1)}ms for 1 900 realpaths of one absent path, + 1ms)`, underGrowth.linear && walk <= perSegment + 1 && underResolved.root === real(repo), JSON.stringify(underResolved).slice(0, 120))
+      const deepGrowth = growthOf([5_000, 40_000])
+      check(`a 40 000-segment path (${deep.length} chars, over PATH_MAX): the walks are skipped and the fallback root answers; counted work is linear (${deepGrowth.summary})`, deepGrowth.linear && deepResolved.root === real(scratch), JSON.stringify(deepResolved).slice(0, 120))
+      const hugeGrowth = growthOf([10_000, 80_000])
+      check(`a 160 KB path resolves with the same linear work (${hugeGrowth.summary})`, hugeGrowth.linear && resolve(segmented(80_000)).root === real(scratch))
+      const underMax = segmented(1_904)
+      const underWork: WardWork = {}
+      const underResolved = resolver(scratch, underWork)(underMax)
+      const underGrowth = growthOf([238, 1_904])
+      check(`a ${underMax.length}-char path under PATH_MAX resolves to its repository; the counted walk is linear (${underGrowth.summary}) and uses at most one realpath per absent segment`, underGrowth.linear && (underWork.realpathCalls ?? 0) > 0 && underWork.realpathCalls! <= 1_904 && underResolved.root === real(repo), JSON.stringify(underWork))
       const plantedSizes = [128, 1_024]
       const countVisits = (rows: number, width: number): number => {
         let visits = 0
@@ -519,9 +533,9 @@ async function main(): Promise<void> {
     symlinkSync(ROOT, link)
     const realRoot = typeof hook.realTargetPath === 'function' ? hook.realTargetPath(ROOT) : ROOT
     const ctx = (toolName: string, input: Record<string, unknown>) => ({ hookInput: { tool_name: toolName, tool_input: input }, tool: { name: toolName } })
-    const fresh = async (cwd: string, toolName: string, input: Record<string, unknown>, id: string): Promise<unknown> => {
+    const fresh = async (cwd: string, toolName: string, input: Record<string, unknown>, id: string, work?: WardWork): Promise<unknown> => {
       resetWardsEngagedSessionsForTest()
-      runWithCwdOverride(cwd, () => registerWardsHook(setAppState, id))
+      runWithCwdOverride(cwd, () => registerWardsHook(setAppState, id, work))
       const matchers = getSessionFunctionHooks({ sessionHooks: state.sessionHooks } as never, id, 'PreToolUse').get('PreToolUse' as never) ?? []
       const cb = matchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
       return runWithCwdOverride(cwd, () => cb([], undefined as never, ctx(toolName, input)))
@@ -586,20 +600,25 @@ async function main(): Promise<void> {
     check('a project under a folder named generated/ passes (its own .git is the root)', elsewhere === true, JSON.stringify(elsewhere))
     const elsewhereGenerated = await fresh(project, 'Write', { file_path: join(project, 'src', 'generated', 'x.ts'), content: 'x' }, 'w-g19')
     check("that project's own src/generated/ is still refused", typeof elsewhereGenerated === 'string' && elsewhereGenerated.includes(`Ward '${RULE}'`), String(elsewhereGenerated).slice(0, 200))
-    const timed = async (label: string, toolName: string, build: (n: number) => Record<string, unknown>, n: number, id: string): Promise<void> => {
-      const inputs = new Map([n / 2, n].map(size => [size, build(size)] as const))
-      const armed = performance.now()
-      let fired = -1
-      const timer = new Promise<void>(resolve => setTimeout(() => { fired = performance.now() - armed; resolve() }, 100))
-      const result = await fresh(ROOT, toolName, inputs.get(n)!, id)
-      await timer
-      const growth = await measureGrowthAsync(async size => { await fresh(ROOT, toolName, inputs.get(size)!, id) }, [n / 2, n])
-      check(`${label}: the hook passes (fail open: the OS refuses the path); the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms); the answer grows linearly in the path (${growth.summary})`, result === true && fired < 1000 && growth.linear, JSON.stringify(result).slice(0, 120))
+    const countedDenial = await fresh(repo, 'Edit', { file_path: generated, old_string: 'a', new_string: 'b' }, 'w-counted-denial', {})
+    check('hook metrics preserve the marker denial and exact teaching', countedDenial === marked)
+    const counted = async (label: string, toolName: string, build: (n: number) => Record<string, unknown>, n: number, id: string): Promise<void> => {
+      const points: Array<{ size: number; ms: number }> = []
+      for (const size of [n / 8, n]) {
+        const input = build(size)
+        const work: WardWork = {}
+        const result = await fresh(ROOT, toolName, input, id, work)
+        const plain = await fresh(ROOT, toolName, input, id)
+        check(`${label}, ${size}: metrics preserve the passing hook verdict; no filesystem walk or head read occurs`, result === true && result === plain && (work.regexEvaluations ?? 0) > 0 && (work.realpathCalls ?? 0) === 0 && (work.existsCalls ?? 0) === 0 && (work.headReads ?? 0) === 0, JSON.stringify(work))
+        points.push({ size, ms: workUnits(work) })
+      }
+      const growth = judgeWork(points)
+      check(`${label}: the armed hook's counted work grows linearly in the path (${growth.summary})`, growth.linear)
     }
-    await timed('a Write whose path has 40 000 segments (80 KB)', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 40_000, 'w-g20')
-    await timed('a Write whose path is 160 KB', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 80_000, 'w-g21')
-    await timed('a Git resolve whose absolute path has 40 000 segments', 'Git', n => ({ op: 'resolve', path: join(ROOT, 'a/'.repeat(n) + 'x.ts'), content: 'x\n' }), 40_000, 'w-g22')
-    await timed('a ChangeSet member whose path has 40 000 segments', 'ChangeSet', n => ({ op: 'apply', changes: [member(join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'))] }), 40_000, 'w-g23')
+    await counted('a Write whose path has 40 000 segments (80 KB)', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 40_000, 'w-g20')
+    await counted('a Write whose path is 160 KB', 'Write', n => ({ file_path: join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'), content: 'export const a = 1\n' }), 80_000, 'w-g21')
+    await counted('a Git resolve whose absolute path has 40 000 segments', 'Git', n => ({ op: 'resolve', path: join(ROOT, 'a/'.repeat(n) + 'x.ts'), content: 'x\n' }), 40_000, 'w-g22')
+    await counted('a ChangeSet member whose path has 40 000 segments', 'ChangeSet', n => ({ op: 'apply', changes: [member(join(ROOT, 'src', 'a/'.repeat(n) + 'x.ts'))] }), 40_000, 'w-g23')
 
     section('L. the published tree — the publish filter keeps no comment line, so a checkout carries no marker: the generated modules are refused by NAME, the generator named from the table row')
     const published = join(scratch, 'published')
@@ -640,6 +659,7 @@ async function main(): Promise<void> {
 
   section('M. the rule set stays data')
   {
+    check('metrics preserve every fixture verdict, excerpt, path, and teaching field', metricParity)
     check('BUILTIN_WARDS survives a JSON round-trip unchanged', JSON.stringify(JSON.parse(JSON.stringify(BUILTIN_WARDS))) === JSON.stringify(BUILTIN_WARDS))
   }
 

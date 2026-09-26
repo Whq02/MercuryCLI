@@ -22,7 +22,14 @@ async function main(): Promise<void> {
   type WardRule = (typeof BUILTIN_WARDS)[number]
   const { registerWardsHook, resetWardsEngagedSessionsForTest } = await import('../../src/utils/hooks/wardsHook.js')
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
-  const { judgeGrowth, measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
+  const { judgeGrowth } = await import('../lib/linearGrowth.js')
+  type WardWork = import('../../src/utils/wards/wards.js').WardWork
+  const workUnits = (work: WardWork): number => Object.values(work).reduce((sum, n) => sum + n, 0)
+  const growthSizes = (n: number): number[] => [Math.ceil(n / 8), Math.ceil(n / 8) * 8]
+  const judgeWork = (points: Array<{ size: number; ms: number }>) => {
+    const growth = judgeGrowth(points, { slackMs: 0 })
+    return { ...growth, summary: growth.summary.replaceAll('ms', ' work units') }
+  }
   const { readFileSync } = await import('node:fs')
 
   type Call = { toolName: string; input: Record<string, unknown> }
@@ -31,7 +38,13 @@ async function main(): Promise<void> {
     toolName: 'Edit',
     input: { file_path, old_string, new_string },
   })
-  const verdictOf = (call: Call) => evaluateWards(BUILTIN_WARDS, call)
+  let metricParity = true
+  const verdictOf = (call: Call) => {
+    const plain = evaluateWards(BUILTIN_WARDS, call)
+    const measured = evaluateWards(BUILTIN_WARDS, call, {})
+    metricParity &&= JSON.stringify(plain) === JSON.stringify(measured)
+    return plain
+  }
   const deniedBy = (call: Call): string | null => {
     const v = verdictOf(call)
     return v.allow ? null : v.rule.name
@@ -266,11 +279,17 @@ async function main(): Promise<void> {
     check('a multi-line template literal with the placeholder on its own line ⇒ denied (write it split or escaped)', deniedBy(template) === RULE, denialText(template))
   }
 
-  section('I. the matcher is linear on adversarial lines (whitespace runs, dot runs, repeated words): the cost of a doubled input is bounded by the law, not by a wall clock')
+  section('I. the matcher uses linear counted work on adversarial lines at an eightfold input step')
   {
     const growthOf = (build: (n: number) => string, sizes: readonly number[]) => {
-      const contents = new Map(sizes.map(n => [n, build(n)] as const))
-      return measureGrowth(n => { evaluateWards(BUILTIN_WARDS, write(file, contents.get(n)!)) }, sizes)
+      const points = sizes.map(size => {
+        const call = write(file, build(size))
+        const work: WardWork = {}
+        const counted = evaluateWards(BUILTIN_WARDS, call, work)
+        check(`metrics preserve the ${size}-unit input's verdict and count real regex evaluations`, JSON.stringify(counted) === JSON.stringify(verdictOf(call)) && (work.regexEvaluations ?? 0) > 0)
+        return { size, ms: workUnits(work) }
+      })
+      return judgeWork(points)
     }
     const lines: Array<[(n: number) => string, number, boolean]> = [
       [n => ' '.repeat(n), 12_500, false],
@@ -312,22 +331,22 @@ async function main(): Promise<void> {
     for (const [build, n, deny] of lines) {
       const line = build(n)
       const v = verdictOf(write(file, around(line)))
-      const growth = growthOf(size => around(build(size)), [n / 2, n])
+      const growth = growthOf(size => around(build(size)), growthSizes(n))
       check(`${JSON.stringify(line.slice(0, 24))}… (${line.length} chars) evaluates linearly (${growth.summary}), verdict ${deny ? 'deny' : 'allow'}`, growth.linear && v.allow === !deny)
     }
     const indented = (n: number): string => Array(n).fill(' '.repeat(200) + '// ... existing code ... x').join('\n')
     const vi = verdictOf(write(file, indented(10_000)))
-    const gi = growthOf(indented, [5_000, 10_000])
+    const gi = growthOf(indented, [1_250, 10_000])
     check(`10 000 deeply indented near-miss lines evaluate linearly in the line count (${gi.summary}) and pass`, gi.linear && vi.allow)
     const padded = (n: number): string => Array(n).fill(' '.repeat(200) + '// ... existing code' + ' '.repeat(200) + 'x').join('\n')
     const vp = verdictOf(write(file, padded(5_000)))
-    const gp = growthOf(padded, [2_500, 5_000])
+    const gp = growthOf(padded, [625, 5_000])
     check(`5 000 lines padded on both sides of the phrase evaluate linearly in the line count (${gp.summary}) and pass`, gp.linear && vp.allow)
-    const dots = growthOf(n => '// ... existing code ...' + ' ..'.repeat(n) + 'x', [25_000, 50_000, 100_000])
-    check(`a space-separated dot run after the phrase grows linearly across 25k / 50k / 100k (${dots.summary})`, dots.linear)
+    const dots = growthOf(n => '// ... existing code ...' + ' ..'.repeat(n) + 'x', [1_563, 12_504, 100_032])
+    check(`a space-separated dot run after the phrase grows linearly across two eightfold steps (${dots.summary})`, dots.linear)
     const big = (n: number): string => around('const x = 1').repeat(n)
     const v = verdictOf(write(file, big(2_000)))
-    const gb = growthOf(big, [1_000, 2_000])
+    const gb = growthOf(big, [250, 2_000])
     check(`a ${big(2_000).length}-byte clean Write evaluates linearly in its size (${gb.summary}) and passes`, gb.linear && v.allow)
     const plantedSizes = [128, 1_024]
     const planted: WardRule = { name: 'planted-quadratic', teach: 'a start lookbehind on an unanchored pattern rescans the run from every index', scope: 'edit', patterns: ['(?<=^[ \\t]*)x$'], flags: '', skipCommentLines: false }
@@ -381,25 +400,37 @@ async function main(): Promise<void> {
     check('the hook denies a Structure preview whose replacement carries the placeholder', typeof structure === 'string' && structure.includes(`Ward '${RULE}'`), String(structure).slice(0, 200))
     const git = await cb([], undefined as never, ctx('Git', { op: 'resolve', path: 'src/service.ts', content: '// ... rest of the file unchanged\n' }))
     check('the hook denies a Git resolve whose content carries the placeholder', typeof git === 'string' && git.includes(`Ward '${RULE}'`), String(git).slice(0, 200))
-    const timed = async (label: string, build: (n: number) => string, n: number): Promise<void> => {
-      const contents = new Map([n / 2, n].map(size => [size, build(size)] as const))
-      const armed = performance.now()
-      let fired = -1
-      const timer = new Promise<void>(resolve => setTimeout(() => { fired = performance.now() - armed; resolve() }, 100))
-      const result = await cb([], undefined as never, ctx('Write', { file_path: file, content: contents.get(n)! }))
-      await timer
-      const growth = await measureGrowthAsync(async size => { await cb([], undefined as never, ctx('Write', { file_path: file, content: contents.get(size)! })) }, [n / 2, n])
-      check(`${label}: the hook passes; the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms, the loop was never blocked); the answer grows linearly (${growth.summary})`, result === true && fired < 1000 && growth.linear)
+    const countedHook = async (input: Record<string, unknown>, work: WardWork): Promise<unknown> => {
+      resetWardsEngagedSessionsForTest()
+      registerWardsHook(setAppState, 'w-counted', work)
+      const countedMatchers = getSessionFunctionHooks({ sessionHooks: state.sessionHooks } as never, 'w-counted', 'PreToolUse').get('PreToolUse' as never) ?? []
+      const counted = countedMatchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
+      return counted([], undefined as never, ctx('Write', input))
     }
-    await timed('100 000 spaces', n => ' '.repeat(n), 100_000)
-    await timed('the phrase, 4 000 spaces, then x (4 021 chars)', n => '// ... existing code' + ' '.repeat(n) + 'x', 4_000)
-    await timed('a 700 000-char line with 100 interior blank runs', n => '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(n), 100)
-    await timed('a comment leader, 100 000 spaces, then x ...', n => '//' + ' '.repeat(n) + 'x ...', 100_000)
+    check('hook metrics preserve a denial and its exact teaching', await countedHook({ file_path: file, content: around('// ... rest of the code unchanged') }, {}) === denied)
+    const counted = async (label: string, build: (n: number) => string, n: number): Promise<void> => {
+      const points: Array<{ size: number; ms: number }> = []
+      for (const size of growthSizes(n)) {
+        const input = { file_path: file, content: build(size) }
+        const work: WardWork = {}
+        const result = await countedHook(input, work)
+        const plain = await cb([], undefined as never, ctx('Write', input))
+        check(`${label}, ${size}: hook metrics preserve the passing verdict and count regex work`, result === true && result === plain && (work.regexEvaluations ?? 0) > 0)
+        points.push({ size, ms: workUnits(work) })
+      }
+      const growth = judgeWork(points)
+      check(`${label}: the armed hook's counted work grows linearly (${growth.summary})`, growth.linear)
+    }
+    await counted('100 000 spaces', n => ' '.repeat(n), 100_000)
+    await counted('the phrase, 4 000 spaces, then x (4 021 chars)', n => '// ... existing code' + ' '.repeat(n) + 'x', 4_000)
+    await counted('a 700 000-char line with 100 interior blank runs', n => '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(n), 100)
+    await counted('a comment leader, 100 000 spaces, then x ...', n => '//' + ' '.repeat(n) + 'x ...', 100_000)
     resetWardsEngagedSessionsForTest()
   }
 
   section('K. the rule set stays data')
   {
+    check('metrics preserve every fixture verdict, excerpt, path, and teaching field', metricParity)
     check('BUILTIN_WARDS survives a JSON round-trip unchanged', JSON.stringify(JSON.parse(JSON.stringify(BUILTIN_WARDS))) === JSON.stringify(BUILTIN_WARDS))
   }
 

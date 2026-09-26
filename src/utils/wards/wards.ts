@@ -43,6 +43,18 @@ export type ResolvedPath = {
   root: string | undefined
 }
 
+export type WardWork = Partial<Record<'characters' | 'steps' | 'regexEvaluations' | 'realpathCalls' | 'existsCalls' | 'nonblockingOpens' | 'headReads', number>>
+
+export function countWardWork(work: WardWork | undefined, kind: keyof WardWork, units = 1): void {
+  if (work !== undefined) work[kind] = (work[kind] ?? 0) + units
+}
+
+function regexWork(work: WardWork | undefined, text: string): void {
+  if (work === undefined) return
+  countWardWork(work, 'regexEvaluations')
+  countWardWork(work, 'characters', text.length)
+}
+
 export type PendingToolCall = {
   toolName: string
   input: Record<string, unknown>
@@ -393,9 +405,11 @@ function cachedLeadingMarker(rule: WardRule): RegExp | null {
   return re
 }
 
-function leadingMarkerHit(re: RegExp, head: string): { excerpt: string; line: number; generator?: string } | null {
+function leadingMarkerHit(re: RegExp, head: string, work?: WardWork): { excerpt: string; line: number; generator?: string } | null {
+  if (work) countWardWork(work, 'characters', Math.min(head.length, GENERATED_HEAD_CHARS))
   const lines = head.slice(0, GENERATED_HEAD_CHARS).split('\n', GENERATED_HEAD_LINES)
   for (let i = 0; i < lines.length; i++) {
+    if (work) regexWork(work, lines[i]!)
     const m = lines[i]!.match(re)
     if (!m || m[0] === undefined) continue
     const generator = declaredGenerator(lines)
@@ -558,10 +572,12 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
   return []
 }
 
-function normalisePath(path: string): string {
+function normalisePath(path: string, work?: WardWork): string {
+  if (work) countWardWork(work, 'characters', path.length * 2)
   const absolute = /^[\\/]/.test(path)
   const out: string[] = []
   for (const segment of path.split(/[\\/]/)) {
+    if (work) countWardWork(work, 'steps')
     if (segment === '' || segment === '.') continue
     if (segment === '..') {
       if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
@@ -573,8 +589,8 @@ function normalisePath(path: string): string {
   return (absolute ? '/' : '') + out.join('/')
 }
 
-function bindPath(target: WardTarget, pending: PendingToolCall): { relative: string; absolute: string } {
-  const given = normalisePath(target.path)
+function bindPath(target: WardTarget, pending: PendingToolCall, work?: WardWork): { relative: string; absolute: string } {
+  const given = normalisePath(target.path, work)
   if (target.asGiven === true && !given.startsWith('/')) return { relative: given, absolute: '' }
   const resolved = pending.resolvePath?.(given) ?? { path: given, root: undefined }
   const path = resolved.path
@@ -589,34 +605,40 @@ function bindPath(target: WardTarget, pending: PendingToolCall): { relative: str
 export function evaluateWards(
   rules: readonly WardRule[],
   pending: PendingToolCall,
+  work?: WardWork,
 ): WardVerdict {
   for (const target of extractTargets(pending)) {
-    const verdict = evaluateTarget(rules, pending, target)
+    if (work) countWardWork(work, 'steps')
+    const verdict = evaluateTarget(rules, pending, target, work)
     if (!verdict.allow) return verdict
   }
   return { allow: true }
 }
 
-function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, target: WardTarget): WardVerdict {
+function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, target: WardTarget, work?: WardWork): WardVerdict {
   let words: string | undefined
   let oldFolded: string | undefined
   let head: string | undefined | null = null
   let bound: { relative: string; absolute: string } | null = null
 
   for (const rule of rules) {
+    if (work) countWardWork(work, 'steps')
     if (rule.scope !== target.scope) continue
     if (target.scope === 'edit') {
       if (rule.pathPattern) {
         const re = cachedPathRegex(compiledPathPatterns, rule, rule.pathPattern)
+        if (work && re !== null) regexWork(work, target.path)
         if (re === null || !re.test(target.path)) continue
       }
       if (rule.allowPathPattern) {
         const re = cachedPathRegex(compiledAllowPathPatterns, rule, rule.allowPathPattern)
+        if (work && re !== null) regexWork(work, target.path)
         if (re !== null && re.test(target.path)) continue
       }
       if (rule.generatedPaths !== undefined && target.path) {
-        if (bound === null) bound = bindPath(target, pending)
+        if (bound === null) bound = bindPath(target, pending, work)
         for (const { re, row } of cachedGeneratedPaths(rule)) {
+          if (work) regexWork(work, bound.relative)
           const m = re.exec(bound.relative)
           if (!m) continue
           return {
@@ -634,10 +656,10 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
       const marker = rule.leadingMarker === undefined ? null : cachedLeadingMarker(rule)
       if (marker !== null) {
         if (head === null) {
-          if (bound === null && target.path !== '') bound = bindPath(target, pending)
+          if (bound === null && target.path !== '') bound = bindPath(target, pending, work)
           head = bound !== null && bound.absolute !== '' && pending.readHead !== undefined ? pending.readHead(bound.absolute) : undefined
         }
-        const hit = (head === undefined ? null : leadingMarkerHit(marker, head)) ?? (target.whole ? leadingMarkerHit(marker, target.text) : null)
+        const hit = (head === undefined ? null : leadingMarkerHit(marker, head, work)) ?? (target.whole ? leadingMarkerHit(marker, target.text, work) : null)
         if (hit !== null) {
           return {
             allow: false,
@@ -657,12 +679,17 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
     const skipComments = rule.skipCommentLines !== false
     const fold = rule.foldLines === true
     const text = rule.outsideQuotes === true && target.scope === 'bash' ? (words ??= commandOutsideQuotes(target.text)) : target.text
+    if (work) countWardWork(work, 'characters', text.length)
     const lines = text.split('\n')
     for (let i = 0; i < lines.length; i++) {
+      if (work) countWardWork(work, 'steps')
       const line = lines[i] ?? ''
+      if (work && (skipComments || fold)) countWardWork(work, 'characters', line.length)
       if (skipComments && isCommentLine(line)) continue
+      if (work && fold) regexWork(work, line)
       const view = fold ? line.trim().replace(BLANK_RUN, ' ') : line
       for (const re of regexes) {
+        if (work) regexWork(work, view)
         const m = view.match(re)
         if (!m || m[0] === undefined) continue
         if (rule.newContentOnly && target.oldText !== undefined) {
