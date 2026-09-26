@@ -87,8 +87,8 @@ check('S8: CREW sources the projected roster through the crew predicate (the pro
   /crewAgentsOf\(projectWorkRoster\(tasks\), sessionId\)/.test(lanes) &&
     workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
     /return row\.kind === 'agent' \|\| row\.kind === 'teammate'/.test(crewFactsSrc))
-check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate)",
-  /useFocusedWorkRoster\(\)/.test(lanes) && /crewAgentsOf\(roster\.rows, sessionId\)/.test(lanes) && /\.filter\(f => f\.running\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
+check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate) and keeps the viewed or pinned crewmate's row after it lands",
+  /useFocusedWorkRoster\(\)/.test(lanes) && /crewAgentsOf\(roster\.rows, sessionId\)/.test(lanes) && /\.filter\(f => f\.running \|\| keptIds\.includes\(f\.id\)\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
 check('a hosted CREW row opens the agent in the view (the teammate road), never a /tasks command',
   /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/tasks \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
@@ -98,8 +98,8 @@ check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
 check('RUNS is the one rail door to the /tasks board (header opens /tasks)',
   /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/tasks' \}\)/.test(lanes))
-check('a ledger alone never forces the busy layout (the solo gate reads peers, crew, runs and daemon crew only)',
-  /const solo =\n\s+peers\.length === 0 &&\n\s+crewAll\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes))
+check('a ledger alone never forces the busy layout (the solo gate reads peers, crew, the viewed or pinned crewmate, runs and daemon crew only)',
+  /const solo =\n\s+peers\.length === 0 &&\n\s+crewAll\.length === 0 &&\n\s+keptIds\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 
