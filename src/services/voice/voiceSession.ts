@@ -46,7 +46,7 @@ export interface VoiceSnapshot {
   receipt: VoiceReceipt | null
 }
 
-export const HOLD_TO_TALK_MS = 3_000
+export const HOLD_TO_TALK_MS = 1_000
 export const HOLD_WORDS = `hold space for ${HOLD_TO_TALK_MS / 1000} s to speak, release it to stop, esc cancels`
 export const NO_REPEAT_WORDS = '/voice starts and stops a take without the key — the road for a terminal whose key repeat is off (a held key that never repeats cannot open a take)'
 

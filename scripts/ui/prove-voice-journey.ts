@@ -250,7 +250,7 @@ const SCALE = ((): number => {
 })()
 const ticksFor = (ms: number): number => Math.max(1, Math.ceil(ms / (TICK_MS * SCALE)))
 const repeatsFor = (ms: number): unknown[] => Array.from({ length: ticksFor(ms) }, () => REPEAT)
-const HOLD_PAST_THRESHOLD_MS = 3_400
+const HOLD_PAST_THRESHOLD_MS = 1_200
 function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
   const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
@@ -308,7 +308,7 @@ console.log('[A] /speak → /speak on → a hold → the release → the words l
   fx.child.kill('SIGTERM')
   check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('bare /speak reports OFF with the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: OpenAI'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
-  check('/speak on says ON and teaches the hold', (res.marks.on ?? '').includes('voice input ON — hold space for 3 s to speak'), (res.marks.on ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
+  check('/speak on says ON and teaches the hold', (res.marks.on ?? '').includes('voice input ON — hold space for 1 s to speak'), (res.marks.on ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   check(`the hold past the threshold: the footer paints ● ${RECORDING_LINE}`, (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), (res.marks.recording ?? '').split('\n').filter(l => l.includes('recording')).join(' · '))
   check('the release: the footer paints transcribing…', (res.marks.transcribing ?? '').includes('transcribing…'))
   check('the canned words land in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT))
