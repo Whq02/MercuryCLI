@@ -1,7 +1,11 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sleep-tool-home-'))
+delete process.env.MERCURY_HOME
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TOOLS = readFileSync(join(root, 'src/tools.ts'), 'utf-8')
@@ -82,6 +86,95 @@ check("the sub-agent's ceiling is the same one (one MAX_SLEEP_SECONDS)",
   check('a wait of 0 s is never a no-op: it clamps up to the one-second floor, the timer really arms for 1 s, and the result says so',
     zero.data.interrupted === false && zero.data.slept_seconds === 1 && zero.data.message === 'Slept for 1s' && zero.data.clamped === 'seconds clamped to 1 s (the minimum)' && elapsedMs >= 950 && elapsedMs < 3000,
     `${JSON.stringify(zero.data)} after ${elapsedMs} ms`)
+}
+
+console.log('\n— new input for the active turn ends the wait at once —')
+{
+  const queue = await import('../../src/input-core/command-queue.ts')
+  const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
+  type SleepResult = { data: { message: string; slept_seconds: number; interrupted: boolean; clamped?: string } }
+  const NEW_INPUT = 'new input arrived for this turn (it follows this result)'
+  const rig = (abort: AbortController, agentId?: string): never => ({ abortController: abort, getAppState: () => ({ tasks: {} }), agentId }) as never
+  let seq = 0
+  const line = (value: string, extra: Record<string, unknown> = {}): never => ({ value, mode: 'prompt', uuid: `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`, ...extra }) as never
+  const bounded = (pending: Promise<SleepResult>, ms: number): Promise<SleepResult | null> => Promise.race([pending, new Promise<null>(r => setTimeout(() => r(null), ms))])
+
+  queue.resetCommandQueue()
+  const abort60 = new AbortController()
+  const at60 = Date.now()
+  const wait60 = SleepTool.call({ seconds: 60 }, rig(abort60)) as Promise<SleepResult>
+  setTimeout(() => queue.enqueue(line('stop and report what you have')), 100)
+  const early = await bounded(wait60, 2_000)
+  const elapsed60 = Date.now() - at60
+  if (early === null) abort60.abort()
+  const released = early ?? (await wait60)
+  check('a prompt queued during a 60 s wait ends it within the moment it lands, typed as an interrupt with the new-input reason',
+    early !== null && early.data.interrupted === true && early.data.message === `Sleep interrupted after 0s: ${NEW_INPUT}` && early.data.slept_seconds === 0 && elapsed60 < 1_000,
+    early === null ? `the wait was still open ${elapsed60} ms after the words landed; released by abort it read ${JSON.stringify(released.data)}` : `${JSON.stringify(early.data)} after ${elapsed60} ms`)
+  const kept = queue.getDrainableCommands(false)
+  check('the words stay queued for the drain, exactly once — the wait reads the queue and never takes from it',
+    kept.length === 1 && kept[0]?.value === 'stop and report what you have', JSON.stringify(kept.map(c => c.value)))
+  const text = (SleepTool.mapToolResultToToolResultBlockParam(released.data as never, 'toolu_n') as { content: string }).content
+  check('the tool result carries the reason in the interrupt grammar', text.includes(`"message":"Sleep interrupted after 0s: ${NEW_INPUT}"`) && text.includes('"interrupted":true'), text)
+
+  queue.resetCommandQueue()
+  const at3 = Date.now()
+  const wait3 = SleepTool.call({ seconds: 3 }, rig(new AbortController())) as Promise<SleepResult>
+  setTimeout(() => queue.enqueue(line('a second thought')), 100)
+  const short = await wait3
+  const elapsed3 = Date.now() - at3
+  check('a 3 s wait steered at 100 ms does not run its full length',
+    short.data.interrupted === true && elapsed3 < 1_000, `the wait ran its full length: ${JSON.stringify(short.data)} after ${elapsed3} ms`)
+
+  queue.resetCommandQueue()
+  queue.enqueue(line('queued before the wait began'))
+  const abortEntry = new AbortController()
+  const atEntry = Date.now()
+  const waitEntry = SleepTool.call({ seconds: 60 }, rig(abortEntry)) as Promise<SleepResult>
+  const entry = await bounded(waitEntry, 1_000)
+  const elapsedEntry = Date.now() - atEntry
+  if (entry === null) abortEntry.abort()
+  const releasedEntry = entry ?? (await waitEntry)
+  check('words already queued when the wait begins end it at entry', entry !== null && entry.data.interrupted === true && entry.data.message === `Sleep interrupted after 0s: ${NEW_INPUT}` && elapsedEntry < 500,
+    entry === null ? `the wait was still open ${elapsedEntry} ms after it began with the words already queued; released by abort it read ${JSON.stringify(releasedEntry.data)}` : `${JSON.stringify(entry.data)} after ${elapsedEntry} ms`)
+
+  queue.resetCommandQueue()
+  queue.enqueue(line('for the next turn', { priority: 'later' }))
+  queue.enqueue(line('/compact'))
+  queue.enqueue(line('for another agent', { agentId: 'agent-elsewhere' }))
+  queue.enqueue(line('<task-notification>a shell finished</task-notification>', { mode: 'task-notification', priority: 'next' }))
+  queue.enqueue(line('ls', { mode: 'bash' }))
+  queue.enqueue(line('a channel message', { isMeta: true }))
+  const atFull = Date.now()
+  const full = (await SleepTool.call({ seconds: 2 }, rig(new AbortController()))) as SleepResult
+  const elapsedFull = Date.now() - atFull
+  check('a later-band line, a slash command, another agent\'s line, a task notification, a bash line and a meta prompt do not end the wait: it runs its full length',
+    full.data.interrupted === false && full.data.message === 'Slept for 2s' && elapsedFull >= 1_950, `${JSON.stringify(full.data)} after ${elapsedFull} ms`)
+  check('the drain would take the same view: none of those is an operator prompt for this turn', !queue.getDrainableCommands(false).some(c => c.mode === 'prompt' && queue.isOperatorLine(c) && !queue.isSlashCommand(c) && c.agentId === undefined))
+
+  queue.resetCommandQueue()
+  queue.holdQueuedWordsForTurnEnd(true)
+  queue.enqueue(line('held until the turn ends'))
+  const atHeld = Date.now()
+  const held = (await SleepTool.call({ seconds: 1 }, rig(new AbortController()))) as SleepResult
+  const elapsedHeld = Date.now() - atHeld
+  check('a line the queue holds for the turn boundary does not end the wait', held.data.interrupted === false && elapsedHeld >= 950, `${JSON.stringify(held.data)} after ${elapsedHeld} ms`)
+  queue.holdQueuedWordsForTurnEnd(false)
+
+  queue.resetCommandQueue()
+  const atSub = Date.now()
+  const subWait = SleepTool.call({ seconds: 1 }, rig(new AbortController(), 'agent-1')) as Promise<SleepResult>
+  setTimeout(() => queue.enqueue(line('the operator speaks to the chat')), 100)
+  const sub = await subWait
+  const elapsedSub = Date.now() - atSub
+  check("a sub-agent's wait never ends on the operator's words — they are for the chat's turn, not its own", sub.data.interrupted === false && elapsedSub >= 950, `${JSON.stringify(sub.data)} after ${elapsedSub} ms`)
+
+  queue.resetCommandQueue()
+  const abortStill = new AbortController()
+  setTimeout(() => abortStill.abort(), 60)
+  const aborted = (await SleepTool.call({ seconds: 30 }, rig(abortStill))) as SleepResult
+  check('the abort road is unchanged, byte for byte', JSON.stringify(aborted.data) === '{"message":"Sleep interrupted after 0s","slept_seconds":0,"interrupted":true}', JSON.stringify(aborted.data))
+  queue.resetCommandQueue()
 }
 
 console.log('\n' + '='.repeat(60))
