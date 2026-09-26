@@ -7,11 +7,17 @@ import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask } from '../../tasks/Local
 
 export type CrewmateInterruptRoad = 'local' | 'teammate' | 'hosted' | 'idle'
 
+export type CrewmateInterruptOptions = {
+  facts?: { running: boolean } | null
+  onRefused?: (detail: string) => void
+}
+
 export function interruptCrewmate(
   taskId: string,
   state: Pick<AppState, 'tasks'>,
   setAppState: SetAppState,
   stopAgent: (agentId: string, note?: string) => Promise<unknown> = (agentId, note) => getFocusedSessionConnector().stopAgent(agentId, note),
+  options: CrewmateInterruptOptions = {},
 ): CrewmateInterruptRoad {
   const task = state.tasks[taskId]
   if (task !== undefined && isLocalAgentTask(task)) {
@@ -25,6 +31,10 @@ export function interruptCrewmate(
     controller.abort(AGENT_INTERRUPT_BY_OPERATOR)
     return 'teammate'
   }
-  void stopAgent(taskId, AGENT_INTERRUPT_BY_OPERATOR)
+  if (options.facts !== undefined && options.facts !== null && !options.facts.running) return 'idle'
+  void stopAgent(taskId, AGENT_INTERRUPT_BY_OPERATOR).then(receipt => {
+    const answer = receipt as { outcome?: string; detail?: string } | undefined
+    if (answer?.outcome === 'refused') options.onRefused?.(answer.detail ?? 'no reason given')
+  }, () => {})
   return 'hosted'
 }

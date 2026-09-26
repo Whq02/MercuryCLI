@@ -40,8 +40,22 @@ export function liveTailOf(local: TaskState | undefined): readonly Message[] {
   return EMPTY
 }
 
+export function userRowText(row: Message): string | null {
+  if (row.type !== 'user') return null
+  const content = (row as { message?: { content?: unknown } }).message?.content
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content) || content.length === 0) return null
+  const texts: string[] = []
+  for (const block of content as Array<{ type?: string; text?: string }>) {
+    if (block?.type !== 'text' || typeof block.text !== 'string') return null
+    texts.push(block.text)
+  }
+  return texts.join('\n')
+}
+
 export function mergeTranscriptRows(disk: readonly Message[], live: readonly Message[]): Message[] {
   const seen = new Set<string>()
+  const landedUserTexts: string[] = []
   const out: Message[] = []
   for (const row of disk) {
     const uuid = (row as { uuid?: string }).uuid
@@ -49,6 +63,8 @@ export function mergeTranscriptRows(disk: readonly Message[], live: readonly Mes
       if (seen.has(uuid)) continue
       seen.add(uuid)
     }
+    const text = userRowText(row)
+    if (text !== null) landedUserTexts.push(text)
     out.push(row)
   }
   for (const row of live) {
@@ -57,6 +73,8 @@ export function mergeTranscriptRows(disk: readonly Message[], live: readonly Mes
       if (seen.has(uuid)) continue
       seen.add(uuid)
     }
+    const text = userRowText(row)
+    if (text !== null && text !== '' && landedUserTexts.some(landed => landed.includes(text))) continue
     out.push(row)
   }
   return out

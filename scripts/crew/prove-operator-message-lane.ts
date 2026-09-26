@@ -69,7 +69,7 @@ section('§2 the turn-end and stop roads deliver the lane; the running resume qu
   check('a running agent with no note still answers the old refusal', /note === '' \|\| !isLocalAgentTask\(target\)[\s\S]{0,80}the agent is running — nothing to resume/.test(runner))
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
   check('the composer\'s send road targets composerTargetTaskId and queues a local crewmate on the operator lane', /const targetId = composerTargetTaskId\(fresh\)/.test(composer) && /queueOperatorMessage\(task\.id, text, setAppState\)/.test(composer) && !/queuePendingMessage\(/.test(composer))
-  check('a hosted crewmate takes the connector\'s resumeAgent door and a refusal keeps the draft', /getFocusedSessionConnector\(\)\.resumeAgent\(targetId, text\)/.test(composer) && /if \(!\(await deliver\(intent\.text\)\)\) return/.test(composer))
+  check('a hosted crewmate takes the connector\'s resumeAgent door; the line is taken when ↵ lands and a refusal hands it back', /getFocusedSessionConnector\(\)\.resumeAgent\(targetId, text\)/.test(composer) && /takeLine\(\)\s*\n\s*if \(!\(await deliver\([^)]*\)\)\) handBack\(\)/.test(composer))
 }
 
 section('§3 the composer\'s target: the pin outlives the view, esc leaves it alone')
@@ -145,8 +145,8 @@ section('§5 the words of the two states (one owner)')
   const viewing = { name: 'Lane atlas', pinned: false }
   const pinned = { name: 'Lane fjord', pinned: true }
   check('the header tail: viewing / main chat', crewmateHeaderTail(viewing) === '· Lane atlas · viewing' && crewmateHeaderTail(pinned) === '· Lane fjord · main chat')
-  check('the status words', crewmateStatusWords(viewing, 15) === 'viewing Lane atlas · composer → Lane atlas · 15 agents running' && crewmateStatusWords(pinned, 1) === `main chat: Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 agent running`)
-  check('the composer hint: esc interrupts the crewmate on both screens; the way back is the rail', crewmateComposerHint(viewing) === `↵ sends to Lane atlas · esc interrupts Lane atlas · ${BACK_HINT}` && crewmateComposerHint(pinned) === `↵ sends to Lane fjord · esc interrupts Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat`)
+  check('the status words: the viewed crewmate, the composer\'s target, and the pin viewed from another screen', crewmateStatusWords(viewing, viewing, 15) === 'viewing Lane atlas · composer → Lane atlas · 15 agents running' && crewmateStatusWords(pinned, pinned, 1) === `main chat: Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 agent running` && crewmateStatusWords(null, pinned, 1) === `main chat: Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 agent running` && crewmateStatusWords(viewing, pinned, 2) === 'viewing Lane atlas · composer → Lane fjord (the main chat) · 2 agents running')
+  check('the composer hint: ↵ names the target, esc names the VIEWED crewmate (none on the lead\'s screen); the way back is the rail', crewmateComposerHint(viewing, viewing) === `↵ sends to Lane atlas · esc interrupts Lane atlas · ${BACK_HINT}` && crewmateComposerHint(pinned, pinned) === `↵ sends to Lane fjord · esc interrupts Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, viewing) === `↵ sends to Lane fjord · esc interrupts Lane atlas · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, null) === `↵ sends to Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat`)
   check('the placeholder and the card keys', crewmatePlaceholder('Lane fjord') === 'message Lane fjord' && crewmateCardKeys(false) === `esc interrupts · m main chat · x stop · p pause · ${BACK_HINT}` && crewmateCardKeys(true).startsWith(`esc interrupts · m on ${LEAD_ROW_NAME} hands the main chat back`))
 }
 

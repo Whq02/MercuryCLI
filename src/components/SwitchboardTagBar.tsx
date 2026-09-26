@@ -30,7 +30,7 @@ import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, u
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
-import { useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 
 
@@ -243,6 +243,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
   const crewmate = useViewedCrewmate()
+  const composerCrewmate = useComposerCrewmate()
   const c = getFocusedSessionConnector()
   const painting = hasSeatLive(c)
   useEffect(() => {
@@ -254,7 +255,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   }, [painting])
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
-  const line = crewmate !== null ? crewmateStatusWords(crewmate, crewmate.running) : statusLine(live, status, crew)
+  const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, composerCrewmate, composerCrewmate.running) : statusLine(live, status, crew)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
   const backHint =
     crewmate !== null && !crewmate.pinned

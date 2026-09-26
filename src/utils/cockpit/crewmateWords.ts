@@ -23,15 +23,27 @@ export function crewmateCardKeys(pinned: boolean): string {
   return pinned ? `${ESC_INTERRUPT_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · x stop · p pause` : `${ESC_INTERRUPT_HINT} · ${CREW_MAIN_CHAT_KEY} · x stop · p pause · ${BACK_HINT}`
 }
 
-export function crewmateStatusWords(state: CrewmateWordsState, running: number): string {
+export type CrewmateViewedState = { name: string } | null
+
+export function crewmateStatusWords(viewed: CrewmateViewedState, target: CrewmateWordsState, running: number): string {
   const tail = ` · ${running} agent${running === 1 ? '' : 's'} running`
-  return state.pinned
-    ? `${MAIN_CHAT_WORD}: ${state.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
-    : `${VIEWING_WORD} ${state.name} · composer → ${state.name}${tail}`
+  if (viewed === null || viewed.name === target.name) {
+    return target.pinned
+      ? `${MAIN_CHAT_WORD}: ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`
+      : `${VIEWING_WORD} ${target.name} · composer → ${target.name}${tail}`
+  }
+  return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
 }
 
-export function crewmateComposerHint(state: CrewmateWordsState): string {
-  return `↵ sends to ${state.name} · esc interrupts ${state.name} · ${state.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
+export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState): string {
+  const esc = viewed === null ? '' : ` · esc interrupts ${viewed.name}`
+  return `↵ sends to ${target.name}${esc} · ${target.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
+}
+
+export const CREWMATE_BETWEEN_TURNS_DETAIL = 'it is between turns and nothing drains a queued line — r in /teammates resumes it from its transcript'
+
+export function crewmateInterruptRefusedWords(name: string, detail: string): string {
+  return `${name} did not take the interrupt: ${detail}`
 }
 
 export function crewmateEscHint(name: string): string {

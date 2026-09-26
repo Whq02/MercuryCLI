@@ -59,8 +59,8 @@ import {
   setMainChat,
 } from '../../state/teammateViewHelpers.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
-import { crewmateIdleWords, crewmateInterruptedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, crewmateIdleWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
@@ -955,6 +955,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const composerCrewmate = useComposerCrewmate()
   const composerCrewmateRef = useRef(composerCrewmate)
   composerCrewmateRef.current = composerCrewmate
+  const viewedCrewmate = useViewedCrewmate()
+  const viewedCrewmateRef = useRef(viewedCrewmate)
+  viewedCrewmateRef.current = viewedCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
     viewedTeammate?.identity?.agentName ??
@@ -1443,7 +1446,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         suggestion !== null &&
         suggestionSeen &&
         !hasImages &&
-        fresh.viewingAgentTaskId === undefined &&
+        composerTargetTaskId(fresh) === undefined &&
         (value === '' || value === suggestion)
       ) {
         suggestionApi.markAccepted()
@@ -1540,6 +1543,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
         const sendReceipt = (text: string, color?: 'warning'): void =>
           addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
+        const takeLine = (): void => {
+          pendingInput.clearForSubmit(submitted)
+          pendingInput.edit('')
+          lastSelfWriteRef.current = ''
+          buffer.clearBuffer()
+          history.resetHistory()
+          setCursorOffset(0)
+        }
+        const handBack = (): void => {
+          const restored = `${submitted}${pendingInput.text()}`
+          pendingInput.edit(restored)
+          lastSelfWriteRef.current = restored
+          setCursorOffset(restored.length)
+        }
         const deliver = async (text: string): Promise<boolean> => {
           if (onAgentSubmit) {
             onAgentSubmit(text)
@@ -1551,6 +1568,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             return true
           }
           if (task !== undefined && isLocalAgentTask(task)) {
+            if (task.status !== 'running') {
+              sendReceipt(crewmateRefusedWords(targetName, CREWMATE_BETWEEN_TURNS_DETAIL), 'warning')
+              return false
+            }
             queueOperatorMessage(task.id, text, setAppState)
             appendMessageToLocalAgent(
               task.id,
@@ -1584,20 +1605,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             })
             return
           case 'agent-literal':
-            if (!(await deliver(intent.text))) return
-            break
           case 'agent-command':
-          case 'agent-guidance':
-            if (!(await deliver(submitted))) return
-            break
+          case 'agent-guidance': {
+            takeLine()
+            if (!(await deliver(intent.kind === 'agent-literal' ? intent.text : submitted))) handBack()
+            return
+          }
         }
-        pendingInput.clearForSubmit(submitted)
-        pendingInput.edit('')
-        lastSelfWriteRef.current = ''
-        buffer.clearBuffer()
-        history.resetHistory()
-        setCursorOffset(0)
-        return
       }
 
       await onSubmit(submitted, helpers, speculationAccept, {
@@ -2110,10 +2124,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const viewed = freshState.viewingAgentTaskId
         if (viewed !== undefined) {
           event.stopImmediatePropagation()
-          const crewmate = composerCrewmateRef.current
-          const name = crewmate?.taskId === viewed ? crewmate.name : viewed
-          const road = interruptCrewmate(viewed, freshState, setAppState)
-          addNotification({ key: 'crewmate-send', text: road === 'idle' ? crewmateIdleWords(name) : crewmateInterruptedWords(name), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+          const crewmate = viewedCrewmateRef.current?.taskId === viewed ? viewedCrewmateRef.current : null
+          const name = crewmate?.name ?? viewed
+          const say = (text: string): void => addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+          const road = interruptCrewmate(viewed, freshState, setAppState, undefined, {
+            facts: crewmate?.facts ?? null,
+            onRefused: detail => say(crewmateInterruptRefusedWords(name, detail)),
+          })
+          say(road === 'idle' ? crewmateIdleWords(name) : crewmateInterruptedWords(name))
           return
         }
       }
