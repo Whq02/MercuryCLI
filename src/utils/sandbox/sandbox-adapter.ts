@@ -394,6 +394,7 @@ export type ISandboxManager = {
   getSandboxViolationStore(): InstanceType<typeof SandboxViolationStore>
   annotateStderrWithSandboxFailures(command: string, stderr: string): string
   recordedViolations(key: string, since?: number): string[]
+  awaitRecordedViolations(key: string, since: number, ceilingMs: number, until?: (line: string) => boolean): Promise<string[]>
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void
   reset(): void
@@ -403,6 +404,7 @@ let initPromise: Promise<void> | null = null
 let settingsSubscription: (() => void) | null = null
 let violationReader: MacOSViolationReader | null = null
 const readsViolationsItself = (): boolean => SANDBOX_VIOLATION_MONITOR && getPlatform() === 'macos'
+const SANDBOX_RECORD_POLL_MS = 20
 
 export const SandboxManager: ISandboxManager = {
   async initialize(askCallback?: SandboxAskCallback): Promise<void> {
@@ -586,6 +588,15 @@ export const SandboxManager: ISandboxManager = {
         .map(event => event.line)
     } catch {
       return []
+    }
+  },
+  async awaitRecordedViolations(key: string, since: number, ceilingMs: number, until: (line: string) => boolean = () => true): Promise<string[]> {
+    const deadline = Date.now() + ceilingMs
+    for (;;) {
+      const lines = SandboxManager.recordedViolations(key, since)
+      const left = deadline - Date.now()
+      if (lines.some(until) || left <= 0) return lines
+      await new Promise(resolve => setTimeout(resolve, Math.min(SANDBOX_RECORD_POLL_MS, left)))
     }
   },
 
