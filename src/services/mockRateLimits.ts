@@ -1,6 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { setMockBillingAccessOverride } from '../utils/billing.js'
 import type { RateLimitType } from './claudeAiLimits.js'
+import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
 
 export type MockHeaderKey =
@@ -266,6 +267,7 @@ export function setMockRateLimitScenario(scenario: MockScenario): void {
       mockHeaders[`${HEADER_PREFIX}status`] = 'allowed_warning'
       mockHeaders[`${HEADER_PREFIX}reset`] = String(hoursFromNowEpoch(7 * 24))
       mockHeaders[`${HEADER_PREFIX}representative-claim`] = 'seven_day'
+      setMockEarlyWarning('7d', FIRST_WARNING_PCT / 100, 7 * 24)
       break
     case 'weekly-limit-reached':
       exceededLimits.push({ type: 'seven_day', resetsAt: hoursFromNowEpoch(7 * 24) })

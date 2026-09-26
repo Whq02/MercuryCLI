@@ -10,6 +10,7 @@ import {
   createUserMessage,
   SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
 } from '../../utils/messages.js'
+import { scratchpadPromptLine } from '../../utils/scratchpad.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
 export function isForkSubagentEnabled(): boolean {
@@ -113,6 +114,10 @@ export function buildWorktreeNotice(
   worktreeCwd: string,
 ): string {
   return `You inherited context from a parent working in a different directory (${parentCwd}). You are operating in an isolated worktree of the same repository at ${worktreeCwd}. Translate paths from the inherited context to the worktree root. Files may be stale — re-read a file before editing it. Your changes do not affect the parent.`
+}
+
+export function buildScratchpadNotice(dir: string): string {
+  return `You inherited context from a parent whose environment section names the parent's scratchpad directory; yours is separate. ${scratchpadPromptLine(dir, 'agent')}`
 }
 
 export function buildFrozenWorktreeNotice(worktreeCwd: string, commit: string): string {

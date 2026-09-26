@@ -73,19 +73,8 @@ export async function loadTranscriptFromFile(
   filePath: string,
 ): Promise<LogOption> {
   if (filePath.endsWith('.jsonl')) {
-    const {
-      messages,
-      summaries,
-      customTitles,
-      tags,
-      fileHistorySnapshots,
-      attributionSnapshots,
-      contextCollapseCommits,
-      contextCollapseSnapshot,
-      leafUuids,
-      contentReplacements,
-      worktreeStates,
-    } = await loadTranscriptFile(filePath)
+    const fold = await loadTranscriptFile(filePath)
+    const { messages, summaries, leafUuids } = fold
 
     if (messages.size === 0) {
       const head = (await readSessionLite(filePath))?.head ?? ''
@@ -105,32 +94,18 @@ export async function loadTranscriptFromFile(
     const transcript = buildConversationChain(messages, leafMessage)
 
     const summary = summaries.get(leafMessage.uuid)
-    const customTitle = customTitles.get(leafMessage.sessionId as UUID)
-    const tag = tags.get(leafMessage.sessionId as UUID)
     const sessionId = leafMessage.sessionId as UUID
     return {
       ...convertToLogOption(
         transcript,
         0,
         summary,
-        customTitle,
-        buildFileHistorySnapshotChain(fileHistorySnapshots, transcript),
-        tag,
-        filePath,
-        buildAttributionSnapshotChain(attributionSnapshots, transcript),
         undefined,
-        contentReplacements.get(sessionId) ?? [],
+        undefined,
+        undefined,
+        filePath,
       ),
-      contextCollapseCommits: contextCollapseCommits.filter(
-        e => e.sessionId === sessionId,
-      ),
-      contextCollapseSnapshot:
-        contextCollapseSnapshot?.sessionId === sessionId
-          ? contextCollapseSnapshot
-          : undefined,
-      worktreeSession: worktreeStates.has(sessionId)
-        ? worktreeStates.get(sessionId)
-        : undefined,
+      ...resumeFactsOf(fold, sessionId, transcript),
     }
   }
 
@@ -450,26 +425,8 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
   }
 
   try {
-    const {
-      messages,
-      summaries,
-      customTitles,
-      tags,
-      agentNames,
-      agentColors,
-      agentSettings,
-      prNumbers,
-      prUrls,
-      prRepositories,
-      modes,
-      worktreeStates,
-      fileHistorySnapshots,
-      attributionSnapshots,
-      contentReplacements,
-      contextCollapseCommits,
-      contextCollapseSnapshot,
-      leafUuids,
-    } = await loadTranscriptFile(sessionFile)
+    const fold = await loadTranscriptFile(sessionFile)
+    const { messages, summaries, leafUuids } = fold
 
     if (messages.size === 0) {
       return log
@@ -486,7 +443,7 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
     }
 
     const transcript = buildConversationChain(messages, mostRecentLeaf)
-    const sessionId = mostRecentLeaf.sessionId as UUID | undefined
+    const sessionId = (mostRecentLeaf.sessionId ?? log.sessionId) as UUID
     return {
       ...log,
       messages: removeExtraFields(transcript),
@@ -495,43 +452,11 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       summary: mostRecentLeaf
         ? summaries.get(mostRecentLeaf.uuid)
         : log.summary,
-      customTitle: sessionId ? customTitles.get(sessionId) : log.customTitle,
-      tag: sessionId ? tags.get(sessionId) : log.tag,
-      agentName: sessionId ? agentNames.get(sessionId) : log.agentName,
-      agentColor: sessionId ? agentColors.get(sessionId) : log.agentColor,
-      agentSetting: sessionId ? agentSettings.get(sessionId) : log.agentSetting,
-      mode: sessionId ? (modes.get(sessionId) as LogOption['mode']) : log.mode,
-      worktreeSession:
-        sessionId && worktreeStates.has(sessionId)
-          ? worktreeStates.get(sessionId)
-          : log.worktreeSession,
-      prNumber: sessionId ? prNumbers.get(sessionId) : log.prNumber,
-      prUrl: sessionId ? prUrls.get(sessionId) : log.prUrl,
-      prRepository: sessionId
-        ? prRepositories.get(sessionId)
-        : log.prRepository,
       gitBranch: mostRecentLeaf?.gitBranch ?? log.gitBranch,
       isSidechain: transcript[0]?.isSidechain ?? log.isSidechain,
       teamName: transcript[0]?.teamName ?? log.teamName,
       leafUuid: mostRecentLeaf?.uuid ?? log.leafUuid,
-      fileHistorySnapshots: buildFileHistorySnapshotChain(
-        fileHistorySnapshots,
-        transcript,
-      ),
-      attributionSnapshots: buildAttributionSnapshotChain(
-        attributionSnapshots,
-        transcript,
-      ),
-      contentReplacements: sessionId
-        ? (contentReplacements.get(sessionId) ?? [])
-        : log.contentReplacements,
-      contextCollapseCommits: sessionId
-        ? contextCollapseCommits.filter(e => e.sessionId === sessionId)
-        : undefined,
-      contextCollapseSnapshot:
-        sessionId && contextCollapseSnapshot?.sessionId === sessionId
-          ? contextCollapseSnapshot
-          : undefined,
+      ...resumeFactsOf(fold, sessionId, transcript),
     }
   } catch {
     return log
@@ -1207,23 +1132,8 @@ export async function loadAllLogsFromSessionFile(
   sessionFile: string,
   projectPathOverride?: string,
 ): Promise<LogOption[]> {
-  const {
-    messages,
-    summaries,
-    customTitles,
-    tags,
-    agentNames,
-    agentColors,
-    agentSettings,
-    prNumbers,
-    prUrls,
-    prRepositories,
-    modes,
-    fileHistorySnapshots,
-    attributionSnapshots,
-    contentReplacements,
-    leafUuids,
-  } = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
+  const fold = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
+  const { messages, summaries, leafUuids } = fold
 
   if (messages.size === 0) return []
 
@@ -1272,26 +1182,9 @@ export async function loadAllLogsFromSessionFile(
       sessionId,
       leafUuid: leafMessage.uuid,
       summary: summaries.get(leafMessage.uuid),
-      customTitle: customTitles.get(sessionId),
-      tag: tags.get(sessionId),
-      agentName: agentNames.get(sessionId),
-      agentColor: agentColors.get(sessionId),
-      agentSetting: agentSettings.get(sessionId),
-      mode: modes.get(sessionId) as LogOption['mode'],
-      prNumber: prNumbers.get(sessionId),
-      prUrl: prUrls.get(sessionId),
-      prRepository: prRepositories.get(sessionId),
       gitBranch: leafMessage.gitBranch,
       projectPath: projectPathOverride ?? firstMessage.cwd,
-      fileHistorySnapshots: buildFileHistorySnapshotChain(
-        fileHistorySnapshots,
-        chain,
-      ),
-      attributionSnapshots: buildAttributionSnapshotChain(
-        attributionSnapshots,
-        chain,
-      ),
-      contentReplacements: contentReplacements.get(sessionId) ?? [],
+      ...resumeFactsOf(fold, sessionId, chain),
     })
   }
 

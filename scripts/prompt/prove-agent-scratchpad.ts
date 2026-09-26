@@ -73,7 +73,22 @@ check('the tool-side build names the minted id', buildAt > 0)
 check('…and runs after the mint, the worktree preflight still before it', mintAt > 0 && buildAt > mintAt && agentTool.indexOf('preflightWorktreeCapability(') < mintAt)
 check("the run loop's own build names the id the run carries (a resume passes its own)", /buildAgentSystemPrompt\(\s*agentDefinition,\s*toolUseContext,\s*resolvedAgentModel,\s*enabledToolNames,\s*agentId,?\s*\)/.test(runAgent) && runAgent.includes("const agentId = (override?.agentId ?? generateTaskId('local_agent')) as AgentId"))
 
-section("§5 the session's sweep takes the agents' folders; the receipt counts an edit there as a scratchpad edit")
+section("§5 a forked sub-agent keeps the parent's prompt bytes and is told its own folder under the root on a new row")
+const fork = await import('../../src/tools/AgentTool/forkSubagent.ts') as Record<string, unknown>
+const forkling = 'aforkling'
+const RED_FORK = 'RED WHERE THE FORK KEEPS THE PARENT\'S SCRATCHPAD LINE'
+const buildScratchpadNotice = fork.buildScratchpadNotice as ((dir: string) => string) | undefined
+check(`${RED_FORK}: the fork road owns a scratchpad notice beside its worktree notice`, typeof buildScratchpadNotice === 'function' && typeof fork.buildWorktreeNotice === 'function')
+const forkDir = scratchpad.ensureScratchpadDir(forkling)
+const notice = buildScratchpadNotice?.(forkDir) ?? ''
+check(`${RED_FORK}: the notice carries the agent's own line for the folder under the root, in the one owner's words`, forkDir === join(root, forkling) && notice.includes(`Scratchpad directory: ${forkDir} — this agent's own place ${purpose}`), notice)
+check("the notice says the inherited environment section's scratchpad is the parent's", /inherited/.test(notice) && /parent/.test(notice), notice)
+check('the folder exists once the notice is built', existsSync(forkDir))
+const forkArm = agentTool.slice(mintAt, agentTool.indexOf('// 16. Worktree creation'))
+check(`${RED_FORK}: after the mint, the fork arm appends the notice for the minted id to its prompt rows`, mintAt > 0 && /if \(isFork\) \{[\s\S]*?buildScratchpadNotice\(ensureScratchpadDir\(earlyAgentId\)\)[\s\S]*?\}/.test(forkArm), forkArm.trim().split('\n').slice(0, 12).join('\n'))
+check("the fork's prompt bytes stay the parent's: the rendered prompt is inherited unchanged and the default build still skips the fork", agentTool.includes('systemPromptOverride = [...rendered]') && agentTool.includes('if (!isFork && !willOverrideCwd) {'))
+
+section("§6 the session's sweep takes the agents' folders; the receipt counts an edit there as a scratchpad edit")
 const rows = injectTurnReceipts(
   [
     { type: 'user', uuid: 'p1', message: { role: 'user', content: 'build the thing' } },
@@ -85,7 +100,7 @@ const receipt = rows.find(r => r.type === 'turn_receipt')
 check("an edit under an agent's folder is a scratchpad edit, not a file edit", receipt?.counts?.scratchpadEdits === 1 && receipt?.counts?.fileEdits === 0, JSON.stringify(receipt?.counts))
 writeFileSync(join(root, 'parent.txt'), 'x\n')
 const swept = scratchpad.sweepOwnScratchpad()
-check("the session's sweep takes the root and both folders", swept.swept === true && !existsSync(root) && !existsSync(join(root, first)) && !existsSync(join(root, second)))
+check("the session's sweep takes the root, both agents' folders and the fork's", swept.swept === true && !existsSync(root) && !existsSync(join(root, first)) && !existsSync(join(root, second)) && !existsSync(forkDir))
 
 rmSync(tempRoot, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
