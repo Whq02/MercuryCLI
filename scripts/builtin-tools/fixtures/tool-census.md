@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 74 built-in production tools · 186 operations · 74 with a declared capability contract.
+Census version 1 — 74 built-in production tools · 189 operations · 74 with a declared capability contract.
 
 ## Summary
 
@@ -37,7 +37,7 @@ Census version 1 — 74 built-in production tools · 186 operations · 74 with a
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
-| Debug | execution | debugging | 27 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
+| Debug | execution | debugging | 30 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
 | Edit | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
 | EnterStrategyMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | EnterWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
