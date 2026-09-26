@@ -246,16 +246,14 @@ export const inputSchema = lazySchema(() =>
         .optional()
         .describe(
           'Optional input value exposed to the script as the global `args`, verbatim. Pass arrays/objects as actual ' +
-            'JSON values, NOT as a JSON-encoded string — a stringified list breaks `args.filter`/`args.map` in the ' +
-            'script. Use for parameterized named workflows (e.g. a research question).',
+            'JSON values, NOT as a JSON-encoded string — a stringified list breaks `args.filter`/`args.map` in the script.',
         ),
       scriptPath: z
         .string()
         .optional()
         .describe(
-          'Path to a workflow script file on disk. Every Workflow invocation persists its script under the session ' +
-            'directory and returns the path in the tool result. To iterate, edit that file with Write/Edit and ' +
-            're-invoke Workflow with the same `scriptPath` instead of re-sending the full script. Takes precedence ' +
+          'Path to a workflow script file on disk — the persisted copy an earlier launch named: edit it with ' +
+            'Write/Edit and re-invoke with the same `scriptPath` instead of re-sending the script. Takes precedence ' +
             'over `script` and `name`.',
         ),
       resumeFromRunId: z
@@ -263,9 +261,8 @@ export const inputSchema = lazySchema(() =>
         .regex(/^wf_[a-z0-9-]{6,}$/)
         .optional()
         .describe(
-          `Run ID of a prior Workflow invocation to resume from. Completed agent() calls with unchanged ` +
-            `(prompt, opts) return their cached results instantly; only edited or new calls re-run. Same-session ` +
-            `only. Stop the prior run first (${TASK_STOP_TOOL_NAME}) before resuming.`,
+          `Run ID of a prior Workflow invocation to resume from (unchanged agent() calls replay from the journal). ` +
+            `Same-session only. Stop the prior run first (${TASK_STOP_TOOL_NAME}) before resuming.`,
         ),
       run_in_background: semanticBoolean(z.boolean().optional()).describe(
         'Ignored — workflows always run in the background; the tool returns immediately with a task ID.',

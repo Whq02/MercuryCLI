@@ -90,15 +90,15 @@ const inputSchema = lazySchema(() =>
       .array(
         z.strictObject({
           line: semanticNumber(z.number().int().positive()),
-          condition: z.string().optional().describe('Stop only when this expression is true (capability-gated)'),
-          hitCondition: z.string().optional().describe('Stop after N hits, e.g. "3" (capability-gated)'),
+          condition: z.string().optional().describe('Condition expression (capability-gated)'),
+          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
           logMessage: z.string().optional().describe('Log instead of stopping — a logpoint (capability-gated)'),
         }),
       )
       .optional()
       .describe('Rich breakpoints for file (replaces the set; use INSTEAD of lines when conditions/hit counts/logpoints are needed)'),
     pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the running process id (or give port/program instead)'),
-    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port (adapter auto-picks python for bare ports)'),
+    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port'),
     host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
     method: z.string().optional().describe('customRequest: the DAP request command to send verbatim'),
     body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
@@ -106,12 +106,12 @@ const inputSchema = lazySchema(() =>
     dataBreakpoints: z
       .array(
         z.strictObject({
-          name: z.string().describe('The variable to watch (resolved through the adapter\'s dataBreakpointInfo)'),
+          name: z.string().describe('The variable to watch'),
           variablesReference: semanticNumber(z.number().int().optional()).describe('The scope or structure holding the variable (from scopes/variables)'),
           frameId: semanticNumber(z.number().int().optional()).describe('Frame for an expression-style name, when the adapter resolves by frame'),
           accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Stop on read, write (default) or both'),
-          condition: z.string().optional().describe('Stop only when this expression is true (capability-gated)'),
-          hitCondition: z.string().optional().describe('Stop after N hits, e.g. "3" (capability-gated)'),
+          condition: z.string().optional().describe('Condition expression (capability-gated)'),
+          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
         }),
       )
       .optional()
@@ -121,8 +121,8 @@ const inputSchema = lazySchema(() =>
         z.strictObject({
           instructionReference: z.string().describe('A stack frame\'s [ip …] or an address from disassemble'),
           offset: semanticNumber(z.number().int().optional()).describe('Byte offset from the reference'),
-          condition: z.string().optional().describe('Stop only when this expression is true (capability-gated)'),
-          hitCondition: z.string().optional().describe('Stop after N hits, e.g. "3" (capability-gated)'),
+          condition: z.string().optional().describe('Condition expression (capability-gated)'),
+          hitCondition: z.string().optional().describe('Hit count, e.g. "3" (capability-gated)'),
         }),
       )
       .optional()
