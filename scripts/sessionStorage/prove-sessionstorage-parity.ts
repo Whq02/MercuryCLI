@@ -1,18 +1,19 @@
 
 import { mkdirSync, mkdtempSync, realpathSync as realpathAtBoot, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { isInside, slashed } from '../lib/platformPath.ts'
 const SHARED_HOME = '/tmp/mercury-parity-home'
 const SHARED_CWD = '/tmp/mercury-parity-cwd'
-const PRIVATE_ROOT = realpathAtBoot(mkdtempSync(`${realpathAtBoot(tmpdir())}/mercury-parity-${process.pid}-`))
-const PRIVATE_HOME = `${PRIVATE_ROOT}/home`
-const PRIVATE_CWD = `${PRIVATE_ROOT}/cwd`
+const PRIVATE_ROOT = realpathAtBoot(mkdtempSync(join(realpathAtBoot(tmpdir()), `mercury-parity-${process.pid}-`)))
+const PRIVATE_HOME = join(PRIVATE_ROOT, 'home')
+const PRIVATE_CWD = join(PRIVATE_ROOT, 'cwd')
 process.env.MERCURY_CONFIG_DIR = PRIVATE_HOME
 mkdirSync(PRIVATE_HOME, { recursive: true })
 mkdirSync(PRIVATE_CWD, { recursive: true })
 process.chdir(PRIVATE_CWD)
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const S = await import('../../src/utils/sessionStorage.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
@@ -33,7 +34,7 @@ const atParityCwd = <T,>(fn: () => T): T => runWithCwdOverride(PRIVATE_CWD, fn)
 const { realpathSync } = await import('node:fs')
 const { basename } = await import('node:path')
 const PARITY_CWD_SLUG = basename(S.getProjectDir(realpathSync(PRIVATE_CWD)))
-const neutral = (p: string): string => p.replace(PARITY_CWD_SLUG, '«parity-cwd»').split(PRIVATE_HOME).join(SHARED_HOME)
+const neutral = (p: string): string => slashed(p).replace(PARITY_CWD_SLUG, '«parity-cwd»').split(slashed(PRIVATE_HOME)).join(SHARED_HOME)
 add('getProjectsDir', 'shape', () => neutral(S.getProjectsDir()))
 add('getTranscriptPathForSession', 'shape', () =>
   neutral(atParityCwd(() => S.getTranscriptPathForSession('00000000-0000-4000-8000-00000000abcd'))),
@@ -186,10 +187,10 @@ const isolation = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) isolationFailures++
 }
 isolation('the run owns fresh private roots, never the shared /tmp names', PRIVATE_HOME !== SHARED_HOME && PRIVATE_CWD !== SHARED_CWD && PRIVATE_ROOT.includes(`mercury-parity-${process.pid}-`), PRIVATE_ROOT)
-isolation('the product resolved the config home to the private root', S.getProjectsDir().startsWith(PRIVATE_HOME), S.getProjectsDir())
+isolation('the product resolved the config home to the private root', isInside(S.getProjectsDir(), PRIVATE_HOME), S.getProjectsDir())
 isolation('the boot cwd latched to the private cwd', realpathSync(process.cwd()) === realpathSync(PRIVATE_CWD), process.cwd())
 const presented = JSON.stringify(results)
-isolation('no private-root byte reaches the golden presentation (neutralized at the boundary only)', !presented.includes(PRIVATE_ROOT) && !presented.includes(PARITY_CWD_SLUG), presented.slice(0, 120))
+isolation('no private-root byte reaches the golden presentation (neutralized at the boundary only)', !presented.includes(slashed(PRIVATE_ROOT)) && !presented.includes(PARITY_CWD_SLUG), presented.slice(0, 120))
 isolation('the presentation still carries the machine-neutral shared spellings', presented.includes(SHARED_HOME) && presented.includes('«parity-cwd»'))
 
 const failures = isolationFailures + recordOrVerify({
@@ -203,7 +204,7 @@ const failures = isolationFailures + recordOrVerify({
   existsSync: existsSync as never,
 })
 
-process.chdir(PRIVATE_ROOT)
+process.chdir(dirname(PRIVATE_ROOT))
 rmSync(PRIVATE_ROOT, { recursive: true, force: true })
 console.log(failures === 0 ? '✅ SESSIONSTORAGE PARITY GREEN' : `❌ ${failures} SESSIONSTORAGE PARITY FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
