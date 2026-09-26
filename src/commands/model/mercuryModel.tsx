@@ -440,7 +440,9 @@ function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Recor
           ? 'signed in'
           : anthropicNotSignedInReason()) + seatDetail('anthropic'),
     [OPENAI_MODEL_GROUP]:
-      (gptAvailability.state === 'ready' ? `${gptAvailability.source} · signed in` : gptAvailability.reason) + seatDetail('openai'),
+      (gptAvailability.state === 'ready'
+        ? `${gptAvailability.source} · signed in · ${gptAvailability.ids.length} ${gptAvailability.ids.length === 1 ? 'model' : 'models'} live`
+        : gptAvailability.reason) + seatDetail('openai'),
     [ZAI_MODEL_GROUP]: credentialWords('zai'),
     [MOONSHOT_MODEL_GROUP]: ((): string => {
       const words = credentialWords('moonshot')
