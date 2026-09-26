@@ -1,5 +1,6 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
+import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
 import { refusalEnvelope } from './headless/refusalEnvelope.js'
 import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
@@ -805,6 +806,9 @@ export async function runHeadless(
   const seenInterruptIds = new BoundedUuidSet(INTERRUPT_DEDUPE_CAP)
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
+  let hostAsks: HostAskLiveness | null = null
+  io.setOnControlRequestSent(() => hostAsks?.noteParked())
+  io.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: string | null = null
   let heldSeatModel: { requestId: string; model: string } | null = null
   let heldSeatEffort: { requestId: string; effort: string } | null = null
@@ -1233,6 +1237,13 @@ export async function runHeadless(
         turnAbort.abort(error)
       },
     })
+    hostAsks = keepTurnLiveWhileHostAnswers({
+      watchdog: turnWatchdog,
+      limitMs: turnIdleLimitMs,
+      parkedWithHost: () => io.pendingControlRequestCount(),
+      parkedAsks: () => io.getPendingPermissionRequests().length,
+      settleParkedAsks: cause => io.denyPendingPermissionRequests(cause),
+    })
     const workload = command.workload ?? options.workload
     try {
       await runWithWorkload(workload, async () => {
@@ -1317,6 +1328,8 @@ export async function runHeadless(
         }
       })
     } finally {
+      hostAsks?.stop()
+      hostAsks = null
       turnWatchdog.cancel()
       inFlightAbort = null
       if (heldSeatModel !== null) {
