@@ -262,6 +262,11 @@ async function popupScene(columns: number, rows: number, opts: { pendingNext?: s
 const SIZES: Array<[number, number]> = [[178, 51], [80, 21]]
 const compactAt = (window: Window): boolean => window.height < 20
 const rowWidthOf = (window: Window): number => window.width - 4 - (compactAt(window) ? 5 : 4)
+const tailAsPainted = (window: Window): { budget: number; room: number; expected: string } => {
+  const columns = pure.pickerColumns(window.width - 8)
+  const room = Math.max(0, rowWidthOf(window) - columns.alias - columns.id - columns.state - columns.ctx)
+  return { budget: columns.tail, room, expected: truncateToWidth(truncateToWidth(pure.MODEL_PICKER_NO_ALIAS, columns.tail), room) }
+}
 const cursorRow = (window: Window): string => bare(window.rows.find(row => row.includes('│ │ ') || row.includes('❯ ')) ?? '')
 const rowWith = (window: Window, needle: string): string => window.rows.find(row => row.includes(needle)) ?? ''
 
@@ -283,18 +288,16 @@ for (const [columns, rows] of SIZES) {
   await scene.close()
 }
 
-section('§2 the tail column inside the pop-up: whole where the window\'s columns hold it, clipped at its own budget with the row\'s own ellipsis where they do not, and absent where the row has no tail column at all')
+section('§2 the tail column inside the pop-up: whole where the window\'s columns hold it, clipped at its own cell budget where they do not; in the compact tier the row\'s two-column caret prefix leaves the line one column short of that cell, so the line cuts the clipped cell once more — pinned as painted')
 for (const [columns, rows] of SIZES) {
   const scene = await popupScene(columns, rows)
   const window = scene.window()
   save('popup-q1-tail', columns, rows, scene.lines())
   if (window !== null) {
-    const rowWidth = rowWidthOf(window)
-    const budget = pure.pickerColumns(rowWidth).tail
-    const expected = truncateToWidth(pure.MODEL_PICKER_NO_ALIAS, budget)
+    const { budget, room, expected } = tailAsPainted(window)
     const unfocused = rowWith(window, PREVIEW_NEEDLE)
-    console.log(`  ${columns}x${rows}: panel ${window.width} · ${compactAt(window) ? 'compact' : 'full'} tier · row width ${rowWidth} · columns ${JSON.stringify(pure.pickerColumns(rowWidth))} · expected tail "${expected}"`)
-    check(`${columns}x${rows}: the unfocused no-alias row's tail cell reads "${expected}" (its own budget, the row's own ellipsis — the compact tier's caret prefix budgeted)`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, bare(unfocused))
+    console.log(`  ${columns}x${rows}: panel ${window.width} · ${compactAt(window) ? 'compact' : 'full'} tier · tail cell ${budget} · the line's room for it ${room} · expected "${expected}"`)
+    check(`${columns}x${rows}: the unfocused no-alias row's tail reads "${expected}"${room < budget ? ` (the cell's clip is ${budget} wide, the line's room ${room}: the caret prefix's column)` : ' (the cell budget, the row\'s own ellipsis)'}`, budget === 0 ? !bare(unfocused).includes('new') : tailCell(unfocused) === expected, bare(unfocused))
     for (let step = 0; step < 6 && !cursorRow(scene.window()!).includes(PREVIEW_NEEDLE); step++) { scene.push(DOWN); await sleep(120) }
     const focused = cursorRow(scene.window()!)
     check(`${columns}x${rows}: the focused no-alias row reads the same tail`, budget === 0 ? !focused.includes('new') : lastCellOf(focused) === expected && lastCellOf(focused) === tailCell(unfocused), `focused "${focused}" · unfocused "${bare(unfocused)}"`)

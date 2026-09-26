@@ -174,11 +174,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })
   const panelWidth = panelWidthFor(slot.columns, MODEL_PICKER_PANEL)
   const inner = panelWidth - 4
+  const columns = pickerColumns(inner - 4)
   const totalLines = lines.length
   const availRows = slot.rows
   const compact = availRows < 20
   const shedMeters = availRows < 13
-  const columns = pickerColumns(inner - (compact ? 5 : 4))
   const landing = ((): number => {
     const at = currentKey === undefined ? -1 : lines.findIndex(line => line.kind === 'row' && line.key === currentKey)
     if (at >= 0) return at
