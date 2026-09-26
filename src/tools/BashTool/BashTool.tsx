@@ -166,6 +166,7 @@ export type Out = {
 }
 
 const RETRY_ASK_VIOLATION_LIMIT = 3
+export const SANDBOX_RECORD_SETTLE_MS = 300
 const SANDBOX_COMMAND_HINT = 'Adjust the restrictions with the /sandbox command, or stay within them.'
 
 class SandboxDenial extends Error {
@@ -705,7 +706,8 @@ async function* runBash(
     }
 
     let out = accumulator.toString()
-    const recorded = useSandbox ? SandboxManager.recordedViolations(input.command, launchedAt).filter(retryableSandboxViolation) : []
+    const settleMs = !result.interrupted && result.code !== 0 && result.preSpawnError === undefined ? SANDBOX_RECORD_SETTLE_MS : 0
+    const recorded = useSandbox ? (await SandboxManager.awaitRecordedViolations(input.command, launchedAt, settleMs, retryableSandboxViolation)).filter(retryableSandboxViolation) : []
     if (recorded.length > 0) out += `\n<sandbox_violations>\n${recorded.join('\n')}\n</sandbox_violations>`
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
     const windowed = result.outputFilePath === undefined

@@ -32,6 +32,7 @@ import { ripgrepCommand, searchToolsAvailability } from '../ripgrep.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { whichSync } from '../which.js'
+import { startMacOSViolationReader, type MacOSViolationReader } from './macos-violation-reader.js'
 
 export type {
   FsReadRestrictionConfig,
@@ -393,6 +394,7 @@ export type ISandboxManager = {
   getSandboxViolationStore(): InstanceType<typeof SandboxViolationStore>
   annotateStderrWithSandboxFailures(command: string, stderr: string): string
   recordedViolations(key: string, since?: number): string[]
+  awaitRecordedViolations(key: string, since: number, ceilingMs: number, until?: (line: string) => boolean): Promise<string[]>
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void
   reset(): void
@@ -400,6 +402,9 @@ export type ISandboxManager = {
 
 let initPromise: Promise<void> | null = null
 let settingsSubscription: (() => void) | null = null
+let violationReader: MacOSViolationReader | null = null
+const readsViolationsItself = (): boolean => SANDBOX_VIOLATION_MONITOR && getPlatform() === 'macos'
+const SANDBOX_RECORD_POLL_MS = 20
 
 export const SandboxManager: ISandboxManager = {
   async initialize(askCallback?: SandboxAskCallback): Promise<void> {
@@ -418,7 +423,10 @@ export const SandboxManager: ISandboxManager = {
             return askCallback(host)
           })
         : undefined
-      await RuntimeSandboxManager.initialize(config, wrappedCallback, SANDBOX_VIOLATION_MONITOR)
+      await RuntimeSandboxManager.initialize(config, wrappedCallback, SANDBOX_VIOLATION_MONITOR && !readsViolationsItself())
+      if (readsViolationsItself() && violationReader === null) {
+        violationReader = startMacOSViolationReader(RuntimeSandboxManager.getSandboxViolationStore(), () => SandboxManager.getIgnoreViolations())
+      }
       try {
         const settingsModule = require('../settings/changeDetector.js') as {
           onSettingsChanged?(fn: () => void): () => void
@@ -552,7 +560,9 @@ export const SandboxManager: ISandboxManager = {
       if (!initPromise) throw new Error('Sandbox is enabled but not initialised; refusing to run unsandboxed.')
       await initPromise
     }
-    return RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal, options)
+    const wrapped = await RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal, options)
+    violationReader?.learn(wrapped)
+    return wrapped
   },
 
   cleanupAfterCommand(): void {
@@ -578,6 +588,15 @@ export const SandboxManager: ISandboxManager = {
         .map(event => event.line)
     } catch {
       return []
+    }
+  },
+  async awaitRecordedViolations(key: string, since: number, ceilingMs: number, until: (line: string) => boolean = () => true): Promise<string[]> {
+    const deadline = Date.now() + ceilingMs
+    for (;;) {
+      const lines = SandboxManager.recordedViolations(key, since)
+      const left = deadline - Date.now()
+      if (lines.some(until) || left <= 0) return lines
+      await new Promise(resolve => setTimeout(resolve, Math.min(SANDBOX_RECORD_POLL_MS, left)))
     }
   },
 
@@ -606,6 +625,8 @@ export const SandboxManager: ISandboxManager = {
   reset(): void {
     settingsSubscription?.()
     settingsSubscription = null
+    violationReader?.stop()
+    violationReader = null
     cachedWorktreeMainRepo = undefined
     worktreeResolved = false
     scrubList = []
