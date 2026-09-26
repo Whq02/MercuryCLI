@@ -156,9 +156,16 @@ function SlotHeading({ text }: { text: string }): React.ReactNode {
   return <Text bold color={tokens.textSecondary}>{text}</Text>
 }
 
+export const SCHEDULED_SPEND_LABEL = 'Scheduled'
+
+function tokensLine(label: string, spend: ProviderSessionSpend, withCost: boolean): string {
+  return `${label}: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
+}
+
 function spendLine(spend: ProviderSessionSpend, withCost: boolean): string {
   if (spend.models === 0) return 'This session: 0 tokens.'
-  return `This session: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
+  const own = tokensLine('This session', spend, withCost)
+  return spend.scheduled === undefined ? own : `${own}\n${tokensLine(SCHEDULED_SPEND_LABEL, spend.scheduled, withCost)}`
 }
 
 export function absentSlotLine(route: string): string {

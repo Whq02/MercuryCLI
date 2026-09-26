@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { mapValues } from 'lodash-es'
 import {
   addToTotalCostState,
+  addToWorkloadUsageState,
   getModelUsage,
   getSdkBetas,
   getSessionId,
@@ -15,11 +16,15 @@ import {
   getTotalUnpricedTurns,
   getUnpricedTurns,
   getUsageForModel,
+  getWorkloadUnpricedTurns,
+  getWorkloadUsage,
   hasUnknownModelCost,
   recordUnpricedTurn,
+  recordWorkloadUnpricedTurn,
   setCostStateForRestore,
 } from './bootstrap/state.js'
-import type { ModelUsage } from './bootstrap/state.js'
+import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstrap/state.js'
+import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
 import type { ProviderSessionSpend } from './services/providers/providerUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
@@ -51,6 +56,8 @@ type StoredCostState = {
   lastDuration: number | undefined
   modelUsage: { [modelName: string]: ModelUsage } | undefined
   unpricedTurns: { [modelName: string]: number } | undefined
+  workloadUsage: WorkloadUsage | undefined
+  workloadUnpricedTurns: WorkloadUnpricedTurns | undefined
 }
 
 export type LedgerCostBasis = { basis: 'wire-stated' }
@@ -80,8 +87,24 @@ export function addToTotalSessionCost(
   record.contextWindow = getContextWindowForModel(model, getSdkBetas())
   record.maxOutputTokens = getModelMaxOutputTokens(model).default
   addToTotalCostState(cost, record, model)
+  const workload = getWorkload()
   if (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced') {
     recordUnpricedTurn(model)
+    if (workload !== undefined) recordWorkloadUnpricedTurn(workload, model)
+  }
+  if (workload !== undefined) {
+    addToWorkloadUsageState(
+      workload,
+      {
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+        cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+        webSearchRequests: usage.server_tool_use?.web_search_requests ?? 0,
+        costUSD: cost,
+      },
+      model,
+    )
   }
   recordUsagePulse(cost)
 
@@ -136,6 +159,17 @@ export function saveCurrentSessionCosts(fpsMetrics?: FpsMetrics): void {
       costUSD: usage.costUSD,
     })),
     lastUnpricedTurns: { ...getUnpricedTurns() },
+    lastWorkloadUsage: mapValues(getWorkloadUsage(), bucket =>
+      mapValues(bucket, usage => ({
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cacheReadInputTokens: usage.cacheReadInputTokens,
+        cacheCreationInputTokens: usage.cacheCreationInputTokens,
+        webSearchRequests: usage.webSearchRequests,
+        costUSD: usage.costUSD,
+      })),
+    ),
+    lastWorkloadUnpricedTurns: mapValues(getWorkloadUnpricedTurns(), bucket => ({ ...bucket })),
     lastSessionId: getSessionId(),
   }))
 }
@@ -157,6 +191,12 @@ export function getStoredSessionCosts(
     lastDuration: config.lastDuration,
     modelUsage: config.lastModelUsage ? withDerivedLimits(config.lastModelUsage) : undefined,
     unpricedTurns: config.lastUnpricedTurns ? { ...config.lastUnpricedTurns } : undefined,
+    workloadUsage: config.lastWorkloadUsage
+      ? mapValues(config.lastWorkloadUsage, bucket => mapValues(bucket, usage => ({ ...usage })))
+      : undefined,
+    workloadUnpricedTurns: config.lastWorkloadUnpricedTurns
+      ? mapValues(config.lastWorkloadUnpricedTurns, bucket => ({ ...bucket }))
+      : undefined,
   }
 }
 
@@ -203,6 +243,8 @@ export async function restoreCostStateForSession(
     lastDuration: stored?.lastDuration,
     modelUsage: rebuilt ? withDerivedLimits(rebuilt.modelUsage) : stored?.modelUsage,
     unpricedTurns: rebuilt ? { ...rebuilt.unpricedTurns } : stored?.unpricedTurns,
+    workloadUsage: rebuilt ? mapValues(rebuilt.workloadUsage, bucket => mapValues(bucket, usage => ({ ...usage }))) : stored?.workloadUsage,
+    workloadUnpricedTurns: rebuilt ? mapValues(rebuilt.workloadUnpricedTurns, bucket => ({ ...bucket })) : stored?.workloadUnpricedTurns,
   })
   return true
 }
@@ -308,6 +350,8 @@ export {
   getTotalWebSearchRequests,
   getUnpricedTurns,
   getUsageForModel,
+  getWorkloadUnpricedTurns,
+  getWorkloadUsage,
   hasUnknownModelCost,
   resetCostState,
   resetStateForTests,

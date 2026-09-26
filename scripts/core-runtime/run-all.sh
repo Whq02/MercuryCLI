@@ -129,5 +129,8 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-resize-hold-cursor.t
 
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-compact-resize-rig.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-compact-resize-rig.ts "$__t" "$__rc"
 
+echo "── core-runtime: scheduled work bills under the cron workload and shows in its own bucket"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-cron-billing.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-cron-billing.ts "$__t" "$__rc"
+
 if [ "$fail" = "0" ]; then echo "core-runtime suite: green"; else echo "core-runtime suite: RED"; fi
 exit "$fail"

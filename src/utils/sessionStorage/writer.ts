@@ -50,6 +50,7 @@ import {
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
+import { getWorkload } from '../workloadContext.js'
 import {
   cleanMessagesForLogging,
   getFirstMeaningfulUserMessageTextContent,
@@ -880,6 +881,7 @@ class Project {
           agentName: teamInfo?.agentName,
           promptId:
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
+          workload: message.type === 'assistant' ? getWorkload() : undefined,
           agentId,
           ...message,
           entrypoint: getEntrypoint(),
