@@ -353,7 +353,7 @@ try {
     check('the OpenAI heading counts the seat\'s live ids', /gptAvailability\.ids\.length === 1 \? 'model' : 'models'\} live/.test(wrapper))
     check('the row shape carries the typed live-unknown field, set beside the words by both composers', composer.includes('liveUnknown?: boolean\n}\n\nexport const LIVE_UNKNOWN_ROW_WORDS') && (composer.match(/\.\.\.\((?:liveUnknown|pin\.liveUnknown === true) \? \{ liveUnknown: true \} : \{\}\)/g) ?? []).length === 2)
     const mapping = wrapper.slice(wrapper.indexOf('function modelChoiceOf'), wrapper.indexOf('function expandRowsOf'))
-    check("the row mapping paints an unknown row's stated window or nothing, on the carrier rows' road — it never asks the window resolver for one", mapping.includes('if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {') && mapping.indexOf('opt.liveUnknown === true') < mapping.indexOf('getContextWindowForModel('))
+    check("the row mapping paints an unknown row's stated window or nothing, on the carrier rows' road — it never asks the window resolver for one", mapping.includes('if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {') && mapping.includes('opt.liveUnknown === true') && mapping.includes('getContextWindowForModel(') && mapping.indexOf('opt.liveUnknown === true') < mapping.indexOf('getContextWindowForModel('))
   }
 } finally {
   globalThis.fetch = realFetch
