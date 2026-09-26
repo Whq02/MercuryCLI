@@ -43,6 +43,22 @@ export function focusedEffortLabelOf(
         : getDisplayedEffortLabel(model, effortValue)
 }
 
+export function RecordedEffortChip({ effort, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { effort: string | null; plain?: boolean; maxWidth?: number }): React.ReactNode {
+  const value = effort === null ? undefined : parseEffortValue(effort)
+  const label = effort ?? 'unreported'
+  if (plain || value === undefined) {
+    const text = ` · effort ${label}`
+    return stringWidth(text) <= maxWidth ? <Text color={SECOND}>{text}</Text> : null
+  }
+  return (
+    <Text>
+      <Text color={FAINT}> · </Text>
+      <Text color={FAINT}>{effortLevelToSymbol(convertEffortValueToLevel(value))} </Text>
+      <Text color={SECOND}>{label}</Text>
+    </Text>
+  )
+}
+
 export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { model: string; plain?: boolean; maxWidth?: number }): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const supercode = useAppStateMaybeOutsideOfProvider(s => s.supercode)
