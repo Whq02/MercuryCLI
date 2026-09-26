@@ -59,7 +59,7 @@ for (const theme of ['dark', 'true-black'] as const) {
     })
     const scr = (res.stdout || '') + (res.stderr || '')
     console.log(`\n── ${theme} @ ${cols}×${rows} ──`)
-    expect('the picker mounted', /Mercury — model/.test(scr))
+    expect('the picker mounted', /Mercury · model/.test(scr))
     expect('the Sonnet 5 row paints', /Sonnet 5/.test(scr))
     expect('the Opus 5 row paints', /Opus 5/.test(scr))
     expect('the Fable row paints (frontier lane intact)', /Fable/.test(scr))
