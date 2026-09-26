@@ -33,6 +33,7 @@ const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await 
   '../../src/utils/fileStateCache.ts'
 )
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -52,6 +53,15 @@ guard.unref?.()
 
 const COMPACT_NEEDLE = 'running record of this conversation'
 const isCompactRequest = (r: { raw: string }): boolean => r.raw.includes(COMPACT_NEEDLE)
+const OPERATOR_BLOCK_HEADER = "The operator's own messages from the stretch folded into the summary below"
+const SUMMARY_HEADER = 'The context window turned over'
+type WirePart = { type?: string; text?: unknown }
+type WireItem = { role?: string; content?: unknown }
+const wirePartsOf = (content: unknown): WirePart[] => (typeof content === 'string' ? [{ type: 'text', text: content }] : Array.isArray(content) ? (content as WirePart[]) : [])
+const wireTextsOf = (content: unknown): string[] => wirePartsOf(content).map(p => p.text).filter((t): t is string => typeof t === 'string' && !t.trimStart().startsWith('<system-reminder>'))
+const isOperatorBlock = (text: string): boolean => text.trimStart().startsWith(OPERATOR_BLOCK_HEADER)
+const isSummaryText = (text: string): boolean => text.trimStart().startsWith(SUMMARY_HEADER)
+const withoutOperatorBlock = (item: WireItem): WireItem => (item.role === 'user' ? { ...item, content: wirePartsOf(item.content).filter(p => !(typeof p.text === 'string' && isOperatorBlock(p.text))) } : item)
 
 
 function makeAssistant(seq: number, text: string, inputTokens: number): Record<string, unknown> {
@@ -322,8 +332,15 @@ section('§5 — a real API PTL: the ladder folds the history at the loop head a
   check('the overflowed request carried the ORIGINAL history', !!reqs[0] && reqs[0].raw.includes('PTL HISTORY NEEDLE alpha'))
   check('the compact call carried the real history', !!reqs[1] && reqs[1].raw.includes('PTL HISTORY NEEDLE alpha'))
   check('the retried request rides the COMPACTED view: the summary on the wire', !!reqs[2] && reqs[2].raw.includes('PTL RECOVERY SUMMARY needle'))
-  check('…and the folded turns are gone from it (a lawful prefix change reaches the next request whole)', !!reqs[2] && !reqs[2].raw.includes('PTL HISTORY NEEDLE alpha') && !reqs[2].raw.includes('PTL HISTORY NEEDLE beta'))
-  const retriedMessages = ((reqs[2]?.body as { messages?: Array<{ role?: string; content?: unknown }> } | undefined)?.messages ?? [])
+  const retriedMessages = ((reqs[2]?.body as { messages?: WireItem[] } | undefined)?.messages ?? [])
+  const retriedTexts = retriedMessages.filter(m => m.role === 'user').flatMap(m => wireTextsOf(m.content))
+  const outsideBlock = j(retriedMessages.map(withoutOperatorBlock))
+  console.log(`  │ the retried request's user text parts: ${j(retriedTexts.map(t => (isOperatorBlock(t) ? '<operator block>' : isSummaryText(t) ? '<summary>' : t.trim().slice(0, 40))))}`)
+  check('…and the folded turns are gone from it outside the operator block (a lawful prefix change reaches the next request whole; the block, known by its header, is a context block and not a folded turn)', !!reqs[2] && !outsideBlock.includes('PTL HISTORY NEEDLE alpha') && !outsideBlock.includes('PTL HISTORY NEEDLE beta') && !outsideBlock.includes('Refactored the tokenizer into three passes'), `outside the block: ${outsideBlock.slice(0, 300)}`)
+  check('…the block rides once, ahead of the summary, and the carried prompt rides last — the block is never the ask', retriedTexts.filter(isOperatorBlock).length === 1 && retriedTexts.findIndex(isOperatorBlock) >= 0 && retriedTexts.findIndex(isOperatorBlock) < retriedTexts.findIndex(isSummaryText) && (retriedTexts.at(-1) ?? '').trim() === 'Continue with the follow-up work.', j(retriedTexts.map(t => t.slice(0, 40))))
+  const blockRow = r.messages.find(m => m.type === 'attachment' && (m.attachment as { type?: string } | undefined)?.type === 'compact_operator_messages') as { attachment: unknown } | undefined
+  const projectedBlock = blockRow === undefined ? [] : (normalizeAttachmentForAPI(blockRow.attachment as never) as Array<{ isMeta?: boolean; message: { content: unknown } }>)
+  check('…the block row yields beside the summary and projects to ONE meta user row headed by the words the wire scan knows it by', blockRow !== undefined && projectedBlock.length === 1 && projectedBlock[0]!.isMeta === true && wireTextsOf(projectedBlock[0]!.message.content).some(isOperatorBlock), j(projectedBlock).slice(0, 200))
   check('…the compacted view starts from the summary turn (messages[0] is a user turn carrying it)', retriedMessages[0]?.role === 'user' && j(retriedMessages[0]).includes('PTL RECOVERY SUMMARY needle'), j(retriedMessages[0]).slice(0, 200))
   check('the compact summary message yields (isCompactSummary)', r.messages.some(m => (m as { isCompactSummary?: boolean }).isCompactSummary === true))
   check('the fold notice yields as a system row naming the overflow', r.messages.some(m => m.type === 'system' && /overflow|too long|fold|compact/i.test(j(m))), j(r.messages.filter(m => m.type === 'system')).slice(0, 300))
