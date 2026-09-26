@@ -14,8 +14,9 @@
 # gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
 # gate-watch: src/services/providers/moonshot/moonshotAccounts.ts
 # gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts src/state/AppState.tsx src/state/store.ts
+# gate-watch: src/services/providers/openai/openaiCatalogue.ts
 # gate-watch: src/tools/AgentTool/agentColorManager.ts src/utils/accounts/signInLedger.ts src/utils/config.ts
-# gate-watch: src/utils/imageStore.ts
+# gate-watch: src/utils/imageStore.ts src/utils/model/modelOptions.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
