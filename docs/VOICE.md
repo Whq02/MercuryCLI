@@ -12,15 +12,24 @@ capture is the composer.
   next take would use and your default, the capture backend.
   `/speak options` chooses the transcriber; `/speak download` fetches the
   on-device model.
-- With voice input on, press space in an empty composer to start a capture.
-  A terminal sees no key-up, so a capture is press-to-start, press-to-stop:
-  press space again to stop it and send the take to the transcriber, or
-  press `esc` to cancel it (nothing leaves the machine). With voice input
-  off, space is a space.
-- `/voice` is the same action as pressing space: start a capture, or stop
-  the one running.
-- The footer says `● recording · space or esc to stop` while a take runs and
-  `transcribing…` while it is in flight. Every refusal is a receipt with
+- With voice input on, hold space for 3 s to speak: the take opens at the
+  threshold, holding keeps it recording, releasing the key stops it and
+  sends the take to the transcriber; `esc` cancels it (nothing leaves the
+  machine). This works with words already in the composer and any number
+  of times: the transcript lands at the end of the draft, one space from
+  the words before it, and you type on. A single space press types a
+  space at once; a hold shorter than the threshold types the spaces it
+  held back when you let go. With voice input off, space is a space.
+- A terminal sends no key-up: the hold is read from the key's auto-repeat
+  stream (the repeats stopping is the release, a gap of about twice the
+  repeat interval, never under 150 ms). Keep the other keys still while
+  you hold — an operating system repeats only the last key pressed, so
+  another key ends the hold. On a terminal whose key repeat is off a held
+  key never repeats and cannot open a take — `/voice` starts a capture and
+  `/voice` again stops it, with no key held.
+- The footer says `● recording · release space to stop · esc cancels`
+  while a take runs and `transcribing…` while it is in flight. Every
+  refusal is a receipt with
   its reason: no backend, nothing to transcribe with, a microphone that
   could not be opened, a take that carried only silence, a transcriber
   that answered with an error.
@@ -46,7 +55,7 @@ one that is live:
 2. **A recorder already on PATH**: `sox`, `arecord` (Linux) or `ffmpeg`.
    These are used only when you have installed them yourself; Mercury never
    vendors them.
-3. **No backend**: pressing space answers the receipt "no microphone backend",
+3. **No backend**: a hold past the threshold answers the receipt "no microphone backend",
    naming the remedy that fits the install: on a source checkout the pack
    build (`bun run setup`) or a recorder on PATH; on a release install — no
    checkout to build from — a recorder on PATH (ffmpeg or sox), with the

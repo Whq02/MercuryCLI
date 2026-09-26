@@ -241,6 +241,19 @@ const OPENING: unknown[] = [
   { afterPrevTicks: 3, data: '\r' },
 ]
 
+const RECORDING_LINE = 'recording · release space to stop · esc cancels'
+const REPEAT = { afterPrevTicks: 1, data: ' ' }
+function hold(press: Record<string, unknown>, opts: { mark?: string; beyond?: number } = {}): unknown[] {
+  const repeats = Array.from({ length: 17 }, () => REPEAT)
+  if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
+  return [
+    { ...press, data: ' ' },
+    ...repeats,
+    { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
+    ...Array.from({ length: opts.beyond ?? 2 }, () => REPEAT),
+  ]
+}
+
 console.log('============================================================')
 console.log(' voice input — the journey on the bundle, hermetic')
 console.log('============================================================')
@@ -257,7 +270,7 @@ console.log('[0] poison control — the tripwire trips on a non-loopback fetch')
   check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '))
 }
 
-console.log('[A] /speak → /speak on → v → v → the words land, cursor at the end → /speak off → v types')
+console.log('[A] /speak → /speak on → a hold → the release → the words land, cursor at the end → /speak off → space types')
 {
   const netlog = join(scratch, 'journey-net.log')
   const fx = await startFixture('journey', 1500)
@@ -271,8 +284,7 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'voice input OFF — /speak on turns it on', awaitStableTicks: 2, mark: 'status-off', data: '/speak on' },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'transcribing…', mark: 'transcribing', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: ' z' },
       { afterPrevTicks: 3, mark: 'typed-after', data: '\x15' },
@@ -281,15 +293,15 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
       { requireAwait: true, awaitText: 'voice input OFF — space is a space', awaitStableTicks: 2, mark: 'off', data: ' ' },
       { afterPrevTicks: 4, mark: 'letter', data: '' },
     ],
-    160,
+    200,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('bare /speak reports OFF with the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: OpenAI'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
-  check('/speak on says ON and teaches the key', (res.marks.on ?? '').includes('voice input ON — press space in an empty composer'))
-  check('space: the footer paints ● recording · space or esc to stop', (res.marks.recording ?? '').includes('● recording · space or esc to stop'))
-  check('v again: the footer paints transcribing…', (res.marks.transcribing ?? '').includes('transcribing…'))
+  check('/speak on says ON and teaches the hold', (res.marks.on ?? '').includes('voice input ON — hold space for 3 s to speak'), (res.marks.on ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
+  check(`the hold past the threshold: the footer paints ● ${RECORDING_LINE}`, (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), (res.marks.recording ?? '').split('\n').filter(l => l.includes('recording')).join(' · '))
+  check('the release: the footer paints transcribing…', (res.marks.transcribing ?? '').includes('transcribing…'))
   check('the canned words land in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT))
   check('the cursor sat at the END: a typed character lands after the words', (res.marks['typed-after'] ?? '').includes('lazy dog z'))
   check('the transcribing receipt names the family and the row', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes('transcribed by OpenAI (gpt-4o-transcribe)'))
@@ -302,7 +314,7 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[B] a keyless, packless home — v answers the no-transcriber receipt before any take')
+console.log('[B] a keyless, packless home — a hold answers the no-transcriber receipt before any take')
 {
   const netlog = join(scratch, 'keyless-net.log')
   const res = drive(
@@ -311,11 +323,11 @@ console.log('[B] a keyless, packless home — v answers the no-transcriber recei
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
       { requireAwait: true, awaitText: 'nothing transcribes yet — on-device pack pin broken; or /logins', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    90,
+    120,
     { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
@@ -325,7 +337,7 @@ console.log('[B] a keyless, packless home — v answers the no-transcriber recei
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[C] no pack, no recorder — v answers the no-backend receipt')
+console.log('[C] no pack, no recorder — a hold answers the no-backend receipt')
 {
   const netlog = join(scratch, 'nobackend-net.log')
   const res = drive(
@@ -334,11 +346,11 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
       { requireAwait: true, awaitText: 'no microphone backend — the voice pack is absent on this install', awaitStableTicks: 1, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    90,
+    120,
     {
       OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000',
       MERCURY_OPENAI_API_BASE: DEAD,
@@ -353,7 +365,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[D] v then esc — the take is cancelled and NO request is made')
+console.log('[D] a hold, then esc while it records — the take is cancelled and NO request is made')
 {
   const netlog = join(scratch, 'cancel-net.log')
   const fx = await startFixture('cancel', 0)
@@ -363,12 +375,12 @@ console.log('[D] v then esc — the take is cancelled and NO request is made')
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyond: 0 }),
+      { afterPrevTicks: 1, data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 2, mark: 'cancelled', data: '' },
       { afterPrevTicks: 5, data: '' },
     ],
-    100,
+    130,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
@@ -394,12 +406,11 @@ console.log('[E] a Gemini API key alone — the take rides generateContent with 
       { atTick: 70, awaitText: '2.5 Flash', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 140, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    140,
+    170,
     { GOOGLE_API_KEY: 'fixture-gemini-key-000000', MERCURY_GEMINI_API_BASE: `http://127.0.0.1:${fx.port}/v1beta`, MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: undefined, MERCURY_TELEMETRY: '0' },
   )
   fx.child.kill('SIGTERM')
@@ -413,7 +424,7 @@ console.log('[E] a Gemini API key alone — the take rides generateContent with 
   if (stray.length > 0) console.log(`  · the telemetry-off rung let the boot attempt ${stray.length} non-loopback request(s), every one refused by the tripwire: ${stray.slice(0, 4).join(' · ')}`)
 }
 
-console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-capture · two takes · a quit mid-capture')
+console.log('[F] /speak on twice · a single press types · a resize mid-hold · two takes, the second with words in the composer · a quit mid-capture')
 {
   const netlog = join(scratch, 'roads-net.log')
   const fx = await startFixture('roads', 800)
@@ -428,31 +439,31 @@ console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-ca
       { requireAwait: true, awaitText: 'voice input already on', awaitStableTicks: 2, mark: 'again', data: 'x' },
       { afterPrevTicks: 2, data: ' ' },
       { afterPrevTicks: 3, mark: 'typed-xv', data: '\x15' },
-      { afterPrevTicks: 2, data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-1', data: '' },
-      { afterPrevTicks: 8, mark: 'resized-recording', data: ' ' },
-      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-1', data: '\x15' },
-      { afterPrevTicks: 2, data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-2', data: ' ' },
-      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-2', data: '\x15' },
-      { afterPrevTicks: 2, data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-3', data: '/exit' },
-      { afterPrevTicks: 3, data: '\r' },
+      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-1', beyond: 3 }),
+      { afterPrevTicks: 1, mark: 'resized-recording', data: ' ' },
+      REPEAT,
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-1', data: '' },
+      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-2' }),
+      { requireAwait: true, awaitText: 'transcribing…', mark: 'transcribing-2', data: '' },
+      { requireAwait: true, awaitText: 'dog the quick', awaitStableTicks: 2, mark: 'landed-2', data: '\x15' },
+      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-3', beyond: 0 }),
+      { afterPrevTicks: 1, data: '/exit\r' },
     ],
-    220,
+    320,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
-    { resizes: [{ afterMark: 'recording-1', afterMs: 500, cols: 110, rows: 36 }] },
+    { resizes: [{ afterMark: 'recording-1', afterMs: 300, cols: 110, rows: 36 }] },
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('/speak on again is one receipt: already on', (res.marks.again ?? '').includes('voice input already on'), (res.marks.again ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   const typed = res.marks['typed-xv'] ?? ''
-  check('space in a NON-empty composer is a space (no take)', /❯ x \s/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('a single space press after a letter types a space at once (no take)', /❯ x \s/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
   const resized = res.marks['resized-recording'] ?? ''
   const resizedCols = resized.split('\n')[0]?.length ?? 0
-  check('a resize mid-capture keeps the footer recording line (the take survives)', resizedCols === 110 && resized.includes('● recording · space or esc to stop'), `${resizedCols} cols · ${resized.split('\n').filter(l => l.includes('recording')).join(' · ')}`)
+  check('a resize mid-hold keeps the footer recording line (the take survives)', resizedCols === 110 && resized.includes(`● ${RECORDING_LINE}`), `${resizedCols} cols · ${resized.split('\n').filter(l => l.includes('recording')).join(' · ')}`)
   check('the first take lands after the resize', (res.marks['landed-1'] ?? '').includes(TRANSCRIPT))
-  check('the second take, back to back, lands too', (res.marks['landed-2'] ?? '').includes(TRANSCRIPT) && (res.marks['recording-2'] ?? '').includes('● recording'))
+  check('the second hold, with the first transcript in the composer, records and its release transcribes', (res.marks['recording-2'] ?? '').includes('● recording') && (res.marks['transcribing-2'] ?? '').includes('transcribing…'))
+  check('the second transcript lands after the first, one space between', (res.marks['landed-2'] ?? '').includes(`${TRANSCRIPT} ${TRANSCRIPT}`), (res.marks['landed-2'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
   check('the third take was recording when /exit was typed', (res.marks['recording-3'] ?? '').includes('● recording'))
   const finalScreen = res.gridText.split('\n').slice(-40).join('\n')
   check('a quit mid-capture exits (the child ended) without a crash on screen', res.endReason === 'eof' && !/TypeError|ReferenceError|Unhandled|at .*\.mjs:\d+/.test(finalScreen), `ended: ${res.endReason}`)
@@ -462,7 +473,7 @@ console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-ca
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[G] the bound — with the proof seam at 1.5 s the take stops by itself, named, and lands')
+console.log('[G] the bound — with the proof seam at 1.5 s and the key still held, the take stops by itself, named, and lands')
 {
   const netlog = join(scratch, 'bound-net.log')
   const fx = await startFixture('bound', 2500)
@@ -472,18 +483,17 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyond: 12 }),
       { requireAwait: true, awaitText: 'transcribing…', mark: 'bound', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 2, data: '' },
     ],
-    120,
+    160,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_BOUND_MS: '1500' },
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the take stopped by itself: the footer flipped from recording to transcribing with no key pressed', (res.marks.bound ?? '').includes('transcribing…') && !(res.marks.bound ?? '').includes('● recording'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('recording') || l.includes('transcribing')).join(' · '))
+  check('the take stopped by itself while the key was still held: the footer flipped from recording to transcribing', (res.marks.bound ?? '').includes('transcribing…') && !(res.marks.bound ?? '').includes('● recording'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('recording') || l.includes('transcribing')).join(' · '))
   check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))
@@ -491,7 +501,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[H] voice input on, v on the Session Concourse — nothing; shift+← walks home')
+console.log('[H] voice input on, space on the Session Concourse — nothing; shift+← walks home')
 {
   const netlog = join(scratch, 'concourse-net.log')
   const home = seededHome('home-h')
@@ -517,13 +527,13 @@ console.log('[H] voice input on, v on the Session Concourse — nothing; shift+�
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   const afterV = res.marks['after-v'] ?? ''
-  check('v on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
+  check('space on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
   check('shift+← walks home to the Boot face', (res.marks.home ?? '').includes('↑↓ choose'), (res.marks.home ?? '').split('\n').filter(l => l.includes('choose')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette · shift+← / → walk the strip · v still records')
+console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette · shift+← / → walk the strip · a hold still records')
 {
   const netlog = join(scratch, 'keys-net.log')
   const fx = await startFixture('keys', 0)
@@ -540,20 +550,20 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
       { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette', data: '\x1b' },
       { afterPrevTicks: 4, mark: 'palette-closed', data: '\x1b[1;2D' },
       { requireAwait: true, awaitText: '↑↓ choose', awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
-      { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
+      ...hold({ requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat' }, { mark: 'recording', beyond: 0 }),
+      { afterPrevTicks: 1, data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 1, mark: 'cancelled', data: '' },
       { afterPrevTicks: 2, data: '' },
     ],
-    160,
+    190,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('? in the empty composer opens the shortcuts panel (untouched by the v filter); ? again closes it', (res.marks.help ?? '').includes('/keybindings to customize') && !(res.marks['help-closed'] ?? '').includes('/keybindings to customize'), `${(res.marks.help ?? '').includes('/keybindings') ? 'opened' : 'never opened'} · ${(res.marks['help-closed'] ?? '').includes('/keybindings') ? 'still open' : 'closed'}`)
+  check('? in the empty composer opens the shortcuts panel (untouched by the space filter); ? again closes it', (res.marks.help ?? '').includes('/keybindings to customize') && !(res.marks['help-closed'] ?? '').includes('/keybindings to customize'), `${(res.marks.help ?? '').includes('/keybindings') ? 'opened' : 'never opened'} · ${(res.marks['help-closed'] ?? '').includes('/keybindings') ? 'still open' : 'closed'}`)
   check('the ctrl+x p chord opens the command palette; esc closes it', (res.marks.palette ?? '').includes('fuzzy by name') && !(res.marks['palette-closed'] ?? '').includes('fuzzy by name'))
   check('shift+← walks to the Boot face and shift+→ returns to the chat', (res.marks.face ?? '').includes('↑↓ choose') && (res.marks.chat ?? '').includes('Type a prompt'))
-  check('after all that, v still records and esc still cancels', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent'))
+  check('after all that, a hold still records and esc still cancels', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent'))
   check('no take was sent', ledgerPosts(fx.ledger).length === 0)
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
