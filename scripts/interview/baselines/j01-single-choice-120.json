@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-26T02:14:40.817Z",
+ "capturedAt": "2026-09-26T03:14:27.718Z",
  "screens": [
   {
    "atMs": 12000,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-Lii7QL · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-tKEX80 · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 03:14:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:14:10 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 03:14:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 04:14:10 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
@@ -75,7 +75,7 @@
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -92,22 +92,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-Lii7QL                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-tKEX80                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12907,
-   "frame-recommit": 25
+   "patches": 12733,
+   "frame-recommit": 27
   },
   "frames": {
-   "total": 40,
-   "window": 40,
-   "p50": 0.5307910000001357,
-   "p95": 7.018292000000656,
-   "p99": 24.327749999999924,
-   "maxMs": 24.327749999999924
+   "total": 42,
+   "window": 42,
+   "p50": 0.7223750000011933,
+   "p95": 5.663665999999921,
+   "p99": 19.756665999999996,
+   "maxMs": 19.756665999999996
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 10585.530042648315,
+   "atMs": 10800.659894943237,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12185.530042648315,
+   "atMs": 12400.659894943237,
    "b64": "DQ=="
   }
  ]
