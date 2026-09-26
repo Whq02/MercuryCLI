@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, childEnv, DIST, endLeg, FACE_READY, finish, netlines, nonLoopback, printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -22,7 +22,7 @@ const trimmed = (rows: string[]): string[] => rows.map(r => r.replace(/\s+$/, ''
 const inkOf = (cells: Cell[]): string => cells.map(c => `${c.fg}/${c.bg}/${c.bold ? 1 : 0}`).join(' ')
 
 async function capture(tag: string, cols: number, rows: number, wayBack: boolean): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg }> {
-  const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null, scratch)
+  const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null, realpathSync(scratch))
   if (!wayBack) writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ compactWayBack: false }))
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
