@@ -103,7 +103,7 @@ export function markOpenrouterMintedKeyExpired(expected: OpenrouterMintedKey, me
   if (current?.key !== expected.key || current.mintedAtMs !== expected.mintedAtMs) return false
   writeAuthFile(file => ({
     ...file,
-    minted: { ...current, expiredMessage: message || 'API key expired' },
+    minted: { ...current, expiredMessage: message || 'key endpoint returned HTTP 401' },
   }))
   return true
 }

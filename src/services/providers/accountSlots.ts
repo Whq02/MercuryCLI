@@ -655,7 +655,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       envPinned: false,
       signedIn: true,
       ...(minted.expiredMessage
-        ? { stateNote: `expired — ${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
+        ? { stateNote: `${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
         : envKey ? { stateNote: 'shadowed — the env pin wins' }
           : failure('oauth') ? { stateNote: failure('oauth')! } : {}),
       removal: { route: 'openrouter-oauth-key' },
