@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import { GLYPH, displayWidth } from './glyphs.js'
+import { InteractiveRow } from './InteractiveRow.js'
 
 export const FOLD_OPEN_LEAD = '▾ '
 export const FOLD_CLOSED_LEAD = '▸ '
@@ -31,6 +32,8 @@ export function MenuFilterLine({
   accent,
   muted,
   primary,
+  onFocus,
+  id,
 }: {
   focused: boolean
   text: string
@@ -38,13 +41,19 @@ export function MenuFilterLine({
   accent: string
   muted: string
   primary: string
+  onFocus?: () => void
+  id?: string
 }): React.ReactNode {
+  const line = (
+    <Text wrap="truncate-end">
+      <Text color={focused ? accent : muted}>/ </Text>
+      {text !== '' ? <Text color={primary}>{text}</Text> : <Text color={muted}>{placeholder}</Text>}
+    </Text>
+  )
+  if (onFocus === undefined) return <Box height={1}>{line}</Box>
   return (
-    <Box height={1}>
-      <Text wrap="truncate-end">
-        <Text color={focused ? accent : muted}>/ </Text>
-        {text !== '' ? <Text color={primary}>{text}</Text> : <Text color={muted}>{placeholder}</Text>}
-      </Text>
-    </Box>
+    <InteractiveRow id={id ?? 'menu:filter'} height={1} directActivate onActivate={onFocus}>
+      {() => line}
+    </InteractiveRow>
   )
 }

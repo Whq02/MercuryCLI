@@ -329,7 +329,7 @@ globalThis.fetch = realFetch
 section('§7 the seam: the header composer\'s credentialed arm')
 {
   const builder = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check("the Anthropic heading names the signed-in doors on the credentialed arm and the not-signed-in reason otherwise; 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n    ? {\n        name: nameOf('anthropic'),\n        doors: signedInDoorsOf('anthropic', slotsOf('anthropic')),") && builder.includes("{ name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }") && !builder.includes("'credential present'"))
+  check("the Anthropic heading names the signed-in doors on the credentialed arm and the not-signed-in reason otherwise; 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n    ? {\n        name: nameOf('anthropic'),\n        doors: signedInDoorsOf('anthropic', slotsOf('anthropic'), anthropicPresence.identity),") && builder.includes("{ name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }") && !builder.includes("'credential present'"))
 }
 
 rmSync(scratch, { recursive: true, force: true })

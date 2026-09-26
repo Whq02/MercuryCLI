@@ -164,7 +164,7 @@ if (driver.kind !== 'posix-pty') {
       const p = previousRow(ls)
       check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `${n} / ${p}`)
       check('picker: the previous row sits directly under the family row', p === n + 1, `${n} / ${p}`)
-      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}claude-fable-5-1 {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
+      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}fable {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
       check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
     }
     if (set) {

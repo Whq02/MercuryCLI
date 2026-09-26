@@ -118,8 +118,8 @@ section('mechanism pins: subscription · in-place retry · every catalogue bumps
   }
   const picker = readFileSync(join(REPO, 'src/components/MercuryModelPicker.tsx'), 'utf8')
   check(
-    'the picker wraps group details by whole segments and budgets those rows',
-    picker.includes("packLines(detail.split(' · '), panelWidth - 4)") && picker.includes('detailLines.get(g)?.length'),
+    'the picker wraps a refused row\'s reason and the c-press answer whole in the notice slot and budgets those rows',
+    picker.includes("wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, inner)") && picker.includes('wrapPlain(ctxNotice, inner)') && picker.includes('noticeLines.length'),
   )
 }
 
@@ -186,7 +186,7 @@ if (driver.kind !== 'posix-pty') {
           { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' },
           ...Array.from({ length: openrouterIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
-          { requireAwait: true, awaitText: 'Anthropic: Claude Opus 5', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
+          { requireAwait: true, awaitText: 'anthropic/claude-opus-5', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },
         ],
         total: 150,
