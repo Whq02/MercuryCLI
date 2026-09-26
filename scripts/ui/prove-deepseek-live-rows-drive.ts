@@ -195,7 +195,11 @@ console.log('\n[1] the live list: the fixture names three ids and the picker pai
   const flashRow = lines(live, 'deepseek-flash')
   const nextRow = lines(live, 'deepseek-fixture-next')
   check('live: the two pinned labels keep their exact ids beside the clipped names', /DeepSeek V4 Pro\s+deepseek-v4-pro/.test(proRow) && /DeepSeek V4\.1 Fla…\s+deepseek-flash/.test(flashRow), proRow + '\n' + flashRow)
-  check('live: the unpinned live id paints with its clipped mechanical name after both pins', /Deepseek Fixture …\s+deepseek-fixture-next/.test(nextRow) && live.indexOf('deepseek-fixture-next') > live.indexOf('deepseek-flash') && live.indexOf('deepseek-flash') > live.indexOf('deepseek-v4-pro'), nextRow)
+  check('live: the unpinned live id paints with its clipped mechanical name after both pins',
+    live.includes('deepseek-v4-pro') && live.includes('deepseek-flash') && live.includes('deepseek-fixture-next') &&
+    /Deepseek Fixture …\s+deepseek-fixture-next/.test(nextRow) &&
+    live.indexOf('deepseek-fixture-next') > live.indexOf('deepseek-flash') &&
+    live.indexOf('deepseek-flash') > live.indexOf('deepseek-v4-pro'), nextRow)
   check('live: the unrecorded id states no provider context window rather than presenting an internal budget as a provider fact', nextRow !== '' && !/\d+[kM]? ctx/.test(nextRow), nextRow)
   check('live: both pinned rows keep their pinned window', proRow.includes('1M ctx') && flashRow.includes('1M ctx'), proRow + '\n' + flashRow)
   check('live: the group line names the key and three live rows, never a frontier row', /DEEPSEEK · API key · …0001 · 3 live$/.test(groupLine(live, 'DEEPSEEK ·')) && !live.includes('frontier:'), groupLine(live, 'DEEPSEEK ·'))
