@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-26T18:55:06.023Z",
+ "capturedAt": "2026-09-26T19:08:31.412Z",
  "screens": [
   {
    "atMs": 12500,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-mtrK0Y · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-405iyM · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -69,7 +69,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-mtrK0Y · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-405iyM · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -107,15 +107,15 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "WORKBENCH               │                                                                                              │",
     "  design the cache layer│                                                                                              │",
-    "                        │ 19:54:45 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 20:08:10 [sam] ❯ design the cache layer                                                      │",
     "NEXT                    │                                                                                              │",
-    "  · /workflows — agent …│ 19:54:45 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /workflows — agent …│ 20:08:10 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · /health — health ce…│ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "  · /cards — memory     │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · /mission — set a mi…│ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 19:54:53 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  ↵ or click · browse   │ 20:08:18 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -143,16 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 17347,
-   "frame-recommit": 57
+   "patches": 17520,
+   "frame-recommit": 55
   },
   "frames": {
-   "total": 73,
-   "window": 73,
-   "p50": 0.44933400000081747,
-   "p95": 4.951375000000098,
-   "p99": 19.031957999999918,
-   "maxMs": 19.031957999999918
+   "total": 71,
+   "window": 71,
+   "p50": 0.5130830000016431,
+   "p95": 5.185791000000336,
+   "p99": 18.74320799999998,
+   "maxMs": 18.74320799999998
   }
  },
  "requests": [
@@ -205,15 +205,15 @@
  ],
  "sends": [
   {
-   "atMs": 11556.546926498413,
+   "atMs": 11540.148258209229,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 13156.546926498413,
+   "atMs": 13140.148258209229,
    "b64": "DQ=="
   },
   {
-   "atMs": 21556.546926498413,
+   "atMs": 21540.14825820923,
    "b64": "Gw=="
   }
  ]
