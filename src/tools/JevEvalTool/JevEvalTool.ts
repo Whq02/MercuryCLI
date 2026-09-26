@@ -1,6 +1,6 @@
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { jevSystemOne } from '../../services/jev/jevClient.js'
-import type { JevRoad, JevStatus } from '../../services/jev/jevContract.js'
+import type { JevRoad, JevStatus, JevWireFailureKind } from '../../services/jev/jevContract.js'
 import { jevKeyPresence, resolveJevApiKey } from '../../services/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall, takeJevNotice } from '../../services/jev/jevLedger.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
@@ -10,13 +10,16 @@ import { JEV_EVAL_MAX_RESULT_CHARS, JEV_EVAL_TOOL_NAME } from './constants.js'
 import { assembleJevEvalRequest } from './jevEvalRequest.js'
 import {
   jevEvalAbortedText,
-  jevEvalAnsweredText,
   jevEvalBadRequestText,
+  jevEvalFailureEvidence,
   jevEvalFailureText,
   jevEvalRefusedText,
+  type JevEvalRow,
+  jevEvalTableText,
+  jevEvalUnansweredCount,
   jevEvalUnavailableText,
 } from './jevEvalResult.js'
-import { type JevEvalInput, type JevEvalInputSchema, jevEvalInputSchema } from './jevEvalSchema.js'
+import { type JevEvalInput, type JevEvalInputSchema, type JevEvalKind, jevEvalInputSchema } from './jevEvalSchema.js'
 import { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } from './prompt.js'
 
 export interface JevEvalOutput {
@@ -50,22 +53,60 @@ export async function jevEvalCall(input: JevEvalInput, signal?: AbortSignal): Pr
   if (!assembled.ok) return { status: 'refused', text: jevEvalRefusedText(assembled.reason) }
   const key = resolveJevApiKey(process.env, road)
   if (key === undefined) return unavailable(jevStatus(agent, Date.now(), settings), road)
-  noteJevAttempt(Date.now(), agent?.id, road)
-  const outcome = await jevSystemOne(assembled.request, key.key, { signal, road })
-  const now = Date.now()
-  if (outcome.ok) {
-    const charge = settleJevCall(outcome.response.usage, outcome.response.model, now, road, outcome.requestId)
-    return { status: 'ok', text: jevEvalAnsweredText(outcome.response, charge, assembled.order, outcome.requestId) }
+  const rows: JevEvalRow[] = []
+  const flights: Promise<void>[] = []
+  for (const entry of assembled.items) {
+    const at = Date.now()
+    const admission = jevStatus(agent, at, settings)
+    const row: JevEvalRow = { label: entry.item.label, outcome: { kind: 'pending' } }
+    rows.push(row)
+    if (admission.kind !== 'ready') {
+      row.outcome = { kind: 'not-sent', status: admission }
+      continue
+    }
+    noteJevAttempt(at, agent?.id, road)
+    flights.push(
+      jevSystemOne(entry.request, key.key, { signal, road }).then(
+        outcome => {
+          row.outcome = outcome.ok ? { kind: 'answered', response: outcome.response, requestId: outcome.requestId, chargeUsd: 0 } : { kind: 'failed', failure: outcome.failure }
+        },
+        (error: unknown) => {
+          row.outcome = { kind: 'failed', failure: { kind: 'provider-down', detail: `no answer — ${error instanceof Error ? error.message : String(error)}` } }
+        },
+      ),
+    )
   }
-  noteJevWireFailure(outcome.failure, now, Math.random, road)
-  if (outcome.failure.kind === 'bad-request') return { status: 'bad-request', text: jevEvalBadRequestText(outcome.failure) }
-  if (outcome.failure.kind === 'aborted') return { status: 'aborted', text: jevEvalAbortedText(road) }
+  await Promise.all(flights)
+  const now = Date.now()
+  for (const row of rows) {
+    if (row.outcome.kind !== 'answered') continue
+    row.outcome.chargeUsd = settleJevCall(row.outcome.response.usage, row.outcome.response.model, now, road, row.outcome.requestId)
+  }
+  const noted = new Set<JevWireFailureKind>()
+  for (const row of rows) {
+    if (row.outcome.kind !== 'failed') continue
+    const failure = row.outcome.failure
+    if (failure.kind !== 'parse-failed' && failure.kind !== 'aborted' && noted.has(failure.kind)) continue
+    noted.add(failure.kind)
+    noteJevWireFailure(failure, now, Math.random, road)
+  }
+  const answered = rows.filter(row => row.outcome.kind === 'answered').length
   const after = jevStatus(agent, now, settings)
-  if (after.kind === 'ready') return { status: outcome.failure.kind, text: jevEvalFailureText(outcome.failure) }
-  const unavailableResult = unavailable(after, road)
-  const [headline, ...notices] = unavailableResult.text.split('\n')
-  const evidence = `HTTP ${outcome.failure.status ?? 'unreported'}: ${outcome.failure.detail}${outcome.failure.requestId ? ` | id=${outcome.failure.requestId}` : ''}`
-  return { ...unavailableResult, text: [`${headline} | ${evidence}`, ...notices].join('\n') }
+  if (answered === 0) {
+    const first = rows.find(row => row.outcome.kind === 'failed')
+    const failure = first?.outcome.kind === 'failed' ? first.outcome.failure : undefined
+    if (failure === undefined) return unavailable(after, road)
+    const count = jevEvalUnansweredCount(rows.length)
+    if (failure.kind === 'bad-request') return { status: 'bad-request', text: `${jevEvalBadRequestText(failure)}${count}` }
+    if (failure.kind === 'aborted') return { status: 'aborted', text: jevEvalAbortedText(road, flights.length, rows.length) }
+    if (after.kind === 'ready') return { status: failure.kind, text: `${jevEvalFailureText(failure)}${count}` }
+    const unavailableResult = unavailable(after, road)
+    const [headline, ...notices] = unavailableResult.text.split('\n')
+    return { ...unavailableResult, text: [`${headline} | ${jevEvalFailureEvidence(failure)}${count}`, ...notices].join('\n') }
+  }
+  const kinds: Record<string, JevEvalKind> = Object.fromEntries(input.questions.map(question => [question.id, question.kind]))
+  const table = jevEvalTableText({ rows, order: assembled.order, kinds })
+  return { status: 'ok', text: after.kind === 'ready' ? table : `${table}\n${unavailable(after, road).text}` }
 }
 
 export const JevEvalTool = buildTool({

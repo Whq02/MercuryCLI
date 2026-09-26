@@ -41,7 +41,7 @@ const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 const { JevEvalTool, jevEvalCall, jevEvalEnabled } = await import('../../src/tools/JevEvalTool/JevEvalTool.ts')
 const { JEV_EVAL_ESCAPE_MEANS, JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_FORBIDDEN_FIELDS } = await import('../../src/tools/JevEvalTool/constants.ts')
 const { assembleJevEvalRequest, jevEvalTokenEstimate } = await import('../../src/tools/JevEvalTool/jevEvalRequest.ts')
-const { jevEvalChoiceDistribution, jevEvalProbability } = await import('../../src/tools/JevEvalTool/jevEvalResult.ts')
+const { jevEvalCell, jevEvalProbability } = await import('../../src/tools/JevEvalTool/jevEvalResult.ts')
 const { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } = await import('../../src/tools/JevEvalTool/prompt.ts')
 
 setJevEnabled(true)
@@ -57,7 +57,7 @@ const messages = (input: unknown): string => {
 const noul = (id: string, ask = `Is \`fact\` enough on its own?`) => ({ id, kind: 'noul' as const, ask })
 const choice = (id: string, extra: Record<string, unknown> = {}) => ({ id, kind: 'choice' as const, ask: 'Which one?', options: { a: 'the first', b: 'the second' }, allow_none: true, ...extra })
 const score = (id: string, levels: string[] = ['low', 'mid', 'high']) => ({ id, kind: 'score' as const, ask: 'How much?', levels })
-const valid = (questions: unknown[] = [noul('q')], evidence: Record<string, string> = { fact: 'the lease released early on 3 of 40 runs' }) => ({ goal: 'a bounded decision', evidence, questions })
+const valid = (questions: unknown[] = [noul('q')], evidence: Record<string, string> = { fact: 'the lease released early on 3 of 40 runs' }) => ({ goal: 'a bounded decision', evidence: [evidence], questions })
 const labels = (n: number): Record<string, null> => Object.fromEntries(Array.from({ length: n }, (_, i) => [`opt${i}`, null]))
 
 section('§1 the tool is what the contract says')
@@ -95,7 +95,8 @@ check('levels on a choice, options on a noul, none_means on a score', !parse(val
 check('unknown kind', !parse(valid([{ id: 'q', kind: 'advice', ask: 'what should I do?' }])).success && /kind/.test(messages(valid([{ id: 'q', kind: 'advice', ask: 'what should I do?' }]))))
 check('duplicate ids', !parse(valid([noul('q'), noul('q')])).success && /twice/.test(messages(valid([noul('q'), noul('q')]))))
 check('no questions', !parse(valid([])).success)
-check('empty evidence', !parse(valid([noul('q')], {})).success && /at least one named fact/.test(messages(valid([noul('q')], {}))))
+check('an evidence item without a named fact', !parse(valid([noul('q')], {})).success && /at least one named fact/.test(messages(valid([noul('q')], {}))))
+check('an empty evidence list', !parse({ ...valid(), evidence: [] }).success)
 check('an id with spaces', !parse(valid([noul('a question')])).success)
 const forbiddenTop = JEV_EVAL_FORBIDDEN_FIELDS.filter(field => parse({ ...valid(), [field]: true }).success)
 const forbiddenQuestion = JEV_EVAL_FORBIDDEN_FIELDS.filter(field => parse(valid([{ ...noul('q'), [field]: true }])).success)
@@ -111,14 +112,15 @@ const walk = (node: unknown): void => {
 walk(jsonSchema)
 check('the wire schema has no approve/allow/verdict/safe/gate/advice/explain property', !propertyNames.some(name => JEV_EVAL_FORBIDDEN_FIELDS.includes(name)), propertyNames.join(','))
 check('the wire schema is closed at both levels', JSON.stringify(jsonSchema).split('"additionalProperties":false').length >= 3)
-check('the wire schema carries the seven question fields and the three top-level ones', ['goal', 'evidence', 'questions', 'id', 'kind', 'ask', 'options', 'levels', 'allow_none', 'none_means'].every(name => propertyNames.includes(name)))
+check('the wire schema carries the seven question fields, the evidence item id and the three top-level ones', ['goal', 'evidence', 'questions', 'id', 'kind', 'ask', 'options', 'levels', 'allow_none', 'none_means'].every(name => propertyNames.includes(name)))
 
 section('§3 assembly: ask → instructions, options/levels → criteria, the escape option, the ids as keys')
 const assembled = assembleJevEvalRequest(valid([noul('skew'), choice('next', { options: { pin: 'pin the clock', ser: 'serialise' }, allow_none: true, none_means: 'neither separates them' }), score('blast', ['One file', 'One module', 'Cross-cutting'])]) as never)
 check('assembled', assembled.ok === true, assembled.ok ? '' : assembled.reason)
 if (assembled.ok) {
-  const { request, order, estimate } = assembled
-  check('state is the evidence, verbatim', JSON.stringify(request.state) === JSON.stringify({ fact: 'the lease released early on 3 of 40 runs' }))
+  const { order } = assembled
+  const { request, estimate } = assembled.items[0]!
+  check('one item, one request; its state is the evidence, verbatim', assembled.items.length === 1 && JSON.stringify(request.state) === JSON.stringify({ fact: 'the lease released early on 3 of 40 runs' }))
   check('the ids are the questions keys, in order', JSON.stringify(Object.keys(request.questions)) === JSON.stringify(['skew', 'next', 'blast']) && JSON.stringify(order) === JSON.stringify(['skew', 'next', 'blast']))
   check('noul: ask → instructions, nothing else', JSON.stringify(request.questions.skew) === JSON.stringify({ type: 'noul', instructions: 'Is `fact` enough on its own?' }))
   check('choice: options → criteria plus the escape carrying none_means', JSON.stringify(request.questions.next) === JSON.stringify({ type: 'choice', instructions: 'Which one?', criteria: { pin: 'pin the clock', ser: 'serialise', none: 'neither separates them' } }))
@@ -127,9 +129,9 @@ if (assembled.ok) {
   check('the estimate is bytes/4 of the evidence and of each question', estimate.stateTokens === Math.ceil(Buffer.byteLength(JSON.stringify(request.state)) / 4) && estimate.questionTokens.skew === jevEvalTokenEstimate(JSON.stringify(request.questions.skew)) && estimate.totalTokens === estimate.stateTokens + Object.values(estimate.questionTokens).reduce((a, b) => a + b, 0))
 }
 const noEscape = assembleJevEvalRequest(valid([choice('c', { allow_none: false })]) as never)
-check('allow_none false appends no escape', noEscape.ok && !('none' in (noEscape.request.questions.c as { criteria: Record<string, unknown> }).criteria))
+check('allow_none false appends no escape', noEscape.ok && !('none' in (noEscape.questions.c as { criteria: Record<string, unknown> }).criteria))
 const defaultEscape = assembleJevEvalRequest(valid([choice('c', { allow_none: true })]) as never)
-check('allow_none true without none_means uses the default escape words', defaultEscape.ok && (defaultEscape.request.questions.c as { criteria: Record<string, unknown> }).criteria.none === JEV_EVAL_ESCAPE_MEANS)
+check('allow_none true without none_means uses the default escape words', defaultEscape.ok && (defaultEscape.questions.c as { criteria: Record<string, unknown> }).criteria.none === JEV_EVAL_ESCAPE_MEANS)
 
 section('§4 the size pre-flight refuses before any network, naming the question')
 const context = { abortController: new AbortController() } as never
@@ -167,10 +169,10 @@ const rendered = await jevEvalCall(
 )
 const lines = rendered.text.split('\n')
 check('status ok', rendered.status === 'ok', rendered.text)
-check('the header: model, input tokens, the charge at the published rate, ok', lines[0] === 'JEV jev-1.13.0 | in 412 tok | $0.000017 | ok', lines[0])
-check('noul: p(yes) and the note that it carries no confidence', lines[1] === 'skew noul p(yes) .88 (noul carries no confidence)', lines[1])
-check('choice: the choice, conf verbatim, the full distribution when ≤ 6', lines[2] === 'next_test choice pin_clock conf .41 { pin_clock .48  serialise .31  log_ordering .17  none .04 }', lines[2])
-check('score: the score of 0..k-1, conf verbatim, the distribution by index, the levels', lines[3] === 'blast score 0.88 of 0..2 conf .77 { 0 .22  1 .68  2 .10 } levels: 0=One file 1=One module 2=Cross-cutting', lines[3])
+check('the header: model, one item by three questions, input tokens, the charge at the published rate, ok', lines[0] === 'JEV jev-1.13.0 | 1 item × 3 questions | in 412 tok | $0.000017 | floor 0.6 | ok', lines[0])
+check('the column row: item, then each question id with its kind', lines[1] === 'item | skew (noul) | next_test (choice) | blast (score)', lines[1])
+check('the one row, keyed #1 (no id given): noul p(yes); the choice under the floor reads unsure with its probability and conf; the score of 0..k-1 with conf', lines[2] === '#1 | .88 | unsure · pin_clock .48 conf .41 | 0.88 of 0..2 conf .77', lines[2])
+check('the score levels named once under the table', lines[3] === 'blast levels: 0=One file 1=One module 2=Cross-cutting', lines[3])
 check('four lines, nothing else', lines.length === 4)
 check('no rationale, no band, no words attributed to Jev', !/because|rationale|reason|Jev (says|thinks|recommends)|band/i.test(rendered.text))
 check('the ledger settled the charge from the returned tokens', jevLedgerSnapshot().calls === 1 && jevLedgerSnapshot().inputTokens === 412 && jevLedgerSnapshot().lastModel === 'jev-1.13.0')
@@ -178,26 +180,46 @@ check('the result carries no approve/allow/verdict/safe/gate', !/\b(approve|allo
 check('the tool_result block is the text itself', JevEvalTool.mapToolResultToToolResultBlockParam(rendered, 'tu_1').content === rendered.text)
 check('numbers: two decimals without the leading zero; one and zero spelled', jevEvalProbability(0.88) === '.88' && jevEvalProbability(1) === '1.00' && jevEvalProbability(0) === '.00' && jevEvalProbability(0.5) === '.50')
 
-section('§6 the trim rule: top six, never dropping an option within .05 of the top')
-const tie = { a: 0.16, b: 0.15, c: 0.14, d: 0.13, e: 0.12, f: 0.11, g: 0.11, h: 0.05, i: 0.03 }
-check('seven shown when the seventh is within .05 of the top, +2 more', jevEvalChoiceDistribution(tie) === '{ a .16  b .15  c .14  d .13  e .12  f .11  g .11  +2 more }', jevEvalChoiceDistribution(tie))
-const spread = { a: 0.4, b: 0.2, c: 0.15, d: 0.1, e: 0.05, f: 0.04, g: 0.03, h: 0.02, i: 0.01 }
-check('six shown otherwise, +3 more', jevEvalChoiceDistribution(spread) === '{ a .40  b .20  c .15  d .10  e .05  f .04  +3 more }', jevEvalChoiceDistribution(spread))
-const six = { a: 0.3, b: 0.25, c: 0.2, d: 0.15, e: 0.07, f: 0.03 }
-check('six or fewer: the whole distribution, no marker', jevEvalChoiceDistribution(six) === '{ a .30  b .25  c .20  d .15  e .07  f .03 }')
-check('sorted by probability, highest first', jevEvalChoiceDistribution({ low: 0.1, high: 0.9 }) === '{ high .90  low .10 }')
+section('§6 the cells: a noul is its probability; a choice is the pick, its own probability and conf; a score is its position and conf')
+check('noul', jevEvalCell({ type: 'noul', noul: 0.07 }) === '.07')
+check('choice: the pick\'s own probability, not the top of the distribution', jevEvalCell({ type: 'choice', choice: 'b', probabilities: { a: 0.5, b: 0.3, c: 0.2 }, confidence: 0.7 }) === 'b .30 conf .70')
+check('score: the position on 0..k-1 with the levels counted from the legend', jevEvalCell({ type: 'score', score: 2.5, legend: { '0': 'a', '1': 'b', '2': 'c', '3': 'd' }, probabilities: { '0': 0, '1': 0.25, '2': 0.25, '3': 0.5 }, confidence: 0.9 }) === '2.5 of 0..3 conf .90')
 
-section('§7 the prompt: the three first uses, the exclusions, the unavailability words, no "experimental", Eval kept apart')
+section('§7 the prompt: the one rule, the law of shapes, what Jev is and is not, the unavailability words, no "experimental", Eval kept apart')
 const prompt = JEV_EVAL_PROMPT
 const firstLine = prompt.split('\n')[0]!
 check('the first line keeps Eval (code cells) and JevEval apart', /not the Eval tool/.test(firstLine) && /Eval runs code cells/.test(firstLine) && /JevEval runs no code/.test(firstLine))
-check('use 1: rank hypotheses once the evidence is in, including which test separates them', /rank hypotheses once the evidence is in/.test(prompt) && /which test would separate them/.test(prompt))
-check('use 2: a qualitative call after the frames are measured — code measures, Jev judges', /qualitative call after the frames or numbers are measured/.test(prompt) && /code measures, Jev judges/.test(prompt))
-check('use 3: check a proposal against the owner\'s recorded rulings', /check a proposal against the owner's recorded rulings/.test(prompt))
+check('the one rule, the owner\'s words: use it whenever a closed question over evidence in front of you decides the next step', /[Uu]se it whenever a closed question over evidence in front of you decides the next step/.test(prompt))
+check('the closed questions it names: which hypothesis and which test separates them; a qualitative call once measured — code measures, Jev judges; a proposal against the owner\'s recorded rulings', /which test would separate them/.test(prompt) && /once the frames or numbers are measured/.test(prompt) && /code measures, Jev judges/.test(prompt) && /against the owner's recorded rulings/.test(prompt))
+const sparingness: Array<[string, RegExp]> = [
+  ['"use them only if needed"', /only if needed/i],
+  ['"do not call it as a ritual"', /ritual/i],
+  ['the "first uses are three" framing', /first uses are three/i],
+  ['"call it when a real fork" gating', /[Cc]all it when a real fork/],
+  ['sparingly', /sparing/i],
+  ['budget as restraint ("if you ask at all")', /if you ask at all/],
+  ['budget as restraint ("hold back")', /hold back/i],
+]
+for (const [label, rx] of sparingness) check(`no sparingness clause: ${label}`, !rx.test(prompt), (prompt.match(rx) ?? [''])[0])
+check('the law: ask only what the evidence answers', /[Aa]sk only what the evidence answers/.test(prompt))
+const worked: Array<[string, RegExp, RegExp]> = [
+  ['killed from outside?', /killed from outside\?/, /rc 137/],
+  ['did the capture starve?', /did the capture starve\?/, /capture deadline exceeded/],
+  ['does the output name a fixture fault?', /does the output name a fixture fault\?/, /(stand-in|fixture|Bun-versus-Node)/],
+]
+for (const [label, shape, example] of worked) check(`a shape that worked, with a one-line example: ${label}`, shape.test(prompt) && example.test(prompt))
+check('the fixture-fault shape is called the weakest of the three', /weakest of the three/.test(prompt))
+const failedShapes: Array<[string, RegExp, RegExp]> = [
+  ['is the product wrong or is the proof stale?', /is the product wrong or is the proof stale\?/, /coin flip/],
+  ['did the fold\'s intent change this?', /did the fold's intent change this\?/, /fold_intent|commit subjects/],
+]
+for (const [label, shape, example] of failedShapes) check(`a shape that did not work, named with its example: ${label}`, shape.test(prompt) && example.test(prompt))
+check('for the two that did not: run the proof on the tip and read the source; never ask Jev', /run the proof on the tip and read the source/.test(prompt) && /never ask Jev/.test(prompt))
+check('the two more shapes that held: a question for the lead, ask first', /need the lead's answer\?/.test(prompt) && /asked first\?/.test(prompt))
+check('the pace and the sub-agent budget stay as facts, not as a reason to hold back', /A sub-agent has 200 calls for its whole task; all sub-agents in a session share 50 requests a minute on each road, separately from the main model's pace\./.test(prompt))
 const exclusions: Array<[string, RegExp]> = [
-  ['not a ritual before every test', /ritual before every test/],
-  ['no arithmetic, geometry, resizing, dates, counts', /arithmetic, geometry, resizing, dates, counts/],
-  ['no facts already in context', /facts already in your context/],
+  ['what code settles exactly is evidence to pass in, not a question', /arithmetic, geometry, resizing, dates, counts/],
+  ['a fact already in context is not a question', /already in your context/],
   ['never a permission or a consent gate', /grant a permission or to satisfy a consent gate/],
   ['never proof of a green gate', /never as proof that tests pass, a build is green or a gate is met/],
   ['no re-asking a rephrased question', /re-ask a rephrased question/],

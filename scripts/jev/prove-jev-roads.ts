@@ -27,7 +27,7 @@ const secrets = await import('../../src/utils/router/providerSecrets.ts')
 const assembly = await import('../../src/tools/JevEvalTool/jevEvalRequest.ts')
 const facts = await import('../../src/services/jev/jevSessionFacts.ts')
 const contract = await import('../../src/services/jev/jevContract.ts')
-const input = { goal: 'Check supplied evidence', evidence: { fact: 'A measured fact' }, questions: [{ id: 'yes', kind: 'noul' as const, ask: 'Does the fact support this?' }] }
+const input = { goal: 'Check supplied evidence', evidence: [{ fact: 'A measured fact' }], questions: [{ id: 'yes', kind: 'noul' as const, ask: 'Does the fact support this?' }] }
 const OR_KEY = 'proof-openrouter-key-not-real'
 const TS_KEY = 'proof-typesafe-key-not-real'
 const road = () => (setting.readJevSettings() as unknown as { road?: string }).road
@@ -55,14 +55,15 @@ try {
   const answered = await tool.jevEvalCall(input)
   const sent = router.received[0]
   check('the OpenRouter request alone reaches POST /api/v1/systemone', router.received.length === 1 && official.received.length === 0 && sent?.method === 'POST' && sent?.path === '/api/v1/systemone', `${router.received.length} router / ${official.received.length} official`)
-  check('OpenRouter gets its own key, the documented pin, and the deny/fallback block', sent?.headers.authorization === `Bearer ${OR_KEY}` && JSON.stringify(sent?.body) === JSON.stringify({ model: 'typesafe/jev-1.13', state: input.evidence, questions: { yes: { type: 'noul', instructions: input.questions[0]!.ask } }, provider: { data_collection: 'deny', allow_fallbacks: false } }))
+  check('OpenRouter gets its own key, the documented pin, and the deny/fallback block', sent?.headers.authorization === `Bearer ${OR_KEY}` && JSON.stringify(sent?.body) === JSON.stringify({ model: 'typesafe/jev-1.13', state: input.evidence[0], questions: { yes: { type: 'noul', instructions: input.questions[0]!.ask } }, provider: { data_collection: 'deny', allow_fallbacks: false } }))
   check('served model is printed and the meter uses the stated cost, not token arithmetic', answered.status === 'ok' && answered.text.includes('typesafe/jev-1.13-20260917') && ledger.jevLedgerSnapshot().spendUsd === 0.0007319, answered.text)
   const callFacts = facts.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus())
   check('the additive fact records which road answered', (callFacts as unknown as { road?: string }).road === 'openrouter')
   check('the last-call fact and result header report the actual generation and stated cost', (callFacts as unknown as { lastRequestId?: string }).lastRequestId === 'gen-dec-fixture-header' && answered.text.includes('id=gen-dec-fixture-header') && answered.text.includes('stated $0.0007319'))
   void contract
-  const request = assembly.assembleJevEvalRequest(input)
-  if (!request.ok) throw new Error(request.reason)
+  const assembled = assembly.assembleJevEvalRequest(input)
+  if (!assembled.ok) throw new Error(assembled.reason)
+  const request = { request: assembled.items[0]!.request }
   const direct = await client.jevSystemOne(request.request, OR_KEY, { road: 'openrouter' } as never)
   check('OpenRouter generation header and cost survive decoding', direct.ok && direct.requestId === 'gen-dec-fixture-header' && (direct.response.usage as unknown as { cost?: number }).cost === 0.0007319)
   router.next({ status: 200, body: { id: 'gen-dec-body-only', model: 'typesafe/jev-1.13-20260917', answers: { yes: { type: 'noul', noul: 0.7 } }, usage: { input_tokens: 100, output_tokens: 2, cost: 0 } } })

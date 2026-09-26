@@ -1,19 +1,35 @@
 import { z } from 'zod/v4'
 import { JEV_MAX_CHOICE_OPTIONS, JEV_MAX_SCORE_LEVELS, JEV_MIN_SCORE_LEVELS } from '../../services/jev/jevContract.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_ID_PATTERN, JEV_EVAL_MAX_GOAL_CHARS, JEV_EVAL_MAX_ID_CHARS } from './constants.js'
+import { JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_ID_PATTERN, JEV_EVAL_MAX_GOAL_CHARS, JEV_EVAL_MAX_ID_CHARS, JEV_EVAL_PARAGRAPH_FACT } from './constants.js'
 
 export const JEV_EVAL_KINDS = ['noul', 'choice', 'score'] as const
 export type JevEvalKind = (typeof JEV_EVAL_KINDS)[number]
 
+const idSchema = (): z.ZodString => z.string().min(1).max(JEV_EVAL_MAX_ID_CHARS).regex(JEV_EVAL_ID_PATTERN)
+
+const evidenceItemSchema = lazySchema(() =>
+  z.union(
+    [
+      z.string().min(1).describe(`A paragraph, sent as the one fact \`${JEV_EVAL_PARAGRAPH_FACT}\`; its row is keyed by position (#1, #2, …)`),
+      z
+        .object({
+          id: idSchema().optional().describe('The row label (letters, digits, _ and -); never sent to Jev; absent, the row is keyed by position'),
+        })
+        .catchall(z.string())
+        .describe(
+          "Named facts, sent verbatim as Jev's state: filtered excerpts and measured values only — never whole files, the transcript, environment values, secrets or stack traces; everything here leaves the machine under the selected road's data policy",
+        ),
+    ],
+    { error: 'an evidence item is a paragraph (a string) or a record of named facts (string values, an optional id)' },
+  ),
+)
+
+export type JevEvalEvidenceItem = z.infer<ReturnType<typeof evidenceItemSchema>>
+
 const questionSchema = lazySchema(() =>
   z.strictObject({
-    id: z
-      .string()
-      .min(1)
-      .max(JEV_EVAL_MAX_ID_CHARS)
-      .regex(JEV_EVAL_ID_PATTERN)
-      .describe('Your handle for this answer line (letters, digits, _ and -); never sent to Jev'),
+    id: idSchema().describe('Your handle for this answer column (letters, digits, _ and -); never sent to Jev'),
     kind: z
       .enum(JEV_EVAL_KINDS)
       .describe('noul: the probability a yes/no statement holds · choice: one of your options · score: a position on your ordered levels'),
@@ -54,16 +70,26 @@ export const jevEvalInputSchema = lazySchema(() =>
         .max(JEV_EVAL_MAX_GOAL_CHARS)
         .describe('One line: the decision this call serves (shown to the operator, not sent to Jev)'),
       evidence: z
-        .record(z.string(), z.string())
-        .describe(
-          "Named facts, sent verbatim as Jev's state: filtered excerpts and measured values only — never whole files, the transcript, environment values, secrets or stack traces; everything here leaves the machine under the selected road's data policy",
-        ),
-      questions: z.array(questionSchema()).min(1).describe('Every question you want answered against this evidence, in one call'),
+        .array(evidenceItemSchema())
+        .min(1)
+        .describe('The evidence items, each a record of named facts or a bare paragraph; every item is judged against every question, one request each, all at once; one table back'),
+      questions: z.array(questionSchema()).min(1).describe('The one question set, asked of every evidence item'),
     })
     .superRefine((input, ctx) => {
-      if (Object.keys(input.evidence).length === 0) {
-        ctx.addIssue({ code: 'custom', path: ['evidence'], message: 'evidence needs at least one named fact' })
-      }
+      const rows = new Set<string>()
+      input.evidence.forEach((item, index) => {
+        if (typeof item === 'string') {
+          if (item.trim() === '') ctx.addIssue({ code: 'custom', path: ['evidence', index], message: `evidence[${index}] is an empty paragraph` })
+          return
+        }
+        if (Object.keys(item).filter(key => key !== 'id').length === 0) {
+          ctx.addIssue({ code: 'custom', path: ['evidence', index], message: `evidence[${index}] needs at least one named fact besides its id` })
+        }
+        if (item.id !== undefined) {
+          if (rows.has(item.id)) ctx.addIssue({ code: 'custom', path: ['evidence', index, 'id'], message: `evidence[${index}].id "${item.id}" is used twice; ids are the row keys and must be unique` })
+          rows.add(item.id)
+        }
+      })
       const seen = new Set<string>()
       input.questions.forEach((question, index) => {
         const at = (field: string, message: string): void => {
