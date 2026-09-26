@@ -152,7 +152,7 @@ export type AgentToolInput = {
 }
 
 const CWD_PARAM_DESCRIPTION =
-  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist. A directory inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted — is used as named; any other directory is a permission question to the operator. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
+  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist. A directory inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted — is used as named; any other directory is a permission question to the operator, asked once per folder per session. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
 
 const admittedAgentDirectories = new Set<string>()
 
