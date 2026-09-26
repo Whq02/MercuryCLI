@@ -648,7 +648,7 @@ credential it belongs to changes — never remembered, never invented.
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
 the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on
-the coding base (the one the Z.AI console and Z.AI's own usage plugin read; it
+the coding base (the one the Z.AI console and Z.AI's own usage extension read; it
 is not a documented API, so its shape is decoded by the window's unit and
 length and the stated percent, and an answer Mercury cannot decode is a
 labelled "no usage read" line, never a wrong meter). The read is asked the
