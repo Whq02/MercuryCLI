@@ -83,6 +83,7 @@ src/commands.ts :: builtInCommandNames :: static-for-process
 src/commands.ts :: getSkillToolCommands :: invalidator=clearCommandMemoizationCaches
 src/commands.ts :: getSlashCommandToolSkills :: invalidator=clearCommandMemoizationCaches
 src/commands.ts :: loadAllCommands :: invalidator=clearCommandMemoizationCaches
+src/commands/model/mercuryModel.tsx :: headingsMemo :: ttl-bounded
 src/components/HelmLanesRail.tsx :: lastKnownRecent :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownTabulaOpenByDir :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownWakeGlance :: subscription-fed

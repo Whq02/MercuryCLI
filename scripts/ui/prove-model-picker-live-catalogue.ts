@@ -138,7 +138,20 @@ if (driver.kind !== 'posix-pty') {
   enableConfigs()
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
   const { OPENROUTER_MODEL_GROUP } = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-  const openrouterIndex = getModelOptions().findIndex(row => row.group === OPENROUTER_MODEL_GROUP)
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+  const picker = await import('../../src/utils/model/modelPickerGroups.ts')
+  const pickerRows = getModelOptions().map(row => ({
+    id: row.value,
+    name: row.label,
+    tag: row.description,
+    group: row.group ?? ANTHROPIC_MODEL_GROUP,
+    ...(isProviderActionRow(row.value) ? { action: true } : {}),
+    ...(row.unavailable !== undefined ? { gated: true } : {}),
+    ...(row.catalogueDoor ? { expand: { group: row.group ?? ANTHROPIC_MODEL_GROUP, family: row.catalogueDoor.family, total: row.catalogueDoor.total } } : {}),
+  }))
+  const pickerGroups = picker.orderPickerGroups(picker.groupPickerRows(pickerRows), { top: ANTHROPIC_MODEL_GROUP })
+  const stops = picker.composePickerLines(pickerGroups, picker.initialPickerFolds(pickerGroups, ANTHROPIC_MODEL_GROUP), '', () => undefined).filter(line => picker.isCursorStop(line))
+  const openrouterIndex = stops.findIndex(line => line.kind === 'row' && line.row.group === OPENROUTER_MODEL_GROUP)
   if (openrouterIndex < 0) throw new Error('OpenRouter is absent from the catalogue')
   const PICKER_REGION = [0, 0, 64, 40]
   const fixture = spawn(process.execPath, ['run', FIXTURE, String(PENDING_HOLD_MS)], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -198,7 +211,7 @@ if (driver.kind !== 'posix-pty') {
     })
     check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${(res.stderr ?? '').trim().slice(-300)}`)
     if (res.status !== 0) {
-      const frame = (res.stdout ?? '').split('\n').filter(l => l.includes('│ │') || /AVAILABLE|more\s*$/.test(l))
+      const frame = (res.stdout ?? '').split('\n').filter(l => l.includes('│ │') || /OPENROUTER|more\s*$/.test(l))
       console.log('  final frame (header · focus box · fold markers):\n' + frame.map(l => `    ${l.trimEnd()}`).join('\n'))
     }
     if (existsSync(grid)) {
@@ -213,12 +226,12 @@ if (driver.kind !== 'posix-pty') {
       if (pending && landed) {
         const p = text(pending.grid)
         const l = text(landed.grid)
-        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !p.includes('Anthropic: Claude Opus 5'))
-        check('landed: the catalogue rows replaced the connecting row', l.includes('Anthropic: Claude Opus 5') && l.includes('Google: Gemini 3.1 Pro') && !l.includes('OpenRouter — connecting…'))
-        check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('CHOOSE A MODEL') && p.includes('CHOOSE A MODEL'))
-        const countOf = (t: string): number => Number(/(\d+) AVAILABLE/.exec(t)?.[1] ?? NaN)
-        check(`the header count moved with the rows (+${FIXTURE_ROWS}, the fixture's lineup)`, countOf(l) === countOf(p) + FIXTURE_ROWS, `${countOf(p)} → ${countOf(l)}`)
-        check('the rows landed under the cursor (the focus box holds the first live row)', l.includes('│ │ Anthropic: Claude Opus 5'))
+        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !p.includes('anthropic/claude-opus-5'))
+        check('landed: the catalogue rows replaced the connecting row', l.includes('anthropic/claude-opus-5') && l.includes('google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'))
+        check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'))
+        const openrouterHeading = (t: string): string => t.split('\n').find(line => /[▾▸❯] OPENROUTER · /.test(line))?.trim() ?? ''
+        check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}`)
+        check('the rows landed under the cursor (the focus box holds the first live row)', /│ │ \S.*anthropic\/claude-opus-5 /.test(l))
       }
     } else {
       check('the capture wrote its grid', false)

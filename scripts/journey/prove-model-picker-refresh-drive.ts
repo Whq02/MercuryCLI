@@ -89,7 +89,7 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: 'sol answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
       { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', minTick: 1, awaitSettleTicks: 1, data: '', mark: 'cached' },
-      { afterPrevTicks: 60, awaitText: 'GPT-6 Astra                    ○ switch', awaitSettleTicks: 2, data: '', mark: 'refreshed' },
+      { afterPrevTicks: 60, awaitText: 'GPT-6 Astra', awaitSettleTicks: 2, data: '', mark: 'refreshed' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST, '--model', 'gpt-5.6-sol'], cwd, cols, rows, total: 450, stableTicks: 4, sends, out }))
     const status = await new Promise<number>((resolveCapture, reject) => {
@@ -115,16 +115,16 @@ for (const [cols, rows] of SIZES) {
     const refreshes = wire.filter(event => event.kind === 'models' && event.at > (turn?.at ?? Infinity))
     check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
     check(`${tag}: one turn primed the old list`, initial.length === 1 && turn !== undefined, `initial models requests ${initial.length}`)
-    const liveTerra = (frame: string): boolean => /GPT-5\.6 Terra[^\n]*switch/.test(frame)
-    const liveAstra = (frame: string): boolean => /GPT-6 Astra[^\n]*switch/.test(frame)
+    const liveTerra = (frame: string): boolean => /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}(?:current\s{2,})?\d/.test(frame)
+    const liveAstra = (frame: string): boolean => /GPT-6 Astra\s{2,}gpt-6-astra\s{2,}(?:current\s{2,})?\d/.test(frame)
     const openAt = payload.sendReceipts?.[3]?.ts ?? Infinity
     const cachedAt = payload.sendReceipts?.[4]?.ts ?? Infinity
     const landed = wire.find(event => event.kind === 'models-landed' && event.at > openAt)
     check(`${tag}: the cached rows paint before the delayed refresh`, liveTerra(before) && !liveAstra(before) && (landed === undefined || cachedAt < landed.at))
     check(`${tag}: opening makes exactly one background models request within the cache span`, refreshes.length === 1 && refreshes[0]!.at >= openAt && refreshes[0]!.at - turn!.at < 300_000, `refresh requests ${refreshes.length}`)
     check(`${tag}: the new rows replace the old live rows in place`, liveAstra(after) && !liveTerra(after), after)
-    check(`${tag}: focus stays on Sol after its row moves`, after.includes('gpt-5.6-sol · model IDs') || /❯\s+GPT-5\.6 Sol/.test(after))
-    if (after.includes('CHOOSE A MODEL')) check(`${tag}: the existing notice names the changed list`, after.includes('GPT — the live list changed'))
+    check(`${tag}: focus stays on Sol after its row moves`, /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after) || /❯ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(after))
+    if (after.includes('Mercury · model')) check(`${tag}: the existing notice names the changed list`, after.includes('GPT — the live list changed'))
   } finally {
     fixture.kill('SIGTERM')
   }

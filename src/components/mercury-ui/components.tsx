@@ -30,10 +30,12 @@ export function ProductLockup({
   view,
   subtitle,
   separator = ' — ',
+  plain = false,
 }: {
   view: string
   subtitle?: string
   separator?: string
+  plain?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
   const { accent } = useSessionAccent()
@@ -41,8 +43,8 @@ export function ProductLockup({
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
   const title = `Mercury${separator}${view}`
   const { isCompact } = useLayoutChrome()
-  const shimmer = useGreetingShimmer(isCompact ? [t.accent] : ramp, displayWidth(title))
-  if (isCompact) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
+  const shimmer = useGreetingShimmer(isCompact || plain ? [t.accent] : ramp, displayWidth(title))
+  if (isCompact || plain) return <Box height={1} overflow="hidden"><Text bold color={t.textPrimary} wrap="truncate-end">{title}{subtitle ? ` · ${subtitle}` : ''}</Text></Box>
   return (
     <Box>
       <Crab />

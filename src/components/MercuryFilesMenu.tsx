@@ -6,8 +6,9 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import { Box, Text, useInput } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { ProductLockup } from './mercury-ui/components.js'
-import { GLYPH, branchChip, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
+import { branchChip, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
 import { paneWindow } from './mercury-ui/geometry.js'
+import { MenuFilterLine, cutToWidth, foldLead } from './mercury-ui/menuFold.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
@@ -22,18 +23,7 @@ export const FILES_MENU_TITLE_VIEW = 'files'
 export const FILES_MENU_FILTER_PLACEHOLDER = 'filter by name'
 export const FILES_MENU_HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
 
-export function cutToWidth(text: string, width: number): string {
-  if (displayWidth(text) <= width) return text
-  let out = ''
-  let used = 0
-  for (const ch of text) {
-    const w = displayWidth(ch)
-    if (used + w > width) break
-    out += ch
-    used += w
-  }
-  return out
-}
+export { cutToWidth }
 
 export function readFolder(root: string, dir: string): TreeEntry[] {
   try {
@@ -206,7 +196,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
   const renderRow = (row: TreeRow, index: number): React.ReactNode => {
     const selected = index === cursorIndex
     const indent = '  '.repeat(row.depth)
-    const lead = selected ? `${GLYPH.prompt} ` : row.dir ? (row.open ? '▾ ' : '▸ ') : '  '
+    const lead = foldLead({ selected, folder: row.dir, open: row.open })
     const budget = Math.max(1, nameWidth - displayWidth(indent) - 2)
     const name = truncateToWidth(row.name, budget)
     const pad = ' '.repeat(Math.max(0, budget - displayWidth(name)))
@@ -251,12 +241,7 @@ export function MercuryFilesMenu({ root, width, rowBudget, onClose, onPick }: Pr
       <Box height={1} />
       {rows.slice(win.start, win.end).map((row, i) => renderRow(row, win.start + i))}
       <Box height={1} />
-      <Box height={1}>
-        <Text wrap="truncate-end">
-          <Text color={filterFocus ? accent : tok.textMuted}>/ </Text>
-          {filter !== '' ? <Text color={tok.textPrimary}>{filter}</Text> : <Text color={tok.textMuted}>{FILES_MENU_FILTER_PLACEHOLDER}</Text>}
-        </Text>
-      </Box>
+      <MenuFilterLine focused={filterFocus} text={filter} placeholder={FILES_MENU_FILTER_PLACEHOLDER} accent={accent} muted={tok.textMuted} primary={tok.textPrimary} />
       <Box height={1} width={inner + 1} marginRight={-1}>
         <Text color={tok.textMuted}>{cutToWidth(FILES_MENU_HINT, inner + 1)}</Text>
       </Box>

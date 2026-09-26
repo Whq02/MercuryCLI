@@ -27,3 +27,4 @@ prove-model-picker-one-row-drive.ts
 prove-panel-dismissal-drive.ts
 prove-diff-wrap-drive.ts
 prove-popup-owns-keys-drive.ts
+prove-model-picker-groups-drive.ts

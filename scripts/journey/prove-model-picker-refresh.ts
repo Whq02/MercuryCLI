@@ -110,8 +110,8 @@ try {
   answer!(response(newPage))
   await action
   await flush()
-  check('the changed rows replace the cached list', /GPT-6 Astra[^\n]*switch/.test(first.seen()) && !/GPT-5\.6 Terra[^\n]*switch/.test(first.seen()), first.seen())
-  check('the highlight follows the same id when the row moves', first.seen().includes('gpt-5.6-sol · model IDs'))
+  check('the changed rows replace the cached list', /GPT-6 Astra\s{2,}gpt-6-astra\s{2,}\d/.test(first.seen()) && !/GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}\d/.test(first.seen()), first.seen())
+  check('the highlight follows the same id when the row moves', /│ │ GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}current/.test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
   check('the changed list uses the existing notice', first.seen().includes('GPT — the live list changed'))
   first.unmount()
 

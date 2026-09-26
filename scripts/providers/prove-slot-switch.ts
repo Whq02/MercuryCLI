@@ -223,7 +223,7 @@ section('§E the surfaces ride the ONE owner (structural)')
   const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
   check("the /model picker's `s` rides the wrapper's onSlotSwitch", picker.includes("input === 's'") && picker.includes('onSlotSwitch(focusedModel.group)'))
   const wrapper = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check('the /model wrapper wires the owner + the seat words on the account surface', wrapper.includes('switchActiveSlot(family)') && wrapper.includes('active slot:') && wrapper.includes('s switches to'))
+  check('the /model wrapper wires the owner and marks the billing door on its heading', wrapper.includes('switchActiveSlot(family)') && wrapper.includes('...(slot.active ? { active: true } : {})') && readFileSync(join(ROOT, 'src/utils/model/modelPickerGroups.ts'), 'utf8').includes("if (door.active === true) parts.push('active')"))
   const router = readFileSync(join(ROOT, 'src/commands/router/router.tsx'), 'utf8')
   check('/router source grew the anthropic arm on the same doors', router.includes("rest[0] === 'anthropic'") && router.includes('writeAnthropicPreferredSource') && router.includes('resetLimitsForCredentialSwitch()'))
 }

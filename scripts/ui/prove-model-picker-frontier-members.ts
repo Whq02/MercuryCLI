@@ -85,8 +85,7 @@ if (driver.kind !== 'posix-pty') {
   const grid = join(SCRATCH, 'frontier-members-120x40.json')
   const cfgPath = join(SCRATCH, 'vshot.json')
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
-  const anthropicIndex = getModelOptions({ anthropicCredentialed: () => true }).findIndex(row => row.group === undefined)
-  if (anthropicIndex < 0) throw new Error('The Anthropic section is absent from the catalogue')
+  if (!getModelOptions({ anthropicCredentialed: () => true }).some(row => row.group === undefined)) throw new Error('The Anthropic section is absent from the catalogue')
   writeFileSync(
     cfgPath,
     JSON.stringify({
@@ -95,8 +94,7 @@ if (driver.kind !== 'posix-pty') {
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 4, data: '\r' },
-        { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 3, data: '\u001b[H' },
-        ...Array.from({ length: Math.max(0, anthropicIndex - 1) }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
+        { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 3, data: '\u001b[H' },
         { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
         { afterPrevTicks: 2, data: '\x1b' },
         { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
@@ -104,7 +102,7 @@ if (driver.kind !== 'posix-pty') {
         { requireAwait: true, awaitText: 'Model set to Fable 5.1', awaitStableTicks: 2, mark: 'set', data: '' },
         { afterPrevTicks: 3, data: '/model', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
-        { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'reopened', data: '' },
+        { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '' },
         { afterPrevTicks: 3, data: '\x1b' },
       ],
       total: 170,
@@ -166,7 +164,7 @@ if (driver.kind !== 'posix-pty') {
       const p = previousRow(ls)
       check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `${n} / ${p}`)
       check('picker: the previous row sits directly under the family row', p === n + 1, `${n} / ${p}`)
-      check("picker: both rows read 'switch' (neither is current yet)", /\bswitch\b/.test(ls[n] ?? '') && /\bswitch\b/.test(ls[p] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
+      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}claude-fable-5-1 {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
       check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
     }
     if (set) {
@@ -178,10 +176,10 @@ if (driver.kind !== 'posix-pty') {
       const n = newestRow(ls)
       const p = previousRow(ls)
       check("reopened: the newest row reads 'current' (the exact-generation alias set the row the family word resolves to)", n >= 0 && /\bcurrent\b/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
-      check("reopened: the previous row still reads 'switch'", p >= 0 && /\bswitch\b/.test(ls[p] ?? ''), (ls[p] ?? '').trim())
+      check("reopened: the previous row still carries no state word", p >= 0 && !/\bcurrent\b/.test(ls[p] ?? ''), (ls[p] ?? '').trim())
       const under = (ls[n + 1] ?? '').replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
       check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `"${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
-      check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('CHOOSE A MODEL') && reopened.atTick > (picker?.atTick ?? 0))
+      check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('Mercury · model') && reopened.atTick > (picker?.atTick ?? 0))
     }
   } else {
     check('the capture wrote its grid', false)

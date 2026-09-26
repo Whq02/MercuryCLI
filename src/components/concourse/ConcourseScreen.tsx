@@ -43,6 +43,7 @@ import {
 } from '../../services/concourse/concourseSnapshot.js';
 import { PARKED_CAP } from '../../utils/bootCardFacts.js';
 import { paneWindow, panelWidth } from '../mercury-ui/geometry.js';
+import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js';
 import { CoordinatorPane } from './CoordinatorPane.js';
 import { deriveGitOffer, GitOfferCard, gitOfferDescription, gitOfferFolderHeld, type GitOfferV1 } from './GitOfferCard.js';
 import { needsSeatOverloadAsk, SeatOverloadCard } from './SeatOverloadCard.js';
@@ -2570,8 +2571,8 @@ export function ConcourseScreen({
         <Box
           position="absolute"
           top={Math.max(0, geo.mainBand[0] - 1)}
-          left={Math.max(0, Math.floor((cols - panelWidth(cols, { cap: 62, reserve: 2, min: 20 })) / 2))}
-          width={Math.min(cols, panelWidth(cols, { cap: 62, reserve: 2, min: 20 }))}
+          left={Math.max(0, Math.floor((cols - panelWidth(cols, MODEL_PICKER_PANEL)) / 2))}
+          width={Math.min(cols, panelWidth(cols, MODEL_PICKER_PANEL))}
           flexDirection="column"
           opaque
         >
@@ -2648,8 +2649,8 @@ export function ConcourseScreen({
         <Box
           position="absolute"
           top={Math.max(0, geo.mainBand[0] - 1)}
-          left={Math.max(0, Math.floor((cols - panelWidth(cols, { cap: 62, reserve: 2, min: 20 })) / 2))}
-          width={Math.min(cols, panelWidth(cols, { cap: 62, reserve: 2, min: 20 }))}
+          left={Math.max(0, Math.floor((cols - panelWidth(cols, MODEL_PICKER_PANEL)) / 2))}
+          width={Math.min(cols, panelWidth(cols, MODEL_PICKER_PANEL))}
           flexDirection="column"
           opaque
         >

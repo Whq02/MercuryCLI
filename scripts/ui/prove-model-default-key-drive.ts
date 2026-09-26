@@ -28,7 +28,7 @@ const FULL_HINT = '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose'
 const DOOR = '▸ n starts a blank session in this project'
 const FOOTER_AS_SHIPPED = '↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face'
 const FOOTER_WITH_KEY = `↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`
-const PICKER_LEFT = 58
+const PICKER_LEFT = 39
 const PICKER_TOP = 3
 const PICKER_BOTTOM = 46
 const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
@@ -145,16 +145,11 @@ function capture(id: string, home: string, argv: string[], sends: Send[], opts: 
 
 const rowWith = (lines: string[], needle: string): string => lines.find(l => l.includes(needle)) ?? ''
 const trimmedRow = (lines: string[], needle: string): string => rowWith(lines, needle).trim()
-const ANTHROPIC_TITLE = 'MERCURY — ANTHROPIC MODELS'
-const lineUnder = (lines: string[], title: string): string => {
-  const at = lines.findIndex(l => l.includes(title))
-  if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const right = lines[at]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
-}
+const ANTHROPIC_TITLE = ' ANTHROPIC · '
+const headingOf = (lines: string[], title: string): string => (lines.find(l => l.includes(title)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
+const anthropicKeyHeading = (lines: string[]): boolean => /^[▾❯] ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(lines, ANTHROPIC_TITLE))
 const pickerFrames = (lines: string[]): boolean =>
-  (lines[PICKER_TOP] ?? '')[PICKER_LEFT] === '╭' && (lines[PICKER_BOTTOM] ?? '')[PICKER_LEFT] === '╰' && (lines[PICKER_TOP + 1] ?? '')[PICKER_LEFT] === '│'
+  (lines[PICKER_TOP] ?? '')[PICKER_LEFT] === '╭' && (lines[PICKER_TOP + 1] ?? '')[PICKER_LEFT] === '│' && lines.some((l, at) => at > PICKER_TOP && at <= PICKER_BOTTOM && l[PICKER_LEFT] === '╰')
 const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
 
 console.log('============================================================')
@@ -178,8 +173,8 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const home = seededHome('board')
   const c = capture('board', home, [], [
     ...boardSends,
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: UP },
-    { afterPrevTicks: 3, data: RIGHT },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: UP },
+    { afterPrevTicks: 3, data: 'e' },
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'Sonnet 5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
     { afterPrevTicks: 3, data: TAB },
@@ -195,15 +190,15 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('with the coordinator panel focused, the door row reads as shipped and the bottom row carries no m phrase', rowWith(coord, DOOR) !== '' && !rowWith(coord, DOOR).includes(`${DOOR} · `) && rowWith(coord, 'esc boot face').includes('coordinator model') && !rowWith(coord, 'esc boot face').includes(PHRASE), `${trimmedRow(coord, DOOR)} / ${trimmedRow(coord, 'esc boot face')}`)
   check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
-  check('m opens the picker over the concourse (the title row)', rowWith(picker, 'Mercury — model') !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(3, 8).join(' | '))
-  check('the picker spans the main band, centred (rows 3–46, left column 58)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
+  check('m opens the picker over the concourse (the plain title row)', rowWith(picker, 'Mercury · model') !== '' && rowWith(picker, 'CHOOSE A MODEL') === '', picker.slice(3, 8).join(' | '))
+  check('the picker sits in the main band, centred (top row 3, left column 39, its bottom border inside the band)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
   check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
-  check('the line under the Anthropic title reads signed in alone', lineUnder(picker, ANTHROPIC_TITLE) === 'signed in', lineUnder(picker, ANTHROPIC_TITLE))
+  check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   const saved = settingsOf(home)
   check("a pick writes the saved default (settings.json model names the picked row, effortLevel the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effortLevel === 'xhigh', JSON.stringify(saved))
-  check('the door row follows at once (Sonnet 5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5 · ◉ xhigh`) && !picked.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(picked, DOOR))
-  check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('CHOOSE A MODEL')), typed.filter(l => l.includes('❯')).join(' | '))
+  check('the door row follows at once (Sonnet 5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5 · ◉ xhigh`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
+  check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯')).join(' | '))
 }
 
 section('§2 --chat: the hint row without m menu, the bottom row names m, m opens the picker over the face, esc closes it')
@@ -211,7 +206,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const home = seededHome('chat')
   const c = capture('chat', home, ['--chat'], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: ESC },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: ESC },
     { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, mark: 'closed', data: '' },
   ], { total: 260, ready: ['↑↓ choose'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
@@ -220,10 +215,10 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const closed = c.marks.get('closed') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
-  check('m opens the picker over the face, centred (rows 3–46, left column 58), the card still beside it', rowWith(picker, 'Mercury — model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), picker.slice(3, 8).join(' | '))
+  check('m opens the picker over the face, centred (top row 3, left column 39), the card still beside it', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), picker.slice(3, 8).join(' | '))
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
-  check('the line under the Anthropic title reads signed in alone', lineUnder(picker, ANTHROPIC_TITLE) === 'signed in', lineUnder(picker, ANTHROPIC_TITLE))
-  check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('CHOOSE A MODEL')), trimmedRow(closed, '>_ ready'))
+  check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
+  check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_ ready'))
 }
 
 section('§3 the face outside --chat: the same door — m menu gone from the hint row, the bottom row names m, m opens the picker')
@@ -231,13 +226,13 @@ section('§3 the face outside --chat: the same door — m menu gone from the hin
   const home = seededHome('face')
   const c = capture('face', home, [], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: '' },
-  ], { total: 200, ready: ['esc close'] })
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: '' },
+  ], { total: 200, ready: ['esc or click outside closes'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const face = c.marks.get('face') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
   check('the bottom row names the concourse and m', trimmedRow(face, '⇧→') === `⇧→ concourse · ${PHRASE}`, trimmedRow(face, '⇧→'))
-  check('m opens the picker over the face', (c.marks.get('picker') ?? []).some(l => l.includes('CHOOSE A MODEL')))
+  check('m opens the picker over the face', (c.marks.get('picker') ?? []).some(l => l.includes('Mercury · model')))
 }
 
 section("§4 the chat's /model: the picker without its frontier rows")
@@ -248,16 +243,16 @@ section("§4 the chat's /model: the picker without its frontier rows")
     { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'chat', data: '' },
     { afterPrevTicks: 1, data: '/model' },
     { afterPrevTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'picker', data: '' },
-  ], { total: 360, ready: ['esc close'] })
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: '' },
+  ], { total: 360, ready: ['esc or click outside closes'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const chat = c.marks.get('chat') ?? []
   check('the row above the composer reads ready · Opus 5.5 · high, the way back at its right, the project name gone from it', /^ready · Opus 5\.5 · high {2,}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')) && !trimmedRow(chat, '← back').includes('fixture-cwd'), trimmedRow(chat, '← back'))
   const picker = c.marks.get('picker') ?? []
-  const at = picker.findIndex(l => l.includes('Z.AI MODELS'))
+  const zai = headingOf(picker, ' Z.AI · ')
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
-  check('the credential line stays under the Anthropic title and reads signed in alone', lineUnder(picker, ANTHROPIC_TITLE) === 'signed in', lineUnder(picker, ANTHROPIC_TITLE))
-  check('the Z.AI group title is followed by its credential line', at >= 0 && (picker[at + 1] ?? '').includes('no Z.AI API key'), (picker[at + 1] ?? '').trim())
+  check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
+  check('the Z.AI heading carries its not-connected reason', zai !== '' && zai.includes('no Z.AI API key'), zai)
 }
 
 section('§5 the setting off (sessionDefaultsKey false in settings.json): every row as shipped, m does what it did')
@@ -273,7 +268,7 @@ section('§5 the setting off (sessionDefaultsKey false in settings.json): every 
   const afterM = a.marks.get('after-m') ?? []
   check('the door row reads as shipped (no pair)', rowWith(board, DOOR) !== '' && !rowWith(board, DOOR).includes(`${DOOR} · `), trimmedRow(board, DOOR))
   check('the bottom row reads as shipped', trimmedRow(board, 'esc boot face') === FOOTER_AS_SHIPPED, trimmedRow(board, 'esc boot face'))
-  check('m opens no picker', !afterM.some(l => l.includes('CHOOSE A MODEL')))
+  check('m opens no picker', !afterM.some(l => l.includes('Mercury · model')))
   const homeChat = seededHome('off-chat', off)
   const b = capture('off-chat', homeChat, ['--chat'], [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
@@ -341,19 +336,19 @@ section('§7 the Boot face picker asks OpenAI for the live list when it opens: t
     const base = `http://127.0.0.1:${port}`
     const c = capture('gpt-face', home, [], [
       { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 2, data: '\u001b[A'.repeat(12) },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 2, data: '\u001b[A'.repeat(12) },
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', awaitStableTicks: 3, mark: 'picker', data: ESC },
       { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, mark: 'closed', data: '' },
     ], { total: 260, ready: ['↑↓ choose'], env: e => ({ ...e, MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` }) })
     check('the drive delivered every send (exit 0): the fetched GPT rows painted on the Boot face picker', c.status === 0, `exit ${c.status}`)
     const picker = c.marks.get('picker') ?? []
     const gptRows = picker.filter(l => l.includes('GPT')).map(l => l.trim()).join(' | ')
-    check('the picker lists the fetched GPT rows as switchable', /GPT-5\.6 Sol[^\n]*switch/.test(picker.join('\n')) && /GPT-5\.6 Terra[^\n]*switch/.test(picker.join('\n')), gptRows)
+    check('the picker lists the fetched GPT rows as switchable (no unavailable word)', /GPT-5\.6 Sol\s{2,}gpt-5\.6-sol\s{2,}(?!unavailable)\S/.test(picker.join('\n')) && /GPT-5\.6 Terra\s{2,}gpt-5\.6-terra\s{2,}(?!unavailable)\S/.test(picker.join('\n')), gptRows)
     check('no row reads connecting or not fetched yet', picker.length > 0 && !picker.some(l => l.includes('GPT — connecting') || l.includes('not fetched yet')), gptRows)
     check('the first list arrives without a changed-list notice', picker.length > 0 && !picker.some(l => l.includes('the live list changed')))
     const wire = readFileSync(wireFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { kind: string })
     check('exactly one models request reached the fixture, and no session was born for it', wire.filter(e => e.kind === 'models').length === 1 && !wire.some(e => e.kind === 'openai'), wire.map(e => e.kind).join(','))
-    check('esc closes the picker back to the face', (c.marks.get('closed') ?? []).some(l => l.includes('↑↓ choose')) && !(c.marks.get('closed') ?? []).some(l => l.includes('CHOOSE A MODEL')))
+    check('esc closes the picker back to the face', (c.marks.get('closed') ?? []).some(l => l.includes('↑↓ choose')) && !(c.marks.get('closed') ?? []).some(l => l.includes('Mercury · model')))
   } finally {
     fixture.kill('SIGTERM')
   }
@@ -381,12 +376,12 @@ section('§8 the board with sessions keeps the new-session line as its first row
     { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 4, data: '', mark: 'line' },
     { afterPrevTicks: 2, data: 'm' },
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'default-picker', data: ESC },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'default-picker', data: ESC },
     { requireAwait: true, awaitText: LINE, awaitSettleTicks: 3, data: DOWN },
     { afterPrevTicks: 4, data: '', mark: 'row' },
     { afterPrevTicks: 2, data: 'm' },
-    { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'session-picker', data: UP },
-    { afterPrevTicks: 3, data: RIGHT },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'session-picker', data: UP },
+    { afterPrevTicks: 3, data: 'e' },
     { afterPrevTicks: 3, data: '\r' },
     { afterPrevTicks: 8, data: '', mark: 'session-picked' },
   ], { total: 900, ready: ['esc focused chat'] })
@@ -403,11 +398,11 @@ section('§8 the board with sessions keeps the new-session line as its first row
   check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
   check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5.5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
   check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
-  check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
+  check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('Mercury · model')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
-  check('m on a session row opens a picker over the board', sessionPicker.some(l => l.includes('CHOOSE A MODEL')) && pickerFrames(sessionPicker), sessionPicker.slice(3, 8).join(' | '))
+  check('m on a session row opens a picker over the board', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker), sessionPicker.slice(3, 8).join(' | '))
   const afterPick = settingsOf(home)
-  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('CHOOSE A MODEL')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
+  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
 }
 
@@ -426,15 +421,15 @@ if (CASE === undefined || CASE === 'session-effort') {
       { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
       { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 5, mark: 'opened', data: RIGHT },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 5, mark: 'opened', data: 'e' },
       { afterPrevTicks: 12, data: '', mark: 'after-arrow' },
-    ], { cols, rows, total: 600, ready: ['CHOOSE A MODEL'] })
+    ], { cols, rows, total: 600, ready: ['Mercury · model'] })
     const opened = c.marks.get('opened') ?? []
     const after = c.marks.get('after-arrow') ?? []
     check(`${cols}x${rows}: the drive delivered every send`, c.status === 0, `exit ${c.status}`)
     check(`${cols}x${rows}: the session picker opens on low`, opened.some(l => l.includes('[low]')), opened.filter(l => l.includes('effort')).join(' | '))
     check(`${cols}x${rows}: the session ladder carries no supercode`, opened.length > 0 && !opened.some(l => l.includes('supercode')))
-    check(`${cols}x${rows}: the next arrow advances from low to medium`, after.some(l => l.includes('[medium]')), after.filter(l => l.includes('effort')).join(' | '))
+    check(`${cols}x${rows}: e advances the effort from low to medium`, after.some(l => l.includes('[medium]')), after.filter(l => l.includes('effort')).join(' | '))
     check(`${cols}x${rows}: the saved default remains high`, settingsOf(home).effortLevel === 'high')
     if (FRAMES !== undefined) {
       mkdirSync(FRAMES, { recursive: true })
