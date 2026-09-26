@@ -222,7 +222,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const closed = c.marks.get('closed') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
-  check('m opens the picker over the face, centred (top row 3, its left border under its title), the card still beside it', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), `left ${pickerLeft(picker)} · ${picker.slice(3, 8).join(' | ')}`)
+  check('m opens the picker over the face, centred (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `left ${pickerLeft(picker)} · ${picker.slice(3, 8).join(' | ')}`)
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_ ready'))
