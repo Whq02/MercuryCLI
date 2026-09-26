@@ -18,7 +18,7 @@ const COLS = 80
 const ROWS = 21
 const LANDING_NOTICE = 'the session is landing — your line sends when it lands'
 const TAIL = '/model to return'
-const GPT_REPLY = 'sol answers from the fixture'
+const GPT_WALL = 'openai-usage_limit_reached'
 
 let failures = 0
 let checks = 0
@@ -85,7 +85,8 @@ const base = `http://127.0.0.1:${port}`
 const childEnv: NodeJS.ProcessEnv = {
   PATH: process.env.PATH,
   HOME: RUN_HOME,
-  TMPDIR: realpathSync(tmpdir()),
+  TMPDIR: '.',
+  VSHOT_SLOTS: process.env.VSHOT_SLOTS,
   TERM: 'xterm-256color',
   LANG: 'en_US.UTF-8',
   SHELL: '/bin/zsh',
@@ -131,7 +132,7 @@ const sends = [
   { afterPrevTicks: 1, data: '', mark: 'landing-2' },
   { afterPrevTicks: 2, data: '', mark: 'landing-3' },
   { requireAwait: true, awaitText: 'OpenAI usage window', awaitSettleTicks: 4, data: '\r', mark: 'offer' },
-  { requireAwait: true, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'confirm' },
+  { requireAwait: true, awaitText: 'Set model to', awaitSettleTicks: 1, data: '', mark: 'confirm' },
   { requireAwait: true, awaitText: 'failover lane', awaitSettleTicks: 4, data: '', mark: 'settled' },
 ]
 const out = path.join(RUN_HOME, 'grid.json')
@@ -165,7 +166,9 @@ const underReady = held.filter(rows => (rows[0] ?? '').includes('● ready'))
 check('a line typed right after ↵ on New Session is held for the landing: the notice stands on at least one of the frames that follow', held.length > 0, landingFrames.map(rows => rows[rows.length - 1] ?? '').join(' | '))
 check('the landing window is on the frames: the band names the wordmark and no ● ready while no session holds the slot', landingFrames.some(rows => (rows[0] ?? '').includes('✶ Mercury') && !(rows[0] ?? '').includes('● ready')), landingFrames.map(rows => rows[0] ?? '').join(' | '))
 check('the notice never stands under a ● ready band before the held line has landed: every such frame carries the sent line on the transcript (the notice keeps its own seconds after the landing)', underReady.every(rows => rows.some(row => row.includes('❯ hello sol'))), underReady.map(rows => `${rows[0] ?? ''} / ${rows.find(row => row.includes('❯')) ?? 'no transcript row'}`).join(' | '))
-check('the held line sent when the session landed and was answered', frame('offer').some(row => row.includes(GPT_REPLY)) || frame('settled').some(row => row.includes(GPT_REPLY)), frame('offer').join(' | ').slice(0, 300))
+const requests = readFileSync(captureFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { kind?: string; body?: unknown })
+const sourceRequests = requests.filter(row => row.kind === 'openai')
+check('the held line reached the source exactly once and its usage refusal painted before the handoff', sourceRequests.length === 1 && JSON.stringify(sourceRequests[0]!.body).includes('hello sol') && [...frame('offer'), ...frame('settled')].some(row => row.includes(GPT_WALL)), JSON.stringify(sourceRequests).slice(0, 300))
 check('once the session has landed the band reads ● ready again', (frame('offer')[0] ?? '').includes('● ready'), frame('offer')[0] ?? '')
 
 printFrame('settled')
