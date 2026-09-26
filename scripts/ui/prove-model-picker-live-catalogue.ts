@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { idCellPattern, showsId } from '../lib/pickerCells.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -14,7 +15,9 @@ const FIXTURE = join(import.meta.dir, 'openrouter-catalogue-fixture-server.ts')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-live-catalogue-'))
 process.env.MERCURY_CONFIG_DIR = SCRATCH
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-dummy0000000000'
-process.env.OPENROUTER_API_KEY = 'sk-or-v1-fixture0000000000000000'
+const OPENROUTER_KEY = 'sk-or-v1-fixture0000000000000000'
+const OPENROUTER_KEY_TAIL = OPENROUTER_KEY.slice(-4)
+process.env.OPENROUTER_API_KEY = OPENROUTER_KEY
 process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:9/api/v1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -186,7 +189,7 @@ if (driver.kind !== 'posix-pty') {
           { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' },
           ...Array.from({ length: openrouterIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
-          { requireAwait: true, awaitText: 'anthropic/claude-opus-5', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
+          { requireAwait: true, awaitText: `OPENROUTER · API key · …${OPENROUTER_KEY_TAIL} · ${FIXTURE_ROWS} live`, awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },
         ],
         total: 150,
@@ -226,12 +229,12 @@ if (driver.kind !== 'posix-pty') {
       if (pending && landed) {
         const p = text(pending.grid)
         const l = text(landed.grid)
-        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !p.includes('anthropic/claude-opus-5'))
-        check('landed: the catalogue rows replaced the connecting row', l.includes('anthropic/claude-opus-5') && l.includes('google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'))
+        check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !showsId(p, 'openrouter/anthropic/claude-opus-5'))
+        check('landed: the catalogue rows replaced the connecting row (each id in its cell, cut to the column with …)', showsId(l, 'openrouter/anthropic/claude-opus-5') && showsId(l, 'openrouter/google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'), l.split('\n').filter(line => line.includes('openrouter/')).map(line => line.trim()).join(' | '))
         check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'))
-        const openrouterHeading = (t: string): string => t.split('\n').find(line => /[▾▸❯] OPENROUTER · /.test(line))?.trim() ?? ''
+        const openrouterHeading = (t: string): string => (t.split('\n').find(line => /[▾▸❯] OPENROUTER · /.test(line)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
         check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}`)
-        check('the rows landed under the cursor (the focus box holds the first live row)', /│ │ \S.*anthropic\/claude-opus-5 /.test(l))
+        check('the rows landed under the cursor (the focus box holds the first live row)', new RegExp(`│ │ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ │ ')).map(line => line.trim()).join(' | '))
       }
     } else {
       check('the capture wrote its grid', false)
