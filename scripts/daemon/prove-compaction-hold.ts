@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK } from './compaction-hold-fixture-words.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -168,6 +169,19 @@ section('F4 the wiring — the seat, the roster, the daemon, the hint row, the c
   check('the normalizer carries the held dress beside the queued one onto the row the plate reads', normalize.includes("...(message.queued === true ? { queued: true as const } : {})") && normalize.includes("...(message.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {})"))
   const rowMemo = read('components/Message.tsx')
   check('the row repaints when the held dress moves, as it does for the queued one', rowMemo.includes("(prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false"))
+}
+
+section("F5 a context block is known by its header and its isMeta mark, never by its words — the fixture's recognisers are the product's own")
+{
+  const { operatorMessagesBlockText } = await import(join(SRC, 'services/compact/operatorMessages.ts'))
+  const { normalizeAttachmentForAPI } = await import(join(SRC, 'utils/messages/attachmentText.ts'))
+  const { getCompactUserSummaryMessage } = await import(join(SRC, 'services/compact/prompt.ts'))
+  const block = { type: 'compact_operator_messages', messages: [{ ordinal: 2, text: 'second held words' }, { ordinal: 1, text: 'first held words' }], omitted: 0 }
+  const projected = normalizeAttachmentForAPI(block as never) as Array<{ isMeta?: boolean; message: { content: unknown } }>
+  const projectedText = projected.length === 1 && typeof projected[0]!.message.content === 'string' ? projected[0]!.message.content : ''
+  check("the operator block projects to ONE meta user row headed by the fixture's block header", projected.length === 1 && projected[0]!.isMeta === true && projectedText.startsWith(BLOCK_HEADER) && operatorMessagesBlockText(block as never).startsWith(BLOCK_HEADER), projectedText.slice(0, 120))
+  check('…the header stands whatever the entries say (a different block, the same head)', operatorMessagesBlockText({ ...block, messages: [{ ordinal: 1, text: 'other words entirely' }] } as never).startsWith(BLOCK_HEADER))
+  check("the summary row opens with the fixture's summary header", getCompactUserSummaryMessage('the stretch').startsWith(SUMMARY_HEADER) && !getCompactUserSummaryMessage('the stretch').startsWith(BLOCK_HEADER))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
@@ -379,23 +393,33 @@ if (!existsSync(DIST)) {
   check('the held lines ran as the turn after it', autoHeldResult !== null)
   await reap()
 
-  type Wire = { kind: string; n?: number; ask?: string; order?: string[]; last?: string[]; tools?: number; at: number }
+  type Wire = { kind: string; n?: number; ask?: string; order?: string[]; last?: string[]; block?: string[]; parts?: string[]; twice?: string[]; tools?: number; at: number }
   const wire: Wire[] = readFileSync(captureFile, 'utf8')
     .split('\n')
     .filter(l => l.trim() !== '')
     .map(l => JSON.parse(l) as Wire)
-  for (const c of wire) console.log(`  #${c.n ?? '-'} ${c.kind} ask=${j((c.ask ?? '').slice(0, 40))} last=${j(c.last ?? [])}`)
+  for (const c of wire) console.log(`  #${c.n ?? '-'} ${c.kind} ask=${j((c.ask ?? '').slice(0, 40))} last=${j(c.last ?? [])} block=${j(c.block ?? [])} parts=${j(c.parts ?? [])}`)
   const asks = wire.filter(w => (w.kind === 'anthropic' || w.kind === 'tool-turn') && (w.tools ?? 0) > 0)
   const carrying = (words: string): Wire[] => asks.filter(c => (c.last ?? []).includes(words))
+  const partsOf = (c: Wire | undefined): string[] => c?.parts ?? []
   const foldLanded = wire.filter(w => w.kind === 'fold-landed')
-  section('the wire: once, in order, behind nothing newer')
+  section('the wire: delivered once, in order, behind nothing newer — a context block, known by its header, is not a delivery')
   check('the fold landed twice on the wire (the manual fold, the automatic one)', foldLanded.length === 2, j(foldLanded))
   const heldRequest = carrying(FIRST)[0]
-  check('exactly one request carries the held lines, after the manual fold landed, first before second', carrying(FIRST).length === 1 && heldRequest !== undefined && heldRequest.at > foldLanded[0]!.at && j(heldRequest.last) === j([FIRST, SECOND]), j(carrying(FIRST).map(c => [c.n, c.last])))
-  check('no request ever carried the withdrawn words', carrying(WITHDRAWN).length === 0)
-  check('the later line rode behind the held ones — its own request, after theirs', carrying(LATER).length === 1 && carrying(LATER)[0]!.n! > heldRequest!.n!, j(carrying(LATER).map(c => c.n)))
+  check('exactly one request delivers the held lines, after the manual fold landed, first before second (the block that carries them again after the automatic fold is not a delivery)', carrying(FIRST).length === 1 && heldRequest !== undefined && heldRequest.at > foldLanded[0]!.at && j(heldRequest.last) === j([FIRST, SECOND]), j(carrying(FIRST).map(c => [c.n, c.last])))
+  check('no request ever delivered the withdrawn words', carrying(WITHDRAWN).length === 0)
+  check('the later line rode behind the held ones — its own request, after theirs (its words inside a later block are not a delivery)', carrying(LATER).length === 1 && carrying(LATER)[0]!.n! > heldRequest!.n!, j(carrying(LATER).map(c => c.n)))
   const autoRequest = carrying(AUTO1)[0]
-  check('the automatic fold: one request carries both auto-held lines, in order, after that fold landed', carrying(AUTO1).length === 1 && autoRequest !== undefined && autoRequest.at > foldLanded[1]!.at && j(autoRequest.last) === j([AUTO1, AUTO2]), j(carrying(AUTO1).map(c => [c.n, c.last])))
+  check('the automatic fold: one request delivers both auto-held lines, in order, after that fold landed', carrying(AUTO1).length === 1 && autoRequest !== undefined && autoRequest.at > foldLanded[1]!.at && j(autoRequest.last) === j([AUTO1, AUTO2]), j(carrying(AUTO1).map(c => [c.n, c.last])))
+  section("the block's own law: once per request, ahead of the summary, never the last user text; no line twice outside it")
+  const firstAfter = foldLanded.map(fold => asks.find(c => c.at > fold.at))
+  check('the first request after each fold carries the block, ahead of the summary', firstAfter.length === 2 && firstAfter.every(c => partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(firstAfter.map(c => [c?.n, c?.parts])))
+  const withBlock = asks.filter(c => partsOf(c).includes(BLOCK_MARK))
+  check('every request carrying the block carries it once, and the summary after it', withBlock.length >= 2 && withBlock.every(c => partsOf(c).filter(p => p === BLOCK_MARK).length === 1 && partsOf(c).indexOf(BLOCK_MARK) >= 0 && partsOf(c).indexOf(BLOCK_MARK) < partsOf(c).indexOf(SUMMARY_MARK)), j(withBlock.map(c => [c.n, c.parts])))
+  check('the block is never the last user text: the delivered lines ride last after it — the held lines as one batched text, the later line, the auto-held lines', withBlock.every(c => partsOf(c).at(-1) !== BLOCK_MARK) && partsOf(heldRequest).at(-1) === `${FIRST}\n${SECOND}` && partsOf(carrying(LATER)[0]).at(-1) === LATER && partsOf(autoRequest).at(-1) === `${AUTO1}\n${AUTO2}`, j(withBlock.map(c => [c.n, partsOf(c).at(-1)])))
+  const afterAutoFold = firstAfter[1]
+  check('after the fold inside a running turn nothing is delivered: the summary is the last user text, and the folded lines ride only inside the block', afterAutoFold !== undefined && partsOf(afterAutoFold).at(-1) === SUMMARY_MARK && (afterAutoFold.last ?? []).length === 0 && [FIRST, SECOND, LATER].every(w => (afterAutoFold.block ?? []).includes(w)), j(afterAutoFold))
+  check('no line rides twice in one request outside the block', asks.every(c => (c.twice ?? []).length === 0), j(asks.filter(c => (c.twice ?? []).length > 0).map(c => [c.n, c.twice])))
   if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
   else {
     console.log(`[forensics] world kept: ${RUN_HOME}`)
