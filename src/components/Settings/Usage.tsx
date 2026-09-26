@@ -12,7 +12,6 @@ import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
   CREDITS_UNREPORTED_WORDS,
   anthropicPoolWindowViews,
-  anthropicSignInEmail,
   anthropicWindowViews,
   openaiObservedWindowViews,
   providerFamilyPresences,
@@ -27,6 +26,7 @@ import {
   type ProviderSessionSpend,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
+import { providerIdentityLine, providerIdentitySentence } from '../../services/providers/providerIdentityLine.js'
 import { jevUsdLabel } from '../../services/jev/jevContract.js'
 import { type JevSessionFacts, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
@@ -155,6 +155,10 @@ function Meter({
 function SlotHeading({ text }: { text: string }): React.ReactNode {
   const tokens = useMercuryTokens()
   return <Text bold color={tokens.textSecondary}>{text}</Text>
+}
+
+function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode {
+  return <Text dimColor wrap="truncate-end">{providerIdentitySentence(providerIdentityLine(family))}</Text>
 }
 
 export const SCHEDULED_SPEND_LABEL = 'Scheduled'
@@ -375,6 +379,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text bold>OpenAI usage</Text>
+      <IdentityLine family="openai" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
         {sub === undefined ? (
@@ -440,6 +445,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
   return (
     <Box flexDirection="column">
       <Text bold>OpenRouter usage</Text>
+      <IdentityLine family="openrouter" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="OAuth-minted key" />
         {oauth === undefined ? (
@@ -477,6 +483,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text bold>Gemini usage</Text>
+      <IdentityLine family="gemini" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Google account" />
         {oauth === undefined ? (
@@ -518,6 +525,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text bold>Hugging Face usage</Text>
+      <IdentityLine family="huggingface" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Sign-in" />
         {account?.kind === 'oauth' ? (
@@ -565,6 +573,7 @@ function LocalUsageSection(): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text bold>Local models usage</Text>
+      <IdentityLine family="local" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Servers" />
         {account && snapshot ? (
@@ -597,6 +606,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
     return (
       <Box flexDirection="column">
         <Text bold>{section.title}</Text>
+        <IdentityLine family={section.id} />
         <Text dimColor>not connected — {section.connect}.</Text>
       </Box>
     )
@@ -612,6 +622,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   return (
     <Box flexDirection="column">
       <Text bold>{section.title}</Text>
+      <IdentityLine family={section.id} />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
         <Text dimColor>{absentSlotLine('this family connects by API key')}</Text>
@@ -641,6 +652,7 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text bold>Moonshot usage</Text>
+      <IdentityLine family="moonshot" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Kimi sign-in" />
         {account?.kind === 'kimi-oauth' ? (
@@ -855,13 +867,12 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
   const view = providerUsageView('anthropic')
   const keyEntry = view.entries.find(e => e.kind === 'api-key')
   const owner = usageForProvider('anthropic')
-  const signInEmail = subscriber ? anthropicSignInEmail() : undefined
   return (
     <Box flexDirection="column">
       <Text bold>Anthropic usage</Text>
+      <IdentityLine family="anthropic" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
-        {signInEmail !== undefined ? <Text dimColor wrap="truncate-end">Signed in as {signInEmail}</Text> : null}
         {anthropicSection}
       </Box>
       <ApiKeySlot

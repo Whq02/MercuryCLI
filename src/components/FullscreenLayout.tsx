@@ -59,6 +59,7 @@ import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSug
 import { CrewViewSlot } from './CrewViewSlot.js'
 import { CrewmateCard } from './CrewmateCard.js'
 import { useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import type {
   Message as WireMessage,
   NormalizedMessage,
@@ -149,6 +150,17 @@ export function useUnseenDivider(
   const shrunkRef = useRef(false)
   if (messageCount < previousCountRef.current) shrunkRef.current = true
   previousCountRef.current = messageCount
+  const viewKey = useAppStateMaybeOutsideOfProvider(state => state.viewingAgentTaskId) ?? ''
+  const viewKeyRef = useRef(viewKey)
+  const parkedRef = useRef(new Map<string, { index: number | null; y: number | null }>())
+  if (viewKey !== viewKeyRef.current) {
+    parkedRef.current.set(viewKeyRef.current, { index: dividerIndex, y: clearSnapshotRef.current ? null : dividerYRef.current })
+    clearSnapshotRef.current = false
+    viewKeyRef.current = viewKey
+    const parked = parkedRef.current.get(viewKey)
+    dividerYRef.current = parked?.y ?? null
+    if ((parked?.index ?? null) !== dividerIndex) setDividerIndex(parked?.index ?? null)
+  }
 
   if (dividerIndex !== null && messageCount < dividerIndex) {
     setDividerIndex(null)
@@ -521,7 +533,7 @@ export function FullscreenLayout({
       </ScrollBox>
       {!hidePill && dividerYRef && scrollRef && (!isCompact || (compactBudget?.transcriptMinRows ?? 0) > 0) ? (
         <JumpPill
-          divider={divider}
+          divider={viewedCrewmate === null ? divider : undefined}
           scrollRef={scrollRef}
           dividerYRef={dividerYRef}
           onClick={() => onPillClick?.()}

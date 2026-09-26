@@ -12,7 +12,7 @@ capture is the composer.
   next take would use and your default, the capture backend.
   `/speak options` chooses the transcriber; `/speak download` fetches the
   on-device model.
-- With voice input on, hold space for 3 s to speak: the take opens at the
+- With voice input on, hold space for 1 s to speak: the take opens at the
   threshold, holding keeps it recording, releasing the key stops it and
   sends the take to the transcriber; `esc` cancels it (nothing leaves the
   machine). This works with words already in the composer and any number

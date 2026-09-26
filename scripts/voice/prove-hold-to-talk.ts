@@ -290,7 +290,7 @@ const composer = new Composer(extracted.filter)
 check('the composer filter was lifted from PromptInput.tsx and runs', typeof extracted.filter === 'function', extracted.source.slice(0, 120))
 console.log(`  · hold module: ${hold === null ? 'ABSENT (the base)' : `present — threshold ${hold.HOLD_TO_TALK_MS} ms, gap floor ${hold.RELEASE_GAP_FLOOR_MS} ms, first-repeat window ${hold.FIRST_REPEAT_WINDOW_MS} ms`}`)
 
-const THRESHOLD = hold?.HOLD_TO_TALK_MS ?? 3_000
+const THRESHOLD = hold?.HOLD_TO_TALK_MS ?? 1_000
 const gapFor = (interval: number | null): number => hold?.releaseGapMs(interval) ?? 0
 const fresh = (text: string): void => {
   hold?.resetHoldToTalkForTest()
@@ -319,11 +319,11 @@ section('§1 a single press types one space at once — with words in the compos
   check('a double-tapped space before a letter: both spaces land, in order ("x  y")', composer.text() === 'x  y', JSON.stringify(composer.text()))
 }
 
-section(`§2 a 2 s hold flushes its held-back spaces and opens nothing`)
+section(`§2 a 500 ms hold flushes its held-back spaces and opens nothing`)
 {
   fresh('hello')
   let heldDuring = true
-  const run = holdSpace(composer, 2_000, {
+  const run = holdSpace(composer, 500, {
     onRepeat: () => {
       if (composer.text() !== 'hello ') heldDuring = false
     },
@@ -338,11 +338,11 @@ section(`§2 a 2 s hold flushes its held-back spaces and opens nothing`)
   check('…and no take opened', phase() === 'idle' && fx.posts() === 0, `phase=${phase()} posts=${fx.posts()}`)
 }
 
-section(`§3 the wolf-fence: with "hello" in the composer, a 3.2 s hold opens a take; the release stops it; "world" lands as "hello world"`)
+section(`§3 the wolf-fence: with "hello" in the composer, a 1.2 s hold opens a take; the release stops it; "world" lands as "hello world"`)
 {
   fresh('hello')
   let openedAt: number | null = null
-  const run = holdSpace(composer, 3_200, {
+  const run = holdSpace(composer, 1_200, {
     onRepeat: t => {
       if (openedAt === null && hold !== null && hold.holdToTalkSnapshot()?.phase !== 'holding') openedAt = t
     },
@@ -373,7 +373,7 @@ section('§4 usable again: a second hold after a landed transcript opens a secon
   const before = fx.posts()
   composer.set('hello world')
   hold?.resetHoldToTalkForTest()
-  holdSpace(composer, 3_200)
+  holdSpace(composer, 1_200)
   clock.advance(0)
   await until(() => phase() === 'recording', 2_000)
   check('a second hold, with the first transcript in the composer, opened a second take (the base: never)', phase() === 'recording', `the draft is ${JSON.stringify(composer.text().slice(0, 14))}${composer.text().length > 14 ? `… (${composer.text().length} chars — every space typed)` : ''} and the phase is ${phase()}`)
@@ -387,7 +387,7 @@ section('§5 esc during a take cancels it; the rest of the hold is swallowed; th
 {
   fresh('note')
   const before = fx.posts()
-  holdSpace(composer, 3_200)
+  holdSpace(composer, 1_200)
   clock.advance(0)
   await until(() => phase() === 'recording', 2_000)
   check('the take is open', phase() === 'recording' && composer.text() === 'note', `phase=${phase()} draft=${JSON.stringify(composer.text())}`)
@@ -407,7 +407,7 @@ section('§5 esc during a take cancels it; the rest of the hold is swallowed; th
 
 section('§6 the numbers: the gap derives from the measured repeat interval with a floor and a ceiling; the first-repeat window covers the OS initial delay')
 if (hold !== null) {
-  check(`the threshold is one named constant: HOLD_TO_TALK_MS = 3000`, hold.HOLD_TO_TALK_MS === 3_000, String(hold.HOLD_TO_TALK_MS))
+  check(`the threshold is one named constant: HOLD_TO_TALK_MS = 1000`, hold.HOLD_TO_TALK_MS === 1_000, String(hold.HOLD_TO_TALK_MS))
   check(`a 30 ms repeat rate: the gap is the floor (${hold.RELEASE_GAP_FLOOR_MS} ms)`, hold.releaseGapMs(30) === hold.RELEASE_GAP_FLOOR_MS, String(hold.releaseGapMs(30)))
   check('a 90 ms repeat rate (the macOS default): the gap is twice the interval, 180 ms', hold.releaseGapMs(90) === 180, String(hold.releaseGapMs(90)))
   check(`a 400 ms repeat rate (the slowest Windows setting): 800 ms, under the ceiling`, hold.releaseGapMs(400) === 800, String(hold.releaseGapMs(400)))
@@ -422,9 +422,12 @@ if (hold !== null) {
   composer.press(' ')
   clock.advance(400)
   composer.press(' ')
-  check('a 900 ms initial delay then 400 ms repeats is still one hold (the draft holds one typed space)', composer.text() === 'slow ' && hold.holdToTalkSnapshot()?.phase === 'holding', `draft=${JSON.stringify(composer.text())} state=${hold.holdToTalkSnapshot()?.phase ?? 'none'}`)
+  clock.advance(0)
+  await until(() => phase() === 'recording', 2_000)
+  check('a 900 ms initial delay then 400 ms repeats is still one hold (the take opens past the threshold)', composer.text() === 'slow' && hold.holdToTalkSnapshot()?.phase === 'recording', `draft=${JSON.stringify(composer.text())} state=${hold.holdToTalkSnapshot()?.phase ?? 'none'}`)
   clock.advance(hold.releaseGapMs(400))
-  check('…and its release flushes the three held-back spaces', composer.text() === 'slow    ', JSON.stringify(composer.text()))
+  await until(() => phase() === 'idle', 5_000)
+  check('…and its release stops the take without flushing held-back spaces', composer.text() === 'slow world' && phase() === 'idle', JSON.stringify(composer.text()))
   void t0
   fresh('burst')
   composer.press(' ')
@@ -465,7 +468,7 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
   session.setVoiceInputEnabled(false)
   const on = await speak.call('on', {} as never)
   const onText = on.type === 'text' ? on.value : ''
-  check('/speak on teaches the hold (the threshold in seconds), the release, esc, and /voice for a key that never repeats', /hold space/.test(onText) && /3 s|3 seconds|three seconds/.test(onText) && /release/.test(onText) && /esc/.test(onText) && /\/voice/.test(onText) && /repeat/.test(onText) && !/empty composer/.test(onText), onText.split('\n')[0] ?? '')
+  check('/speak on teaches the hold (the threshold in seconds), the release, esc, and /voice for a key that never repeats', /hold space/.test(onText) && /1 s|1 second|one second/.test(onText) && /release/.test(onText) && /esc/.test(onText) && /\/voice/.test(onText) && /repeat/.test(onText) && !/empty composer/.test(onText), onText.split('\n')[0] ?? '')
   const off = await speak.call('off', {} as never)
   check('/speak off says OFF and that space is a space again', off.type === 'text' && /OFF/.test(off.value) && /space is a space/.test(off.value), off.type === 'text' ? off.value : off.type)
   session.setVoiceInputEnabled(true)
@@ -476,7 +479,7 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
   check('/voice starts a take and its receipt names /voice again and esc, not the space key', phase() === 'recording' && /\/voice/.test(startedText) && /esc/.test(startedText) && !/space/.test(startedText), startedText)
   session.cancelVoiceCapture()
   const docs = readFileSync(join(ROOT, 'docs', 'VOICE.md'), 'utf8')
-  check('docs/VOICE.md says the new law and names the threshold and /voice for a terminal without key repeat', /hold space/i.test(docs) && /release/.test(docs) && /3 s|three seconds|3 seconds/.test(docs) && /key repeat/.test(docs) && !/press space in an empty composer/.test(docs), docs.split('\n').filter(l => /space/.test(l)).slice(0, 3).join(' · '))
+  check('docs/VOICE.md says the new law and names the threshold and /voice for a terminal without key repeat', /hold space/i.test(docs) && /release/.test(docs) && /1 s|one second|1 second/.test(docs) && /key repeat/.test(docs) && !/press space in an empty composer/.test(docs), docs.split('\n').filter(l => /space/.test(l)).slice(0, 3).join(' · '))
 }
 
 section('§8 the composer wiring by source: the filter delegates to the reader, the editor seam is registered, esc still cancels')
