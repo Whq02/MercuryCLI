@@ -260,7 +260,7 @@ import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
-import { drainSdkEvents } from '../utils/sdkEventQueue.js'
+import { drainSdkEvents, subscribeSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
 import { operatorPauseGate } from '../run-core/pauseGate.js'
@@ -1195,6 +1195,7 @@ export async function runHeadless(
     command: QueuedCommand,
     batch: QueuedCommand[],
     onMessage: (message: StdoutMessage) => void,
+    initialNotices: QueuedCommand[] = [],
   ): Promise<void> => {
     const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
     const batchTail: BatchedPrompt[] =
@@ -1205,7 +1206,7 @@ export async function runHeadless(
             ...(member.origin !== undefined ? { origin: member.origin } : {}),
           }))
         : []
-    emitTaskNotificationFrames(taskNotificationPayloads(command))
+    emitCommandNotifications([...initialNotices, command])
     abortSuggestion()
     if (lastEmittedSuggestion && command.mode !== 'task-notification') {
       const value = command.value
@@ -1268,6 +1269,7 @@ export async function runHeadless(
           promptUuid: command.uuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),
+          ...(initialNotices.length > 0 ? { initialNotices } : {}),
           isMeta: command.isMeta,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
@@ -1575,6 +1577,15 @@ export async function runHeadless(
     }
   }
 
+  const announcedNotifications = new WeakSet<QueuedCommand>()
+  const emitCommandNotifications = (commands: readonly QueuedCommand[]): void => {
+    for (const command of commands) {
+      if (announcedNotifications.has(command)) continue
+      announcedNotifications.add(command)
+      emitTaskNotificationFrames(taskNotificationPayloads(command))
+    }
+  }
+
   let retiringQueuedCommands = false
   const retireQueuedCommands = (commands: QueuedCommand[]): void => {
     retiringQueuedCommands = true
@@ -1588,7 +1599,7 @@ export async function runHeadless(
     if (event.kind !== 'removed' || retiringQueuedCommands) return
     for (const drained of event.commands) {
       if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue
-      emitTaskNotificationFrames(taskNotificationPayloads(drained))
+      emitCommandNotifications([drained])
     }
   })
 
@@ -1629,10 +1640,10 @@ export async function runHeadless(
       }
       return openEdge
     },
-    executeTurn: (command, batch, onMessage) =>
+    executeTurn: (command, batch, onMessage, initialNotices) =>
       executeTurn(command, batch, message => {
         onMessage(message)
-      }),
+      }, initialNotices),
     onTurnSettled: () => {
       generateSuggestionAfterTurn()
       logHeadlessProfilerTurn()
@@ -1677,6 +1688,7 @@ export async function runHeadless(
       skillChangeDetector.dispose()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()
+      stopIdleSdkDrain()
       statusListeners.delete(rateLimitListener)
       notePrintPhase('flush_exit')
       logForDebugging(`[print-phases] ${jsonStringify(printPhaseReport(getTotalAPIDuration()))}`)
@@ -1697,6 +1709,10 @@ export async function runHeadless(
     wall: () => sessionLaneWall(),
   })
 
+  const stopIdleSdkDrain = subscribeSdkEvents(() => {
+    if (driver.isRunning()) return
+    for (const event of drainSdkEvents()) io.outbound.enqueue(event)
+  })
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
     if (queued.some(command => command.priority === 'now')) {
@@ -1704,6 +1720,7 @@ export async function runHeadless(
     }
     if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
       driver.kick()
+      if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))
     }
   })
 

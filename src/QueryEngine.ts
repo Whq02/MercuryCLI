@@ -25,7 +25,9 @@ import type {
   UserMessage,
 } from './types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from './types/wire.js'
-import type { BatchedPrompt, OrphanedPermission } from './types/textInputTypes.js'
+import type { BatchedPrompt, OrphanedPermission, QueuedCommand } from './types/textInputTypes.js'
+import { createAttachmentMessage } from './utils/attachments/orchestrator.js'
+import { getQueuedCommandAttachments } from './utils/attachments/queuedCommands.js'
 import { getGlobalConfig } from './utils/config.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
 import type { FileStateCache } from './utils/fileStateCache.js'
@@ -201,7 +203,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; origin?: MessageOrigin; skipSlashCommands?: boolean },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; initialNotices?: QueuedCommand[]; origin?: MessageOrigin; skipSlashCommands?: boolean },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -341,6 +343,11 @@ export class QueryEngine {
       nestedMemoryAttachmentTriggers: new Set<string>(),
       dynamicSkillDirTriggers: new Set<string>(),
     })
+    if (options?.initialNotices?.length) {
+      const attachments = await getQueuedCommandAttachments(options.initialNotices)
+      this.mutableMessages.push(...attachments.map(createAttachmentMessage))
+      if (!persistenceDisabled) await this.#recordDelta(this.mutableMessages)
+    }
     let toolUseContext = buildContext(this.mutableMessages, resolvedModel)
 
     if (config.orphanedPermission && !this.#orphanedPermissionHandled) {
@@ -1008,6 +1015,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   skipSlashCommands?: boolean
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
+  initialNotices?: QueuedCommand[]
   promptMode?: 'prompt' | 'bash'
   mutableMessages?: Message[]
   getReadFileCache: () => FileStateCache
@@ -1025,6 +1033,7 @@ export async function* ask(
     skipSlashCommands,
     batchUuids,
     batchTail,
+    initialNotices,
     promptMode,
     mutableMessages = [],
     getReadFileCache,
@@ -1046,6 +1055,7 @@ export async function* ask(
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
       ...(batchUuids !== undefined ? { batchUuids } : {}),
       ...(batchTail !== undefined ? { batchTail } : {}),
+      ...(initialNotices !== undefined ? { initialNotices } : {}),
     })
   } finally {
     setReadFileCache(engine.getReadFileState())
