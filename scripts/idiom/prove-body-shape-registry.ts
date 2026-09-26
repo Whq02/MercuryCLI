@@ -224,6 +224,14 @@ const ATTACHMENTS: Record<string, Fixture> = {
   lane_boundary: { good: { laneId: 'l', goal: 'g', boundary: 'b' }, bad: [{ label: 'boundary is missing', field: 'boundary', fields: { laneId: 'l', goal: 'g' } }] },
   bagel_console: { good: { errorCount: 1, warningCount: 0, sample: 's' }, bad: [{ label: 'errorCount is text', field: 'errorCount', fields: { errorCount: 'one', warningCount: 0, sample: 's' } }] },
   user_context: { good: { body: 'b' }, bad: [{ label: 'body is a list', field: 'body', fields: { body: ['b'] } }] },
+  compact_operator_messages: {
+    good: { messages: [{ ordinal: 1, text: 't' }], omitted: 0 },
+    bad: [
+      { label: 'messages is text', field: 'messages', fields: { messages: 't', omitted: 0 } },
+      { label: 'a message without its text', field: 'text', fields: { messages: [{ ordinal: 1 }], omitted: 0 } },
+      { label: 'omitted is text', field: 'omitted', fields: { messages: [], omitted: 'none' } },
+    ],
+  },
 }
 
 const NOTICES: Record<string, Fixture> = {

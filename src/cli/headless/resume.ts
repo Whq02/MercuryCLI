@@ -94,7 +94,7 @@ export async function loadInitialMessages(
             }
           }
         }
-        restoreSessionStateFromLog(result, setAppState)
+        await restoreSessionStateFromLog(result, setAppState)
 
         restoreSessionMetadata(
           options.forkSession
@@ -186,7 +186,7 @@ export async function loadInitialMessages(
           await resetSessionFilePointer()
         }
       }
-      restoreSessionStateFromLog(result, setAppState)
+      await restoreSessionStateFromLog(result, setAppState)
 
       restoreSessionMetadata(
         options.forkSession

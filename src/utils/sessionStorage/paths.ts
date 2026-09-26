@@ -1,6 +1,7 @@
 
+import type { Dirent } from 'fs'
 import { readFile, readdir } from 'fs/promises'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import type { UUID } from 'crypto'
 import {
   getOriginalCwd,
@@ -105,6 +106,32 @@ export function getAgentTranscriptPath(agentId: AgentId): string {
 
 export function getAgentMetadataPath(agentId: AgentId): string {
   return getAgentTranscriptPath(agentId).replace(/\.jsonl$/, '.meta.json')
+}
+
+const AGENT_TRANSCRIPT_FILE = /^agent-.+\.jsonl$/
+const AGENT_TREE_MAX_DEPTH = 4
+
+export async function listAgentTranscriptPaths(transcriptPath: string, sessionId: string): Promise<string[]> {
+  const out: string[] = []
+  const walk = async (dir: string, depth: number): Promise<void> => {
+    let names: Dirent[]
+    try {
+      names = await readdir(dir, { withFileTypes: true })
+    } catch (e) {
+      if (isFsInaccessible(e)) return
+      throw e
+    }
+    for (const entry of names) {
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (depth < AGENT_TREE_MAX_DEPTH) await walk(full, depth + 1)
+      } else if (AGENT_TRANSCRIPT_FILE.test(entry.name)) {
+        out.push(full)
+      }
+    }
+  }
+  await walk(join(dirname(transcriptPath), sessionId, 'subagents'), 0)
+  return out.sort()
 }
 
 export function getWorkflowTranscriptDir(runId: string): string {

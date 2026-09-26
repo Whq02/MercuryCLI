@@ -157,6 +157,87 @@ addAsync('getMatchingHooks', 'no-session-store', async () =>
   ),
 )
 
+const INTERRUPT_SID = 'fixture-interrupt-hooks'
+const interruptAppState = {
+  sessionHooks: new Map([
+    [
+      INTERRUPT_SID,
+      {
+        hooks: {
+          Interrupt: [
+            mk('operator', 'echo the-operator'),
+            mk('idle-timeout|parent-stop', 'echo not-the-operator'),
+            mk('*', 'echo any-cut'),
+            mk(undefined, 'echo always'),
+          ],
+        },
+      },
+    ],
+  ]),
+  sessionFunctionHooks: new Map(),
+} as never
+addAsync('getMatchingHooks', 'interrupt-reason-matcher', async () =>
+  H.getMatchingHooks(
+    interruptAppState,
+    INTERRUPT_SID,
+    'Interrupt' as never,
+    {
+      hook_event_name: 'Interrupt',
+      reason: 'operator',
+      turn_id: 'chain-fixture',
+      tools: ['Bash'],
+      session_id: INTERRUPT_SID,
+      transcript_path: '/t',
+      cwd: '/c',
+    } as never,
+  ),
+)
+addAsync('executeInterruptHooks', 'input-shape-via-session-callback', async () => {
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  let captured: unknown
+  const appState = {
+    sessionHooks: new Map([
+      [
+        getSessionId(),
+        {
+          hooks: {
+            Interrupt: [
+              {
+                matcher: undefined as never,
+                hooks: [
+                  {
+                    hook: {
+                      type: 'callback' as const,
+                      callback: async (input: unknown) => {
+                        captured = input
+                        return {}
+                      },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    ]),
+    sessionFunctionHooks: new Map(),
+  }
+  const results = await H.executeInterruptHooks(
+    { turnId: 'chain-fixture', reason: 'operator', tools: ['Bash', 'Bash'] },
+    { getAppState: () => appState, agentId: undefined, agentType: undefined } as never,
+    'default',
+  )
+  return neutralObj({ captured, results })
+})
+addAsync('executeInterruptHooks', 'nothing-wired-runs-nothing', async () =>
+  H.executeInterruptHooks(
+    { turnId: 'chain-fixture', reason: 'cut', detail: 'the retry budget was spent', tools: [] },
+    { getAppState: () => ({ sessionHooks: new Map(), sessionFunctionHooks: new Map() }), agentId: undefined } as never,
+    'default',
+  ),
+)
+
 const OP = await import('../../src/utils/hooks/outputProcessing.ts')
 const opProject = (r: Record<string, unknown>) => {
   const { message: _message, ...rest } = r

@@ -52,6 +52,40 @@ export type DapBreakpointSpec = {
   logMessage?: string
 }
 
+export type DapDataAccessType = 'read' | 'write' | 'readWrite'
+
+export type DapDataBreakpointSpec = {
+  dataId: string
+  accessType?: DapDataAccessType
+  condition?: string
+  hitCondition?: string
+}
+
+export type DapInstructionBreakpointSpec = {
+  instructionReference: string
+  offset?: number
+  condition?: string
+  hitCondition?: string
+}
+
+export type DapBreakpointVerdict = {
+  verified: boolean
+  message?: string
+  id?: number
+}
+
+export type DapDataBreakpointInfo = {
+  dataId: string | null
+  description: string
+  accessTypes?: DapDataAccessType[]
+  canPersist?: boolean
+}
+
+export type DapWriteMemoryReceipt = {
+  offset?: number
+  bytesWritten?: number
+}
+
 export type DapAdapterSpec = {
   command: string
   args: string[]
@@ -1423,6 +1457,90 @@ export class DapSession {
     }))
     this.breakpoints.set(path, verified)
     return verified
+  }
+
+  #breakpointVerdicts(body: Record<string, unknown>, count: number): DapBreakpointVerdict[] {
+    const reported = Array.isArray(body.breakpoints)
+      ? (body.breakpoints as Array<{ verified?: boolean; message?: string; id?: number }>)
+      : []
+    return Array.from({ length: count }, (_, i) => ({
+      verified: reported[i]?.verified === true,
+      ...(typeof reported[i]?.id === 'number' ? { id: reported[i]?.id } : {}),
+      ...(typeof reported[i]?.message === 'string' ? { message: reported[i]?.message } : {}),
+    }))
+  }
+
+  async dataBreakpointInfo(args: {
+    name: string
+    variablesReference?: number
+    frameId?: number
+  }): Promise<DapDataBreakpointInfo> {
+    const body = await this.request('dataBreakpointInfo', {
+      name: args.name,
+      ...(args.variablesReference !== undefined ? { variablesReference: args.variablesReference } : {}),
+      ...(args.frameId !== undefined ? { frameId: args.frameId } : {}),
+    })
+    const accessTypes = Array.isArray(body.accessTypes)
+      ? (body.accessTypes as unknown[]).filter(
+          (t): t is DapDataAccessType => t === 'read' || t === 'write' || t === 'readWrite',
+        )
+      : undefined
+    return {
+      dataId: typeof body.dataId === 'string' && body.dataId.length > 0 ? body.dataId : null,
+      description: typeof body.description === 'string' ? body.description : '',
+      ...(accessTypes !== undefined ? { accessTypes } : {}),
+      ...(typeof body.canPersist === 'boolean' ? { canPersist: body.canPersist } : {}),
+    }
+  }
+
+  async setDataBreakpoints(specs: DapDataBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    const body = await this.request(
+      'setDataBreakpoints',
+      {
+        breakpoints: specs.map(s => ({
+          dataId: s.dataId,
+          ...(s.accessType !== undefined ? { accessType: s.accessType } : {}),
+          ...(s.condition !== undefined ? { condition: s.condition } : {}),
+          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
+        })),
+      },
+      BREAKPOINT_REQUEST_TIMEOUT_MS,
+    )
+    return this.#breakpointVerdicts(body, specs.length)
+  }
+
+  async setInstructionBreakpoints(specs: DapInstructionBreakpointSpec[]): Promise<DapBreakpointVerdict[]> {
+    const body = await this.request(
+      'setInstructionBreakpoints',
+      {
+        breakpoints: specs.map(s => ({
+          instructionReference: s.instructionReference,
+          ...(s.offset !== undefined ? { offset: s.offset } : {}),
+          ...(s.condition !== undefined ? { condition: s.condition } : {}),
+          ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
+        })),
+      },
+      BREAKPOINT_REQUEST_TIMEOUT_MS,
+    )
+    return this.#breakpointVerdicts(body, specs.length)
+  }
+
+  async writeMemory(args: {
+    memoryReference: string
+    data: string
+    offset?: number
+    allowPartial?: boolean
+  }): Promise<DapWriteMemoryReceipt> {
+    const body = await this.request('writeMemory', {
+      memoryReference: args.memoryReference,
+      data: args.data,
+      ...(args.offset !== undefined ? { offset: args.offset } : {}),
+      ...(args.allowPartial !== undefined ? { allowPartial: args.allowPartial } : {}),
+    })
+    return {
+      ...(typeof body.offset === 'number' ? { offset: body.offset } : {}),
+      ...(typeof body.bytesWritten === 'number' ? { bytesWritten: body.bytesWritten } : {}),
+    }
   }
 
   async waitForStopOutcome(

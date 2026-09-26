@@ -13,7 +13,9 @@ inspects or steps the stopped program: `breakpoints`, `threads`, `stack`,
 `stepOut`, `pause`, `output`, `status`, `disconnect`. Higher-frequency
 inspection ops — `loadedSources`, `modules`, `exceptionBreakpoints`,
 `source`, `completions`, `setVariable` — and the native-debugging set —
-`functionBreakpoints`, `disassemble`, `readMemory`, `restart` — are
+`functionBreakpoints`, `dataBreakpoints` (stop on the write or read of a
+variable), `instructionBreakpoints`, `disassemble`, `readMemory`,
+`writeMemory`, `restart` — are
 capability-gated against what the adapter actually announced, with precise
 refusals. `customRequest` is the escape hatch: any DAP request verbatim,
 permission-gated because an arbitrary request can mutate the debuggee.

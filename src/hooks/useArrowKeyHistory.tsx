@@ -22,11 +22,20 @@ const SEARCH_HINT_KEY = 'history-search-hint'
 let loadedEntries: HistoryEntry[] = []
 let loadedFilter: HistoryMode | undefined
 let loadExhausted = false
+let loadGeneration = 0
 let pendingLoad: {
   filter: HistoryMode | undefined
   target: number
+  generation: number
   promise: Promise<HistoryEntry[]>
 } | null = null
+
+function dropLoadedEntries(): void {
+  loadedEntries = []
+  loadedFilter = undefined
+  loadExhausted = false
+  loadGeneration++
+}
 
 function entryMode(entry: HistoryEntry): HistoryMode {
   return getModeFromInput(entry.display)
@@ -41,11 +50,12 @@ async function loadEntries(
     return loadedEntries
   }
   if (pendingLoad !== null) {
-    if (pendingLoad.filter === filter && pendingLoad.target >= target) {
+    if (pendingLoad.generation === loadGeneration && pendingLoad.filter === filter && pendingLoad.target >= target) {
       return pendingLoad.promise
     }
     await pendingLoad.promise.catch(() => {})
   }
+  const generation = loadGeneration
   const load = (async (): Promise<HistoryEntry[]> => {
     if (loadedFilter !== filter) {
       loadedEntries = []
@@ -53,21 +63,25 @@ async function loadEntries(
       loadedFilter = filter
     }
     const collected: HistoryEntry[] = []
+    let exhausted = false
     try {
       for await (const entry of getHistory()) {
         if (filter !== undefined && entryMode(entry) !== filter) continue
         collected.push(entry)
         if (collected.length >= target) break
       }
-      if (collected.length < target) loadExhausted = true
+      if (collected.length < target) exhausted = true
     } catch (error) {
       logForDebugging(`history load failed: ${error}`)
-      loadExhausted = true
+      exhausted = true
     }
-    loadedEntries = collected
+    if (generation === loadGeneration) {
+      loadedEntries = collected
+      loadExhausted = exhausted
+    }
     return collected
   })()
-  pendingLoad = { filter, target, promise: load }
+  pendingLoad = { filter, target, generation, promise: load }
   try {
     return await load
   } finally {
@@ -134,6 +148,7 @@ export function useArrowKeyHistory(
     const wasAtBottom = indexRef.current === 0
     if (wasAtBottom) {
       filterRef.current = modeRef.current === 'bash' ? 'bash' : undefined
+      dropLoadedEntries()
       if (inputRef.current.trim() !== '') {
         savedDraftRef.current = {
           input: inputRef.current,
@@ -212,9 +227,7 @@ export function useArrowKeyHistory(
     indexRef.current = 0
     filterRef.current = undefined
     savedDraftRef.current = null
-    loadedEntries = []
-    loadedFilter = undefined
-    loadExhausted = false
+    dropLoadedEntries()
     removeNotification(SEARCH_HINT_KEY)
   }, [removeNotification])
 

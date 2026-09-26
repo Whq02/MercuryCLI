@@ -659,6 +659,9 @@
         "functionBreakpoints",
         "disassemble",
         "readMemory",
+        "dataBreakpoints",
+        "instructionBreakpoints",
+        "writeMemory",
         "restart",
         "customRequest"
       ],

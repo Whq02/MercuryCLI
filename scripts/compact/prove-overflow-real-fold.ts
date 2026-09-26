@@ -189,7 +189,7 @@ section('F1 the home lane — overflow → the real fold → the retry → a rep
   check('the summary call carried the fold prompt', r.wire[1] !== undefined && /summar/i.test(wireText(r.wire[1].body)))
   const retry = r.wire[2]
   check('the retried request ends with the operator message VERBATIM', retry !== undefined && wireLastUserText('anthropic', retry.body).endsWith(OPERATOR_ASK), retry !== undefined ? wireLastUserText('anthropic', retry.body).slice(-80) : 'no retry')
-  check('the retried request opens on the summary, not the folded history', retry !== undefined && wireText(retry.body).includes('SUMMARY: the earlier modules') && !wireText(retry.body).includes('ask 0: adjust module 0'))
+  check('the retried request opens on the summary, not the folded history', retry !== undefined && wireText(retry.body).includes('SUMMARY: the earlier modules') && !wireText(retry.body).includes('reply 0: module 0 adjusted'))
   const boundary = boundaryOf(r.yields)
   const meta = (boundary as { compactMetadata?: { trigger?: string; overflow?: { family?: string; shape?: string; actualTokens?: number }; preTokens?: number } } | undefined)?.compactMetadata
   check("the REAL compact_boundary row yields, typed 'overflow'", meta?.trigger === 'overflow', JSON.stringify(meta))
@@ -271,7 +271,7 @@ section('F5 a long history keeps its verbatim tail through the overflow fold; th
   const retry = r.wire[2]
   const body = retry !== undefined ? wireText(retry.body) : ''
   check('the verbatim tail rode the fold (a recent round is on the retried request in full)', body.includes('reply 11: module 11 adjusted'), body.slice(0, 200))
-  check('the oldest history did not (it lives in the summary)', !body.includes('ask 0: adjust module 0'))
+  check('the oldest history did not (it lives in the summary)', !body.includes('reply 0: module 0 adjusted'))
   check('the operator message rides LAST, after the tail', retry !== undefined && wireLastUserText('anthropic', retry.body).endsWith(OPERATOR_ASK))
   const meta = (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string; preservedSegment?: unknown } } | undefined)?.compactMetadata
   check("the boundary is typed 'overflow' and records the preserved segment", meta?.trigger === 'overflow' && meta.preservedSegment !== undefined, JSON.stringify(meta))

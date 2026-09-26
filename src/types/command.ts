@@ -97,6 +97,7 @@ export type LocalCommandResult =
       type: 'compact'
       compactionResult: {
         boundaryMarker: Message
+        operatorMessages?: Message
         summaryMessages: Message[]
         messagesToKeep?: Message[]
         attachments: Message[]
