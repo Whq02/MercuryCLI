@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Box, elementScreenLeft, measureElement, type DOMElement } from '../ink.js'
+import { Box, elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
   settingsPopupRequest,
@@ -25,13 +25,15 @@ export function centredTop(height: number, terminalRows: number): number {
   return Math.max(0, Math.ceil((terminalRows - Math.min(height, terminalRows)) / 2))
 }
 
-export type SettingsPopupHost = { left: number; columns: number }
+export type SettingsPopupHost = { left: number; columns: number; top?: number; rows?: number }
 
 export function settingsPopupHost(element: DOMElement, framed: boolean): SettingsPopupHost | null {
   const inset = framed ? 1 : 0
-  const columns = measureElement(element).width - 2 * inset
+  const measured = measureElement(element)
+  const columns = measured.width - 2 * inset
   if (columns <= 0) return null
-  return { left: elementScreenLeft(element) + inset, columns }
+  const rows = measured.height - 2 * inset
+  return { left: elementScreenLeft(element) + inset, columns, ...(rows > 0 ? { top: elementScreenTop(element) + inset, rows } : {}) }
 }
 
 export function settingsPopupGeometry(
@@ -39,15 +41,21 @@ export function settingsPopupGeometry(
   columns: number,
   terminalRows: number,
   hostLeft = 0,
+  hostBand?: { top: number; rows: number },
 ): SettingsPopupPlacement {
   const width = Math.min(request.width, Math.max(SETTINGS_POPUP_MIN_WIDTH, columns))
   const left = hostLeft + Math.max(0, Math.floor((columns - width) / 2))
+  const ceiling = hostBand === undefined ? terminalRows : Math.min(terminalRows, hostBand.rows)
   const rows =
     request.rows === null
       ? null
-      : Math.max(SETTINGS_POPUP_CHROME_ROWS + 1, Math.min(request.rows, terminalRows))
+      : Math.max(SETTINGS_POPUP_CHROME_ROWS + 1, Math.min(request.rows, ceiling))
   const rowBudget = Math.max(1, (rows ?? terminalRows) - SETTINGS_POPUP_CHROME_ROWS)
-  const top = rows === null ? null : centredTop(rows, terminalRows)
+  const centred = rows === null ? null : centredTop(rows, terminalRows)
+  const top =
+    centred === null || hostBand === undefined
+      ? centred
+      : Math.max(hostBand.top, Math.min(centred, hostBand.top + hostBand.rows - (rows ?? 0)))
   return { width, inner: width - 4, rowBudget, left, top, rows }
 }
 
@@ -72,7 +80,7 @@ export function SettingsPopupSlot({
     if (!hosted || request === null) return
     const element = hostRef?.current
     const next = (element ? settingsPopupHost(element, framed) : null) ?? { left: 0, columns }
-    if (host === null || host.left !== next.left || host.columns !== next.columns) setHost(next)
+    if (host === null || host.left !== next.left || host.columns !== next.columns || host.top !== next.top || host.rows !== next.rows) setHost(next)
   })
   useLayoutEffect(() => {
     if (!overlay || request === null || request.rows !== null) return
@@ -84,9 +92,10 @@ export function SettingsPopupSlot({
   if (request === null) return null
   const placement = hosted ? host : null
   if (hosted && placement === null) return null
+  const band = placement !== null && placement.top !== undefined && placement.rows !== undefined ? { top: placement.top, rows: placement.rows } : undefined
   const geometry =
     placement !== null
-      ? settingsPopupGeometry(request, placement.columns, terminalRows, placement.left)
+      ? settingsPopupGeometry(request, placement.columns, terminalRows, placement.left, band)
       : settingsPopupGeometry(request, columns, terminalRows)
   const shell = (
     <RowErrorBoundary key={open} origin="settings-popup">
@@ -100,7 +109,8 @@ export function SettingsPopupSlot({
       </Box>
     )
   }
-  const top = geometry.top ?? centredTop(measured ?? 0, terminalRows)
+  const measuredTop = centredTop(measured ?? 0, terminalRows)
+  const top = geometry.top ?? (band === undefined ? measuredTop : Math.max(band.top, Math.min(measuredTop, band.top + band.rows - (measured ?? 0))))
   return (
     <Box ref={slotRef} position="absolute" top={top} left={geometry.left} width={geometry.width} flexDirection="column" flexShrink={0}>
       {shell}
