@@ -5,7 +5,14 @@ import path from 'node:path'
 
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { readRunClaim, readRunManifest, type RunClaim } from './runManifest.js'
+import {
+  parkedOwnerAlive,
+  readRunClaim,
+  readRunManifest,
+  type RunClaim,
+  type WorkflowParkedCall,
+  type WorkflowPausePosition,
+} from './runManifest.js'
 
 export const WORKFLOW_CONTROL_DIRNAME = 'control'
 export const WORKFLOW_CONTROL_VERSION = 1
@@ -166,7 +173,15 @@ export async function requestWorkflowControl(
 ): Promise<WorkflowControlResult> {
   const manifest = await readRunManifest(runDir)
   if (manifest === undefined) return { outcome: 'refused', reason: 'no run record — nothing to control' }
-  if (manifest.status !== 'running') return { outcome: 'refused', reason: `already ${manifest.status === 'paused' ? 'paused on disk' : 'settled'} — nothing to ${verbOf(input.action)}` }
+  if (manifest.status !== 'running' && !parkedOwnerAlive(manifest, manifest.mtimeMs, Date.now())) {
+    return {
+      outcome: 'refused',
+      reason:
+        manifest.status === 'paused'
+          ? `paused on disk (its owner is gone) — nothing to ${verbOf(input.action)}; the run id resumes it (R on the board)`
+          : `already settled — nothing to ${verbOf(input.action)}`,
+    }
+  }
   if (manifest.controlVersion !== WORKFLOW_CONTROL_VERSION) {
     return { outcome: 'refused', reason: 'this run predates the persistent control channel — only its launching process can act on it' }
   }
@@ -361,6 +376,56 @@ export async function serveWorkflowControl(opts: {
 export class WorkflowExecutionPause {
   private runPausedBy: string | undefined
   private readonly agents = new Map<string, { by?: string; listeners: Set<() => void> }>()
+  private readonly parkedCalls = new Map<symbol, { call: WorkflowParkedCall; after: number; wake: () => void }>()
+  private readonly positionListeners = new Set<() => void>()
+
+  park(call: WorkflowParkedCall, after: number, signal: AbortSignal | undefined): Promise<void> | undefined {
+    if (this.runPausedBy === undefined || signal?.aborted) return undefined
+    const key = Symbol('parked call')
+    return new Promise<void>(resolve => {
+      const leave = (): void => {
+        this.parkedCalls.delete(key)
+        signal?.removeEventListener('abort', leave)
+        this.notifyPosition()
+      }
+      this.parkedCalls.set(key, {
+        call,
+        after,
+        wake: () => {
+          leave()
+          resolve()
+        },
+      })
+      signal?.addEventListener('abort', leave, { once: true })
+      this.notifyPosition()
+    })
+  }
+
+  position(): WorkflowPausePosition | undefined {
+    if (this.runPausedBy === undefined || this.parkedCalls.size === 0) return undefined
+    let after = 0
+    const next: WorkflowParkedCall[] = []
+    for (const parked of this.parkedCalls.values()) {
+      after = Math.max(after, parked.after)
+      next.push(parked.call)
+    }
+    return { after, next }
+  }
+
+  onPosition(listener: () => void): () => void {
+    this.positionListeners.add(listener)
+    return () => {
+      this.positionListeners.delete(listener)
+    }
+  }
+
+  private notifyPosition(): void {
+    for (const listener of this.positionListeners) listener()
+  }
+
+  private wakeParkedCalls(): void {
+    for (const parked of [...this.parkedCalls.values()]) parked.wake()
+  }
 
   register(agentId: string): () => void {
     const entry = { listeners: new Set<() => void>() }
@@ -382,6 +447,7 @@ export class WorkflowExecutionPause {
           if (otherId !== agentId && other.by === undefined) other.by = this.runPausedBy
         }
         this.runPausedBy = undefined
+        this.wakeParkedCalls()
       }
       entry.by = paused ? by : undefined
       for (const listener of entry.listeners) listener()
@@ -395,12 +461,15 @@ export class WorkflowExecutionPause {
         if (!paused) entry.by = undefined
         for (const listener of entry.listeners) listener()
       }
+      if (!paused) this.wakeParkedCalls()
     }
     return {
       outcome: 'applied',
       detail: paused
-        ? `paused by ${by} — the ${agentId === undefined ? 'agents park' : 'agent parks'} before the next model call; work in flight finishes first`
-        : `resumed by ${by} — the same ${agentId === undefined ? 'agents continue' : 'agent continues'}`,
+        ? agentId === undefined
+          ? `paused by ${by} — the run parks before its next agent call and its agents before their next model call; work in flight finishes first`
+          : `paused by ${by} — the agent parks before the next model call; work in flight finishes first`
+        : `resumed by ${by} — the same ${agentId === undefined ? 'run continues from where it stopped' : 'agent continues'}`,
     }
   }
 
