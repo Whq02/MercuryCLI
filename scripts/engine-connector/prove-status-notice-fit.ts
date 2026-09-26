@@ -39,6 +39,7 @@ async function main(): Promise<void> {
   const { enableConfigs } = await import(src('utils/config.ts'))
   enableConfigs()
   const bar = await import(src('components/SwitchboardTagBar.tsx'))
+  const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
   const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
   const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
   const slot = await import(src('services/engine-connector/focusedConnector.ts'))
@@ -83,6 +84,12 @@ async function main(): Promise<void> {
     check('at 150 columns the fit rule leaves the sentence untouched', bar.fitStatusLine(SENTENCE, 150, fixed) === SENTENCE, bar.fitStatusLine(SENTENCE, 150, fixed))
     const narrow = bar.fitStatusLine(SENTENCE, 60, fixed)
     check("at 60 columns the fit rule cuts with an ellipsis and keeps the budget clause's tail", narrow !== SENTENCE && narrow.includes(ELLIPSIS) && narrow.endsWith('1m 18s') && stringWidth(narrow) <= bar.statusLineBudget(60, fixed), narrow)
+    const fixedOn = (platform: string): number => 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(keyHintLabel('esc interrupts · ⇧← back', platform))
+    const offMacFixed = fixedOn('linux')
+    const warm = bar.statusLine(thinking, notices[2]![2])
+    const warmTail = warm.slice(warm.lastIndexOf(' — '))
+    const floor = bar.fitStatusLine(warm, 60, offMacFixed)
+    check('off-mac the way back spells shift+ and the 60-column fixed cells are five wider: the warm wait hits the budget floor and the ellipsis still leads its tail clause', offMacFixed === fixedOn('macos') + 5 && floor === `${ELLIPSIS}${warmTail}` && stringWidth(floor) === bar.statusLineBudget(60, offMacFixed), `${floor} (budget ${bar.statusLineBudget(60, offMacFixed)})`)
   }
 
   const settle = async (): Promise<void> => {
@@ -194,7 +201,7 @@ async function main(): Promise<void> {
     const detail = `${quote(painted.row)} fitted=${JSON.stringify(fitted)}`
     if (whole) check(`${label} @${columns}: the words paint whole, the way back at the right edge`, painted.row.startsWith(` ${PROJECT} · ${painted.words}`) && !painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
     else if (room) check(`${label} @${columns}: the rule's own cut (an ellipsis, the tail clause kept), the way back at the right edge`, painted.row.startsWith(` ${PROJECT} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith(painted.words.slice(-4)) && rightEdge(painted, columns), detail)
-    else check(`${label} @${columns}: no room beside the fixed cells — the row's own end cut marks the cut and keeps the way back`, painted.row.startsWith(` ${PROJECT} ·`) && painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
+    else check(`${label} @${columns}: no room beside the fixed cells — the row's own end cut marks the cut and keeps the way back`, painted.row.startsWith(` ${PROJECT.slice(0, 3)}`) && painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
     check(`${label} @${columns}: never a bare cut, within the width, one line`, !cutBare(painted) && stringWidth(painted.row) <= columns && !painted.row.includes('\n'), quote(painted.row))
   }
 
@@ -204,7 +211,7 @@ async function main(): Promise<void> {
     const cold = wide.get('cold ingest')!
     check('the row reads the project, the separator and the whole sentence', cold.row.startsWith(` ${PROJECT} · ${SENTENCE}`), quote(cold.row))
     check('no bare cut: the words are never followed by blank columns before the way back', !cutBare(cold), quote(cold.row))
-    check("the way back carries the esc clause and stands at the right edge", cold.hint === 'esc interrupts · ⇧← back' && rightEdge(cold, 150), quote(cold.row))
+    check("the way back carries the esc clause and stands at the right edge", cold.hint === keyHintLabel('esc interrupts · ⇧← back') && rightEdge(cold, 150), quote(cold.row))
     for (const [label] of notices) lawful(label, wide.get(label)!, 150)
   }
 

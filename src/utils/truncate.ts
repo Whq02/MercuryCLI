@@ -71,7 +71,7 @@ export function truncateKeepingTail(text: string, maxWidth: number, keepTail?: n
   }
   const tail = parts.slice(tailStart).join('')
   const tailWidth = stringWidth(tail)
-  if (tailWidth + 1 >= maxWidth) return truncateStartToWidth(tail, maxWidth)
+  if (tailWidth + 1 >= maxWidth) return truncateStartToWidth(`${ELLIPSIS}${tail}`, maxWidth)
   const headBudget = maxWidth - tailWidth - 1
   let head = ''
   let width = 0
