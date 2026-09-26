@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/jev/** src/tools/JevEvalTool/** src/commands/jev/** src/commands/jevor/** src/utils/config/schema.ts
+# gate-watch: src/services/jev/** src/tools/JevEvalTool/** src/commands/jev/** src/commands/jevor/** src/utils/config/schema.ts package.json
 # gate-watch: src/utils/router/providerSecrets.ts src/bootstrap/state.ts src/services/providers/openrouter/openrouterUsageState.ts
 # gate-watch: src/components/Settings/Jev.tsx src/components/Settings/Usage.tsx src/components/Settings/Config.tsx src/services/engine-connector/seatWire.ts src/services/engine-connector/types.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts scripts/settings/prove-usage-popup.ts src/* src/cli/print.ts

@@ -23,17 +23,42 @@ export interface StandinRecord {
   at: number
 }
 
+export type StandinAnswerer = (body: unknown, rawBody: string) => unknown | undefined
+
 export interface JevStandin {
   port: number
   base: string
   received: StandinRecord[]
   next(script: StandinScript): void
+  answerWith(answerer: StandinAnswerer | undefined): void
   pending(): number
   reset(): void
   close(): Promise<void>
 }
 
 type Question = { type?: unknown; instructions?: unknown; criteria?: unknown }
+
+export const STANDIN_FIXTURE_ID = /fixture-id:([A-Za-z0-9_-]+)/g
+
+export const RED_ROAD_FIXTURES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
+  'red-road-killed': { killed: 0.92, starved: 0.2 },
+  'red-road-starved': { killed: 0.12, starved: 0.73 },
+  'red-road-product': { killed: 0.03, starved: 0.05 },
+  'red-road-unsure': { killed: 0.31, starved: 0.22 },
+})
+
+export const LEAD_WAKE_FIXTURES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
+  'lead-wake-scope': { needs_answer: 0.93 },
+  'lead-wake-blocked': { needs_answer: 0.91 },
+  'lead-wake-question': { needs_answer: 0.82 },
+  'lead-wake-finding': { needs_answer: 0.41 },
+  'lead-wake-status': { needs_answer: 0.12 },
+  'lead-wake-landing': { needs_answer: 0.08 },
+})
+
+export function fixtureIdsIn(text: string): string[] {
+  return [...text.matchAll(STANDIN_FIXTURE_ID)].map(m => m[1]!)
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -88,14 +113,24 @@ export function defaultAnswerFor(question: unknown): unknown {
   return { type: 'noul', noul: 0.95 }
 }
 
-export function defaultResponseFor(body: unknown, rawBody: string): unknown {
+export function defaultResponseFor(body: unknown, rawBody: string, nouls: Readonly<Record<string, number>> = {}): unknown {
   const answers: Record<string, unknown> = {}
   const questions = isRecord(body) && isRecord(body.questions) ? body.questions : {}
-  for (const [id, question] of Object.entries(questions)) answers[id] = defaultAnswerFor(question)
+  for (const [id, question] of Object.entries(questions)) {
+    const q = (isRecord(question) ? question : {}) as Question
+    answers[id] = q.type === 'noul' && typeof nouls[id] === 'number' ? { type: 'noul', noul: nouls[id] } : defaultAnswerFor(question)
+  }
   return {
     model: STANDIN_MODEL,
     answers,
     usage: { input_tokens: STANDIN_TOKEN_FLOOR + Math.ceil(Buffer.byteLength(rawBody, 'utf8') / 4), output_tokens: STANDIN_OUTPUT_TOKENS },
+  }
+}
+
+export function fixtureAnswerer(table: Readonly<Record<string, Readonly<Record<string, number>>>>): StandinAnswerer {
+  return (body, rawBody) => {
+    const id = fixtureIdsIn(rawBody).find(found => found in table)
+    return id === undefined ? undefined : defaultResponseFor(body, rawBody, table[id])
   }
 }
 
@@ -125,6 +160,7 @@ export async function startJevStandin(road: 'official' | 'openrouter' = 'officia
   const queue: StandinScript[] = []
   const received: StandinRecord[] = []
   const timers = new Set<ReturnType<typeof setTimeout>>()
+  let answerer: StandinAnswerer | undefined
   const server: Server = createServer((request, response) => {
     let gone = false
     response.once('close', () => {
@@ -151,7 +187,7 @@ export async function startJevStandin(road: 'official' | 'openrouter' = 'officia
           if (request.method !== 'POST') return send(response, 405, {}, JSON.stringify({ error: { message: 'method not allowed' } }))
           if (request.url !== (road === 'openrouter' ? '/api/v1/systemone' : STANDIN_PATH)) return send(response, 404, {}, JSON.stringify({ error: { message: 'not found' } }))
           if (body === undefined) return send(response, 400, {}, JSON.stringify({ error: { message: 'the body is not JSON' } }))
-          const answer = defaultResponseFor(body, rawBody) as Record<string, unknown>
+          const answer = (answerer?.(body, rawBody) ?? defaultResponseFor(body, rawBody)) as Record<string, unknown>
           if (road === 'openrouter') {
             answer.id = 'gen-dec-fixture-body'
             answer.provider = 'TypeSafe'
@@ -183,6 +219,9 @@ export async function startJevStandin(road: 'official' | 'openrouter' = 'officia
     received,
     next(script) {
       queue.push(script)
+    },
+    answerWith(next) {
+      answerer = next
     },
     pending() {
       return queue.length
