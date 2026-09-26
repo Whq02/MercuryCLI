@@ -107,6 +107,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-wake-hold-drive.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-window-hold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-window-hold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-memory-guard.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-memory-guard.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-landing-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-model-landing-facts.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-facts-stamp-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-facts-stamp-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep-tables.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep-tables.ts" "$__t" "$__rc"
 echo "############################################################"
