@@ -214,7 +214,6 @@ src/utils/Shell.ts :: getShellConfig :: static-for-process
 src/utils/accounts/accountIdentity.ts :: cache :: ttl-bounded
 src/utils/ansiToPng.ts :: fallbackGlyphCache :: static-for-process
 src/utils/ansiToPng.ts :: fontCache :: static-for-process
-src/utils/asciicast.ts :: cachedRecordFilePath :: static-for-process
 src/utils/aseprite/gates.ts :: contextCache :: ttl-bounded
 src/utils/aseprite/gates.ts :: locatedCache :: ttl-bounded
 src/utils/auth.ts :: getApiKeyFromConfigOrMacOSKeychain :: invalidator=removeApiKey
