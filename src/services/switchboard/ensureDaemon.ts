@@ -6,6 +6,7 @@ import { probePidLock } from '../../substrate/pidLock.js'
 import { getCwd } from '../../utils/cwd.js'
 import { daemonHaltStanddownActive } from '../../utils/daemonStanddown.js'
 import { runnerArgvFromBoot } from './runnerArgv.js'
+import { startScreenPresenceBeat } from './screenPresence.js'
 
 type Handshake = typeof import('../../daemon/handshake.js')
 
@@ -148,6 +149,12 @@ function bootCarriesRunnerOptions(): boolean {
 let waiting: Promise<'usable' | 'gone' | 'timeout'> | null = null
 
 export async function ensureOwnedDaemon(): Promise<boolean> {
+  const usableNow = await ensureOwnedDaemonInner()
+  if (usableNow) startScreenPresenceBeat()
+  return usableNow
+}
+
+async function ensureOwnedDaemonInner(): Promise<boolean> {
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.armDaemonSignInPoke())
     .catch(() => {})

@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -217,7 +218,9 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
   },
   stdio: ['ignore', logFd, logFd],
 })
+const clientBeat = startDaemonClientBeat()
 const cleanup = async (): Promise<void> => {
+  clientBeat.stop()
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
