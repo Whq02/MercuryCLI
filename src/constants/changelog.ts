@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.21
-- Added /jevor on as a separate Jev road using the existing OpenRouter sign-in, with its own stated-cost meter and cap; /jev on keeps the official TypeSafe road, and signing in never switches JEV on
+- Added /jevor on, which runs Jev through the existing OpenRouter sign-in with its own stated-cost meter and cap; /jev on keeps the official TypeSafe service, and signing in never switches JEV on
 - Added a ContextLeft tool: the model can ask how much of the context window is used and how many tokens are left before a compaction, measured on the wire
 - Added a per-call output budget on the Bash and PowerShell tools (max_output_chars): the inline window shrinks or grows, the whole output is still saved, a value outside the bounds is clamped and said, a failing command's error text honours it, and a spill notice is never cut away
 - Changed the Edit match to forgive indentation, trailing whitespace and typographic dashes and spaces, never content; the result says what it matched and how (the file's own indentation or dash), and two differing candidate blocks refuse as ambiguous rather than not found

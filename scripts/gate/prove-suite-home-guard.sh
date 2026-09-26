@@ -87,7 +87,7 @@ check "MERCURY_SUITE_ENV=any runs the suite and still gets a scratch home" "$([ 
 
 echo "── a real runner, whole"
 clean BUN="$bun" bash "$wards" >"$scratch/wards.log" 2>&1; rc=$?
-check "scripts/wards/run-all.sh runs green with no home pinned" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $(tail -3 "$scratch/wards.log" | tr '\n' ' ')"
+check "scripts/wards/run-all.sh runs green with no home pinned" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $(grep -aE '\[FAIL\]|rc=[1-9]' "$scratch/wards.log" | head -6 | cut -c1-300 | tr '\n' ' ') $(tail -3 "$scratch/wards.log" | tr '\n' ' ')"
 check "…its scratch home was announced" "$(grep -q '^suite wards: ' "$scratch/wards.log" && echo 0 || echo 1)"
 check "…removed at its exit" "$([ -z "$(ls -d "$scratch"/tmp/mercury-suite-home-wards.* 2>/dev/null)" ] && echo 0 || echo 1)" "$(ls -A "$scratch/tmp" | tr '\n' ' ')"
 check "…and nothing under \$HOME/.mercury" "$(own_empty && echo 0 || echo 1)" "$(ls -A "$scratch/home/.mercury" | tr '\n' ' ')"

@@ -157,8 +157,9 @@ if (existsSync(BASH)) engines.push({ name: 'bash', bin: BASH, parseArgs: ['-n', 
 if (brushBin && existsSync(brushBin)) engines.push({ name: 'brush', bin: brushBin, parseArgs: ['--norc', '--noprofile', '--disable-color', '-n', '-c'], execArgs: ['--norc', '--noprofile', '--disable-color', '-c'] })
 if (existsSync(ZSH)) engines.push({ name: 'zsh', bin: ZSH, parseArgs: ['-n', '-c'], execArgs: ['-c'] })
 
-const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'shell-engine-census-')))
-mkdirSync(join(SCRATCH, 'home'))
+const SCRATCH_ROOT = realpathSync(mkdtempSync(join(tmpdir(), 'shell-engine-census-')))
+const SCRATCH = join(SCRATCH_ROOT, 'work')
+mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 writeFileSync(join(SCRATCH, 'report.md'), 'a fixture file the read-only commands can see\n')
 const minimalEnv = { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: join(SCRATCH, 'home'), TERM: 'dumb', LANG: 'C', LC_ALL: 'C' }
 
@@ -291,7 +292,7 @@ writeFileSync(reportPath, lines.join('\n') + '\n')
 if (print) console.log(lines.join('\n'))
 console.log(`\n  report: ${reportPath}`)
 
-rmSync(SCRATCH, { recursive: true, force: true })
+rmSync(SCRATCH_ROOT, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(` ✅ THE COMPATIBILITY CENSUS HOLDS (${brush ? 'engine exercised' : 'control only'})`)

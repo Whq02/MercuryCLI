@@ -57,11 +57,13 @@ class FakeStdout extends EventEmitter {
   columns = COLS
   rows = ROWS
   writes: string[] = []
+  writeAt: number[] = []
   get bytes(): string {
     return this.writes.join('')
   }
   write(s: string): boolean {
     this.writes.push(s)
+    this.writeAt.push(Date.now())
     return true
   }
   markerAt(): number {
@@ -98,14 +100,17 @@ type Rig = {
   ink: Ink
   stdout: FakeStdout
   stdin: FakeStdin
+  bornAt: number
   settle: () => Promise<void>
 }
+const BOOT_COALESCE_MS = 100
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'native-core-home-'))
 
 function makeRig(): Rig {
   const stdout = new FakeStdout()
   const stdin = new FakeStdin()
+  const bornAt = Date.now()
   const ink = new Ink({
     stdout: stdout as never,
     stdin: stdin as never,
@@ -117,7 +122,7 @@ function makeRig(): Rig {
   const settle = async (): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 130))
   }
-  return { ink, stdout, stdin, settle }
+  return { ink, stdout, stdin, bornAt, settle }
 }
 
 function gridText(bytes: string): string {
@@ -175,8 +180,9 @@ console.log('native-core T6 — renderer-root lifecycle contract')
     ),
   )
   await new Promise(resolve => setTimeout(resolve, 20))
-  const windowFrames = rig.stdout.writes.slice(marker).filter(isFrameWrite)
-  check('coalesce: boot window holds frames', windowFrames.length === 0, String(windowFrames.length))
+  const windowClosesAt = rig.bornAt + BOOT_COALESCE_MS
+  const windowFrames = rig.stdout.writes.slice(marker).filter((w, i) => isFrameWrite(w) && rig.stdout.writeAt[marker + i]! < windowClosesAt)
+  check('coalesce: boot window holds frames', windowFrames.length === 0, `${windowFrames.length} frame(s) written inside the ${BOOT_COALESCE_MS}ms window, read ${Date.now() - rig.bornAt}ms after the rig was born`)
   await rig.settle()
   const bootWrites = rig.stdout.writes.slice(marker).filter(isFrameWrite)
   check('coalesce: boot settles to exactly one frame write', bootWrites.length === 1, String(bootWrites.length))
