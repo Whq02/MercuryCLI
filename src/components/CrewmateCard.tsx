@@ -25,22 +25,30 @@ export function CrewmateCard({ crewmate, width }: { crewmate: CrewmateInView; wi
   const facts = crewmate.facts
   const running = facts !== null ? facts.running : false
   const line = crewmateFactsLine(facts, now)
-  const detail = facts?.description ?? facts?.activity ?? null
+  const detail = facts?.description ?? (running ? facts?.activity ?? null : null)
   const keys = crewmateCardKeys(crewmate.pinned)
   return (
     <Box flexDirection="column" flexShrink={0} width={width}>
-      <Text wrap="truncate-end">
-        <Text color={crewmate.pinned ? tokens.warning : accent} bold>
-          {crewmate.pinned ? GLYPH.star : GLYPH.circledBullet} {crewmate.name}
-        </Text>
-        {line.map((part, index) => (
-          <Text key={index} color={index === 1 ? (running ? tokens.success : tokens.textSecondary) : tokens.textSecondary}>
-            {' · '}
-            {part}
+      <Box flexDirection="row" width={width}>
+        <Box flexShrink={1} minWidth={0}>
+          <Text wrap="truncate-end">
+            <Text color={crewmate.pinned ? tokens.warning : accent} bold>
+              {crewmate.pinned ? GLYPH.star : GLYPH.circledBullet} {crewmate.name}
+            </Text>
+            {line.map((part, index) => (
+              <Text key={index} color={index === 1 ? (running ? tokens.success : tokens.textSecondary) : tokens.textSecondary}>
+                {' · '}
+                {part}
+              </Text>
+            ))}
           </Text>
-        ))}
-        {crewmate.pinned ? <Text color={tokens.warning}>{'   '}{MAIN_CHAT_CARD_LINE}</Text> : null}
-      </Text>
+        </Box>
+        {crewmate.pinned ? (
+          <Box flexShrink={0}>
+            <Text color={tokens.warning} wrap="truncate-end">{'   '}{truncateToWidth(MAIN_CHAT_CARD_LINE, Math.max(12, width - displayWidth(crewmate.name) - 6))}</Text>
+          </Box>
+        ) : null}
+      </Box>
       <Text wrap="truncate-end">
         {detail !== null ? <Text color={tokens.textMuted}>{truncateToWidth(detail, Math.max(12, width - displayWidth(keys) - 3))}{'   '}</Text> : null}
         <Text color={tokens.textSecondary}>{keys}</Text>
