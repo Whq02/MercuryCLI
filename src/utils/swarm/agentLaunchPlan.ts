@@ -21,6 +21,7 @@ import {
   filterDeniedAgents,
   getDenyRuleForAgent,
 } from '../permissions/permissions.js'
+import { reasonForRule, refusalWithReason } from '../permissions/ruleReason.js'
 import { decodeAgentType, type ResolvedTeammateRole } from './roleResolver.js'
 
 
@@ -88,7 +89,10 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
           effectiveType,
         )
         throw new Error(
-          `Agent type '${effectiveType}' has been denied by permission rule '${AGENT_TOOL_NAME}(${effectiveType})' from ${denyRule?.source ?? 'settings'}.`,
+          refusalWithReason(
+            `Agent type '${effectiveType}' has been denied by permission rule '${AGENT_TOOL_NAME}(${effectiveType})' from ${denyRule?.source ?? 'settings'}.`,
+            denyRule ? reasonForRule(i.toolPermissionContext, denyRule) : undefined,
+          ),
         )
       }
       throw new Error(

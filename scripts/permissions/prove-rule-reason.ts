@@ -72,6 +72,11 @@ const { TerminalSizeContext } = await import('../../src/ink/components/TerminalS
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
+const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.js')
+const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.js')
+const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
+const { buildAgentLaunchPlan } = await import('../../src/utils/swarm/agentLaunchPlan.js')
+const { planAstRewrite, resolveAstScope } = await import('../../src/utils/astPatterns.js')
 const helper = await import('../../src/utils/permissions/ruleReason.js').catch(() => null)
 
 type Rule = { source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string; reason?: string } }
@@ -419,6 +424,65 @@ section('§7 THE CONSENT CARD — one line under the rule, the hint below it; no
   check('the card fits 178 columns', cardLines.every(line => line.length <= 178))
   if (frameDir) writeFileSync(join(frameDir, 'card-178x51.txt'), cardFrame + '\n')
   card.close()
+}
+
+section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a structural edit, a change set and an agent launch say the words')
+{
+  const R_REPORT = 'the report is generated; edit its template instead'
+  const R_SCOUT = 'scouts are launched by the lead, never by a worker'
+  const key = join(PROJ, 'secrets', 'k.pem')
+  const prodKey = join(PROJ, 'secrets', 'prod', 'k.pem')
+  const useContext = (ctx: Ctx): unknown => ({ abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: ctx }), setAppState: () => {}, messages: [], options: {} })
+  const bash = (command: string, ctx: Ctx): Decision => checkPathConstraints({ command }, PROJ, ctx as never) as unknown as Decision
+
+  const operandPlain = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }))
+  check('control: a Bash operand blocked by a file deny rule without a reason keeps today\'s sentence', operandPlain.behavior === 'deny' && operandPlain.message === `The cat of ${key} is blocked by a deny rule.`, j(operandPlain))
+  const operandSaid = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }))
+  check('1 a Bash operand blocked by a file deny rule says the words', operandSaid.behavior === 'deny' && operandSaid.message === `The cat of ${key} is blocked by a deny rule: ${R_SECRETS}.`, j(operandSaid))
+  check('…and its rule carries the reason for the transcript', operandSaid.decisionReason?.rule?.ruleValue.reason === R_SECRETS, j(operandSaid.decisionReason))
+  const operandNarrow = bash('cat secrets/prod/k.pem', ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, { 'Read(secrets/**)': R_SECRETS, 'Read(secrets/prod/**)': R_PROD }))
+  check('…two matching rules, the wide one listed first: the more specific rule\'s words win, as on the Read ladder', operandNarrow.message === `The cat of ${prodKey} is blocked by a deny rule: ${R_PROD}.`, j(operandNarrow))
+
+  const redirectPlain = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }))
+  check('control: a redirection blocked by a file deny rule without a reason keeps today\'s sentence', redirectPlain.behavior === 'deny' && redirectPlain.message === `The redirection to ${key} is blocked by a deny rule.`, j(redirectPlain))
+  const redirectSaid = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }))
+  check('2 a redirection blocked by a file deny rule says the words', redirectSaid.behavior === 'deny' && redirectSaid.message === `The redirection to ${key} is blocked by a deny rule: ${R_SECRETS}.`, j(redirectSaid))
+
+  const astDir = join(PROJ, 'ast')
+  mkdirSync(astDir, { recursive: true })
+  writeFileSync(join(astDir, 'report.ts'), 'export const label = normalizeRecord(1)\n')
+  const astScope = resolveAstScope({ path: join(astDir, 'report.ts'), cwd: PROJ })
+  const astPlan = (await planAstRewrite(astScope as never, { pattern: 'normalizeRecord($A)', rewrite: 'normaliseRecord($A)' })) as { token?: string; refused?: string }
+  check('the structural rewrite plans over the fixture and mints its token', typeof astPlan.token === 'string' && astPlan.token.startsWith('ae-'), j(astPlan))
+  const astInput = { pattern: 'normalizeRecord($A)', rewrite: 'normaliseRecord($A)', path: 'ast/report.ts', apply: true, plan: astPlan.token ?? '' }
+  const astDecide = (ctx: Ctx): Promise<Decision> => AstEditTool.checkPermissions(astInput as never, useContext(ctx) as never) as unknown as Promise<Decision>
+  const astPlain = await astDecide(ctxWith({ deny: ['Edit(ast/**)'] }))
+  check('control: a structural edit refused by a deny rule without a reason keeps today\'s sentence', astPlain.behavior === 'deny' && astPlain.message === 'Permission to edit report.ts has been denied — a denied file refuses the whole structural edit (zero writes).', j(astPlain))
+  const astSaid = await astDecide(ctxWith({ deny: ['Edit(ast/**)'] }, { 'Edit(ast/**)': R_REPORT }))
+  check('3 a denied file refusing the whole structural edit says the words', astSaid.behavior === 'deny' && astSaid.message === `Permission to edit report.ts has been denied — a denied file refuses the whole structural edit (zero writes): ${R_REPORT}.`, j(astSaid))
+
+  const setInput = { op: 'apply', changes: [{ file_path: key, expected_anchor: 'fa:000000000000', hunks: [{ lines: '1', replace: '' }] }] }
+  const setDecide = (ctx: Ctx): Promise<Decision> => ChangeSetTool.checkPermissions(setInput as never, useContext(ctx) as never) as unknown as Promise<Decision>
+  const setPlain = await setDecide(ctxWith({ deny: ['Edit(secrets/**)'] }))
+  check('control: a change set refused by a deny rule without a reason keeps today\'s sentence', setPlain.behavior === 'deny' && setPlain.message === `Permission to edit ${key} has been denied — a denied path refuses the whole change set (zero writes).`, j(setPlain))
+  const setSaid = await setDecide(ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }))
+  check('4 a denied path refusing the whole change set says the words', setSaid.behavior === 'deny' && setSaid.message === `Permission to edit ${key} has been denied — a denied path refuses the whole change set (zero writes): ${R_SECRETS}.`, j(setSaid))
+
+  const scout = { agentType: 'scout-role', whenToUse: 'recon', source: 'built-in', getSystemPrompt: () => 'scout' }
+  const launch = (ctx: Ctx): string => {
+    try {
+      buildAgentLaunchPlan({ requestedType: 'scout-role', activeAgents: [scout], toolPermissionContext: ctx, forkGateOn: false, forkAgent: scout, defaultAgentType: 'scout-role', mainLoopModel: 'proof-model', backgroundTasksDisabled: false, forceAsync: false } as never)
+      return 'launched'
+    } catch (error) {
+      return (error as Error).message
+    }
+  }
+  const agentPlain = launch(ctxWith({ deny: ['Agent(scout-role)'] }, undefined, 'userSettings'))
+  check('control: an Agent(type) deny without a reason keeps today\'s sentence', agentPlain === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings.`, agentPlain)
+  const agentSaid = launch(ctxWith({ deny: ['Agent(scout-role)'] }, { 'Agent(scout-role)': R_SCOUT }, 'userSettings'))
+  check('5 an Agent(type) deny says the words', agentSaid === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings: ${R_SCOUT}.`, agentSaid)
+  const agentOther = launch(ctxWith({ deny: ['Agent(scout-role)'] }, { 'Agent(other-role)': R_SCOUT }, 'userSettings'))
+  check('control: words for another agent rule change nothing', agentOther === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings.`, agentOther)
 }
 
 process.chdir(launchDir)
