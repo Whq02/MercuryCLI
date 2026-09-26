@@ -143,5 +143,13 @@ function rig(text = 'please check the saved result') {
   check('RED on the base: an already-persisted delivery is never announced lost at the restart edge', r.guts.sends.length === 0 && r.guts.echoRows.size === 0 && r.connector.lostLine() === null)
 }
 
+{
+  const r = rig()
+  r.guts.reconcileQueuedSends({ runnerGeneration: 2, atMs: now + 2, queueReady: true, queue: [], recoveredCommandIds: [r.id] } as SessionFactsV1)
+  check('a recovered line consumed before the first facts answer is never announced lost', r.connector.lostLine() === null && r.guts.sends.length === 1 && r.guts.sends[0]?.state === 'taken')
+  r.land([r.row(r.id)])
+  check('the recovered line retires exactly once when its delayed transcript publication lands', r.connector.lostLine() === null && r.guts.sends.length === 0 && r.guts.echoRows.size === 0 && r.connector.records().length === 1)
+}
+
 console.log(`restart-send-retirement: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

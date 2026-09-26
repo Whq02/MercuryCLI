@@ -1048,7 +1048,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.runnerGeneration = facts.runnerGeneration
       if (moved) {
         if (this.reconcileSends()) this.paint()
-        this.retireSendsLostWithRunner(queue)
+        this.retireSendsLostWithRunner(queue, facts.recoveredCommandIds)
         this.retireTextRowsWithRunner()
       }
     }
@@ -1113,8 +1113,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.sends.filter(s => s.heldFor === 'compaction').map(s => s.clientMessageId)
   }
 
-  private retireSendsLostWithRunner(queue: SessionFactsV1['queue']): void {
-    const listed = new Set<string>()
+  private retireSendsLostWithRunner(queue: SessionFactsV1['queue'], recoveredCommandIds: readonly string[] = []): void {
+    const listed = new Set<string>(recoveredCommandIds.filter(id => typeof id === 'string'))
     for (const entry of queue) if (typeof entry.uuid === 'string') listed.add(entry.uuid)
     this.sends = this.sends.map(s => s.state === 'queued' && listed.has(s.clientMessageId) ? { ...s, crossedRunner: true as const } : s)
     const lost = this.sends.filter(
