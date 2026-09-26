@@ -9,8 +9,14 @@ import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const argAfter = (flag: string): string | undefined => {
+  const at = process.argv.indexOf(flag)
+  return at < 0 ? undefined : process.argv[at + 1]
+}
+const BIN = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
+const FRAMES = argAfter('--frames')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
+const COCKPIT_READY = '❯ Type a prompt'
 const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? REPO).normalize('NFC')
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = getProjectDir(RUNTIME_CWD)
@@ -19,8 +25,21 @@ const SCRATCH = join(tmpdir(), `spectra-hold-${process.pid}`)
 mkdirSync(SCRATCH, { recursive: true })
 
 if (!existsSync(BIN)) {
-  console.error('✗ dist/mercury.mjs missing — build first (bun run build.ts)')
+  console.error(`✗ ${BIN} missing — build first (bun run build.ts) or name a bundle with --dist`)
   process.exit(1)
+}
+if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
+console.log(`bundle under proof: ${BIN}`)
+
+function keepFrame(leg: string, text: string[]): void {
+  if (FRAMES === undefined) return
+  writeFileSync(join(FRAMES, `${leg}.txt`), text.map(row => row.trimEnd()).join('\n') + '\n')
+}
+
+function hintRowOf(rows: string[]): string | undefined {
+  const composer = rows.findIndex(row => row.includes(COCKPIT_READY))
+  if (composer < 0) return undefined
+  return rows.slice(composer + 2).map(row => row.trim()).find(row => row.length > 0)
 }
 
 let failures = 0
@@ -97,8 +116,12 @@ function runCapture(
     try {
       if (existsSync(gridPath)) {
         const ended = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
-        const rows = ended.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(row => row.length > 0)
+        const endedText = ended.grid.map(row => row.map(c => c.c).join(''))
+        keepFrame(`${leg}-refused`, endedText)
+        const rows = endedText.map(row => row.trimEnd()).filter(row => row.length > 0)
         frame = `\n  the frame it ended on (last ${Math.min(12, rows.length)} non-empty rows):\n${rows.slice(-12).map(row => `    ${row.slice(0, 116)}`).join('\n')}`
+        const hint = hintRowOf(rows)
+        if (hint !== undefined && !hint.startsWith('? for shortcuts')) frame += `\n  the cockpit was up and its hint row read: ${hint.slice(0, 160)}`
       }
     } catch {
     }
@@ -106,6 +129,7 @@ function runCapture(
   }
   const grid = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
   const text = grid.grid.map(row => row.map(c => c.c).join(''))
+  keepFrame(leg, text)
   const tee = opts.tee && existsSync(teePath) ? readFileSync(teePath) : Buffer.alloc(0)
   return { grid, text, tee }
 }
@@ -220,9 +244,10 @@ try {
       argv: ['bash', sh],
       total: 70,
       sends: [{ atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' }],
-      readyText: ['? for shortcuts'],
+      readyText: [COCKPIT_READY],
     })
     const stale = staleGradientCells(grid)
+    check('L2 cockpit control: the composer is up', text.some(l => l.includes(COCKPIT_READY)))
     check('L2 cockpit control: zero stale hold-gradient cells', stale === 0, `${stale} cells`)
     check('L2 cockpit control: no stale hold text', !text.some(l => l.includes('starting…')))
   }
@@ -264,10 +289,10 @@ try {
         { atTick: 100, awaitText: NONCE, minTick: 14, awaitSettleTicks: 6, data: '\r' },
         { atTick: 110, afterPrevTicks: 4, data: '\r' },
       ],
-      readyText: ['? for shortcuts'],
+      readyText: [COCKPIT_READY],
     })
     const raw = teeBytes(tee)
-    check('L4 journey reaches the cockpit', text.some(l => l.includes('? for shortcuts')))
+    check('L4 journey reaches the cockpit (the composer is up)', text.some(l => l.includes(COCKPIT_READY)))
     check(
       'L4 the fake splash owns the ONLY alt entry (Mercury adds none)',
       count(raw, '\x1b[?1049h') === 1,
