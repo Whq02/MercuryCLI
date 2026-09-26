@@ -247,7 +247,7 @@ export async function exec(
   let finalCommand = built.commandString
   if (useSandbox) {
     const innerShell = shellType === 'powershell' ? '/bin/sh' : provider.shellPath
-    finalCommand = await SandboxManager.wrapWithSandbox(finalCommand, innerShell, abortSignal)
+    finalCommand = await SandboxManager.wrapWithSandbox(finalCommand, innerShell, abortSignal, { commandId: command, commandText: command })
     try {
       mkdirSync(sandboxTmpDir, { mode: 0o700 })
     } catch (mkdirError) {
