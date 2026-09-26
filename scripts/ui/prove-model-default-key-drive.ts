@@ -146,10 +146,17 @@ function capture(id: string, home: string, argv: string[], sends: Send[], opts: 
 const rowWith = (lines: string[], needle: string): string => lines.find(l => l.includes(needle)) ?? ''
 const trimmedRow = (lines: string[], needle: string): string => rowWith(lines, needle).trim()
 const ANTHROPIC_TITLE = ' ANTHROPIC · '
-const headingOf = (lines: string[], title: string): string => (lines.find(l => l.includes(title)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
+const headingOf = (lines: string[], title: string): string => (lines.find(l => l.includes(title)) ?? '').replace(/^.*│ ?(?=[▾▸❯] )/, '').replace(/\s*│.*$/, '').trim()
 const anthropicKeyHeading = (lines: string[]): boolean => /^[▾❯] ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(lines, ANTHROPIC_TITLE))
-const pickerFrames = (lines: string[]): boolean =>
-  (lines[PICKER_TOP] ?? '')[PICKER_LEFT] === '╭' && (lines[PICKER_TOP + 1] ?? '')[PICKER_LEFT] === '│' && lines.some((l, at) => at > PICKER_TOP && at <= PICKER_BOTTOM && l[PICKER_LEFT] === '╰')
+const pickerLeft = (lines: string[]): number => {
+  const title = lines.find(l => l.includes('Mercury · model')) ?? ''
+  const at = title.lastIndexOf('│', title.indexOf('Mercury · model'))
+  return at < 0 ? PICKER_LEFT : at
+}
+const pickerFrames = (lines: string[]): boolean => {
+  const left = pickerLeft(lines)
+  return (lines[PICKER_TOP] ?? '')[left] === '╭' && (lines[PICKER_TOP + 1] ?? '')[left] === '│' && lines.some((l, at) => at > PICKER_TOP && at <= PICKER_BOTTOM && l[left] === '╰')
+}
 const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
 
 console.log('============================================================')
@@ -191,7 +198,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the plain title row)', rowWith(picker, 'Mercury · model') !== '' && rowWith(picker, 'CHOOSE A MODEL') === '', picker.slice(3, 8).join(' | '))
-  check('the picker sits in the main band, centred (top row 3, left column 39, its bottom border inside the band)', pickerFrames(picker), `${(picker[PICKER_TOP] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(PICKER_LEFT, PICKER_LEFT + 4)}`)
+  check('the picker sits in the main band, centred (top row 3, its left border under its title, its bottom border inside the band)', pickerFrames(picker), `left ${pickerLeft(picker)} · ${(picker[PICKER_TOP] ?? '').slice(pickerLeft(picker), pickerLeft(picker) + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(pickerLeft(picker), pickerLeft(picker) + 4)}`)
   check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
@@ -215,7 +222,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const closed = c.marks.get('closed') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
-  check('m opens the picker over the face, centred (top row 3, left column 39), the card still beside it', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), picker.slice(3, 8).join(' | '))
+  check('m opens the picker over the face, centred (top row 3, its left border under its title), the card still beside it', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker) && picker.some(l => l.includes('❯ ✶ New S')), `left ${pickerLeft(picker)} · ${picker.slice(3, 8).join(' | ')}`)
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_ ready'))

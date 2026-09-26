@@ -88,7 +88,7 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { parseGptModelId, withGptServedWindowSuffix } from '../../services/providers/openai/gptPins.js'
 import { getCachedOpenaiCatalogue, liveGptContextCeiling, refreshOpenaiCatalogue, type OpenaiCatalogueSnapshot } from '../../services/providers/openai/openaiCatalogue.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from '../../services/providers/openai/openaiAccounts.js'
-import { anthropicCredentialPresence } from '../../services/providers/providerUsage.js'
+import { anthropicCredentialPresence, providerFamilyPresences } from '../../services/providers/providerUsage.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { deriveFamilySlotGroups, type AccountSlot } from '../../services/providers/accountSlots.js'
@@ -468,14 +468,14 @@ function accountOfSlot(slot: AccountSlot): string | undefined {
   return /…\S+$/.exec(slot.identity)?.[0]
 }
 
-function signedInDoorsOf(family: string, slots: readonly AccountSlot[]): ProviderHeading['doors'] {
+function signedInDoorsOf(family: string, slots: readonly AccountSlot[], identity?: string): ProviderHeading['doors'] {
   const signedIn = slots.filter(slot => slot.signedIn)
   const ordered = [...signedIn.filter(slot => slot.active), ...signedIn.filter(slot => !slot.active)]
   const doors: ProviderHeading['doors'] = []
   for (const slot of ordered) {
     const door = doorLabelOfSlot(family, slot)
     if (doors.some(candidate => candidate.door === door)) continue
-    const account = accountOfSlot(slot)
+    const account = slot.kind !== 'api-key' && identity !== undefined ? identity : accountOfSlot(slot)
     doors.push({ door, ...(account !== undefined ? { account } : {}), ...(slot.active ? { active: true } : {}) })
   }
   return doors
@@ -501,11 +501,18 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     }
   }
   const nameOf = (family: string): string => providerDisplayName(family).toUpperCase()
+  const presences = new Map<string, { credentialed: boolean; identity?: string }>()
+  try {
+    for (const presence of providerFamilyPresences()) presences.set(presence.id, presence)
+  } catch {
+    presences.clear()
+  }
+  const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
   const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek'): ProviderHeading => {
     const lane = usability[family]
-    const doors = signedInDoorsOf(family, slotsOf(family))
+    const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
     return { name: nameOf(family), doors }
   }
@@ -513,7 +520,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const anthropic: ProviderHeading = anthropicPresence.credentialed
     ? {
         name: nameOf('anthropic'),
-        doors: signedInDoorsOf('anthropic', slotsOf('anthropic')),
+        doors: signedInDoorsOf('anthropic', slotsOf('anthropic'), anthropicPresence.identity),
         ...(anthropicPresence.expired ? { reason: 'sign-in expired — /logins reconnects' } : {}),
       }
     : { name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }
@@ -521,27 +528,27 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const geminiAvailability = getGeminiAvailability()
   const huggingfaceAvailability = getHuggingfaceAvailability()
   const local = localDiscoverySummary()
-  const compatDoors = signedInDoorsOf('openai-compat', slotsOf('openai-compat'))
+  const compatDoors = doorsOf('openai-compat')
   return {
     [ANTHROPIC_MODEL_GROUP]: anthropic,
     [OPENAI_MODEL_GROUP]:
       gptAvailability.state === 'ready'
-        ? { name: nameOf('openai'), doors: signedInDoorsOf('openai', slotsOf('openai')) }
+        ? { name: nameOf('openai'), doors: doorsOf('openai') }
         : { name: nameOf('openai'), doors: [], reason: gptAvailability.reason },
     [ZAI_MODEL_GROUP]: keyLaneHeading('zai'),
     [MOONSHOT_MODEL_GROUP]: keyLaneHeading('moonshot'),
     [DEEPSEEK_MODEL_GROUP]: keyLaneHeading('deepseek'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
-        ? { name: nameOf('openrouter'), doors: signedInDoorsOf('openrouter', slotsOf('openrouter')) }
+        ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
         : { name: nameOf('openrouter'), doors: [], reason: openrouterAvailability.reason },
     [GEMINI_MODEL_GROUP]:
       geminiAvailability.state === 'ready'
-        ? { name: nameOf('gemini'), doors: signedInDoorsOf('gemini', slotsOf('gemini')) }
+        ? { name: nameOf('gemini'), doors: doorsOf('gemini') }
         : { name: nameOf('gemini'), doors: [], reason: geminiAvailability.reason },
     [HUGGINGFACE_MODEL_GROUP]:
       huggingfaceAvailability.state === 'ready'
-        ? { name: nameOf('huggingface'), doors: signedInDoorsOf('huggingface', slotsOf('huggingface')), note: HUGGINGFACE_UNVERIFIED_NOTE }
+        ? { name: nameOf('huggingface'), doors: doorsOf('huggingface'), note: HUGGINGFACE_UNVERIFIED_NOTE }
         : { name: nameOf('huggingface'), doors: [], reason: huggingfaceAvailability.reason, note: HUGGINGFACE_UNVERIFIED_NOTE },
     [COMPAT_MODEL_GROUP]: { name: nameOf('openai-compat'), doors: compatDoors },
     [LOCAL_MODEL_GROUP]:
@@ -603,6 +610,8 @@ function noteModelUse(setting: string, door?: string): void {
   if (family === 'unrecognised') return
   void recordModelUse(family, setting, door !== undefined ? { door } : {})
 }
+
+type PickRoad = { flip: boolean; door?: string }
 
 function MercuryModelWrapper({
   messages,
@@ -717,7 +726,7 @@ function MercuryModelWrapper({
     id: string
     plan: TransitionPlan
     refreshed: boolean
-    slotNote: string
+    pick: PickRoad
   } | null>(null)
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
@@ -733,11 +742,15 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const handleSlotSwitch = (group: string): string | null => slotSwitchOf(group, () => setSlotVersion(v => v + 1))
   const headings = providerHeadingsOf(slotVersion)
+  const flipDoorNote = (pick: PickRoad): string => {
+    if (!pick.flip) return ''
+    const receipt = handleSlotSwitch(ANTHROPIC_MODEL_GROUP)
+    return receipt === null ? '' : ` · ${receipt}`
+  }
   function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
     const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
-    const slotReceipt = otherDoor ? handleSlotSwitch(ANTHROPIC_MODEL_GROUP) : null
-    const slotNote = slotReceipt === null ? '' : ` · ${slotReceipt}`
+    const pick: PickRoad = { flip: otherDoor === true, ...(door !== undefined ? { door } : {}) }
     const value = id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
       onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
@@ -916,14 +929,14 @@ function MercuryModelWrapper({
         value,
       )
       if (gatePlan.needsChoice) {
-        setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, slotNote })
+        setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })
         return
       }
     }
-    applySelection(value, id, slotNote)
+    applySelection(value, id, pick)
   }
 
-  function applySelection(value: string, id: string, slotNote = ''): void {
+  function applySelection(value: string, id: string, pick: PickRoad = { flip: false }): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
@@ -933,12 +946,13 @@ function MercuryModelWrapper({
           onDone(`The model switch was refused: ${receipt.detail}`)
           return
         }
+        const slotNote = flipDoorNote(pick)
         const saved = persistModelChoice(value).sentence
         if (receipt.state === 'no-op') {
-          onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
+          onDone(saved === '' && slotNote === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}${slotNote}`)
           return
         }
-        noteModelUse(value)
+        noteModelUse(value, pick.door)
         const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
         const plan = previewForSelection(messages, factsBefore.effective, value)
         const lossNote = transitionPlanSummary(plan)
@@ -955,15 +969,16 @@ function MercuryModelWrapper({
     const settled = settleModelSelection(stateNow, value, {
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
+    const slotNote = flipDoorNote(pick)
     const saved = persistModelChoice(value).sentence
     if (settled.kind === 'no-op') {
-      onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
+      onDone(saved === '' && slotNote === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}${slotNote}`)
       return
     }
-    noteModelUse(value)
+    noteModelUse(value, pick.door)
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(`Already on ${label} — queued switch cancelled${saved}`)
+      onDone(`Already on ${label} — queued switch cancelled${saved}${slotNote}`)
       return
     }
     const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
@@ -1001,12 +1016,12 @@ function MercuryModelWrapper({
           if (held.plan.window?.fits === false) {
             const foldingSession = getFocusedSessionConnector()
             if (foldingSession.carrier === 'daemon') {
-              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id, held.slotNote))
+              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id, held.pick))
               return
             }
             requestCommandDispatch('/compact')
           }
-          applySelection(held.value, held.id, held.slotNote)
+          applySelection(held.value, held.id, held.pick)
         }}
         onCancel={() => {
           setTransitionConfirm(null)

@@ -3,6 +3,7 @@ import * as React from 'react'
 import { useState } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput, wrapText } from '../ink.js'
+import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { fitMeasuredWindow, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
@@ -49,6 +50,7 @@ import {
   moreLineWords,
   nextStop,
   pickerColumns,
+  pickerReachTotal,
   rowKey,
   type CatalogueDoorFacet,
   type FoldState,
@@ -139,16 +141,18 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   }
   const groups = React.useMemo(() => groupPickerRows(listed), [listed])
   const top = topGroup ?? groups[0]?.group
-  const currentKey = ((): string | undefined => {
-    const own = listed.find(m => m.id === currentRow && isModelRow(m))
+  const keyOfId = (id: string): string | undefined => {
+    const own = listed.find(m => m.id === id && isModelRow(m))
     if (own !== undefined) return rowKey(own)
     for (const group of groups) {
       if (group.door === undefined) continue
-      const deep = fullRowsOf(group.group)?.find(m => m.id === currentRow)
+      const deep = fullRowsOf(group.group)?.find(m => m.id === id)
       if (deep !== undefined) return rowKey(deep)
     }
     return undefined
-  })()
+  }
+  const currentKey = keyOfId(currentRow)
+  const pendingKey = pendingNext === undefined ? undefined : keyOfId(pendingNext)
   const [folds, setFolds] = useState<Record<string, FoldState>>(() => {
     const initial = initialPickerFolds(groups, top, currentKey)
     for (const group of groups) {
@@ -166,11 +170,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     [groups, folds, filter, listed],
   )
   const { columns: cols, rows: termRows } = useTerminalSize()
-  const panelWidth = panelWidthFor(cols, MODEL_PICKER_PANEL)
+  const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })
+  const panelWidth = panelWidthFor(slot.columns, MODEL_PICKER_PANEL)
   const inner = panelWidth - 4
   const columns = pickerColumns(inner - 4)
   const totalLines = lines.length
-  const availRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
+  const availRows = slot.rows
   const compact = availRows < 20
   const shedMeters = availRows < 13
   const landing = ((): number => {
@@ -293,7 +298,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (rowAxis === 'cancel') {
       if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
       event.stopImmediatePropagation()
-      if (filterFocus || filter !== '') {
+      if ((filterFocus || filter !== '') && !escapeFromOutsidePress()) {
         setFilterFocus(false)
         setFilterText('')
         return
@@ -383,6 +388,16 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       event.stopImmediatePropagation()
       setCtxNotice(focusedModel.ctx !== '' ? `${focusedModel.ctx} · stated by the provider · not a toggle` : 'context window unknown · the provider states none · not a toggle')
     }
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(focusedModel.choice ?? `${focusedModel.name} · not a model · no context window`)
+    }
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedHeading !== undefined) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice('no context window on a provider heading · ↓ reaches its rows')
+    }
     else if (input === 'e' && !key.ctrl && !key.meta && hasEffort) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
@@ -439,17 +454,25 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
     noticeLines.length
   const paintBudget = Math.max(3, availRows - basePaint)
+  const headingAbove = (w: PaneWindow): number => {
+    if (w.above === 0) return -1
+    const first = lines[w.start]
+    if (first === undefined || first.kind === 'heading') return -1
+    const at = headingIndexOf(lines, first.kind === 'row' ? first.row.group : first.group)
+    return at >= 0 && at < w.start ? at : -1
+  }
   const windowPaint = (w: PaneWindow): number => {
-    let sum = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0)
+    let sum = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0) + (headingAbove(w) >= 0 ? 1 : 0)
     for (let idx = w.start; idx < w.end; idx++) sum += linePaint(idx)
     return sum
   }
   const win = fitMeasuredWindow(totalLines, paintBudget, span => paneWindow(totalLines, i, span), windowPaint)
+  const pinnedHeading = headingAbove(win)
   const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
-  const totalModels = lines.reduce((sum, line) => sum + (line.kind === 'heading' ? (line.total ?? 0) : 0), 0)
+  const totalModels = filtering ? pickerReachTotal(groups, fullRowsOf) : 0
   const matched = lines.reduce((sum, line) => sum + (line.kind === 'heading' ? (line.matched ?? 0) : 0), 0)
-  const stateWordOf = (m: ModelChoice): [string, string] =>
-    m.id === currentRow ? [MODEL_PICKER_CURRENT, TEAL] : pendingNext !== undefined && m.id === pendingNext ? ['next', AMBER] : m.gated ? [MODEL_PICKER_UNAVAILABLE, SAND] : ['', FAINT]
+  const stateWordOf = (m: ModelChoice, key: string): [string, string] =>
+    key === currentKey ? [MODEL_PICKER_CURRENT, TEAL] : pendingKey !== undefined && key === pendingKey ? ['next', AMBER] : m.gated ? [MODEL_PICKER_UNAVAILABLE, SAND] : ['', FAINT]
   const footer = modelPickerFooter(
     {
       gated: !!focusedModel?.gated,
@@ -496,7 +519,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     const m = line.row
     const on = idx === i
-    const [stateWord, stateColor] = stateWordOf(m)
+    const [stateWord, stateColor] = stateWordOf(m, line.key)
     const model = isModelRow(m)
     const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
     const ctxText = on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx
@@ -545,6 +568,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         </Text>
       ) : null}
       {win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} more</Text> : null}
+      {pinnedHeading >= 0 ? renderLine(lines[pinnedHeading]!, pinnedHeading) : null}
       {lines.map((line, idx) => (idx < win.start || idx >= win.end ? null : renderLine(line, idx)))}
       {slack > 0 ? <Box height={slack} flexShrink={0} /> : null}
       {win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
@@ -573,7 +597,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       {noticeLines.map((line, k) => (
         <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">{line}</Text>
       ))}
-      <MenuFilterLine focused={filterFocus} text={filter} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} />
+      <MenuFilterLine focused={filterFocus} text={filter} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
     </Box>
     </Box>

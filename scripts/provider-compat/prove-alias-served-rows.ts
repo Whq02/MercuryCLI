@@ -88,7 +88,8 @@ const ALIAS = 'kimi-for-coding'
 const FAST_ALIAS = 'kimi-for-coding-highspeed'
 const SERVED = 'kimi-k3'
 const OTHER_SERVED = 'kimi-k2.7-code'
-const MOONSHOT_TITLE = 'MERCURY — MOONSHOT MODELS'
+const MOONSHOT_HEADING = /[▾▸❯] MOONSHOT · /
+const MOONSHOT_TITLE = 'MOONSHOT · '
 const KIMI_LABEL = 'Kimi account (device-code sign-in · global (kimi.ai))'
 const OFFERED = `${ALIAS}, ${FAST_ALIAS}`
 const PLAIN_REFUSAL = `model '${SERVED}' is not offered by the ${KIMI_LABEL} live catalogue. The catalogue offers: ${OFFERED}.`
@@ -231,7 +232,7 @@ const typedRefusalOf = async (id: string): Promise<string> => (await validateMod
 
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 150))
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const rowLine = (lines: string[], label: string): number => lines.findIndex(l => new RegExp(`${escapeRegExp(label)}\\s{2,}[○●⦿] (current|switch|unavail|next)`).test(l))
+const rowLine = (lines: string[], label: string): number => lines.findIndex(l => new RegExp(`(?:${escapeRegExp(label)}|${escapeRegExp(label.slice(0, 19))}…)\\s{2,}kimi-for-coding(?:-highspeed)?\\s{2,}`).test(l))
 async function mountModel(model: string): Promise<{ frame: () => string; unmount: () => void }> {
   const stdout = Object.assign(new PassThrough(), { columns: 178, rows: 51 })
   stdout.resume()
@@ -242,7 +243,7 @@ async function mountModel(model: string): Promise<{ frame: () => string; unmount
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
   const until = Date.now() + 5000
-  while (Date.now() < until && !(frame().includes(MOONSHOT_TITLE) && rowLine(frame().split('\n'), 'Kimi For Coding Highspeed') >= 0)) await flush()
+  while (Date.now() < until && !(MOONSHOT_HEADING.test(frame()) && rowLine(frame().split('\n'), 'Kimi For Coding Highspeed') >= 0)) await flush()
   await flush()
   await flush()
   return { frame, unmount: () => instance.unmount() }
@@ -252,7 +253,8 @@ const lineUnder = (lines: string[], title: string): string => {
   if (at < 0) return ''
   const col = lines[at]!.indexOf(title)
   const right = lines[at]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
+  const under = (lines[at + 1] ?? '').includes('╭') ? lines[at + 2] ?? '' : lines[at + 1] ?? ''
+  return under.slice(col, right > col ? right : undefined).trim()
 }
 async function captureFrame(name: string): Promise<string[]> {
   const mounted = await mountModel(ALIAS)
@@ -260,11 +262,11 @@ async function captureFrame(name: string): Promise<string[]> {
   mounted.unmount()
   const lines = frame.split('\n')
   if (frameDir !== undefined) writeFileSync(join(frameDir, `model-178x51-${name}.txt`), frame + '\n')
-  const painted = lines.filter(l => /Kimi For Coding/.test(l) && /[○●⦿] (current|switch|unavail|next)/.test(l)).map(l => l.replace(/^.*?│\s*(?:│\s*)?/, '').replace(/\s+│.*$/, '').replace(/\s{2,}/g, '  ').trim())
+  const painted = lines.filter(l => /Kimi For Coding/.test(l) && /\s{2,}kimi-for-coding/.test(l)).map(l => l.replace(/^.*?│\s*(?:│\s*)?/, '').replace(/\s+│.*$/, '').replace(/\s{2,}/g, '  ').trim())
   console.log(`  [record] ${name}: under the title "${lineUnder(lines, MOONSHOT_TITLE)}" · rows: ${painted.join(' | ')}`)
   check(`[${name}] the frame fits 178x51`, lines.length <= 51 && lines.every(line => stringWidth(line) <= 178), `${lines.length} lines · widest ${Math.max(...lines.map(line => stringWidth(line)))}`)
-  check(`[${name}] the Moonshot section is on screen with both alias rows`, lines.some(l => l.includes(MOONSHOT_TITLE)) && rowLine(lines, 'Kimi For Coding Highspeed') >= 0 && lines.some(l => /Kimi For Coding(?! Highspeed)/.test(l) && /[○●⦿] (current|switch)/.test(l)))
-  check(`[${name}] the current mark sits on the ${ALIAS} row`, lines.some(l => /Kimi For Coding(?! Highspeed)/.test(l) && l.includes('● current')))
+  check(`[${name}] the Moonshot section is on screen with both alias rows`, lines.some(l => MOONSHOT_HEADING.test(l)) && rowLine(lines, 'Kimi For Coding Highspeed') >= 0 && lines.some(l => /Kimi For Coding(?! Highspeed)/.test(l) && /\s{2,}kimi-for-coding\s{2,}/.test(l)))
+  check(`[${name}] the current mark sits on the ${ALIAS} row`, lines.some(l => /Kimi For Coding(?! Highspeed)/.test(l) && /\s{2,}kimi-for-coding\s{2,}current\s{2,}/.test(l)))
   return lines
 }
 
