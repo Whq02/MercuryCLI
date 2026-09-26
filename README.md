@@ -463,8 +463,8 @@ Available commands include:
   opt-in integrations connect to running Unity, Blender and Godot editors,
   with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
-- **Memory.** Experience cards and a project notepad. See
-  [docs/TABULA-NOTES.md](docs/TABULA-NOTES.md).
+- **Memory.** Experience cards and project memory: `/cards` reviews lessons,
+  `/remember` banks one, and `/memory` opens the memory files.
 - **Voice input.** Run `/speak on`, then hold space for 3 s to dictate and
   release it to stop. Transcription can run on-device or through your chosen cloud
   provider. The on-device option uses a 60 MB English model, downloaded once
@@ -501,7 +501,7 @@ table below follows the grouping used by `/help`.
 | current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
-| memory & goals | `/memory` `/cards` `/remember` `/note` `/console` `/orient` |
+| memory & goals | `/memory` `/cards` `/remember` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
