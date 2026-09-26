@@ -1,6 +1,7 @@
 prove-action-honesty.ts
 prove-alt-atomic-swaps.ts
 prove-aurora-roles.ts
+prove-bash-exit-row-frames.ts
 prove-boot-gate-esc.ts
 prove-caret-blink.ts
 prove-classify-tool-error.ts
