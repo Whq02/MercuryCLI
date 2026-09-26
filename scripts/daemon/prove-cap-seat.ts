@@ -7,9 +7,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const DIST = join(REPO, 'dist', 'mercury.mjs')
+const argAfter = (flag: string): string | undefined => {
+  const at = process.argv.indexOf(flag)
+  return at >= 0 ? process.argv[at + 1] : undefined
+}
+const DIST = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
-  console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
+  console.error(`✗ ${DIST} missing — run \`bun run build.ts\` first, or name a bundle with --dist`)
   process.exit(1)
 }
 if (process.platform === 'win32') {
@@ -160,6 +164,36 @@ const wire = (): Capture[] =>
 const mainHits = (): Capture[] => wire().filter(c => (c.kind === 'anthropic' || c.kind === 'openai') && typeof c.ask === 'string')
 const daemonLogPath = join(SCRATCH, 'daemon.log')
 const daemonLog = (): string => (existsSync(daemonLogPath) ? readFileSync(daemonLogPath, 'utf8') : '')
+const crashLines = (): string => daemonLog().split('\n').filter(l => /long-lived concourse-w\d+ crashed/.test(l)).join(' | ')
+type LedgerRow = { ts: string; kind?: string; event?: string; id?: string; pid?: number; code?: number | null; signal?: string | null; outcome?: string }
+const ledgerOf = (runnerId: string): LedgerRow[] => {
+  const path = join(daemonDir, 'spawn-ledger.jsonl')
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .filter(l => l.trim() !== '')
+    .map(l => JSON.parse(l) as LedgerRow)
+    .filter(r => r.id === `${runnerId}@concourse`)
+}
+const isExitRow = (r: LedgerRow): boolean => r.event === 'exit'
+const isSpawnRow = (r: LedgerRow): boolean => r.kind === 'long-lived' && r.event === undefined
+const exitRowsOf = (runnerId: string): LedgerRow[] => ledgerOf(runnerId).filter(isExitRow)
+const ms = (iso: string): number => new Date(iso).getTime()
+const respawnAfterExit = (runnerId: string, nth: number): { exit: LedgerRow; spawn: LedgerRow; gapMs: number } | null => {
+  const rows = ledgerOf(runnerId)
+  let seen = 0
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!
+    if (!isExitRow(row)) continue
+    seen++
+    if (seen !== nth) continue
+    const next = rows.slice(i + 1).find(isSpawnRow)
+    return next === undefined ? null : { exit: row, spawn: next, gapMs: ms(next.ts) - ms(row.ts) }
+  }
+  return null
+}
+const AT_ONCE_MS = 700
+const clockOf = (atMs: number): string => new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 type Row = {
   payload?: { kind?: string; content?: Array<{ kind?: string; text?: string }> | string }
   annotations?: { isApiErrorMessage?: boolean; uuid?: string }
@@ -377,24 +411,77 @@ try {
   check('C2 the next call rode the Anthropic wire on the Opus row', sinceHits(before5b).some(h => h.kind === 'anthropic' && h.model === 'claude-opus-5' && h.status === 200), JSON.stringify(sinceHits(before5b)))
   check('C2 the session kept its transcript across the respawn (the rows before the switch stand)', rowsBefore >= 4 && transcriptRows(sid).length > rowsBefore && transcriptRows(sid).some(r => textOf(r).includes(ANTHROPIC_REPLY)), `${rowsBefore} → ${transcriptRows(sid).length}`)
 
-  section('§6 C2 the runner killed by hand: the family switch respawns it on the GPT row')
+  section('§6 C2 the runner killed by hand: the crash arm respawns it at once, and the family switch lands on the respawned runner in place')
+  const runnerLive = readRec(sid)?.runnerId ?? ''
   const pidLive = readRec(sid)?.pid
   check('the runner is live before the kill', alive(pidLive), `pid ${pidLive}`)
+  const exitsBefore6 = exitRowsOf(runnerLive).length
   if (pidLive !== undefined) process.kill(pidLive, 'SIGKILL')
   check('the runner is dead', await untilAsync(() => !alive(pidLive), 10_000), `pid ${pidLive}`)
-  const sw3 = await setModel(sid, GPT_ID)
-  console.log(`      switch receipt on the killed runner: ${JSON.stringify(sw3)}`)
-  check('C2 the family switch on the killed runner is APPLIED', sw3.ok === true && sw3.outcome === 'applied', JSON.stringify(sw3))
-  check('C2 the receipt names the exit and the restart on the GPT row', typeof sw3.detail === 'string' && /had exited at \d\d:\d\d/.test(sw3.detail) && /restart(ed|ing) on GPT-5\.6 Sol/.test(sw3.detail) && (sw3 as { respawned?: unknown }).respawned === true, JSON.stringify(sw3))
-  check('C2 the runner is live again on the GPT row', await untilAsync(() => {
+  check("C2 the crash row: the record carries the crash arm's stamp, respawning", await untilAsync(() => readRec(sid)?.crash?.respawning === true, 10_000), JSON.stringify(readRec(sid)?.crash))
+  const crash6 = readRec(sid)?.crash
+  check('C2 the crash row\'s words name the death and the resume: "crashed mid-run (exit none · signal SIGKILL) … · resumed — the interrupted ask needs a re-send"', crash6 !== undefined && /^crashed mid-run \(exit none · signal SIGKILL\)/.test(crash6.reason) && / · resumed — the interrupted ask needs a re-send$/.test(crash6.reason), JSON.stringify(crash6))
+  check('C2 the daemon read the death as a crash and the ladder chose the respawn (its first)', await untilAsync(() => /long-lived concourse-w\d+ crashed \(code=null sig=SIGKILL\); respawn \(1\/\d+\)/.test(daemonLog()), 10_000), crashLines())
+  const respawned6 = await untilAsync(() => respawnAfterExit(runnerLive, exitsBefore6 + 1) !== null, 10_000)
+  const gap6 = respawnAfterExit(runnerLive, exitsBefore6 + 1)
+  console.log(`      the ledger: exit ${gap6?.exit.outcome ?? '?'} → the respawn row ${gap6?.gapMs ?? '?'} ms later`)
+  check(`C2 the ledger's exit row reads crash-respawn (signal SIGKILL) and the respawn row follows it at once (within ${AT_ONCE_MS} ms)`, respawned6 && gap6 !== null && gap6.exit.outcome === 'crash-respawn' && gap6.exit.signal === 'SIGKILL' && gap6.gapMs <= AT_ONCE_MS, gap6 === null ? JSON.stringify(exitRowsOf(runnerLive)) : `${gap6.exit.outcome} → respawn ${gap6.gapMs} ms later`)
+  const back6 = await untilAsync(() => {
     const r = readRec(sid)
-    return r !== undefined && r.modelKey === GPT_ID && r.pendingModelKey === undefined && alive(r.pid) && r.pid !== pidLive
-  }, 30_000), JSON.stringify(readRec(sid)))
+    return r !== undefined && r.pid !== undefined && r.pid !== pidLive && alive(r.pid)
+  }, 20_000)
+  const pidBack = readRec(sid)?.pid
+  check('C2 the runner is back on its own (a new live pid on the same session, no switch sent yet)', back6, JSON.stringify(readRec(sid)))
+  check('the facts read idle once the runner is back', await untilAsync(() => readFacts(sid)?.busy === false, 10_000), JSON.stringify(readFacts(sid)))
+  check("C2 the respawn kept the Opus row, and the crash row stands until the operator's next act", readRec(sid)?.modelKey === 'claude-opus-5' && readRec(sid)?.pendingModelKey === undefined && readRec(sid)?.crash?.respawning === true, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey, crash: readRec(sid)?.crash }))
+  const sw3 = await setModel(sid, GPT_ID)
+  console.log(`      switch receipt on the respawned runner: ${JSON.stringify(sw3)}`)
+  check('C2 the family switch on the respawned runner is APPLIED', sw3.ok === true && sw3.outcome === 'applied', JSON.stringify(sw3))
+  check('C2 the receipt takes the live-runner shape ("<runner> → <model>": no exit, no restart, no respawned flag)', sw3.detail === `${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify(sw3))
+  check('C2 the switch landed in place: the respawned pid stands', readRec(sid)?.pid === pidBack && alive(pidBack), JSON.stringify({ pid: readRec(sid)?.pid, pidBack }))
+  check("C2 the record's crash row still stands after the switch (the row says the runner exited and resumed; the receipt did not)", readRec(sid)?.crash?.respawning === true && readRec(sid)?.crash?.at === crash6?.at, JSON.stringify(readRec(sid)?.crash))
+  check('C2 the record and the facts carry the GPT row', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readRec(sid)?.pendingModelKey === undefined && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
   const before6 = mainHits().length
   const last = await say('hello at last', sid)
   check('the next ask was delivered', last.ok === true, JSON.stringify(last))
   check('the next turn ended', await untilAsync(() => sinceHits(before6).length > 0 && turnEnded(sid), 90_000), JSON.stringify({ hits: sinceHits(before6), rec: readRec(sid), facts: readFacts(sid) }))
   check('C2 the next call rode the OpenAI wire on the GPT row', sinceHits(before6).some(h => h.kind === 'openai' && h.model === GPT_ID && h.status === 200), JSON.stringify(sinceHits(before6)))
+  check("the operator's words landing cleared the crash row (the record's clear beat is the next ask, not the switch)", readRec(sid)?.crash === undefined, JSON.stringify(readRec(sid)?.crash))
+
+  section("§7 C2b the runner killed by hand again inside the healthy window: the ladder's wait is armed, and the switch that meets the dead runner rides the respawn")
+  const pidGpt = readRec(sid)?.pid
+  check('the runner is live before the second kill', alive(pidGpt) && pidGpt !== pidLive, `pid ${pidGpt}`)
+  const exitsBefore7 = exitRowsOf(runnerLive).length
+  const killAt7 = Date.now()
+  if (pidGpt !== undefined) process.kill(pidGpt, 'SIGKILL')
+  check('the runner is dead', await untilAsync(() => !alive(pidGpt), 10_000), `pid ${pidGpt}`)
+  check('C2b the crash row is stamped again, respawning', await untilAsync(() => {
+    const c = readRec(sid)?.crash
+    return c !== undefined && c.respawning && c.at >= killAt7
+  }, 10_000), JSON.stringify(readRec(sid)?.crash))
+  check("C2b the daemon read the second death inside the window as a loop forming: the ladder's second rung", await untilAsync(() => /long-lived concourse-w\d+ crashed \(code=null sig=SIGKILL\); respawn \(2\/\d+\)/.test(daemonLog()), 10_000), crashLines())
+  const recDead = readRec(sid)
+  check('C2b the switch meets a dead runner: the record still names the killed pid, and no respawn row has landed', recDead !== undefined && recDead.pid === pidGpt && !alive(pidGpt) && respawnAfterExit(runnerLive, exitsBefore7 + 1) === null, JSON.stringify({ rec: recDead, exits: exitRowsOf(runnerLive).length }))
+  const switchAt7 = Date.now()
+  const sw4 = await setModel(sid, 'claude-fable-5-1')
+  console.log(`      switch receipt on the dead runner: ${JSON.stringify(sw4)}`)
+  check('C2b the switch on the dead runner is APPLIED — never "no live control channel"', sw4.ok === true && sw4.outcome === 'applied', JSON.stringify(sw4))
+  check('C2b the receipt names the exit and the restart: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1", respawned', typeof sw4.detail === 'string' && /^the runner had exited at \d\d:\d\d \(crashed mid-run \(exit none · signal SIGKILL\)\) — restarting on Fable 5\.1$/.test(sw4.detail) && (sw4 as { respawned?: unknown }).respawned === true, JSON.stringify(sw4))
+  check("C2b the receipt's clock is the crash row's own stamp", typeof sw4.detail === 'string' && recDead?.crash !== undefined && sw4.detail.includes(`had exited at ${clockOf(recDead.crash.at)}`), JSON.stringify({ detail: sw4.detail, at: recDead?.crash?.at }))
+  check('C2b the record took the Fable row in the same beat (nothing parked)', readRec(sid)?.modelKey === 'claude-fable-5-1' && readRec(sid)?.pendingModelKey === undefined, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey }))
+  check("C2b the ladder's respawn lands the runner on the Fable row (a new live pid)", await untilAsync(() => {
+    const r = readRec(sid)
+    return r !== undefined && r.pid !== undefined && r.pid !== pidGpt && alive(r.pid) && r.modelKey === 'claude-fable-5-1'
+  }, 30_000), JSON.stringify(readRec(sid)))
+  const gap7 = respawnAfterExit(runnerLive, exitsBefore7 + 1)
+  console.log(`      the ledger: exit ${gap7?.exit.outcome ?? '?'} → the respawn row ${gap7?.gapMs ?? '?'} ms later (the ladder's second rung)`)
+  check("C2b the ledger's exit row reads crash-respawn, and its respawn row came after the switch was sent (the switch rode the armed respawn)", gap7 !== null && gap7.exit.outcome === 'crash-respawn' && gap7.exit.signal === 'SIGKILL' && ms(gap7.spawn.ts) >= switchAt7, gap7 === null ? JSON.stringify(exitRowsOf(runnerLive)) : JSON.stringify({ exit: gap7.exit.ts, spawn: gap7.spawn.ts, switchAt: new Date(switchAt7).toISOString() }))
+  check('the facts read idle once the runner is back', await untilAsync(() => readFacts(sid)?.busy === false, 10_000), JSON.stringify(readFacts(sid)))
+  const before7 = mainHits().length
+  const after = await say('hello after the loop', sid)
+  check('the next ask was delivered to the respawned runner', after.ok === true, JSON.stringify(after))
+  check('the next turn ended', await untilAsync(() => sinceHits(before7).length > 0 && turnEnded(sid), 90_000), JSON.stringify({ hits: sinceHits(before7), rec: readRec(sid), facts: readFacts(sid) }))
+  check('C2b the next call rode the Anthropic wire on the Fable row', sinceHits(before7).some(h => h.kind === 'anthropic' && h.model === 'claude-fable-5-1' && h.status === 200), JSON.stringify(sinceHits(before7)))
 } finally {
   await cleanup()
 }
