@@ -240,7 +240,7 @@ async function startFixture(port: number): Promise<Fixture> {
     server.listen(port, '127.0.0.1', () => resolve())
   })
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`,
     hits,
     holdClosedAt: () => holdClosedAt,
     close: () =>
@@ -336,7 +336,10 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 
 function bundleProcesses(): string[] {
   const out = spawnSync('/usr/bin/pgrep', ['-f', BIN], { encoding: 'utf8' }).stdout.trim()
-  return out === '' ? [] : out.split('\n')
+  if (out === '') return []
+  const rows = spawnSync('ps', ['eww', '-p', out.split('\n').join(','), '-o', 'pid=,args='], { encoding: 'utf8' }).stdout.split('\n')
+  const pin = ` MERCURY_CONFIG_DIR=${home}`
+  return rows.filter(row => row.includes(`${pin} `) || row.endsWith(pin)).map(row => row.trim().split(/\s+/)[0]!)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
@@ -357,7 +360,7 @@ console.log(' a teammate mid-turn, mail queued at it, esc, the exit — nothing 
 console.log('============================================================')
 const KEEP = process.env.TEAMMATE_MAIL_KEEP === '1'
 const { home, cwd } = seedWorld()
-const fixture = await startFixture(Number(process.env.TEAMMATE_MAIL_PORT ?? 25211))
+const fixture = await startFixture(Number(process.env.TEAMMATE_MAIL_PORT ?? 0))
 const before = bundleProcesses()
 let mostAlive = 0
 const sampler = setInterval(() => {
