@@ -58,7 +58,7 @@ import { markClaudeAiMcpConnected } from './claudeai.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { isMcpCatalogueMember } from './membership.js'
-import { runElicitationHooks, runElicitationResultHooks } from './elicitationHandler.js'
+import { elicitationPausedClock, runElicitationHooks, runElicitationResultHooks } from './elicitationHandler.js'
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
@@ -1311,10 +1311,12 @@ async function callToolOnce(
     logMCPDebug(connected.name, `tool ${tool} still running after ${Math.round((Date.now() - startedAt) / 1000)}s`)
   }, LONG_CALL_LOG_INTERVAL_MS)
   stillRunning.unref()
+  const clock = elicitationPausedClock(connected.client)
   const watchdog = armInactivityDeadline({
     seam: `MCP tool "${tool}" on server "${connected.name}"`,
     limitMs: idleLimitMs,
     advice: `no result and no progress notification for ${formatLimit(idleLimitMs)} — the call was cancelled; MERCURY_MCP_CALL_IDLE_MINUTES tunes the limit (0 disables)`,
+    now: clock.now,
   })
   const requestController = new AbortController()
   const forwardAbort = (): void => requestController.abort()
@@ -1418,6 +1420,7 @@ async function callToolOnce(
     clearInterval(stillRunning)
     if (timer !== null) clearTimeout(timer)
     watchdog.cancel()
+    clock.release()
     signal.removeEventListener('abort', forwardAbort)
     releaseRoute()
   }

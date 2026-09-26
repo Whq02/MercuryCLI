@@ -115,6 +115,7 @@ import {
   setupSdkMcpClients,
 } from '../services/mcp/client.js'
 import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'
+import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
@@ -899,7 +900,7 @@ export async function runHeadless(
   ): Promise<void> => {
     client.client.setRequestHandler(
       'elicitation/create',
-      async (request, ctx) => {
+      (request, ctx) => withElicitationEntered(client.client, async () => {
         const params = request.params
         const mode = params.mode === 'url' ? 'url' : 'form'
         const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
@@ -939,7 +940,7 @@ export async function runHeadless(
           return resultHook.elicitationResultResponse
         }
         return hostResult
-      },
+      }),
     )
     client.client.setNotificationHandler(
       'notifications/elicitation/complete',
