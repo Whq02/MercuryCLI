@@ -86,8 +86,8 @@ function popupWords(frame: string | undefined, title: string): string {
   return inner.join(' ').replace(/\s+/g, ' ')
 }
 
-function composerBeside(frame: string | undefined, title: string): string {
-  const rows = rowsOf(frame)
+function composerBeside(frame: string | undefined, title: string, sourceFrame = frame): string {
+  const rows = rowsOf(sourceFrame)
   const y = rows.findIndex(r => r.startsWith('│❯') || r.includes(COMPOSER_EMPTY))
   if (y < 0) return ''
   const row = rows[y] ?? ''
@@ -255,9 +255,9 @@ async function jevLeg(name: string, cols: number, rows: number): Promise<void> {
   tally.check(`${tag} J5 ← did not open the surfaces index beneath; the popup is still open`, !surfacesOpen(m['after-left']) && has(m['after-left'], JEV_TITLE), rowsOf(m['after-left']).filter(r => r.includes(SURFACES_TITLE) || r.includes(SURFACES_FILTER)).join(' | ') || 'popup gone')
   const outside = outsidePopupSame(m.open, m['after-left'], JEV_TITLE)
   tally.check(`${tag} J6 every row outside the popup is byte-identical before and after ←`, outside.same, outside.detail)
-  const besideOpen = composerBeside(m.open, JEV_TITLE)
+  const besideOpen = composerBeside(m['after-left'], JEV_TITLE, m.open)
   const besideAfter = composerBeside(m['after-left'], JEV_TITLE)
-  tally.check(`${tag} J7 the composer beneath still reads its empty prompt in the columns the popup leaves visible, unchanged by ←`, besideAfter.includes(COMPOSER_EMPTY) && besideAfter === besideOpen, `${besideAfter.trimEnd() || '(no composer row)'}${besideAfter === besideOpen ? '' : `\n    before: ${besideOpen.trimEnd()}`}`)
+  tally.check(`${tag} J7 the composer beneath still reads its empty prompt in the columns the popup leaves visible, unchanged by ←`, besideAfter.includes('❯ Type') && besideAfter === besideOpen && besideAfter === composerBeside(m['after-left'], JEV_TITLE, m.land), JSON.stringify({ before: besideOpen, after: besideAfter, landing: composerBeside(m['after-left'], JEV_TITLE, m.land) }))
   tally.check(`${tag} J8 esc closed the popup and no surfaces index stands; the composer reads as at landing`, !has(m.closed, JEV_TITLE) && !surfacesOpen(m.closed) && composerRow(m.closed) === composerRow(m.land), composerRow(m.closed).trimEnd() || '(no composer row)')
   tally.check(`${tag} J9 the flip persisted through the owner: the home's JEV switch is on`, jevStored(home)?.enabled === true, JSON.stringify(jevStored(home)))
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
@@ -281,8 +281,8 @@ async function configLeg(): Promise<void> {
   const m = cap.marks
   tally.section('config 178x51 · /config on its JEV row: → flips the one switch, the surfaces index stays shut, nothing beneath moves')
   tally.check('config C1 every send became due', cap.receipts === cap.sends && cap.status === 0, dueDetail(cap))
-  tally.check('config C2 the typed filter reached the JEV row, selected and off', has(m.row, CONFIG_TITLE) && popupCell(m.row, CONFIG_JEV_ROW).endsWith('off'), popupCell(m.row, CONFIG_JEV_ROW) || '(no JEV row)')
-  tally.check('config C3 → flipped JEV on inside the popup and opened no surfaces index', popupCell(m['after-right'], CONFIG_JEV_ROW).endsWith('on') && has(m['after-right'], CONFIG_TITLE) && !surfacesOpen(m['after-right']), popupCell(m['after-right'], CONFIG_JEV_ROW) || '(no JEV row)')
+  tally.check('config C2 the typed filter reached the JEV row, selected and off', has(m.row, CONFIG_TITLE) && /^› JEV\s+off · official$/.test(popupCell(m.row, CONFIG_JEV_ROW)), popupCell(m.row, CONFIG_JEV_ROW) || '(no JEV row)')
+  tally.check('config C3 → flipped JEV on inside the popup and opened no surfaces index', /^› JEV\s+on · official$/.test(popupCell(m['after-right'], CONFIG_JEV_ROW)) && has(m['after-right'], CONFIG_TITLE) && !surfacesOpen(m['after-right']), popupCell(m['after-right'], CONFIG_JEV_ROW) || '(no JEV row)')
   const outside = outsidePopupSame(m.row, m['after-right'], CONFIG_TITLE)
   tally.check('config C4 every row outside the popup is byte-identical before and after →', outside.same, outside.detail)
   tally.check('config C5 the composer beneath still reads its empty prompt', composerRow(m['after-right']).includes(COMPOSER_EMPTY) && composerRow(m['after-right']) === composerRow(m.row), composerRow(m['after-right']).trimEnd() || '(no composer row)')
