@@ -246,7 +246,7 @@ const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const SPLASH_READY = 'type a prompt, or / for commands'
 const SHIFT_LEFT = '\x1b[1;2D'
 const BOARD = 'SESSION CONCOURSE'
-const FACE_READY = '↵ start  ·  m menu  ·  ↑↓ choose'
+const FACE_READY = '↵ start  ·  ↑↓ choose'
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },

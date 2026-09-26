@@ -306,7 +306,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },
-          { data: '', atTick: 999, awaitText: 'bash commands', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'tools' },
+          { data: '', atTick: 999, awaitText: 'Ran 6 bash commands', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'tools' },
           { data: '', atTick: 999, awaitText: 'Background command', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'background' },
           { data: '', atTick: 999, awaitText: 'shell-drive: done', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'done' },
         ],

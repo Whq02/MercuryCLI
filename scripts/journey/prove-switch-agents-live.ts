@@ -294,6 +294,7 @@ function seedWorld(): { home: string; cwd: string } {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'switch-drive-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'switch-drive-cwd-')))
   seedFirstRun(home, [cwd])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   return { home, cwd }
 }
 

@@ -44,7 +44,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const MANAGER_FOOTER = 'n new ·'
@@ -316,7 +316,7 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
       { afterPrevTicks: 2, data: ESC },
       { afterPrevTicks: 4, data: '/status' },
       { afterPrevTicks: 3, data: '\r' },
-      g('off this boot (--chat)', '', { mark: 'status', awaitSettleTicks: 3 }),
+      g('Mercury · status', '', { mark: 'status', awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: ESC },
       g(COMPOSER, '', { mark: 'closed', awaitSettleTicks: 3 }),
     ],

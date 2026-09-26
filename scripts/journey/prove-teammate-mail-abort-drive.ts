@@ -376,7 +376,7 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'mail-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-        { data: '\x1b', awaitText: 'running…', requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'tool-running' },
+        { data: '\x1b', awaitText: 'unning 1 bash command', requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'tool-running' },
         { data: '', afterPrevTicks: 12, mark: 'after-esc' },
         { data: 'mail-drive: alive\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '', awaitText: ALIVE, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'alive' },
@@ -424,7 +424,7 @@ if (cap !== null) {
   check('M1 both messages were sent to the teammate while its turn ran (the tool answered for each, after the seat\'s first call)', mailed !== undefined && seatFirst !== undefined && mailed.atMs >= seatFirst.atMs && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')
 
   console.log('\n— M2 esc ends the chat\'s turn alone; the loop is live —')
-  check('M2 the chat\'s Bash sleep was running when esc landed', rowsWith(m['tool-running'], 'running…').length > 0, rowsWith(m['tool-running'], /Bash|running/).map(flat).join(' | ').slice(0, 200))
+  check('M2 the chat\'s Bash sleep was running when esc landed', rowsWith(m['tool-running'], 'unning 1 bash command').length > 0, rowsWith(m['tool-running'], /Bash|running|bash command/).map(flat).join(' | ').slice(0, 200))
   check('M2 after esc the composer is back (the chat\'s turn ended)', rowsWith(m['after-esc'], 'ype a prompt').length > 0, rowsWith(m['after-esc'], /prompt|interrupt/).map(flat).join(' | ').slice(0, 200))
   check('M2 the teammate\'s held connection stood through esc', holdClosedAt === null || holdClosedAt > exitAt - 500, holdClosedAt === null ? 'never closed' : `closed ${holdClosedAt - escAt} ms after esc`)
   check('M2 no third seat call before the exit (esc did not touch the teammate; its mail waited)', seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)

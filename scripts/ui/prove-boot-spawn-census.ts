@@ -56,7 +56,7 @@ const requestClock = setInterval(() => {
   if (firstRequestTs === null && api.messageRequests().length > 0) firstRequestTs = Date.now()
 }, 5)
 
-const READY = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const ASK = 'census: hello'
 const sends = [

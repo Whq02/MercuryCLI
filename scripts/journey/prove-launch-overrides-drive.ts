@@ -51,7 +51,7 @@ const TURN_TWO = 'launch turn two beta-heron'
 const TURN_THREE = 'launch turn three gamma-ibis'
 const HOP_MODEL = 'claude-sonnet-5'
 const HOP_EFFORT = 'high'
-const HOP_HIGH_NEEDLE = FULL_LAYOUT ? `${EFFORT_HIGH} ${HOP_EFFORT}` : `effort ${HOP_EFFORT}`
+const HOP_HIGH_NEEDLE = FULL_LAYOUT ? `Sonnet 5 · ${HOP_EFFORT}` : `effort ${HOP_EFFORT}`
 
 const SCRATCH = path.join(realpathSync(tmpdir()), `mercury-launchover-${process.pid}`)
 rmSync(SCRATCH, { recursive: true, force: true })
@@ -239,7 +239,7 @@ function convergenceLatencyMs(world: World, name: string, model: string, effortW
     const hopped = marks.find(m => m.label === 'hopped')
     const samples = marks.filter(m => /^s\d+$/.test(m.label)).sort((a, b) => a.atMs - b.atMs)
     const isHigh = (text: string): boolean =>
-      text.split('\n').some(l => l.includes(model) && new RegExp(`(${EFFORT_HIGH}|effort)\\s*${effortWord}\\b`).test(l))
+      text.split('\n').some(l => l.includes(model) && new RegExp(`(${EFFORT_HIGH}|effort|${model} ·)\\s*${effortWord}\\b`).test(l))
     const sampleGrids = samples.map(s => ({ label: s.label, atMs: s.atMs, text: textOf(s.grid), high: false }))
     for (const g of sampleGrids) g.high = isHigh(g.text)
     if (hopped === undefined) return { ms: undefined, label: 'hopped-missing', hoppedAtMs: undefined, sampleGrids }
@@ -349,7 +349,7 @@ const c = drive(
   [
     { atTick: 260, minTick: 24, awaitText: 'wins over', awaitSettleTicks: 4, data: '', mark: 'hopped' },
     ...HOP_SAMPLES,
-    { atTick: 340, minTick: 26, awaitText: HOP_HIGH_NEEDLE, awaitSettleTicks: 2, data: '', mark: 'strip' },
+    { atTick: 340, minTick: 26, awaitText: HOP_HIGH_NEEDLE, requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'strip' },
     { afterPrevTicks: 2, data: `${TURN_THREE}\r` },
   ],
   ['reply to [[launch turn three'],
