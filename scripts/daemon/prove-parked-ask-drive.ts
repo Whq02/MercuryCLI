@@ -208,6 +208,8 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     ANTHROPIC_BASE_URL: base,
     OPENAI_API_KEY: '',
     MERCURY_PERMISSION_ASK_EXPIRY_MINUTES: '0.05',
+    MERCURY_DAEMON_OWNER_PID: String(process.pid),
+    MERCURY_DAEMON_NO_SELF_WARM: '1',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

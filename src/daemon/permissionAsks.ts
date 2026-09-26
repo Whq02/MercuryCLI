@@ -15,14 +15,16 @@ import {
   DENIAL_WORKAROUND_GUIDANCE,
   REJECT_MESSAGE,
   REJECT_MESSAGE_WITH_REASON_PREFIX,
+  UNANSWERED_ASK_REJECT_MESSAGE,
 } from '../utils/messages/rejectionText.js'
 import {
   decodeDecisionReasonFromWire,
   type DecisionReasonWireV1,
 } from '../utils/permissions/decisionReasonWire.js'
-import { daemonDir } from './controlSocket.js'
-import { readSessionWorkers } from './concourseSupervisor.js'
+import { daemonDir, supervisorStatePath } from './controlSocket.js'
+import { nextLiveCockpitOwner, readSessionWorkers } from './concourseSupervisor.js'
 import { initGitRepository } from './concourseWorktrees.js'
+import { isProcessAlive } from './ownerWatch.js'
 import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 
 function gitInitAsksPath(): string {
@@ -72,6 +74,26 @@ export function expiredAskDenialMessage(toolName: string, limitMs: number, cause
       ? `nobody answered the permission ask within ${formatLimit(limitMs)}, so it expired`
       : `the permission ask was dropped unanswered because the switchboard's parked-ask table was full`
   return `Permission to use ${toolName} has been denied: ${what}. ${DENIAL_WORKAROUND_GUIDANCE}`
+}
+
+export const NO_CLIENT_ATTACHED_CAUSE = 'no operator client is attached to the switchboard'
+
+export type OperatorClientPresence = 'attached' | 'absent' | 'unknown'
+
+export function operatorClientPresence(dir?: string): OperatorClientPresence {
+  let record: { ownerPid?: unknown } | null
+  try {
+    record = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { ownerPid?: unknown } | null
+  } catch {
+    return 'unknown'
+  }
+  if (record === null || typeof record !== 'object') return 'unknown'
+  if (typeof record.ownerPid === 'number' && isProcessAlive(record.ownerPid)) return 'attached'
+  return nextLiveCockpitOwner(null, dir) === undefined ? 'absent' : 'attached'
+}
+
+export function unattendedAskDenialMessage(toolName: string): string {
+  return UNANSWERED_ASK_REJECT_MESSAGE(toolName, NO_CLIENT_ATTACHED_CAUSE)
 }
 
 interface PendingAsk {
@@ -172,12 +194,50 @@ function settleUnanswered(
   })
 }
 
+function denyUnattended(
+  requestId: string,
+  short: string,
+  rec: { sessionId: string; workspaceId: string; title?: string },
+  toolName: string,
+  input: Record<string, unknown>,
+  channel: AskControlChannel | undefined,
+): void {
+  const frame = JSON.stringify({
+    type: 'control_response',
+    response: {
+      subtype: 'success',
+      request_id: requestId,
+      response: { behavior: 'deny', message: unattendedAskDenialMessage(toolName) },
+    },
+  })
+  const delivered = channel !== undefined && channel.control(short, frame)
+  // eslint-disable-next-line no-console
+  console.error(
+    `[daemon] permission ask ${requestId} (${toolName} for ${short}) denied at once — ${NO_CLIENT_ATTACHED_CAUSE}${delivered ? ' — the child was told' : ' — no live control channel to tell'}`,
+  )
+  const ask: PendingAsk = { workerId: short, sessionId: rec.sessionId, workspaceId: rec.workspaceId, toolName, input }
+  ask.obligationLanded = upsertObligation({
+    ref: `permission:${requestId}`,
+    sessionId: rec.sessionId,
+    question: `"${rec.title ?? short}" asked to run ${toolName} — denied at once: ${NO_CLIENT_ATTACHED_CAUSE}`,
+    owner: 'operator',
+    scope: 'switchboard',
+  })
+    .then(res => res.obligationId)
+    .catch(err => {
+      logForDebugging(`[daemon] unattended-ask receipt write failed: ${err}`)
+      return undefined
+    })
+  settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: denied at once — ${NO_CLIENT_ATTACHED_CAUSE}` })
+}
+
 export function onWorkerControlRequest(
   short: string,
   frame: Record<string, unknown>,
   dir?: string,
   channel?: AskControlChannel,
   expiryMs: number = permissionAskExpiryMs(),
+  presence: (dir?: string) => OperatorClientPresence = operatorClientPresence,
 ): void {
   if (!short.startsWith('concourse-w')) return
   const request = frame.request as Record<string, unknown> | undefined
@@ -188,6 +248,10 @@ export function onWorkerControlRequest(
   if (!rec || rec.endedAt !== undefined) return
   const toolName = String(request.tool_name ?? 'a tool')
   const input = (request.input ?? {}) as Record<string, unknown>
+  if (presence(dir) === 'absent') {
+    denyUnattended(requestId, short, rec, toolName, input, channel)
+    return
+  }
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue

@@ -78,7 +78,7 @@ const childEnv = {
   MERCURY_PARTY: '0',
   MERCURY_AWAY_SUMMARY: '0',
 }
-const daemon = spawn('node', [BIN, 'daemon', 'run', ground], { cwd: ground, env: childEnv, stdio: ['ignore', logFd, logFd] })
+const daemon = spawn('node', [BIN, 'daemon', 'run', ground], { cwd: ground, env: { ...childEnv, MERCURY_DAEMON_OWNER_PID: String(process.pid), MERCURY_DAEMON_NO_SELF_WARM: '1' }, stdio: ['ignore', logFd, logFd] })
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))

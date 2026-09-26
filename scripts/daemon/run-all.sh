@@ -95,6 +95,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-restart-waits-live.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-stop-inside-hosted-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stop-inside-hosted-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-departure.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-departure.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-hold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-hold.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-unattended-ask-denied.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unattended-ask-denied.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-credential-change-reaches-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-credential-change-reaches-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-openai-lane-after-relogin.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-openai-lane-after-relogin.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-midturn-line.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-midturn-line.ts" "$__t" "$__rc"

@@ -60,6 +60,8 @@ const spawnDaemonWithHome = (configHome: string): void => {
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
+      MERCURY_DAEMON_OWNER_PID: String(process.pid),
+      MERCURY_DAEMON_NO_SELF_WARM: '1',
     },
     stdio: ['ignore', logFd, logFd],
   })
