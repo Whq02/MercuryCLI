@@ -1159,13 +1159,16 @@ export function REPL({
     const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
     const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand);
     const takeComposer = (): void => {
-      if (pendingInput.text().replace(/\s+$/, '') === input) pendingInput.clearForSubmit(input);
-      setInputValue('');
-      setPastedContents({});
-      setIdeSelection(undefined);
-      helpers.clearBuffer();
-      helpers.setCursorOffset(0);
-      setInputMode('prompt');
+      const composerLine = pendingInput.text().replace(/\s+$/, '');
+      if (composerLine === input) pendingInput.clearForSubmit(input);
+      if (composerLine === '' || composerLine === input) {
+        setInputValue('');
+        setPastedContents({});
+        setIdeSelection(undefined);
+        helpers.clearBuffer();
+        helpers.setCursorOffset(0);
+        setInputMode('prompt');
+      }
       if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
     };
     if (seatCommand === undefined && text.startsWith('/') && seatMode !== 'bash') {
