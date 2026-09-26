@@ -25,16 +25,33 @@ const processGroup = pathToFileURL(resolve(import.meta.dir, '../../src/utils/pro
 writeFileSync(
   child,
   [
+    "import { spawn } from 'node:child_process'",
     `const { endProcessTree } = await import(${JSON.stringify(processGroup)})`,
-    'const receipt = await endProcessTree(process.pid)',
-    "console.log('RECEIPT ' + JSON.stringify(receipt))",
+    "const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })",
+    'try {',
+    '  const receipt = await endProcessTree(process.pid)',
+    "  console.log('RECEIPT ' + JSON.stringify(receipt))",
+    '  let alive = true',
+    '  try { process.kill(child.pid!, 0) } catch { alive = false }',
+    "  console.log('CHILD ' + alive)",
+    '} finally {',
+    '  if (child.exitCode === null && child.signalCode === null) {',
+    "    const closed = new Promise<void>(resolve => child.once('close', () => resolve()))",
+    "    child.kill('SIGKILL')",
+    '    await closed',
+    '  }',
+    '}',
   ].join('\n'),
 )
 
-const run = spawnSync(process.execPath, [child], { encoding: 'utf8', timeout: 60_000, windowsHide: true })
-const receipt = run.stdout.split(/\r?\n/).find(line => line.startsWith('RECEIPT '))
-check('a process that asks to end its own tree is still alive to answer', run.status === 0, `exit ${run.status}`)
-check('its receipt names nothing ended', receipt === 'RECEIPT {"ended":0,"survivors":[]}', receipt ?? (run.stderr || '').trim().split('\n').slice(-1)[0])
+for (const detached of [false, true]) {
+  const run = spawnSync(process.execPath, [child], { detached, encoding: 'utf8', timeout: 60_000, windowsHide: true })
+  const receipt = run.stdout.split(/\r?\n/).find(line => line.startsWith('RECEIPT '))
+  const prefix = detached ? 'a detached launch: ' : ''
+  check(`${prefix}a process that asks to end its own tree is still alive to answer`, run.status === 0, `exit ${run.status}; signal ${run.signal}`)
+  check(`${prefix}its receipt names nothing ended`, receipt === 'RECEIPT {"ended":0,"survivors":[]}', receipt ?? (run.stderr || '').trim().split('\n').slice(-1)[0])
+  check(`${prefix}its child is still alive`, run.stdout.split(/\r?\n/).includes('CHILD true'), run.stdout.trim())
+}
 
 try {
   rmSync(root, { recursive: true, force: true, maxRetries: 3 })

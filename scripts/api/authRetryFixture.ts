@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -20,7 +20,7 @@ export type Arm = 'unavailable' | 'failed' | 'unchanged' | 'refreshed' | 'reject
 export type Wire = { kind: string; bearer?: string; status?: number; path?: string; at: number }
 
 export async function authWorld(arm: Arm, retryAfter = '0.001') {
-  const home = mkdtempSync(join(argAfter('--scratch') ?? tmpdir(), `authentication-${arm}-`))
+  const home = realpathSync(mkdtempSync(join(argAfter('--scratch') ?? tmpdir(), `authentication-${arm}-`)))
   const cwd = join(home, 'project')
   mkdirSync(cwd)
   const wires: Wire[] = []
