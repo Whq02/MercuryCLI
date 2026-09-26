@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
+import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK, TOOL_RESULT_MARK, WATCHED_WORDS } from './compaction-hold-fixture-words.ts'
 
 const captureFile = process.argv[2]
 if (!captureFile) {
@@ -12,7 +13,6 @@ export const FOLD_FIRST_DELTA_MS = Number(process.argv[3] ?? 2500)
 export const FOLD_DELTA_MS = 800
 export const TOOL_ASK = 'run a tool then fold'
 export const TOOL_TURN_INPUT_TOKENS = 190_000
-export const WATCHED_WORDS = ['first held words', 'second held words', 'the later line', 'the words to take back', 'the auto-held words', 'the second auto-held words'] as const
 const FOLD_DELTAS = [
   '<analysis>the walk</analysis>',
   '<summary>1. Operator Intent: ',
@@ -25,20 +25,34 @@ const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${J
 function record(entry: Record<string, unknown>): void {
   appendFileSync(captureFile, `${JSON.stringify(entry)}\n`)
 }
+type Part = { type?: string; text?: unknown }
+type Item = { role?: string; content?: unknown }
+const isReminder = (text: string): boolean => text.trimStart().startsWith('<system-reminder>')
+const isBlockText = (text: string): boolean => text.trimStart().startsWith(BLOCK_HEADER)
+const isSummaryText = (text: string): boolean => text.trimStart().startsWith(SUMMARY_HEADER)
+const isBlockPart = (part: Part): boolean => typeof part.text === 'string' && isBlockText(part.text)
+function partsOf(content: unknown): Part[] {
+  if (typeof content === 'string') return [{ type: 'text', text: content }]
+  return Array.isArray(content) ? (content as Part[]) : []
+}
+function textsOf(content: unknown): string[] {
+  return partsOf(content)
+    .map(part => part.text)
+    .filter((text): text is string => typeof text === 'string' && !isReminder(text))
+}
 function textOf(content: unknown): string {
-  if (typeof content === 'string') return content.trimStart().startsWith('<system-reminder>') ? '' : content
-  if (!Array.isArray(content)) return ''
-  return content
-    .map(part => {
-      const rec = part as { type?: string; text?: unknown }
-      return typeof rec.text === 'string' && !rec.text.trimStart().startsWith('<system-reminder>') ? rec.text : ''
-    })
-    .filter(text => text !== '')
+  return textsOf(content)
+    .filter(text => !isBlockText(text))
     .join('\n')
 }
-type Item = { role?: string; content?: unknown }
+function withoutBlock(item: Item): Item {
+  return { ...item, content: partsOf(item.content).filter(part => !isBlockPart(part)) }
+}
 function itemsOf(body: Record<string, unknown>): Item[] {
   return Array.isArray(body.messages) ? (body.messages as Item[]) : []
+}
+function userItemsOf(body: Record<string, unknown>): Item[] {
+  return itemsOf(body).filter(m => m.role === 'user')
 }
 function lastAskOf(body: Record<string, unknown>): string {
   const last = [...itemsOf(body)].reverse().find(m => m.role === 'user' && textOf(m.content) !== '')
@@ -46,16 +60,36 @@ function lastAskOf(body: Record<string, unknown>): string {
 }
 function lastUserRawOf(body: Record<string, unknown>): string {
   const last = [...itemsOf(body)].reverse().find(m => m.role === 'user')
-  return last === undefined ? '' : JSON.stringify(last)
+  return last === undefined ? '' : JSON.stringify(withoutBlock(last))
+}
+function blockTextOf(body: Record<string, unknown>): string {
+  return userItemsOf(body)
+    .flatMap(m => textsOf(m.content))
+    .filter(isBlockText)
+    .join('\n')
+}
+function partsOfRequest(body: Record<string, unknown>): string[] {
+  const out: string[] = []
+  for (const item of userItemsOf(body)) {
+    for (const part of partsOf(item.content)) {
+      if (part.type === 'tool_result') out.push(TOOL_RESULT_MARK)
+      else if (typeof part.text === 'string' && !isReminder(part.text)) out.push(isBlockText(part.text) ? BLOCK_MARK : isSummaryText(part.text) ? SUMMARY_MARK : part.text.trim().slice(0, 64))
+    }
+  }
+  return out
 }
 function toolResultsOf(body: Record<string, unknown>): number {
-  return itemsOf(body).filter(m => m.role === 'user' && Array.isArray(m.content) && (m.content as Array<{ type?: string }>).some(p => p.type === 'tool_result')).length
+  return userItemsOf(body).filter(m => Array.isArray(m.content) && (m.content as Array<{ type?: string }>).some(p => p.type === 'tool_result')).length
 }
 function orderOfWords(raw: string): string[] {
   return WATCHED_WORDS.map(w => ({ w, at: raw.indexOf(w) }))
     .filter(x => x.at >= 0)
     .sort((a, b) => a.at - b.at)
     .map(x => x.w)
+}
+function twiceOutsideBlock(body: Record<string, unknown>): string[] {
+  const outside = JSON.stringify(userItemsOf(body).map(withoutBlock))
+  return WATCHED_WORDS.filter(w => outside.indexOf(w) >= 0 && outside.indexOf(w) !== outside.lastIndexOf(w))
 }
 
 let calls = 0
@@ -92,7 +126,18 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const ask = lastAskOf(body)
     const fold = raw.includes(FOLD_MARKER)
     const toolTurn = !fold && ask.trim().replace(/\s+please$/, '') === TOOL_ASK && toolResultsOf(body) === 0
-    record({ kind: fold ? 'fold' : toolTurn ? 'tool-turn' : 'anthropic', n, ask: ask.slice(0, 80), order: orderOfWords(raw), last: orderOfWords(lastUserRawOf(body)), tools, at: Date.now() })
+    record({
+      kind: fold ? 'fold' : toolTurn ? 'tool-turn' : 'anthropic',
+      n,
+      ask: ask.slice(0, 80),
+      order: orderOfWords(JSON.stringify(itemsOf(body).map(withoutBlock))),
+      last: orderOfWords(lastUserRawOf(body)),
+      block: orderOfWords(blockTextOf(body)),
+      parts: partsOfRequest(body),
+      twice: twiceOutsideBlock(body),
+      tools,
+      at: Date.now(),
+    })
     if (toolTurn) {
       const big = { ...usage, input_tokens: TOOL_TURN_INPUT_TOKENS }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
