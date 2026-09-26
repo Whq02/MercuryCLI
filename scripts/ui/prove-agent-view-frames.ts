@@ -87,10 +87,17 @@ async function until(predicate: () => boolean, ms = 15000): Promise<boolean> {
   clearTimeout(timer)
   return predicate()
 }
+type Size = { columns: number; rows: number }
+const SMALL: Size = { columns: 178, rows: 51 }
 class Output extends EventEmitter {
   isTTY = true
-  columns = COLS
-  rows = ROWS
+  columns: number
+  rows: number
+  constructor(size: Size = { columns: COLS, rows: ROWS }) {
+    super()
+    this.columns = size.columns
+    this.rows = size.rows
+  }
   write(): boolean { return true }
 }
 class Input extends EventEmitter {
@@ -129,8 +136,17 @@ const rosterRows = LANES.map(([lane, context, brief], index) => ({
   phase: { phase: 'reasoning' as const, sinceMs: NOW - 27_000 },
 }))
 const workListeners = new Set<() => void>()
-const roster = { rows: rosterRows, mission: [], samples: [], reported: true }
+let roster = { rows: rosterRows, mission: [], samples: [], reported: true }
 const agentCalls: Array<{ verb: string; agentId: string; note?: string }> = []
+const SWOLLEN = 90
+function swellRoster(count: number): void {
+  const rows = Array.from({ length: count }, (_, index) => {
+    const seed = rosterRows[index % rosterRows.length]!
+    return { ...seed, id: `a-swell-${index}`, agentId: `a-swell-${index}`, name: `Lane swell ${index}`, description: `Lane swell ${index} — ${seed.description}`, startTime: NOW - 400_000 - index * 1000 }
+  })
+  roster = { ...roster, rows }
+  for (const listener of workListeners) listener()
+}
 
 async function stub(path: string, fixture: (actual: Record<string, unknown>) => Record<string, unknown>): Promise<void> {
   const actual = (await import(path)) as Record<string, unknown>
@@ -165,7 +181,9 @@ const swapModule = (await import('../../src/components/CrewmateTranscript.tsx').
 const transcriptModule = (await import('../../src/components/tasks/useCrewmateTranscript.ts').catch(() => null)) as null | { crewmateTranscriptFile: (crewmate: { taskId: string; local: undefined }, hosted: { sessionId: string; originalCwd: string }) => string | null }
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+const { modelPickerPopupGeometry } = await import('../../src/components/ModelPickerPopupSlot.tsx')
 const h = React.createElement
+const bootBudget = (size: Size): number => modelPickerPopupGeometry({ left: 0, top: 0, columns: size.columns, rows: size.rows }, size.rows).rows
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
 const overrides: Record<string, unknown> = {
@@ -253,19 +271,19 @@ function Harness(): React.ReactNode {
   )
 }
 
-async function mount(): Promise<Scene> {
+async function mount(size?: Size): Promise<Scene> {
   initializeSurfaceRoute(ROOT_REPL_ROUTE)
   resetChromeModeLatchForTests()
   resetHelmFocusForTest()
   pending.edit('')
   pending.setMode('prompt')
-  const stdout = new Output()
+  const stdout = new Output(size)
   const stdin = new Input()
-  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
+  const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(size) as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const painted = await until(() => ink.lastFrameText() !== '' && stripAnsi(ink.lastFrameText()).includes('CREW'))
-  check('the cockpit painted with the crew lane', painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
+  check(`the cockpit painted with the crew lane${size === undefined ? '' : ` at ${size.columns}x${size.rows}`}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   return {
     lines: () => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n'),
@@ -281,9 +299,9 @@ async function mount(): Promise<Scene> {
   }
 }
 
-const save = (name: string, lines: string[]): void => {
+const save = (name: string, lines: string[], size: Size = { columns: COLS, rows: ROWS }): void => {
   if (frameDir === undefined) return
-  writeFileSync(join(frameDir, `${name}-${COLS}x${ROWS}.txt`), `${lines.join('\n')}\n`)
+  writeFileSync(join(frameDir, `${name}-${size.columns}x${size.rows}.txt`), `${lines.join('\n')}\n`)
 }
 const cells = (line: string): string[] => Array.from(line)
 const RAIL_COLS = 32
@@ -320,6 +338,31 @@ function windowOf(lines: string[], title: string): Window | null {
   return { top, bottom, left, right, width: right - left + 1, height: bottom - top + 1, rows }
 }
 const describe = (window: Window | null): string => (window === null ? 'no closed window' : `left ${window.left} · top ${window.top} · width ${window.width} · height ${window.height} (rows ${window.top}..${window.bottom})`)
+const wholeBottom = (window: Window): boolean => cells(window.rows[window.height - 1]!).at(-1) === '╯'
+
+async function crewHeightRows(view: Scene, size: Size, mark: string): Promise<void> {
+  await teammatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
+  const opened = await until(() => view.lines().some(line => line.includes(CREW_TITLE)), 8000)
+  check(`the crew view painted over ${SWOLLEN} sub-agents at ${size.columns}x${size.rows}`, opened, view.lines().slice(-12).join(' | ').slice(0, 300))
+  await sleep(400)
+  console.log(`the crew window at rest: ${describe(windowOf(view.lines(), CREW_TITLE))}`)
+  for (let step = 0; step < SWOLLEN / 2; step++) {
+    view.push(DOWN)
+    await sleep(20)
+  }
+  await sleep(400)
+  const lines = view.lines()
+  save(mark, lines, size)
+  const window = windowOf(lines, CREW_TITLE)
+  const budget = bootBudget(size)
+  const composer = composerRow(lines)
+  console.log(`the crew window mid-list: ${describe(window)} · the Boot face's budget at ${size.rows} rows: ${budget} · the composer's input row ${composer}`)
+  check(`the crew window's bottom border sits above the composer's input row (row ${composer})`, window !== null && composer > window.bottom, window === null ? 'no closed window' : `window bottom ${window.bottom}`)
+  check(`the crew window stays inside the terminal's ${size.rows} rows, its bottom border paints whole and the key row is last`, window !== null && window.bottom < size.rows && wholeBottom(window) && window.rows[window.height - 2]!.includes('esc close'), window === null ? 'no closed window' : `window bottom ${window.bottom} · last cell ${JSON.stringify(cells(window.rows[window.height - 1]!).at(-1))} · last inner row "${window.rows[window.height - 2]!.trim().slice(0, 80)}"`)
+  view.push(ESC)
+  await sleep(400)
+  check(`esc closes the crew view at ${size.columns}x${size.rows}`, !view.lines().some(line => line.includes(CREW_TITLE)))
+}
 
 const scene = await mount()
 
@@ -495,7 +538,16 @@ await sleep(400)
 frame = scene.lines()
 check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingAgentTaskId === undefined && /VIEW/.test(headerRow(frame)) && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 
+section(`§6 the crew pop-up's height at ${COLS}x${ROWS}: a roster past the budget fills the window, the window paints whole above the composer`)
+swellRoster(SWOLLEN)
+await sleep(300)
+await crewHeightRows(scene, { columns: COLS, rows: ROWS }, 'screen-6-crew-popup-full')
 await scene.close()
+
+section(`§7 the crew pop-up's height at ${SMALL.columns}x${SMALL.rows}: the same rows at the owner's second size`)
+const small = await mount(SMALL)
+await crewHeightRows(small, SMALL, 'screen-7-crew-popup-full')
+await small.close()
 console.error = originalError
 clearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
