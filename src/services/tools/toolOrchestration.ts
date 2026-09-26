@@ -9,6 +9,7 @@ import type { MessageUpdateLazy } from './toolExecution.js'
 import { runToolUse } from './toolExecution.js'
 import { closeRound } from './loopGuard.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { operatorPauseGate, pauseGateSeatOf, pauseGateToolWords } from '../../run-core/pauseGate.js'
 import { randomUUID } from 'node:crypto'
 
 
@@ -68,6 +69,13 @@ function removeInProgress(context: ToolUseContext, id: string): void {
   }
 }
 
+async function parkBeforeBlock(block: ToolUseBlock, context: ToolUseContext): Promise<void> {
+  if (!operatorPauseGate.paused()) return
+  context.onSeatWait?.(pauseGateToolWords(block.name))
+  await operatorPauseGate.park(context.abortController.signal, pauseGateSeatOf(context))
+  context.onSeatWait?.(null)
+}
+
 export async function* runTools(
   toolUseBlocks: ToolUseBlock[],
   assistantMessages: AssistantMessage[],
@@ -97,6 +105,7 @@ export async function* runTools(
         const parent = parentMessageFor(block, assistantMessages)
         return (async function* one(): AsyncGenerator<MessageUpdate> {
           try {
+            await parkBeforeBlock(block, currentContext)
             for await (const update of runToolUse(block, parent, canUseTool, currentContext, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
               if (update.contextModifier) {
                 const queue = queuedModifiers.get(update.contextModifier.toolUseID) ?? []
@@ -126,6 +135,7 @@ export async function* runTools(
         addInProgress(context, block.id)
         const parent = parentMessageFor(block, assistantMessages)
         try {
+          await parkBeforeBlock(block, context)
           for await (const update of runToolUse(block, parent, canUseTool, context, { id: roundID, ordinal: toolUseBlocks.indexOf(block) })) {
             if (update.contextModifier) {
               try {
