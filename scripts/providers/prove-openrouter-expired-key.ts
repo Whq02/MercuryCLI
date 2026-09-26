@@ -36,7 +36,9 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const callback = beforeReply
   beforeReply = undefined
   callback?.()
-  if (source === 'minted') return Response.json(mintedStatus === 200 ? payload : mintedBody, { status: mintedStatus })
+  if (source === 'minted') return mintedStatus !== 200 && mintedBody === undefined
+    ? new Response(null, { status: mintedStatus })
+    : Response.json(mintedStatus === 200 ? payload : mintedBody, { status: mintedStatus })
   if (source === 'stored') return Response.json(storedStatus === 200 ? payload : { error: { code: 401, message: 'Stored key refused' } }, { status: storedStatus })
   if (source === 'env') return Response.json(payload)
   return new Response(null, { status: 403 })
@@ -164,16 +166,22 @@ try {
   accounts.disconnectOpenrouterOauthKey()
   check('dropping the minted key drops its expired mark', accounts.readMintedOpenrouterKey() === undefined && readSlots().every(slot => slot.id !== 'openrouter:oauth-key'))
   seedMint()
-  mintedBody = { error: { code: 401, message: 'The provider kept these exact words.' } }
+  mintedBody = { error: { code: 401, message: 'User not found.' } }
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-  check('OpenRouter own error words are kept rather than replaced', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote?.includes('The provider kept these exact words.') === true)
+  check('a minted bearer 401 keeps User not found. under its slot, not the fallback', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'expired — User not found. · /logins openrouter: ⌫ removes it')
+  check('User not found. still marks the minted key unusable', accounts.readMintedOpenrouterKey()?.expiredMessage === 'User not found.' && accounts.resolveOpenrouterApiKey() === undefined)
   const connect = accounts.beginOpenrouterConnect({ mode: 'headless', skipBrowserOpen: true, fetchImpl })
   connect.completeWithRedirect('fixture-code')
   await connect.result
   check('re-minting clears expiration even when the fixture reuses the key', accounts.resolveOpenrouterApiKey()?.source === 'oauth' && readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === undefined)
+  mintedBody = undefined
+  await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
+  check('a bodiless minted 401 falls back to API key expired under its slot', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'expired — API key expired · /logins openrouter: ⌫ removes it')
+  check('a bodiless 401 still marks the minted key unusable', accounts.readMintedOpenrouterKey()?.expiredMessage === 'API key expired' && accounts.resolveOpenrouterApiKey() === undefined)
+  seedMint()
   mintedBody = { error: { code: 401 } }
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-  check('missing provider words fall back to API key expired', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote?.includes('API key expired') === true)
+  check('an envelope with no provider words also falls back to API key expired', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote?.includes('API key expired') === true)
   seedMint()
   mintedStatus = 503
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
