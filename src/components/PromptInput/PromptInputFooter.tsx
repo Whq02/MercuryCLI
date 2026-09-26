@@ -29,7 +29,7 @@ import {
 } from './PromptInputFooterSuggestions.js'
 import { getNewlineInstructions } from './utils.js'
 import { crewmateComposerHint } from '../../utils/cockpit/crewmateWords.js'
-import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import { useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
 
 const NARROW_COLUMNS = 80
 
@@ -152,7 +152,7 @@ export function PromptInputFooter({
       {!exitPending && !isPasting ? (
         <Text dimColor wrap="truncate-end">
           {getNewlineInstructions()}
-          {composerCrewmate !== null ? ` · ${crewmateComposerHint(composerCrewmate, viewedCrewmate)}` : ''}
+          {composerCrewmate !== null ? ` · ${crewmateComposerHint(composerCrewmate, viewedWords(viewedCrewmate))}` : ''}
           {fullscreen && stripHint !== '' ? ` · ${stripHint}` : ''}
         </Text>
       ) : null}

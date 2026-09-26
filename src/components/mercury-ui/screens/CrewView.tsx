@@ -7,14 +7,13 @@ import {
   CREW_EMPTY_DOOR,
   CREW_EMPTY_LINE,
   CREW_MODEL_UNKNOWN,
-  crewAgentsOf,
   crewCostLabel,
   crewCountLabel,
   crewElapsedLabel,
   crewModelLabel,
   crewOperatorPauseParts,
   crewPauseChipWords,
-  crewStateLabel,
+  crewSettled,
   crewStatusWords,
   crewWaitLine,
   crewTokensLabel,
@@ -33,7 +32,6 @@ import { pokeTelemetry, useTelemetry, type CrewGlanceMember } from '../../../sta
 import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
 import {
   focusedRunnerPresence,
-  focusedSessionIdOrNull,
   useFocusedWorkRoster,
 } from '../../tasks/useFocusedWork.js'
 import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js'
@@ -50,7 +48,9 @@ import { TeammateChatsView } from './TeammateChatsView.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
 import { enterTeammateView, setMainChat } from '../../../state/teammateViewHelpers.js'
 import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
-import { CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY } from '../../../utils/cockpit/crewmateWords.js'
+import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
+import { clearCrewmate } from '../../../state/crewLedger.js'
+import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 
 
 type Row =
@@ -85,11 +85,11 @@ export function CrewView({
   const { columns, rows: termRows } = useTerminalSize()
   const now = useNowTick(1000)
   const roster = useFocusedWorkRoster()
-  const sessionId = focusedSessionIdOrNull()
   const setAppState = useSetAppStateMaybe()
   const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
   const presence = useMemo(() => focusedRunnerPresence(), [roster])
-  const agents = useMemo(() => crewAgentsOf(roster.rows, sessionId), [roster, sessionId])
+  const sessionCrew = useSessionCrew()
+  const agents = useMemo(() => sessionCrew.map(row => row.facts), [sessionCrew])
   const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
   const named = useTelemetry(s => s.crew) ?? EMPTY_NAMED
   const namedOn = crewEnabled()
@@ -158,6 +158,16 @@ export function CrewView({
         ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier, hostedPaused: hostedGate.paused, send: (paused: boolean) => getFocusedSessionConnector().pauseGate(paused) }
         : { kind: 'blank' as const }
       void pressCrewPause(reach, operatorPauseGate).then(receipt => setDoorNote(crewPauseDoorNote(receipt)))
+      return
+    }
+    if (input === 'c' && target !== null && setAppState !== null) {
+      setStopArm(null)
+      if (!crewSettled(target)) {
+        setDoorNote({ tone: 'muted', text: crewClearRefusedWords(target) })
+        return
+      }
+      const cleared = clearCrewmate(target.id, setAppState)
+      setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
       return
     }
     if (input === 'r' && target !== null && !target.running) {
@@ -241,7 +251,7 @@ export function CrewView({
   }
 
   const doorKeys = (target: CrewAgentFacts | null): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : ['r resume']), pauseDoor]
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
@@ -348,11 +358,13 @@ function AgentRow({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const failed = facts.state === 'failed'
-  const stopped = facts.state === 'stopped'
+  const stopped = facts.state === 'stopped' || facts.state === 'interrupted'
   const paused = facts.state === 'paused'
   const pending = facts.status === 'pending'
+  const settled = crewSettled(facts)
   const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped || paused ? tokens.warning : tokens.textMuted
   const glyph = failed || stopped ? GLYPH.fail : pending || paused ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
+  const nameColor = on ? tokens.textPrimary : settled ? tokens.textMuted : tokens.textSecondary
   const spend = billed ? crewCostLabel(facts) : null
   const wait = crewWaitLine(facts)
   const holders = crewWaitHolders(facts)
@@ -363,11 +375,11 @@ function AgentRow({
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
         {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
-        <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
+        <Text bold={on} color={nameColor}>
           {' '}
           {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
         </Text>
-        <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
+        <Text color={settled ? tokens.textMuted : tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
         <Text color={tone}> {padTo(truncateToWidth(crewStatusWords(facts, now), STATUS_W), STATUS_W)}</Text>
         <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
         <Text color={tokens.textMuted}>

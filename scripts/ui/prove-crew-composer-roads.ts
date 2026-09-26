@@ -474,22 +474,23 @@ async function run(cols: number, rows: number): Promise<void> {
     check('m on Mercury Lead hands the main chat back (the pin is gone)', scene.state().mainChatTaskId === undefined)
   }
 
-  section(`§5 ${tag('esc on a crewmate between turns: the idle words, no stop sent')}`)
+  section(`§5 ${tag('esc on a crewmate that is not running: no stop sent, the view goes back to Mercury Lead')}`)
   {
     teammateView.enterTeammateView(CEDAR.id, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === CEDAR.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
     check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && headerOf(scene.lines(), railCols).includes(CEDAR.name), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(500)
     save('05-idle-crewmate-esc', cols, rows, scene.lines())
     const words = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('esc on the idle crewmate sends no stop to the runner', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
-    check('the composer says cedar is between turns — nothing to interrupt (never "interrupted — its turn is cut")', scene.lines().some(line => line.includes(`${CEDAR.name} is between turns`)) && !scene.lines().some(line => line.includes(`${CEDAR.name} interrupted`)), words.slice(0, 260))
-    await clickRail(scene, LEAD_ROW, railCols)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    check('esc on the crewmate that is not running goes back to Mercury Lead', scene.state().viewingAgentTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+    check('the composer says cedar is landed and the view is back on Mercury Lead (never "interrupted — its turn is cut")', scene.lines().some(line => line.includes(`${CEDAR.name} is landed`) && line.includes(LEAD_ROW)) && !scene.lines().some(line => line.includes(`${CEDAR.name} interrupted`)), words.slice(0, 260))
   }
 
   section(`§6 ${tag('the local road: a line to an idle local agent is refused and kept; a line to a running one paints once when its delivery lands')}`)

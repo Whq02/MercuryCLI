@@ -9,7 +9,9 @@ import { operatorPauseWaitParts, pauseGateChipWords } from '../../run-core/pause
 
 export type CrewAgentKind = 'agent' | 'named'
 
-export type CrewAgentState = 'running' | 'paused' | 'landed' | 'stopped' | 'failed'
+export type CrewAgentState = 'running' | 'paused' | 'landed' | 'stopped' | 'interrupted' | 'failed'
+
+export const CREW_INTERRUPTED_BY_OPERATOR_WORDS = 'interrupted by the operator on its screen'
 
 export interface CrewAgentTokens {
   total: number
@@ -65,20 +67,25 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, context, input: null, output: null }
 }
 
-export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused'>): CrewAgentState {
+export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason'>): CrewAgentState {
   if (workRowRuns(row as WorkRowV1)) return 'running'
   if (decodeAgentPause(row.paused) !== null) return 'paused'
   switch (row.status) {
     case 'failed':
       return 'failed'
+    case 'interrupted':
+      return 'interrupted'
     case 'killed':
     case 'stopped':
     case 'cancelled':
-    case 'interrupted':
-      return 'stopped'
+      return row.stopReason === CREW_INTERRUPTED_BY_OPERATOR_WORDS ? 'interrupted' : 'stopped'
     default:
       return 'landed'
   }
+}
+
+export function crewSettled(facts: Pick<CrewAgentFacts, 'running' | 'state'>): boolean {
+  return !facts.running && facts.state !== 'paused'
 }
 
 export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): CrewAgentFacts | null {

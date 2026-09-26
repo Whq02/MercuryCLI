@@ -26,7 +26,7 @@ export function CrewmateCard({ crewmate, width }: { crewmate: CrewmateInView; wi
   const running = facts !== null ? facts.running : false
   const line = crewmateFactsLine(facts, now)
   const detail = facts?.description ?? facts?.activity ?? null
-  const keys = crewmateCardKeys(crewmate.pinned)
+  const keys = crewmateCardKeys(crewmate.pinned, facts === null || running)
   return (
     <Box flexDirection="column" flexShrink={0} width={width}>
       <Text wrap="truncate-end">

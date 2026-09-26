@@ -181,6 +181,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const later = marks['crew-later'] ?? ''
   const laterRow = rowOf(later, target)
   check(`${tag}: the row never returns to running`, laterRow === undefined || !/\brunning\b/.test(laterRow), laterRow ?? '(row gone)')
+  if (name !== 'tasks') check(`${tag}: the stopped row is still listed when the crew view opens again (finished crewmates stay until cleared)`, laterRow !== undefined && /\bstopped\b/.test(laterRow), laterRow ?? '(row gone)')
   if (failures > before || process.env.CREW_STOP_KEEP === '1') {
     for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
     for (const line of records.daemonStops) console.log(`  [daemon] ${line}`)

@@ -41,8 +41,8 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { BACK_HINT } from '../../utils/cockpit/crewmateWords.js'
-import { useViewedCrewmate } from '../tasks/useCrewmateView.js'
+import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
+import { crewmateLive, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
@@ -174,10 +174,11 @@ export function PromptInputFooterLeftSide({
   const viewedTask =
     viewingAgentTaskId !== undefined ? tasks[viewingAgentTaskId] : undefined
   const viewedTeammateCompleted =
-    viewedTask !== undefined &&
-    (isInProcessTeammateTask(viewedTask) || isLocalAgentTask(viewedTask)) &&
-    viewedTask.status !== 'running' &&
-    viewedTask.status !== 'pending'
+    (viewedTask !== undefined &&
+      (isInProcessTeammateTask(viewedTask) || isLocalAgentTask(viewedTask)) &&
+      viewedTask.status !== 'running' &&
+      viewedTask.status !== 'pending') ||
+    (viewingTeammate && !crewmateLive(viewedCrewmate))
 
   const nonDefaultMode = !isDefaultMode(permissionMode) ? 1 : 0
   const tasksPresent = manageable.length > 0 || viewingTeammate
@@ -225,7 +226,7 @@ export function PromptInputFooterLeftSide({
   )
   if (viewingTeammate && viewedTeammateCompleted) {
     parts.push(
-      <KeyboardShortcutHint key="return" shortcut="esc" action={`resume ${viewedCrewmate?.name ?? 'the crewmate'} with your next line · ${BACK_HINT}`} />,
+      <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
     )
   } else if (viewingTeammate) {
     parts.push(
