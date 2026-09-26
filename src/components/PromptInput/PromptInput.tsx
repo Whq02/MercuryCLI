@@ -1533,6 +1533,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       )
       removeNotification('stash-hint')
 
+      if (pendingInput.mode() === 'bash') {
+        await onSubmit(submitted, helpers, speculationAccept, {
+          fromKeybinding: options.fromKeybinding === true,
+        })
+        return
+      }
+
       const targetId = composerTargetTaskId(fresh)
       if (targetId !== undefined) {
         const intent = classifyAgentViewSubmission(
