@@ -61,6 +61,17 @@ export type WorkflowRunAgentSummary = {
   cached?: boolean
 }
 
+export type WorkflowParkedCall = { label: string; phaseTitle?: string }
+
+export type WorkflowPausePosition = { after: number; next: WorkflowParkedCall[] }
+
+export function pausePositionWords(position: WorkflowPausePosition): string {
+  const calls = `after ${position.after} call${position.after === 1 ? '' : 's'}`
+  if (position.next.length === 0) return calls
+  if (position.next.length === 1) return `${calls} · next ${position.next[0]!.label}`
+  return `${calls} · next ${position.next.length} calls`
+}
+
 export type WorkflowRunManifest = {
   version: number
   runId: string
@@ -84,6 +95,7 @@ export type WorkflowRunManifest = {
   ownerPid: number
   controlVersion?: number
   pausedBy?: string
+  pausedAt?: WorkflowPausePosition
   endedBy?: string
   agentCount: number
   totalTokens: number
@@ -536,7 +548,15 @@ export function recordedOwnerAlive(
   mtimeMs: number,
   nowMs: number,
 ): boolean {
-  return manifest.status === 'running' && nowMs - mtimeMs <= RUN_MANIFEST_STALE_MS
+  return (manifest.status === 'running' || manifest.status === 'paused') && nowMs - mtimeMs <= RUN_MANIFEST_STALE_MS
+}
+
+export function parkedOwnerAlive(
+  manifest: Pick<WorkflowRunManifest, 'status'>,
+  mtimeMs: number,
+  nowMs: number,
+): boolean {
+  return manifest.status === 'paused' && recordedOwnerAlive(manifest, mtimeMs, nowMs)
 }
 
 export type DiskResumability =
@@ -558,6 +578,9 @@ export function diskResumability(
 ): DiskResumability {
   if (m.status === 'completed' || m.status === 'completed_with_failures') {
     return { ok: false, reason: 'completed — S saves the script; rerun it as a NEW run by name' }
+  }
+  if (m.status === 'paused' && m.mtimeMs !== undefined && deps.nowMs !== undefined && parkedOwnerAlive(m, m.mtimeMs, deps.nowMs)) {
+    return { ok: false, reason: 'parked in a live process (heartbeat fresh) — P there resumes it; never resume under a healthy owner' }
   }
   if (m.status === 'running') {
     if (m.mtimeMs !== undefined && deps.nowMs !== undefined) {
@@ -641,6 +664,8 @@ export function partitionDiskRuns<
     const liveness = runLiveness(m, m.mtimeMs, nowMs, pidAlive)
     if (claimsRunning && (liveness === 'live' || liveness === 'wedged')) {
       external.push({ ...m, liveness })
+    } else if (parkedOwnerAlive(m, m.mtimeMs, nowMs)) {
+      external.push({ ...m, liveness: 'live' })
     } else {
       past.push(m)
     }

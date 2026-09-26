@@ -21,6 +21,8 @@ import { getSessionId } from '../../bootstrap/state.js'
 import {
   buildAgentSummaries,
   groupAgentsByPhase,
+  parkedOwnerAlive,
+  pausePositionWords,
   runLiveness,
   type PhaseBucketOf,
   type WorkflowRunAgentSummary,
@@ -540,7 +542,8 @@ export function RunDetailPane({
       : ('live' as const)
   const orphaned = liveness === 'orphaned'
   const wedged = liveness === 'wedged'
-  const isRunning = !orphaned && !wedged && (status === 'running' || status === 'pending')
+  const parkedElsewhere = !isLive && manifest !== undefined && parkedOwnerAlive(manifest, manifest.mtimeMs, Date.now())
+  const isRunning = !orphaned && !wedged && (status === 'running' || status === 'pending' || parkedElsewhere)
   const now = useNowTick(isRunning ? 1000 : null)
   const clockNow = isRunning ? now : (endTime ?? manifest?.mtimeMs ?? startTime)
   const elapsed = useElapsedTime(startTime, isRunning, 1000, 0, isRunning ? endTime : clockNow)
@@ -558,10 +561,13 @@ export function RunDetailPane({
         ? 'live'
         : status === 'failed' || status === 'killed'
           ? 'failed'
-          : status === 'running'
+          : status === 'running' || status === 'paused'
             ? 'gated'
             : 'off'
-  const headerWord = orphaned ? 'stale' : wedged ? 'wedged?' : tone.word
+  const runPausedBy = isLive ? task.pausedBy : manifest?.pausedBy
+  const runPausedAt = isLive ? (task.pausedAt as WorkflowRunManifest['pausedAt']) : manifest?.pausedAt
+  const parked = isRunning && runPausedBy !== undefined
+  const headerWord = orphaned ? 'stale' : wedged ? 'wedged?' : parked ? 'paused' : tone.word
   const runEndedBy = isLive ? undefined : manifest?.endedBy
 
   const plannedPhases = isLive ? task.phases : manifest?.phases
@@ -598,7 +604,6 @@ export function RunDetailPane({
   const version = isLive ? task.progressVersion : manifest?.mtimeMs
   const runDir = isLive ? task.runDir : manifest?.runDir
   const controllable = isRunning && runDir !== undefined
-  const runPausedBy = isLive ? task.pausedBy : manifest?.pausedBy
   const selectedInFlight =
     controllable &&
     !!selected?.agentId &&
@@ -812,7 +817,7 @@ export function RunDetailPane({
         <Box height={1} overflow="hidden" flexShrink={0}>
           <Text wrap="truncate-end">
             <StateBadge state={headerState} label={headerWord} />
-            {isRunning && runPausedBy !== undefined ? <Text color={AMBER}>{` · paused by ${runPausedBy}`}</Text> : null}
+            {parked ? <Text color={AMBER}>{` · by ${runPausedBy}${runPausedAt !== undefined ? ` · ${pausePositionWords(runPausedAt)}` : ''}`}</Text> : null}
             {status === 'killed' && runEndedBy !== undefined ? <Text color={AMBER}>{` · stopped by ${runEndedBy}`}</Text> : null}
             <Text color={FAINT}>{` · ${elapsed} · ${metrics.join(' · ')}`}</Text>
           </Text>
