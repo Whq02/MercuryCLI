@@ -47,7 +47,7 @@ const rosterNames = (): string[] => getTools(ctx).map(t => t.name)
 const poolNames = (): string[] => assembleToolPool(ctx, []).map(t => t.name)
 const input = {
   goal: 'weigh two explanations',
-  evidence: { measured: '3/40 runs early by 1.78-1.83s; all on CI', code: 'clock source changed to wall time' },
+  evidence: [{ measured: '3/40 runs early by 1.78-1.83s; all on CI', code: 'clock source changed to wall time' }],
   questions: [
     { id: 'skew', kind: 'noul' as const, ask: 'Is a wall-clock adjustment sufficient on its own to explain `measured` given `code`?' },
     { id: 'which', kind: 'choice' as const, ask: 'Which explanation does the evidence favour?', options: { skew: 'wall-clock adjustment', race: 'retry race' }, allow_none: true, none_means: 'the evidence favours neither' },
