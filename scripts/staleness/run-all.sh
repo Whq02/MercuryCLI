@@ -13,6 +13,7 @@
 # gate-watch: src/tools/ExitWorktreeTool/ExitWorktreeTool.ts src/utils/* src/utils/config/globalConfig.ts
 # gate-watch: src/utils/router/providers/local.ts src/utils/settings/settings.ts
 # gate-watch: src/utils/skills/skillChangeDetector.ts
+# gate-watch: src/daemon/concourseSupervisor.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -25,6 +25,8 @@
 # gate-watch: scripts/search/lib/bundle-for-node.ts scripts/streaming/artifactArena.ts
 # gate-watch: scripts/streaming/screengrab.py scripts/voice/fixtures/on-device-take.wav
 # gate-watch: scripts/voice/voice-transcriber-fixture-server.ts
+# gate-watch: scripts/interview/baseline-capture.ts scripts/typecheck/run-all.sh
+# gate-watch: scripts/visual-contract/baseline-capture.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -7,6 +7,7 @@
 # gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
 # gate-watch: src/services/providers/typedModelIds.ts src/services/providers/zai/glmPins.ts
 # gate-watch: src/utils/model/model.ts src/utils/router/providers/zai.ts
+# gate-watch: src/services/privateChannel/installLayout.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
