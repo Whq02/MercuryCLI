@@ -1470,7 +1470,13 @@ async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, roster:
   }
   if ('silent' in word && opts.parked) return queued
   landModel(rec, model, roster, dir, 'at' in word && opts.settle, 'model' in word ? word.model : undefined)
-  return { outcome: 'applied', detail: `${rec.runnerId} → ${model}` }
+  return { outcome: 'applied', detail: liveSwitchReceipt(rec, model, dir) }
+}
+
+function liveSwitchReceipt(rec: ConcourseWorkerRecordV1, model: string, dir?: string): string {
+  const plain = `${rec.runnerId} → ${model}`
+  const now = liveRecordByShort(rec.runnerId, dir) ?? rec
+  return now.crash === undefined ? plain : `${goneRunnerWords(now, undefined)} and is back — ${plain}`
 }
 
 export async function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {

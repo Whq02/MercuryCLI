@@ -103,6 +103,27 @@ section('L9 the consumers wait for the receipt (source pins)')
   check('the model surface waits for the door', read('commands/model/mercuryModel.tsx').includes('focused.setModel(value).then('))
 }
 
+section("L10 the daemon's words reach the operator whenever they say more than the switch itself")
+{
+  const exitWords = 'the runner had exited at 06:05 (crashed mid-run (exit none · signal SIGKILL)) and is back — runner-1 → claude-opus-5'
+  answer = async () => ({ ok: true, outcome: 'applied', detail: 'runner-1 → claude-opus-5' })
+  const plain = (await switchTo('claude-opus-5')) as Receipt & { note?: string }
+  check('the plain "<runner> → <model>" receipt paints as before: applied, no note', plain.state === 'applied' && plain.note === undefined, JSON.stringify(plain))
+  answer = async () => ({ ok: true, outcome: 'applied', detail: exitWords })
+  const back = (await switchTo('claude-opus-5')) as Receipt & { note?: string }
+  check('a switch that landed in place on a runner the record still shows as exited carries the daemon\'s words as the note (no respawned flag on the reply)', back.state === 'applied' && back.note === exitWords, JSON.stringify(back))
+  const restartWords = 'the runner had exited at 06:05 (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1'
+  answer = async () => ({ ok: true, outcome: 'applied', detail: restartWords, respawned: true })
+  const respawned = (await switchTo('claude-opus-5')) as Receipt & { note?: string }
+  check('the respawn receipt keeps its note', respawned.state === 'applied' && respawned.note === restartWords, JSON.stringify(respawned))
+  answer = async () => ({ ok: true, outcome: 'applied' })
+  const bare = (await switchTo('claude-opus-5')) as Receipt & { note?: string }
+  check('an applied reply with no detail carries no note', bare.state === 'applied' && bare.note === undefined, JSON.stringify(bare))
+  const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
+  check('/model paints the note in its notice', read('commands/model/model.tsx').includes('${receipt.note !== undefined ? ` (${receipt.note})` : \'\'}'))
+  check('the model surface paints the note in its notice', read('commands/model/mercuryModel.tsx').includes('${receipt.note !== undefined ? ` (${receipt.note})` : \'\'}'))
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-model-switch-receipt: ALL PASS' : `\nprove-model-switch-receipt: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)
