@@ -142,7 +142,7 @@ def wait_for(needles, timeout):
 
 
 def ps_table():
-    out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,tpgid=,stat=,command="],
+    out = subprocess.run(["ps", "-A", "-ww", "-o", "pid=,ppid=,pgid=,tpgid=,stat=,command="],
                          capture_output=True, text=True).stdout
     rows_ = []
     for line in out.splitlines():
@@ -195,7 +195,7 @@ def sample(label):
         entry.update({"stat": me["stat"], "pgid": me["pgid"], "tpgid": me["tpgid"],
                       "foreground": me["pgid"] == me["tpgid"]})
         entry["tree"] = [{"pid": r["pid"], "ppid": r["ppid"], "pgid": r["pgid"], "tpgid": r["tpgid"],
-                          "stat": r["stat"], "cmd": r["cmd"][:120]} for r in descendants(table, me["pid"])]
+                          "stat": r["stat"], "cmd": r["cmd"]} for r in descendants(table, me["pid"])]
     state_samples.append(entry)
     return entry
 
