@@ -79,6 +79,7 @@ interface SeatState {
   debounce: ReturnType<typeof setTimeout> | null
   workPoll: ReturnType<typeof setTimeout> | null
   lastBusy: boolean
+  lastFactsAtMs: number
   sessionId: string | null
   tail: string | null
   tailMessageId: string | null
@@ -117,7 +118,7 @@ export function seatGenerationOf(short: string): number {
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -473,10 +474,11 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
   const seat = seatOf(short)
   const answer = seat.lastAnswer ?? skeletonAnswer(rec)
   const { box: boxAnswer, ...answerRest } = answer
+  seat.lastFactsAtMs = Math.max(Date.now(), seat.lastFactsAtMs + 1)
   const facts: SessionFactsV1 = {
     schema: 1,
     sessionId: rec.sessionId,
-    atMs: Date.now(),
+    atMs: seat.lastFactsAtMs,
     ...answerRest,
     ...(seat.generation > 0 ? { runnerGeneration: seat.generation } : {}),
     ...queueReadinessFacts(seat),
