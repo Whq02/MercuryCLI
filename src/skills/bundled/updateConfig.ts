@@ -73,6 +73,7 @@ EDITING RULES:
 
 PERMISSION RULES (the permissions.allow / deny / ask arrays):
 - A rule is a tool name, or a tool name with a parenthesised pattern: "Bash", "Bash(npm run test:*)" (prefix rules for Bash end in :*), "Read(src/**)" and glob forms for the file tools, "WebFetch(domain:example.com)", "WebSearch(exact terms)".
+- permissions.reasons gives a rule its own words, keyed by the rule spelling exactly as it appears in allow, deny or ask: { "Read(secrets/**)": "production keys live there; use the .example files" }. A refusal ends with the words ("Permission to read … has been denied: production keys live there; use the .example files.") and a consent card shows them under the rule; a rule without a reason keeps the plain sentence. Where two rules match, the more specific spelling's words are used.
 - defaultMode sets the session's starting permission mode; additionalDirectories widens the file-access root.
 
 WORKFLOW: clarify → read → merge → write → show the result and where it landed.

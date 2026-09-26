@@ -100,6 +100,7 @@ export const PermissionsSchema = lazySchema(() =>
       disableSovereignMode: z.boolean().optional().describe('True closes Sovereign mode for every session that reads this file'),
       disableFlowMode: z.boolean().optional().describe('True closes Flow for every session that reads this file'),
       additionalDirectories: z.array(z.string()).optional(),
+      reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
     })
     .passthrough(),
 )

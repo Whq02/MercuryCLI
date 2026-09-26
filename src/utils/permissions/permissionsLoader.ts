@@ -18,6 +18,7 @@ import { getEnabledSettingSources, SETTING_SOURCES } from '../settings/constants
 import type { EditableSettingSource } from '../settings/constants.js'
 import type { SettingsJson } from '../settings/types.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
+import { normaliseRuleReasons, ruleSpelling } from './ruleReason.js'
 
 export const MAX_PERSISTED_ALLOW_RULE_LENGTH = 256
 
@@ -40,14 +41,17 @@ export function shouldShowAlwaysAllowOptions(): boolean {
 
 export function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRule[] {
   const settings = getSettingsForSource(source as never) as
-    | { permissions?: Record<string, string[] | undefined> }
+    | { permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; reasons?: unknown } }
     | undefined
   const permissions = settings?.permissions
   if (!permissions) return []
+  const reasons = normaliseRuleReasons(permissions.reasons)
   const rules: PermissionRule[] = []
   for (const behavior of BEHAVIORS) {
     for (const entry of permissions[behavior] ?? []) {
-      rules.push({ source, ruleBehavior: behavior, ruleValue: permissionRuleValueFromString(entry) })
+      const ruleValue = permissionRuleValueFromString(entry)
+      const reason = reasons[ruleSpelling(ruleValue)]
+      rules.push({ source, ruleBehavior: behavior, ruleValue: reason === undefined ? ruleValue : { ...ruleValue, reason } })
     }
   }
   return rules

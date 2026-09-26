@@ -63,6 +63,7 @@ export type PermissionRuleSource =
 export type PermissionRuleValue = {
   toolName: string
   ruleContent?: string
+  reason?: string
 }
 
 export type PermissionRule = {
@@ -262,12 +263,17 @@ export type ToolPermissionRulesBySource = {
   [K in PermissionRuleSource]?: string[]
 }
 
+export type PermissionRuleReasonsBySource = {
+  [K in PermissionRuleSource]?: Record<string, string>
+}
+
 export type ToolPermissionContext = {
   mode: InternalPermissionMode
   additionalWorkingDirectories: Map<string, AdditionalWorkingDirectory>
   alwaysAllowRules: ToolPermissionRulesBySource
   alwaysDenyRules: ToolPermissionRulesBySource
   alwaysAskRules: ToolPermissionRulesBySource
+  ruleReasons?: PermissionRuleReasonsBySource
   isBypassPermissionsModeAvailable: boolean
   strippedDangerousRules?: string[]
   shouldAvoidPermissionPrompts?: boolean

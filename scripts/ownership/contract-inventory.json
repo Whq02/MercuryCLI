@@ -357,6 +357,7 @@
     "type:PermissionMode",
     "type:PermissionResult",
     "type:PermissionRule",
+    "type:PermissionRuleReasonsBySource",
     "type:PermissionRuleSource",
     "type:PermissionRuleValue",
     "type:PermissionUpdate",
