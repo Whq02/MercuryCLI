@@ -21,7 +21,8 @@ import { markTransitionEnd } from '../utils/observability/frictionStopwatch.js'
 import { getContextWindowForModel } from '../utils/context.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { ProductLockup } from './mercury-ui/components.js'
-import { GLYPH, padTo } from './mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
+import { truncateStartToWidth } from '../utils/truncate.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { EffortStrip, effortStripText } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
@@ -434,7 +435,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     ? [
         { text: 'current ', color: FAINT },
         { text: listed.find(m => m.id === currentRow)?.name ?? current, color: TEAL },
-        { text: ` ${GLYPH.pending} next `, color: AMBER },
+        { text: ' · ', color: FAINT },
+        { text: `${GLYPH.pending} next `, color: AMBER },
         { text: listed.find(m => m.id === pendingNext)?.name ?? pendingNext, color: AMBER },
         { text: ' · applies when the turn settles', color: FAINT },
       ]
@@ -448,21 +450,25 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         : notice
           ? [notice]
           : []
-  const basePaint =
+  const chromePaint =
     2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
-    (hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0) +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
     noticeLines.length
-  const paintBudget = Math.max(3, availRows - basePaint)
+  const effortPaint = hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
+  const shedEffort = compact && effortPaint > 0 && availRows - chromePaint - effortPaint < 4
+  const room = availRows - chromePaint - (shedEffort ? 0 : effortPaint)
+  const paintBudget = Math.max(1, room)
+  const markersOn = room >= 3
+  const pinnedOn = room >= 4
   const headingAbove = (w: PaneWindow): number => {
-    if (w.above === 0) return -1
+    if (!pinnedOn || w.above === 0) return -1
     const first = lines[w.start]
     if (first === undefined || first.kind === 'heading') return -1
     const at = headingIndexOf(lines, first.kind === 'row' ? first.row.group : first.group)
     return at >= 0 && at < w.start ? at : -1
   }
   const windowPaint = (w: PaneWindow): number => {
-    let sum = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0) + (headingAbove(w) >= 0 ? 1 : 0)
+    let sum = (markersOn && w.above > 0 ? 1 : 0) + (markersOn && w.below > 0 ? 1 : 0) + (headingAbove(w) >= 0 ? 1 : 0)
     for (let idx = w.start; idx < w.end; idx++) sum += linePaint(idx)
     return sum
   }
@@ -487,7 +493,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (line.kind === 'heading') {
       const on = idx === i
       const heading = headings?.[line.group]
-      const words = headingWords(heading, line.group, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) })
+      const words = headingWords(heading, line.group, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) }, inner - 2)
       const cut = words.indexOf(' · ')
       const name = cut < 0 ? words : words.slice(0, cut)
       const rest = cut < 0 ? '' : words.slice(cut)
@@ -503,7 +509,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     if (line.kind === 'door') {
       const door = headings?.[line.group]?.doors.find(candidate => candidate.door === line.door)
-      const words = doorWords(door ?? { door: line.door }, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) })
+      const words = doorWords(door ?? { door: line.door }, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) }, inner - 2)
       return (
         <Box key={`door:${line.group}:${line.door}`} height={1}>
           <Text color={tokens.textSecondary} wrap="truncate-end">{`  ${words}`}</Text>
@@ -523,7 +529,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     const model = isModelRow(m)
     const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
     const ctxText = on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx
-    const tail = model && !hasAlias(m) ? MODEL_PICKER_NO_ALIAS : ''
+    const tail = model && !hasAlias(m) ? truncateToWidth(MODEL_PICKER_NO_ALIAS, columns.tail) : ''
     return (
       <InteractiveRow
         key={line.key}
@@ -567,11 +573,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           ))}
         </Text>
       ) : null}
-      {win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} more</Text> : null}
+      {markersOn && win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} more</Text> : null}
       {pinnedHeading >= 0 ? renderLine(lines[pinnedHeading]!, pinnedHeading) : null}
       {lines.map((line, idx) => (idx < win.start || idx >= win.end ? null : renderLine(line, idx)))}
       {slack > 0 ? <Box height={slack} flexShrink={0} /> : null}
-      {win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
+      {markersOn && win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
       {compact ? null : <Box height={1} />}
       {shedMeters ? null : <Box>
         <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}{((): React.ReactNode => {
@@ -580,7 +586,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           return tier ? <Text><Text color={FAINT}>  · tier </Text><Text color={IVORY}>{tier}</Text></Text> : null
         })()}</Text>
       </Box>}
-      {hasEffort ? (
+      {hasEffort && !shedEffort ? (
         compact ? (
           <Text wrap="truncate-end">
             <Text color={FAINT}>effort  </Text>
@@ -597,7 +603,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       {noticeLines.map((line, k) => (
         <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">{line}</Text>
       ))}
-      <MenuFilterLine focused={filterFocus} text={filter} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
+      <MenuFilterLine focused={filterFocus} text={truncateStartToWidth(filter, inner - 2)} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
     </Box>
     </Box>

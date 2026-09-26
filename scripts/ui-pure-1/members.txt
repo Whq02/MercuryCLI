@@ -5,6 +5,7 @@ prove-model-picker-groups.ts
 prove-model-picker-hardening.ts
 prove-model-picker-door-flip.ts
 prove-model-picker-reader-census.ts
+prove-model-picker-edges.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
 prove-contract-card-fit.ts
