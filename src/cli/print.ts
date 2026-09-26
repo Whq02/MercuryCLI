@@ -262,6 +262,7 @@ import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
+import { operatorPauseGate } from '../run-core/pauseGate.js'
 
 function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
   const ledger = metadata?.ledger
@@ -2162,6 +2163,7 @@ export async function runHeadless(
               ...(command.priority !== undefined ? { priority: command.priority } : {}),
             })),
             work: projectWorkRoster(state.tasks),
+            pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
             notices: noticeRows(),
             mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,
@@ -2766,6 +2768,11 @@ export async function runHeadless(
               effort_requested: effortTruth.requested === undefined ? null : String(effortTruth.requested),
             },
           })
+          return
+        }
+        case 'pause_gate': {
+          const changed = request.paused ? operatorPauseGate.pause() : operatorPauseGate.resume()
+          respondSuccess(requestId, { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length, changed })
           return
         }
         case 'background_shell': {

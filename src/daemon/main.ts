@@ -65,6 +65,7 @@ import {
   withdrawSessionSend,
   relayCredentialChange,
   backgroundSessionShell,
+  pauseSessionGate,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
@@ -533,7 +534,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -720,6 +721,11 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'background-shell') {
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return backgroundSessionShell(sessionId, roster)
+          }
+          if (action === 'pause-gate') {
+            if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: 'pause-gate requires paused' }
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return pauseSessionGate(sessionId, paused, roster)
           }
           if (action === 'stop') {
             if (roster !== null) {

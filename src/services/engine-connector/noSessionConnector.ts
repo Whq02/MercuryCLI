@@ -115,6 +115,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async backgroundShell(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
+  async pauseGate(): Promise<AgentControlReceiptV1> {
+    return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
   modelFacts(): ModelFactsV1 {
     const landing = landingWordsOf(bootBirthFacts())
     const main = landing.model ?? getMainLoopModel()
