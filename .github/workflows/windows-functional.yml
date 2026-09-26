@@ -50,6 +50,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build dist (the built-seat proof in the functional suites, the journey payload)
+        run: bun run build.ts
+
       - name: Functional suites (idiom · projectdirs · sessionStorage)
         run: |
           $failed = 0
@@ -116,9 +119,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           pwsh -File scripts/field-tasks/prove-field-packet.ps1 -KitDir "$env:RUNNER_TEMP/field-kit/mercury-field-kit"
           if ($LASTEXITCODE -ne 0) { exit 1 }
-
-      - name: Build dist (journey payload)
-        run: bun run build.ts
 
       - name: Desktop driver pack on the runner's desktop session
         run: |
