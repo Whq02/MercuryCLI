@@ -53,6 +53,7 @@ function makeWorld(tag: string): World {
   const cwd = realpathSync(join(scratch, 'cwd')).normalize('NFC')
   spawnSync('git', ['init', '-q'], { cwd })
   seedFirstRun(home, [cwd])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   let n = 0
   const ctx = {
     sessionId: SID as never,

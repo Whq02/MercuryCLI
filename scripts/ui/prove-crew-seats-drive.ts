@@ -338,8 +338,16 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const rowOf = (text: string, name: string): string | undefined => {
-  const lines = text.split('\n').filter(line => line.includes(name))
-  return lines.length === 0 ? undefined : lines[lines.length - 1]
+  const lines = text.split('\n')
+  const top = lines.findIndex(line => line.includes('Mercury — crew'))
+  const title = lines[top] ?? ''
+  const at = title.indexOf('Mercury — crew')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  if (left < 0 || right < 0) return undefined
+  const bottom = lines.findIndex((line, index) => index > top && line[left] === '╰')
+  if (bottom < 0) return undefined
+  return lines.slice(top + 1, bottom).map(line => line.slice(left + 1, right)).find(line => line.includes(name))
 }
 const COLS = 160
 const ROWS = 44

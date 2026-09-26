@@ -39,8 +39,8 @@ const cfg = {
   argv: ['node', BIN, '--resume', SID],
   sends: [
     { atTick: CLICK_TICK - 2, data: '', mark: 'preclick' },
-    { atTick: CLICK_TICK, data: '\x1b[<0;30;8M' },
-    { atTick: CLICK_TICK + 1, data: '\x1b[<0;30;8m' },
+    { atTick: CLICK_TICK, data: '\x1b[<0;30;4M' },
+    { atTick: CLICK_TICK + 1, data: '\x1b[<0;30;4m' },
   ],
   total: 52,
   cols: COLS,
@@ -58,7 +58,7 @@ const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/vshot.py'), cf
     ...process.env,
     TERM: 'xterm-256color',
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-    MERCURY_CRITTER: 'jellyfish',
+    MERCURY_CRITTER: 'clam',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -86,13 +86,17 @@ const artRows = (g: Cell[][]): number[] => {
   return rows
 }
 const preclick = payload.marks?.find(m => m.label === 'preclick')
-t.check('the pre-click mark captured the jellyfish berth', preclick !== undefined && artRows(preclick.grid).length > 0)
+t.check('the pre-click mark captured the clam berth', preclick !== undefined && artRows(preclick.grid).length > 0)
 const oldRows = preclick ? artRows(preclick.grid) : []
 const OLD_TOP = oldRows[0] ?? -1
 const ROW_ABOVE = OLD_TOP - 1
 const finalRows = artRows(payload.grid)
 const newTop = finalRows[0] ?? -1
-t.check(`the click cycled the critter: the top run dropped (jellyfish top row ${OLD_TOP} → clam top row ${newTop})`, OLD_TOP >= 0 && newTop > OLD_TOP, `old ${oldRows.join(',')} → new ${finalRows.join(',')}`)
+const departedTop = Array.from({ length: ART_X1 - ART_X0 }, (_, i) => i + ART_X0).filter(x => {
+  const before = preclick?.grid[OLD_TOP]?.[x]?.c
+  return (before === '▀' || before === '█') && before !== payload.grid[OLD_TOP]?.[x]?.c
+})
+t.check('the click cycles the square berth and vacates upper-half cells on its crown', OLD_TOP >= 0 && newTop >= 0 && departedTop.length > 0, `old ${oldRows.join(',')} → new ${finalRows.join(',')}; departed ${departedTop.join(',')}`)
 
 const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), tee, String(COLS), String(ROWS), '--cells'], {
   encoding: 'utf-8',
@@ -123,7 +127,7 @@ const aboveCells = cycleTick !== undefined ? rowsAt(cycleTick, ROW_ABOVE) : 0
 if (POISON) {
   t.check(`POISON: the cycle tick never touches the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells)`, aboveCells === 0)
 } else {
-  t.check(`the cycle tick re-emits the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells in the art's columns — the crown's slivers)`, aboveCells >= 5, String(aboveCells))
+  t.check(`the cycle tick re-emits the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells in the art's columns — the crown's slivers)`, departedTop.length > 0 && aboveCells >= departedTop.length, `${aboveCells} for ${departedTop.length} departed cells`)
 }
 const BOOT_TICKS = Math.round(8 * vshotBudgetScale())
 const wholeFrame = (tk: number): boolean => (byTick.get(tk)?.size ?? 0) >= ROWS

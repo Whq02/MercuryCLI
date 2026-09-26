@@ -215,7 +215,7 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   check('deploy: three stacked marker-less bodies migrate to one marked block', fromStack.status === 0 && fromStack.after === marked && fromStack.out.includes('migrated'), fromStack.out)
   const foreign = '#!/usr/bin/env bash\necho not a launcher\n'
   const refused = runDeploy(foreign)
-  check('deploy: a file that is not a launcher is refused untouched', refused.after === foreign && refused.out.includes('REFUSED'), refused.out)
+  check('deploy: an unrelated launcher is skipped untouched', refused.status === 0 && refused.after === foreign && refused.out.includes('skipped — not ours:'), refused.out)
   const stray = `#!/usr/bin/env bash\n${captureLines}\n${block.trimEnd()}\n\n${body}\n${tail}`
   const withStray = runDeploy(stray)
   check('deploy: a body outside the managed span is refused untouched, naming the launcher redeploy', withStray.status === 1 && withStray.after === stray && withStray.out.includes('REFUSED') && withStray.out.includes('deploy-launcher.sh'), withStray.out)
@@ -453,7 +453,8 @@ if (!existsSync(BIN)) {
         '    due = (time.monotonic() - seen_at) >= settle',
         '    if on_repaint:',
         '        due = due and ("\\n".join(text) != seen_text)',
-        '    if due:',
+        '    raw = not (termios.tcgetattr(fd)[3] & (termios.ICANON | termios.ISIG))',
+        '    if due and raw:',
         '        os.write(fd, b"\\x03"); sent = True',
         'if time.monotonic() >= deadline:',
         '    os.kill(pid, 9)',

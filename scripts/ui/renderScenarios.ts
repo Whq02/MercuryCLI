@@ -1159,7 +1159,9 @@ function writeWorkflowFixtures(opts?: {
         },
       ],
     }
-    writeFileSync(join(runDirPaused, 'run.json'), JSON.stringify(pausedManifest))
+    const pausedManifestPath = join(runDirPaused, 'run.json')
+    writeFileSync(pausedManifestPath, JSON.stringify(pausedManifest))
+    utimesSync(pausedManifestPath, old, old)
   }
 }
 

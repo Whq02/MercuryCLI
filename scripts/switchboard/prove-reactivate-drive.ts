@@ -48,7 +48,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const EMPTY_BOARD = 'no sessions yet'
