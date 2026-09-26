@@ -243,16 +243,25 @@ const OPENING: unknown[] = [
 
 const RECORDING_LINE = 'recording · release space to stop · esc cancels'
 const REPEAT = { afterPrevTicks: 1, data: ' ' }
-function hold(press: Record<string, unknown>, opts: { mark?: string; beyond?: number } = {}): unknown[] {
-  const repeats = Array.from({ length: 17 }, () => REPEAT)
+const TICK_MS = 200
+const SCALE = ((): number => {
+  const raw = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
+  return Number.isFinite(raw) && raw > 0 ? raw : 1
+})()
+const ticksFor = (ms: number): number => Math.max(1, Math.ceil(ms / (TICK_MS * SCALE)))
+const repeatsFor = (ms: number): unknown[] => Array.from({ length: ticksFor(ms) }, () => REPEAT)
+const HOLD_PAST_THRESHOLD_MS = 3_400
+function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
+  const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
   return [
     { ...press, data: ' ' },
     ...repeats,
     { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
-    ...Array.from({ length: opts.beyond ?? 2 }, () => REPEAT),
+    ...(opts.beyondMs === 0 ? [] : repeatsFor(opts.beyondMs ?? 400)),
   ]
 }
+console.log(`  · budget scale ${SCALE}: a held key is one space per ${TICK_MS * SCALE} ms, ${ticksFor(HOLD_PAST_THRESHOLD_MS)} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark`)
 
 console.log('============================================================')
 console.log(' voice input — the journey on the bundle, hermetic')
@@ -375,7 +384,7 @@ console.log('[D] a hold, then esc while it records — the take is cancelled and
     netlog,
     [
       ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyond: 0 }),
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyondMs: 0 }),
       { afterPrevTicks: 1, data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 2, mark: 'cancelled', data: '' },
       { afterPrevTicks: 5, data: '' },
@@ -439,14 +448,14 @@ console.log('[F] /speak on twice · a single press types · a resize mid-hold ·
       { requireAwait: true, awaitText: 'voice input already on', awaitStableTicks: 2, mark: 'again', data: 'x' },
       { afterPrevTicks: 2, data: ' ' },
       { afterPrevTicks: 3, mark: 'typed-xv', data: '\x15' },
-      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-1', beyond: 3 }),
+      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-1', beyondMs: 600 }),
       { afterPrevTicks: 1, mark: 'resized-recording', data: ' ' },
       REPEAT,
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-1', data: '' },
       ...hold({ afterPrevTicks: 2 }, { mark: 'recording-2' }),
       { requireAwait: true, awaitText: 'transcribing…', mark: 'transcribing-2', data: '' },
       { requireAwait: true, awaitText: 'dog the quick', awaitStableTicks: 2, mark: 'landed-2', data: '\x15' },
-      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-3', beyond: 0 }),
+      ...hold({ afterPrevTicks: 2 }, { mark: 'recording-3', beyondMs: 0 }),
       { afterPrevTicks: 1, data: '/exit\r' },
     ],
     320,
@@ -483,7 +492,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s and the key still he
     netlog,
     [
       ...OPENING,
-      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyond: 12 }),
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording', beyondMs: 2_000 }),
       { requireAwait: true, awaitText: 'transcribing…', mark: 'bound', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 2, data: '' },
@@ -550,7 +559,7 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
       { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette', data: '\x1b' },
       { afterPrevTicks: 4, mark: 'palette-closed', data: '\x1b[1;2D' },
       { requireAwait: true, awaitText: '↑↓ choose', awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
-      ...hold({ requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat' }, { mark: 'recording', beyond: 0 }),
+      ...hold({ requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat' }, { mark: 'recording', beyondMs: 0 }),
       { afterPrevTicks: 1, data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 1, mark: 'cancelled', data: '' },
       { afterPrevTicks: 2, data: '' },

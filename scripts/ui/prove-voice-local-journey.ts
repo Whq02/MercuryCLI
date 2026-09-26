@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { voicePackPlatform } from '../../src/services/voice/voicePack.ts'
 import { checkWhisperPackDir, whisperPackDirFor } from '../../src/services/voice/whisperPack.ts'
-import { WHISPER_MODELS_SEGMENTS, WHISPER_MODELS_VENDOR_PATH, whisperDefaultModel } from '../../src/services/voice/whisperModels.ts'
+import { WHISPER_MODELS_SEGMENTS, WHISPER_MODELS_VENDOR_PATH, checkWhisperModel, whisperDefaultModel, type WhisperModelPin } from '../../src/services/voice/whisperModels.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -40,9 +40,22 @@ if (packCheck.state !== 'ok') {
   process.exit(0)
 }
 const MODEL = whisperDefaultModel()
-const CACHED_MODEL = join(ROOT, 'vendor', 'whisper-models', MODEL.file)
-if (!existsSync(CACHED_MODEL)) {
-  console.log(`prove-voice-local-journey: SKIPPED — ${WHISPER_MODELS_VENDOR_PATH}/${MODEL.file} is absent (bun run scripts/vendor/fetch-whisper-models.ts fetches it)`)
+const MODEL_PIN: WhisperModelPin = { kind: 'catalogue', row: MODEL, pinned: false }
+const MODEL_CANDIDATES = ((): string[] => {
+  const dirs = [join(ROOT, WHISPER_MODELS_VENDOR_PATH)]
+  const common = spawnSync('git', ['-C', ROOT, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+  const mainRoot = common.status === 0 ? dirname(common.stdout.trim()) : ''
+  if (mainRoot !== '' && mainRoot !== '.' && resolve(mainRoot) !== ROOT) dirs.push(join(mainRoot, WHISPER_MODELS_VENDOR_PATH))
+  dirs.push(join(packBesideBundle, 'models'))
+  return dirs.map(dir => join(dir, MODEL.file))
+})()
+const modelSourceNote = (path: string): string => {
+  const read = checkWhisperModel(MODEL_PIN, { dir: dirname(path), digest: true })
+  return read.state === 'present' ? 'ok' : read.note
+}
+const MODEL_SOURCE = MODEL_CANDIDATES.find(path => modelSourceNote(path) === 'ok') ?? null
+if (MODEL_SOURCE === null) {
+  console.log(`prove-voice-local-journey: SKIPPED — no ${MODEL.file} verified against the lock to seed the scratch homes from; looked at ${MODEL_CANDIDATES.map(path => `${path} (${modelSourceNote(path)})`).join('; ')} (bun run scripts/vendor/fetch-whisper-models.ts fetches it into ${WHISPER_MODELS_VENDOR_PATH})`)
   process.exit(0)
 }
 
@@ -214,15 +227,15 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
 const seededHome = (name: string, withModel = true): string => {
   const home = join(scratch, name)
   seedFirstRun(home, [ROOT])
-  if (withModel) {
-    const dir = join(home, ...WHISPER_MODELS_SEGMENTS)
-    mkdirSync(dir, { recursive: true })
-    try {
-      symlinkSync(CACHED_MODEL, join(dir, MODEL.file))
-    } catch {
-      copyFileSync(CACHED_MODEL, join(dir, MODEL.file))
-    }
+  if (!withModel) {
+    console.log(`  · ${name}: seeded WITHOUT the model on purpose (the download-door leg)`)
+    return home
   }
+  const dir = join(home, ...WHISPER_MODELS_SEGMENTS)
+  mkdirSync(dir, { recursive: true })
+  copyFileSync(MODEL_SOURCE, join(dir, MODEL.file))
+  const read = checkWhisperModel(MODEL_PIN, { home })
+  check(`${name}: ${MODEL.file} copied from ${MODEL_SOURCE} into ${dir} reads as present before the boot`, read.state === 'present', read.state === 'present' ? '' : read.note)
   return home
 }
 
@@ -235,20 +248,30 @@ const OPENING: unknown[] = [
 const gridLines = (text: string, needle: string): string => text.split('\n').filter(l => l.includes(needle)).join(' · ')
 const RECORDING_LINE = 'recording · release space to stop · esc cancels'
 const REPEAT = { afterPrevTicks: 1, data: ' ' }
-function hold(press: Record<string, unknown>, opts: { mark?: string; beyond?: number } = {}): unknown[] {
-  const repeats = Array.from({ length: 17 }, () => REPEAT)
+const TICK_MS = 200
+const SCALE = ((): number => {
+  const raw = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
+  return Number.isFinite(raw) && raw > 0 ? raw : 1
+})()
+const ticksFor = (ms: number): number => Math.max(1, Math.ceil(ms / (TICK_MS * SCALE)))
+const repeatsFor = (ms: number): unknown[] => Array.from({ length: ticksFor(ms) }, () => REPEAT)
+const HOLD_PAST_THRESHOLD_MS = 3_400
+function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
+  const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
   return [
     { ...press, data: ' ' },
     ...repeats,
     { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
-    ...Array.from({ length: opts.beyond ?? 2 }, () => REPEAT),
+    ...(opts.beyondMs === 0 ? [] : repeatsFor(opts.beyondMs ?? 400)),
   ]
 }
+console.log(`  · budget scale ${SCALE}: a held key is one space per ${TICK_MS * SCALE} ms, ${ticksFor(HOLD_PAST_THRESHOLD_MS)} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark`)
 
 console.log('============================================================')
 console.log(` voice input — the on-device road on the bundle (${MODEL.name}, ${PLATFORM})`)
 console.log('============================================================')
+console.log(`  · the model ${MODEL.file} (${MODEL.bytes} bytes, sha256 against the lock) seeds every scratch home from ${MODEL_SOURCE}`)
 
 console.log('[0] poison control — the tripwire trips on a non-loopback fetch')
 {
