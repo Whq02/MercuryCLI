@@ -39,6 +39,7 @@ const { createUserMessage, INTERRUPT_MESSAGE } = await import('../../src/utils/m
 const { abortWithCut, turnCutWhy, turnCutOf } = await import('../../src/utils/messages/turnCut.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const toolHooks = (await import('../../src/services/tools/toolHooks.ts')) as { INTERRUPT_FAILURE_HOOK_BUDGET_MS?: unknown }
 
 let checks = 0
 let failures = 0
@@ -108,7 +109,7 @@ function makeGate(): { open: () => void; promise: Promise<void> } {
   return { open, promise }
 }
 
-function makeProbeTool(spec: { gate?: Promise<void>; onStart?: () => void } = {}): Record<string, unknown> {
+function makeProbeTool(spec: { gate?: Promise<void>; onStart?: () => void; answersAbort?: boolean } = {}): Record<string, unknown> {
   return {
     name: TOOL,
     isMcp: false,
@@ -134,14 +135,16 @@ function makeProbeTool(spec: { gate?: Promise<void>; onStart?: () => void } = {}
             ctx.abortController.signal.addEventListener('abort', () => resolve(), { once: true })
           }),
         ])
-        if (ctx.abortController.signal.aborted) throw new Error('probe tool aborted')
+        if (ctx.abortController.signal.aborted) {
+          throw spec.answersAbort ? Object.assign(new Error('probe tool aborted'), { name: 'AbortError' }) : new Error('probe tool aborted')
+        }
       }
       return { data: 'probe tool ran' }
     },
   }
 }
 
-type Driven = { messages: Array<Record<string, unknown>>; terminal: { reason: string } | undefined; api: FixtureApi; abort: AbortController }
+type Driven = { messages: Array<Record<string, unknown>>; terminal: { reason: string } | undefined; api: FixtureApi; abort: AbortController; settledAt: number }
 
 async function drive(opts: {
   turns: ScriptedTurn[]
@@ -213,11 +216,13 @@ async function drive(opts: {
   } as never)
   const messages: Array<Record<string, unknown>> = []
   let terminal: { reason: string } | undefined
+  let settledAt = 0
   try {
     for (;;) {
       const r = await gen.next()
       if (r.done) {
         terminal = r.value as { reason: string }
+        settledAt = Date.now()
         break
       }
       messages.push(r.value as Record<string, unknown>)
@@ -225,7 +230,7 @@ async function drive(opts: {
   } finally {
     await api.close()
   }
-  return { messages, terminal, api, abort }
+  return { messages, terminal, api, abort, settledAt }
 }
 
 const cutShape = (driven: Driven): string =>
@@ -418,6 +423,97 @@ section('§6 A TURN THAT ENDS NORMALLY FIRES NO Interrupt')
   check("the turn ended as 'completed'", driven.terminal?.reason === 'completed', j(driven.terminal))
   await sleep(400)
   check('no Interrupt record was written', recordsOf(MARK).length === 0 && recordsOf(MARK_TIMEOUT).length === 0, j({ mark: recordsOf(MARK), timeout: recordsOf(MARK_TIMEOUT) }))
+}
+
+section("§7 THE ESC'S OWN BUDGET: the ended tool's PostToolUseFailure hook cannot hold the settle past the cut budget")
+{
+  const BUDGET_MS = 1500
+  const SLACK_MS = 1000
+  const HOOK_TIMEOUT_S = 4
+  const PID = join(PROJ, 'failure-hook-pid')
+  const FAILURE_MARK = join(PROJ, 'failure-mark')
+  const failureHook = (command: string, timeout: number): unknown => ({
+    PostToolUseFailure: [{ matcher: TOOL, hooks: [{ type: 'command', command, timeout }] }],
+  })
+  const sleeper = `echo $$ > "${PID}"; exec sleep 60`
+  const pidAlive = (pid: number): boolean => {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const failureRows = (driven: Driven): Array<Record<string, unknown>> =>
+    driven.messages
+      .filter(m => m.type === 'attachment')
+      .map(m => m.attachment as Record<string, unknown>)
+      .filter(a => a.hookEvent === 'PostToolUseFailure')
+  const runEsc = async (id: string): Promise<Driven & { cutAt: number }> => {
+    const gate = makeGate()
+    let cutAt = 0
+    const driven = await drive({
+      turns: [{ kind: 'tool_use', name: TOOL, input: {}, id }],
+      tools: [makeProbeTool({ gate: gate.promise, answersAbort: true })],
+      cut: async (abort, _api, toolStarted) => {
+        await toolStarted
+        cutAt = Date.now()
+        abort.abort()
+      },
+    })
+    return { ...driven, cutAt }
+  }
+
+  const budget = toolHooks.INTERRUPT_FAILURE_HOOK_BUDGET_MS
+  check(`toolHooks.ts names the cut's budget: INTERRUPT_FAILURE_HOOK_BUDGET_MS is ${BUDGET_MS}`, budget === BUDGET_MS, `the export is ${j(budget)}`)
+
+  wire(failureHook(sleeper, HOOK_TIMEOUT_S))
+  rmSync(PID, { force: true })
+  const slow = await runEsc('toolu_interrupt_5')
+  const settleMs = slow.settledAt - slow.cutAt
+  const pid = existsSync(PID) ? Number(readFileSync(PID, 'utf8').trim()) : NaN
+  console.log(`  measured: the Esc settled ${settleMs}ms after the cut (the hook sleeps 60s under a ${HOOK_TIMEOUT_S}s timeout; the budget is ${BUDGET_MS}ms)`)
+  check("the turn ended as 'aborted_tools'", slow.terminal?.reason === 'aborted_tools', j(slow.terminal))
+  check('the failure hook ran for the ended call (it wrote its pid)', Number.isInteger(pid) && pid > 0, existsSync(PID) ? readFileSync(PID, 'utf8') : `no pid file at ${PID}`)
+  check(
+    "the Esc settled within the cut budget, not the hook's own timeout",
+    settleMs < HOOK_TIMEOUT_S * 1000 && settleMs <= BUDGET_MS + SLACK_MS,
+    `settled ${settleMs}ms after the Esc: the cut waited for the operator's hook (a 60s sleep under a ${HOOK_TIMEOUT_S}s timeout) — the budget is ${BUDGET_MS}ms`,
+  )
+  await sleep(200)
+  check('the hook was ended at the budget: its process is gone', Number.isInteger(pid) && !pidAlive(pid), `pid ${pid} is still alive`)
+  const slowRows = failureRows(slow)
+  check(
+    "the cut's transcript records the hook's end as its cancelled row under the PostToolUseFailure name",
+    slowRows.some(a => a.type === 'hook_cancelled' && a.hookName === `PostToolUseFailure:${TOOL}`),
+    `the rows: ${j(slowRows.map(a => ({ type: a.type, hookName: a.hookName, stderr: a.stderr })))}`,
+  )
+  check('no follow-up model call after the Esc', slow.api.messageRequests().length === 1, `${slow.api.messageRequests().length}`)
+
+  wire(failureHook(sleeper, 1))
+  rmSync(PID, { force: true })
+  const clocked = await runEsc('toolu_interrupt_6')
+  const clockedMs = clocked.settledAt - clocked.cutAt
+  console.log(`  measured: with the hook's own timeout at 1s the Esc settled ${clockedMs}ms after the cut`)
+  check("a hook timeout shorter than the budget still bounds it: the settle came inside the budget's window", clockedMs <= BUDGET_MS + SLACK_MS, `settled ${clockedMs}ms after the Esc`)
+  check(
+    "and the transcript records the hook's own timeout, not the budget's cancellation",
+    failureRows(clocked).some(a => a.type === 'hook_non_blocking_error' && /timed out after 1s/.test(String(a.stderr))) && !failureRows(clocked).some(a => a.type === 'hook_cancelled'),
+    j(failureRows(clocked).map(a => ({ type: a.type, stderr: a.stderr }))),
+  )
+
+  wire(failureHook(appendRecord(FAILURE_MARK), HOOK_TIMEOUT_S))
+  rmSync(FAILURE_MARK, { force: true })
+  const quick = await runEsc('toolu_interrupt_7')
+  const quickMs = quick.settledAt - quick.cutAt
+  const quickRecords = await waitForRecords(FAILURE_MARK, 1)
+  console.log(`  measured: with a hook that answers at once the Esc settled ${quickMs}ms after the cut`)
+  check(
+    'a quick hook lands whole inside the budget: one record, is_interrupt true, naming the ended call',
+    quickRecords.length === 1 && quickRecords[0]?.hook_event_name === 'PostToolUseFailure' && quickRecords[0]?.is_interrupt === true && quickRecords[0]?.tool_name === TOOL,
+    j(quickRecords),
+  )
+  check('the quick hook was never cut: no cancelled row, the settle inside the budget', quickMs < BUDGET_MS && !failureRows(quick).some(a => a.type === 'hook_cancelled'), j({ settleMs: quickMs, rows: failureRows(quick).map(a => a.type) }))
 }
 
 wire(null)

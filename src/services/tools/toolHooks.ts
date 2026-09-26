@@ -6,6 +6,8 @@ import type {
   PermissionDecisionReason,
 } from '../../types/permissions.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
+import { logForDebugging } from '../../utils/debug.js'
 import {
   executePostToolHooks,
   executePostToolUseFailureHooks,
@@ -313,6 +315,8 @@ export async function* runPostToolUseHooks<Output>(
   }
 }
 
+export const INTERRUPT_FAILURE_HOOK_BUDGET_MS = 1500
+
 export async function* runPostToolUseFailureHooks(
   tool: Tool,
   toolUseID: string,
@@ -325,6 +329,19 @@ export async function* runPostToolUseFailureHooks(
   _seam: HookSeamArgs,
 ): AsyncGenerator<{ kind: 'message'; message: Message }> {
   const hookName = postToolFailureHookName(tool.name)
+  const budget = isInterrupt
+    ? createCombinedAbortSignal(signal, { timeoutMs: INTERRUPT_FAILURE_HOOK_BUDGET_MS })
+    : undefined
+  budget?.signal.addEventListener(
+    'abort',
+    () => {
+      if (signal?.aborted === true) return
+      logForDebugging(
+        `${hookName}: the interrupt budget of ${INTERRUPT_FAILURE_HOOK_BUDGET_MS}ms elapsed; the hook is ended and the cut settles without it`,
+      )
+    },
+    { once: true },
+  )
   try {
     for await (const result of executePostToolUseFailureHooks(
       tool.name,
@@ -334,7 +351,7 @@ export async function* runPostToolUseFailureHooks(
       toolUseContext,
       isInterrupt,
       permissionMode,
-      signal,
+      budget === undefined ? signal : budget.signal,
     )) {
       try {
         const attachment =
@@ -401,6 +418,8 @@ export async function* runPostToolUseFailureHooks(
     }
   } catch (outerError) {
     logError(outerError)
+  } finally {
+    budget?.cleanup()
   }
 }
 
