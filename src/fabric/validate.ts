@@ -229,6 +229,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   hook_non_blocking_error: z.looseObject({ hookName: z.string(), stderr: z.string(), stdout: z.string(), exitCode: z.number(), toolUseID: z.string(), hookEvent: z.string() }),
   hook_error_during_execution: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
   hook_stopped_continuation: z.looseObject({ message: z.string().optional(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
+  loop_stopped: z.looseObject({ toolUseID: z.string(), cycle: z.array(z.string()), message: z.string() }),
   hook_success: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
   hook_system_message: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
   hook_permission_decision: z.looseObject({ decision: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
