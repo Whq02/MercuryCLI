@@ -501,7 +501,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "resource-inspection"

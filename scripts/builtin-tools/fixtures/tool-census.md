@@ -32,7 +32,7 @@ Census version 1 — 74 built-in production tools · 189 operations · 74 with a
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
-| ContextLeft | observation | resource-inspection | — | block | no | — | — | — | scripts/tools/prove-context-left-tool.ts |
+| ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
