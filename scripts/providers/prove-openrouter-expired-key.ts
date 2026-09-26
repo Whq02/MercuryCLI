@@ -2,13 +2,15 @@ import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 
 const parent = process.env.MERCURY_CONFIG_DIR
-if (!parent || !parent.startsWith('/private/tmp/')) throw new Error('An isolated scratch config home is required')
+const realHome = join(homedir(), '.mercury')
+if (!parent || parent === realHome || parent.startsWith(realHome + '/')) throw new Error('An isolated scratch config home is required')
 const home = mkdtempSync(join(parent, 'openrouter-proof-'))
 for (const name of Object.keys(process.env)) {
   if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENROUTER_|OPENAI_|ZAI_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|TYPESAFE_|AWS_|AZURE_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
