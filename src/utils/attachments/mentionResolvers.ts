@@ -79,6 +79,29 @@ export async function getOpenedFileFromIDE(
   ]
 }
 
+const OPEN_FILES_IN_IDE_LIMIT = 30
+
+export async function getOpenFilesFromIDE(
+  ideSelection: IDESelection | null,
+  toolUseContext: ToolUseContext,
+): Promise<Attachment[]> {
+  if (!ideSelection?.openFiles || ideSelection.openFiles.length === 0) {
+    return []
+  }
+
+  const appState = toolUseContext.getAppState()
+  const filenames: string[] = []
+  for (const filePath of ideSelection.openFiles) {
+    if (filenames.length >= OPEN_FILES_IN_IDE_LIMIT) break
+    if (filenames.includes(filePath)) continue
+    if (isFileReadDenied(filePath, appState.toolPermissionContext)) continue
+    filenames.push(filePath)
+  }
+  if (filenames.length === 0) return []
+
+  return [{ type: 'open_files_in_ide', filenames }]
+}
+
 export async function processAtMentionedFiles(
   input: string,
   toolUseContext: ToolUseContext,

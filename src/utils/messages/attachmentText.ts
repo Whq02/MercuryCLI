@@ -511,6 +511,14 @@ The team config lists your teammates' names. Check the task list periodically; c
         }),
       ])
     }
+    case 'open_files_in_ide': {
+      return wrapMessagesInSystemReminder([
+        createUserMessage({
+          content: `The user has these files open in the IDE:\n${attachment.filenames.join('\n')}\n\nThey may or may not bear on the current task.`,
+          isMeta: true,
+        }),
+      ])
+    }
     case 'plan_file_reference': {
       return wrapMessagesInSystemReminder([
         createUserMessage({
