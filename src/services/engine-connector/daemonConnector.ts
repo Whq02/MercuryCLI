@@ -255,23 +255,33 @@ export class ProjectionFeed {
   private timerMs = 0
   private lastKey = PROJECTION_ABSENT
   private settleUntilMs = 0
+  private recheck: ReturnType<typeof setTimeout> | null = null
   constructor(
     private readonly dir: string,
     private readonly path: string,
     private readonly onChange: () => void,
     private readonly idleFloorMs: () => number = () => HEARTBEAT_MS,
   ) {}
-  private readonly tick = (): void => {
+  private readonly tick = (): boolean => {
     let key = PROJECTION_ABSENT
     try {
       key = projectionChangeKey(statSync(this.path))
     } catch {
       key = PROJECTION_ABSENT
     }
-    if (key !== this.lastKey) {
-      this.lastKey = key
-      this.onChange()
-    }
+    if (key === this.lastKey) return false
+    this.lastKey = key
+    this.onChange()
+    return true
+  }
+  private readonly report = (): void => {
+    if (this.tick() || this.recheck !== null) return
+    const recheck = setTimeout(() => {
+      this.recheck = null
+      this.tick()
+    }, HEARTBEAT_MS)
+    recheck.unref?.()
+    this.recheck = recheck
   }
   private cadenceMs(): number {
     if (this.watcher === null) return HEARTBEAT_MS
@@ -301,9 +311,7 @@ export class ProjectionFeed {
     if (this.timer !== null) return
     try {
       mkdirSync(this.dir, { recursive: true })
-      const watcher = watch(resolveWatchRoot(this.dir), (_event, filename) => {
-        if (filename === undefined || filename === null || join(this.dir, String(filename)) === this.path) this.tick()
-      })
+      const watcher = watch(resolveWatchRoot(this.dir), this.report)
       watcher.on('error', () => {
         try {
           watcher.close()
@@ -325,6 +333,10 @@ export class ProjectionFeed {
       clearInterval(this.timer)
       this.timer = null
       this.timerMs = 0
+    }
+    if (this.recheck !== null) {
+      clearTimeout(this.recheck)
+      this.recheck = null
     }
     try {
       this.watcher?.close()
