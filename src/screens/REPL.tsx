@@ -2017,7 +2017,7 @@ export function REPL({
   const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
-  const unseen = useUnseenDivider(messages.length);
+  const unseen = useUnseenDivider(messages.length, scrollRef);
   const rekeyedSessionRef = useRef(focusedSessionId);
   useEffect(() => {
     compactWork.set('composer');
