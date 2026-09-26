@@ -141,7 +141,7 @@ if (driver.kind !== 'posix-pty') {
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 1, data: CR },
         { afterPrevTicks: 8, awaitText: WORDS.slice(0, 28), minTick: 1, data: '', mark: 'opened' },
-        { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 1, data: DOWN + DOWN, mark: 'painted' },
+        { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 1, data: DOWN + DOWN, mark: 'painted' },
         { afterPrevTicks: 2, data: '', mark: 'walked' },
         { afterPrevTicks: 25, data: '', mark: 'settled' },
         { afterPrevTicks: 2, data: ESC },
@@ -181,11 +181,11 @@ if (driver.kind !== 'posix-pty') {
     const walked = frame('walked')
     const settled = frame('settled')
     console.log(`  [info] the landing line was on screen at the open: ${opened.includes(WORDS.slice(0, 28)) ? 'yes — the open fell inside the landing window' : 'no — this box landed before the picker opened'}`)
-    check('the picker painted', painted.includes('CHOOSE A MODEL'), painted.split('\n').filter(l => l.trim()).slice(0, 6).join(' / '))
-    check('the picker painted after the landing: the served model row is current at the first paint', /● current/.test(painted) && !painted.includes(WORDS.slice(0, 28)), painted.split('\n').find(l => l.includes('current')) ?? '(no current row)')
+    check('the picker painted', painted.includes('Mercury · model'), painted.split('\n').filter(l => l.trim()).slice(0, 6).join(' / '))
+    check('the picker painted after the landing: the served model row is current at the first paint', /\S\s{2,}current\s{2,}/.test(painted) && !painted.includes(WORDS.slice(0, 28)), painted.split('\n').find(l => l.includes('current')) ?? '(no current row)')
     check('the two arrow keys moved the cursor', focusRow(walked) !== '' && focusRow(walked) !== focusRow(painted), `painted: ${focusRow(painted)} · walked: ${focusRow(walked)}`)
     check('five seconds on, the cursor is where the keys put it', focusRow(settled) === focusRow(walked), `walked: ${focusRow(walked)} · settled: ${focusRow(settled)}`)
-    check('…in the same open (the picker never closed)', settled.includes('CHOOSE A MODEL') && /● current/.test(settled))
+    check('…in the same open (the picker never closed)', settled.includes('Mercury · model') && /\S\s{2,}current\s{2,}/.test(settled))
   } else {
     check('the capture wrote its grid', false)
   }

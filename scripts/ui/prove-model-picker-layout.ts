@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { modelPickerFooter } from '../../src/utils/model/modelPickerFooter.js'
+import { MODEL_PICKER_HINT, MODEL_PICKER_PANEL } from '../../src/utils/model/modelPickerGroups.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -19,36 +20,38 @@ console.log(' /model picker — single-column, highlighted-selected, no overflow
 console.log('============================================================')
 
 section('terminal-fit: single-column width never overflows')
-const panelWidth = (cols: number): number => Math.min(cols - 2, 62)
+const panelWidth = (cols: number): number => Math.min(cols - 2, MODEL_PICKER_PANEL.cap)
 for (const cols of [80, 100, 120, 160, 200]) {
   const w = panelWidth(cols)
   check(`@${cols} panelWidth(${w}) ≤ cols-2 (${cols - 2}) — no overflow`, w <= cols - 2)
 }
 section('footer discipline: sheds on narrow, never wraps, keeps the nav+exit floor')
 const innerOf = (cols: number): number => panelWidth(cols) - 4
-const FLOOR = '↑↓ select · esc close'.length
-const stress = { hasEffort: true, supports1m: true, gated: true, enableFlag: 'MERCURY_TEAMMATES' }
+const FLOOR = '↑↓ select · esc closes'.length
+const stress = { gated: true, enableFlag: 'MERCURY_TEAMMATES' }
 for (const cols of [50, 56, 64, 80, 100, 120]) {
   const inner = innerOf(cols)
   const f = modelPickerFooter(stress, inner)
   check(`@${cols} footer len ${f.length} ≤ inner ${inner} — no wrap`, f.length <= Math.max(inner, FLOOR), `"${f}"`)
-  check(`@${cols} keeps the ↑↓ select … esc close floor`, f.startsWith('↑↓ select') && f.endsWith('esc close'))
+  check(`@${cols} keeps the ↑↓ select … esc closes floor`, f.startsWith('↑↓ select') && /esc (?:or click outside )?closes$/.test(f))
 }
 const wideSegs = modelPickerFooter(stress, innerOf(120)).split(' · ').length
 const narrowSegs = modelPickerFooter(stress, innerOf(50)).split(' · ').length
 check('wide footer shows more segments than narrow (shedding actually fires)', wideSegs > narrowSegs, `wide=${wideSegs} narrow=${narrowSegs}`)
-const mid = modelPickerFooter(stress, 40)
-check('sheds "c context" before "←→ effort" (drop-priority)', !mid.includes('c context') || mid.includes('←→ effort'), `"${mid}"`)
-const realistic = modelPickerFooter({ hasEffort: true, supports1m: true, gated: false }, innerOf(120))
-check('realistic effort+context+switch footer fits the wide panel intact', realistic.includes('←→ effort') && realistic.includes('c context') && realistic.includes('↵ switch'), `"${realistic}"`)
+const mid = modelPickerFooter(stress, 60)
+check('sheds "c context" before "/ filter" (drop-priority)', !mid.includes('c context') || mid.includes('/ filter'), `"${mid}"`)
+const home = modelPickerFooter({ gated: false }, innerOf(120))
+check('the home footer is the ratified hint row, whole', home === MODEL_PICKER_HINT, `"${home}"`)
+check('on a heading the action word follows the fold', modelPickerFooter({ gated: false, heading: { fold: 'folded' } }, innerOf(120)).includes('↵ unfold') && modelPickerFooter({ gated: false, heading: { fold: 'open' } }, innerOf(120)).includes('↵ fold'))
+check('while the filter has focus the legend swaps: type to filter · ↵ switch · esc clears the filter', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, innerOf(120)) === '↑↓ select · type to filter · ↵ switch · esc clears the filter' && modelPickerFooter({ gated: false, filterFocus: true, filtering: false }, innerOf(120)).endsWith('esc leaves the filter'))
 
 section('source wiring: single-column, boxed-selected, click-driven')
 const src = readFileSync(join(root, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
 check('single-column outer Box (flexDirection="column" + round border — schema-true)', /flexDirection="column" borderStyle="round"/.test(src))
-check('footer uses the width-disciplined modelPickerFooter (no raw ternary hint)', /modelPickerFooter\(\{/.test(src) && /import \{ modelPickerFooter \}/.test(src))
-check('panelWidth rides the geometry contract (cap 62 · reserve 2) — never overflows', /panelWidthFor\(cols, \{ cap: 62, reserve: 2, min: 20 \}\)/.test(src))
-check('uses InteractiveRow for the highlighted-selected container', /<InteractiveRow\n {14}id=\{`model:row:\$\{m\.id\}`\}/.test(src) && /import \{ InteractiveRow \}/.test(src))
-check('group name renders as an uppercase eyebrow', /\.group\.toUpperCase\(\)/.test(src))
+check('footer uses the width-disciplined modelPickerFooter (no raw ternary hint)', /modelPickerFooter\(/.test(src) && /import \{ modelPickerFooter \}/.test(src))
+check('panelWidth rides the ONE panel contract (cap 100 · reserve 2 · floor 20) — never overflows', /panelWidthFor\(cols, MODEL_PICKER_PANEL\)/.test(src) && MODEL_PICKER_PANEL.cap === 100 && MODEL_PICKER_PANEL.reserve === 2 && MODEL_PICKER_PANEL.min === 20)
+check('uses InteractiveRow for the highlighted-selected container', /<InteractiveRow\n {8}key=\{line\.key\}\n {8}id=\{`model:row:\$\{line\.key\}`\}/.test(src) && /import \{ InteractiveRow \}/.test(src))
+check('the provider heading derives from the one heading composer (PROVIDER · door · account · N live)', /headingWords\(heading, line\.group/.test(src))
 check('every row is click-selectable (onSelect → selectRow) and ↵-parity (onActivate → commitCurrent)', /onSelect=\{\(\) => selectRow\(idx\)\}/.test(src) && /onActivate=\{commitCurrent\}/.test(src) && /const selectRow = \(n: number\)/.test(src))
 check(
   'retired the shrink-wrapping rail+detail (no modelPickerLayout import, no railWidth/detailWidth)',

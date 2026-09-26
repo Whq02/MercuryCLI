@@ -101,7 +101,7 @@ const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
   { afterPrevTicks: 3, data: '\r' },
-  { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitSettleTicks: 8, mark: 'opened', data: DOWN },
+  { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 8, mark: 'opened', data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
@@ -138,13 +138,13 @@ const focusLine = (lines: string[]): string => (lines.find(l => l.includes('│ 
 const nameOf = (row: string): string => row.split(/\s{2,}/)[0] ?? ''
 const windowOf = (row: string): string => /(\d+k|\d+M) ctx/.exec(row)?.[1] ?? ''
 const anthropicGroup = (lines: string[]): string[] => {
-  const start = lines.findIndex(l => l.includes('MERCURY — ANTHROPIC MODELS'))
+  const start = lines.findIndex(l => /[▾▸❯] ANTHROPIC · /.test(l))
   if (start < 0) return []
   const rows: string[] = []
   for (const l of lines.slice(start + 1)) {
     const cell = l.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '').trim()
-    if (cell.startsWith('MERCURY — ') || cell.startsWith('↓ ') || cell.startsWith('context ') || cell === '') break
-    if (cell.startsWith('╭') || cell.startsWith('╰') || cell === 'signed in') continue
+    if (/^[▾▸❯] [A-Z]/.test(cell) || cell.startsWith('↓ ') || cell.startsWith('context ') || cell === '') break
+    if (cell.startsWith('╭') || cell.startsWith('╰') || / · \d+ live/.test(cell)) continue
     rows.push(cell.replace(/^│\s*/, ''))
   }
   return rows
@@ -156,7 +156,7 @@ const toggled = marks.get('toggled') ?? []
 const back = marks.get('toggled-back') ?? []
 const top = marks.get('group-top') ?? []
 check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}`)
-check('the picker opened with the current row boxed', opened.some(l => l.includes('CHOOSE A MODEL')) && opened.some(l => l.includes('● current')), opened.filter(l => l.includes('│ │')).join(' | '))
+check('the picker opened with the current row boxed', opened.some(l => l.includes('Mercury · model')) && opened.some(l => /│ │ \S.* {2,}current {2,}/.test(l)), opened.filter(l => l.includes('│ │')).join(' | '))
 const group = anthropicGroup(top)
 const names = group.map(nameOf)
 console.log(`  [record] the Anthropic group: ${names.join(' · ')}`)

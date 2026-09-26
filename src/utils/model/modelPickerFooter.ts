@@ -1,28 +1,30 @@
-export type ModelPickerFooterDoor =
-  | { open: false }
-  | { open: true; onHeader: boolean; filtering: boolean }
+export type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
+
+export const MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'
 
 export function modelPickerFooter(
-  opts: { hasEffort: boolean; supports1m: boolean; gated: boolean; enableFlag?: string; door?: ModelPickerFooterDoor },
+  opts: {
+    gated: boolean
+    enableFlag?: string
+    heading?: ModelPickerFooterHeading
+    filterFocus?: boolean
+    filtering?: boolean
+  },
   innerWidth: number,
 ): string {
   const head = '↑↓ select'
-  const door = opts.door
-  const tail = door?.open ? (door.filtering ? 'esc clear' : 'esc collapse') : 'esc close'
-  const action = opts.gated
-    ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
-    : door === undefined
-      ? '↵ switch'
-      : !door.open
-        ? '↵ expand'
-        : door.onHeader
-          ? '↵ collapse'
-          : '↵ switch'
+  const tail = opts.filterFocus ? (opts.filtering ? 'esc clears the filter' : 'esc leaves the filter') : MODEL_PICKER_EXIT_WORDS
+  const action = opts.heading !== undefined
+    ? opts.heading.fold === 'folded' ? '↵ unfold' : '↵ fold'
+    : opts.gated
+      ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
+      : '↵ switch'
   const middle = [
-    { text: '←→ effort', show: opts.hasEffort, drop: 2 },
-    { text: 'c context', show: opts.supports1m, drop: 3 },
-    { text: 'type to filter', show: door?.open === true, drop: 0 },
+    { text: 'type to filter', show: opts.filterFocus === true, drop: 0 },
     { text: action, show: true, drop: 1 },
+    { text: 'c context', show: opts.filterFocus !== true, drop: 4 },
+    { text: '→ ← fold', show: opts.filterFocus !== true, drop: 3 },
+    { text: '/ filter', show: opts.filterFocus !== true, drop: 2 },
   ]
   const join = (parts: string[]): string => parts.join(' · ')
   let shown = middle.filter(s => s.show)
@@ -32,5 +34,6 @@ export function modelPickerFooter(
     for (let k = 1; k < shown.length; k++) if (shown[k]!.drop > shown[victim]!.drop) victim = k
     shown = shown.filter((_, k) => k !== victim)
   }
-  return join([head, ...shown.map(s => s.text), tail])
+  const line = join([head, ...shown.map(s => s.text), tail])
+  return line.length <= innerWidth || opts.filterFocus ? line : join([head, ...shown.map(s => s.text), 'esc closes'])
 }

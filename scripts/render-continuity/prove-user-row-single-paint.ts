@@ -219,7 +219,7 @@ for (const scene of scenes) {
       screens.some(f => f.rows.some(r => r.includes(needle)))
     t.check(
       'the accepted command EXECUTED (the /model picker is on screen)',
-      anyFrameHas('CHOOSE A MODEL'),
+      anyFrameHas('Mercury · model'),
     )
     t.check(
       'no junk raw-prefix execution painted (no Unknown-skill row)',

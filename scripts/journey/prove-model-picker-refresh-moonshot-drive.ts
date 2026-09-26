@@ -36,17 +36,9 @@ type Payload = { grid: Grid; marks?: { label: string; grid: Grid; atMs: number }
 type Wire = { kind: string; phase?: string; model?: string; status?: number; path?: string; at: number }
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const live = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}[○●⦿] (switch|current)`).test(frame)
-const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}● current`).test(frame)
-const lineUnder = (frame: string, title: string): string => {
-  const lines = frame.split('\n')
-  const at = lines.findIndex(line => line.includes(title))
-  if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const next = lines[at + 1] ?? ''
-  const right = next.indexOf('│', col)
-  return next.slice(col, right > col ? right : undefined).trim()
-}
+const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}\\S`).test(frame)
+const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}\\S+ {2,}current`).test(frame)
+const headingOf = (frame: string, title: string): string => (frame.split('\n').find(line => line.includes(title)) ?? '').replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()
 
 const encode = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 const nowS = Math.floor(Date.now() / 1000)
@@ -56,7 +48,7 @@ const FAST = 'kimi-for-coding-highspeed'
 const ALIAS_NAME = 'Kimi for Coding'
 const K3_NAME = 'K3'
 const K3_256K_NAME = 'K3 256K'
-const MOONSHOT_TITLE = 'MERCURY — MOONSHOT MODELS'
+const MOONSHOT_TITLE = ' MOONSHOT · '
 const NOTICE = 'Moonshot — the live list changed; rows updated'
 const OLD_LIST = { object: 'list', data: [
   { id: FAST, object: 'model', created: 200, owned_by: 'moonshot', context_length: 262_144 },
@@ -158,8 +150,8 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: landed, minTick: 10, awaitSettleTicks: 3, data: 'hello\r', mark: 'default' },
       { requireAwait: true, awaitText: 'fixture ', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'chat' },
       { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'opened' },
-      { afterPrevTicks: 40, awaitText: 'models live', awaitSettleTicks: 3, data: '', mark: 'live' },
+      { requireAwait: true, awaitText: 'Mercury · model', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'opened' },
+      { afterPrevTicks: 40, awaitText: '· 4 live', awaitSettleTicks: 3, data: '', mark: 'live' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 400, sends, out, stableTicks: 4 }))
     const status = await new Promise<number>((resolveCapture, reject) => {
@@ -190,7 +182,7 @@ for (const [cols, rows] of SIZES) {
     const atBirth = models.filter(event => event.at < turnAt)
     const between = models.filter(event => event.at >= turnAt && event.at < openAt)
     const afterOpen = models.filter(event => event.at >= openAt)
-    const headingLine = lineUnder(liveFrame, MOONSHOT_TITLE)
+    const headingLine = headingOf(liveFrame, MOONSHOT_TITLE)
     const planRows = [K3_NAME, K3_256K_NAME].filter(name => live(liveFrame, name))
     console.log(`[record] ${tag}: reads at birth ${atBirth.length} · turn ${turn ? `${turn.model} (${turn.status})` : 'none'} · reads between ${between.length} · reads after open ${afterOpen.map(event => event.phase).join(',') || 'none'} · heading "${headingLine}" · plan rows ${planRows.join(',') || 'none'}`)
     check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
@@ -199,11 +191,11 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: the first turn ran the list's head, ${ALIAS}, on the fixture`, turn?.model === ALIAS && turn.status === 200, JSON.stringify(turn))
     check(`${tag}: nothing polls the list between the turn and the open`, between.length === 0, `reads ${between.length}`)
     check(`${tag}: the open makes exactly one list request before any keypress`, afterOpen.length === 1 && afterOpen[0]!.phase === 'after' && afterOpen[0]!.at <= liveAt, `reads after open ${afterOpen.length} (${afterOpen.map(event => event.phase).join(',')}); liveAt ${liveAt}`)
-    check(`${tag}: the picker opened on the session's own row`, opened.includes('CHOOSE A MODEL') && (!wide || current(opened, ALIAS_NAME)), opened.split('\n').filter(line => line.includes(ALIAS_NAME)).join(' | '))
+    check(`${tag}: the picker opened on the session's own row`, opened.includes('Mercury · model') && (!wide || current(opened, ALIAS_NAME)), opened.split('\n').filter(line => line.includes(ALIAS_NAME)).join(' | '))
     check(`${tag}: the Moonshot block is live on open: the plan's K3 rows paint around the current row`, planRows.length >= (wide ? 2 : 1) && current(liveFrame, ALIAS_NAME), liveFrame.split('\n').filter(line => /K3|Kimi/.test(line)).join(' | '))
-    check(`${tag}: the heading reads signed in with the live count`, headingLine === 'signed in · 4 models live', headingLine)
+    check(`${tag}: the heading reads the sign-in door with the live count`, /^[▾❯] MOONSHOT · Kimi login(?: · \S+)? · 4 live$/.test(headingLine), headingLine)
     check(`${tag}: the changed list paints the family's notice`, liveFrame.includes(NOTICE), liveFrame.split('\n').filter(line => line.includes('Moonshot')).join(' | '))
-    check(`${tag}: the id line keeps the session's model`, liveFrame.includes(`${ALIAS} · model IDs`) || !wide, liveFrame.split('\n').filter(line => line.includes('model IDs')).join(' | '))
+    check(`${tag}: the current row keeps the session's model beside its raw id`, new RegExp(`${escapeRe(ALIAS_NAME)} {2,}${escapeRe(ALIAS)} {2,}current`).test(liveFrame) || !wide, liveFrame.split('\n').filter(line => line.includes(ALIAS)).join(' | '))
   } finally {
     fixture.closeAllConnections()
     await new Promise<void>(resolveClose => fixture.close(() => resolveClose()))

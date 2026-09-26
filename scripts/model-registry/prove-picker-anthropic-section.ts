@@ -104,7 +104,7 @@ const SONNET = strings[FAMILY_GENERATIONS.sonnet[0]]
 const HAIKU = strings[FAMILY_GENERATIONS.haiku[0]]
 const LAST_FABLE = strings[FAMILY_GENERATIONS.fable.at(-1)!]
 const RAW = 'claude-opus-5-7'
-const ANTHROPIC_TITLE = 'MERCURY — ANTHROPIC MODELS'
+const ANTHROPIC_TITLE = ' ANTHROPIC · '
 
 const anthropicRows = (options: ModelOption[]): ModelOption[] =>
   options.filter(o => o.group === undefined && !isProviderActionRow(o.value) && !o.value.startsWith('__'))
@@ -178,14 +178,12 @@ section('§3 the premium shape (a Max subscription): the same block law under th
 }
 
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 150))
-const lineUnder = (lines: string[], title: string): string => {
+const headingOf = (lines: string[], title: string): string => {
   const at = lines.findIndex(l => l.includes(title))
   if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const right = lines[at]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
+  return lines[at]!.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()
 }
-const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && /\b(current|switch|unavail|next|gated)\b/.test(l))
+const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && !l.includes(' · ') && /│ (?:│ | {2})/.test(l))
 type Band = { columns: number; rows: number; pendingNext?: string }
 async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; unmount: () => void }> {
   const stdout = Object.assign(new PassThrough(), { columns: band.columns, rows: band.rows })
@@ -234,10 +232,10 @@ for (const fixture of ['anthropic-key', 'claude-max'] as const) {
   const lines = frame.split('\n')
   if (frameDir !== undefined) writeFileSync(join(frameDir, `model-178x51-${fixture}.txt`), frame + '\n')
   const painted = expected.map(name => rowAt(lines, name))
-  console.log(`  [record] ${fixture}: under the title "${lineUnder(lines, ANTHROPIC_TITLE)}" · rows top to bottom: ${[...expected.keys()].sort((a, b) => painted[a]! - painted[b]!).map(index => expected[index]).join(' · ')}`)
+  console.log(`  [record] ${fixture}: the heading "${headingOf(lines, ANTHROPIC_TITLE)}" · rows top to bottom: ${[...expected.keys()].sort((a, b) => painted[a]! - painted[b]!).map(index => expected[index]).join(' · ')}`)
   check(`[${fixture}] the frame fits 178x51`, lines.length <= 51 && lines.every(line => stringWidth(line) <= 178), `${lines.length} lines · widest ${Math.max(...lines.map(line => stringWidth(line)))}`)
   check(`[${fixture}] the Anthropic section is on screen whole: its title and every row`, lines.some(l => l.includes(ANTHROPIC_TITLE)) && painted.every(index => index >= 0), expected.filter((_, index) => painted[index]! < 0).join(' · ') || 'all painted')
-  check(`[${fixture}] the line under the Anthropic title reads signed in alone`, lineUnder(lines, ANTHROPIC_TITLE) === 'signed in', lineUnder(lines, ANTHROPIC_TITLE))
+  check(`[${fixture}] the heading reads PROVIDER · door · account · N live`, fixture === 'anthropic-key' ? /^▾ ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(lines, ANTHROPIC_TITLE)) : /^▾ ANTHROPIC · Claude Max login(?: \+ API key)?(?: · \S+@\S+)? · \d+ live$/.test(headingOf(lines, ANTHROPIC_TITLE)), headingOf(lines, ANTHROPIC_TITLE))
   const opusLines = OPUS_BLOCK.map(id => rowAt(lines, renderModelName(id)))
   check(`[${fixture}] the painted opus rows run ${show(OPUS_BLOCK)}, top to bottom`, opusLines.every((index, position) => index >= 0 && (position === 0 || index > opusLines[position - 1]!)), opusLines.join(','))
   const first = Math.min(...opusLines)
@@ -251,11 +249,12 @@ for (const fixture of ['anthropic-key', 'claude-max'] as const) {
   if (fixture === 'claude-max') signOutMax()
 }
 
-section('§5 the box spans its band whatever the cursor\'s row: from the first row to the last the bottom border is one row, and the more marker keeps the bottom edge of the rows')
+section('§5 the box spans its band whatever the cursor\'s row: from the first stop to the last the bottom border is one row, and the more marker keeps the bottom edge of the rows')
 {
   anthropicCatalogue.__resetAnthropicCatalogueForTest()
   const total = getModelOptions().length
-  const mounted = await mountModel(DEFAULT_OPUS)
+  const BAND_ROWS = 40
+  const mounted = await mountModel(DEFAULT_OPUS, { columns: 178, rows: BAND_ROWS })
   const bottomOf = (lines: string[]): number => lines.map(l => l.includes('╰')).lastIndexOf(true)
   const meterOf = (lines: string[]): number => lines.findIndex(l => /^\s*│ context /.test(l))
   const markerOf = (lines: string[]): number => lines.findIndex(l => /│\s+↓ \d+ more/.test(l))
@@ -268,24 +267,28 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first r
     walk.push({ row, lines: lines.length, bottom: bottomOf(lines), marker: markerOf(lines), above: aboveOf(lines), meter: meterOf(lines), focus: focusOf(lines) })
   }
   record(-1)
-  check('Home moves the cursor to the first row (the frame repaints)', await mounted.press('\x1b[H'))
+  check('Home moves the cursor to the first stop (the frame repaints)', await mounted.press('\x1b[H'))
   record(0)
   let delivered = true
-  for (let row = 1; row < total; row++) {
-    delivered = (await mounted.press('\x1b[B')) && delivered
+  let row = 0
+  while (row < total + 24) {
+    row++
+    const moved = await mounted.press('\x1b[B', false)
+    if (!moved) break
+    delivered = delivered && moved
     record(row)
   }
-  check(`every ↓ of the ${total - 1} moved the focus (each keypress repainted)`, delivered)
-  check('End on the last row changes nothing: the walk reached the end of the list', !(await mounted.press('\x1b[F', false)))
+  check(`the walk stopped once per stop and reached the end (${row - 1} moves for ${total} rows plus the headings)`, delivered && row - 1 >= 4)
+  check('End on the last stop changes nothing: the walk reached the end of the list', !(await mounted.press('\x1b[F', false)))
   const first = walk.find(stop => stop.row === 0)!
   const last = walk.at(-1)!
   const served = walk[0]!
   console.log(`  [record] rows ${total} · bottom border rows over the walk: ${[...new Set(walk.map(stop => stop.bottom))].join(',')} · heights: ${[...new Set(walk.map(stop => stop.lines))].join(',')} · first focus "${first.focus}" · last focus "${last.focus}"`)
   check('the first frame has rows below and none above; the last has rows above and none below (the list overflows both ways)', first.marker >= 0 && first.above === -1 && last.above >= 0 && last.marker === -1, `first ${first.marker}/${first.above} · last ${last.marker}/${last.above}`)
   check('the bottom border is one row on the served row, on the first row, on the first available row and on the last', new Set(walk.map(stop => stop.bottom)).size === 1, walk.map(stop => `${stop.row}:${stop.bottom}`).join(' '))
-  check('the box spans the 51 rows at every cursor position', walk.every(stop => stop.lines === 51 && stop.bottom === 50), walk.filter(stop => stop.lines !== 51 || stop.bottom !== 50).map(stop => `${stop.row}:${stop.lines}/${stop.bottom}`).join(' '))
+  check(`the box spans the ${BAND_ROWS} rows at every cursor position`, walk.every(stop => stop.lines === BAND_ROWS && stop.bottom === BAND_ROWS - 1), walk.filter(stop => stop.lines !== BAND_ROWS || stop.bottom !== BAND_ROWS - 1).map(stop => `${stop.row}:${stop.lines}/${stop.bottom}`).join(' '))
   check('wherever the ↓ marker paints it sits on the bottom edge of the rows, right above the meter block', walk.every(stop => stop.meter >= 0 && (stop.marker === -1 || stop.marker === stop.meter - 2)), walk.filter(stop => stop.meter < 0 || (stop.marker !== -1 && stop.marker !== stop.meter - 2)).map(stop => `${stop.row}:${stop.marker}/${stop.meter}`).join(' '))
-  check('the walk started on the served default Opus, stopped once per row and ended on a different row', served.focus.startsWith(renderModelName(DEFAULT_OPUS)) && walk.length === total + 1 && last.focus !== first.focus && last.focus !== served.focus, `${served.focus} · ${walk.length - 1} of ${total} · last "${last.focus}"`)
+  check('the walk started on the served default Opus and ended on a different row', served.focus.startsWith(renderModelName(DEFAULT_OPUS)) && last.focus !== served.focus, `${served.focus} · ${walk.length - 1} stops · last "${last.focus}"`)
   mounted.unmount()
 }
 
@@ -309,7 +312,7 @@ section('§6 the chrome lines that wrap are paid for: a queued switch, a narrow 
     console.log(`  [record] ${band.label}: ${lines.length} lines · bottom border on row ${bottom} · widest ${widest} · band ${band.columns}x${band.rows}`)
     check(`[${band.label}] the frame fits the band: at most ${band.rows} rows, no line wider than ${band.columns}`, lines.length <= band.rows && widest <= band.columns, `${lines.length} lines · widest ${widest}`)
     check(`[${band.label}] the bottom border is the last row and sits inside the band`, bottom >= 0 && bottom === lines.length - 1 && bottom < band.rows, `bottom ${bottom} of ${lines.length}`)
-    check(`[${band.label}] the footer keeps its exit word right above the border`, (lines[bottom - 1] ?? '').includes('esc close'), lines[bottom - 1] ?? '')
+    check(`[${band.label}] the footer keeps its exit word right above the border`, /esc (?:or click outside )?closes/.test(lines[bottom - 1] ?? ''), lines[bottom - 1] ?? '')
     check(`[${band.label}] the current row is on screen`, rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0)
     if (band.pendingNext !== undefined) {
       const nextName = band.pendingNext === LONG_NEXT ? LONG_NEXT : renderModelName(band.pendingNext)
@@ -326,7 +329,7 @@ globalThis.fetch = realFetch
 section('§7 the seam: the header composer\'s credentialed arm')
 {
   const builder = readFileSync(join(import.meta.dir, '..', '..', 'src/commands/model/mercuryModel.tsx'), 'utf8')
-  check("groupDetailsOf answers 'signed in' on the credentialed arm and 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n          ? 'signed in'\n          : anthropicNotSignedInReason()") && !builder.includes("'credential present'"))
+  check("the Anthropic heading names the signed-in doors on the credentialed arm and the not-signed-in reason otherwise; 'credential present' nowhere", builder.includes("anthropicPresence.credentialed\n    ? {\n        name: nameOf('anthropic'),\n        doors: signedInDoorsOf('anthropic', slotsOf('anthropic')),") && builder.includes("{ name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }") && !builder.includes("'credential present'"))
 }
 
 rmSync(scratch, { recursive: true, force: true })

@@ -37,8 +37,8 @@ type Wire = { kind: string; family?: string; phase?: string; at: number }
 type FamilyName = 'openrouter' | 'gemini' | 'huggingface' | 'local'
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const live = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)}[^\\n]*(switch|current)`).test(frame)
-const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)}[^\\n]*current`).test(frame)
+const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}\\S`).test(frame)
+const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}\\S+ {2,}current`).test(frame)
 
 const orRow = (id: string, name: string) => ({ id, name, context_length: 131_072, created: 1_755_800_000 })
 const gemRow = (id: string, displayName: string) => ({ name: `models/${id}`, displayName, supportedGenerationMethods: ['generateContent'], inputTokenLimit: 1_048_576, outputTokenLimit: 8192 })
@@ -175,12 +175,12 @@ for (const legName of LEGS) {
         : [
             { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
             { requireAwait: true, awaitText: readyLanded, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'prime' },
-            { requireAwait: true, awaitText: walk ? 'CHOOSE A MODEL' : family!.keepName, minTick: 1, awaitSettleTicks: 3, data: '\x1b', mark: 'primed' },
+            { requireAwait: true, awaitText: walk ? 'Mercury · model' : family!.keepName, minTick: 1, awaitSettleTicks: 3, data: '\x1b', mark: 'primed' },
             { requireAwait: true, awaitText: 'Kept model as', minTick: 1, awaitSettleTicks: 2, data: '' },
             { requireAwait: true, awaitText: readyLanded, minTick: 2, awaitSettleTicks: 3, data: 'hello\r' },
             { requireAwait: true, awaitText: 'alpha answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
             { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
-            ...(walk ? [{ requireAwait: true, awaitText: 'CHOOSE A MODEL', minTick: 1, awaitSettleTicks: 2, data: DOWN.repeat(60) }] : []),
+            ...(walk ? [{ requireAwait: true, awaitText: 'Mercury · model', minTick: 1, awaitSettleTicks: 2, data: DOWN.repeat(60) }] : []),
             { requireAwait: true, awaitText: tight ? family!.keepName : family!.oldName, minTick: 1, awaitSettleTicks: 1, data: '', mark: 'cached' },
             leg.changed
               ? { afterPrevTicks: 60, awaitText: tight ? noticeWords : family!.newName, awaitSettleTicks: 2, data: '', mark: 'refreshed' }
@@ -210,7 +210,7 @@ for (const legName of LEGS) {
       const sendIndex = (mark: string): number => sends.findIndex(send => (send as { mark?: string }).mark === mark)
       const openAt = payload.sendReceipts?.[sendIndex('open')]?.ts ?? Infinity
       const cachedAt = payload.sendReceipts?.[sendIndex('cached')]?.ts ?? Infinity
-      const full = cached.includes('CHOOSE A MODEL')
+      const full = cached.includes('Mercury · model')
       if (leg.dark) {
         for (const name of ['openrouter', 'gemini', 'huggingface'] as const) {
           check(`${tag}: ${FAMILIES[name].word} sends nothing with catalogue traffic switched off`, requestsOf(name).length === 0, `models requests ${requestsOf(name).length}`)
@@ -237,7 +237,7 @@ for (const legName of LEGS) {
       }
       if (leg.changed) {
         if (!tight) check(`${tag}: the new rows replace the old live rows in place`, live(refreshed, spec.newName) && !live(refreshed, spec.oldName), refreshed.split('\n').filter(l => l.includes('efresh')).join(' | '))
-        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (refreshed.includes(`${spec.model} · model IDs`) || !full), refreshed.split('\n').filter(l => l.includes('model IDs')).join(' | '))
+        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (new RegExp(`│ │ ${escapeRe(spec.keepName)} {2,}${escapeRe(spec.model.slice(0, 20))}`).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '))
         else check(`${tag}: the kept row is still live after the refresh`, live(refreshed, spec.keepName), refreshed.split('\n').filter(l => l.includes('refresh-')).join(' | '))
         if (full) check(`${tag}: the notice names the family and the changed list`, refreshed.includes(noticeWords), refreshed.split('\n').filter(l => l.includes('changed')).join(' | '))
       } else {

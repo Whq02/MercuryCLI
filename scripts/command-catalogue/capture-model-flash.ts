@@ -136,7 +136,7 @@ for (const c of MATRIX) {
     continue
   }
   const finalText = payload.grid.map(row => row.map(cell => cell.c).join('')).join('\n')
-  if (!finalText.includes('CHOOSE A MODEL')) {
+  if (!finalText.includes('Mercury · model')) {
     console.error(`  [${c.theme} ${c.cols}×${c.rows}] the picker never re-opened — a vacuous capture, not a clean pass`)
     reproduced = true
     continue

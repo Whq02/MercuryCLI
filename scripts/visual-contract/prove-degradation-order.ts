@@ -42,8 +42,8 @@ t.section(`§1 — the modal family closes inside the floor viewport (${COMPACT_
   t.check('the card CLOSES: a bottom border row is on screen', closes, lines[lines.length - 1] ?? '(empty)')
   t.check('selection survives as the focused row\'s frame (the full tier)', lines.some(l => /│\s*╭/.test(l)), lines.find(l => /│\s*╭/.test(l)) ?? '(no framed row)')
   t.check('the cut is NAMED', /↓ \d+ more/.test(all), lines.find(l => l.includes('more')) ?? '(no counter)')
-  t.check('the footer keeps its close hint', all.includes('esc close'), lines.find(l => l.includes('esc')) ?? '(no footer)')
-  t.check('the banner STAYS: the floor holds the full tier (decoration sheds only under it)', all.includes('CHOOSE A MODEL'), lines.find(l => l.includes('CHOOSE A MODEL')) ?? '(no banner row)')
+  t.check('the footer keeps its close hint', /esc (?:or click outside )?closes/.test(all), lines.find(l => l.includes('esc')) ?? '(no footer)')
+  t.check('the title STAYS: the floor holds the full tier (the plain "Mercury · model" line and a provider heading)', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all), lines.find(l => l.includes('Mercury · model')) ?? '(no title row)')
 }
 
 t.section(`§2 — the inline REPL keeps its input line at the floor (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the frame whole)`)
