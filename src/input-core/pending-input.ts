@@ -294,6 +294,7 @@ export function stashDraft(cursorOffset: number = draft.cursorOffset): void {
 export function popStash(): StashedPrompt | undefined {
   const pocket = stash
   if (pocket === undefined) return undefined
+  if (draft.text.trim() !== '') return undefined
   stash = undefined
   edit(pocket.text)
   setPastedContents(pocket.pastedContents)

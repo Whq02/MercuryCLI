@@ -97,7 +97,6 @@ import {
 } from '../../utils/cockpit/helmConsole.js'
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
-import { MAIN_DRAFT_KEY, stashViewDraft, takeViewDraft } from './viewDrafts.js'
 import { getModeFromInput, getValueFromInput, prependModeCharacterToInput } from './inputModes.js'
 import { maybeTruncateMessageForInput } from './inputPaste.js'
 import { normalizePastedInput } from '../../input-core/composer-document.js'
@@ -953,21 +952,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         : viewedTask.agentType
       : undefined)
   const viewedAgentColor = viewedTeammate?.identity?.color
-
-  const draftKey = viewingAgentTaskId ?? MAIN_DRAFT_KEY
-  const draftKeyRef = useRef(draftKey)
-  const liveTextRef = useRef(input)
-  liveTextRef.current = input
-  useEffect(() => {
-    if (draftKeyRef.current === draftKey) return
-    const previousKey = draftKeyRef.current
-    draftKeyRef.current = draftKey
-    stashViewDraft(previousKey, liveTextRef.current)
-    const incoming = takeViewDraft(draftKey)
-    pendingInput.edit(incoming)
-    lastSelfWriteRef.current = incoming
-    setCursorOffset(incoming.length)
-  }, [draftKey, setCursorOffset])
 
   useEffect(() => {
     setPromptEmpty(input.trim() === '')
