@@ -25,6 +25,7 @@ import {
   probeGdbDap,
   removeDapSession,
   type DapBreakpointSpec,
+  type DapDataBreakpointSpec,
   type DapSession,
 } from '../../services/dap/dapClient.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -62,6 +63,9 @@ const OPS = [
   'functionBreakpoints',
   'disassemble',
   'readMemory',
+  'dataBreakpoints',
+  'instructionBreakpoints',
+  'writeMemory',
   'restart',
   'customRequest',
 ] as const
@@ -99,9 +103,35 @@ const inputSchema = lazySchema(() =>
     method: z.string().optional().describe('customRequest: the DAP request command to send verbatim'),
     body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
     functions: z.array(z.string()).optional().describe('functionBreakpoints: function names to break on (replaces the function-breakpoint set)'),
-    memoryReference: z.string().optional().describe('disassemble/readMemory: a memory reference (e.g. a stack frame\'s [ip …])'),
+    dataBreakpoints: z
+      .array(
+        z.strictObject({
+          name: z.string().describe('The variable to watch (resolved through the adapter\'s dataBreakpointInfo)'),
+          variablesReference: semanticNumber(z.number().int().optional()).describe('The scope or structure holding the variable (from scopes/variables)'),
+          frameId: semanticNumber(z.number().int().optional()).describe('Frame for an expression-style name, when the adapter resolves by frame'),
+          accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Stop on read, write (default) or both'),
+          condition: z.string().optional().describe('Stop only when this expression is true (capability-gated)'),
+          hitCondition: z.string().optional().describe('Stop after N hits, e.g. "3" (capability-gated)'),
+        }),
+      )
+      .optional()
+      .describe('dataBreakpoints: variables to stop on when accessed (replaces the data-breakpoint set; an empty array clears it)'),
+    instructionBreakpoints: z
+      .array(
+        z.strictObject({
+          instructionReference: z.string().describe('A stack frame\'s [ip …] or an address from disassemble'),
+          offset: semanticNumber(z.number().int().optional()).describe('Byte offset from the reference'),
+          condition: z.string().optional().describe('Stop only when this expression is true (capability-gated)'),
+          hitCondition: z.string().optional().describe('Stop after N hits, e.g. "3" (capability-gated)'),
+        }),
+      )
+      .optional()
+      .describe('instructionBreakpoints: machine addresses to stop at (replaces the instruction-breakpoint set; an empty array clears it)'),
+    memoryReference: z.string().optional().describe('disassemble/readMemory/writeMemory: a memory reference (a stack frame\'s [ip …] or a variable\'s [memory …])'),
     count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: byte count (bounded to 4096)'),
-    offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory: byte offset from the memory reference'),
+    offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory/writeMemory: byte offset from the memory reference'),
+    data: z.string().optional().describe('writeMemory: the bytes to write, base64-encoded'),
+    allowPartial: semanticBoolean(z.boolean().optional()).describe('writeMemory: accept a partial write when only part of the range is writable'),
     instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions to decode (bounded to 64, default 16)'),
     granularity: z
       .enum(['statement', 'instruction'])
@@ -347,7 +377,10 @@ function gateCapabilityTree(root: DapSession, capability: string, op: string): O
   }
 }
 
-function gateRichBreakpoints(session: DapSession, specs: DapBreakpointSpec[]): OpResult | null {
+function gateRichBreakpoints(
+  session: DapSession,
+  specs: Array<Pick<DapBreakpointSpec, 'condition' | 'hitCondition' | 'logMessage'>>,
+): OpResult | null {
   if (specs.some(s => s.condition !== undefined)) {
     const gated = gateCapabilityTree(session, 'supportsConditionalBreakpoints', 'conditional breakpoints')
     if (gated) return gated
@@ -383,6 +416,21 @@ const READ_MEMORY_MAX_BYTES = 4096
 const READ_MEMORY_DEFAULT_BYTES = 256
 const DISASSEMBLE_MAX_INSTRUCTIONS = 64
 const DISASSEMBLE_DEFAULT_INSTRUCTIONS = 16
+
+function decodeBase64Strict(data: string): Buffer | null {
+  const compact = data.replace(/\s+/g, '')
+  if (compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact)) return null
+  return Buffer.from(compact, 'base64')
+}
+
+function instructionLabel(spec: { instructionReference: string; offset?: number }): string {
+  if (!spec.offset) return spec.instructionReference
+  return `${spec.instructionReference}${spec.offset > 0 ? '+' : ''}${spec.offset}`
+}
+
+function verdictText(verdict: { verified: boolean; message?: string } | undefined): string {
+  return `${verdict?.verified ? 'verified' : 'UNVERIFIED'}${verdict?.message ? ` (${verdict.message})` : ''}`
+}
 
 async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
   const sessionId = input.session ?? 'main'
@@ -581,6 +629,7 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
             value?: string
             type?: string
             variablesReference?: number
+            memoryReference?: string
           }>)
         : []
       return {
@@ -590,7 +639,8 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
                 v =>
                   `${v.name ?? '?'} = ${v.value ?? '?'}` +
                   (v.type ? ` (${v.type})` : '') +
-                  (v.variablesReference ? ` [ref ${v.variablesReference}]` : ''),
+                  (v.variablesReference ? ` [ref ${v.variablesReference}]` : '') +
+                  (v.memoryReference ? ` [memory ${v.memoryReference}]` : ''),
               )
               .join('\n')
           : '(no variables)',
@@ -734,6 +784,136 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
           `memory at ${address} (${data.length} bytes${unreadable ? `, ${unreadable} unreadable` : ''}):\n` +
           rows.join('\n'),
         outcome: 'no-change',
+      }
+    }
+    case 'dataBreakpoints': {
+      const r = requireTarget(owner, sessionId)
+      if ('error' in r) return { result: r.error, outcome: 'failed' }
+      const gated = gateCapability(r.target, 'supportsDataBreakpoints', 'dataBreakpoints')
+      if (gated) return gated
+      if (!input.dataBreakpoints) {
+        return { result: 'dataBreakpoints needs dataBreakpoints (empty array clears the set)', outcome: 'failed' }
+      }
+      const richGate = gateRichBreakpoints(r.target, input.dataBreakpoints)
+      if (richGate) return richGate
+      if (input.dataBreakpoints.length === 0) {
+        await r.target.setDataBreakpoints([])
+        return { result: 'data breakpoints cleared', outcome: 'succeeded' }
+      }
+      const resolved: Array<{ name: string; spec: DapDataBreakpointSpec }> = []
+      const refused: string[] = []
+      for (const want of input.dataBreakpoints) {
+        const info = await r.target.dataBreakpointInfo({
+          name: want.name,
+          variablesReference: want.variablesReference,
+          frameId: want.frameId,
+        })
+        if (info.dataId === null) {
+          refused.push(`${want.name}: refused by adapter${info.description ? ` (${info.description})` : ''}`)
+          continue
+        }
+        const accessType = want.accessType ?? 'write'
+        if (info.accessTypes && info.accessTypes.length > 0 && !info.accessTypes.includes(accessType)) {
+          refused.push(`${want.name} (${accessType}): refused — adapter allows ${info.accessTypes.join('/')} only`)
+          continue
+        }
+        resolved.push({
+          name: want.name,
+          spec: {
+            dataId: info.dataId,
+            accessType,
+            ...(want.condition !== undefined ? { condition: want.condition } : {}),
+            ...(want.hitCondition !== undefined ? { hitCondition: want.hitCondition } : {}),
+          },
+        })
+      }
+      if (resolved.length === 0) {
+        return { result: `data breakpoints: nothing armed — ${refused.join(', ')}`, outcome: 'failed' }
+      }
+      const verdicts = await r.target.setDataBreakpoints(resolved.map(x => x.spec))
+      const detail = resolved.map((x, i) => `${x.name} (${x.spec.accessType}): ${verdictText(verdicts[i])}`)
+      return {
+        result: `data breakpoints: ${[...detail, ...refused].join(', ')}`,
+        outcome: 'succeeded',
+        details: {
+          dataBreakpoints: resolved.map((x, i) => ({
+            name: x.name,
+            dataId: x.spec.dataId,
+            accessType: x.spec.accessType,
+            verified: verdicts[i]?.verified === true,
+          })),
+          refused,
+        },
+      }
+    }
+    case 'instructionBreakpoints': {
+      const r = requireTarget(owner, sessionId)
+      if ('error' in r) return { result: r.error, outcome: 'failed' }
+      const gated = gateCapability(r.target, 'supportsInstructionBreakpoints', 'instructionBreakpoints')
+      if (gated) return gated
+      if (!input.instructionBreakpoints) {
+        return { result: 'instructionBreakpoints needs instructionBreakpoints (empty array clears the set)', outcome: 'failed' }
+      }
+      const richGate = gateRichBreakpoints(r.target, input.instructionBreakpoints)
+      if (richGate) return richGate
+      if (input.instructionBreakpoints.length === 0) {
+        await r.target.setInstructionBreakpoints([])
+        return { result: 'instruction breakpoints cleared', outcome: 'succeeded' }
+      }
+      const verdicts = await r.target.setInstructionBreakpoints(input.instructionBreakpoints)
+      const detail = input.instructionBreakpoints
+        .map((b, i) => `${instructionLabel(b)}: ${verdictText(verdicts[i])}`)
+        .join(', ')
+      return {
+        result: `instruction breakpoints: ${detail}`,
+        outcome: 'succeeded',
+        details: {
+          instructionBreakpoints: input.instructionBreakpoints.map((b, i) => ({
+            instructionReference: b.instructionReference,
+            offset: b.offset ?? 0,
+            verified: verdicts[i]?.verified === true,
+          })),
+        },
+      }
+    }
+    case 'writeMemory': {
+      const r = requireTarget(owner, sessionId)
+      if ('error' in r) return { result: r.error, outcome: 'failed' }
+      const gated = gateCapability(r.target, 'supportsWriteMemoryRequest', 'writeMemory')
+      if (gated) return gated
+      if (!input.memoryReference || input.data === undefined) {
+        return {
+          result: 'writeMemory needs memoryReference (a variable\'s [memory …] or a frame\'s [ip …]) + data (base64)',
+          outcome: 'failed',
+        }
+      }
+      const bytes = decodeBase64Strict(input.data)
+      if (bytes === null) {
+        return { result: 'writeMemory data must be base64 (e.g. "KgAAAA==" for the bytes 2a 00 00 00)', outcome: 'failed' }
+      }
+      if (bytes.length === 0) return { result: 'writeMemory needs at least one byte of data', outcome: 'failed' }
+      const receipt = await r.target.writeMemory({
+        memoryReference: input.memoryReference,
+        data: bytes.toString('base64'),
+        offset: input.offset,
+        allowPartial: input.allowPartial,
+      })
+      const where = `${input.memoryReference}${input.offset ? ` (offset ${input.offset})` : ''}`
+      const written = receipt.bytesWritten
+      if (written === 0) {
+        return { result: `writeMemory at ${where}: 0 of ${bytes.length} bytes written — nothing changed`, outcome: 'no-change' }
+      }
+      const count =
+        written === undefined
+          ? `${bytes.length} bytes sent (adapter reported no byte count)`
+          : written < bytes.length
+            ? `${written} of ${bytes.length} bytes written (partial)`
+            : `${written} bytes written`
+      return {
+        result: `writeMemory at ${where}: ${count} [debuggee state mutated]`,
+        outcome: 'succeeded',
+        debuggee: r.target.lastStopped ? 'stopped' : 'running',
+        details: { requestedBytes: bytes.length, ...(written !== undefined ? { bytesWritten: written } : {}) },
       }
     }
     case 'pause': {
@@ -982,11 +1162,11 @@ async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
 
 export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
-  keepEmptyInputs: ['functions'],
+  keepEmptyInputs: ['functions', 'dataBreakpoints', 'instructionBreakpoints'],
   straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
   get searchHint() {
     return (
-      'real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function breakpoints, stepping (incl. instruction), stack traces, scopes, variables, evaluate, disassemble, readMemory, restart (python debugpy, native lldb' +
+      'real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function breakpoints, data breakpoints (stop on a variable write/read), instruction breakpoints, stepping (incl. instruction), stack traces, scopes, variables, evaluate, disassemble, readMemory, writeMemory, restart (python debugpy, native lldb' +
       (gdbProbeFromMemo().viable ? '/gdb' : '') +
       (mercuryGodotEnabled() ? ', godot editor' : '') +
       ')'
@@ -1069,6 +1249,15 @@ export const DebugTool = buildTool({
     }
     if ((input.op === 'disassemble' || input.op === 'readMemory') && !input.memoryReference) {
       return { result: false as const, message: `${input.op} requires memoryReference (a stack frame's [ip …])`, errorCode: 1 }
+    }
+    if (input.op === 'dataBreakpoints' && !input.dataBreakpoints) {
+      return { result: false as const, message: 'dataBreakpoints requires dataBreakpoints (empty array clears)', errorCode: 1 }
+    }
+    if (input.op === 'instructionBreakpoints' && !input.instructionBreakpoints) {
+      return { result: false as const, message: 'instructionBreakpoints requires instructionBreakpoints (empty array clears)', errorCode: 1 }
+    }
+    if (input.op === 'writeMemory' && (!input.memoryReference || input.data === undefined)) {
+      return { result: false as const, message: 'writeMemory requires memoryReference + data (base64)', errorCode: 1 }
     }
     if (input.op === 'evaluate' && !input.expression) {
       return { result: false as const, message: 'evaluate requires expression', errorCode: 1 }
