@@ -15,9 +15,10 @@ let failures = 0
 for (const [cols, rows] of sizes) {
   if (size && size !== `${cols}x${rows}`) continue
   const world = await authWorld('unchanged', '20')
+  const env = { ...world.env, TMPDIR: '.', MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE, VSHOT_SLOTS: process.env.VSHOT_SLOTS }
   const session = randomUUID()
   try {
-    const seed = await runChild([nodeFor(dist), dist, '-p', '--output-format', 'json', '--model', MODEL, '--session-id', session, 'seed fixture session'], world.cwd, world.env, 60_000)
+    const seed = await runChild([nodeFor(dist), dist, '-p', '--output-format', 'json', '--model', MODEL, '--session-id', session, 'seed fixture session'], world.cwd, env, 60_000)
     if (seed.code !== 0) throw new Error(`seed failed: ${seed.stderr}\n${seed.stdout}`)
     const out = join(root, `${cols}x${rows}.json`)
     const needle = before ? 'Retrying in' : 'sign-in expired'
@@ -34,7 +35,7 @@ for (const [cols, rows] of sizes) {
     }
     const config = join(root, `${cols}x${rows}-config.json`)
     writeFileSync(config, JSON.stringify(cfg))
-    const result = await runChild([driver.python, captureEngineEntry(driver, REPO), config], REPO, world.env, vshotBudgetMs(90_000))
+    const result = await runChild([driver.python, captureEngineEntry(driver, REPO), config], world.cwd, env, vshotBudgetMs(90_000))
     const payload = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null
     const grid = payload?.marks?.find((mark: { label: string }) => mark.label === 'row')?.grid ?? payload?.grid
     const text: string = grid ? grid.map((row: Array<{ c: string }>) => row.map(cell => cell.c || ' ').join('')).join('\n') : result.stderr
@@ -52,8 +53,18 @@ for (const [cols, rows] of sizes) {
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_DAEMON_DIR = world.env.MERCURY_DAEMON_DIR
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-    await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 5_000 }).catch(() => undefined)
-    world.close()
+    const cwdBefore = process.cwd()
+    const tmpBefore = process.env.TMPDIR
+    try {
+      process.chdir(world.cwd)
+      process.env.TMPDIR = '.'
+      await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 5_000 }).catch(() => undefined)
+    } finally {
+      process.chdir(cwdBefore)
+      if (tmpBefore === undefined) delete process.env.TMPDIR
+      else process.env.TMPDIR = tmpBefore
+      world.close()
+    }
   }
 }
 console.log(`prove-authentication-retry-frames: ${failures} failed; frames ${root}`)

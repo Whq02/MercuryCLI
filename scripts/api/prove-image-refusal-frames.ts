@@ -208,6 +208,7 @@ if (process.argv[2] === '--serve') {
   function childEnv(home: string, port: number): NodeJS.ProcessEnv {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
+      TMPDIR: '.',
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),
@@ -290,11 +291,11 @@ if (process.argv[2] === '--serve') {
       { atTick: 420, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'again\r' },
       { atTick: 620, minTick: 10, awaitText: needle, awaitSettleTicks: 6, data: '', mark: 'row' },
     ]
-    const cfg = { argv: [nodeFor(dist), dist, '--model', MODEL, '--resume', sessionId], cwd: CWD, sends, readyText: ['Type a prompt', 'choose', 'accept'], stableTicks: 4, total: 700, cols, rows, out }
+    const cfg = { argv: [nodeFor(dist), dist, '--model', MODEL, '--resume', sessionId], cwd: CWD, sends, readyText: needle, stableTicks: 4, total: 700, cols, rows, out }
     const cfgPath = join(SCRATCH, `cfg-${label}-${cols}x${rows}.json`)
     writeFileSync(cfgPath, j(cfg))
     const res = spawnSync(driver.python, [captureEngineEntry(driver, REPO), cfgPath], {
-      cwd: REPO,
+      cwd: CWD,
       env: childEnv(home, fixture.port),
       encoding: 'utf8',
       timeout: vshotBudgetMs(700 * 200 + 40_000),
@@ -306,7 +307,7 @@ if (process.argv[2] === '--serve') {
     const text = payload ? gridText(mark?.grid ?? payload.grid) : `no capture (exit ${res.status}): ${(res.stderr ?? '').slice(-400)}`
     if (FRAMES) writeFileSync(join(FRAMES, `${label}-refusal-${cols}x${rows}.txt`), `${text}\n`)
     const captured = fixture.capture()
-    return { text, hit: text.includes(needle), sent: captured.length, images: captured.flatMap(c => c.images) }
+    return { text, hit: res.status === 0 && text.includes(needle), sent: captured.length, images: captured.flatMap(c => c.images) }
   }
   const patches = (w: number, h: number): number => Math.ceil(w / 32) * Math.ceil(h / 32)
 
