@@ -21,6 +21,20 @@ def _emit(frame):
         _PROTO.flush()
 
 
+def _leave(code):
+    _PROTO_LOCK.acquire(timeout=0.5)
+    for stream in (_PROTO, sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
+        try:
+            stream.flush()
+        except Exception:
+            pass
+    os._exit(code)
+
+
+def _term_handler(signum, frame):
+    _leave(0)
+
+
 class _RejectingStdin(io.TextIOBase):
     def readable(self):
         return False
@@ -318,6 +332,8 @@ def _end_marks(cell_id):
 def main():
     if hasattr(signal, "SIGINT"):
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _term_handler)
     sys.stdin = _RejectingStdin()
     reader = threading.Thread(target=_reader, daemon=True)
     reader.start()
@@ -336,9 +352,14 @@ def main():
         elif t == "exec":
             _run_cell(str(msg.get("id")), str(msg.get("code")))
         elif t == "bye":
-            return
+            _leave(0)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException:
+        traceback.print_exc()
+        _leave(1)
+    _leave(0)
 `
