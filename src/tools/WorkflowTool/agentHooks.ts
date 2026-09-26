@@ -52,6 +52,7 @@ import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
 import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
+import { pauseGateWords, requestParkFrame } from '../../run-core/pauseGate.js'
 import type { WorkflowControlJournalRow, WorkflowExecutionPause } from './runControl.js'
 
 import {
@@ -1195,9 +1196,14 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
                 emitFrame('progress', { waiting: undefined, pausedBy: undefined, waitWords: undefined })
                 armStallTimer()
               }
+              requestParkFrame({ agentId, getAppState: contextView.getAppState })
             }),
           onQueryProgress,
-          onWait: words => emitFrame('progress', words === null ? {} : { waiting: 'seat', waitWords: words }),
+          onWait: words => {
+            const runBy = pauseSeam?.pausedBy()
+            const ownPark = words !== null && runBy !== undefined && words.startsWith(pauseGateWords(runBy))
+            emitFrame('progress', words === null ? {} : ownPark ? { waiting: 'operator', pausedBy: runBy, waitWords: words } : { waiting: 'seat', waitWords: words })
+          },
           onResolvedIdentity: identity => {
             const changed = identity.model !== statics.model || identity.effort !== statics.effort
             statics.model = identity.model
