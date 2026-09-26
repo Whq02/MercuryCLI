@@ -1759,12 +1759,16 @@ export async function* runEventCore(
           shouldPreventContinuation = true
         }
 
-        toolResults.push(
-          ...normalizeMessagesForAPI(
-            [update.message],
-            toolUseContext.options.tools,
-          ).filter(_ => _.type === 'user'),
-        )
+        if (update.message.type === 'attachment') {
+          toolResults.push(update.message)
+        } else {
+          toolResults.push(
+            ...normalizeMessagesForAPI(
+              [update.message],
+              toolUseContext.options.tools,
+            ).filter(_ => _.type === 'user'),
+          )
+        }
       }
       if (update.newContext) {
         updatedToolUseContext = {

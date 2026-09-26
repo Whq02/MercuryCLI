@@ -34,6 +34,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
   '../../src/utils/messages/factories.ts'
 )
+const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const queueStore = await import('../../src/input-core/command-queue.ts')
@@ -261,6 +262,9 @@ async function runScript(
 function requestText(run: Run, index: number): string {
   return JSON.stringify(run.calls[index]?.messages ?? [])
 }
+function wireText(run: Run, index: number): string {
+  return JSON.stringify(normalizeMessagesForAPI((run.calls[index]?.messages ?? []) as never))
+}
 function firstRequestWith(run: Run, needle: string | RegExp): number {
   for (let i = 0; i < run.calls.length; i++) {
     const text = requestText(run, i)
@@ -318,7 +322,7 @@ section('R1 — the same Grep nine times: a notice after the 3rd, 5th and 8th re
   check('the 5-notice carries a capped preview of the arguments', /identical arguments \([^)]*needle/.test(requestText(run, 5)))
   check('no new notice after the 6th or 7th result', !requestText(run, 7).includes(NAMED_EIGHT), `first8=${firstRequestWith(run, NAMED_EIGHT)}`)
   check('the named notice with the run length 8 rides after the 8th result', requestText(run, 8).includes(NAMED_EIGHT), `request 8: ${requestText(run, 8).slice(-600)}`)
-  check('the notice reaches the model as a system reminder (isMeta user frame)', /<system-reminder>[^"]*Loop check/.test(requestText(run, 3)))
+  check('the notice reaches the model as a system reminder on the wire (the attachment row, enveloped at the wire door behind the tool result)', /<system-reminder>[^"]*Loop check/.test(wireText(run, 3)), wireText(run, 3).slice(-400))
   const reminders = reminderYieldIndexes(run)
   check('exactly three model-facing reminders were yielded in the whole run (3, 5, 8)', reminders.length === 3, `reminders=${reminders.length}`)
   const third = resultYieldIndex(run, run.ids[2]!)
