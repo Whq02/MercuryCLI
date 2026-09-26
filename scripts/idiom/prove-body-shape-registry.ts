@@ -192,6 +192,10 @@ const ATTACHMENTS: Record<string, Fixture> = {
     bad: [{ label: 'message is a list', field: 'message', fields: { message: ['m'], hookName: 'h', toolUseID: 't', hookEvent: 'Stop' } }],
     older: [{ label: 'the reason under content, as the tool road wrote it before the producers were typed', fields: { content: 'm', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' } }],
   },
+  loop_stopped: {
+    good: { toolUseID: 't', cycle: ['Grep', 'Glob'], message: 'm' },
+    bad: [{ label: 'cycle is a string', field: 'cycle', fields: { toolUseID: 't', cycle: 'Grep', message: 'm' } }],
+  },
   hook_success: { good: { content: '', hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' }, bad: [{ label: 'content is null', field: 'content', fields: { content: null, hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' } }] },
   hook_system_message: { good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'toolUseID is missing', field: 'toolUseID', fields: { content: 'c', hookName: 'h', hookEvent: 'PreToolUse' } }] },
   hook_permission_decision: { good: { decision: 'allow', toolUseID: 't', hookEvent: 'PermissionRequest' }, bad: [{ label: 'decision is a boolean', field: 'decision', fields: { decision: true, toolUseID: 't', hookEvent: 'PermissionRequest' } }] },
