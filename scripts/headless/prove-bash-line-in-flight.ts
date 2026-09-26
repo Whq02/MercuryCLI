@@ -82,6 +82,58 @@ async function transcriptCarries(dir: string, sessionId: string, needle: string,
   }
 }
 
+function inputRows(dir: string, sessionId: string): string[] {
+  const path = findTranscript(dir, sessionId)
+  if (path === null) return []
+  let text: string
+  try {
+    text = readFileSync(path, 'utf8')
+  } catch {
+    return []
+  }
+  const rows: string[] = []
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue
+    let record: { payload?: { kind?: string; content?: unknown } }
+    try {
+      record = JSON.parse(line) as typeof record
+    } catch {
+      continue
+    }
+    const payload = record.payload
+    if (payload?.kind !== 'input') continue
+    if (typeof payload.content === 'string') rows.push(payload.content)
+    else if (Array.isArray(payload.content)) {
+      rows.push(
+        (payload.content as Array<{ type?: string; text?: string }>)
+          .filter(block => block?.type === 'text')
+          .map(block => String(block.text ?? ''))
+          .join('\n'),
+      )
+    }
+  }
+  return rows
+}
+
+async function rowAfterInput(dir: string, sessionId: string, input: string, timeoutMs: number): Promise<string | null> {
+  const echo = `<bash-input>${input}</bash-input>`
+  const until = Date.now() + timeoutMs
+  for (;;) {
+    const rows = inputRows(dir, sessionId)
+    const at = rows.findIndex(row => row.includes(echo))
+    if (at >= 0 && at + 1 < rows.length) return rows[at + 1]!
+    if (Date.now() >= until) return null
+    await settle(200)
+  }
+}
+
+const EXIT_ROW = /^<bash-stdout>[\s\S]*<\/bash-stdout><bash-stderr>[\s\S]*<\/bash-stderr><bash-exit-code>(\d+)<\/bash-exit-code><bash-duration-ms>(\d+)<\/bash-duration-ms>$/
+const exitOf = (row: string | null): { code: number; durationMs: number } | null => {
+  const m = row === null ? null : EXIT_ROW.exec(row)
+  return m ? { code: Number(m[1]), durationMs: Number(m[2]) } : null
+}
+const quote = (row: string | null): string => (row === null ? 'no row landed after the echoed command' : `row: ${JSON.stringify(row.length > 240 ? `${row.slice(0, 240)}…` : row)}`)
+
 async function drive(): Promise<void> {
   const fixture: FixtureApi = await startFixtureApi([{ kind: 'text', text: 'B-TURN-AFTER-SHELL.' }])
   const home = mkdtempSync(join(tmpdir(), 'bash-line-home-'))
@@ -192,6 +244,41 @@ async function drive(): Promise<void> {
     findTranscript(configDir, sessionId) === null ? 'no transcript file found' : 'stdout row absent',
   )
   check('the echoed command row carries the bash-input tag', await transcriptCarries(configDir, sessionId, `<bash-input>echo ${nonce}`, TURN_MS / 15))
+  const echoRow = await rowAfterInput(configDir, sessionId, `echo ${nonce}`, TURN_MS / 6)
+  const echoExit = exitOf(echoRow)
+  check(
+    'the output row names the exit code in its own tag after the pair (<bash-exit-code>0</bash-exit-code>)',
+    echoExit !== null && echoExit.code === 0,
+    quote(echoRow),
+  )
+  check(
+    'the output row names how long the shell ran in whole milliseconds (<bash-duration-ms>N</bash-duration-ms>, N under the turn budget)',
+    echoExit !== null && Number.isInteger(echoExit.durationMs) && echoExit.durationMs >= 0 && echoExit.durationMs < TURN_MS,
+    quote(echoRow),
+  )
+  check(
+    'the row still leads with the bare <bash-stdout> tag and the exit pair trails </bash-stderr> — every prefix and marker reader keeps its read',
+    echoRow !== null && echoRow.startsWith(`<bash-stdout>${nonce}</bash-stdout><bash-stderr></bash-stderr>`) && EXIT_ROW.test(echoRow),
+    quote(echoRow),
+  )
+  const seenResults = new Set<Envelope>([result1 as Envelope])
+  const nextResult = async (label: string, timeoutMs: number): Promise<Envelope | undefined> => {
+    const e = await waitFor(x => x.type === 'result' && !seenResults.has(x), label, timeoutMs)
+    if (e) seenResults.add(e)
+    return e
+  }
+  send({ type: 'user', message: { role: 'user', content: 'true' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  const resultTrue = await nextResult('the true line result', TURN_MS)
+  check('a silent `true` line settles as result:success', resultTrue?.subtype === 'success', j({ subtype: resultTrue?.subtype }))
+  const trueRow = await rowAfterInput(configDir, sessionId, 'true', TURN_MS / 6)
+  const trueExit = exitOf(trueRow)
+  check('`true` lands a row naming exit 0 and a duration', trueExit !== null && trueExit.code === 0 && trueExit.durationMs >= 0, quote(trueRow))
+  send({ type: 'user', message: { role: 'user', content: 'false' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  const resultFalse = await nextResult('the false line result', TURN_MS)
+  check('a failing `false` line settles as result:success too — the shell path lands a row, never an error envelope', resultFalse?.subtype === 'success', j({ subtype: resultFalse?.subtype }))
+  const falseRow = await rowAfterInput(configDir, sessionId, 'false', TURN_MS / 6)
+  const falseExit = exitOf(falseRow)
+  check('`false` lands a row naming exit 1', falseExit !== null && falseExit.code === 1, quote(falseRow))
 
   section('§3 — a running shell keeps the turn open (busy over the wire); an interrupt frame ends it with the receipt')
   const resultsBefore = resultCount()
@@ -206,9 +293,7 @@ async function drive(): Promise<void> {
   send({ type: 'control_request', request_id: 'req_int', request: { subtype: 'interrupt' } })
   const intResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_int'), 'interrupt ack', 10_000)
   check('the interrupt frame is acknowledged', !!intResp && j(intResp).includes('"success"'), j(intResp ?? {}).slice(0, 200))
-  const result2 = (await waitFor(e => e.type === 'result' && e !== (result1 as unknown), 'the interrupted shell result', 15_000)) as
-    | (Envelope & { is_error?: boolean })
-    | undefined
+  const result2 = (await nextResult('the interrupted shell result', 15_000)) as (Envelope & { is_error?: boolean }) | undefined
   const elapsedMs = Date.now() - t0
   check('the interrupt ENDS the shell turn promptly — a result within 10s, far under the 30s sleep', !!result2 && elapsedMs < 10_000, `${elapsedMs}ms`)
   check('the interrupted shell turn settles as a result (the runner keeps its session; no error envelope)', result2?.subtype === 'success', j({ subtype: result2?.subtype }))
@@ -216,14 +301,16 @@ async function drive(): Promise<void> {
     `the interrupted receipt landed: the transcript carries the interrupt row (${INTERRUPT_MESSAGE})`,
     await transcriptCarries(configDir, sessionId, INTERRUPT_MESSAGE, TURN_MS / 6),
   )
+  const interruptedRow = await rowAfterInput(configDir, sessionId, 'sleep 30', TURN_MS / 6)
+  check(
+    'the interrupted line keeps the interrupt row as the row after its echo — no exit row is fabricated for a killed shell',
+    interruptedRow === INTERRUPT_MESSAGE,
+    quote(interruptedRow),
+  )
 
   section('§4 — a prompt turn runs after the shell; the model never saw the shell lines; clean end')
   send({ type: 'user', message: { role: 'user', content: 'after the shell' }, parent_tool_use_id: null, uuid: randomUUID() })
-  const result3 = (await waitFor(
-    e => e.type === 'result' && e !== (result1 as unknown) && e !== (result2 as unknown),
-    'the post-shell prompt result',
-    60_000,
-  )) as (Envelope & { result?: string }) | undefined
+  const result3 = (await nextResult('the post-shell prompt result', 60_000)) as (Envelope & { result?: string }) | undefined
   check(
     'a prompt turn after the shell runs to result:success with the scripted text',
     result3?.subtype === 'success' && result3?.result === 'B-TURN-AFTER-SHELL.',
