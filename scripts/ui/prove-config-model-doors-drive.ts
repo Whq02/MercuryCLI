@@ -138,7 +138,9 @@ const settingRow = (lines: string[], label: string): string =>
   lines.find(l => l.includes(`› ${label}`)) ?? lines.filter(l => l.includes(label) && !l.includes(`/ ${label}`)).at(-1) ?? ''
 const valueOf = (lines: string[], label: string): string => {
   const row = settingRow(lines, label)
-  return row.slice(row.indexOf(label) + label.length).replace(/│\s*$/, '').trim()
+  const rest = row.slice(row.indexOf(label) + label.length)
+  const border = rest.indexOf('│')
+  return (border < 0 ? rest : rest.slice(0, border)).trim()
 }
 const configOf = (home: string): { agents?: { defaultModel?: string }; teammateDefaultModel?: string | null } =>
   JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { agents?: { defaultModel?: string }; teammateDefaultModel?: string | null }

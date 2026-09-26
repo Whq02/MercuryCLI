@@ -55,6 +55,7 @@ type Capture = { text: string; lines: string[]; status: number; tail: string; wi
 function freshHome(id: string, mouseCapture: boolean | null): string {
   const home = join(SCRATCH, `home-${id}`)
   cpSync(TEMPLATE, home, { recursive: true })
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   if (mouseCapture !== null) {
     const cfgPath = join(home, '.mercury.json')
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
