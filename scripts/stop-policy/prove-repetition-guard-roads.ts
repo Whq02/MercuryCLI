@@ -24,6 +24,7 @@ import {
   REREAD_END,
   REREAD_ROUNDS,
   startRereadFixture,
+  userTextItems,
   type Hit,
 } from './prove-no-stagnation-governor.ts'
 
@@ -62,24 +63,22 @@ function offenders(dir: string, pattern: RegExp, except: string[] = []): string[
 const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Item = { role?: string; content?: unknown }
-type CycleHit = { n: number; step: number; arm: string; nudged: boolean; stopped: boolean }
+type ResultBlock = { type?: string; content?: unknown; is_error?: boolean }
+type CycleHit = { n: number; step: number; arm: string; tools: number; opening: string; answer: string; nudged: boolean; stopped: boolean }
 type CycleFixture = { port: number; hits: CycleHit[]; close: () => Promise<void> }
 
-function userTexts(items: Item[]): string[] {
-  const out: string[] = []
-  for (const item of items) {
-    if (item.role !== 'user') continue
-    if (typeof item.content === 'string') out.push(item.content)
-    else if (Array.isArray(item.content)) {
-      for (const block of item.content as Array<{ type?: string; text?: string }>) {
-        if (block.type === 'text' && typeof block.text === 'string') out.push(block.text)
-      }
-    }
-  }
-  return out
-}
+const toolResultsOf = (item: Item): ResultBlock[] => (Array.isArray(item.content) ? (item.content as ResultBlock[]).filter(b => b.type === 'tool_result') : [])
 function countToolResultItems(items: Item[]): number {
-  return items.filter(item => Array.isArray(item.content) && (item.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')).length
+  return items.filter(item => toolResultsOf(item).length > 0).length
+}
+function lastAnswer(items: Item[]): string {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const results = toolResultsOf(items[i]!)
+    if (results.length === 0) continue
+    const last = results[results.length - 1]!
+    return `${last.is_error === true ? 'error:' : ''}${typeof last.content === 'string' ? last.content : j(last.content)}`
+  }
+  return ''
 }
 
 export async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promise<CycleFixture> {
@@ -104,15 +103,15 @@ export async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promi
       const model = typeof body.model === 'string' ? body.model : 'fixture'
       const tools = Array.isArray(body.tools) ? body.tools.length : 0
       const items = Array.isArray(body.messages) ? (body.messages as Item[]) : []
-      const opening = (userTexts(items)[0] ?? '').trim()
+      const opening = (userTextItems(items)[0] ?? '').trim()
       const step = countToolResultItems(items)
       const raw = JSON.stringify(body)
       const nudged = REPEAT_NUDGE_PATTERN.test(raw)
       const stopped = raw.includes('The loop guard ended the turn')
       const arm = tools === 0 || opening !== CYCLE_ASK ? 'svc' : step < pairs * 2 ? (step % 2 === 0 ? 'bash' : 'grep') : 'end'
-      hits.push({ n, step, arm, nudged, stopped })
+      hits.push({ n, step, arm, tools, opening: opening.slice(0, 48), answer: lastAnswer(items), nudged, stopped })
       if (arm === 'svc') return answerText(res, n, model, 'svc')
-      if (arm === 'bash') return answerTool(res, n, model, `toolu_bash_${n}`, 'Bash', { command: 'echo the first check', description: 'The first check' })
+      if (arm === 'bash') return answerTool(res, n, model, `toolu_bash_${n}`, 'Bash', { command: 'echo the first check', description: 'The first check', inherit_session_env: true })
       if (arm === 'grep') return answerTool(res, n, model, `toolu_grep_${n}`, 'Grep', { pattern: 'fixture', path: cwd, output_mode: 'content' })
       return answerText(res, n, model, CYCLE_END)
     })
@@ -122,6 +121,12 @@ export async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promi
   const port = typeof address === 'object' && address !== null ? address.port : 0
   return { port, hits, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
 }
+function distinctAnswers(wire: CycleHit[]): { bash: string[]; grep: string[] } {
+  const distinct = (parity: number): string[] => [...new Set(wire.filter(h => h.step > 0 && h.step % 2 === parity).map(h => h.answer))]
+  return { bash: distinct(1), grep: distinct(0) }
+}
+const sameAnswers = (answers: { bash: string[]; grep: string[] }): boolean =>
+  answers.bash.length === 1 && answers.grep.length === 1 && !answers.bash[0]!.startsWith('error:') && !answers.grep[0]!.startsWith('error:')
 
 if (import.meta.main) {
   section('§1 the refusing repetition breaker is gone from the tree; what stands is a guard that reminds and, only by the key, ends')
@@ -194,7 +199,9 @@ if (import.meta.main) {
     const wire = hits.filter(h => h.arm !== 'svc')
     const resultText = String(result?.result ?? '')
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
-    check(`the model was answered ${CYCLE_PAIRS} Bash and ${CYCLE_PAIRS} Grep calls and then its own end`, arms('bash').length === CYCLE_PAIRS && arms('grep').length === CYCLE_PAIRS && arms('end').length === 1, j(hits.map(h => [h.n, h.arm, h.step])))
+    check(`the model was answered ${CYCLE_PAIRS} Bash and ${CYCLE_PAIRS} Grep calls and then its own end`, arms('bash').length === CYCLE_PAIRS && arms('grep').length === CYCLE_PAIRS && arms('end').length === 1, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
+    const answers = distinctAnswers(wire)
+    check('every Bash result and every Grep result the model saw was the same bytes, never an error: the cycle is identical from its first pair', sameAnswers(answers), j(answers))
     const firstNudged = wire.find(h => h.nudged)
     check('the loop reminder rode the wire after the fifth repeat of the pair (ten tool results), and not before', firstNudged !== undefined && firstNudged.step === 10 && wire.filter(h => h.step < 10).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
     check('the turn ended only when the model ended it: the result is the model\u2019s own last words, not a stop', result?.subtype === 'success' && resultText === CYCLE_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
@@ -221,8 +228,10 @@ if (import.meta.main) {
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
     const errors = Array.isArray(result?.errors) ? (result.errors as string[]) : []
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
-    check('the model was answered ten Bash and ten Grep calls and never reached its own end: the fixture’s end arm was never asked', arms('bash').length === 10 && arms('grep').length === 10 && arms('end').length === 0, j(hits.map(h => [h.n, h.arm, h.step])))
+    check('the model was answered ten Bash and ten Grep calls and never reached its own end: the fixture’s end arm was never asked', arms('bash').length === 10 && arms('grep').length === 10 && arms('end').length === 0, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
     const wire = hits.filter(h => h.arm !== 'svc')
+    const answers = distinctAnswers(wire)
+    check('every Bash result and every Grep result the model saw was the same bytes, never an error: the cycle is identical from its first pair', sameAnswers(answers), j(answers))
     const firstNudged = wire.find(h => h.nudged)
     check('the loop reminder rode the wire after the fifth repeat of the pair (ten tool results), and not before', firstNudged !== undefined && firstNudged.step === 10 && wire.filter(h => h.step < 10).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
     check('the turn ended typed: the result is error_loop_stopped, is_error, and its error names the cycle', result?.subtype === 'error_loop_stopped' && result?.is_error === true && /the same cycle of tool calls \(Bash -> Grep\)/.test(errors[0] ?? ''), `${String(result?.subtype)}: ${j(errors)}`)
