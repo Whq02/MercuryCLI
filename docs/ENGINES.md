@@ -700,6 +700,20 @@ provider fallback. The card and the tool result name the model that
 answered, the stated cost and the generation id, or the refusal's own code
 and words.
 
+A JevEval call takes a list of evidence items — each a record of named
+facts or a bare paragraph — and one question set; every item is judged
+against every question in its own request, all sent at once and each
+counted against the pace and the budget, and one table comes back: rows
+the items, columns the questions, a row that no answer reached saying so
+in place. A cell under the confidence floor (0.6; for a yes/no answer, a
+probability from 0.4 through 0.6) opens with "unsure" and keeps its
+numbers. The tool's prompt asks the model to put to Jev only what the
+evidence in front of it answers: whether a run was killed from outside,
+whether a capture starved, whether the output names a fixture fault — the
+words settle those. Whether the product is wrong or the proof stale, and
+whether a fold's intent changed a check, they do not; those need the proof
+run on the tip and the source read.
+
 ## Transitions
 
 A model switch previews as a frozen plan — what would switching this
