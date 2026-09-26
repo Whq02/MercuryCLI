@@ -271,7 +271,7 @@ section('§3 the census: every transcript-row host, and every narrower host re-p
     .split('\n')
     .filter(Boolean)
     .sort()
-  const FULL_WIDTH = ['src/components/Messages.tsx', 'src/screens/REPL.tsx', 'src/utils/exportRenderer.tsx']
+  const FULL_WIDTH = ['src/components/CrewmateTranscript.tsx', 'src/components/Messages.tsx', 'src/screens/REPL.tsx', 'src/utils/exportRenderer.tsx']
   const NARROWER: Array<{ file: string; measure: RegExp }> = [
     { file: 'src/components/concourse/SessionMirror.tsx', measure: /columns:\s*paneWidth,\s*rows:\s*paneRows/ },
     { file: 'src/components/SessionPreview.tsx', measure: /columns:\s*Math\.max\(\d+,\s*columns\s*-\s*4\)/ },

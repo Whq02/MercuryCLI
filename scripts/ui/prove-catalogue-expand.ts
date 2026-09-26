@@ -93,6 +93,8 @@ if (process.argv[2] === '--compose') {
       seatFamily: seatGroup === or.OPENROUTER_MODEL_GROUP ? 'openrouter' : seatGroup === hf.HUGGINGFACE_MODEL_GROUP ? 'huggingface' : null,
       orStop: stopOf(options[orDoor]?.group),
       hfStop: stopOf(options[hfDoor]?.group),
+      orListedRows: Math.min(picker.PICKER_TOP_ROWS, rows.filter(row => row.group === or.OPENROUTER_MODEL_GROUP && !row.expand && !row.action).length),
+      hfListedRows: Math.min(picker.PICKER_TOP_ROWS, rows.filter(row => row.group === hf.HUGGINGFACE_MODEL_GROUP && !row.expand && !row.action).length),
       orFold: folds[options[orDoor]?.group ?? ''] ?? null,
       hfFold: folds[options[hfDoor]?.group ?? ''] ?? null,
       needleMatches: needleStops.filter(line => line.kind === 'row').length,
@@ -188,7 +190,7 @@ const composeRun = spawnSync(process.execPath, ['run', import.meta.path, '--comp
 })
 const composeLine = (composeRun.stdout ?? '').split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
 console.log(`  composed: ${composeLine}`)
-const composed = JSON.parse(composeLine) as { total?: number; stops?: number; seatGroup?: string; seatFamily?: 'openrouter' | 'huggingface' | null; orStop?: number; hfStop?: number; orFold?: string | null; hfFold?: string | null; needleMatches?: number; orNeedleDowns?: number; hfNeedleDowns?: number; orDoor?: number; hfDoor?: number; orRows?: number; hfRows?: number; orError?: string | null; hfError?: string | null; orFamily?: string | null; hfFamily?: string | null; orTotal?: number | null; hfTotal?: number | null }
+const composed = JSON.parse(composeLine) as { total?: number; stops?: number; seatGroup?: string; seatFamily?: 'openrouter' | 'huggingface' | null; orStop?: number; hfStop?: number; orListedRows?: number; hfListedRows?: number; orFold?: string | null; hfFold?: string | null; needleMatches?: number; orNeedleDowns?: number; hfNeedleDowns?: number; orDoor?: number; hfDoor?: number; orRows?: number; hfRows?: number; orError?: string | null; hfError?: string | null; orFamily?: string | null; hfFamily?: string | null; orTotal?: number | null; hfTotal?: number | null }
 check('the composition subprocess answered (both fixture catalogues landed there, 30 rows each)', composeRun.status === 0 && composed.orRows === 30 && composed.hfRows === 30, `status ${composeRun.status}: ${composeLine} ${(composeRun.stderr ?? '').slice(-300)}`)
 const options = { length: composed.stops ?? 0 }
 const orDoor = composed.orStop ?? -1
@@ -229,6 +231,14 @@ function drive(tag: string, home: string, sends: unknown[], total: number): Driv
   return { status: res.status, marks, final, stderr: (res.stderr ?? '').trim() }
 }
 
+const pickerWindow = (screen: string): string => {
+  const rows = screen.split('\n')
+  const title = rows.find(row => row.includes('Mercury · model')) ?? ''
+  const at = title.indexOf('Mercury · model')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  return left < 0 || right < 0 ? '' : rows.map(row => row.slice(left, right + 1)).join('\n')
+}
 const headingOf = (screen: string, word: string): string => (screen.split('\n').find(l => new RegExp(`[▾▸❯] ${word.toUpperCase()} · `).test(l)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
 const familyLines = (screen: string, word: string): string => {
   const rows = screen.split('\n')
@@ -315,7 +325,7 @@ const ESC = '\x1b'
 const TO_END = DOWN.repeat(options.length + 4)
 const walkTo = (stop: number): string => TO_END + UP.repeat(options.length - 1 - stop)
 
-type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; fold: 'folded' | 'top'; needleDowns: number; needleId: string; needleLabel: string; firstRow: string; firstLabel: string }
+type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; listedRows: number; fold: 'folded' | 'top'; needleDowns: number; needleId: string; needleLabel: string; firstRow: string; firstLabel: string }
 
 function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: number }): unknown[] {
   return [
@@ -326,15 +336,10 @@ function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: nu
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 3, data: walkTo(spec.door) },
       { afterPrevTicks: 4, mark: 'walked', data: '' },
-      ...(spec.fold === 'folded'
-        ? [
-            { requireAwait: true, awaitText: '↵ unfold', awaitStableTicks: 2, mark: 'door', data: '\x1b[C' },
-            { requireAwait: true, awaitText: spec.firstRow.slice(0, 26), awaitStableTicks: 2, mark: 'expanded', data: '\x1b[C' },
-          ]
-        : [
-            { requireAwait: true, awaitText: '↵ fold', awaitStableTicks: 2, mark: 'door', data: '' },
-            { requireAwait: true, awaitText: '→ unfolds the rest', awaitStableTicks: 2, mark: 'expanded', data: '\x1b[C' },
-          ]),
+      { requireAwait: true, awaitText: spec.fold === 'folded' ? '↵ unfold' : '↵ fold', awaitStableTicks: 2, mark: 'door', data: spec.fold === 'folded' ? '\x1b[C' : '' },
+      { requireAwait: true, awaitText: spec.firstLabel, awaitStableTicks: 2, mark: 'expanded', data: DOWN.repeat(spec.listedRows) },
+      { requireAwait: true, awaitText: '→ unfolds the rest', awaitStableTicks: 2, mark: 'listed-tail', data: UP.repeat(spec.listedRows) },
+      { afterPrevTicks: 3, data: '\x1b[C' },
       { afterPrevTicks: 5, mark: 'unfolded', data: '/' },
       { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: NEEDLE_FILTER },
       { requireAwait: true, awaitText: `/ ${NEEDLE_FILTER}`, awaitStableTicks: 2, mark: 'filtered', data: ESC },
@@ -369,23 +374,25 @@ function familyDrive(spec: FamilySpec): void {
   }
   const failuresBefore = failures
   check(`${spec.family}: the drive delivered every awaited screen (a real boot; every ↵/esc landed)`, res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-400)}`)
-  const open = res.marks.get('open') ?? ''
-  const door = res.marks.get('door') ?? ''
-  const expanded = res.marks.get('expanded') ?? ''
-  const unfolded = res.marks.get('unfolded') ?? ''
-  const filtered = res.marks.get('filtered') ?? ''
-  const cleared = res.marks.get('cleared') ?? ''
+  const pane = (mark: string): string => pickerWindow(res.marks.get(mark) ?? '')
+  const open = pane('open')
+  const door = pane('door')
+  const expanded = pane('expanded')
+  const listedTail = pane('listed-tail')
+  const unfolded = pane('unfolded')
+  const filtered = pane('filtered')
+  const cleared = pane('cleared')
   const closed = res.marks.get('closed') ?? ''
-  const targeted = res.marks.get('targeted') ?? ''
+  const targeted = pane('targeted')
   const selected = res.marks.get('selected') ?? ''
-  const reopened = res.marks.get('reopened') ?? ''
+  const reopened = pane('reopened')
   const headingWords = (screen: string): string => headingOf(screen, spec.word)
   const ownLines = (screen: string): string => familyLines(screen, spec.word)
   const live30 = (glyphs: string): RegExp => new RegExp(`^[${glyphs}] .* · 30 live(?: ·|$)`)
   if (spec.fold === 'folded') check(`${spec.family}: the picker opened with the family folded past the seat's own: none of its rows paints, and its heading (▸, 30 live) is either in the window or below it (↓ N more)`, rowsOn(open, spec.firstLabel, spec.firstRow) === 0 && (headingWords(open) === '' ? /↓ \d+ more\s/.test(open) : live30('▸').test(headingWords(open))), `${headingWords(open) || '(heading below the window)'} · ${lines(open, 'more')}`)
   else check(`${spec.family}: the picker opened with the family open at its top (the seat's own): its heading counts 30 live, the first listed row paints and the rest is named`, live30('▾❯').test(headingWords(open)) && rowsOn(open, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(ownLines(open)), `${headingWords(open)} · ${lines(open, 'more')}`)
   check(`${spec.family}: the walk lands on the family heading (❯, 30 live${spec.fold === 'folded' ? ', no row under it' : ''}) and the hint says ${spec.fold === 'folded' ? '↵ unfold' : '↵ fold'}`, live30('❯').test(headingWords(door)) && door.includes(spec.fold === 'folded' ? '↵ unfold' : '↵ fold') && door.includes('esc or click outside closes') && (spec.fold !== 'folded' || rowsOn(door, spec.firstLabel, spec.firstRow) === 0), `${headingWords(door)} · ${lines(door, '↑↓ select')}`)
-  check(`${spec.family}: the family open at its top — the first listed row paints under its heading, the rest is named, the deep row is not listed`, rowsOn(expanded, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(ownLines(expanded)) && rowsOn(expanded, spec.needleLabel, spec.needleId) === 0, lines(expanded, 'more'))
+  check(`${spec.family}: the family open at its top — the first listed row paints under its heading, the rest is named, the deep row is not listed`, rowsOn(expanded, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(listedTail) && rowsOn(expanded, spec.needleLabel, spec.needleId) === 0 && rowsOn(listedTail, spec.needleLabel, spec.needleId) === 0, lines(listedTail, 'more'))
   check(`${spec.family}: → unfolds the rest — no more line under the heading, the heading open (▾ or ❯)`, !ownLines(unfolded).includes('→ unfolds the rest') && live30('▾❯').test(headingWords(unfolded)), headingWords(unfolded) + ' · ' + lines(unfolded, 'more'))
   check(`${spec.family}: typing narrows every group — the header reads N of M match, the family's deep row is listed and the first match is focused`, /Mercury · model · \d+ of \d+ match/.test(filtered) && rowsOn(filtered, spec.needleLabel, spec.needleId) === 1 && filtered.includes('│ │ '), lines(filtered, 'needle'))
   check(`${spec.family}: the hint says esc clears the filter while a filter stands`, filtered.includes('esc clears the filter'), lines(filtered, '↑↓ select'))
@@ -411,6 +418,7 @@ familyDrive({
   family: 'openrouter',
   word: 'OpenRouter',
   door: orDoor,
+  listedRows: composed.orListedRows ?? 0,
   fold: composed.orFold === 'top' ? 'top' : 'folded',
   needleDowns: Math.max(0, composed.orNeedleDowns ?? 0),
   needleId: OR_NEEDLE_ID,
@@ -422,6 +430,7 @@ familyDrive({
   family: 'huggingface',
   word: 'Hugging Face',
   door: hfDoor,
+  listedRows: composed.hfListedRows ?? 0,
   fold: composed.hfFold === 'top' ? 'top' : 'folded',
   needleDowns: Math.max(0, composed.hfNeedleDowns ?? 0),
   needleId: HF_NEEDLE_ID,

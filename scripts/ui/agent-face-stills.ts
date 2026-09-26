@@ -8,7 +8,8 @@ import { join } from 'node:path'
 const FIXTURES = join(import.meta.dirname, 'fixtures', 'agent-face')
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'agent-face-stills-'))
-process.env['MERCURY_CONFIG_DIR'] = scratchHome
+process.chdir(scratchHome)
+process.env['MERCURY_CONFIG_DIR'] = 'proof-home'
 process.env['FORCE_COLOR'] = '0'
 process.env['MERCURY_CRITTER_GAZE'] = '0'
 process.env['MERCURY_LIVE_GLYPHS'] = '0'
@@ -38,6 +39,7 @@ const FIXTURE_AGENT_RAW = [
 
 function normalize(frame: string): string {
   return frame
+    .replace(/proof-home[/\\]agents[/\\]/g, '<PATH>')
     .replace(/(?:\/[\w.-]+){2,}\/?…?/g, '<PATH>')
     .replace(/<PATH>.?…/g, '<PATH>')
     .replace(/[ \t]+$/gm, '')
@@ -273,7 +275,10 @@ for (const [name, frame] of Object.entries(frames)) {
     }
     const ok = expected !== null && expected === frame
     console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
-    if (!ok) failed += 1
+    if (!ok) {
+      failed += 1
+      console.error(JSON.stringify({ expected, actual: frame }))
+    }
   }
 }
 if (!write && failed > 0) {

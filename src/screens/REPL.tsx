@@ -2567,10 +2567,10 @@ export function REPL({
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
-        onScroll={inVirtualTranscript ? onTranscriptScroll : centredModalUp || permissionOverlay !== null ? undefined : onScroll}
+        onScroll={inVirtualTranscript ? onTranscriptScroll : (centredModalUp && dialogOwnsKeys) || permissionOverlay !== null ? undefined : onScroll}
         isModal={inVirtualTranscript ? !searchBarOpen : false}
         modalScrollRef={modalScrollRef}
-        modalUp={centredModalUp}
+        modalUp={centredModalUp && dialogOwnsKeys}
       />
       {fullscreen && messageCursorActive ? (
         <MessageActionsKeybindings handlers={messageActions.handlers} isActive={!messageActionsDisabled && focusedInputDialog === undefined} />
@@ -2583,6 +2583,7 @@ export function REPL({
           statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}
           overlay={inVirtualTranscript ? undefined : permissionOverlay}
           modal={inVirtualTranscript ? undefined : centredModalUp ? centredModal : undefined}
+          modalActive={dialogOwnsKeys}
           modalScrollRef={modalScrollRef}
           dividerYRef={unseen.dividerYRef}
           hidePill={inVirtualTranscript ? undefined : false}
