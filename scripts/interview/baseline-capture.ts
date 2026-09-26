@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   firstOutputTs,
@@ -7,16 +8,20 @@ import {
   requireDist,
   runArtifactArena,
   type ArenaRun,
+  type GrabbedScreen,
 } from '../streaming/artifactArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
+import { argValue, parseJobs } from '../lib/captureJobs.ts'
+import { SETTLE_LAW } from '../ui/visualBaseline.ts'
 
-const OUT = join(import.meta.dir, 'baselines')
+const OUT = argValue(process.argv, '--out') ?? join(import.meta.dir, 'baselines')
 mkdirSync(OUT, { recursive: true })
+const JOBS = parseJobs(process.argv)
+const REFUSED = mkdtempSync(join(tmpdir(), 'interview-refused-'))
+const STILL_MS = SETTLE_LAW.stillTicks * SETTLE_LAW.tickMs
 
-const only = (() => {
-  const i = process.argv.indexOf('--only')
-  return i >= 0 ? process.argv[i + 1] : null
-})()
+const only = argValue(process.argv, '--only') ?? null
 
 
 const Q = (over: Record<string, unknown> = {}) => ({
@@ -77,7 +82,14 @@ interface Journey {
   rows: number
   seconds: number
   screens: number[]
+  ready?: string
 }
+
+const CARD_READY = 'Enter to select'
+const REVIEW_READY = 'Submit answers'
+const OTHER_ROW_READY = 'Enter to add your text'
+const CARD_FOOT_READY = 'Esc to cancel'
+const COMPOSER_READY = 'Type a prompt'
 
 const JOURNEYS: Journey[] = [
   {
@@ -87,6 +99,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT],
     cols: 120, rows: 40, seconds: 15,
     screens: [12_000, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j01n-single-choice-44',
@@ -95,6 +108,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT],
     cols: 44, rows: 40, seconds: 15,
     screens: [12_000, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j02-four-questions-nav',
@@ -119,6 +133,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '12500:\t', '13000:\t', '13500:\t', '14000:\t'],
     cols: 120, rows: 40, seconds: 17,
     screens: [12_200, 13_200, 14_500, -1],
+    ready: REVIEW_READY,
   },
   {
     name: 'j03-multiselect-toggle',
@@ -136,6 +151,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '12500: ', '13000:\x1b[B', '13400: ', '13900:\x1b[B', '14300:\x1b[B'],
     cols: 120, rows: 40, seconds: 17,
     screens: [12_200, 13_600, 14_600, -1],
+    ready: OTHER_ROW_READY,
   },
   {
     name: 'j04-preview-compare',
@@ -151,6 +167,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '13000:\x1b[B', '13800:\x1b[A'],
     cols: 120, rows: 44, seconds: 17,
     screens: [12_500, 13_400, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j04n-preview-44',
@@ -166,6 +183,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT],
     cols: 44, rows: 44, seconds: 15,
     screens: [12_500, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j05-long-preview-truncation',
@@ -181,6 +199,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT],
     cols: 120, rows: 30, seconds: 15,
     screens: [12_500, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j06-notes-internal',
@@ -196,6 +215,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '12800:n', '13300:prefer the layered shape', '14200:\x1b'],
     cols: 120, rows: 44, seconds: 17,
     screens: [13_800, 14_600, -1],
+    ready: CARD_READY,
   },
   {
     name: 'j08-discuss-exit',
@@ -204,6 +224,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '12500:\x1b[B', '12900:\x1b[B', '13300:\x1b[B', '13700:\r'],
     cols: 120, rows: 40, seconds: 18,
     screens: [13_500, 15_500, -1],
+    ready: CARD_FOOT_READY,
   },
   {
     name: 'j09-revise-after-later',
@@ -221,6 +242,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '12500:\r', '13100:\r', '13700:\x1b[Z', '14100:\x1b[Z', '14600:\x1b[B', '15000:\r', '15600:\t'],
     cols: 120, rows: 40, seconds: 19,
     screens: [13_400, 14_300, 15_300, -1],
+    ready: REVIEW_READY,
   },
   {
     name: 'j10-plan-footer',
@@ -229,6 +251,7 @@ const JOURNEYS: Journey[] = [
     sends: ['7000:\x1b[Z', '7400:\x1b[Z', PROMPT, SUBMIT, '12500:\x1b[B', '12900:\x1b[B', '13300:\x1b[B', '13700:\x1b[B', '14100:\r'],
     cols: 120, rows: 40, seconds: 19,
     screens: [13_500, 15_800, -1],
+    ready: COMPOSER_READY,
   },
   {
     name: 'j11-cancel-esc',
@@ -237,6 +260,7 @@ const JOURNEYS: Journey[] = [
     sends: [PROMPT, SUBMIT, '13000:\x1b'],
     cols: 120, rows: 40, seconds: 17,
     screens: [12_500, 14_500, -1],
+    ready: COMPOSER_READY,
   },
   {
     name: 'j12-resize-cycle',
@@ -253,6 +277,7 @@ const JOURNEYS: Journey[] = [
     resizes: ['13500:80:44', '15000:44:44', '16500:120:44'],
     cols: 120, rows: 44, seconds: 19,
     screens: [13_000, 14_200, 15_700, 17_200, -1],
+    ready: CARD_READY,
   },
 ]
 
@@ -271,11 +296,31 @@ interface JourneyArtifact {
   sends: { atMs: number; b64: string }[]
 }
 
-let failures = 0
-for (const j of JOURNEYS) {
-  if (only && j.name !== only) continue
-  process.stdout.write(`── ${j.name} … `)
+export function settledScreens(
+  screens: readonly GrabbedScreen[],
+  earlier: GrabbedScreen,
+  ready: string | undefined,
+): { ok: boolean; why: string } {
+  const last = screens[screens.length - 1]
+  if (!last) return { ok: false, why: 'no screens' }
+  const painted = screens.some(s => s.rows.some(r => r.trim().length > 0))
+  if (!painted) return { ok: false, why: 'every screen is blank' }
+  if (ready !== undefined && !last.rows.some(r => r.includes(ready))) return { ok: false, why: `the final screen never showed ${JSON.stringify(ready)}` }
+  if (last.rows.join('\n') !== earlier.rows.join('\n')) return { ok: false, why: `the final screen was still moving in the last ${STILL_MS} ms before the deadline` }
+  return { ok: true, why: '' }
+}
+
+export function driveEndOffset(run: Pick<ArenaRun, 'sendLog' | 'anchorShiftMs' | 'outcome'>, seconds: number, firstOutput: number): number {
+  const scale = vshotBudgetScale()
+  const fixed = run.sendLog.find(s => typeof s.atMs === 'number' && typeof s.sent === 'number')
+  const t0 = fixed !== undefined ? fixed.sent - fixed.atMs : firstOutput - 300
+  const deadline = t0 + seconds * 1000 * scale + Math.max(0, run.anchorShiftMs ?? 0)
+  return Math.max(0, deadline - firstOutput)
+}
+
+async function captureJourney(j: Journey): Promise<{ ok: boolean; line: string }> {
   let run: ArenaRun | null = null
+  const started = Date.now()
   try {
     run = await runArtifactArena({
       turns: j.turns,
@@ -288,8 +333,12 @@ for (const j of JOURNEYS) {
       keep: true,
     })
     const base = firstOutputTs(run)
-    void base
-    const screens = grabScreens(run, j.cols, j.rows, j.screens)
+    const lastOutput = run.ptyReads.length > 0 ? run.ptyReads[run.ptyReads.length - 1]!.ts - base : 0
+    const endOffset = driveEndOffset(run, j.seconds, base)
+    const stillOffset = Math.max(0, endOffset - STILL_MS)
+    const grabbed = grabScreens(run, j.cols, j.rows, [...j.screens, stillOffset])
+    const screens = grabbed.slice(0, j.screens.length)
+    const earlier = grabbed[grabbed.length - 1]!
     const artifact: JourneyArtifact = {
       journey: j.name,
       note: j.note,
@@ -310,21 +359,48 @@ for (const j of JOURNEYS) {
       })),
       sends: run.sendLog.map(s => ({ atMs: s.atMs, b64: s.b64 })),
     }
-    writeFileSync(join(OUT, `${j.name}.json`), JSON.stringify(artifact, null, 1))
-    const painted = screens.some(s => s.rows.some(r => r.includes('❯') || r.trim().length > 0))
-    if (!painted) {
-      failures++
-      console.log('❌ captured but every screen is blank')
-    } else {
-      console.log(`✅ ${screens.length} screens, ${artifact.requests.length} wire requests`)
+    const wall = ((Date.now() - started) / 1000).toFixed(1)
+    const verdict = run.outcome.complete ? settledScreens(screens, earlier, j.ready) : { ok: false, why: run.outcome.reason ?? 'the arena did not complete' }
+    if (!verdict.ok) {
+      const keep = join(REFUSED, j.name)
+      mkdirSync(keep, { recursive: true })
+      writeFileSync(join(keep, 'what-it-saw.json'), JSON.stringify(artifact, null, 1))
+      writeFileSync(join(keep, 'last-frame.txt'), (screens[screens.length - 1]?.rows ?? []).join('\n') + '\n')
+      writeFileSync(join(keep, 'refusal.log'), `${j.name}: ${verdict.why}\nlast paint ${lastOutput} ms · deadline ${endOffset} ms after first output\nlaw: the journey's ready word on its final screen, still for ${STILL_MS} ms before the end; ceiling ${j.seconds}s as authored (the state anchor stretches it by a late composer only)\n${run.driverOut.trim().slice(-600)}\n`)
+      return { ok: false, line: `❌ ${j.name} — ${verdict.why} · what it saw: ${keep} · ${wall}s` }
     }
+    writeFileSync(join(OUT, `${j.name}.json`), JSON.stringify(artifact, null, 1))
+    return { ok: true, line: `✅ ${j.name} — ${screens.length} screens, ${artifact.requests.length} wire requests · anchor shift ${run.anchorShiftMs} ms · last paint ${lastOutput} ms · ${wall}s` }
   } catch (e) {
-    failures++
-    console.log(`❌ ${String(e).slice(0, 200)}`)
+    return { ok: false, line: `❌ ${j.name} — ${String(e).slice(0, 200)}` }
   } finally {
     run?.cleanup()
   }
 }
+
+const wanted = JOURNEYS.filter(j => !only || j.name === only)
+const results = new Map<string, { ok: boolean; line: string }>()
+let next = 0
+const started = Date.now()
+await Promise.all(
+  Array.from({ length: Math.max(1, Math.min(JOBS, wanted.length)) }, async () => {
+    while (next < wanted.length) {
+      const j = wanted[next++]!
+      const r = await captureJourney(j)
+      results.set(j.name, r)
+      console.log(r.line)
+    }
+  }),
+)
+let failures = 0
+console.log(`\nsettle law: the journey's ready word on its final screen, still for ${STILL_MS} ms; ceiling: the authored seconds · jobs ${JOBS} · ${((Date.now() - started) / 1000).toFixed(1)}s wall`)
+for (const j of wanted) {
+  const r = results.get(j.name)
+  if (!r?.ok) failures++
+  console.log(r?.line ?? `❌ ${j.name} — no result`)
+}
+if (failures === 0) rmSync(REFUSED, { recursive: true, force: true })
+else console.log(`refused journeys kept what they saw under ${REFUSED}`)
 
 console.log(failures === 0 ? '\n✅ baseline capture complete' : `\n❌ ${failures} journey(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -5,8 +5,10 @@ import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario, RUNTIME_CWD } from './renderScenarios.ts'
 import { evaluateCapture } from './renderOracle.ts'
 import { gridToPng } from './gridToPng.ts'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
+import { SETTLE_LAW, cockpitReadyText, settleCaptureConfig, settleNeedles, settleWallMs } from './visualBaseline.ts'
+import { HELM_BOTH_RAILS_MIN, HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 
 const driver = resolveCaptureDriver()
 const PYTE_PATH = (() => {
@@ -43,7 +45,9 @@ const cols = Number(arg('--cols', '120')), rows = Number(arg('--rows', '44'))
 const out = arg('--out', join(driver.tempRoot, `tui-${cols}.png`))
 const gridPath = arg('--grid', join(driver.tempRoot, `grid-${cols}.json`))
 
-const cfg = { ...scenario(name, cols, rows), out: gridPath }
+let cfg = { ...scenario(name, cols, rows), out: gridPath }
+const settleWanted = process.argv.includes('--settle')
+const sceneNeedles = process.argv.flatMap((a, i, all) => (a === '--needle' && all[i + 1] !== undefined ? [all[i + 1]] : []))
 {
   const s = (cfg as { sends?: Array<Record<string, unknown>> }).sends
   if (
@@ -66,6 +70,16 @@ if (totalOverride) {
   if (!Number.isFinite(n) || n <= 0) { console.error(`invalid --total: ${totalOverride}`); process.exit(2) }
   cfg.total = n
 }
+if (settleWanted) {
+  const boot = cockpitReadyText(cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN)
+  const scene = sceneNeedles.length > 0 ? { readyText: sceneNeedles } : (cfg as { readyText?: string | string[] })
+  const stillRegion = arg('--still-region', '')
+  const region = stillRegion ? { stableRegion: stillRegion.split(',').map(Number) } : {}
+  cfg = settleCaptureConfig({ ...cfg, ...scene, ...region }, settleNeedles(scene, boot), boot) as typeof cfg
+}
+const wallMs = settleWanted
+  ? settleWallMs(SETTLE_LAW, vshotBudgetScale())
+  : vshotBudgetMs(Number(process.env.MERCURY_VSHOT_TIMEOUT_MS) || 60000)
 const cfgPath = gridPath.startsWith(join(driver.tempRoot, 'grid-'))
   ? join(driver.tempRoot, `vshot-${cols}.json`)
   : `${gridPath}.cfg.json`
@@ -76,7 +90,7 @@ writeFileSync(cfgPath, JSON.stringify(recorded))
 let verdict: { ok: boolean; reason: string } = { ok: false, reason: 'capture never ran' }
 for (let attempt = 1; attempt <= 2; attempt++) {
   const res = spawnSync(driver.python, [join(import.meta.dir, 'vshot.py'), cfgPath], {
-    encoding: 'utf-8', timeout: vshotBudgetMs(Number(process.env.MERCURY_VSHOT_TIMEOUT_MS) || 60000),
+    encoding: 'utf-8', timeout: wallMs,
     cwd: RUNTIME_CWD,
     env: {
       ...process.env,
@@ -88,7 +102,6 @@ for (let attempt = 1; attempt <= 2; attempt++) {
   })
   if (res.status !== 0) {
     cleanupScenario(name)
-    const wallMs = vshotBudgetMs(Number(process.env.MERCURY_VSHOT_TIMEOUT_MS) || 60000)
     const why = res.error && (res.error as NodeJS.ErrnoException).code === 'ETIMEDOUT'
       ? `vshot TIMEOUT (${wallMs}ms wall) — scenario '${name}' at ${cols} cols (load-stretched PTY?)`
       : res.stderr ||
