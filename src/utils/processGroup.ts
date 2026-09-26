@@ -190,7 +190,7 @@ export async function endProcessTree(
   signal: NodeJS.Signals = 'SIGKILL',
 ): Promise<ProcessTreeKillReceipt> {
   const pid = typeof target === 'number' ? target : target.pid
-  if (!pid || pid <= 0) return { ended: 0, survivors: [] }
+  if (!pid || !Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   try {
     return process.platform === 'win32' ? await endWin32Tree(pid) : await endPosixTree(pid, signal)
   } catch {

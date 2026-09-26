@@ -82,12 +82,13 @@ if (process.platform === 'win32') {
   check('a listener killed without cleanup left its socket file on the control path', stale(sock), sock)
 
   const bareStale = stale(bare)
-  const bareOutcome = await new Promise<string>((resolve, reject) => {
-    const server = net.createServer()
-    server.once('error', reject)
-    server.listen(bare, () => server.close(() => resolve('listening')))
-  }).catch((error: NodeJS.ErrnoException) => error.code ?? String(error))
-  check('a bare listen over a stale socket file is refused, so the path frees only by an unlink first', bareStale && bareOutcome !== 'listening', bareOutcome)
+  const bareProbe = spawnSync('node', ['-e', [
+    "const server = require('node:net').createServer()",
+    "server.once('error', error => { console.log(error.code); process.exit(error.code === 'EADDRINUSE' ? 0 : 1) })",
+    "server.listen(process.argv[1], () => server.close(() => { console.log('listening'); process.exit(1) }))",
+  ].join('\n'), bare], { encoding: 'utf8', timeout: 30_000 })
+  const bareOutcome = bareProbe.stdout?.trim() || bareProbe.error?.message || bareProbe.stderr?.trim() || `exit ${bareProbe.status}`
+  check('Node refuses a bare listen over a stale socket file, so the path frees only by an unlink first', bareStale && bareProbe.status === 0 && bareOutcome === 'EADDRINUSE', bareOutcome)
 
   let outcome = 'listening'
   let reply = ''
