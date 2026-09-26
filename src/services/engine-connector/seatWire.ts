@@ -186,6 +186,7 @@ const FACTS: KeyTable = {
   streamIdleTimeoutMs: 'stream_idle_timeout_ms',
   spawnSwitches: 'spawn_switches',
   openaiCatalogue: 'openai_catalogue',
+  pauseGate: 'pause_gate',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',

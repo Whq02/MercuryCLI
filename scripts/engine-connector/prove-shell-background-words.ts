@@ -68,7 +68,7 @@ check('the default Chat binding is shift+b', chat['shift+b'] === 'chat:backgroun
 check('the runner accepts { subtype: background_shell }', SDKControlBackgroundShellRequestSchema().safeParse({ subtype: 'background_shell' }).success)
 check('the daemon verb sessionControl/background-shell is born at proto 11 and the wire is at least there', DAEMON_VERB_BORN_AT['sessionControl/background-shell'] === 11 && verbBornAt('sessionControl', 'background-shell') === 11 && MERCURY_DAEMON_PROTO >= 11)
 const server = read('src/daemon/controlServer.ts')
-check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'background-shell'") && server.includes('withdraw-send|background-shell, sessionId, by'))
+check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'background-shell'") && /requires \{ action: [^']*\|background-shell(\|[a-z-]+)*, sessionId, by \}/.test(server))
 const main = read('src/daemon/main.ts')
 check('the daemon relays the action to the seat verb', main.includes("if (action === 'background-shell')") && main.includes('return backgroundSessionShell(sessionId, roster)'))
 const seat = read('src/daemon/sessionSeat.ts')
