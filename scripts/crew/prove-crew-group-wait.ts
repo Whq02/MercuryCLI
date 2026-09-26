@@ -154,5 +154,45 @@ section('G5 — a wait above the ceiling is clamped to it and the result says so
   check('a non-blocking read inside the ceiling is byte for byte as before', !('clamped' in plainPeek.data) && plainPeekBlock.content === '<retrieval_status>not_ready</retrieval_status>\n\n<task_id>bg-5</task_id>\n\n<task_type>local_agent</task_type>\n\n<status>running</status>', plainPeekBlock.content)
 }
 
+section('G6 — the blocking read returns at once, not_ready, when new input lands for the turn')
+{
+  type WaitResult = { data: { retrieval_status: string; task: { task_id: string; status: string } | null; interrupted_by?: { new_input?: string; task_id?: string } } }
+  const NEW_INPUT = 'new input arrived for this turn (it follows this result)'
+  let seq = 0
+  const line = (value: string, extra: Record<string, unknown> = {}): never => ({ value, mode: 'prompt', uuid: `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`, ...extra }) as never
+  task.resetSiblingEnds()
+  queue.resetCommandQueue()
+  const store = makeStore()
+  task.registerAsyncAgent({ agentId: 'bg-6', description: 'long job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  const context = { getAppState: store.get, setAppState: store.set, abortController: new AbortController(), options: { tools: [] } } as never
+  const started = Date.now()
+  setTimeout(() => queue.enqueue(line('change of plan: stop that and summarise')), 100)
+  const result = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 3_000 } as never, context, undefined as never, undefined as never)) as WaitResult
+  const elapsed = Date.now() - started
+  check('the wait returned within a poll of the words landing, not at its own timeout', elapsed < 1_000, `the wait ran its full length: ${JSON.stringify(result.data)} after ${elapsed} ms`)
+  check('not_ready, naming the new input as what ended the wait; the waited task runs on', result.data.retrieval_status === 'not_ready' && result.data.task?.task_id === 'bg-6' && result.data.task.status === 'running' && result.data.interrupted_by?.new_input === NEW_INPUT, JSON.stringify(result.data))
+  const block = TaskOutputTool.mapToolResultToToolResultBlockParam(result.data as never, 'toolu_n') as { content: string }
+  check('the tool result says what ended the wait, in the group wait\'s own grammar', block.content.includes('<retrieval_status>not_ready</retrieval_status>') && block.content.includes(`<interrupted_by>the wait ended early: ${NEW_INPUT}; the waited task runs on (its own notice follows)</interrupted_by>`), block.content)
+  const kept = queue.getDrainableCommands(false)
+  check('the words stay queued for the drain, exactly once — the read never takes from the queue', kept.length === 1 && kept[0]?.value === 'change of plan: stop that and summarise', JSON.stringify(kept.map(c => c.value)))
+  queue.resetCommandQueue()
+  queue.enqueue(line('for the next turn', { priority: 'later' }))
+  queue.enqueue(line('/compact'))
+  queue.enqueue(line('for another agent', { agentId: 'agent-elsewhere' }))
+  queue.enqueue(line('<task-notification>a shell finished</task-notification>', { mode: 'task-notification', priority: 'next' }))
+  const startedFull = Date.now()
+  const full = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 600 } as never, context, undefined as never, undefined as never)) as WaitResult
+  const elapsedFull = Date.now() - startedFull
+  check('a later-band line, a slash command, another agent\'s line and a task notification do not end the wait: it runs to its timeout', elapsedFull >= 550 && full.data.retrieval_status === 'timeout' && full.data.interrupted_by === undefined, `${JSON.stringify(full.data)} after ${elapsedFull} ms`)
+  queue.enqueue(line('the operator speaks to the chat'))
+  const startedSub = Date.now()
+  const sub = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 400 } as never, { ...(context as object), agentId: 'agent-1' } as never, undefined as never, undefined as never)) as WaitResult
+  const elapsedSub = Date.now() - startedSub
+  check("a sub-agent's read never ends on the operator's words — they are for the chat's turn, not its own", elapsedSub >= 350 && sub.data.retrieval_status === 'timeout' && sub.data.interrupted_by === undefined, `${JSON.stringify(sub.data)} after ${elapsedSub} ms`)
+  const peek = (await TaskOutputTool.call({ task_id: 'bg-6', block: false } as never, context, undefined as never, undefined as never)) as WaitResult
+  check('a non-blocking read is untouched: not_ready with nothing named as ending it', peek.data.retrieval_status === 'not_ready' && peek.data.interrupted_by === undefined, JSON.stringify(peek.data))
+  queue.resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\nprove-crew-group-wait: all green' : `\nprove-crew-group-wait: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
