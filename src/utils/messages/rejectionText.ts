@@ -43,6 +43,13 @@ export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
     DENIAL_WORKAROUND_GUIDANCE
   )
 }
+export function UNANSWERED_ASK_REJECT_MESSAGE(toolName: string, cause: string): string {
+  return (
+    `Permission to use ${toolName} has been denied: the operator's client was not there to answer (${cause}), so the action was not run. ` +
+    `Work that does not depend on this action can continue; the operator can re-issue it from the switchboard once they are back. ` +
+    DENIAL_WORKAROUND_GUIDANCE
+  )
+}
 
 export function isDenialResultText(raw: string): boolean {
   const text = unwrapToolUseError(raw)

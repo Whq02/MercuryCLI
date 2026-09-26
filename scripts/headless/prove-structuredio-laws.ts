@@ -221,7 +221,7 @@ section('S6 — aborting a pending request cancels, rejects, and immunizes the t
   h.end()
 }
 
-section('S7 — input close rejects pending requests; later sends refuse')
+section('S7 — input close denies a pending ask with the nobody-there reason, rejects other pending requests; later sends refuse')
 {
   const h = makeHarness()
   const sendRequest = (
@@ -230,13 +230,20 @@ section('S7 — input close rejects pending requests; later sends refuse')
     }
   ).sendRequest.bind(h.io)
   const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_close' }, z.object({}), undefined, 'req_close')
+  const hook = sendRequest({ subtype: 'hook_callback', callback_id: 'cb_close', input: {} }, z.object({}), undefined, 'req_hook_close')
   await h.settle()
   h.end()
-  const msg = await p.then(
+  const ask = (await p.then(
+    v => v,
+    (e: Error) => ({ rejected: e.message }),
+  )) as { behavior?: string; message?: string; rejected?: string }
+  check('a pending permission ask settles as a typed deny when the input stream closes (the client went away)', ask.behavior === 'deny' && /^Permission to use X has been denied: the operator's client was not there to answer \(the permission channel closed while the ask was pending\)/.test(ask.message ?? ''), j(ask))
+  check('…and is cancelled on the wire', h.outbound.some(m => m.type === 'control_cancel_request' && m.request_id === 'req_close'), j(h.outbound.map(m => m.type)))
+  const msg = await hook.then(
     () => undefined,
     (e: Error) => e.message,
   )
-  check('pending requests reject when the input stream closes', (msg ?? '').includes('stream closed before response'), String(msg))
+  check('other pending requests reject when the input stream closes', (msg ?? '').includes('stream closed before response'), String(msg))
   const late = await sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_after' }, z.object({}), undefined, 'req_after').then(
     () => undefined,
     (e: Error) => e.message,
