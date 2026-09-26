@@ -7,6 +7,7 @@ prove-caret-blink.ts
 prove-classify-tool-error.ts
 prove-command-domains.ts
 prove-command-palette.ts
+prove-composer-draft-survives-dispatch.ts
 prove-concourse-caret-vertical.ts
 prove-content-search.ts
 prove-ctx-forecast.ts
