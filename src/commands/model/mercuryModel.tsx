@@ -341,7 +341,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
   if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
     return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
   }
-  if (opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
+  if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
     return {
       id: opt.value,
       name: opt.label,
@@ -440,7 +440,9 @@ function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Recor
           ? 'signed in'
           : anthropicNotSignedInReason()) + seatDetail('anthropic'),
     [OPENAI_MODEL_GROUP]:
-      (gptAvailability.state === 'ready' ? `${gptAvailability.source} · signed in` : gptAvailability.reason) + seatDetail('openai'),
+      (gptAvailability.state === 'ready'
+        ? `${gptAvailability.source} · signed in · ${gptAvailability.ids.length} ${gptAvailability.ids.length === 1 ? 'model' : 'models'} live`
+        : gptAvailability.reason) + seatDetail('openai'),
     [ZAI_MODEL_GROUP]: credentialWords('zai'),
     [MOONSHOT_MODEL_GROUP]: ((): string => {
       const words = credentialWords('moonshot')
