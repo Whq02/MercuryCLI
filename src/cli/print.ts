@@ -49,7 +49,8 @@ import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } f
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
-import { getCurrentProjectConfig, getGlobalConfig, readGlobalConfigAgain } from '../utils/config.js'
+import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
+import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
@@ -2128,7 +2129,7 @@ export async function runHeadless(
               firstPartyApi: is1PApiCustomer(),
               consoleBilling: hasConsoleBillingAccess(),
               claudeAiBilling: hasClaudeAiBillingAccess(),
-              accountEmail: getGlobalConfig().oauthAccount?.emailAddress ?? null,
+              accountEmail: anthropicSignInEmail() ?? null,
             },
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
