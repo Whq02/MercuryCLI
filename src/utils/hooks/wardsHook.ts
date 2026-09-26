@@ -15,11 +15,13 @@ import {
   REFUSAL_WARDS,
   WARDS_TOOL_MATCHER,
   buildWardDenial,
+  countWardWork,
   evaluateWards,
   parseProjectWardsWithReport,
   type PendingToolCall,
   type ResolvedPath,
   type WardRule,
+  type WardWork,
 } from '../wards/wards.js'
 import { addFunctionHook } from './sessionHooks.js'
 
@@ -29,9 +31,10 @@ const WARD_DENIAL_CAP = 25
 
 const TARGET_HEAD_BYTES = 2048
 
-export function readTargetHead(path: string): string | undefined {
+export function readTargetHead(path: string, work?: WardWork): string | undefined {
   let fd: number
   try {
+    if (work) countWardWork(work, 'nonblockingOpens')
     fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
   } catch {
     return undefined
@@ -40,6 +43,7 @@ export function readTargetHead(path: string): string | undefined {
   let read = 0
   try {
     if (!fstatSync(fd).isFile()) return undefined
+    if (work) countWardWork(work, 'headReads')
     read = readSync(fd, buffer, 0, TARGET_HEAD_BYTES, 0)
   } catch {
     return undefined
@@ -52,11 +56,17 @@ export function readTargetHead(path: string): string | undefined {
 
 export const TARGET_PATH_MAX = 4096
 
-function deepestExisting(path: string): { real: string; tail: string[] } {
+function deepestExisting(path: string, work?: WardWork): { real: string; tail: string[] } {
+  if (work) countWardWork(work, 'characters', path.length)
   const segments = path.split(sep).filter(Boolean)
   const realAt = (depth: number): string | null => {
     try {
-      return realpathSync(depth === 0 ? sep : sep + segments.slice(0, depth).join(sep))
+      const candidate = depth === 0 ? sep : sep + segments.slice(0, depth).join(sep)
+      if (work) {
+        countWardWork(work, 'characters', candidate.length)
+        countWardWork(work, 'realpathCalls')
+      }
+      return realpathSync(candidate)
     } catch {
       return null
     }
@@ -106,20 +116,23 @@ export function repositoryRootOf(path: string): string | undefined {
   }
 }
 
-export function makeTargetResolver(fallbackRoot: string): (path: string) => ResolvedPath {
+export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path: string) => ResolvedPath {
   const fallback = realTargetPath(fallbackRoot)
   return (path: string): ResolvedPath => {
     let expanded: string
     try {
+      if (work) countWardWork(work, 'characters', path.length)
       expanded = expandPath(path)
     } catch {
       return { path, root: undefined }
     }
     if (expanded.length > TARGET_PATH_MAX) return { path: expanded, root: fallback }
-    const { real, tail } = deepestExisting(expanded)
+    const { real, tail } = deepestExisting(expanded, work)
     const resolved = tail.length === 0 ? real : join(real, ...tail)
+    if (work && tail.length > 0) countWardWork(work, 'characters', resolved.length)
     let dir = tail.length === 0 ? dirname(real) : real
     for (;;) {
+      if (work) countWardWork(work, 'existsCalls')
       if (existsSync(join(dir, '.git'))) return { path: resolved, root: dir }
       const parent = dirname(dir)
       if (parent === dir) return { path: resolved, root: fallback }
@@ -184,6 +197,7 @@ export function resetWardsEngagedSessionsForTest(): void {
 export function registerWardsHook(
   setAppState: SetAppState,
   sessionId: string,
+  work?: WardWork,
 ): string | null {
   if (!wardsEnabled()) return null
   if (wardsEngagedSessions.has(sessionId)) return WARDS_HOOK_ID
@@ -205,7 +219,7 @@ export function registerWardsHook(
     ...(deleteWardActive() ? AUTONOMOUS_WARDS : []),
     ...projectReport.rules,
   ]
-  const resolveTarget = makeTargetResolver(getCwd())
+  const resolveTarget = makeTargetResolver(getCwd(), work)
   let denials = 0
   addFunctionHook(
     setAppState,
@@ -228,12 +242,12 @@ export function registerWardsHook(
               : {},
         }
         pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
-        pending.readHead = readTargetHead
+        pending.readHead = work === undefined ? readTargetHead : path => readTargetHead(path, work)
         pending.resolvePath = resolveTarget
-        const refusal = evaluateWards(REFUSAL_WARDS, pending)
+        const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
         if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
         if (denials < WARD_DENIAL_CAP) {
-          const verdict = evaluateWards(rules, pending)
+          const verdict = evaluateWards(rules, pending, work)
           if (!verdict.allow) {
             const denial = buildWardDenial(verdict, pending.toolName)
             denials++
