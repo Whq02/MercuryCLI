@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
+import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 
 const delayMs = Number(process.argv[2] ?? '1500')
-const growAfterRequests = Number(process.argv[3] ?? '0')
+const growWhenFile = process.argv[3]
 let requests = 0
 
 const GROWN = { id: 'nvidia/nemotron-3-ultra:free', name: 'NVIDIA: Nemotron 3 Ultra (free)', context_length: 1_000_000 }
@@ -22,8 +23,9 @@ const MODELS = [
 const server = createServer((req, res) => {
   if (req.method === 'GET' && (req.url ?? '').startsWith('/api/v1/models')) {
     requests += 1
-    const grown = growAfterRequests > 0 && requests > growAfterRequests
+    const grown = growWhenFile !== undefined && existsSync(growWhenFile)
     const data = grown ? [...MODELS, { ...GROWN, pricing: MODELS[0]!.pricing, architecture: MODELS[0]!.architecture }] : MODELS
+    console.log(`REQUEST ${requests} rows=${data.length}`)
     setTimeout(() => {
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ data, total_count: data.length, links: { next: null } }))
