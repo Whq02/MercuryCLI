@@ -175,7 +175,16 @@ if (driver.kind !== 'posix-pty') {
       const m = payload.marks?.find(x => x.label === label)
       return m === undefined ? '' : text(m.grid)
     }
-    const focusRow = (t: string): string => (t.split('\n').find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s{2,}.*$/, '').trim() ?? ''
+    const focusRow = (t: string): string => {
+      const rows = t.split('\n')
+      const title = rows.find(row => row.includes('Mercury · model')) ?? ''
+      const at = title.indexOf('Mercury · model')
+      const left = title.lastIndexOf('│', at)
+      const right = title.indexOf('│', at)
+      if (left < 0 || right < 0) return ''
+      const row = rows.map(line => line.slice(left, right + 1)).find(line => line.includes('│ │ ')) ?? ''
+      return row.split('│ │ ')[1]?.replace(/\s{2,}.*$/, '').trim() ?? ''
+    }
     const opened = frame('opened')
     const painted = frame('painted')
     const walked = frame('walked')

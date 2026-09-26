@@ -323,8 +323,19 @@ function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<s
   }
 }
 
-const TOKENS_RE = /\b\d[\d.,]*k? (?:context|spent)\b/
-const nonZeroTokens = (text: string): boolean => TOKENS_RE.test(text) && !/\b0 (?:context|spent)\b/.test(text)
+const TOKENS_RE = /\b\d[\d.,]*k? (?:context\b|contex…|spent\b)/
+const nonZeroTokens = (text: string): boolean => TOKENS_RE.test(text) && !/\b0 (?:context\b|contex…|spent\b)/.test(text)
+const crewPopup = (text: string): string => {
+  const rows = text.split('\n')
+  const titleAt = rows.findIndex(row => row.includes('Mercury — crew'))
+  const title = rows[titleAt] ?? ''
+  const at = title.indexOf('Mercury — crew')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  if (left < 0 || right < 0) return ''
+  const bottom = rows.findIndex((row, index) => index > titleAt && row[left] === '╰')
+  return rows.slice(titleAt, bottom < 0 ? titleAt : bottom + 1).map(row => row.slice(left, right + 1)).join('\n')
+}
 const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
   text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
 const rowTokens = (text: string, name: string): boolean =>
@@ -378,7 +389,7 @@ async function landLeg(dialect: Dialect): Promise<void> {
           { data: '/teammates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\r', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
-          { data: '\x1b', atTick: 999, awaitText: 'runs in this session', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
+          { data: '\x1b', atTick: 999, awaitText: '· viewing ', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
           { data: '\x1b', afterPrevTicks: 4 },
         ],
         stableTicks: 6,
@@ -412,22 +423,23 @@ async function landLeg(dialect: Dialect): Promise<void> {
     (flat(running).match(/◐ [a-z-…]+ · \d[\d.,]*k? context/g) ?? []).length >= 2,
   )
   check(`${tag}: the usage attribution line counts the crew`, /sub-agents \d[\d.,]*k? spent/.test(flat(running)))
-  const crewRunning = marks['crew-running'] ?? ''
+  const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(
     `${tag}: the Crew view while running — both rows, the served model, the running glyph with the seat's live phase, tokens > 0, the count label`,
     agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'),
   )
   const landed = marks['landed'] ?? ''
   check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('agents finished') && !/\bstopped\b/.test(landed))
-  const crewLanded = marks['crew-landed'] ?? ''
+  const crewLanded = crewPopup(marks['crew-landed'] ?? '')
   check(
     `${tag}: the Crew view after landing — landed twice, the tokens kept, never the runner's word`,
     agentRow(crewLanded, SEAT_ONE, /\blanded\b/) && agentRow(crewLanded, SEAT_TWO, /\blanded\b/) && rowTokens(crewLanded, SEAT_ONE) && rowTokens(crewLanded, SEAT_TWO) && !crewLanded.includes('completed') && crewLanded.includes('0 running · 2 sub-agents'),
   )
   const card = marks['card'] ?? ''
+  const viewed = [SEAT_ONE, SEAT_TWO].find(name => card.includes(`viewing ${name}`))
   check(
-    `${tag}: the agent's card reads the same record — model, tokens, tool uses, landed`,
-    card.includes(servedModel) && card.includes('tokens') && card.includes('tool use') && card.includes('landed') && !card.includes('completed'),
+    `${tag}: the agent's view reads its model, context and landed state; its transcript card keeps the tool count`,
+    viewed !== undefined && agentRow(card, viewed, servedModel, /\blanded\b/) && rowTokens(card, viewed) && agentRow(landed, viewed, /tool use/) && !card.includes('completed'),
   )
   if (failures > 0 && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > 0 || process.env.CREW_KEEP === '1') dump(`${tag} · final grid`, cap.text)
@@ -473,7 +485,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   check(`${tag}: both seats were running with tokens when the Esc fired`, rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO))
   const interrupted = marks['interrupted'] ?? ''
   check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 sub-agents still running — open the crew view \(\/teammates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
-  const crewRunning = marks['crew-running'] ?? ''
+  const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'))
   const crewStopped = marks['crew-stopped'] ?? ''
   check(`${tag}: x twice on the selected row stops that one seat through the runner — the receipt names the stop, never killed`, new RegExp(`Agent "${SEAT_TWO}" was stopped from the crew view`).test(flat(crewStopped)) && !crewStopped.includes('killed'))

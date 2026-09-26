@@ -1,28 +1,22 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { EventEmitter } from 'node:events'
-import { createRequire, syncBuiltinESMExports } from 'node:module'
+import { mock } from 'bun:test'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 let liveWatchers = 0
-const req = createRequire(import.meta.url)
-const cjsFs = req('node:fs') as {
-  watch: unknown
-  mkdtempSync: (prefix: string) => string
-  renameSync: (from: string, to: string) => void
-  writeFileSync: (path: string, data: string) => void
-}
-const realWatch = cjsFs.watch
-cjsFs.watch = (..._args: unknown[]) => {
-  liveWatchers++
-  const ee = new EventEmitter() as EventEmitter & { close: () => void }
-  ee.close = () => {}
-  return ee
-}
-syncBuiltinESMExports()
-void realWatch
-const { mkdtempSync, renameSync, writeFileSync } = cjsFs
+const fs = await import('node:fs')
+mock.module('node:fs', () => ({
+  ...fs,
+  watch: (..._args: unknown[]) => {
+    liveWatchers++
+    const ee = new EventEmitter() as EventEmitter & { close: () => void }
+    ee.close = () => {}
+    return ee
+  },
+}))
+const { mkdtempSync, renameSync, writeFileSync } = fs
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'seat-verb-settle-home-'))
 const ROOT = resolve(import.meta.dir, '..', '..')

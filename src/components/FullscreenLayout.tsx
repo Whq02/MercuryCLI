@@ -323,6 +323,7 @@ export function FullscreenLayout({
   statusBand,
   statusBandActive = false,
   modal,
+  modalActive = true,
   modalScrollRef,
   scrollRef,
   dividerYRef,
@@ -338,6 +339,7 @@ export function FullscreenLayout({
   statusBand?: React.ReactNode
   statusBandActive?: boolean
   modal?: React.ReactNode
+  modalActive?: boolean
   modalScrollRef?: React.RefObject<ScrollBoxHandle | null>
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   dividerYRef?: React.MutableRefObject<number | null>
@@ -378,8 +380,9 @@ export function FullscreenLayout({
   const cockpit = fullscreen && chrome === 'cockpit'
   const centerFrame = cockpit
   const plan = railPlan(columns)
-  const modalUp = modal !== undefined && modal !== null
-  const popupUp = useSyncExternalStore(subscribeModelPickerPopup, modelPickerPopupClaimed, modelPickerPopupClaimed) && modalUp
+  const modalMounted = modal !== undefined && modal !== null
+  const modalUp = modalMounted && modalActive
+  const popupUp = useSyncExternalStore(subscribeModelPickerPopup, modelPickerPopupClaimed, modelPickerPopupClaimed) && modalMounted
   const ink = useContext(InkInstanceContext)
   const covered = useContext(MotionParkContext)
   useInsertionEffect(() => {
@@ -482,11 +485,11 @@ export function FullscreenLayout({
       : undefined
 
   const modalPeek = isCompact ? 0 : chrome === 'inline' ? 2 : 0
-  const modalSeparatorRows = !isCompact || terminalRows > 1 ? 1 : 0
+  const modalSeparatorRows = modalUp && (!isCompact || terminalRows > 1) ? 1 : 0
   const t = tokens
   const modalClaims = modalPeek === 0;
-  const recessOn = modal != null && recessTargetFor(t) !== null;
-  const blankClaims = modalClaims && !recessOn;
+  const recessOn = modalUp && recessTargetFor(t) !== null;
+  const blankClaims = modalUp && modalClaims && !recessOn;
 
   const stickyDescriptor =
     stickyPrompt !== null && stickyPrompt !== 'clicked' ? stickyPrompt : null
@@ -548,7 +551,7 @@ export function FullscreenLayout({
         {modal}
       </ModelPickerPopupSlot>
     </MotionParkContext.Provider>
-  ) : modalUp ? (
+  ) : modalMounted ? (
     <MotionParkContext.Provider value={false}>
       <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={Math.max(0, terminalRows - modalPeek)} flexDirection="column" overflow="hidden" opaque={true}>
         {blankClaims && <Box flexGrow={1} />}{modalSeparatorRows > 0 ? <Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box> : null}

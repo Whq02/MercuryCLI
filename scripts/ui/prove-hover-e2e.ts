@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { ASH_RAISED, IVORY, OASIS } from '../../src/components/mercuryPalette.ts'
 import { lerpHex } from '../../src/utils/theme.ts'
 import { railPlanAt } from '../../src/utils/helmGeometry.ts'
@@ -17,7 +18,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 const HOVER_BG = ASH_RAISED.slice(1).toLowerCase()
-const RAIL_COLS = 32
+const RAIL_COLS = railPlanAt(120, true).lanesW
+const WORKBENCH_ROW = '  second task —'
 
 type Region = [number, number, number, number]
 type Send = {
@@ -60,8 +62,8 @@ function capture(
       ...(settled.region ? { stableRegion: settled.region } : {}),
     })
   }
-  const gridPath = `/tmp/hover-e2e-${tag}-${process.pid}.json`
-  const cfgPath = `/tmp/hover-e2e-${tag}-cfg-${process.pid}.json`
+  const gridPath = join(tmpdir(), `hover-e2e-${tag}-${process.pid}.json`)
+  const cfgPath = join(tmpdir(), `hover-e2e-${tag}-cfg-${process.pid}.json`)
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
     encoding: 'utf8',
@@ -100,7 +102,7 @@ console.log(' hover E2E — one highlight on sweep, none mid-drag')
 console.log('============================================================')
 
 console.log('\n── baseline: anchor two hover-armed rail rows ──────────────')
-const base = capture('base', [], 90, ['op (you)', 'second task'], 120, 40, {
+const base = capture('base', [], 90, ['op (you)', WORKBENCH_ROW], 120, 40, {
   stableTicks: 8,
   region: [0, 0, RAIL_COLS, 40],
 })
@@ -108,7 +110,7 @@ let rowA = -1
 let rowB = -1
 if (base) {
   rowA = base.lines.findIndex(l => l.includes('op (you)'))
-  rowB = base.lines.findIndex(l => l.includes('second task'))
+  rowB = base.lines.findIndex(l => l.slice(0, RAIL_COLS).includes(WORKBENCH_ROW))
   check('both anchor rows present', rowA >= 0 && rowB >= 0, `A=${rowA} B=${rowB}`)
   if (rowA < 0 || rowB < 0) {
     console.log('  … rail rows 0-16 (first 40 cols):')
@@ -125,19 +127,19 @@ if (rowA >= 0 && rowB >= 0) {
       data: motionT,
       targetText: 'op (you)',
       targetDx: 1,
-      awaitText: 'second task',
+      awaitText: WORKBENCH_ROW,
       minTick: 8,
       awaitSettleTicks: 8,
       awaitStableTicks: 8,
       awaitStableRegion: [0, 0, RAIL_COLS, 40],
       requireAwait: true,
     },
-    { data: motionT, targetText: 'second task', targetDx: 2, afterPrevTicks: 6 },
+    { data: motionT, targetText: WORKBENCH_ROW, targetDx: 2, afterPrevTicks: 6 },
   ]
   const sweep = capture('sweep', sweepSends, 150, undefined, 120, 40, { stableTicks: 8, region: [0, 0, RAIL_COLS, 40] })
   if (sweep) {
     const lit = hoverRows(sweep.grid)
-    const startB = sweep.lines.findIndex(l => l.includes('second task'))
+    const startB = sweep.lines.findIndex(l => l.slice(0, RAIL_COLS).includes(WORKBENCH_ROW))
     let endB = startB
     while (startB >= 0 && endB + 1 < sweep.lines.length && /^ {2}\S/.test((sweep.lines[endB + 1] ?? '').slice(0, RAIL_COLS))) endB++
     const cardRows = startB >= 0 ? Array.from({ length: endB - startB + 1 }, (_, i) => startB + i) : []
@@ -168,7 +170,7 @@ if (rowA >= 0 && rowB >= 0) {
         data: motionT,
         targetText: 'op (you)',
         targetDx: 1,
-        awaitText: 'second task',
+        awaitText: WORKBENCH_ROW,
         minTick: 8,
         awaitSettleTicks: 8,
         awaitStableTicks: 8,
@@ -176,7 +178,7 @@ if (rowA >= 0 && rowB >= 0) {
         requireAwait: true,
       },
       { data: pressT, targetText: 'op (you)', targetDx: 1, afterPrevTicks: 4 },
-      { data: dragT, targetText: 'second task', targetDx: 2, afterPrevTicks: 4 },
+      { data: dragT, targetText: WORKBENCH_ROW, targetDx: 2, afterPrevTicks: 4 },
     ],
     152,
   )

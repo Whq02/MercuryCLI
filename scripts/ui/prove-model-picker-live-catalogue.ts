@@ -232,7 +232,7 @@ if (driver.kind !== 'posix-pty') {
         check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !showsId(p, 'openrouter/anthropic/claude-opus-5'))
         check('landed: the catalogue rows replaced the connecting row (each id in its cell, cut to the column with …)', showsId(l, 'openrouter/anthropic/claude-opus-5') && showsId(l, 'openrouter/google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'), l.split('\n').filter(line => line.includes('openrouter/')).map(line => line.trim()).join(' | '))
         check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'))
-        const openrouterHeading = (t: string): string => (t.split('\n').find(line => /[▾▸❯] OPENROUTER · /.test(line)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
+        const openrouterHeading = (t: string): string => (t.match(/[▾▸❯] OPENROUTER · [^│\n]+/)?.[0] ?? '').trim()
         check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}`)
         check('the rows landed under the cursor (the focus box holds the first live row)', new RegExp(`│ │ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ │ ')).map(line => line.trim()).join(' | '))
       }

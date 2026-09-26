@@ -24,12 +24,12 @@ check(
   /const modalClaims = modalPeek === 0;/.test(src),
 )
 check(
-  'recessOn derives from recessTargetFor (the ONE recess policy seam)',
-  /const recessOn = modal != null && recessTargetFor\(t\) !== null;/.test(src),
+  'recessOn derives from the painted modal and recessTargetFor (the ONE recess policy seam)',
+  /const recessOn = modalUp && recessTargetFor\(t\) !== null;/.test(src),
 )
 check(
-  'blankClaims = modalClaims && !recessOn (the closed-gate blank claim)',
-  /const blankClaims = modalClaims && !recessOn;/.test(src),
+  'blankClaims = modalUp && modalClaims && !recessOn (the painted closed-gate blank claim)',
+  /const blankClaims = modalUp && modalClaims && !recessOn;/.test(src),
 )
 check(
   'blank claim carries height={blankClaims ? terminalRows : undefined} (claim, not cap)',

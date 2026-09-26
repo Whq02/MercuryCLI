@@ -72,3 +72,4 @@ prove-width-oracle-sot.ts
 prove-model-picker-popup-frames.ts
 prove-agent-view-frames.ts
 prove-crew-composer-roads.ts
+prove-silent-command-surface.ts

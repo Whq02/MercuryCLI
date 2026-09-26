@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import {
   check, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback,
@@ -130,7 +130,7 @@ console.log(`boot compact artifacts: ${scratch} (dist ${dist})`)
 for (const [cols, rows] of sizes) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) throw new Error('size must be positive columns x rows')
   const tag = `boot-compact-${cols}x${rows}`
-  seedFirstRun(join(scratch, `home-${tag}`), [tree, fixtureCwd])
+  seedFirstRun(join(scratch, `home-${tag}`), [tree, fixtureCwd, realpathSync(fixtureCwd)])
   const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
   try {
     const out = join(scratch, `${tag}-grid.json`)

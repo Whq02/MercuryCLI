@@ -22,7 +22,7 @@ const trimmed = (rows: string[]): string[] => rows.map(r => r.replace(/\s+$/, ''
 const inkOf = (cells: Cell[]): string => cells.map(c => `${c.fg}/${c.bg}/${c.bold ? 1 : 0}`).join(' ')
 
 async function capture(tag: string, cols: number, rows: number, wayBack: boolean): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg }> {
-  const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null)
+  const leg = await startLeg(tag, [{ kind: 'text', text: 'Finished.' }], null, scratch)
   if (!wayBack) writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ compactWayBack: false }))
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
@@ -37,8 +37,8 @@ async function capture(tag: string, cols: number, rows: number, wayBack: boolean
     { atTick: 999, awaitText: NOTICE_HEAD, minTick: 3, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'notice' },
     { atTick: 999, awaitText: '0 agents here', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'later' },
   ]
-  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: ROOT, cols, rows, sends, resizes: [], total: 320, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: leg.cwd, cols, rows, sends, resizes: [], total: 320, out }))
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: leg.cwd, env: childEnv(leg, { TMPDIR: '.', MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })
