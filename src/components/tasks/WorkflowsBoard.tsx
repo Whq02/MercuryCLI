@@ -23,6 +23,8 @@ import {
   isRunOrphaned,
   listWorkflowRunsDetailed,
   partitionDiskRuns,
+  pausePositionWords,
+  type WorkflowPausePosition,
   type WorkflowRunManifest,
 } from '../../tools/WorkflowTool/runManifest.js'
 import { saveWorkflowSourceToProject } from '../../tools/WorkflowTool/registry.js'
@@ -123,6 +125,7 @@ function headerStateFor(status: string, orphaned: boolean): SnapshotState {
     case 'killed':
       return 'failed'
     case 'running':
+    case 'paused':
       return 'gated'
     default:
       return 'off'
@@ -157,6 +160,7 @@ type RunFacts = {
   script?: string
   runDir?: string
   pausedBy?: string
+  pausedAt?: WorkflowPausePosition
   endedBy?: string
   owner?: { pid: number; word: string }
   pendingAsks?: number
@@ -173,12 +177,13 @@ type RunRow = {
 
 function factsForTask(t: DeepImmutable<LocalWorkflowTaskState>): RunFacts {
   const tree = buildTree(t)
-  const tone = statusTone(t.status)
+  const parked = t.status === 'running' && t.pausedBy !== undefined
+  const tone = statusTone(parked ? 'paused' : t.status)
   const name = t.workflowName ?? t.title ?? t.summary ?? t.description ?? 'Dynamic workflow'
   const d = t.summary ?? t.description
   return {
     name,
-    state: headerStateFor(t.status, false),
+    state: headerStateFor(parked ? 'paused' : t.status, false),
     word: SHORT_STATE_WORD[tone.word] ?? tone.word,
     phaseSettled: settledCount(tree),
     phaseTotal: tree.length,
@@ -200,6 +205,7 @@ function factsForTask(t: DeepImmutable<LocalWorkflowTaskState>): RunFacts {
     script: t.script,
     runDir: t.runDir,
     pausedBy: t.pausedBy,
+    pausedAt: t.pausedAt as WorkflowPausePosition | undefined,
   }
 }
 
@@ -228,12 +234,13 @@ function factsForWorkRow(
     agents: p.agents.map(a => ({ index: a.index, label: a.label, state: narrowAgentState(a.state) })),
   }))
   const flatAgents = groups.flatMap(g => g.agents)
-  const tone = statusTone(w.status as Parameters<typeof statusTone>[0])
   const running = w.status === 'running' || w.status === 'pending'
   const stale = running && !runnerLive
+  const parked = w.status === 'running' && !stale && w.pausedBy !== undefined
+  const tone = statusTone((parked ? 'paused' : w.status) as Parameters<typeof statusTone>[0])
   return {
     name: w.name,
-    state: stale ? 'failed' : headerStateFor(w.status, false),
+    state: stale ? 'failed' : headerStateFor(parked ? 'paused' : w.status, false),
     word: stale ? 'stale' : (SHORT_STATE_WORD[tone.word] ?? tone.word),
     phaseSettled: settledCount(groups),
     phaseTotal: groups.length,
@@ -249,6 +256,7 @@ function factsForWorkRow(
     scriptPath: manifest?.scriptPath,
     runDir: manifest?.runDir,
     pausedBy: w.pausedBy ?? manifest?.pausedBy,
+    pausedAt: manifest?.pausedAt,
     endedBy: manifest?.endedBy,
     pendingAsks: w.pendingAsks,
   }
@@ -281,6 +289,7 @@ function factsForManifest(m: WorkflowRunManifest & { mtimeMs: number }): RunFact
     args: m.args,
     runDir: m.runDir,
     pausedBy: m.pausedBy,
+    pausedAt: m.pausedAt,
     endedBy: m.endedBy,
   }
 }
@@ -373,7 +382,7 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
   kv.push({ k: 'started', v: `${formatDuration(now - f.startTime)} ago`, tone: tokens.textMuted })
   if (f.owner) kv.push({ k: 'owner', v: `pid ${f.owner.pid}`, tone: tokens.textMuted, note: f.owner.word })
 
-  const running = f.word === 'run' || f.word === 'wait'
+  const running = f.word === 'run' || f.word === 'wait' || f.word === 'paused'
   let cursorIdx = f.groups.findIndex(g => phaseTone(g) === 'active')
   if (cursorIdx < 0 && running) cursorIdx = f.groups.findIndex(g => phaseTone(g) === 'pending')
 
@@ -389,7 +398,8 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
       ) : null}
       <Text>
         <StateBadge state={f.state} label={f.word} />
-        {f.pausedBy !== undefined && (f.word === 'run' || f.word === 'wait') ? <Text color={tokens.warning}> · paused by {f.pausedBy}</Text> : null}
+        {f.word === 'paused' && f.pausedBy !== undefined ? <Text color={tokens.warning}> · by {f.pausedBy}</Text> : null}
+        {f.word === 'paused' && f.pausedAt !== undefined ? <Text color={tokens.warning}> · {pausePositionWords(f.pausedAt)}</Text> : null}
         {f.endedBy !== undefined && f.word === 'killed' ? <Text color={tokens.textMuted}> · stopped by {f.endedBy}</Text> : null}
         <Text color={tokens.textMuted}> · {runtime}</Text>
       </Text>
@@ -540,7 +550,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       facts: {
         ...factsForManifest(m),
         state: 'gated' as SnapshotState,
-        word: m.liveness === 'wedged' ? 'wedged' : 'run',
+        word: m.liveness === 'wedged' ? 'wedged' : m.status === 'paused' ? 'paused' : 'run',
         clockEnd: m.liveness === 'wedged' ? m.mtimeMs : undefined,
         owner: {
           pid: m.ownerPid,
@@ -677,7 +687,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       header: 'St',
       width: 8,
       cell: r =>
-        r.section === 'active' && r.facts.word !== 'stale' ? (
+        r.section === 'active' && r.facts.word !== 'stale' && r.facts.word !== 'paused' ? (
           <Text>
             <WorkingGlyph color={tokens.success} active />
             <Text color={tokens.success}> {r.facts.word}</Text>
@@ -804,7 +814,8 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
 
   const controllable = (r: RunRow): boolean =>
     r.facts.runDir !== undefined &&
-    ((r.section === 'active' && r.facts.word !== 'stale') || (r.section === 'external' && r.facts.word === 'run'))
+    ((r.section === 'active' && r.facts.word !== 'stale') ||
+      (r.section === 'external' && (r.facts.word === 'run' || r.facts.word === 'paused')))
   const control = (r: RunRow, action: WorkflowControlAction): void => {
     const runDir = r.facts.runDir
     if (runDir === undefined) return
@@ -817,8 +828,8 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       action === 'stop'
         ? `stopping ${r.facts.name} — every live agent ends the same way`
         : action === 'pause'
-          ? `pausing ${r.facts.name} — its agents park before their next model call`
-          : `resuming ${r.facts.name}`,
+          ? `pausing ${r.facts.name} — it parks before its next agent call; agents in flight park before their next model call`
+          : `resuming ${r.facts.name} — it continues from where it stopped`,
     )
     void requestWorkflowControl(runDir, { action, by: workflowControlBy(getSessionId(), process.pid) }).then(
       result => {
