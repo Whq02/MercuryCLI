@@ -169,9 +169,9 @@ const rendered = await jevEvalCall(
 )
 const lines = rendered.text.split('\n')
 check('status ok', rendered.status === 'ok', rendered.text)
-check('the header: model, one item by three questions, input tokens, the charge at the published rate, ok', lines[0] === 'JEV jev-1.13.0 | 1 item × 3 questions | in 412 tok | $0.000017 | ok', lines[0])
+check('the header: model, one item by three questions, input tokens, the charge at the published rate, ok', lines[0] === 'JEV jev-1.13.0 | 1 item × 3 questions | in 412 tok | $0.000017 | floor 0.6 | ok', lines[0])
 check('the column row: item, then each question id with its kind', lines[1] === 'item | skew (noul) | next_test (choice) | blast (score)', lines[1])
-check('the one row, keyed #1 (no id given): noul p(yes); the choice with its probability and conf; the score of 0..k-1 with conf', lines[2] === '#1 | .88 | pin_clock .48 conf .41 | 0.88 of 0..2 conf .77', lines[2])
+check('the one row, keyed #1 (no id given): noul p(yes); the choice under the floor reads unsure with its probability and conf; the score of 0..k-1 with conf', lines[2] === '#1 | .88 | unsure · pin_clock .48 conf .41 | 0.88 of 0..2 conf .77', lines[2])
 check('the score levels named once under the table', lines[3] === 'blast levels: 0=One file 1=One module 2=Cross-cutting', lines[3])
 check('four lines, nothing else', lines.length === 4)
 check('no rationale, no band, no words attributed to Jev', !/because|rationale|reason|Jev (says|thinks|recommends)|band/i.test(rendered.text))
@@ -182,7 +182,7 @@ check('numbers: two decimals without the leading zero; one and zero spelled', je
 
 section('§6 the cells: a noul is its probability; a choice is the pick, its own probability and conf; a score is its position and conf')
 check('noul', jevEvalCell({ type: 'noul', noul: 0.07 }) === '.07')
-check('choice: the pick\'s own probability, not the top of the distribution', jevEvalCell({ type: 'choice', choice: 'b', probabilities: { a: 0.5, b: 0.3, c: 0.2 }, confidence: 0.2 }) === 'b .30 conf .20')
+check('choice: the pick\'s own probability, not the top of the distribution', jevEvalCell({ type: 'choice', choice: 'b', probabilities: { a: 0.5, b: 0.3, c: 0.2 }, confidence: 0.7 }) === 'b .30 conf .70')
 check('score: the position on 0..k-1 with the levels counted from the legend', jevEvalCell({ type: 'score', score: 2.5, legend: { '0': 'a', '1': 'b', '2': 'c', '3': 'd' }, probabilities: { '0': 0, '1': 0.25, '2': 0.25, '3': 0.5 }, confidence: 0.9 }) === '2.5 of 0..3 conf .90')
 
 section('§7 the prompt: the three first uses, the exclusions, the unavailability words, no "experimental", Eval kept apart')
