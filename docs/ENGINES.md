@@ -331,7 +331,11 @@ names the account (the face's account chip and its Logins roster, `/status`,
 card and the `auth status` verb) reads the email stored beside the token
 itself — the profile, else the exchange's receipt — never a recorded copy or
 a fresh probe while painting; a credential with neither names none, in each
-surface's own words, rather than the account stored before it. The
+surface's own words, rather than the account stored before it. The facts a
+hosted session answers to its seat name that same address as the identity's
+account email (the seat wire's `account_email`), so the cockpit's connector
+and any reader of a session's facts see the credential's own account, never
+the recorded copy; the value changed, the key and its shape did not. The
 `/accounts` board's live verification still heals the stored identity
 whenever the two disagree; until it answers, the board names the recorded
 copy beside the credential's own address, labelled as a snapshot, only when
