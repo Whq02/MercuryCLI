@@ -115,6 +115,9 @@ process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', marker
 await gracefulShutdown(0)
 `,
   )
+  const CHILD_CLOSE_BUDGET_MS = Number(process.env.PARITY2_CHILD_CLOSE_BUDGET_MS) || 30_000
+  const SLOW_READER_HOLD_MS = 2
+  const slowReader = new Int32Array(new SharedArrayBuffer(4))
   const child = spawn(process.execPath, ['run', childScript], {
     cwd: process.cwd(),
     env: { ...process.env, NODE_ENV: 'production' },
@@ -123,16 +126,35 @@ await gracefulShutdown(0)
   let received = 0
   let sawMarker = false
   let tail = ''
-  child.stdout.pause()
-  await sleep(400)
+  let stderrBytes = 0
+  let stderrTail = ''
+  const closed = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
+  let closeBound: ReturnType<typeof setTimeout> | undefined
+  const unclosed = new Promise<'unclosed'>(resolve => {
+    closeBound = setTimeout(() => resolve('unclosed'), CHILD_CLOSE_BUDGET_MS)
+  })
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderrBytes += chunk.length
+    stderrTail = (stderrTail + chunk.toString('utf8')).slice(-4_096)
+  })
   child.stdout.on('data', (chunk: Buffer) => {
     received += chunk.length
     tail = (tail + chunk.toString('utf8')).slice(-200)
     if (tail.includes('END-OF-STREAM')) sawMarker = true
+    Atomics.wait(slowReader, 0, 0, SLOW_READER_HOLD_MS)
   })
-  child.stdout.resume()
-  const exit = await new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
-  t('the child exits 0 through the real graceful shutdown', exit === 0, `exit ${exit}`)
+  const outcome = await Promise.race([closed, unclosed])
+  clearTimeout(closeBound)
+  const stderrReport = `its stderr (${stderrBytes} bytes captured, the last ${stderrTail.length} shown):\n${stderrTail}`
+  if (outcome === 'unclosed') {
+    child.kill('SIGKILL')
+    await Promise.race([closed, sleep(2_000)])
+    console.log(`the child (pid ${child.pid}) was ended with SIGKILL after the ${CHILD_CLOSE_BUDGET_MS / 1000} s budget; ${stderrReport}`)
+  } else if (stderrBytes > 0) {
+    console.log(`the child (pid ${child.pid}) closed with ${stderrReport}`)
+  }
+  const exit = outcome === 'unclosed' ? null : outcome
+  t('the child exits 0 through the real graceful shutdown', exit === 0, outcome === 'unclosed' ? `the child did not close within ${CHILD_CLOSE_BUDGET_MS / 1000} s` : `exit ${exit}`)
   const expectedBytes = (JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'x'.repeat(900) } } }).length + 1) * 4000
   t('a slow reader still receives every streamed byte (no tail loss at exit)', received > expectedBytes, `${received} bytes (>${expectedBytes} expected)`)
   t('the terminal result frame arrives last', sawMarker)
