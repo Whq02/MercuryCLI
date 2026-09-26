@@ -47,6 +47,15 @@ export const RED_ROAD_FIXTURES: Readonly<Record<string, Readonly<Record<string, 
   'red-road-unsure': { killed: 0.31, starved: 0.22 },
 })
 
+export const LEAD_WAKE_FIXTURES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
+  'lead-wake-scope': { needs_answer: 0.93 },
+  'lead-wake-blocked': { needs_answer: 0.91 },
+  'lead-wake-question': { needs_answer: 0.82 },
+  'lead-wake-finding': { needs_answer: 0.41 },
+  'lead-wake-status': { needs_answer: 0.12 },
+  'lead-wake-landing': { needs_answer: 0.08 },
+})
+
 export function fixtureIdsIn(text: string): string[] {
   return [...text.matchAll(STANDIN_FIXTURE_ID)].map(m => m[1]!)
 }

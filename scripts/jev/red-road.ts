@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { JevEvalInput } from '../../src/tools/JevEvalTool/jevEvalSchema.js'
+import { roadHome } from './lib/roadHome.ts'
+
+export { PROOF_HOME_PREFIX, roadHome } from './lib/roadHome.ts'
 
 export const RED_ROAD_CONFIDENT_FLOOR = 0.6
 export const RED_ROAD_KILLED_REAL_CEILING = 0.06
@@ -13,14 +15,6 @@ export const RED_ROAD_LINE_CLIP = 220
 export const RED_ROAD_SIGNATURE_LINES = 40
 export const RED_ROAD_RERUN_TAIL_LINES = 40
 export const RED_ROAD_USAGE = "usage: bun run scripts/jev/red-road.ts <prover> <log> [--row '<results.tsv row>'] [--rc N] [--secs N] [--no-rerun] [--tree <dir>] [--receipt <path>] [--floor 0.6] [--home <config home: the JEV setting and key; default the operator's own ~/.mercury, a pinned scratch kept>] [--json] [-- <rerun command...>]"
-export const PROOF_HOME_PREFIX = 'mercury-proof-home-'
-
-export function roadHome(explicit: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
-  if (explicit !== undefined && explicit !== '') return resolve(explicit)
-  const pinned = env.MERCURY_CONFIG_DIR?.trim()
-  if (pinned && !basename(pinned).startsWith(PROOF_HOME_PREFIX)) return pinned
-  return join(homedir(), '.mercury')
-}
 
 export const RED_ROAD_QUESTIONS: JevEvalInput['questions'] = [
   {
@@ -184,7 +178,7 @@ async function main(): Promise<number> {
   const evidence = redRoadEvidence(readFileSync(args.log, 'utf8'), run)
   process.env.MERCURY_CONFIG_DIR = roadHome(args.home)
   const { askJev } = await import('./lib/jevAsk.ts')
-  const ask = await askJev({ goal: 'the chain red road: was this red killed from outside or starved by the box?', evidence: { ...evidence }, questions: RED_ROAD_QUESTIONS })
+  const ask = await askJev({ ...evidence }, RED_ROAD_QUESTIONS)
   const stem = basename(args.log).replace(/\.[^.]+$/, '')
   const receipt = args.receipt !== undefined ? resolve(args.receipt) : join(dirname(args.log), `${stem}.red-road.log`)
   const record: Record<string, unknown> = { prover: args.prover, log: args.log, rc: run.rc, secs: run.secs, hangSecs: run.hangSecs, signal: run.rc !== null && run.rc > 128 ? (SIGNALS[run.rc] ?? `signal ${run.rc - 128}`) : null, floor: args.floor }
