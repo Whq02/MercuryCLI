@@ -123,7 +123,10 @@ export function computeUnseenDivider(
   return { firstUnseenUuid: (anchor as { uuid: string }).uuid, count }
 }
 
-export function useUnseenDivider(messageCount: number): {
+export function useUnseenDivider(
+  messageCount: number,
+  scrollRef?: React.RefObject<ScrollBoxHandle | null>,
+): {
   dividerIndex: number | null
   dividerYRef: React.MutableRefObject<number | null>
   onScrollAway: (handle: ScrollBoxHandle) => void
@@ -136,6 +139,10 @@ export function useUnseenDivider(messageCount: number): {
   const countRef = useRef(messageCount)
   countRef.current = messageCount
   const clearSnapshotRef = useRef(false)
+  const previousCountRef = useRef(messageCount)
+  const shrunkRef = useRef(false)
+  if (messageCount < previousCountRef.current) shrunkRef.current = true
+  previousCountRef.current = messageCount
 
   if (dividerIndex !== null && messageCount < dividerIndex) {
     setDividerIndex(null)
@@ -148,6 +155,30 @@ export function useUnseenDivider(messageCount: number): {
       dividerYRef.current = null
     }
   }, [dividerIndex])
+
+  useLayoutEffect(() => {
+    if (!shrunkRef.current) return
+    shrunkRef.current = false
+    const handle = scrollRef?.current
+    if (!handle) return
+    const height = handle.getFreshScrollHeight()
+    const max = Math.max(0, height - handle.getViewportHeight())
+    const atBottom =
+      handle.isSticky() ||
+      handle.getScrollTop() + handle.getPendingDelta() >= max
+    if (!atBottom) {
+      if (dividerYRef.current !== null && dividerYRef.current > height) {
+        dividerYRef.current = height
+      }
+      return
+    }
+    const past = handle.getScrollTop() > max
+    if (!past && dividerYRef.current === null && dividerIndex === null) return
+    if (past) handle.scrollTo(max)
+    handle.scrollToBottom()
+    dividerYRef.current = null
+    setDividerIndex(null)
+  })
 
   const onScrollAway = useCallback(
     (handle: ScrollBoxHandle) => {

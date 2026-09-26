@@ -30,6 +30,7 @@ prove-helm-home.ts
 prove-helm-tasks-card.ts
 prove-hover-owner.ts
 prove-interaction-grammar.ts
+prove-jump-pill-shrink.ts
 prove-keydead-static.ts
 prove-lifecycle-teardown.ts
 prove-logins-copy-key-consumed.ts
