@@ -77,6 +77,8 @@ import {
 } from './UI.js'
 import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
+import type { AssistantMessage } from '../../types/message.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { readFileSync, existsSync } from 'node:fs'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
@@ -160,6 +162,66 @@ export type Out = {
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
   outputBudgetNotice?: string
+  sandboxRetryNotice?: string
+}
+
+const RETRY_ASK_VIOLATION_LIMIT = 3
+const SANDBOX_COMMAND_HINT = 'Adjust the restrictions with the /sandbox command, or stay within them.'
+
+class SandboxDenial extends Error {
+  constructor(
+    readonly violations: readonly string[],
+    readonly code: number,
+    readonly refuse: (head: string) => ShellError,
+  ) {
+    super('The sandbox refused the command')
+  }
+}
+
+export function retryableSandboxViolation(line: string): boolean {
+  return /\bfile-(?:read|write)|\bnetwork-|\bhttp-request\b|^deny \S+ \//.test(line)
+}
+
+export function sandboxViolationWords(violations: readonly string[]): string {
+  const shown = violations.slice(0, RETRY_ASK_VIOLATION_LIMIT)
+  const more = violations.length - shown.length
+  return shown.join('; ') + (more > 0 ? ` (+${more} more)` : '')
+}
+
+export function sandboxRetryAskWords(violations: readonly string[]): string {
+  return `The sandbox refused this command (${sandboxViolationWords(violations)}). Rerun it outside the sandbox?`
+}
+
+export function sandboxRerunNotice(code: number, violations: readonly string[]): string {
+  return `[ran outside the sandbox after the ask: the sandboxed run exited ${code} on ${sandboxViolationWords(violations)}]`
+}
+
+export function sandboxRefusalWords(violations: readonly string[], reason: 'declined' | 'cannot-ask' | 'policy'): string {
+  const words = sandboxViolationWords(violations)
+  if (reason === 'declined') return `The sandbox refused this command (${words}) and the rerun outside the sandbox was declined, so it was not rerun. ${SANDBOX_COMMAND_HINT}`
+  if (reason === 'policy') return `The sandbox refused this command (${words}); policy has switched the unsandboxed override off, so it was not rerun. ${SANDBOX_COMMAND_HINT}`
+  return `The sandbox refused this command (${words}); this session cannot ask to rerun it outside the sandbox, so it was not rerun. ${SANDBOX_COMMAND_HINT}`
+}
+
+async function askToRerunOutsideSandbox(
+  denial: SandboxDenial,
+  input: BashToolInput,
+  context: ToolUseContext,
+  canUseTool: CanUseToolFn | undefined,
+  parentMessage: AssistantMessage | undefined,
+): Promise<BashToolInput> {
+  if (!SandboxManager.areUnsandboxedCommandsAllowed()) throw denial.refuse(sandboxRefusalWords(denial.violations, 'policy'))
+  if (typeof canUseTool !== 'function') throw denial.refuse(sandboxRefusalWords(denial.violations, 'cannot-ask'))
+  const askInput: BashToolInput = { ...input, dangerouslyDisableSandbox: true, description: sandboxRetryAskWords(denial.violations) }
+  context.setToolJSX?.(null)
+  const decision = await canUseTool(BashTool, askInput as never, context, parentMessage as never, context.toolUseId ?? '')
+  if (decision.behavior === 'allow') {
+    const updated = (decision.updatedInput ?? {}) as Partial<BashToolInput>
+    return { ...askInput, ...updated, dangerouslyDisableSandbox: true, description: input.description }
+  }
+  if (decision.behavior === 'ask') throw denial.refuse(sandboxRefusalWords(denial.violations, 'cannot-ask'))
+  const feedback = typeof decision.message === 'string' ? decision.message : ''
+  throw denial.refuse([sandboxRefusalWords(denial.violations, 'declined'), feedback].filter(Boolean).join('\n'))
 }
 
 
@@ -320,6 +382,7 @@ async function* runBash(
   input: BashToolInput,
   context: ToolUseContext,
   agentId: string | undefined,
+  rerun?: { notice: string },
 ): AsyncGenerator<{ toolUseID: string; data: BashProgress }, Out, void> {
   const abortController = context.abortController
   const isMainThread = agentId === undefined
@@ -642,7 +705,8 @@ async function* runBash(
     }
 
     let out = accumulator.toString()
-    out = SandboxManager.annotateStderrWithSandboxFailures(input.command, out)
+    const recorded = useSandbox ? SandboxManager.recordedViolations(input.command, launchedAt).filter(retryableSandboxViolation) : []
+    if (recorded.length > 0) out += `\n<sandbox_violations>\n${recorded.join('\n')}\n</sandbox_violations>`
     const budget = resolveOutputBudget(readMaxOutputChars(input.max_output_chars))
     const windowed = result.outputFilePath === undefined
     const clause = outputBudgetClause(budget)
@@ -651,9 +715,20 @@ async function* runBash(
     if (result.preSpawnError) {
       throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
     }
-    if (interpretation.isError && !interruptedByUser) {
+    const failure = (head?: string): ShellError => {
       const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)
       const error = new ShellError('', [thrown, clause, sessionEnvNoticeForResult({ scrubbed: shellCommand.scrubbedSessionEnv, commandText: input.command })].filter(Boolean).join('\n'), result.code, result.interrupted)
+      if (head === undefined && rerun === undefined) return error
+      return new ShellError('', [head, error.stderr, rerun?.notice].filter(Boolean).join('\n'), result.code, result.interrupted)
+    }
+    if (!result.interrupted && result.code !== 0 && recorded.length > 0) {
+      throw new SandboxDenial(recorded, result.code, head => {
+        const error = failure(head)
+        return budget.requested === undefined ? error : windowedError(error)
+      })
+    }
+    if (interpretation.isError && !interruptedByUser) {
+      const error = failure()
       throw budget.requested === undefined ? error : windowedError(error)
     }
 
@@ -701,6 +776,7 @@ async function* runBash(
       returnCodeInterpretation,
       ...(exitNote !== undefined ? { exitNote } : {}),
       ...(outputBudgetNotice !== undefined ? { outputBudgetNotice } : {}),
+      ...(rerun !== undefined ? { sandboxRetryNotice: rerun.notice } : {}),
       noOutputExpected,
       dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
       ...(persistedOutputPath ? { persistedOutputPath, persistedOutputSize } : {}),
@@ -745,7 +821,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   const backgroundNotice = output.backgroundTaskId ? backgroundNoticeFor(output) : ''
   const scrubNotice = output.sessionEnvNotice ?? ''
-  const content = [stdout, errorText, output.exitNote ?? '', output.outputBudgetNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
+  const content = [stdout, errorText, output.exitNote ?? '', output.outputBudgetNotice ?? '', output.sandboxRetryNotice ?? '', backgroundNotice, scrubNotice].filter(part => part !== '').join('\n')
   return { tool_use_id: toolUseID, type: 'tool_result', content, is_error: output.interrupted }
 }
 
@@ -829,18 +905,15 @@ export const BashTool = buildTool({
   async call(
     input: BashToolInput,
     context: ToolUseContext,
-    _canUseTool?: unknown,
-    parentMessage?: { uuid?: string },
+    canUseTool?: CanUseToolFn,
+    parentMessage?: AssistantMessage,
     onProgress?: (progress: { toolUseID: string; data: BashProgress }) => void,
   ): Promise<ToolResult<Out>> {
     const agentId = context.agentId as string | undefined
     const parentMessageId = parentMessage?.uuid
-    try {
-      if (input._simulatedSedEdit) {
-        return { data: await runSimulatedSedEdit(input, context, parentMessageId) }
-      }
-      const generator = runBash(input, context, agentId)
-      let counter = 0
+    let counter = 0
+    const drive = async (driven: BashToolInput, rerun?: { notice: string }): Promise<Out> => {
+      const generator = runBash(driven, context, agentId, rerun)
       let step = await generator.next()
       while (!step.done) {
         counter++
@@ -849,7 +922,19 @@ export const BashTool = buildTool({
       }
       const out = step.value
       out.sessionEnvNotice = sessionEnvNoticeForResult({ scrubbed: out.scrubbedSessionEnv, commandText: input.command })
-      return { data: out }
+      return out
+    }
+    try {
+      if (input._simulatedSedEdit) {
+        return { data: await runSimulatedSedEdit(input, context, parentMessageId) }
+      }
+      try {
+        return { data: await drive(input) }
+      } catch (error) {
+        if (!(error instanceof SandboxDenial)) throw error
+        const rerunInput = await askToRerunOutsideSandbox(error, input, context, canUseTool, parentMessage)
+        return { data: await drive(rerunInput, { notice: sandboxRerunNotice(error.code, error.violations) }) }
+      }
     } finally {
       context.setToolJSX?.(null)
     }
