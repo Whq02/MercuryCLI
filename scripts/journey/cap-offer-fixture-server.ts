@@ -31,6 +31,29 @@ function record(entry: Record<string, unknown>): void {
   appendFileSync(captureFile, `${JSON.stringify(entry)}\n`)
 }
 
+const GPT_LIVE_ROW = {
+  id: 'gpt-5.6-sol',
+  display_name: 'GPT-5.6 Sol',
+  supported_reasoning_levels: ['low', 'medium', 'high'],
+  default_reasoning_level: 'medium',
+  visibility: 'public',
+  supported_in_api: true,
+  priority: 1,
+  context_window: 400_000,
+  input_modalities: ['text', 'image'],
+}
+const DEEPSEEK_LIVE_ROWS = [
+  { id: 'deepseek-v4-pro', object: 'model', owned_by: 'deepseek' },
+  { id: 'deepseek-flash', object: 'model', owned_by: 'deepseek' },
+]
+const ZAI_LIVE_ROWS = [{ id: 'glm-5.3', object: 'model', owned_by: 'zai' }]
+
+function liveListFor(url: string): unknown[] {
+  if (url.includes('/deepseek/')) return DEEPSEEK_LIVE_ROWS
+  if (url.includes('/zai/')) return ZAI_LIVE_ROWS
+  return [GPT_LIVE_ROW]
+}
+
 let responsesCalls = 0
 
 function responsesSse(text: string): string {
@@ -108,23 +131,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'GET' && url.endsWith('/models')) {
       record({ kind: 'hit', method: req.method, url, at: Date.now() })
       res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(
-        JSON.stringify({
-          data: [
-            {
-              id: 'gpt-5.6-sol',
-              display_name: 'GPT-5.6 Sol',
-              supported_reasoning_levels: ['low', 'medium', 'high'],
-              default_reasoning_level: 'medium',
-              visibility: 'public',
-              supported_in_api: true,
-              priority: 1,
-              context_window: 400_000,
-              input_modalities: ['text', 'image'],
-            },
-          ],
-        }),
-      )
+      res.end(JSON.stringify({ data: liveListFor(url) }))
       return
     }
     if (req.method === 'POST' && url.endsWith('/responses')) {

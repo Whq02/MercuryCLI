@@ -133,16 +133,49 @@ function painted(before: string[], after: string[]): Painted | null {
   return { left, right, top, bottom, rows, ragged }
 }
 
+const SCAFFOLD_MARKS = ['LANES', 'CENTRE', 'TELEMETRY', 'BBBB']
+
+function scaffoldPainted(screen: string, scene: Scene): boolean {
+  return SCAFFOLD_MARKS.every(mark => screen.includes(mark)) && (scene.panel === 0 || screen.includes(PANEL_ROWS[0]!))
+}
+
+async function holdsStill(m: Mounted, polls: number, ms: number): Promise<boolean> {
+  let last = m.screen()
+  let run = 0
+  return waitFor(() => {
+    const now = m.screen()
+    run = now === last ? run + 1 : 0
+    last = now
+    return run >= polls
+  }, ms)
+}
+
+function sceneLabel(scene: Scene): string {
+  return `${scene.columns}×${scene.rows}${scene.panel > 0 ? ' + panel' : ''}`
+}
+
 async function open(scene: Scene, request: ReturnType<typeof configPopupRequest>): Promise<{ m: Mounted; before: string[]; after: string[]; paint: Painted | null }> {
   const centreRef = React.createRef<DOMElement>()
   const m = await mountOffscreen(scaffold(scene, centreRef), scene.columns, scene.rows)
-  await settle(120)
+  const scaffoldUp = await waitFor(() => scaffoldPainted(m.screen(), scene), 4000)
+  const scaffoldStill = scaffoldUp && (await holdsStill(m, 2, 2000))
+  check(`${sceneLabel(scene)}: the scaffold painted and held still before the baseline frame was read`, scaffoldStill, scaffoldStill ? '' : scaffoldUp ? 'the scaffold kept changing for 2 s' : `after 4 s the screen held: ${JSON.stringify(m.lines().filter(line => line.length > 0).slice(0, 3))}`)
   const before = m.lines()
   store.openSettingsPopup(request)
-  await waitFor(() => m.screen().includes(`Mercury · ${request.view}`), 4000)
-  await settle(160)
+  const title = `Mercury · ${request.view}`
+  const hintHead = request.hint.slice(0, 12)
+  const popupUp = await waitFor(() => m.screen().includes(title) && m.screen().includes(hintHead), 4000)
+  const popupStill = popupUp && (await holdsStill(m, 2, 2000))
+  check(`${sceneLabel(scene)}: the popup painted its title and its hint row and held still before the frame was read`, popupStill, popupStill ? '' : popupUp ? 'the popup kept changing for 2 s' : `after 4 s: title ${m.screen().includes(title) ? 'on screen' : 'absent'}, hint ${m.screen().includes(hintHead) ? 'on screen' : 'absent'}`)
   const after = m.lines()
   return { m, before, after, paint: painted(before, after) }
+}
+
+async function close(m: Mounted, view: string): Promise<void> {
+  store.closeSettingsPopup()
+  await waitFor(() => !m.screen().includes(`Mercury · ${view}`), 2000)
+  m.unmount()
+  await settle(40)
 }
 
 function untouched(before: string[], after: string[], from: number, to: number, rowsFrom: number, rowsTo: number): boolean {
@@ -182,10 +215,7 @@ section('§1 178×51, both rails and a health panel on the left: /config fits th
   judge('178×51 + panel', scene, paint, before, after, CONFIG_POPUP_WIDTH)
   check('178×51 + panel: the hint row is cut to the narrower frame, never wrapped', paint !== null && !after.some(line => line.includes(CONFIG_POPUP_HINT)) && paint.rows.at(-2)!.includes('↑↓ select'), paint === null ? 'none' : paint.rows.at(-2))
   frame('config-beside-panel-178x51', after)
-  store.closeSettingsPopup()
-  await settle(60)
-  m.unmount()
-  await settle(40)
+  await close(m, 'config')
 }
 
 section('§2 178×51, both rails, no panel: /config keeps its 110 columns at column 34')
@@ -196,10 +226,7 @@ section('§2 178×51, both rails, no panel: /config keeps its 110 columns at col
   check('178×51: the hint row is whole at the page\'s width', paint !== null && paint.rows.at(-2)!.includes(CONFIG_POPUP_HINT), paint === null ? 'none' : paint.rows.at(-2))
   check('178×51: the popup still stands at column 34, 110 wide, as the page draws it', paint !== null && paint.left === 34 && paint.right === 143, paint === null ? 'none' : `${paint.left}..${paint.right}`)
   frame('config-rails-178x51', after)
-  store.closeSettingsPopup()
-  await settle(60)
-  m.unmount()
-  await settle(40)
+  await close(m, 'config')
 }
 
 section('§3 160×51, both rails: the 110-column request no longer reaches into either rail')
@@ -208,10 +235,7 @@ section('§3 160×51, both rails: the 110-column request no longer reaches into 
   const { m, before, after, paint } = await open(scene, configPopupRequest(context))
   judge('160×51', scene, paint, before, after, CONFIG_POPUP_WIDTH)
   frame('config-rails-160x51', after)
-  store.closeSettingsPopup()
-  await settle(60)
-  m.unmount()
-  await settle(40)
+  await close(m, 'config')
 }
 
 section('§4 178×51, both rails: a 150-column request (the usage popup\'s) fits the centre column too')
@@ -234,10 +258,8 @@ section('§4 178×51, both rails: a 150-column request (the usage popup\'s) fits
   const { m, before, after, paint } = await open(scene, request as never)
   judge('178×51 usage-wide', scene, paint, before, after, 150)
   check('178×51 usage-wide: the hint is the request\'s, whole', paint !== null && paint.rows.at(-2)!.includes(HINT), paint === null ? 'none' : paint.rows.at(-2))
-  store.closeSettingsPopup()
-  await settle(60)
-  m.unmount()
-  await settle(40)
+  frame('usage-rails-178x51', after)
+  await close(m, 'usage')
 }
 
 section('§5 the geometry, pure, and the layout wiring')
