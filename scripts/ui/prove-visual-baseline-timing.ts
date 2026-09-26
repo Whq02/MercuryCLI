@@ -51,45 +51,47 @@ for (const file of stored) {
 }
 check(`across the ${stored.length} stored grids the mask touches only the row under a WORKFLOW header`, only.length === 1 && touchedChip > 0 && touchedElsewhere === 0, `chip rows ${touchedChip}, other rows ${touchedElsewhere}`)
 
-section('§3 a never-ready capture is retried once, more patiently, and the retry is named')
-const run = vb.runCaptureAttempts as undefined | ((id: string, run: (attempt: number, scale: number) => { status: number | null; stderr: string; stdout: string; grid?: RawGrid }, judge: (g: RawGrid) => { ok: boolean; reason: string }, opts: { baseScale: number; log?: (line: string) => void }) => { grid: RawGrid; stdout: string; attempts: number })
+section('§3 a capture that never settles is refused at once with what it saw — never a blind longer wait')
+type AttemptResult = { status: number | null; stderr: string; stdout: string; grid?: RawGrid }
+const run = vb.runCaptureAttempts as undefined | ((id: string, run: (attempt: number) => AttemptResult, judge: (g: RawGrid) => { ok: boolean; reason: string }, opts: { log?: (line: string) => void; refused?: (res: AttemptResult, kind: string) => string }) => { grid: RawGrid; stdout: string; attempts: number })
 check('the attempts runner exists beside the masks', typeof run === 'function')
 if (typeof run === 'function') {
   const good: RawGrid = { cols: 1, rows: 1, grid: [[{ c: 'x', fg: 'default', bg: 'default', bold: false, rev: false }]] }
   const ok = (): { ok: boolean; reason: string } => ({ ok: true, reason: '' })
-  const neverReady = "[vshot] NEVER-READY: readyText ['RECENT', '○ '] never appeared within 90 ticks (ended: budget). This capture is a wrong-frame observation, not a settle.\n"
+  const neverReady = "[vshot] UNDELIVERED-SENDS: 1 of 4 sends never became due (first stuck: 'RECENT'). The journey did not happen as written.\n"
   {
-    const scales: number[] = []
+    const attemptsSeen: number[] = []
     const lines: string[] = []
-    const r = run('frame--101x30--dark--truecolor--full', (attempt, scale) => {
-      scales.push(scale)
-      return attempt === 1 ? { status: 3, stderr: neverReady, stdout: '' } : { status: 0, stderr: '', stdout: 'second', grid: good }
-    }, ok, { baseScale: 2, log: l => lines.push(l) })
-    check('a first never-ready is retried once and the second capture stands', r.attempts === 2 && r.grid === good && r.stdout === 'second', JSON.stringify(r))
-    check('the retry runs at twice the budget scale', scales.join(',') === '2,4', scales.join(','))
-    check('the retry is named once, with the entry, the attempt and the refusal', lines.length === 1 && lines[0]!.includes('frame--101x30--dark--truecolor--full') && lines[0]!.includes('attempt 1') && lines[0]!.includes('NEVER-READY') && lines[0]!.includes('scale 4'), lines.join(' | '))
-  }
-  {
-    let threw = ''
-    const lines: string[] = []
+    let kept: { kind: string; stdout: string } | null = null
+    let threw: unknown = null
     try {
-      run('frame--x', () => ({ status: 3, stderr: neverReady, stdout: '' }), ok, { baseScale: 1, log: l => lines.push(l) })
+      run('frame--101x30--dark--truecolor--full', attempt => {
+        attemptsSeen.push(attempt)
+        return { status: 4, stderr: neverReady, stdout: 'the last frame' }
+      }, ok, { log: l => lines.push(l), refused: (res, kind) => { kept = { kind, stdout: res.stdout }; return '/kept/here' } })
     } catch (e) {
-      threw = String(e)
+      threw = e
     }
-    check('two refusals fail the capture, naming both attempts', threw.includes('[frame--x]') && threw.includes('attempt 1') && threw.includes('attempt 2') && lines.length === 1, threw.slice(0, 200))
+    check('a never-settled capture is refused after ONE attempt — no retry, no longer budget', attemptsSeen.join(',') === '1' && lines.length === 0, attemptsSeen.join(','))
+    check('the refusal is a CaptureRefusal naming the entry and the stuck needle', threw instanceof Error && threw.name === 'CaptureRefusal' && threw.message.includes('[frame--101x30--dark--truecolor--full]') && threw.message.includes("first stuck: 'RECENT'"), String(threw).slice(0, 200))
+    check('what it saw is handed to the keeper (the last frame) and the kept path is named in the refusal', kept !== null && (kept as { kind: string; stdout: string }).kind === 'never-ready' && (kept as { kind: string; stdout: string }).stdout === 'the last frame' && String(threw).includes('/kept/here'), JSON.stringify(kept))
   }
   {
-    const scales: number[] = []
-    const r = run('frame--y', (attempt, scale) => {
-      scales.push(scale)
+    const kinds = vb.captureRefusalKind as (status: number | null, stderr: string) => string
+    check('vshot exits 3 and 4 are never-ready, 5 is never-still, a wall kill is wall, anything else is refused', kinds(3, '') === 'never-ready' && kinds(4, '') === 'never-ready' && kinds(5, '') === 'never-still' && kinds(null, '') === 'wall' && kinds(1, 'boom') === 'refused')
+  }
+  {
+    const attemptsSeen: number[] = []
+    const lines: string[] = []
+    const r = run('frame--y', attempt => {
+      attemptsSeen.push(attempt)
       return { status: 0, stderr: '', stdout: String(attempt), grid: good }
-    }, g => (scales.length === 1 ? { ok: false, reason: 'chrome marker missing' } : { ok: true, reason: '' }), { baseScale: 1 })
-    check('an oracle rejection retries at the same scale', r.attempts === 2 && scales.join(',') === '1,1', scales.join(','))
+    }, () => (attemptsSeen.length === 1 ? { ok: false, reason: 'chrome marker missing' } : { ok: true, reason: '' }), { log: l => lines.push(l) })
+    check('an oracle rejection of a settled frame retries once at the same ceiling and names the oracle', r.attempts === 2 && attemptsSeen.join(',') === '1,2' && lines.length === 1 && lines[0]!.includes('oracle') && lines[0]!.includes('same ceiling'), lines.join(' | '))
   }
   {
     const lines: string[] = []
-    const r = run('frame--z', () => ({ status: 0, stderr: '', stdout: 'first', grid: good }), ok, { baseScale: 1, log: l => lines.push(l) })
+    const r = run('frame--z', () => ({ status: 0, stderr: '', stdout: 'first', grid: good }), ok, { log: l => lines.push(l) })
     check('a clean first capture is one attempt and no retry line', r.attempts === 1 && lines.length === 0)
   }
 }
