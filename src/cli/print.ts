@@ -558,19 +558,16 @@ export async function runHeadless(
   const sessionWiringModules = (): Promise<
     [
       typeof import('../utils/hooks/wardsHook.js'),
-      typeof import('../utils/hooks/tabulaFireHooks.js'),
       typeof import('../services/crew/identity.js'),
     ]
   > =>
     Promise.all([
       import('../utils/hooks/wardsHook.js'),
-      import('../utils/hooks/tabulaFireHooks.js'),
       import('../services/crew/identity.js'),
     ])
   const armSessionRunnerWiring = async (sid: string): Promise<void> => {
-    const [wards, tabula, crew] = await sessionWiringModules()
+    const [wards, crew] = await sessionWiringModules()
     wards.registerWardsHook(setAppState, sid)
-    tabula.registerTabulaFireHooks(setAppState, sid)
     const mission = await import('../utils/hooks/missionHook.js')
     mission.rearmMissionFromCard(setAppState, { cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {

@@ -99,7 +99,6 @@ import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
 import harness from './commands/harness/index.js'
 import cards from './commands/cards/index.js'
-import { noteCommand } from './commands/tabula/index.js'
 import workbench from './commands/workbench/index.js'
 import files from './commands/files/index.js'
 import router from './commands/router/index.js'
@@ -293,7 +292,6 @@ const COMMANDS = memoize((): Command[] => [
   harness,
   cards,
   caching,
-  noteCommand,
   workbench,
   ...(getInitialSettings().filesBox === false ? [] : [files]),
   router,
