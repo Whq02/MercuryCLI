@@ -42,8 +42,9 @@ import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
+import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
-import { FORK_AGENT, FORK_SUBAGENT_TYPE, isForkSubagentEnabled } from './forkSubagent.js'
+import { FORK_AGENT, FORK_SUBAGENT_TYPE, forkSystemPrompt, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
@@ -205,6 +206,7 @@ export async function resumeAgentBackground(args: {
         )
       }
     }
+    systemPromptOverride = forkSystemPrompt(systemPromptOverride, ensureScratchpadDir(agentId))
   }
 
   const restoredModel = meta?.model
