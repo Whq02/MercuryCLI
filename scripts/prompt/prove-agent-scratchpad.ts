@@ -84,7 +84,7 @@ const notice = buildScratchpadNotice?.(forkDir) ?? ''
 check(`${RED_FORK}: the notice carries the agent's own line for the folder under the root, in the one owner's words`, forkDir === join(root, forkling) && notice.includes(`Scratchpad directory: ${forkDir} — this agent's own place ${purpose}`), notice)
 check("the notice says the inherited environment section's scratchpad is the parent's", /inherited/.test(notice) && /parent/.test(notice), notice)
 check('the folder exists once the notice is built', existsSync(forkDir))
-const forkArm = agentTool.slice(mintAt, agentTool.indexOf('// 16. Worktree creation'))
+const forkArm = agentTool.slice(mintAt, agentTool.indexOf('let worktreeInfo:', mintAt))
 check(`${RED_FORK}: after the mint, the fork arm appends the notice for the minted id to its prompt rows`, mintAt > 0 && /if \(isFork\) \{[\s\S]*?buildScratchpadNotice\(ensureScratchpadDir\(earlyAgentId\)\)[\s\S]*?\}/.test(forkArm), forkArm.trim().split('\n').slice(0, 12).join('\n'))
 check("the fork's prompt bytes stay the parent's: the rendered prompt is inherited unchanged and the default build still skips the fork", agentTool.includes('systemPromptOverride = [...rendered]') && agentTool.includes('if (!isFork && !willOverrideCwd) {'))
 
