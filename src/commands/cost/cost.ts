@@ -2,7 +2,7 @@ import { formatLaneSpend, formatSessionCost, formatTotalCost, getModelUsage, get
 import { currentLimits } from '../../services/claudeAiLimits.js'
 import { declaredRouteOf, laneLabelForVerdict, PROVIDER_ID_SPACES } from '../../services/providers/callModelRouter.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
-import { providerUsageView, type ProviderSessionSpend } from '../../services/providers/providerUsage.js'
+import { providerUsageView, scheduledSessionSpend, type ProviderSessionSpend } from '../../services/providers/providerUsage.js'
 import type { LocalCommandResult } from '../../types/command.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
@@ -96,8 +96,17 @@ export function nonAnthropicLaneLines(reads: CostLaneReads = {}): string[] {
   return lines
 }
 
+export const SCHEDULED_LANE_LABEL = 'Scheduled work'
+
+export function scheduledLaneLine(): string | null {
+  const spend = scheduledSessionSpend()
+  if (spend.models === 0) return null
+  return `${SCHEDULED_LANE_LABEL}: ${spend.inputTokens.toLocaleString()} in · ${spend.outputTokens.toLocaleString()} out — ${formatLaneSpend(spend)}`
+}
+
 export const call = async (): Promise<LocalCommandResult> => {
-  const laneLines = nonAnthropicLaneLines()
+  const scheduled = scheduledLaneLine()
+  const laneLines = [...nonAnthropicLaneLines(), ...(scheduled === null ? [] : [scheduled])]
   if (isClaudeAISubscriber()) {
     const anthropic = currentLimits.isUsingOverage
       ? "Anthropic says this account's usage is currently billed to its extra-usage pool — subscription rate limits resume automatically when they reset."

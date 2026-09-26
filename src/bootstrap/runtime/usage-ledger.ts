@@ -11,6 +11,9 @@ export type ModelUsage = {
   maxOutputTokens?: number
 }
 
+export type WorkloadUsage = { [workload: string]: { [modelName: string]: ModelUsage } }
+export type WorkloadUnpricedTurns = { [workload: string]: { [modelName: string]: number } }
+
 export class UsageLedgerOwner {
   totalCostUSD = 0
   totalAPIDuration = 0
@@ -22,6 +25,8 @@ export class UsageLedgerOwner {
   hasUnknownModelCost = false
   modelUsage: { [modelName: string]: ModelUsage } = {}
   unpricedTurns: { [modelName: string]: number } = {}
+  workloadUsage: WorkloadUsage = {}
+  workloadUnpricedTurns: WorkloadUnpricedTurns = {}
 
   addToTotalDurationState(
     duration: number,
@@ -38,6 +43,30 @@ export class UsageLedgerOwner {
 
   recordUnpricedTurn(model: string): void {
     this.unpricedTurns[model] = (this.unpricedTurns[model] ?? 0) + 1
+  }
+
+  addToWorkloadUsageState(workload: string, delta: ModelUsage, model: string): void {
+    const bucket = (this.workloadUsage[workload] ??= {})
+    const record = bucket[model] ?? {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadInputTokens: 0,
+      cacheCreationInputTokens: 0,
+      webSearchRequests: 0,
+      costUSD: 0,
+    }
+    record.inputTokens += delta.inputTokens
+    record.outputTokens += delta.outputTokens
+    record.cacheReadInputTokens += delta.cacheReadInputTokens
+    record.cacheCreationInputTokens += delta.cacheCreationInputTokens
+    record.webSearchRequests += delta.webSearchRequests
+    record.costUSD += delta.costUSD
+    bucket[model] = record
+  }
+
+  recordWorkloadUnpricedTurn(workload: string, model: string): void {
+    const bucket = (this.workloadUnpricedTurns[workload] ??= {})
+    bucket[model] = (bucket[model] ?? 0) + 1
   }
 
   getTotalUnpricedTurns(): number {
@@ -88,6 +117,8 @@ export class UsageLedgerOwner {
     this.hasUnknownModelCost = false
     this.modelUsage = {}
     this.unpricedTurns = {}
+    this.workloadUsage = {}
+    this.workloadUnpricedTurns = {}
   }
 
   resetDurationsAndCostForTestsOnly(): void {
@@ -106,6 +137,8 @@ export class UsageLedgerOwner {
     lastDuration,
     modelUsage,
     unpricedTurns,
+    workloadUsage,
+    workloadUnpricedTurns,
   }: {
     totalCostUSD: number
     totalAPIDuration: number
@@ -116,6 +149,8 @@ export class UsageLedgerOwner {
     lastDuration: number | undefined
     modelUsage: { [modelName: string]: ModelUsage } | undefined
     unpricedTurns?: { [modelName: string]: number } | undefined
+    workloadUsage?: WorkloadUsage | undefined
+    workloadUnpricedTurns?: WorkloadUnpricedTurns | undefined
   }): void {
     this.totalCostUSD = totalCostUSD
     this.totalAPIDuration = totalAPIDuration
@@ -129,6 +164,12 @@ export class UsageLedgerOwner {
     }
     if (unpricedTurns) {
       this.unpricedTurns = unpricedTurns
+    }
+    if (workloadUsage) {
+      this.workloadUsage = workloadUsage
+    }
+    if (workloadUnpricedTurns) {
+      this.workloadUnpricedTurns = workloadUnpricedTurns
     }
 
     if (lastDuration) {

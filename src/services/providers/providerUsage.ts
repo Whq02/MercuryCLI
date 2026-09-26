@@ -1,4 +1,7 @@
-import { getModelUsage, getUnpricedTurns } from '../../bootstrap/state.js'
+import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../bootstrap/state.js'
+import { formatLaneSpend } from '../../utils/spendSpelling.js'
+import { formatTokens } from '../../utils/format.js'
+import { WORKLOAD_CRON } from '../../utils/workloadContext.js'
 import {
   getAnthropicApiKey,
   getAuthTokenSource,
@@ -77,6 +80,7 @@ export interface ProviderSessionSpend {
   costUSD: number
   models: number
   pricing?: { estimatedModels: number; unpricedModels: number; unpricedTurns: number }
+  scheduled?: ProviderSessionSpend
 }
 
 export interface ProviderUsageView {
@@ -220,14 +224,44 @@ export function providerSessionSpend(route: RouterProviderId): ProviderSessionSp
 }
 
 function spendForRoute(route: RouterProviderId | 'unrecognised'): ProviderSessionSpend {
-  const usage = getModelUsage()
-  const unpriced = getUnpricedTurns()
+  const admit = (model: string): boolean => (declaredRouteOf(model) ?? 'unrecognised') === route
+  const spend = spendOf(getModelUsage(), getUnpricedTurns(), admit)
+  const scheduled = spendOf(scheduledUsage(), scheduledUnpricedTurns(), admit)
+  if (scheduled.models > 0) spend.scheduled = scheduled
+  return spend
+}
+
+function scheduledUsage(): { [modelName: string]: ModelUsage } {
+  return getWorkloadUsage()[WORKLOAD_CRON] ?? {}
+}
+
+function scheduledUnpricedTurns(): { [modelName: string]: number } {
+  return getWorkloadUnpricedTurns()[WORKLOAD_CRON] ?? {}
+}
+
+export function scheduledSessionSpend(): ProviderSessionSpend {
+  return spendOf(scheduledUsage(), scheduledUnpricedTurns(), () => true)
+}
+
+export const SCHEDULED_WORK_WORD = 'scheduled'
+
+export function scheduledUsageLine(): string | null {
+  const spend = scheduledSessionSpend()
+  if (spend.models === 0) return null
+  return `${SCHEDULED_WORK_WORD} ${formatTokens(spend.inputTokens + spend.outputTokens)} spent · ${formatLaneSpend(spend)}`
+}
+
+function spendOf(
+  usage: { [modelName: string]: ModelUsage },
+  unpriced: { [modelName: string]: number },
+  admit: (model: string) => boolean,
+): ProviderSessionSpend {
   const spend: ProviderSessionSpend = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
   let estimatedModels = 0
   let unpricedModels = 0
   let unpricedTurns = 0
   for (const [model, record] of Object.entries(usage)) {
-    if ((declaredRouteOf(model) ?? 'unrecognised') !== route) continue
+    if (!admit(model)) continue
     spend.models += 1
     spend.inputTokens += record.inputTokens + record.cacheReadInputTokens + record.cacheCreationInputTokens
     spend.outputTokens += record.outputTokens

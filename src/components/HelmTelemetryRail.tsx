@@ -21,7 +21,7 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
 import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
-import { anthropicSignInEmail, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { anthropicSignInEmail, scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
@@ -347,6 +347,16 @@ function HelmTelemetryRailImpl({
       <Box key="usage:crew" width={rowW}>
         <Text wrap="truncate-end">
           <Text color={tok.textMuted}>{`  ${crewLine}`}</Text>
+        </Text>
+      </Box>,
+    )
+  }
+  const scheduledLine = scheduledUsageLine()
+  if (scheduledLine !== null) {
+    usageNodes.push(
+      <Box key="usage:scheduled" width={rowW}>
+        <Text wrap="truncate-end">
+          <Text color={tok.textMuted}>{`  ${scheduledLine}`}</Text>
         </Text>
       </Box>,
     )

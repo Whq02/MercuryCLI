@@ -23,6 +23,7 @@ export type TranscriptMessage = SerializedMessage & {
   agentName?: string
   agentColor?: string
   promptId?: string
+  workload?: string
 }
 
 export type SummaryMessage = {
