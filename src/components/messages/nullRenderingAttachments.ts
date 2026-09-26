@@ -14,6 +14,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'edited_image_file',
   'edited_text_file',
   'opened_file_in_ide',
+  'open_files_in_ide',
   'plan_mode',
   'plan_mode_exit',
   'plan_mode_reentry',
