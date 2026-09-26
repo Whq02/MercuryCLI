@@ -96,7 +96,7 @@ const NEXT = 'deepseek-fixture-next'
 const PRO_NAME = 'DeepSeek V4 Pro'
 const FLASH_NAME = 'DeepSeek V4.1 Flash'
 const NEXT_NAME = 'Deepseek Fixture Next'
-const DEEPSEEK_TITLE = 'MERCURY — DEEPSEEK MODELS'
+const DEEPSEEK_TITLE = ' DEEPSEEK · '
 const OLD_LIST = { object: 'list', data: [
   { id: PRO, object: 'model', owned_by: 'deepseek' },
   { id: FLASH, object: 'model', owned_by: 'deepseek' },
@@ -170,23 +170,26 @@ const until = async (ok: () => boolean, ms: number): Promise<boolean> => {
 }
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const linesOf = (frame: string): string[] => frame.split('\n')
-const ROW_MARK = /[○●⦿] (?:current|switch|unavail|next)/
-const hasRow = (frame: string, name: string): boolean => linesOf(frame).some(line => new RegExp(`│ (?:│ | {2})${escape(name)} {2,}[○●⦿] (?:current|switch|unavail|next)`).test(line))
-const rowsOf = (frame: string): string => [PRO_NAME, FLASH_NAME, NEXT_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'
-const lineUnder = (frame: string, title: string): string => {
-  const lines = linesOf(frame)
-  const at = lines.findIndex(line => line.includes(title))
-  if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const right = lines[at + 1]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
-}
+const innerOf = (line: string): string => line.replace(/^\s*│ (?:│ )?/, '').replace(/\s*│(?: │)?\s*$/, '')
+const isHeading = (text: string): boolean => /^[▾▸❯] [A-Z][A-Z0-9.\- ]* · /.test(text)
+const isDoorLine = (text: string): boolean => /^ {2}\S.* · (?:\d+ live|\d+ of \d+)/.test(text) && !/ ctx\b/.test(text)
+const isRowText = (text: string): boolean => /^(?:❯ | {2})\S/.test(text) && !isHeading(text) && !isDoorLine(text) && !/^ {2}[↑↓] \d+ more/.test(text) && !/^ {2}[╭╰─│]/.test(text) && !(text.includes(' · ') && text.trim().split(/ {2,}/).length === 1)
+const rowText = (line: string): string => (line.includes('│ │ ') ? `  ${(line.split('│ │ ')[1] ?? '').replace(/\s*│ │\s*$/, '')}` : innerOf(line))
+const cellsOf = (text: string): string[] => text.replace(/^(?:❯ | {2})/, '').trim().split(/ {2,}/)
+const nameOfCells = (cells: string[]): string => (cells[0] === '—' ? cells[1] ?? '' : cells[0] ?? '')
+const sameName = (painted: string, name: string): boolean => painted === name || (painted.endsWith('…') && name.startsWith(painted.slice(0, -1)))
+const rowLines = (frame: string): string[] => linesOf(frame).filter(line => /│ (?:│ | {2})/.test(line) && isRowText(rowText(line)))
+const rowLine = (frame: string, name: string): string => rowLines(frame).find(line => sameName(nameOfCells(cellsOf(rowText(line))), name)) ?? ''
+const hasRow = (frame: string, name: string): boolean => rowLine(frame, name) !== ''
+const headingOf = (frame: string, title: string): string => innerOf(linesOf(frame).find(line => line.includes(title)) ?? '').trim()
 const focusOf = (frame: string): string => {
-  const card = linesOf(frame).find(line => line.includes('│ │ ')) ?? ''
-  const inner = card.split('│ │ ')[1] ?? ''
-  return inner.replace(/\s+[○●⦿] (?:current|switch|unavail|next|expand|gated)\b.*$/, '').replace(/\s*│.*$/, '').trim()
+  const boxed = linesOf(frame).find(line => line.includes('│ │ '))
+  if (boxed !== undefined) return nameOfCells(cellsOf(rowText(boxed)))
+  const caret = linesOf(frame).map(innerOf).find(text => text.startsWith('❯ ') && isRowText(text))
+  return caret === undefined ? '' : nameOfCells(cellsOf(caret))
 }
-const noticeOf = (frame: string): string => linesOf(frame).map(line => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()).find(line => line.startsWith('DeepSeek — ') && !ROW_MARK.test(line)) ?? ''
+const rowsOf = (frame: string): string => [PRO_NAME, FLASH_NAME, NEXT_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'
+const noticeOf = (frame: string): string => linesOf(frame).filter(line => !rowLines(frame).includes(line)).map(line => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()).find(line => line.startsWith('DeepSeek — ')) ?? ''
 const DEEPSEEK_NAMES = new Set([PRO_NAME, FLASH_NAME, NEXT_NAME])
 const onDeepseek = (name: string): boolean => name.startsWith('DeepSeek — ') || DEEPSEEK_NAMES.has(name)
 const fits = (frame: string, columns: number, rows: number): boolean => linesOf(frame).length <= rows && linesOf(frame).every(line => stringWidth(line) <= columns)
@@ -206,7 +209,7 @@ async function mount(model: string, band: Band) {
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
-  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('CHOOSE A MODEL'), 5000)
+  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('Mercury · model'), 5000)
   await flush(100)
   const press = async (keys: string, expectChange = true): Promise<boolean> => {
     const before = frame()
@@ -249,14 +252,14 @@ try {
     await until(() => requests > before, 2000)
     check('a cold open starts exactly one list request (whatever asked, one wire)', requests === before + 1, `requests ${requests - before}`)
     check('the frame fits 178x51', fits(cold.frame(), 178, 51))
-    check('the dated pins stand in while the list is in flight, the current mark on the Flash row', hasRow(cold.frame(), PRO_NAME) && hasRow(cold.frame(), FLASH_NAME) && !hasRow(cold.frame(), NEXT_NAME) && cold.frame().includes(`${FLASH} · model IDs`), rowsOf(cold.frame()))
-    record(`178x51 held open · under the title "${lineUnder(cold.frame(), DEEPSEEK_TITLE)}" · rows ${rowsOf(cold.frame())} · requests on open ${requests - before}`)
+    check('the dated pins stand in while the list is in flight, the current mark on the Flash row', hasRow(cold.frame(), PRO_NAME) && hasRow(cold.frame(), FLASH_NAME) && !hasRow(cold.frame(), NEXT_NAME) && cellsOf(rowText(rowLine(cold.frame(), FLASH_NAME))).includes('current'), rowsOf(cold.frame()))
+    record(`178x51 held open · the heading "${headingOf(cold.frame(), DEEPSEEK_TITLE)}" · rows ${rowsOf(cold.frame())} · requests on open ${requests - before}`)
     file('held-178x51-pins', cold.frame())
     releaseHeld?.()
     releaseHeld = null
-    await until(() => hasRow(cold.frame(), NEXT_NAME) && lineUnder(cold.frame(), DEEPSEEK_TITLE).includes('models live'), 3000)
+    await until(() => hasRow(cold.frame(), NEXT_NAME) && /· 3 live$/.test(headingOf(cold.frame(), DEEPSEEK_TITLE)), 3000)
     check('the released list lands in place: the live-only row paints after the pins', hasRow(cold.frame(), PRO_NAME) && hasRow(cold.frame(), FLASH_NAME) && hasRow(cold.frame(), NEXT_NAME), `rows ${rowsOf(cold.frame())}`)
-    check('the group line carries the live count beside the key words once the list lands', lineUnder(cold.frame(), DEEPSEEK_TITLE) === 'key present · 3 models live', lineUnder(cold.frame(), DEEPSEEK_TITLE))
+    check('the heading carries the live count beside the door words once the list lands', /^[▾❯] DEEPSEEK · API key · …\S+ · 3 live$/.test(headingOf(cold.frame(), DEEPSEEK_TITLE)), headingOf(cold.frame(), DEEPSEEK_TITLE))
     check('a cold open sends nothing more once the list has landed', requests === before + 1, `requests ${requests - before}`)
     file('held-178x51-landed', cold.frame())
     cold.unmount()
@@ -271,12 +274,12 @@ try {
     await until(() => hasRow(stale.frame(), NEXT_NAME), 1500)
     const frame = stale.frame()
     file(`stale-${tag(band)}-open`, frame)
-    record(`${tag(band)} stale open · under the title "${lineUnder(frame, DEEPSEEK_TITLE)}" · rows ${rowsOf(frame)} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
+    record(`${tag(band)} stale open · the heading "${headingOf(frame, DEEPSEEK_TITLE)}" · rows ${rowsOf(frame)} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
     check(`${tag(band)}: the open makes one list request although a list is cached (the other families' open law)`, requests === before + 1, `requests ${requests - before}`)
     check(`${tag(band)}: the DeepSeek block is live on open: the live-only row paints beside the pins, the retired list does not stand`, hasRow(frame, NEXT_NAME) && hasRow(frame, FLASH_NAME), `rows ${rowsOf(frame)}`)
-    check(`${tag(band)}: the group line carries the live count beside the key words`, lineUnder(frame, DEEPSEEK_TITLE) === 'key present · 3 models live', lineUnder(frame, DEEPSEEK_TITLE))
+    check(`${tag(band)}: the heading carries the live count beside the door words`, /^[▾❯] DEEPSEEK · API key · …\S+ · 3 live$/.test(headingOf(frame, DEEPSEEK_TITLE)), headingOf(frame, DEEPSEEK_TITLE))
     check(`${tag(band)}: the changed list paints the family's existing notice`, noticeOf(frame) === 'DeepSeek — the live list changed; rows updated', noticeOf(frame))
-    check(`${tag(band)}: the current mark stays on ${FLASH} and the frame fits`, frame.includes(`${FLASH} · model IDs`) && fits(frame, band.columns, band.rows), linesOf(frame).filter(line => line.includes('model IDs')).join(' | '))
+    check(`${tag(band)}: the current mark stays on ${FLASH} and the frame fits`, cellsOf(rowText(rowLine(frame, FLASH_NAME))).includes('current') && fits(frame, band.columns, band.rows), rowText(rowLine(frame, FLASH_NAME)))
     stale.unmount()
   }
 
@@ -289,10 +292,10 @@ try {
     await until(() => hasRow(failed.frame(), NEXT_NAME), 1500)
     const frame = failed.frame()
     file(`failed-${tag(band)}-open`, frame)
-    record(`${tag(band)} failed-read open · under the title "${lineUnder(frame, DEEPSEEK_TITLE)}" · rows ${rowsOf(frame)} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
+    record(`${tag(band)} failed-read open · the heading "${headingOf(frame, DEEPSEEK_TITLE)}" · rows ${rowsOf(frame)} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
     check(`${tag(band)}: the open reads the list although the last read failed (no wait for the retry window)`, requests === before + 1, `requests ${requests - before}`)
     check(`${tag(band)}: the block is live on open, not the pins alone`, hasRow(frame, NEXT_NAME) && hasRow(frame, FLASH_NAME), `rows ${rowsOf(frame)}`)
-    check(`${tag(band)}: the group line reads the key words with the live count`, lineUnder(frame, DEEPSEEK_TITLE) === 'key present · 3 models live', lineUnder(frame, DEEPSEEK_TITLE))
+    check(`${tag(band)}: the heading reads the door words with the live count`, /^[▾❯] DEEPSEEK · API key · …\S+ · 3 live$/.test(headingOf(frame, DEEPSEEK_TITLE)), headingOf(frame, DEEPSEEK_TITLE))
     check(`${tag(band)}: the frame fits`, fits(frame, band.columns, band.rows))
     failed.unmount()
   }
@@ -305,7 +308,7 @@ try {
     const dark = await mount(FLASH, BANDS[0]!)
     await flush(300)
     const frame = dark.frame()
-    check('traffic off: the open sends nothing, the dated pins stand and the group line carries no count', requests === before && hasRow(frame, PRO_NAME) && hasRow(frame, FLASH_NAME) && !hasRow(frame, NEXT_NAME) && lineUnder(frame, DEEPSEEK_TITLE) === 'key present', `requests ${requests - before} · rows ${rowsOf(frame)} · under the title "${lineUnder(frame, DEEPSEEK_TITLE)}"`)
+    check('traffic off: the open sends nothing, the dated pins stand and the heading counts the pins alone', requests === before && hasRow(frame, PRO_NAME) && hasRow(frame, FLASH_NAME) && !hasRow(frame, NEXT_NAME) && /^[▾❯] DEEPSEEK · API key · …\S+ · 2 live$/.test(headingOf(frame, DEEPSEEK_TITLE)), `requests ${requests - before} · rows ${rowsOf(frame)} · the heading "${headingOf(frame, DEEPSEEK_TITLE)}"`)
     dark.unmount()
     delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
     delete process.env.DEEPSEEK_API_KEY
@@ -324,7 +327,7 @@ try {
     const opens = (road: string): number => (wrapper.match(new RegExp(`useCatalogueRefreshOnOpen\\(${road}, setNotice\\)`, 'g')) ?? []).length
     check('the DeepSeek road is opened wherever the OpenRouter road is', opens('DEEPSEEK_ROAD') === opens('OPENROUTER_ROAD') && opens('DEEPSEEK_ROAD') >= 1, `deepseek ${opens('DEEPSEEK_ROAD')} · openrouter ${opens('OPENROUTER_ROAD')}`)
     check('the road reads the key-keyed cache and forces its refresh', wrapper.includes('cached: () => getCachedDeepseekCatalogue()') && wrapper.includes('refresh: () => refreshDeepseekCatalogue({ force: true })') && wrapper.includes('${key.source}:${credentialFingerprint(key.key)}:${deepseekApiBase()}'))
-    check('the group line carries the live words the catalogue owner chose', wrapper.includes('deepseekCatalogueSourceWords()'))
+    check('the heading counts the live rows through the one composer (the catalogue owner\'s rows, no second count)', !wrapper.includes('deepseekCatalogueSourceWords()') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
   }
 } finally {
   globalThis.fetch = realFetch

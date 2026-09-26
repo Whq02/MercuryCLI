@@ -130,7 +130,7 @@ const EXIT_TABLE: Record<string, Exit> = {
   ModelPicker: {
     kind: 'raw',
     route: { file: 'src/components/MercuryModelPicker.tsx', needles: ["rowAxis === 'cancel'", 'onClose?.()'] },
-    hints: [{ file: 'src/utils/model/modelPickerFooter.ts', needles: [": 'esc close'"] }],
+    hints: [{ file: 'src/utils/model/modelPickerFooter.ts', needles: ["MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'"] }],
   },
   Select: {
     kind: 'binding',

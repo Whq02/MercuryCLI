@@ -308,7 +308,7 @@ section('8 · the toggle PERSISTS on the id and re-opens true (structural)')
   const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
   check(
     'commit maps the toggle onto the id: bare = declared max, [served] = the opt-down',
-    picker.includes('onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id))'),
+    picker.includes('onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id), m.door)'),
   )
   check(
     'a re-open seeds the toggle from the PERSISTED id (the [served] annotation on `current`)',
@@ -319,8 +319,8 @@ section('8 · the toggle PERSISTS on the id and re-opens true (structural)')
     picker.includes('const currentRow = stripGptServedWindowSuffix(current)'),
   )
   check(
-    'the footer advertises the c toggle for BOTH toggle families (1M and served↔declared)',
-    picker.includes('supports1m: focusedSupports1m || focusedGptToggle'),
+    'the column follows the live c state for BOTH toggle families (1M and served↔declared)',
+    picker.includes('on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx'),
   )
   const wrapper = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
   check(

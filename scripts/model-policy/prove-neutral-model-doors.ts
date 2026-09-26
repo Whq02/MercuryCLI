@@ -210,7 +210,7 @@ section('§4 the Agent tool: haiku is a dispatch word like any other, and the wo
   check("the rows' warnings name no alias walk", !/walk the aliases/.test(config))
   check("each door's leading row is a choice, never painted as a model id", (config.match(/\bchoice: ["']/g) ?? []).length === 3)
   const picker = src('components', 'MercuryModelPicker.tsx')
-  check('the picker prints a choice row\'s own sentence in the footer and never counts it as available', /focusedModel!\.choice !== undefined/.test(picker) && /m\.choice === undefined\)\.length\} AVAILABLE/.test(picker))
+  check('a choice row is never a model row: it paints no id column and never counts as live', /row\.action !== true && row\.expand === undefined && row\.choice === undefined/.test(src('utils', 'model/modelPickerGroups.ts')) && /const model = isModelRow\(m\)/.test(picker))
 }
 
 section('§5 the doors store exact ids; the words come from a lookup of the id')

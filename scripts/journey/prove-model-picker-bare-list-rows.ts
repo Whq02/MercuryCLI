@@ -93,7 +93,7 @@ process.env.OPENAI_API_KEY = OPENAI_KEY
 
 const MARKER = 'live · unknown to mercury'
 const SOURCE = 'OpenAI API key (env)'
-const OPENAI_TITLE = 'MERCURY — OPENAI MODELS'
+const OPENAI_TITLE = ' OPENAI · '
 const SOL = 'gpt-5.6-sol'
 const TERRA = 'gpt-5.6-terra'
 const NOVA = 'gpt-5.7-nova'
@@ -172,24 +172,31 @@ const until = async (ok: () => boolean, ms: number): Promise<boolean> => {
 }
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const linesOf = (frame: string): string[] => frame.split('\n')
-const ROW = /│ (?:│ | {2})(\S.*?) {2,}([○●⦿]) (current|switch|unavail|next|expand|gated)\b/
-const rowNames = (frame: string): string[] => linesOf(frame).map(line => ROW.exec(line)?.[1] ?? '').filter(name => name !== '')
-const hasRow = (frame: string, name: string): boolean => linesOf(frame).some(line => new RegExp(`│ (?:│ | {2})${escape(name)} {2,}[○●⦿] (?:current|switch|unavail|next)`).test(line))
-const lineUnder = (frame: string, title: string): string => {
-  const lines = linesOf(frame)
-  const at = lines.findIndex(line => line.includes(title))
-  if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const right = lines[at + 1]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
-}
+const innerOf = (line: string): string => line.replace(/^\s*│ (?:│ )?/, '').replace(/\s*│(?: │)?\s*$/, '')
+const isHeading = (text: string): boolean => /^[▾▸❯] [A-Z][A-Z0-9.\- ]* · /.test(text)
+const isDoorLine = (text: string): boolean => /^ {2}\S.* · (?:\d+ live|\d+ of \d+)/.test(text) && !/ ctx\b/.test(text)
+const isRowText = (text: string): boolean => /^(?:❯ | {2})\S/.test(text) && !isHeading(text) && !isDoorLine(text) && !/^ {2}[↑↓] \d+ more/.test(text) && !/^ {2}[╭╰─│]/.test(text) && !(text.includes(' · ') && text.trim().split(/ {2,}/).length === 1)
+const rowText = (line: string): string => (line.includes('│ │ ') ? `  ${(line.split('│ │ ')[1] ?? '').replace(/\s*│ │\s*$/, '')}` : innerOf(line))
+const cellsOf = (text: string): string[] => text.replace(/^(?:❯ | {2})/, '').trim().split(/ {2,}/)
+const nameOfCells = (cells: string[]): string => (cells[0] === '—' ? cells[1] ?? '' : cells[0] ?? '')
+const sameName = (painted: string, name: string): boolean => painted === name || (painted.endsWith('…') && name.startsWith(painted.slice(0, -1)))
+const rowLines = (frame: string): string[] => linesOf(frame).filter(line => /│ (?:│ | {2})/.test(line) && isRowText(rowText(line)))
+const rowNames = (frame: string): string[] => rowLines(frame).map(line => nameOfCells(cellsOf(rowText(line))))
+const rowLine = (frame: string, name: string): string => rowLines(frame).find(line => sameName(nameOfCells(cellsOf(rowText(line))), name)) ?? ''
+const hasRow = (frame: string, name: string): boolean => rowLine(frame, name) !== ''
+const headingOf = (frame: string, title: string): string => innerOf(linesOf(frame).find(line => line.includes(title)) ?? '').trim()
 const cardOf = (frame: string): string[] => linesOf(frame).filter(line => line.includes('│ │ ')).map(line => (line.split('│ │ ')[1] ?? '').replace(/\s*│ │\s*$/, '').trimEnd())
-const focusOf = (frame: string): string => (cardOf(frame)[0] ?? '').replace(/\s+[○●⦿] (?:current|switch|unavail|next|expand|gated)\b.*$/, '').trim()
+const focusOf = (frame: string): string => {
+  const boxed = cardOf(frame)[0]
+  if (boxed !== undefined) return nameOfCells(cellsOf(`  ${boxed}`))
+  const caret = linesOf(frame).map(innerOf).find(text => text.startsWith('❯ ') && isRowText(text))
+  return caret === undefined ? '' : nameOfCells(cellsOf(caret))
+}
 const cardWords = (frame: string): string => (cardOf(frame)[1] ?? '').trim()
-const rowLine = (frame: string, name: string): string => linesOf(frame).find(line => new RegExp(`│ (?:│ | {2})${escape(name)} {2,}[○●⦿] (?:current|switch|unavail|next)`).test(line)) ?? ''
-const ctxCell = (frame: string, name: string): string => rowLine(frame, name).replace(/^.*?[○●⦿] (?:current|switch|unavail|next)/, '').replace(/\s*│(?: │)?\s*$/, '').trim()
-const glyphCol = (frame: string, name: string): number => rowLine(frame, name).search(/[○●⦿] (?:current|switch|unavail|next)/)
-const availableOf = (frame: string): number => Number(/· (\d+) AVAILABLE/.exec(frame)?.[1] ?? -1)
+const ctxCell = (frame: string, name: string): string => cellsOf(rowText(rowLine(frame, name))).find(cell => / ctx$/.test(cell)) ?? ''
+const tailOf = (frame: string, name: string): string => cellsOf(rowText(rowLine(frame, name))).find(cell => cell === 'new · no alias' || /^new · n/.test(cell)) ?? ''
+const ctxCol = (frame: string, name: string): number => rowLine(frame, name).indexOf(ctxCell(frame, name))
+const liveOf = (frame: string, title: string): number => Number(/· (\d+) live/.exec(headingOf(frame, title))?.[1] ?? -1)
 const fits = (frame: string, columns: number, rows: number): boolean => linesOf(frame).length <= rows && linesOf(frame).every(line => stringWidth(line) <= columns)
 const file = (name: string, frame: string): void => {
   if (frameDir !== undefined) writeFileSync(join(frameDir, `${name}.txt`), frame + '\n')
@@ -210,7 +217,7 @@ async function mount(model: string, band: Band) {
   const picker = await call((result?: string) => { done.push(result ?? '') }, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
-  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('CHOOSE A MODEL'), 5000)
+  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('Mercury · model'), 5000)
   await flush(150)
   const press = async (keys: string, expectChange = true): Promise<boolean> => {
     const before = frame()
@@ -260,20 +267,22 @@ try {
     await flush(100)
     const frame = open.frame()
     file(`open-${tag(band)}-whisper`, frame)
-    record(`${tag(band)} open · heading "${lineUnder(frame, OPENAI_TITLE)}" · rows ${rowNames(frame).join(',')} · card "${cardOf(frame).join(' / ')}" · cells whisper-1 "${ctxCell(frame, 'whisper-1')}" tts-1 "${ctxCell(frame, 'tts-1')}" ${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · available ${availableOf(frame)}`)
+    record(`${tag(band)} open · heading "${headingOf(frame, OPENAI_TITLE)}" · rows ${rowNames(frame).join(',')} · card "${cardOf(frame).join(' / ')}" · cells whisper-1 "${ctxCell(frame, 'whisper-1')}" tts-1 "${ctxCell(frame, 'tts-1')}" ${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · live ${liveOf(frame, OPENAI_TITLE)}`)
     check(`${tag(band)}: the open reads the list once and the frame fits`, requests === before + 1 && fits(frame, band.columns, band.rows), `requests ${requests - before}`)
-    check(`${tag(band)}: the heading counts every live id, the seven included`, lineUnder(frame, OPENAI_TITLE) === `${SOURCE} · signed in · 10 models live`, lineUnder(frame, OPENAI_TITLE))
+    check(`${tag(band)}: the heading counts every live id, the seven included`, /^[▾❯] OPENAI · .+ · 10 live$/.test(headingOf(frame, OPENAI_TITLE)), headingOf(frame, OPENAI_TITLE))
     const painted = rowNames(frame)
     const order = [...KNOWN.map(id => KNOWN_NAMES[id]!), ...BARE, ...UNSERVED]
+    const shown = order.slice(0, 12)
+    const hidden = order.length - shown.length
     const inOrder = band.rows >= 40
-      ? painted.slice(0, order.length).join(',') === order.join(',')
-      : painted.length >= 3 && painted.includes('whisper-1') && `,${order.join(',')},`.includes(`,${painted.slice(0, painted.findIndex(name => UNSERVED.includes(name)) < 0 ? painted.length : painted.findIndex(name => UNSERVED.includes(name)) + 1).join(',')},`)
-    check(`${tag(band)}: the rows paint in provenance order after the gpt rows${band.rows >= 40 ? ' (all seven, then the unserved pins)' : ' (the window around the current row)'}`, inOrder, painted.join(','))
-    check(`${tag(band)}: the current mark sits on whisper-1, a selectable row`, focusOf(frame) === 'whisper-1' && frame.includes('whisper-1 · model IDs are real') && hasRow(frame, 'whisper-1'), focusOf(frame))
+      ? painted.length >= shown.length && shown.every((name, index) => sameName(painted[index]!, name)) && (hidden === 0 || frame.includes(`↓ ${hidden} more · → unfolds the rest`))
+      : painted.length >= 3 && painted.includes('whisper-1') && painted.slice(0, Math.min(painted.length, shown.length)).every((name, index) => sameName(name, shown[index]!))
+    check(`${tag(band)}: the rows paint in provenance order after the gpt rows${band.rows >= 40 ? ' (all seven, then the unserved pins; the top group shows twelve and names the rest)' : ' (the window around the current row)'}`, inOrder, painted.join(','))
+    check(`${tag(band)}: the current mark sits on whisper-1, a selectable row under its raw id with the no-alias note`, focusOf(frame) === 'whisper-1' && cellsOf(rowText(rowLine(frame, 'whisper-1'))).includes('current') && tailOf(frame, 'whisper-1') !== '' && hasRow(frame, 'whisper-1'), `${focusOf(frame)} · ${rowText(rowLine(frame, 'whisper-1'))}`)
     check(`${tag(band)}: the focused unknown row carries the marker as its words`, cardWords(frame) === MARKER, `card "${cardOf(frame).join(' / ')}"`)
-    check(`${tag(band)}: the banner counts the seven as available`, availableOf(frame) === getModelOptions().filter(o => !isProviderActionRow(o.value) && o.unavailable === undefined).length, `${availableOf(frame)} vs ${getModelOptions().filter(o => !isProviderActionRow(o.value) && o.unavailable === undefined).length}`)
+    check(`${tag(band)}: the heading counts the seven as live`, liveOf(frame, OPENAI_TITLE) === liveOpenaiRows().length, `${liveOf(frame, OPENAI_TITLE)} vs ${liveOpenaiRows().length}`)
     check(`${tag(band)}: an unknown row's context cell is blank, focused or not — the resolver's borrowed default never paints`, ctxCell(frame, 'whisper-1') === '' && ctxCell(frame, 'tts-1') === '', `whisper-1 "${ctxCell(frame, 'whisper-1')}" · tts-1 "${ctxCell(frame, 'tts-1')}"`)
-    check(`${tag(band)}: the known rows keep their column and the rows still align (one glyph column)`, ctxCell(frame, KNOWN_NAMES[NOVA]!) === '200k ctx' && glyphCol(frame, 'whisper-1') > 0 && glyphCol(frame, 'whisper-1') === glyphCol(frame, KNOWN_NAMES[NOVA]!) && glyphCol(frame, 'tts-1') === glyphCol(frame, KNOWN_NAMES[NOVA]!), `${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · glyph columns ${glyphCol(frame, 'whisper-1')}/${glyphCol(frame, 'tts-1')}/${glyphCol(frame, KNOWN_NAMES[NOVA]!)}`)
+    check(`${tag(band)}: the known rows keep their column and the rows still align (one ctx column)`, ctxCell(frame, KNOWN_NAMES[NOVA]!) === '200k ctx' && ctxCol(frame, KNOWN_NAMES[NOVA]!) > 0 && rowNames(frame).filter(name => ctxCell(frame, name) !== '').every(name => ctxCol(frame, name) === ctxCol(frame, KNOWN_NAMES[NOVA]!)), `${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · ctx columns ${rowNames(frame).filter(name => ctxCell(frame, name) !== '').map(name => `${name}:${ctxCol(frame, name)}`).join(' ')}`)
     await open.press('\x1b[B')
     const next = open.frame()
     file(`walk-${tag(band)}-tts`, next)
@@ -350,7 +359,7 @@ try {
     const lanes = composer.slice(composer.indexOf('export function keyLaneGroupRows'), composer.indexOf('export function keyLaneProviderRows'))
     check('the key-lane rows lead with the pins the module names and trail the live-only ids, marked', lanes.includes('LIVE_UNKNOWN_ROW_WORDS') && lanes.includes('liveUnknown') && !/isDeepseekModelId|isKimiModelId|startsWith\('/.test(lanes))
     const wrapper = src('commands/model/mercuryModel.tsx')
-    check('the OpenAI heading counts the seat\'s live ids', /gptAvailability\.ids\.length === 1 \? 'model' : 'models'\} live/.test(wrapper))
+    check('the OpenAI heading counts the group\'s live rows through the one composer', src('utils/model/modelPickerGroups.ts').includes('export function liveCount(rows: readonly PickerRow[]): number {') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
     check('the row shape carries the typed live-unknown field, set beside the words by both composers', composer.includes('liveUnknown?: boolean\n}\n\nexport const LIVE_UNKNOWN_ROW_WORDS') && (composer.match(/\.\.\.\((?:liveUnknown|pin\.liveUnknown === true) \? \{ liveUnknown: true \} : \{\}\)/g) ?? []).length === 2)
     const mapping = wrapper.slice(wrapper.indexOf('function modelChoiceOf'), wrapper.indexOf('function expandRowsOf'))
     check("the row mapping paints an unknown row's stated window or nothing, on the carrier rows' road — it never asks the window resolver for one", mapping.includes('if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {') && mapping.includes('opt.liveUnknown === true') && mapping.includes('getContextWindowForModel(') && mapping.indexOf('opt.liveUnknown === true') < mapping.indexOf('getContextWindowForModel('))

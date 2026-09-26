@@ -20,7 +20,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -46,6 +46,7 @@ import { geminiSourceIdentity, resolveGeminiAccount } from '../../services/provi
 import {
   ANTHROPIC_DOOR_LABELS,
   anthropicDoors,
+  anthropicListedModel,
   getCachedAnthropicDoorCatalogue,
   refreshAnthropicCatalogue,
   type AnthropicDoor,
@@ -64,7 +65,6 @@ import { resolveHuggingfaceApiKey } from '../../services/providers/huggingface/h
 import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
 import {
   getCachedMoonshotCatalogue,
-  moonshotCatalogueSourceWords,
   refreshMoonshotCatalogue,
   type MoonshotCatalogueSnapshot,
 } from '../../services/providers/moonshot/moonshotCatalogue.js'
@@ -77,7 +77,6 @@ import {
   resolveMoonshotApiKey,
 } from '../../services/providers/moonshot/moonshotAccounts.js'
 import {
-  deepseekCatalogueSourceWords,
   getCachedDeepseekCatalogue,
   refreshDeepseekCatalogue,
   type DeepseekCatalogueSnapshot,
@@ -92,6 +91,13 @@ import { openaiSourceIdentity, resolveOpenaiAccount } from '../../services/provi
 import { anthropicCredentialPresence } from '../../services/providers/providerUsage.js'
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
+import { deriveFamilySlotGroups, type AccountSlot } from '../../services/providers/accountSlots.js'
+import { providerDisplayName } from '../../services/providers/routeLaw.js'
+import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
+import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
+import { getSubscriptionType } from '../../utils/auth.js'
+import { orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
+import { readModelUseLedger, recordModelUse } from '../../utils/model/modelUseLedger.js'
 import { has1mContext } from '../../utils/context.js'
 import {
   type EffortLevel,
@@ -401,16 +407,6 @@ function pickLabelOf(options: ModelOption[], id: string): string {
   )
 }
 
-function seatDetailOf(family: SwitchableFamily): string {
-  try {
-    const view = slotSeatView(family)
-    if (view.other === undefined || view.activeLabel === undefined) return ''
-    return ` · active slot: ${view.activeLabel} · s switches to ${view.other.label}`
-  } catch {
-    return ''
-  }
-}
-
 function slotSwitchOf(group: string, bump: () => void): string | null {
   const family: SwitchableFamily | null =
     group === ANTHROPIC_MODEL_GROUP ? 'anthropic' : group === OPENAI_MODEL_GROUP ? 'openai' : null
@@ -422,63 +418,190 @@ function slotSwitchOf(group: string, bump: () => void): string | null {
   return outcome.receipt
 }
 
-function groupDetailsOf(seatDetail: (family: SwitchableFamily) => string): Record<string, string> {
+const MODEL_GROUP_FAMILIES: Record<string, string> = {
+  [ANTHROPIC_MODEL_GROUP]: 'anthropic',
+  [OPENAI_MODEL_GROUP]: 'openai',
+  [OPENROUTER_MODEL_GROUP]: 'openrouter',
+  [GEMINI_MODEL_GROUP]: 'gemini',
+  [HUGGINGFACE_MODEL_GROUP]: 'huggingface',
+  [ZAI_MODEL_GROUP]: 'zai',
+  [MOONSHOT_MODEL_GROUP]: 'moonshot',
+  [DEEPSEEK_MODEL_GROUP]: 'deepseek',
+  [COMPAT_MODEL_GROUP]: 'openai-compat',
+  [LOCAL_MODEL_GROUP]: 'local',
+}
+
+export function familyOfModelGroup(group: string): string | undefined {
+  return MODEL_GROUP_FAMILIES[group]
+}
+
+function groupOfFamily(family: string): string | undefined {
+  return Object.entries(MODEL_GROUP_FAMILIES).find(([, candidate]) => candidate === family)?.[0]
+}
+
+const capitalise = (word: string): string => (word === '' ? word : word[0]!.toUpperCase() + word.slice(1))
+
+function anthropicDoorLabel(door: AnthropicDoor): string {
+  if (door === 'api-key') return 'API key'
+  if (door === 'bearer') return 'bearer token'
+  const plan = getSubscriptionType()
+  return plan ? `Claude ${capitalise(plan)} login` : 'Claude login'
+}
+
+function doorLabelOfSlot(family: string, slot: AccountSlot): string {
+  if (family === 'anthropic') return anthropicDoorLabel(slot.kind === 'api-key' ? 'api-key' : 'subscription')
+  if (family === 'openai') {
+    if (slot.kind !== 'subscription') return 'API key'
+    const plan = slot.kindLabel.replace(/\s*subscription$/, '')
+    return plan !== '' && plan !== slot.kindLabel ? `ChatGPT ${capitalise(plan)} login` : 'ChatGPT login'
+  }
+  if (family === 'openrouter') return slot.kindLabel === 'OAuth-minted key' ? 'OAuth key' : 'API key'
+  if (family === 'gemini') return slot.kind === 'oauth' ? 'Google account' : 'API key'
+  if (family === 'moonshot') return slot.kind === 'oauth' ? 'Kimi login' : 'API key'
+  if (family === 'huggingface') return 'token'
+  return slot.kindLabel.replace(/ · (env|helper)$/, '')
+}
+
+function accountOfSlot(slot: AccountSlot): string | undefined {
+  if (slot.signInEmail !== undefined) return slot.signInEmail
+  if (slot.identity.includes('@')) return slot.identity
+  return /…\S+$/.exec(slot.identity)?.[0]
+}
+
+function signedInDoorsOf(family: string, slots: readonly AccountSlot[]): ProviderHeading['doors'] {
+  const signedIn = slots.filter(slot => slot.signedIn)
+  const ordered = [...signedIn.filter(slot => slot.active), ...signedIn.filter(slot => !slot.active)]
+  const doors: ProviderHeading['doors'] = []
+  for (const slot of ordered) {
+    const door = doorLabelOfSlot(family, slot)
+    if (doors.some(candidate => candidate.door === door)) continue
+    const account = accountOfSlot(slot)
+    doors.push({ door, ...(account !== undefined ? { account } : {}), ...(slot.active ? { active: true } : {}) })
+  }
+  return doors
+}
+
+let headingsMemo: { key: string; at: number; value: Record<string, ProviderHeading> } | null = null
+
+function providerHeadingsOf(slotVersion: number): Record<string, ProviderHeading> {
+  const key = `${catalogueEpoch()}|${signInLedgerEpoch()}|${slotVersion}`
+  const now = Date.now()
+  if (headingsMemo !== null && headingsMemo.key === key && now - headingsMemo.at < 2_000) return headingsMemo.value
+  const value = buildProviderHeadings()
+  headingsMemo = { key, at: now, value }
+  return value
+}
+
+function buildProviderHeadings(): Record<string, ProviderHeading> {
+  const slotsOf = (family: string): AccountSlot[] => {
+    try {
+      return deriveFamilySlotGroups().find(group => group.family.id === family)?.slots ?? []
+    } catch {
+      return []
+    }
+  }
+  const nameOf = (family: string): string => providerDisplayName(family).toUpperCase()
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const credentialWords = (route: 'zai' | 'moonshot' | 'deepseek'): string => {
-    const lane = usability[route]
-    return lane.credential !== 'none'
-      ? lane.credential === 'oauth' ? 'signed in' : 'key present'
-      : lane.blockers[0] ?? 'not connected'
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek'): ProviderHeading => {
+    const lane = usability[family]
+    const doors = signedInDoorsOf(family, slotsOf(family))
+    if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
+    return { name: nameOf(family), doors }
   }
   const anthropicPresence = anthropicCredentialPresence()
+  const anthropic: ProviderHeading = anthropicPresence.credentialed
+    ? {
+        name: nameOf('anthropic'),
+        doors: signedInDoorsOf('anthropic', slotsOf('anthropic')),
+        ...(anthropicPresence.expired ? { reason: 'sign-in expired — /logins reconnects' } : {}),
+      }
+    : { name: nameOf('anthropic'), doors: [], reason: anthropicNotSignedInReason() }
+  const openrouterAvailability = getOpenrouterAvailability()
+  const geminiAvailability = getGeminiAvailability()
+  const huggingfaceAvailability = getHuggingfaceAvailability()
+  const local = localDiscoverySummary()
+  const compatDoors = signedInDoorsOf('openai-compat', slotsOf('openai-compat'))
   return {
-    [ANTHROPIC_MODEL_GROUP]:
-      (anthropicPresence.expired
-        ? `${anthropicPresence.credentialLabel ?? 'Claude sign-in'} · sign-in expired — /logins reconnects`
-        : anthropicPresence.credentialed
-          ? 'signed in'
-          : anthropicNotSignedInReason()) + seatDetail('anthropic'),
+    [ANTHROPIC_MODEL_GROUP]: anthropic,
     [OPENAI_MODEL_GROUP]:
-      (gptAvailability.state === 'ready'
-        ? `${gptAvailability.source} · signed in · ${gptAvailability.ids.length} ${gptAvailability.ids.length === 1 ? 'model' : 'models'} live`
-        : gptAvailability.reason) + seatDetail('openai'),
-    [ZAI_MODEL_GROUP]: credentialWords('zai'),
-    [MOONSHOT_MODEL_GROUP]: ((): string => {
-      const words = credentialWords('moonshot')
-      const live = moonshotCatalogueSourceWords()
-      return live === undefined ? words : `${words} · ${live}`
-    })(),
-    [DEEPSEEK_MODEL_GROUP]: ((): string => {
-      const words = credentialWords('deepseek')
-      const live = deepseekCatalogueSourceWords()
-      return live === undefined ? words : `${words} · ${live}`
-    })(),
-    [OPENROUTER_MODEL_GROUP]: ((): string => {
-      const availability = getOpenrouterAvailability()
-      return availability.state === 'ready'
-        ? `signed in · ${availability.modelCount} models live · ${availability.source}`
-        : availability.reason
-    })(),
-    [GEMINI_MODEL_GROUP]: ((): string => {
-      const availability = getGeminiAvailability()
-      return availability.state === 'ready'
-        ? `signed in · ${availability.ids.length} chat models live · ${availability.source}`
-        : availability.reason
-    })(),
-    [HUGGINGFACE_MODEL_GROUP]: ((): string => {
-      const availability = getHuggingfaceAvailability()
-      return availability.state === 'ready'
-        ? `${HUGGINGFACE_UNVERIFIED_NOTE} · ${availability.source} · signed in`
-        : `${HUGGINGFACE_UNVERIFIED_NOTE} · ${availability.reason}`
-    })(),
-    [LOCAL_MODEL_GROUP]: ((): string => {
-      const summary = localDiscoverySummary()
-      return summary.servers > 0
-        ? `${summary.labels.join(' · ')} · ${summary.models} model${summary.models === 1 ? '' : 's'} · keyless`
-        : 'no local server answered'
-    })(),
+      gptAvailability.state === 'ready'
+        ? { name: nameOf('openai'), doors: signedInDoorsOf('openai', slotsOf('openai')) }
+        : { name: nameOf('openai'), doors: [], reason: gptAvailability.reason },
+    [ZAI_MODEL_GROUP]: keyLaneHeading('zai'),
+    [MOONSHOT_MODEL_GROUP]: keyLaneHeading('moonshot'),
+    [DEEPSEEK_MODEL_GROUP]: keyLaneHeading('deepseek'),
+    [OPENROUTER_MODEL_GROUP]:
+      openrouterAvailability.state === 'ready'
+        ? { name: nameOf('openrouter'), doors: signedInDoorsOf('openrouter', slotsOf('openrouter')) }
+        : { name: nameOf('openrouter'), doors: [], reason: openrouterAvailability.reason },
+    [GEMINI_MODEL_GROUP]:
+      geminiAvailability.state === 'ready'
+        ? { name: nameOf('gemini'), doors: signedInDoorsOf('gemini', slotsOf('gemini')) }
+        : { name: nameOf('gemini'), doors: [], reason: geminiAvailability.reason },
+    [HUGGINGFACE_MODEL_GROUP]:
+      huggingfaceAvailability.state === 'ready'
+        ? { name: nameOf('huggingface'), doors: signedInDoorsOf('huggingface', slotsOf('huggingface')), note: HUGGINGFACE_UNVERIFIED_NOTE }
+        : { name: nameOf('huggingface'), doors: [], reason: huggingfaceAvailability.reason, note: HUGGINGFACE_UNVERIFIED_NOTE },
+    [COMPAT_MODEL_GROUP]: { name: nameOf('openai-compat'), doors: compatDoors },
+    [LOCAL_MODEL_GROUP]:
+      local.servers > 0
+        ? { name: nameOf('local'), doors: [{ door: local.labels.join(' · ') }] }
+        : { name: nameOf('local'), doors: [], reason: 'no local server answered' },
   }
+}
+
+function anthropicDoorRows(models: ModelChoice[]): ModelChoice[] {
+  const doors = anthropicDoors().filter(door => door.expired !== true)
+  if (doors.length < 2) return models
+  const active: AnthropicDoor = slotSeatView('anthropic').active === 'api-key' ? 'api-key' : 'subscription'
+  const ordered = [...doors.filter(door => door.door === active), ...doors.filter(door => door.door !== active)]
+  const labels = new Map(ordered.map(door => [door.door, anthropicDoorLabel(door.door)] as const))
+  const out: ModelChoice[] = []
+  const byDoor = new Map<AnthropicDoor, ModelChoice[]>(ordered.map(door => [door.door, []]))
+  for (const model of models) {
+    if (model.group !== ANTHROPIC_MODEL_GROUP || model.action || model.expand !== undefined) {
+      out.push(model)
+      continue
+    }
+    let resolved = model.id
+    try {
+      resolved = parseUserSpecifiedModel(stripContext1m(model.id))
+    } catch {
+      resolved = model.id
+    }
+    const listing = anthropicListedModel(resolved)
+    const own = listing === undefined ? [] : ordered.filter(door => listing.doors.includes(door.label))
+    for (const door of own.length > 0 ? own : ordered.slice(0, 1)) byDoor.get(door.door)!.push({ ...model, door: labels.get(door.door)! })
+  }
+  const first = out.findIndex(model => model.group === ANTHROPIC_MODEL_GROUP)
+  const doorRows = ordered.flatMap(door => byDoor.get(door.door) ?? [])
+  if (first < 0) return [...out, ...doorRows]
+  return [...out.slice(0, first), ...doorRows, ...out.slice(first)]
+}
+
+function seatGroupOf(models: ModelChoice[], currentRowId: string): string | undefined {
+  const own = models.find(model => model.id === currentRowId)
+  if (own !== undefined) return own.group
+  const family = providerFamilyOfSetting(currentRowId)
+  return family === 'unrecognised' ? undefined : groupOfFamily(family)
+}
+
+function orderedModelChoices(models: ModelChoice[], currentRowId: string): ModelChoice[] {
+  const uses = readModelUseLedger()
+  return orderPickerRows(anthropicDoorRows(models), {
+    ...(seatGroupOf(models, currentRowId) !== undefined ? { top: seatGroupOf(models, currentRowId) } : {}),
+    recentAt: group => {
+      const family = familyOfModelGroup(group)
+      return family === undefined ? undefined : uses[family]?.at
+    },
+  })
+}
+
+function noteModelUse(setting: string, door?: string): void {
+  const family = providerFamilyOfSetting(setting)
+  if (family === 'unrecognised') return
+  void recordModelUse(family, setting, door !== undefined ? { door } : {})
 }
 
 function MercuryModelWrapper({
@@ -563,11 +686,13 @@ function MercuryModelWrapper({
   }
 
   const options = getModelOptions()
-  const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
   const current = focusedSeat?.effective ?? mainLoopModelForSession ?? mainLoopModel ?? getMainLoopModel()
-  const currentRowId = resolveCurrentRowId(models, current)
+  const currentRowId = resolveCurrentRowId(listedModels, current)
+  const models = orderedModelChoices(listedModels, currentRowId)
+  const topGroup = seatGroupOf(listedModels, currentRowId)
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
     focusedSeat !== null
@@ -592,6 +717,7 @@ function MercuryModelWrapper({
     id: string
     plan: TransitionPlan
     refreshed: boolean
+    slotNote: string
   } | null>(null)
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
@@ -605,11 +731,13 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
-  const seatDetail = seatDetailOf
   const handleSlotSwitch = (group: string): string | null => slotSwitchOf(group, () => setSlotVersion(v => v + 1))
-  const groupDetails: Record<string, string> = groupDetailsOf(seatDetail)
-  function handleSelect(id: string): void {
+  const headings = providerHeadingsOf(slotVersion)
+  function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
+    const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
+    const slotReceipt = otherDoor ? handleSlotSwitch(ANTHROPIC_MODEL_GROUP) : null
+    const slotNote = slotReceipt === null ? '' : ` · ${slotReceipt}`
     const value = id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
       onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
@@ -788,14 +916,14 @@ function MercuryModelWrapper({
         value,
       )
       if (gatePlan.needsChoice) {
-        setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false })
+        setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, slotNote })
         return
       }
     }
-    applySelection(value, id)
+    applySelection(value, id, slotNote)
   }
 
-  function applySelection(value: string, id: string): void {
+  function applySelection(value: string, id: string, slotNote = ''): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
@@ -810,13 +938,14 @@ function MercuryModelWrapper({
           onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
           return
         }
+        noteModelUse(value)
         const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
         const plan = previewForSelection(messages, factsBefore.effective, value)
         const lossNote = transitionPlanSummary(plan)
         onDone(
           receipt.state === 'queued'
-            ? `Model switch queued: ${label}${saved} — applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}`
-            : `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}`,
+            ? `Model switch queued: ${label}${saved} — applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}${slotNote}`
+            : `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}${slotNote}`,
         )
       })
       return
@@ -831,6 +960,7 @@ function MercuryModelWrapper({
       onDone(saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`)
       return
     }
+    noteModelUse(value)
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
       onDone(`Already on ${label} — queued switch cancelled${saved}`)
@@ -842,13 +972,13 @@ function MercuryModelWrapper({
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
       onDone(
-        `Model switch queued: ${label}${saved} — applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+        `Model switch queued: ${label}${saved} — applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}${slotNote}`,
       )
       return
     }
     setAppState(prev => ({ ...prev, ...settled.patch }))
     onDone(
-      `Set model to ${label}${saved}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+      `Set model to ${label}${saved}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}${slotNote}`,
     )
   }
 
@@ -871,12 +1001,12 @@ function MercuryModelWrapper({
           if (held.plan.window?.fits === false) {
             const foldingSession = getFocusedSessionConnector()
             if (foldingSession.carrier === 'daemon') {
-              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id))
+              void foldingSession.sendWords('/compact').then(() => applySelection(held.value, held.id, held.slotNote))
               return
             }
             requestCommandDispatch('/compact')
           }
-          applySelection(held.value, held.id)
+          applySelection(held.value, held.id, held.slotNote)
         }}
         onCancel={() => {
           setTransitionConfirm(null)
@@ -897,7 +1027,8 @@ function MercuryModelWrapper({
       effort={effort}
       onEffort={handleEffort}
       notice={notice}
-      groupDetails={groupDetails}
+      headings={headings}
+      {...(topGroup !== undefined ? { topGroup } : {})}
       onSlotSwitch={handleSlotSwitch}
       expandRows={expandRows}
       {...(pendingNext !== undefined ? { pendingNext } : {})}
@@ -940,7 +1071,10 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const options = getModelOptions()
-  const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const currentRowId = resolveCurrentRowId(listedModels, model)
+  const models = orderedModelChoices(listedModels, currentRowId)
+  const topGroup = seatGroupOf(listedModels, currentRowId)
   function handleEffort(mode: string): void {
     const persistable = mode === 'supercode' ? 'max' : toPersistableEffort(mode as EffortValue)
     if (persistable === undefined) return
@@ -962,7 +1096,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       : undefined)
     setAppState?.(prev => ({ ...prev, effortValue: persistable, supercode: mode === 'supercode' }))
   }
-  function handleSelect(id: string): void {
+  function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
       onSignIn?.(signInFamilyOfRow(id))
@@ -973,6 +1107,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       setNotice(saved.sentence)
       return
     }
+    noteModelUse(id, door)
     if (setAppState !== null) {
       setAppState(prev => {
         const settled = settleModelSelection(prev, id, {
@@ -986,13 +1121,14 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   return (
     <MercuryModelPicker
       models={models}
-      current={resolveCurrentRowId(models, model)}
+      current={currentRowId}
       ctxPct={null}
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
       notice={notice}
-      groupDetails={groupDetailsOf(seatDetailOf)}
+      headings={providerHeadingsOf(slotVersion)}
+      {...(topGroup !== undefined ? { topGroup } : {})}
       onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
@@ -1035,29 +1171,34 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const options = getModelOptions()
-  const models: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
+  const currentRowId = resolveCurrentRowId(listedModels, model)
+  const models = orderedModelChoices(listedModels, currentRowId)
+  const topGroup = seatGroupOf(listedModels, currentRowId)
   function handleEffort(mode: string): void {
     onEffort(mode)
   }
-  function handleSelect(id: string): void {
+  function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return
     if (isProviderActionRow(id)) {
       onSignIn?.(signInFamilyOfRow(id))
       return
     }
+    noteModelUse(id, door)
     onSelect(id, models.find(m => m.id === id)?.name ?? id)
     onDone()
   }
   return (
     <MercuryModelPicker
       models={models}
-      current={resolveCurrentRowId(models, model)}
+      current={currentRowId}
       ctxPct={null}
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
       notice={notice}
-      groupDetails={groupDetailsOf(seatDetailOf)}
+      headings={providerHeadingsOf(slotVersion)}
+      {...(topGroup !== undefined ? { topGroup } : {})}
       onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
@@ -1099,14 +1240,17 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(ANTHROPIC_BEARER_ROAD, setNotice)
   const betas = getSdkBetas()
   const options = getModelOptions().filter(opt => onSignIn !== undefined || !isProviderActionRow(opt.value) || isCatalogueDoorRow(opt.value))
-  const models: ModelChoice[] = [...(leading ?? []), ...options.map(opt => modelChoiceOf(opt, betas))]
+  const catalogue = options.map(opt => modelChoiceOf(opt, betas))
+  const models: ModelChoice[] = [...(leading ?? []), ...orderedModelChoices(catalogue, current)]
+  const topGroup = seatGroupOf(models, current)
   return (
     <MercuryModelPicker
       models={models}
       current={current}
       ctxPct={null}
       notice={notice}
-      groupDetails={groupDetailsOf(seatDetailOf)}
+      headings={providerHeadingsOf(0)}
+      {...(topGroup !== undefined ? { topGroup } : {})}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={id => {
         if (isCatalogueDoorRow(id)) return

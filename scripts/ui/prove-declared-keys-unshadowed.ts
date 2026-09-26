@@ -174,10 +174,10 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
   }
   const CAPTURE_ROSTER: Record<string, Row> = {
     'src/components/MercuryModelPicker.tsx': {
-      guard: ['if (expanded !== null) {', "if (rowAxis === null && effortAxis === null && input.length > 0 && !key.ctrl && !key.meta && !key.tab) {"],
+      guard: ['if (filterFocus) {', 'if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {'],
       legendIn: 'src/utils/model/modelPickerFooter.ts',
-      legend: ["door.filtering ? 'esc clear' : 'esc collapse'"],
-      reason: 'the catalogue door: while a group is open a printable is filter text (the arm sits ahead of the c/s letter actions); the footer swaps its exit word to the filter state (esc clear · esc collapse)',
+      legend: ["{ text: 'type to filter', show: opts.filterFocus === true, drop: 0 }", "opts.filterFocus ? (opts.filtering ? 'esc clears the filter' : 'esc leaves the filter')"],
+      reason: 'the / filter line: while it has focus a printable is filter text (the arm sits ahead of the c/e/s letter actions and the / opener); the hint row swaps to type to filter and its exit word to the filter state (esc clears the filter · esc leaves the filter)',
     },
     'src/components/concourse/ConcourseScreen.tsx': {
       guard: ["if (region !== 'coordinator' && region !== 'live') {", 'if (filtering) {'],

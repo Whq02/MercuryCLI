@@ -176,6 +176,8 @@ for (const [cols, rows] of SIZES) {
     { afterPrevTicks: 1, data: RIGHT },
     { requireAwait: true, awaitText: 'Inherit', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'picker', data: DOWN },
     { afterPrevTicks: 2, data: DOWN },
+    { afterPrevTicks: 2, data: DOWN },
+    { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: AGENT_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
@@ -185,10 +187,10 @@ for (const [cols, rows] of SIZES) {
   const picker = c.marks.get('picker') ?? []
   const after = c.marks.get('row-after') ?? []
   check("the row reads Inherit before any pick", valueOf(before, AGENT_ROW).startsWith('Inherit'), valueOf(before, AGENT_ROW))
-  check('the door opens the model picker with the Inherit row leading', rowWith(picker, 'Inherit') !== '' && (cols < 100 || rowWith(picker, 'CHOOSE A MODEL') !== ''), picker.slice(0, 12).join(' | '))
-  const footer = picker.find(l => /a choice, not a model|model IDs are real|not selectable|connect action/.test(l))
-  check('the footer under the Inherit row names a choice, never a model id (the compact picker paints no footer)', footer === undefined || /a choice, not a model/.test(footer), footer ?? '')
-  check('the picker lists more than one family group', cols < 100 || picker.filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.filter(l => /MODELS/.test(l)).join(' | '))
+  check('the door opens the model picker with the Inherit row leading', rowWith(picker, 'Inherit') !== '' && (cols < 100 || rowWith(picker, 'Mercury · model') !== ''), picker.slice(0, 12).join(' | '))
+  const inheritRow = rowWith(picker, 'Inherit')
+  check('the Inherit row is a choice, never a model: it paints no id column and no ids-are-real line', inheritRow !== '' && !/Inherit\s{2,}inherit/.test(inheritRow) && !picker.some(l => l.includes('model IDs are real')), inheritRow)
+  check('the picker lists more than one provider group', cols < 100 || picker.filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
   check('no picker row walks an alias list (no sonnet/opus/fable alias words as rows)', !picker.some(l => /^\s*[│❯]?\s*(sonnet|opus|fable|fable51)\s+/.test(l)), picker.filter(l => /\b(sonnet|opus|fable51)\b/.test(l)).join(' | '))
   const saved = configOf(home)
   check("a pick writes agents.defaultModel as the picked row's exact id, never a family word", typeof saved.agents?.defaultModel === 'string' && /[-/]/.test(saved.agents.defaultModel) && !['inherit', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.agents.defaultModel), JSON.stringify(saved.agents))
@@ -213,6 +215,8 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
     { requireAwait: true, awaitText: "Leader's model", awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'picker', data: DOWN },
     { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 2, data: DOWN },
+    { afterPrevTicks: 2, data: DOWN },
+    { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: TEAMMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
@@ -222,8 +226,8 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   const picker = c.marks.get('picker') ?? []
   const after = c.marks.get('row-after') ?? []
   check('the row reads Default before any pick', valueOf(before, TEAMMATE_ROW).startsWith('Default'), valueOf(before, TEAMMATE_ROW))
-  check("the door opens the model picker with Default and Leader's model leading", rowWith(picker, 'Default') !== '' && rowWith(picker, "Leader's model") !== '' && rowWith(picker, 'CHOOSE A MODEL') !== '', picker.slice(0, 12).join(' | '))
-  check('the picker lists more than one family group', picker.filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.filter(l => /MODELS/.test(l)).join(' | '))
+  check("the door opens the model picker with Default and Leader's model leading", rowWith(picker, 'Default') !== '' && rowWith(picker, "Leader's model") !== '' && rowWith(picker, 'Mercury · model') !== '', picker.slice(0, 12).join(' | '))
+  check('the picker lists more than one provider group', picker.filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
   const saved = configOf(home)
   check("a pick writes teammateDefaultModel as the picked row's exact id, never a family word", typeof saved.teammateDefaultModel === 'string' && /[-/]/.test(saved.teammateDefaultModel) && !['default', 'leader', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.teammateDefaultModel), JSON.stringify(saved.teammateDefaultModel))
   const label = valueOf(after, TEAMMATE_ROW)
@@ -275,7 +279,7 @@ if (CASE === undefined || CASE === 'cold-catalogue') {
         { requireAwait: true, awaitText: leading, awaitSettleTicks: 4, data: `${ESC}[H` },
         { afterPrevTicks: 3, data: DOWN.repeat(5) },
         { afterPrevTicks: 25, data: '', mark: 'picker' },
-      ], { total: 420, ready: ['CHOOSE A MODEL'], env: { MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` } })
+      ], { total: 420, ready: ['Mercury · model'], env: { MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1` } })
       const picker = c.marks.get('picker') ?? []
       const wire = readFileSync(wireFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { kind: string })
       check(`${tag}: the drive delivered every send`, c.status === 0, `exit ${c.status}`)

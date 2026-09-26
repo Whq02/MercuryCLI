@@ -3,7 +3,7 @@ import * as React from 'react'
 import { useState } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput, wrapText } from '../ink.js'
-import { fitMeasuredWindow, packLines, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
+import { fitMeasuredWindow, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
@@ -12,7 +12,7 @@ import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { focusedOptionSupports1m, isProviderActionRow, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
+import { focusedOptionSupports1m, stripContext1m, withContext1m } from '../utils/model/modelOptions.js'
 import { has1mContext } from '../utils/context.js'
 import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
@@ -26,8 +26,35 @@ import { EffortStrip, effortStripText } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
 import { wrapPlain } from './BootHealthScreen.js'
-import type { ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
-import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
+import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/menuFold.js'
+import {
+  MODEL_PICKER_CURRENT,
+  MODEL_PICKER_FILTER_PLACEHOLDER,
+  MODEL_PICKER_NO_ALIAS,
+  MODEL_PICKER_PANEL,
+  MODEL_PICKER_UNAVAILABLE,
+  composePickerLines,
+  cyclePickerFold,
+  doorWords,
+  firstRowIndex,
+  groupPickerRows,
+  hasAlias,
+  headingIndexOf,
+  headingWords,
+  initialPickerFolds,
+  isCursorStop,
+  isModelRow,
+  lastStop,
+  matchWords,
+  moreLineWords,
+  nextStop,
+  pickerColumns,
+  rowKey,
+  type CatalogueDoorFacet,
+  type FoldState,
+  type PickerLine,
+  type ProviderHeading,
+} from '../utils/model/modelPickerGroups.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -50,12 +77,28 @@ export function modelPickerCentred(): boolean {
     return true
   }
 }
+
 function bar(pct: number, width = 10): string {
   const f = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
   return '█'.repeat(f) + '░'.repeat(width - f)
 }
 
-export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string;  action?: boolean; expand?: CatalogueDoorFacet; choice?: string }
+export type ModelChoice = {
+  id: string
+  name: string
+  tag: string
+  ctx: string
+  ctxBase?: string
+  ctx1m?: string
+  group: string
+  door?: string
+  gated?: boolean
+  enableFlag?: string
+  gatedReason?: string
+  action?: boolean
+  expand?: CatalogueDoorFacet
+  choice?: string
+}
 
 type Props = {
   models: ModelChoice[]
@@ -64,17 +107,19 @@ type Props = {
   efforts?: string[]
   effort?: string
   onEffort?: (e: string) => void
-  onSelect?: (id: string) => void
+  onSelect?: (id: string, door?: string) => void
   onClose?: () => void
   notice?: string
   pendingNext?: string
-  groupDetails?: Record<string, string>
+  headings?: Record<string, ProviderHeading>
+  topGroup?: string
   onSlotSwitch?: (group: string) => string | null
   expandRows?: (group: string) => ModelChoice[]
 }
 
+const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
 
-export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch, expandRows }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, onSlotSwitch, expandRows }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
@@ -83,46 +128,74 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
   const currentRow = stripGptServedWindowSuffix(current)
-  const [expanded, setExpanded] = useState<string | null>(() => {
-    if (listed.some(m => m.id === currentRow)) return null
-    for (const door of listed) {
-      if (door.expand && (expandRows?.(door.expand.group) ?? []).some(m => m.id === currentRow)) return door.expand.group
-    }
-    return null
-  })
-  const [filter, setFilter] = useState('')
   const expandRowsRef = React.useRef(expandRows)
   expandRowsRef.current = expandRows
-  const fullRows = React.useMemo(
-    () => (expanded === null ? [] : (expandRowsRef.current?.(expanded) ?? [])),
+  const fullCache = React.useRef<{ listed: ModelChoice[]; rows: Map<string, ModelChoice[]> }>({ listed, rows: new Map() })
+  if (fullCache.current.listed !== listed) fullCache.current = { listed, rows: new Map() }
+  const fullRowsOf = (group: string): ModelChoice[] | undefined => {
+    const cache = fullCache.current.rows
+    if (!cache.has(group)) cache.set(group, expandRowsRef.current?.(group) ?? [])
+    return cache.get(group)
+  }
+  const groups = React.useMemo(() => groupPickerRows(listed), [listed])
+  const top = topGroup ?? groups[0]?.group
+  const currentKey = ((): string | undefined => {
+    const own = listed.find(m => m.id === currentRow && isModelRow(m))
+    if (own !== undefined) return rowKey(own)
+    for (const group of groups) {
+      if (group.door === undefined) continue
+      const deep = fullRowsOf(group.group)?.find(m => m.id === currentRow)
+      if (deep !== undefined) return rowKey(deep)
+    }
+    return undefined
+  })()
+  const [folds, setFolds] = useState<Record<string, FoldState>>(() => {
+    const initial = initialPickerFolds(groups, top, currentKey)
+    for (const group of groups) {
+      if (group.door === undefined || group.rows.some(m => rowKey(m) === currentKey)) continue
+      if (fullRowsOf(group.group)?.some(m => rowKey(m) === currentKey)) initial[group.group] = 'full'
+    }
+    return initial
+  })
+  const [filter, setFilter] = useState('')
+  const [filterFocus, setFilterFocus] = useState(false)
+  const filtering = filter.trim() !== ''
+  const lines = React.useMemo(
+    () => composePickerLines(groups, folds, filter, fullRowsOf),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expanded, listed],
-  )
-  const models = React.useMemo(
-    () => composeCatalogueRows(listed, expanded, filter, fullRows),
-    [listed, expanded, filter, fullRows],
+    [groups, folds, filter, listed],
   )
   const { columns: cols, rows: termRows } = useTerminalSize()
-  const panelWidth = panelWidthFor(cols, { cap: 62, reserve: 2, min: 20 })
-  const nameW = Math.max(15, Math.min(30, panelWidth - 32))
-  const totalRows = models.length
+  const panelWidth = panelWidthFor(cols, MODEL_PICKER_PANEL)
+  const inner = panelWidth - 4
+  const columns = pickerColumns(inner - 4)
+  const totalLines = lines.length
   const availRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
   const compact = availRows < 20
   const shedMeters = availRows < 13
-  const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
-  const [cursor, setI] = useState(startI)
-  const [rowSnapshot, setRowSnapshot] = useState({ listed, models })
-  let i = Math.min(cursor, Math.max(0, totalRows - 1))
-  if (rowSnapshot.models !== models) {
-    if (rowSnapshot.listed !== listed) {
-      const prior = rowSnapshot.models[Math.min(cursor, Math.max(0, rowSnapshot.models.length - 1))]?.id
-      const moved = models.findIndex(model => model.id === prior)
+  const landing = ((): number => {
+    const at = currentKey === undefined ? -1 : lines.findIndex(line => line.kind === 'row' && line.key === currentKey)
+    if (at >= 0) return at
+    const first = firstRowIndex(lines)
+    return first >= 0 ? first : Math.max(0, lines.findIndex(line => isCursorStop(line)))
+  })()
+  const [cursor, setI] = useState(landing)
+  const [lineSnapshot, setLineSnapshot] = useState({ listed, lines })
+  let i = Math.min(cursor, Math.max(0, totalLines - 1))
+  if (!isCursorStop(lines[i])) i = nextStop(lines, i, 1) !== i ? nextStop(lines, i, 1) : nextStop(lines, i, -1)
+  if (lineSnapshot.lines !== lines) {
+    if (lineSnapshot.listed !== listed) {
+      const prior = lineSnapshot.lines[Math.min(cursor, Math.max(0, lineSnapshot.lines.length - 1))]
+      const priorKey = prior?.kind === 'row' ? prior.key : prior?.kind === 'heading' ? `heading:${prior.group}` : undefined
+      const moved = lines.findIndex(line => (line.kind === 'row' ? line.key : line.kind === 'heading' ? `heading:${line.group}` : '') === priorKey)
       if (moved >= 0) i = moved
       if (i !== cursor) setI(i)
     }
-    setRowSnapshot({ listed, models })
+    setLineSnapshot({ listed, lines })
   }
-  const focusedModel = i < models.length ? models[i] : undefined
+  const focusedLine = lines[i]
+  const focusedModel = focusedLine?.kind === 'row' ? focusedLine.row : undefined
+  const focusedHeading = focusedLine?.kind === 'heading' ? focusedLine : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
   const ctxStateOf = (p: string | undefined): boolean => {
@@ -133,7 +206,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     return has1mContext(p) || focusedOptionSupports1m(p)
   }
   const focusedSupports1m = focusedModel !== undefined && focusedOptionSupports1m(focusedModel.id)
-  const [context1m, setContext1m] = useState(ctxStateOf(models[startI]?.id))
+  const [context1m, setContext1m] = useState(ctxStateOf(focusedModel?.id))
   const focusedGptWindow = ((): { served: number; ceiling?: number; observed?: string } | null => {
     const p = focusedModel?.id
     if (!p || !parseGptModelId(p)) return null
@@ -162,36 +235,42 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const selectRow = (n: number): void => {
     setI(n)
     setCtxNotice(null)
-    if (n < models.length) setContext1m(ctxStateOf(models[n]?.id))
+    const line = lines[n]
+    if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
-  const openDoor = (group: string): void => {
-    const rows = composeCatalogueRows(listed, group, '', expandRowsRef.current?.(group) ?? [])
-    setExpanded(group)
-    setFilter('')
+  const landOn = (next: PickerLine<ModelChoice>[], preferKey: string | undefined, fallbackGroup?: string): void => {
+    let at = preferKey === undefined ? -1 : next.findIndex(line => line.kind === 'row' && line.key === preferKey)
+    if (at < 0 && fallbackGroup !== undefined) at = headingIndexOf(next, fallbackGroup)
+    if (at < 0) at = firstRowIndex(next)
+    if (at < 0) at = Math.max(0, next.findIndex(line => isCursorStop(line)))
+    setI(at)
     setCtxNotice(null)
-    setI(Math.max(0, catalogueDoorFocus(rows, group)))
+    const line = next[at]
+    if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
-  const closeDoor = (): void => {
-    if (expanded === null) return
-    const group = expanded
-    setExpanded(null)
-    setFilter('')
-    setCtxNotice(null)
-    setI(Math.max(0, listed.findIndex(m => m.expand?.group === group)))
-  }
-  const setDoorFilter = (text: string): void => {
-    if (expanded === null) return
-    const rows = composeCatalogueRows(listed, expanded, text, fullRows)
+  const setFilterText = (text: string): void => {
+    const next = composePickerLines(groups, folds, text, fullRowsOf)
     setFilter(text)
-    setI(Math.max(0, catalogueDoorFocus(rows, expanded)))
+    const keep = focusedModel !== undefined ? rowKey(focusedModel) : undefined
+    landOn(next, text.trim() === '' ? (keep ?? currentKey) : keep)
   }
+  const setFold = (group: string, fold: FoldState, keep?: string): void => {
+    const nextFolds = { ...folds, [group]: fold }
+    const next = composePickerLines(groups, nextFolds, filter, fullRowsOf)
+    setFolds(nextFolds)
+    landOn(next, keep, group)
+  }
+  const groupHidden = (group: string): boolean => lines.some(line => line.kind === 'more' && line.group === group)
   const commitCurrent = (): void => {
-    const m = models[i]; if (!m) return
-    if (m.expand) {
-      if (m.expand.open) closeDoor()
-      else openDoor(m.expand.group)
+    const line = lines[i]
+    if (!line) return
+    if (line.kind === 'heading') {
+      if (filtering) return
+      setFold(line.group, line.fold === 'folded' ? 'top' : 'folded')
       return
     }
+    if (line.kind !== 'row') return
+    const m = line.row
     if (!onSelect) return
     if (m.gated) {
       if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
@@ -200,44 +279,76 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     const p = m.id
     if (p && focusedOptionSupports1m(p)) {
       const base = stripContext1m(p)
-      onSelect(context1m === has1mContext(p) ? m.id : (context1m ? withContext1m(base) : base))
+      onSelect(context1m === has1mContext(p) ? m.id : (context1m ? withContext1m(base) : base), m.door)
     } else if (p && parseGptModelId(p) && focusedGptToggle) {
-      onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id))
+      onSelect(context1m ? m.id : withGptServedWindowSuffix(m.id), m.door)
     } else {
-      onSelect(m.id)
+      onSelect(m.id, m.door)
     }
   }
   const pastOpenEvent = useOpenEventGate()
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
-    const rowAxis = decodeNavKey(input, key, { orientation: 'vertical' })
-    const effortAxis = decodeNavKey(input, key, { orientation: 'horizontal' })
-    if (expanded !== null) {
+    const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true })
+    if (rowAxis === 'cancel') {
+      if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+      event.stopImmediatePropagation()
+      if (filterFocus || filter !== '') {
+        setFilterFocus(false)
+        setFilterText('')
+        return
+      }
+      onClose?.()
+      return
+    }
+    if (rowAxis === 'moveNext') { event.stopImmediatePropagation(); selectRow(nextStop(lines, i, 1)); return }
+    if (rowAxis === 'movePrevious') { event.stopImmediatePropagation(); selectRow(nextStop(lines, i, -1)); return }
+    if (rowAxis === 'first') { event.stopImmediatePropagation(); selectRow(Math.max(0, lines.findIndex(line => isCursorStop(line)))); return }
+    if (rowAxis === 'last') { event.stopImmediatePropagation(); selectRow(lastStop(lines)); return }
+    if (rowAxis === 'activate') {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      commitCurrent()
+      return
+    }
+    if (rowAxis === 'enterChild' || rowAxis === 'leaveChild') {
+      event.stopImmediatePropagation()
+      if (filtering) return
+      const line = lines[i]
+      if (!line || (line.kind !== 'row' && line.kind !== 'heading')) return
+      const group = line.kind === 'row' ? line.row.group : line.group
+      const fold = folds[group] ?? 'top'
+      if (rowAxis === 'leaveChild') {
+        if (line.kind === 'row') selectRow(headingIndexOf(lines, group))
+        else if (fold !== 'folded') setFold(group, 'folded')
+        return
+      }
+      const hidden = groupHidden(group)
+      const next = cyclePickerFold(fold, 'open', hidden)
+      if (next !== fold) setFold(group, next, line.kind === 'row' ? line.key : undefined)
+      else if (line.kind === 'heading') selectRow(firstRowIndex(lines, i))
+      return
+    }
+    if (filterFocus) {
       if (key.backspace || key.delete) {
         event.stopImmediatePropagation()
-        if (filter.length > 0) setDoorFilter(filter.slice(0, -1))
+        setFilterText(filter.slice(0, -1))
         return
       }
-      if (rowAxis === 'cancel') {
-        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+      if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
         event.stopImmediatePropagation()
-        if (filter.length > 0) setDoorFilter('')
-        else closeDoor()
-        return
+        if (!pastOpenEvent()) return
+        setFilterText(filter + input)
       }
-      if (rowAxis === null && effortAxis === null && input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
-        event.stopImmediatePropagation()
-        setDoorFilter(filter + input)
-        return
-      }
+      return
     }
-    if (rowAxis === 'moveNext') { event.stopImmediatePropagation(); selectRow(Math.min(totalRows - 1, i + 1)) }
-    else if (rowAxis === 'movePrevious') { event.stopImmediatePropagation(); selectRow(Math.max(0, i - 1)) }
-    else if (rowAxis === 'first') { event.stopImmediatePropagation(); selectRow(0) }
-    else if (rowAxis === 'last') { event.stopImmediatePropagation(); selectRow(totalRows - 1) }
-    else if (effortAxis === 'moveLeft' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]) }
-    else if (effortAxis === 'moveRight' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei + 1) % efforts!.length]) }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedSupports1m) {
+    if (input === '/' && !key.ctrl && !key.meta) {
+      event.stopImmediatePropagation()
+      if (!pastOpenEvent()) return
+      setFilterFocus(true)
+      return
+    }
+    if (input === 'c' && !key.ctrl && !key.meta && focusedSupports1m) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
       setContext1m(v => !v)
@@ -267,6 +378,21 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       event.stopImmediatePropagation()
       setCtxNotice('1M ctx · native to this model · not a toggle')
     }
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel)) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(focusedModel.ctx !== '' ? `${focusedModel.ctx} · stated by the provider · not a toggle` : 'context window unknown · the provider states none · not a toggle')
+    }
+    else if (input === 'e' && !key.ctrl && !key.meta && hasEffort) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      onEffort?.(efforts![(ei + 1) % efforts!.length]!)
+    }
+    else if (input === 'E' && !key.ctrl && !key.meta && hasEffort) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]!)
+    }
     else if (input === 's' && !key.ctrl && !key.meta && onSlotSwitch && focusedModel) {
       if (!pastOpenEvent()) return
       const receipt = onSlotSwitch(focusedModel.group)
@@ -275,88 +401,142 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         setCtxNotice(receipt)
       }
     }
-    else if (rowAxis === 'activate') {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      commitCurrent()
-    }
-    else if (rowAxis === 'cancel') {
-      if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
-      event.stopImmediatePropagation()
-      onClose?.()
-    }
   })
-  const rowPaint = (idx: number): number => {
-    if (compact) return 1
-    if (models[idx]?.expand?.open) return 0
-    if (idx !== i) return 1
-    const tag = models[idx]?.tag ?? ''
+  const linePaint = (idx: number): number => {
+    const line = lines[idx]
+    if (!line) return 0
+    if (line.kind !== 'row') return 1
+    if (compact || idx !== i) return 1
+    const tag = line.row.tag
     return tag === '' ? 3 : 3 + wrapText(tag, panelWidth - 8, 'wrap').split('\n').length
   }
-  const detailLines = new Map<string, string[]>()
-  for (const [g, detail] of Object.entries(groupDetails ?? {})) {
-    detailLines.set(g, packLines(detail.split(' · '), panelWidth - 4))
-  }
-  const headingPaint = (w: PaneWindow): number => {
-    let lines = 0
-    let prev: string | undefined
-    for (let idx = w.start; idx < Math.min(w.end, models.length); idx++) {
-      const g = models[idx]!.group
-      if (g !== prev) {
-        if (!compact) lines += 2 + (detailLines.get(g)?.length ?? 0)
-        if (expanded === g) lines += 1
-      }
-      prev = g
-    }
-    return lines
-  }
   const reasonLines: string[] | null =
-    focusedModel !== undefined && !focusedModel.expand && !isProviderActionRow(focusedModel.id) && focusedModel.gated && focusedModel.gatedReason
-      ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, panelWidth - 4)
+    focusedModel !== undefined && focusedModel.gated && focusedModel.gatedReason
+      ? wrapPlain(`${focusedModel.id} · ${focusedModel.gatedReason} — not selectable`, inner)
       : null
-  const painted = (text: string): number => wrapText(text, panelWidth - 4, 'wrap').split('\n').length
-  const banner = `CHOOSE A MODEL · ${models.filter(m => !m.gated && !m.action && m.choice === undefined).length} AVAILABLE · ${models.filter(m => m.gated).length} GATED`
+  const painted = (text: string): number => wrapText(text, inner, 'wrap').split('\n').length
   const pendingLine = pendingNext
     ? [
         { text: 'current ', color: FAINT },
-        { text: models.find(m => m.id === currentRow)?.name ?? current, color: TEAL },
+        { text: listed.find(m => m.id === currentRow)?.name ?? current, color: TEAL },
         { text: ` ${GLYPH.pending} next `, color: AMBER },
-        { text: models.find(m => m.id === pendingNext)?.name ?? pendingNext, color: AMBER },
+        { text: listed.find(m => m.id === pendingNext)?.name ?? pendingNext, color: AMBER },
         { text: ' · applies when the turn settles', color: FAINT },
       ]
     : null
+  const noticeLines: string[] = compact
+    ? []
+    : ctxNotice
+      ? wrapPlain(ctxNotice, inner)
+      : reasonLines !== null
+        ? reasonLines
+        : notice
+          ? [notice]
+          : []
   const basePaint =
-    (compact ? (shedMeters ? 4 : 5) : 8 + painted(banner)) +
+    2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
     (hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0) +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
-    (!compact && ctxNotice ? painted(ctxNotice) : !compact && notice ? 1 : 0) +
-    (!compact && reasonLines !== null ? reasonLines.length - 1 : 0)
+    noticeLines.length
   const paintBudget = Math.max(3, availRows - basePaint)
   const windowPaint = (w: PaneWindow): number => {
-    let lines = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0) + headingPaint(w)
-    for (let idx = w.start; idx < w.end; idx++) lines += rowPaint(idx)
-    return lines
+    let sum = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0)
+    for (let idx = w.start; idx < w.end; idx++) sum += linePaint(idx)
+    return sum
   }
-  const win = fitMeasuredWindow(totalRows, paintBudget, span => paneWindow(totalRows, i, span), windowPaint)
+  const win = fitMeasuredWindow(totalLines, paintBudget, span => paneWindow(totalLines, i, span), windowPaint)
   const slack = win.above > 0 || win.below > 0 ? Math.max(0, paintBudget - windowPaint(win)) : 0
-  let lastGroup: string | null = null
-  const doorHeaderIndex = expanded === null ? -1 : models.findIndex(m => m.expand?.open === true)
-  const doorHeader = doorHeaderIndex === -1 ? undefined : { index: doorHeaderIndex, id: models[doorHeaderIndex]!.id, parts: catalogueDoorHeaderParts(models[doorHeaderIndex]!.expand!) }
-  const footerDoor: ModelPickerFooterDoor | undefined =
-    expanded !== null
-      ? { open: true, onHeader: focusedModel?.expand?.open === true, filtering: filter.length > 0 }
-      : focusedModel?.expand
-        ? { open: false }
-        : undefined
+  const totalModels = lines.reduce((sum, line) => sum + (line.kind === 'heading' ? (line.total ?? 0) : 0), 0)
+  const matched = lines.reduce((sum, line) => sum + (line.kind === 'heading' ? (line.matched ?? 0) : 0), 0)
+  const stateWordOf = (m: ModelChoice): [string, string] =>
+    m.id === currentRow ? [MODEL_PICKER_CURRENT, TEAL] : pendingNext !== undefined && m.id === pendingNext ? ['next', AMBER] : m.gated ? [MODEL_PICKER_UNAVAILABLE, SAND] : ['', FAINT]
+  const footer = modelPickerFooter(
+    {
+      gated: !!focusedModel?.gated,
+      ...(focusedModel?.enableFlag !== undefined ? { enableFlag: focusedModel.enableFlag } : {}),
+      ...(focusedHeading !== undefined ? { heading: { fold: focusedHeading.fold === 'folded' ? 'folded' : 'open' } } : {}),
+      filterFocus,
+      filtering,
+    },
+    inner,
+  )
+  const renderLine = (line: PickerLine<ModelChoice>, idx: number): React.ReactNode => {
+    if (line.kind === 'heading') {
+      const on = idx === i
+      const heading = headings?.[line.group]
+      const words = headingWords(heading, line.group, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) })
+      const cut = words.indexOf(' · ')
+      const name = cut < 0 ? words : words.slice(0, cut)
+      const rest = cut < 0 ? '' : words.slice(cut)
+      return (
+        <InteractiveRow key={`heading:${line.group}`} id={`model:group:${line.group}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} width={inner} height={1} selectionBand={true}>
+          <Text wrap="truncate-end">
+            <Text color={on ? TERRA : FAINT}>{on ? `${GLYPH.prompt} ` : line.fold === 'folded' ? FOLD_CLOSED_LEAD : FOLD_OPEN_LEAD}</Text>
+            <Text bold color={tokens.info}>{name}</Text>
+            <Text color={FAINT}>{rest}</Text>
+          </Text>
+        </InteractiveRow>
+      )
+    }
+    if (line.kind === 'door') {
+      const door = headings?.[line.group]?.doors.find(candidate => candidate.door === line.door)
+      const words = doorWords(door ?? { door: line.door }, { live: line.live, ...(line.matched !== undefined ? { matched: line.matched, total: line.total ?? 0 } : {}) })
+      return (
+        <Box key={`door:${line.group}:${line.door}`} height={1}>
+          <Text color={tokens.textSecondary} wrap="truncate-end">{`  ${words}`}</Text>
+        </Box>
+      )
+    }
+    if (line.kind === 'more') {
+      return (
+        <Box key={`more:${line.group}`} height={1}>
+          <Text color={FAINT} wrap="truncate-end">{`  ${moreLineWords(line.hidden, line.reach)}`}</Text>
+        </Box>
+      )
+    }
+    const m = line.row
+    const on = idx === i
+    const [stateWord, stateColor] = stateWordOf(m)
+    const model = isModelRow(m)
+    const alias = model ? (hasAlias(m) ? m.name : '—') : m.name
+    const ctxText = on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx
+    const tail = model && !hasAlias(m) ? MODEL_PICKER_NO_ALIAS : ''
+    return (
+      <InteractiveRow
+        key={line.key}
+        id={`model:row:${line.key}`}
+        selected={on}
+        unavailable={m.gated}
+        onSelect={() => selectRow(idx)}
+        onActivate={commitCurrent}
+        flexDirection="column"
+        selectionBand={compact}
+      >
+        <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
+          <Text wrap="truncate-end">
+            {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
+            {model ? (
+              <>
+                <Text bold color={m.gated ? SAND : hasAlias(m) ? IVORY : FAINT}>{cell(alias, columns.alias)}</Text>
+                <Text color={FAINT}>{cell(m.id, columns.id)}</Text>
+              </>
+            ) : (
+              <Text bold color={m.gated ? SAND : IVORY}>{cell(m.name, columns.alias + columns.id)}</Text>
+            )}
+            <Text color={stateColor}>{cell(stateWord, columns.state)}</Text>
+            <Text color={FAINT}>{cell(ctxText, columns.ctx)}</Text>
+            <Text color={tokens.info}>{tail}</Text>
+          </Text>
+          {on && !compact && m.tag !== '' ? <Text color={SAND}>{m.tag}</Text> : null}
+        </Box>
+      </InteractiveRow>
+    )
+  }
   return (
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
-      {
-}
-      <ProductLockup view="model" />
-      {
-}
-      {compact ? null : <Text color={FAINT}>{banner}</Text>}
+      <ProductLockup view="model" separator=" · " plain {...(filtering ? { subtitle: matchWords(matched, totalModels) } : {})} />
+      {compact ? null : <Box height={1} />}
       {pendingLine !== null ? (
         <Text>
           {pendingLine.map((part, k) => (
@@ -365,72 +545,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         </Text>
       ) : null}
       {win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} more</Text> : null}
-      {models.map((m, idx) => {
-        if (idx < win.start || idx >= win.end) return null
-        const head = m.group !== lastGroup; lastGroup = m.group
-        const on = idx === i; const cur = m.id === currentRow
-        const isNext = pendingNext !== undefined && m.id === pendingNext
-        const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.expand ? [GLYPH.pending, 'expand', FAINT] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
-        const doorLine = head && doorHeader !== undefined && expanded === m.group ? ((): React.ReactNode => {
-          const onHeader = i === doorHeader.index
-          return (
-            <InteractiveRow id={`model:row:${doorHeader.id}`} selected={onHeader} onSelect={() => selectRow(doorHeader.index)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
-              <Text wrap="truncate-end">
-                <Text color={onHeader ? TERRA : FAINT}>{onHeader ? `${figures.pointer} ` : '  '}</Text>
-                <Text color={tokens.info}>{doorHeader.parts.lead}</Text>
-                <Text bold color={IVORY}>{filter}</Text>
-                <Text color={onHeader ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
-                <Text color={FAINT}>{doorHeader.parts.tail}</Text>
-              </Text>
-            </InteractiveRow>
-          )
-        })() : null
-        const heading = head && (!compact || doorLine !== null) ? <Box marginTop={compact ? 0 : 1} flexDirection="column">
-          {compact ? null : <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>}
-          {compact ? null : detailLines.get(m.group)?.map((line, k) => (
-            <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
-          ))}
-          {doorLine}
-        </Box> : null
-        if (m.expand?.open) {
-          return <React.Fragment key={m.id}>{heading}</React.Fragment>
-        }
-        return (
-          <React.Fragment key={m.id}>
-            {heading}
-            <InteractiveRow
-              id={`model:row:${m.id}`}
-              selected={on}
-              unavailable={m.gated}
-              onSelect={() => selectRow(idx)}
-              onActivate={commitCurrent}
-              flexDirection="column"
-              selectionBand={compact}
-            >
-            <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
-              {
-}
-              <Text wrap="truncate-end">
-                {
-}
-                {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
-                <Text bold color={m.gated ? SAND : IVORY}>{padTo(m.name, nameW)}</Text>
-                <Text color={sc}>{' ' + padTo(`${sg} ${sw}`, 11)}</Text>
-                {
-}
-                <Text color={FAINT}>{on && (focusedSupports1m || focusedGptToggle) ? (context1m ? (m.ctx1m ?? m.ctx) : (m.ctxBase ?? m.ctx)) : m.ctx}</Text>
-              </Text>
-              {on && !compact && m.tag !== '' ? <Text color={SAND}>{m.tag}</Text> : null}
-            </Box>
-            </InteractiveRow>
-          </React.Fragment>
-        )
-      })}
+      {lines.map((line, idx) => (idx < win.start || idx >= win.end ? null : renderLine(line, idx)))}
       {slack > 0 ? <Box height={slack} flexShrink={0} /> : null}
       {win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
-      {shedMeters ? null : <Box marginTop={compact ? 0 : 1}>
-        {
-}
+      {compact ? null : <Box height={1} />}
+      {shedMeters ? null : <Box>
         <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}{((): React.ReactNode => {
           if (compact) return null
           const tier = activeSourceUsage().tier
@@ -442,45 +561,20 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           <Text wrap="truncate-end">
             <Text color={FAINT}>effort  </Text>
             <Text bold color={TERRA}>[{effort}]</Text>
-            <Text color={FAINT}> ←→ cycle</Text>
+            <Text color={FAINT}> e cycles</Text>
           </Text>
         ) : (
-          <EffortStrip levels={efforts!} current={effort} accent={TERRA} faint={FAINT} />
+          <Text wrap="truncate-end">
+            <EffortStrip levels={efforts!} current={effort} accent={TERRA} faint={FAINT} />
+            <Text color={FAINT}>· e cycles</Text>
+          </Text>
         )
       ) : null}
-      {
-}
-      {ctxNotice && !compact ? (
-        <Text color={tokens.info} wrap="wrap">{ctxNotice}</Text>
-      ) : notice && !compact ? (
-        <Text color={tokens.info} wrap="truncate-end">{notice}</Text>
-      ) : null}
-      {
-}
-      <Box marginTop={compact ? 0 : 1} display={compact ? 'none' : 'flex'} flexDirection="column">
-        {reasonLines !== null ? reasonLines.map((line, k) => (
-          <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
-        )) : (
-        <Text color={FAINT} wrap="truncate-end">
-          {
-}
-          {focusedModel!.expand
-            ? focusedModel!.expand.open
-              ? `${models.filter(m => m.group === expanded && !m.action).length} of ${focusedModel!.expand.total} live rows${filter.length > 0 ? ` match "${filter}"` : ''} · ↵ here collapses; not a model`
-              : `catalogue door — ↵ expands the group to all ${focusedModel!.expand.total} live rows; not a model`
-            : isProviderActionRow(focusedModel!.id)
-            ? 'connect action — ↵ starts the sign-in; not a model'
-            : focusedModel!.gated
-              ? `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
-              : focusedModel!.choice !== undefined
-                ? focusedModel!.choice
-                : `${focusedModel!.id} · model IDs are real, never themed`}
-        </Text>
-        )}
-      </Box>
-      {
-}
-      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag, ...(footerDoor !== undefined ? { door: footerDoor } : {}) }, panelWidth - 4)}</Text>
+      {noticeLines.map((line, k) => (
+        <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">{line}</Text>
+      ))}
+      <MenuFilterLine focused={filterFocus} text={filter} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} />
+      <Text color={FAINT} wrap="truncate-end">{footer}</Text>
     </Box>
     </Box>
   )

@@ -48,6 +48,7 @@ import { KitMenuScreen } from './KitMenuScreen.js';
 import { MercuryModelDefaultPicker } from '../commands/model/mercuryModel.js';
 import { ModalContext } from '../context/modalContext.js';
 import { panelWidth } from './mercury-ui/geometry.js';
+import { MODEL_PICKER_PANEL } from '../utils/model/modelPickerGroups.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
@@ -710,8 +711,8 @@ export function BootSplashScreen(): React.ReactNode {
         <Box
           position="absolute"
           top={Math.max(0, Math.floor((rows - Math.max(10, rows - 7)) / 2))}
-          left={Math.max(0, Math.floor((columns - panelWidth(columns, { cap: 62, reserve: 2, min: 20 })) / 2))}
-          width={Math.min(columns, panelWidth(columns, { cap: 62, reserve: 2, min: 20 }))}
+          left={Math.max(0, Math.floor((columns - panelWidth(columns, MODEL_PICKER_PANEL)) / 2))}
+          width={Math.min(columns, panelWidth(columns, MODEL_PICKER_PANEL))}
           flexDirection="column"
           opaque
         >

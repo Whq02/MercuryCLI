@@ -49,13 +49,38 @@ if (process.argv[2] === '--compose') {
   const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
   const orSnapshot = await or.refreshOpenrouterCatalogue('env', { force: true })
   const hfSnapshot = await hf.refreshHuggingfaceCatalogue({ force: true })
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+  const picker = await import('../../src/utils/model/modelPickerGroups.ts')
   const options = getModelOptions()
   const orDoor = options.findIndex(o => o.value === or.OPENROUTER_EXPAND_OPTION_VALUE)
   const hfDoor = options.findIndex(o => o.value === hf.HUGGINGFACE_EXPAND_OPTION_VALUE)
+  const rows = options.map(o => ({
+    id: o.value,
+    name: o.label,
+    tag: o.description,
+    group: o.group ?? ANTHROPIC_MODEL_GROUP,
+    ...(isProviderActionRow(o.value) ? { action: true } : {}),
+    ...(o.unavailable !== undefined ? { gated: true } : {}),
+    ...(o.catalogueDoor ? { expand: { group: o.group ?? ANTHROPIC_MODEL_GROUP, family: o.catalogueDoor.family, total: o.catalogueDoor.total } } : {}),
+  }))
+  const { getMainLoopModel } = await import('../../src/utils/model/model.ts')
+  const { providerFamilyOfSetting } = await import('../../src/utils/model/modelTransition.ts')
+  const served = getMainLoopModel()
+  const seatFamily = providerFamilyOfSetting(served)
+  const seatGroup = rows.find(row => row.id === served)?.group ?? (seatFamily === 'openrouter' ? or.OPENROUTER_MODEL_GROUP : seatFamily === 'huggingface' ? hf.HUGGINGFACE_MODEL_GROUP : ANTHROPIC_MODEL_GROUP)
+  const groups = picker.orderPickerGroups(picker.groupPickerRows(rows), { top: seatGroup })
+  const folds = picker.initialPickerFolds(groups, seatGroup, served)
+  const stops = picker.composePickerLines(groups, folds, '', () => undefined).filter(line => picker.isCursorStop(line))
+  const stopOf = (group: string | undefined): number => stops.findIndex(line => line.kind === 'heading' && line.group === group)
   console.log(
     JSON.stringify({
       total: options.length,
+      stops: stops.length,
+      seatGroup,
+      orStop: stopOf(options[orDoor]?.group),
+      hfStop: stopOf(options[hfDoor]?.group),
+      orFold: folds[options[orDoor]?.group ?? ''] ?? null,
+      hfFold: folds[options[hfDoor]?.group ?? ''] ?? null,
       orDoor,
       hfDoor,
       orRows: orSnapshot?.models.length ?? -1,
@@ -145,12 +170,12 @@ const composeRun = spawnSync(process.execPath, ['run', import.meta.path, '--comp
   timeout: 120_000,
 })
 const composeLine = (composeRun.stdout ?? '').split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
-const composed = JSON.parse(composeLine) as { total?: number; orDoor?: number; hfDoor?: number; orRows?: number; hfRows?: number; orError?: string | null; hfError?: string | null; orFamily?: string | null; hfFamily?: string | null; orTotal?: number | null; hfTotal?: number | null }
+const composed = JSON.parse(composeLine) as { total?: number; stops?: number; seatGroup?: string; orStop?: number; hfStop?: number; orFold?: string | null; hfFold?: string | null; orDoor?: number; hfDoor?: number; orRows?: number; hfRows?: number; orError?: string | null; hfError?: string | null; orFamily?: string | null; hfFamily?: string | null; orTotal?: number | null; hfTotal?: number | null }
 check('the composition subprocess answered (both fixture catalogues landed there, 30 rows each)', composeRun.status === 0 && composed.orRows === 30 && composed.hfRows === 30, `status ${composeRun.status}: ${composeLine} ${(composeRun.stderr ?? '').slice(-300)}`)
-const options = { length: composed.total ?? 0 }
-const orDoor = composed.orDoor ?? -1
-const hfDoor = composed.hfDoor ?? -1
-check('both doors sit in the composed catalogue, each past its family\'s 24 rows', orDoor >= 24 && hfDoor > orDoor + 24, composeLine)
+const options = { length: composed.stops ?? 0 }
+const orDoor = composed.orStop ?? -1
+const hfDoor = composed.hfStop ?? -1
+check('both families sit in the composed picker as folded headings (each holds a door past its listed rows)', orDoor >= 1 && hfDoor >= 1 && hfDoor !== orDoor && (composed.orDoor ?? -1) >= 24 && (composed.hfDoor ?? -1) >= 24, composeLine)
 check('each door carries its family word and the live count of 30', composed.orFamily === 'OpenRouter' && composed.orTotal === 30 && composed.hfFamily === 'Hugging Face' && composed.hfTotal === 30, composeLine)
 
 interface DriveResult {
@@ -183,10 +208,8 @@ function drive(tag: string, home: string, sends: unknown[], total: number): Driv
   return { status: res.status, marks, final, stderr: (res.stderr ?? '').trim() }
 }
 
-const availableOf = (screen: string): number => {
-  const m = /CHOOSE A MODEL · (\d+) AVAILABLE/.exec(screen)
-  return m ? Number(m[1]) : -1
-}
+const headingOf = (screen: string, word: string): string => (screen.split('\n').find(l => new RegExp(`[▾▸❯] ${word.toUpperCase()} · `).test(l)) ?? '').replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
+const rowCount = (screen: string, prefix: string): number => screen.split('\n').filter(l => l.includes(prefix)).length
 const lines = (screen: string, needle: string): string => screen.split('\n').filter(l => l.includes(needle)).join(' · ')
 
 function filesCarrying(dir: string, needle: string): string[] {
@@ -257,9 +280,9 @@ const UP = '\x1b[A'
 const DOWN = '\x1b[B'
 const ESC = '\x1b'
 const TO_END = DOWN.repeat(options.length + 4)
-const walkTo = (door: number): string => TO_END + UP.repeat(options.length - 1 - door)
+const walkTo = (stop: number): string => TO_END + UP.repeat(options.length - 1 - stop)
 
-type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; needleId: string; needleLabel: string; firstRow: string }
+type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; fold: 'folded' | 'top'; needleId: string; needleLabel: string; firstRow: string }
 
 function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: number }): unknown[] {
   return [
@@ -267,28 +290,34 @@ function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: nu
       { atTick: settle.atTick, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: settle.settleTicks },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 3, data: walkTo(spec.door) },
       { afterPrevTicks: 4, mark: 'walked', data: '' },
-      { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, mark: 'door', data: '\r' },
-      { requireAwait: true, awaitText: 'esc collapse', awaitStableTicks: 2, mark: 'expanded', data: 'needle' },
-      { requireAwait: true, awaitText: 'filter: needle', awaitStableTicks: 2, mark: 'filtered', data: ESC },
-      { afterPrevTicks: 5, mark: 'cleared', data: ESC },
-      { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, mark: 'collapsed', data: ESC },
+      ...(spec.fold === 'folded'
+        ? [
+            { requireAwait: true, awaitText: '↵ unfold', awaitStableTicks: 2, mark: 'door', data: '\x1b[C' },
+            { requireAwait: true, awaitText: '→ unfolds the rest', awaitStableTicks: 2, mark: 'expanded', data: '\x1b[C' },
+          ]
+        : [
+            { requireAwait: true, awaitText: '↵ fold', awaitStableTicks: 2, mark: 'door', data: '' },
+            { requireAwait: true, awaitText: '→ unfolds the rest', awaitStableTicks: 2, mark: 'expanded', data: '\x1b[C' },
+          ]),
+      { afterPrevTicks: 5, mark: 'unfolded', data: '/' },
+      { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: 'needle' },
+      { requireAwait: true, awaitText: '/ needle', awaitStableTicks: 2, mark: 'filtered', data: ESC },
+      { requireAwait: true, awaitText: 'filter by name or id', awaitStableTicks: 2, mark: 'cleared', data: ESC },
       { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, mark: 'closed', data: '' },
       { afterPrevTicks: 6, data: '/model' },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, data: '' },
-      { afterPrevTicks: 3, data: walkTo(spec.door) },
-      { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'esc collapse', awaitStableTicks: 2, data: 'needle' },
-      { requireAwait: true, awaitText: 'filter: needle', awaitStableTicks: 2, mark: 'refiltered', data: '\r' },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, data: '/' },
+      { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: 'needle' },
+      { requireAwait: true, awaitText: '/ needle', awaitStableTicks: 2, mark: 'refiltered', data: '\r' },
       { requireAwait: true, awaitText: 'Set model to', awaitStableTicks: 3, mark: 'selected', data: '' },
       { afterPrevTicks: 6, data: '/model' },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'reopened', data: '' },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '' },
       { afterPrevTicks: 4, data: '' },
   ]
 }
@@ -297,7 +326,7 @@ function familyDrive(spec: FamilySpec): void {
   console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
   let home = seededHome(`home-${spec.family}`)
   let res = drive(spec.family, home, familySends(spec, { atTick: 130, settleTicks: 15 }), 460)
-  if (res.status !== 0 && /first stuck: '(CHOOSE A MODEL|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
+  if (res.status !== 0 && /first stuck: '(Mercury · model|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
     console.log(`  (the picker never opened on the first boot — ${/first stuck: '[^']*'/.exec(res.stderr)?.[0] ?? ''}; one more boot)`)
     dumpHomeLogs(home)
     home = seededHome(`home-${spec.family}-2`)
@@ -309,29 +338,25 @@ function familyDrive(spec: FamilySpec): void {
   const open = res.marks.get('open') ?? ''
   const door = res.marks.get('door') ?? ''
   const expanded = res.marks.get('expanded') ?? ''
+  const unfolded = res.marks.get('unfolded') ?? ''
   const filtered = res.marks.get('filtered') ?? ''
   const cleared = res.marks.get('cleared') ?? ''
-  const collapsed = res.marks.get('collapsed') ?? ''
   const closed = res.marks.get('closed') ?? ''
   const selected = res.marks.get('selected') ?? ''
   const reopened = res.marks.get('reopened') ?? ''
-  const before = availableOf(open)
-  check(`${spec.family}: the picker opened with an AVAILABLE count`, before > 0, lines(open, 'CHOOSE'))
-  check(`${spec.family}: the focused door row carries "${spec.word} — 30 models live" and the copy "↵ expand · 30 live · type to filter"`, door.includes(`${spec.word} — 30 models live`) && door.includes('↵ expand · 30 live · type to filter'), lines(door, spec.word))
-  check(`${spec.family}: the footer advertises ↵ expand on the door`, door.includes('↵ expand') && door.includes('esc close'), lines(door, '↑↓ select'))
-  check(`${spec.family}: the expanded group paints the header "${spec.word} — 30 live · filter:" with "esc collapse"`, expanded.includes(`${spec.word} — 30 live · filter:`) && expanded.includes('esc collapse'), lines(expanded, spec.word))
-  check(`${spec.family}: the AVAILABLE count grows by the 6 rows past the bound (${before} → ${before + 6})`, availableOf(expanded) === before + 6, lines(expanded, 'CHOOSE'))
-  check(`${spec.family}: the first live row is focused inside the open group (its id on the id line)`, expanded.includes(`${spec.firstRow} · model IDs are`), lines(expanded, 'model IDs'))
-  check(`${spec.family}: the footer names the filter while the group is open`, expanded.includes('type to filter') && expanded.includes('esc collapse'), lines(expanded, '↑↓ select'))
-  check(`${spec.family}: typing narrows the group — the header reads "filter: needle" and the deep row is focused`, filtered.includes('filter: needle') && filtered.includes(`${spec.needleId} · model IDs are real`), lines(filtered, 'needle'))
-  check(`${spec.family}: the footer says esc clear while a filter stands`, filtered.includes('esc clear'), lines(filtered, '↑↓ select'))
-  check(`${spec.family}: the rows past the bound are gone from the narrowed group (no "${spec.firstRow}" on screen)`, !filtered.includes(spec.firstRow), lines(filtered, 'expand-model'))
-  check(`${spec.family}: esc clears the filter — the header is empty again and the group is whole (count ${before + 6})`, !cleared.includes('filter: needle') && cleared.includes('esc collapse') && availableOf(cleared) === before + 6, lines(cleared, spec.word))
-  check(`${spec.family}: esc on an empty filter collapses — the door row is focused again and the count is back (${before})`, collapsed.includes('catalogue door') && collapsed.includes(`${spec.word} — 30 models live`) && availableOf(collapsed) === before, lines(collapsed, spec.word))
-  check(`${spec.family}: the collapsed screen paints no header line`, !collapsed.includes('esc collapse'))
-  check(`${spec.family}: esc with nothing open closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
+  const headingWords = (screen: string): string => headingOf(screen, spec.word)
+  if (spec.fold === 'folded') check(`${spec.family}: the picker opened with the family folded: its heading counts 30 live and shows no row`, /^▸ .* · 30 live$/.test(headingWords(open)) && rowCount(open, spec.firstRow) === 0, headingWords(open))
+  else check(`${spec.family}: the picker opened with the family partly shown (the seat's own group): its heading counts 30 live and the rest is named`, /^[▾❯] .* · 30 live$/.test(headingWords(open)) && /↓ \d+ more · → unfolds the rest/.test(open), headingWords(open))
+  check(`${spec.family}: the walk lands on the family heading (❯, 30 live) and the hint says ${spec.fold === 'folded' ? '↵ unfold' : '↵ fold'}`, /^❯ .* · 30 live$/.test(headingWords(door)) && door.includes(spec.fold === 'folded' ? '↵ unfold' : '↵ fold') && door.includes('esc or click outside closes'), `${headingWords(door)} · ${lines(door, '↑↓ select')}`)
+  check(`${spec.family}: → opens the family partly — the first listed row paints and the rest is named`, rowCount(expanded, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(expanded) && !expanded.includes(spec.needleId), lines(expanded, 'more'))
+  check(`${spec.family}: → again unfolds the rest — no more line, the heading open (▾ or ❯)`, !unfolded.includes('→ unfolds the rest') && /^[▾❯] .* · 30 live$/.test(headingWords(unfolded)), headingWords(unfolded) + ' · ' + lines(unfolded, 'more'))
+  check(`${spec.family}: typing narrows every group — the header reads N of M match and the deep row is focused`, /Mercury · model · \d+ of \d+ match/.test(filtered) && new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}${spec.needleId.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(filtered), lines(filtered, 'needle'))
+  check(`${spec.family}: the hint says esc clears the filter while a filter stands`, filtered.includes('esc clears the filter'), lines(filtered, '↑↓ select'))
+  check(`${spec.family}: the rows the filter does not match are gone (no "${spec.firstRow}" on screen)`, !filtered.includes(spec.firstRow), lines(filtered, 'expand-model'))
+  check(`${spec.family}: esc clears the filter — the plain header is back and the picker stays`, !cleared.includes('/ needle') && cleared.includes('filter by name or id') && !cleared.includes(' match') && cleared.includes('Mercury · model'), lines(cleared, 'Mercury'))
+  check(`${spec.family}: esc with no filter closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
   check(`${spec.family}: ↵ on the filtered deep row selects it — the receipt names the row`, selected.includes(`Set model to ${spec.needleLabel}`), lines(selected, 'Set model'))
-  check(`${spec.family}: re-opening the picker opens the door at mount (the current model lives behind it) with the deep row focused and marked current`, reopened.includes(`${spec.word} — 30 live · filter:`) && reopened.includes(`${spec.needleId} · model IDs are real`) && lines(reopened, spec.needleLabel).includes('current'), lines(reopened, spec.needleLabel) + ' || ' + lines(reopened, spec.word))
+  check(`${spec.family}: re-opening the picker opens the family whole at mount (the current model lives past its listed rows) with the deep row focused and marked current`, /^[▾❯] .* · 30 live$/.test(headingWords(reopened)) && new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}${spec.needleId.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\S*\\s{2,}current`).test(reopened), lines(reopened, spec.needleLabel) + ' || ' + headingWords(reopened))
   const carriers = filesCarrying(home, spec.needleId).concat(filesCarrying(join(scratch, `daemon-${spec.family}`), spec.needleId), filesCarrying(join(scratch, `daemon-${spec.family}-2`), spec.needleId))
   check(`${spec.family}: the persisted model is the deep row's id (${spec.needleId}) — on disk in the scratch home`, carriers.length >= 1, `files: ${carriers.join(', ') || 'none'} · settings: ${existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8').slice(0, 300) : 'absent'}`)
   if (failures !== failuresBefore) {
@@ -348,6 +373,7 @@ familyDrive({
   family: 'openrouter',
   word: 'OpenRouter',
   door: orDoor,
+  fold: composed.orFold === 'top' ? 'top' : 'folded',
   needleId: 'openrouter/deepvendor/needle-model',
   needleLabel: 'Needle Model',
   firstRow: 'openrouter/fixture-vendor/expand-model-0',
@@ -356,6 +382,7 @@ familyDrive({
   family: 'huggingface',
   word: 'Hugging Face',
   door: hfDoor,
+  fold: composed.hfFold === 'top' ? 'top' : 'folded',
   needleId: 'huggingface/deeporg/needle-model',
   needleLabel: 'needle-model',
   firstRow: 'huggingface/fixture-org/expand-model-0',
