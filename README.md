@@ -214,12 +214,11 @@ extra grammars, the platform's Node runtime, and brush. If a download fails,
 that pack is skipped and the build and affected features report the missing
 component. Running `bun install` alone produces a build without those packs.
 
-With a Rust toolchain installed, `setup` also builds the voice capture addon
-from `native/voice`. With Rust and cmake, it builds the on-device transcriber
-from `native/whisper`. These addons are built locally rather than downloaded;
-without the required tools, setup skips them and the doctor reports their
-absence. The Windows shell engine is also built locally because upstream
-provides no Windows binary.
+To build voice support, run `setup` with Rust installed. That builds
+`native/voice`. Add cmake to build `native/whisper` as well. If either
+build lacks its tools, setup skips it and the doctor reports the missing
+addon. Both addons are compiled on your machine. The Windows shell engine
+is compiled there too because upstream has no Windows binary.
 
 brush is a bash-compatible shell written in Rust. It is optional on macOS
 and Linux, where the system shell remains the default. Select it through
