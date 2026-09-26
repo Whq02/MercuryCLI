@@ -42,6 +42,9 @@ const queue = await import(join(ROOT, 'src/input-core/command-queue.ts'))
 const { recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 const { queueLogRows, undeliveredLines } = await import(join(ROOT, 'src/tasks/LocalAgentTask/launchReceipts.ts'))
 const { requeueUndeliveredLines } = await import(join(ROOT, 'src/cli/headless/restartCarry.ts'))
+const { shouldShowUserMessage } = await import(join(ROOT, 'src/utils/messages/systemMessages.ts'))
+const { queuedCommandHistoryEntry } = await import(join(ROOT, 'src/history.ts'))
+const { localWakeStep } = await import(join(ROOT, 'src/tools/ScheduleWakeupTool/localWake.ts'))
 const saturn = await import(join(ROOT, 'src/daemon/saturn.ts'))
 const { CronListTool } = await import(join(ROOT, 'src/tools/ScheduleCronTool/CronListTool.ts'))
 const { CronCreateTool } = await import(join(ROOT, 'src/tools/ScheduleCronTool/CronCreateTool.ts'))
@@ -138,6 +141,48 @@ const U1 = 'a5b6c7d8-0000-4000-8000-000000000010'
 const U2 = 'a5b6c7d8-0000-4000-8000-000000000011'
 const U3 = 'a5b6c7d8-0000-4000-8000-000000000012'
 const U4 = 'a5b6c7d8-0000-4000-8000-000000000013'
+const U5 = 'a5b6c7d8-0000-4000-8000-000000000014'
+const U6 = 'a5b6c7d8-0000-4000-8000-000000000015'
+const SLASH_WORDS = '/no-such-words-here stand as words'
+const RUNNER = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+
+function sinkFlagsOfRunner(): Raw {
+  const sinkAt = RUNNER.indexOf('const deliverLocalWake = ')
+  const enqueueAt = sinkAt >= 0 ? RUNNER.indexOf('enqueue({', sinkAt) : -1
+  const block = enqueueAt >= 0 ? RUNNER.slice(enqueueAt, RUNNER.indexOf('})', enqueueAt)) : ''
+  const flags: Raw = {}
+  for (const [, key, value] of block.matchAll(/^\s*(\w+): ([^,\n]+),?$/gm)) {
+    if (value === 'true') flags[key!] = true
+    else if (/^'[^']*'$/.test(value!)) flags[key!] = value!.slice(1, -1)
+  }
+  return flags
+}
+
+function forwardedByTurnRoad(): { isMeta: boolean; origin: boolean; skipSlashCommands: boolean } {
+  const askAt = RUNNER.indexOf('for await (const message of ask({')
+  const block = askAt >= 0 ? RUNNER.slice(askAt, RUNNER.indexOf('cwd: getCwd()', askAt)) : ''
+  return { isMeta: block.includes('isMeta: command.isMeta'), origin: block.includes('command.origin'), skipSlashCommands: block.includes('command.skipSlashCommands') }
+}
+
+function askOptionsOf(command: Raw): Raw {
+  const forwarded = forwardedByTurnRoad()
+  return {
+    ...(forwarded.isMeta ? { isMeta: command.isMeta } : {}),
+    ...(forwarded.origin && command.origin !== undefined ? { origin: command.origin } : {}),
+    ...(forwarded.skipSlashCommands && command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
+  }
+}
+
+function seatlessWakeCommand(value: string, uuid: string): Raw {
+  const step = localWakeStep({ closed: false }, Date.parse(ROW_AT), FIRED_AT, undefined, { spelling: 'in ~900s', reason: REASON })
+  return { value, uuid, ...sinkFlagsOfRunner(), origin: step.step === 'deliver' ? step.origin : undefined }
+}
+
+function seatedFireCommand(value: string, uuid: string): Raw {
+  return { value, mode: 'prompt', sentAt: ROW_AT, uuid, priority: 'later', origin: cronOrigin() }
+}
+
+const visibleRows = (messages: Raw[]): Raw[] => messages.filter(message => message.type !== 'user' || shouldShowUserMessage(message as never, false))
 
 function journalLines(): string[] {
   const lines: string[] = []
@@ -175,7 +220,7 @@ async function carriedAcrossRestart(): Promise<Raw[]> {
   return carried
 }
 
-async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise<Raw[]> {
+function turnContext(): Raw {
   const appState: Raw = {
     toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
     sessionHooks: new Map(),
@@ -183,7 +228,7 @@ async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     todos: {},
   }
-  const context = {
+  return {
     options: { commands: [], tools: [], mcpClients: [], isNonInteractiveSession: true },
     getAppState: () => appState,
     setAppState: (f: (prev: Raw) => Raw): void => {
@@ -194,11 +239,14 @@ async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise
     readFileState: new Map(),
     setToolJSX: () => {},
   }
+}
+
+async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise<Raw[]> {
   const out = await processUserInput({
     input: head,
     mode: 'prompt',
     setToolJSX: () => {},
-    context: context as never,
+    context: turnContext() as never,
     messages: [],
     querySource: 'sdk',
     uuid: U1,
@@ -208,6 +256,29 @@ async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise
   })
   return (out.messages as Raw[]).filter(m => m.type === 'user').map(m => ({ ...m, timestamp: ROW_AT }))
 }
+
+async function drainedTurn(command: Raw): Promise<{ shouldQuery: boolean; row: Raw | undefined; text: string }> {
+  try {
+    const out = await processUserInput({
+      input: command.value as string,
+      mode: command.mode as never,
+      setToolJSX: () => {},
+      context: turnContext() as never,
+      messages: [],
+      querySource: 'sdk',
+      uuid: command.uuid as never,
+      skipAttachments: true,
+      ...askOptionsOf(command),
+    } as never)
+    const row = (out.messages as Raw[]).find(m => m.type === 'user' && m.uuid === command.uuid)
+    const text = (out.messages as Raw[]).filter(m => m.type === 'user').map(m => String((m.message as Raw).content)).join(' | ')
+    return { shouldQuery: out.shouldQuery, row: row === undefined ? undefined : { ...row, timestamp: ROW_AT }, text: out.resultText === undefined ? text : String(out.resultText) }
+  } catch (error) {
+    return { shouldQuery: false, row: undefined, text: String(error) }
+  }
+}
+
+const rowShape = (row: Raw | undefined): string => JSON.stringify(row === undefined ? null : { ...row, uuid: null, timestamp: null, origin: null, message: { ...(row.message as Raw), content: null } })
 
 section('§0 the words: the first line the schedule composes from its own facts')
 try {
@@ -356,6 +427,44 @@ const carried = await carriedAcrossRestart()
   }
 }
 
+section("§6 THE SEATLESS WAKE (red on the base): the bare run's own sink queues its fire as a row the chat shows — the Saturn row, never a hidden meta row — and the wake stays out of history and out of the command parser")
+const seatlessTurn = await drainedTurn(seatlessWakeCommand(WAKE_TEXT, U5))
+const seatedTurn = await drainedTurn(seatedFireCommand(CRON_BODY, U6))
+{
+  const flags = sinkFlagsOfRunner()
+  check('the sink queues the wake as words for the model, never as a meta row: no isMeta, skipSlashCommands (red on the base: isMeta: true)', flags.isMeta === undefined && flags.skipSlashCommands === true && flags.mode === 'prompt' && flags.priority === 'later', JSON.stringify(flags))
+  const forwarded = forwardedByTurnRoad()
+  check('the turn road hands skipSlashCommands to the engine beside isMeta and the origin (red on the base: isMeta and the origin alone)', forwarded.isMeta && forwarded.origin && forwarded.skipSlashCommands, JSON.stringify(forwarded))
+  queue.resetCommandQueue()
+  queue.enqueue(seatlessWakeCommand(WAKE_TEXT, U5) as never)
+  queue.enqueue(seatlessWakeCommand(SLASH_WORDS, U6) as never)
+  const [queued, slashLed] = queue.getCommandQueue() as Raw[]
+  check('the queue holds the wake with its origin, at later, under the cron workload', queued !== undefined && JSON.stringify(queued.origin) === JSON.stringify(wakeOrigin()) && queued.priority === 'later' && queued.workload === 'cron', JSON.stringify(queued))
+  check('the queue reads a slash-led wake as words for the model, not a command (red on the base: a slash command)', slashLed !== undefined && !queue.isSlashCommand(slashLed as never), JSON.stringify(slashLed))
+  check('the wake earns no history entry, with or without the hide: the origin alone keeps it out (green on both trees)', queuedCommandHistoryEntry(queued as never) === null && queuedCommandHistoryEntry({ value: WAKE_TEXT, mode: 'prompt', origin: wakeOrigin() }) === null)
+  check("the operator's own queued line still earns its entry (a guard)", queuedCommandHistoryEntry({ value: OPERATOR_LINE, mode: 'prompt' })?.display === OPERATOR_LINE)
+  queue.resetCommandQueue()
+  const row = seatlessTurn.row
+  check('the drained wake is one user row under its own identity, asking to query, with the origin on it', seatlessTurn.shouldQuery && row !== undefined && JSON.stringify(row.origin) === JSON.stringify(wakeOrigin()), seatlessTurn.text)
+  check('the stored row is a row the chat shows (red on the base: hidden under isMeta)', row !== undefined && visibleRows([row]).length === 1 && row.isMeta !== true, JSON.stringify(row))
+  check("the stored row is byte-identical to the seated road's fire apart from its identity, its clock and its origin's own facts (red on the base: isMeta on the seatless row alone)", row !== undefined && seatedTurn.row !== undefined && rowShape(row) === rowShape(seatedTurn.row), `${rowShape(row)} vs ${rowShape(seatedTurn.row)}`)
+  for (const [columns, rowCount] of SIZES) {
+    const frame = await paintChat(visibleRows([...(row === undefined ? [] : [row]), replyRow(LATE_ROW_AT)]), columns, rowCount)
+    const seated = await paintChat([userRow(WAKE_TEXT, U1, ROW_AT, wakeOrigin()), replyRow(LATE_ROW_AT)], columns, rowCount)
+    check(`${columns} columns: the chat admits the seatless wake's row and paints the Saturn row above the reply, line for line the seated road's frame (red on the base: the frame holds the reply alone)`, frame.length > 1 && frame[0]!.startsWith(`${clock(ROW_AT)} ${SATURN} · self-paced wake · fifteen-minute cadence`) && oneLine(frame.join(' ')).includes(WAKE_BODY) && !frame.some(l => l.includes(HANDLE)) && frame.join('\n') === seated.join('\n'), `${frame.length} row(s):\n${frame.join('\n')}`)
+  }
+  const slashTurn = await drainedTurn(seatlessWakeCommand(SLASH_WORDS, U6))
+  check('a wake whose words begin with a slash reaches the model as words (red on the base: parsed as a command)', slashTurn.shouldQuery && slashTurn.row !== undefined && (slashTurn.row.message as Raw).content === SLASH_WORDS, `shouldQuery=${slashTurn.shouldQuery}: ${slashTurn.text}`)
+  if (row !== undefined) {
+    const record = entryToRecord(row as never, { sessionId: 'sess-saturn' as never, nextOrdinal: () => 2 as never, observedAt: ROW_AT, source: { channel: 'sdk' } as never })
+    const restored = recordToEntry(record) as Raw
+    check('a resumed transcript shows the row (red on the base: the record keeps the hide)', visibleRows([restored]).length === 1 && JSON.stringify(restored.origin) === JSON.stringify(wakeOrigin()), JSON.stringify(restored))
+    const resumed = await paintText({ param: { type: 'text', text: String((restored.message as Raw).content) }, origin: restored.origin }, { type: 'user', timestamp: String(restored.timestamp) })
+    const live = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: row.origin }, { type: 'user', timestamp: ROW_AT })
+    check('the resumed row paints the same Saturn row as the live one', resumed === live && resumed.includes(`${SATURN} · self-paced wake`), resumed.slice(0, 200))
+  }
+}
+
 if (frameDir !== null) {
   section(`frames → ${frameDir}`)
   mkdirSync(frameDir, { recursive: true })
@@ -365,6 +474,7 @@ if (frameDir !== null) {
     ['cron-id', 'the same cron fire when the schedule was given no title', [userRow(CRON_BODY, U1, ROW_AT, cronOrigin()), replyRow(LATE_ROW_AT)]],
     ['batched-wake', "the operator's queued line and a wake taken into one turn, then Mercury's reply", [...(await batchedTurn(OPERATOR_LINE, WAKE_TEXT, wakeOrigin())), replyRow(LATE_ROW_AT)]],
     ['restart-carry', "a wake re-queued from the journal after the runner died, then Mercury's reply", [userRow(WAKE_TEXT, U4, ROW_AT, carried.find(c => c.uuid === U4)?.origin as Raw | undefined), replyRow(LATE_ROW_AT)]],
+    ['seatless-wake', "a bare run's own wake as the chat's hide admits it, then Mercury's reply", visibleRows([...(seatlessTurn.row === undefined ? [] : [seatlessTurn.row]), replyRow(LATE_ROW_AT)])],
   ]
   const index: string[] = ['the Saturn row frames — the chat rows as the product paints them, transcript rows only, at the named width', '']
   for (const [name, words, messages] of scenes) {
