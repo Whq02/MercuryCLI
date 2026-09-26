@@ -93,7 +93,7 @@ if (ONLY === undefined || ONLY === 'R') {
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-hold-3', whenBody: 'hold and drain', preText: 'holding to drain. ' },
     { kind: 'text', text: 'drained.', whenBody: resultOf('tu-hold-3') },
     { kind: 'text', text: 'yes.', whenBody: 'afterwards say yes' },
-    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-hold-4', whenBody: 'hold for the mixed pair', preText: 'holding for the pair. ' },
+    { kind: 'tool_use', name: 'Bash', input: { command: `sleep ${HOLD_SECONDS + 1}`, description: 'a foreground wait that new words do not end' }, id: 'tu-hold-4', whenBody: 'hold for the mixed pair', preText: 'holding for the pair. ' },
     { kind: 'text', text: 'the pair held.', whenBody: resultOf('tu-hold-4') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-hold-5', whenBody: 'hold for effort', preText: 'holding for effort. ' },
     { kind: 'text', text: 'the effort held.', whenBody: resultOf('tu-hold-5') },
@@ -118,7 +118,9 @@ if (ONLY === undefined || ONLY === 'R') {
   }
   const isResultFrame = (f: Frame): boolean => f.type === 'result'
   const isTurnStarted = (f: Frame): boolean => f.type === 'system' && f.subtype === 'turn_started'
-  const isSleepCall = (f: Frame): boolean => f.type === 'assistant' && JSON.stringify(f).includes('"name":"Sleep"')
+  const isToolCall = (name: string) => (f: Frame): boolean => f.type === 'assistant' && JSON.stringify(f).includes(`"name":"${name}"`)
+  const isSleepCall = isToolCall('Sleep')
+  const isBashCall = isToolCall('Bash')
   const answerTo = (id: string) => (f: Frame): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
   const appliedFrameFor = (id: string) => (f: Frame): boolean => f.type === 'system' && f.subtype === 'seat_verb_applied' && f.request_id === id
   const payloadOf = (f: Frame | null): Record<string, unknown> => ((f?.response as { response?: Record<string, unknown> } | undefined)?.response ?? {})
@@ -235,8 +237,8 @@ if (ONLY === undefined || ONLY === 'R') {
     const before5 = frames.length
     const results5 = resultsSoFar()
     runner.send(user('hold for the mixed pair', randomUUID()))
-    const sleeping4 = await runner.waitFor('the fifth Sleep call streams', isSleepCall, bound(60_000), before5)
-    tally.check('R5a the fifth ask calls Sleep', sleeping4 !== null, describeRequests(api))
+    const holding4 = await runner.waitFor('the fifth ask runs its foreground command', isBashCall, bound(60_000), before5)
+    tally.check('R5a the fifth ask runs a foreground command — a boundary that words landing mid-call do not bring forward (a Sleep ends the moment they land)', holding4 !== null, describeRequests(api))
     await sleep(300)
     runner.send(user('the early pair words', randomUUID()))
     await sleep(200)
