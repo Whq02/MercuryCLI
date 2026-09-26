@@ -27,6 +27,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { providerIdentityLine, providerIdentitySentence } from '../../services/providers/providerIdentityLine.js'
+import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
 import { jevCreditsWords } from './Jev.js'
 import { type JevSessionFacts, jevSessionAbsenceWords, jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
@@ -429,12 +430,11 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
 }
 
 function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode {
-  const entries = walletEntries().filter(e => e.provider === 'openrouter')
-  const active = activeWalletEntry('openrouter')
+  const slots = openrouterSlots()
   const spend = providerSessionSpend('openrouter')
-  const oauth = entries.find(e => e.id === 'openrouter:oauth-key')
-  const key = entries.find(e => e.id.startsWith('openrouter:api-key'))
-  const usage = useOwnerUsage('openrouter', entries.length > 0)
+  const oauth = slots.find(slot => slot.id === 'openrouter:oauth-key')
+  const keys = slots.filter(slot => slot.kind === 'api-key')
+  const usage = useOwnerUsage('openrouter', slots.length > 0)
   const windows = usage.windows
   const creditLine =
     figuresLine(usage) ??
@@ -453,16 +453,20 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <Text dimColor>{absentSlotLine('/logins openrouter mints a scoped key through the OpenRouter OAuth flow')}</Text>
         ) : (
           <Box flexDirection="column">
-            <Text dimColor>{oauth.label}</Text>
-            <Text dimColor>
-              {active?.id === oauth.id
-                ? spendLine(spend, true)
-                : INACTIVE_SLOT_LINE}
-            </Text>
+            <Text dimColor>{oauth.identity}</Text>
+            {oauth.stateNote !== undefined ? <Text dimColor>{oauth.stateNote}</Text> : null}
+            <Text dimColor>{oauth.active ? spendLine(spend, true) : INACTIVE_SLOT_LINE}</Text>
           </Box>
         )}
       </Box>
-      <ApiKeySlot presentLabel={key?.label} isActive={active !== undefined && active.id === key?.id} spend={spend} />
+      {keys.length === 0 ? <ApiKeySlot isActive={false} spend={spend} /> : keys.map(key => (
+        <Box key={key.id} flexDirection="column" marginTop={1}>
+          <SlotHeading text={`${key.kindLabel}${key.active ? ' · active' : ''}`} />
+          <Text dimColor>{key.identity}</Text>
+          {key.stateNote !== undefined ? <Text dimColor>{key.stateNote}</Text> : null}
+          <Text dimColor>{key.active ? spendLine(spend, true) : INACTIVE_SLOT_LINE}</Text>
+        </Box>
+      ))}
       {windows.map(w => (
         <ObservedWindowMeter key={w.key} window={w} title="Key credit cap" {...(width !== undefined ? { maxWidth: width } : {})} />
       ))}

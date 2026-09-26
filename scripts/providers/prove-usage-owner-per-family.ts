@@ -156,7 +156,8 @@ section('§3 the reader speaks about itself: a failed poll, a provider-marked un
     force: true,
   })
   const or = owner.usageForProvider('openrouter')
-  check('openrouter: a failed poll with nothing observed is the reader\'s labelled line, no figures', or.figures === undefined && or.readerNote === 'credit truth unavailable (fixture: socket closed)', JSON.stringify({ figures: or.figures, note: or.readerNote }))
+  const { openrouterSlots } = await import('../../src/services/providers/accountSlots.js')
+  check('openrouter: a failed poll names the failed API key slot and keeps the error under that slot, no figures', or.figures === undefined && or.readerNote === 'credit truth unavailable for API key (env)' && openrouterSlots().find(slot => slot.id === 'openrouter:env-key')?.stateNote === 'fixture: socket closed', JSON.stringify({ figures: or.figures, note: or.readerNote }))
   check('openrouter: …and no window is fabricated', or.windows.length === 0)
 
   deepseekState.__resetDeepseekUsageForTest()

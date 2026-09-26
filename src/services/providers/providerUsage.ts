@@ -46,7 +46,7 @@ import {
   type OpenaiLimitWindow,
   type OpenaiObservedUsage,
 } from './openai/openaiLimitState.js'
-import { resolveOpenrouterApiKey } from './openrouter/openrouterAccounts.js'
+import { readMintedOpenrouterKey, resolveOpenrouterApiKey, type OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
 import {
   openrouterLimitWindow,
   openrouterObservedKeyUsage,
@@ -358,7 +358,7 @@ export interface ActiveUsageReads {
   zaiQuota?: () => ZaiObservedQuotaView | null
   zaiQuotaFailure?: () => ZaiQuotaFailureView | null
   openrouterKeyPresent?: () => boolean
-  openrouterObserved?: () => { usage: OpenrouterKeyUsage | null; lastError?: string }
+  openrouterObserved?: () => { usage: OpenrouterKeyUsage | null; lastError?: string; errorSource?: OpenrouterKeySource }
   openrouterLimited?: () => OpenrouterLimitWindow
   geminiAccount?: () => GeminiAccountRef | undefined
   geminiLimited?: () => GeminiLimitWindow
@@ -822,7 +822,7 @@ function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastErr
   const usage = observed.usage
   if (usage === null) {
     return observed.lastError !== undefined
-      ? { state: 'unreported', reason: `not read — ${observed.lastError}`, compact: 'not read' }
+      ? { state: 'unreported', reason: 'not read — see the failed key slot', compact: 'not read' }
       : { state: 'unreported', reason: 'not read yet — /usage samples the key endpoint', compact: 'not read yet' }
   }
   if (typeof usage.limitRemaining === 'number') {
@@ -1048,11 +1048,19 @@ export function usageForProvider(
   if (provider === 'openrouter') {
     const keyPresent = reads?.openrouterKeyPresent?.() ?? resolveOpenrouterApiKey() !== undefined
     if (!keyPresent) {
-      return { provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds OpenRouter' }
+      const expired = readMintedOpenrouterKey()?.expiredMessage !== undefined
+      return {
+        provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend,
+        whyNot: expired ? 'no usable key — the OAuth-minted key expired; /logins adds OpenRouter' : 'not connected — /logins adds OpenRouter',
+        ...(expired ? { readerNote: 'OAuth-minted key expired — no usable key', readerNoteCompact: 'OAuth-minted key expired — no usable key' } : {}),
+      }
     }
     const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()
     const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
     const figures = openrouterFigures(observed.usage)
+    const source = observed.errorSource ?? resolveOpenrouterApiKey()?.source
+    const slot = source === 'oauth' ? 'OAuth-minted key' : source === 'env' ? 'API key (env)' : 'API key (stored)'
+    const readerNote = observed.lastError !== undefined ? `credit truth unavailable for ${slot}` : undefined
     return {
       provider,
       sourceKind: 'api-key',
@@ -1064,8 +1072,8 @@ export function usageForProvider(
       spend,
       tier: API_BILLING_TIER,
       ...(figures.length > 0 ? { figures } : {}),
-      ...(observed.usage === null && observed.lastError !== undefined
-        ? { readerNote: `credit truth unavailable (${observed.lastError})` }
+      ...(readerNote !== undefined
+        ? { readerNote, readerNoteCompact: readerNote }
         : observed.usage !== null && figures.length === 0
           ? { readerNote: 'the key endpoint stated no credit facts' }
           : {}),

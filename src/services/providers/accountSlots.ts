@@ -46,7 +46,9 @@ import {
 import {
   disconnectOpenrouterOauthKey,
   readMintedOpenrouterKey,
+  type OpenrouterMintedKey,
 } from './openrouter/openrouterAccounts.js'
+import { openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
 import {
   disconnectGeminiOauth,
   geminiOauthConnected,
@@ -145,7 +147,7 @@ export interface AccountSlotReads {
   zaiStoredKey?: () => string | undefined
   zaiStoredKeyPlan?: () => 'coding' | undefined
   openrouterEnvKey?: () => string | undefined
-  openrouterMintedKey?: () => { key: string; mintedAtMs: number } | undefined
+  openrouterMintedKey?: () => OpenrouterMintedKey | undefined
   openrouterStoredKey?: () => string | undefined
   geminiOauthConnected?: () => boolean
   geminiActiveAccount?: () => GeminiAccountRef | undefined
@@ -613,12 +615,15 @@ function zaiSlots(reads: AccountSlotReads): AccountSlot[] {
   return slots
 }
 
-function openrouterSlots(reads: AccountSlotReads): AccountSlot[] {
+export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
   const envKey = reads.openrouterEnvKey
     ? reads.openrouterEnvKey()
     : process.env.OPENROUTER_API_KEY?.trim() || undefined
   const minted = (reads.openrouterMintedKey ?? readMintedOpenrouterKey)()
   const storedKey = (reads.openrouterStoredKey ?? readStoredOpenrouterApiKey)()
+  const usableMinted = minted !== undefined && !minted.expiredMessage
+  const observed = openrouterObservedKeyUsage()
+  const failure = (source: 'env' | 'stored' | 'oauth') => observed.errorSource === source ? observed.lastError : undefined
   const slots: AccountSlot[] = []
   if (envKey) {
     slots.push({
@@ -631,6 +636,7 @@ function openrouterSlots(reads: AccountSlotReads): AccountSlot[] {
       active: true,
       envPinned: true,
       signedIn: true,
+      ...(failure('env') ? { stateNote: failure('env')! } : {}),
       removal: { route: 'env', envVar: 'OPENROUTER_API_KEY' },
     })
   }
@@ -645,10 +651,13 @@ function openrouterSlots(reads: AccountSlotReads): AccountSlot[] {
         `minted ${new Date(minted.mintedAtMs).toLocaleDateString()}`,
         maskedKeyTail(minted.key),
       ]),
-      active: !envKey,
+      active: !envKey && usableMinted,
       envPinned: false,
       signedIn: true,
-      ...(envKey ? { stateNote: 'shadowed — the env pin wins' } : {}),
+      ...(minted.expiredMessage
+        ? { stateNote: `expired — ${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
+        : envKey ? { stateNote: 'shadowed — the env pin wins' }
+          : failure('oauth') ? { stateNote: failure('oauth')! } : {}),
       removal: { route: 'openrouter-oauth-key' },
     })
   }
@@ -660,14 +669,14 @@ function openrouterSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'api-key',
       kindLabel: 'API key',
       identity: label(['stored key (auth-scoped)', maskedKeyTail(storedKey)]),
-      active: !envKey && !minted,
+      active: !envKey && !usableMinted,
       envPinned: false,
       signedIn: true,
       ...(envKey
         ? { stateNote: 'shadowed — the env pin wins' }
-        : minted
+        : usableMinted
           ? { stateNote: 'shadowed — the OAuth-minted key wins' }
-          : {}),
+          : failure('stored') ? { stateNote: failure('stored')! } : {}),
       removal: { route: 'openrouter-stored-key' },
     })
   }

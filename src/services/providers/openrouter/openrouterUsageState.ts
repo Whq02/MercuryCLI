@@ -4,7 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { resolveOpenrouterRequestAuth } from './openrouterAccounts.js'
+import { markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, readMintedOpenrouterKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -24,6 +24,7 @@ export interface OpenrouterKeyUsage {
 
 let observedKeyUsage: OpenrouterKeyUsage | null = null
 let lastError: string | undefined
+let lastErrorSource: OpenrouterKeySource | undefined
 let lastAttemptAtMs = 0
 let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
 let observedIdentity = 'none'
@@ -34,13 +35,19 @@ const KEY_USAGE_FAILURE_RETRY_MS = 10_000
 function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
   const auth = resolveOpenrouterRequestAuth(env)
   if (!auth) return 'none'
-  return `${credentialFingerprint(auth.headers.authorization)}:${auth.baseUrl}`
+  return requestIdentity(auth)
+}
+
+function requestIdentity(auth: OpenrouterRequestAuth): string {
+  const mint = auth.account.keySource === 'oauth' ? readMintedOpenrouterKey()?.mintedAtMs : ''
+  return `${openrouterAuthPathForDisplay()}:${auth.account.keySource}:${mint}:${credentialFingerprint(auth.headers.authorization)}:${auth.baseUrl}`
 }
 
 function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
   if (observedIdentity !== activeIdentity(env)) {
     observedKeyUsage = null
     lastError = undefined
+    lastErrorSource = undefined
     lastAttemptAtMs = 0
     observedIdentity = 'none'
   }
@@ -76,9 +83,24 @@ function decodeKeyPayload(parsed: unknown, now: () => number): OpenrouterKeyUsag
 export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env): {
   usage: OpenrouterKeyUsage | null
   lastError?: string
+  errorSource?: OpenrouterKeySource
 } {
   dropIfStale(env)
-  return { usage: observedKeyUsage, ...(lastError !== undefined ? { lastError } : {}) }
+  return {
+    usage: observedKeyUsage,
+    ...(lastError !== undefined ? { lastError } : {}),
+    ...(lastErrorSource !== undefined ? { errorSource: lastErrorSource } : {}),
+  }
+}
+
+async function keyErrorMessage(response: Response): Promise<string> {
+  try {
+    const parsed: unknown = await response.json()
+    const error = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>).error : undefined
+    const message = typeof error === 'object' && error !== null ? (error as Record<string, unknown>).message : undefined
+    if (typeof message === 'string' && message.trim()) return message
+  } catch {}
+  return response.status === 401 ? 'API key expired' : `key endpoint returned HTTP ${response.status}`
 }
 
 export function refreshOpenrouterKeyUsage(opts?: {
@@ -100,33 +122,55 @@ export function refreshOpenrouterKeyUsage(opts?: {
   if (inFlight) return inFlight
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   inFlight = (async (): Promise<OpenrouterKeyUsage | null> => {
+    let auth = resolveOpenrouterRequestAuth(env)
+    let identity = auth ? requestIdentity(auth) : 'none'
     try {
-      lastAttemptAtMs = now()
-      const auth = resolveOpenrouterRequestAuth(env)
-      if (!auth) {
-        lastError = 'account-source-unavailable'
-        return observedKeyUsage
+      for (let attempt = 0; auth && attempt < 2; attempt++) {
+        const source = auth.account.keySource
+        const minted = source === 'oauth' ? readMintedOpenrouterKey() : undefined
+        identity = requestIdentity(auth)
+        lastAttemptAtMs = now()
+        observedIdentity = identity
+        const response = await fetchWithProviderDeadline(fetchImpl, 'openrouter', KEY_PROBE_TIMEOUT_MS, `${auth.baseUrl}/key`, {
+          method: 'GET',
+          headers: { ...auth.headers, 'user-agent': getProductUserAgent() },
+          ...(getProxyFetchOptions() as Record<string, unknown>),
+        } as RequestInit)
+        const error = response.ok ? undefined : await keyErrorMessage(response)
+        const decoded = response.ok ? decodeKeyPayload(await response.json(), now) : undefined
+        if (activeIdentity(env) !== identity) {
+          dropIfStale(env)
+          return observedKeyUsage
+        }
+        if (!response.ok) {
+          lastError = error
+          lastErrorSource = source
+          if (response.status === 401 && minted && markOpenrouterMintedKeyExpired(minted, error!)) {
+            observedKeyUsage = null
+            auth = resolveOpenrouterRequestAuth(env)
+            observedIdentity = auth ? requestIdentity(auth) : 'none'
+            if (auth?.account.keySource === 'stored') continue
+          }
+          return observedKeyUsage
+        }
+        if (!decoded) {
+          lastError = 'key endpoint payload undecodable'
+          lastErrorSource = source
+          return observedKeyUsage
+        }
+        observedKeyUsage = decoded
+        lastError = undefined
+        lastErrorSource = undefined
+        return decoded
       }
-      observedIdentity = activeIdentity(env)
-      const response = await fetchWithProviderDeadline(fetchImpl, 'openrouter', KEY_PROBE_TIMEOUT_MS, `${auth.baseUrl}/key`, {
-        method: 'GET',
-        headers: { ...auth.headers, 'user-agent': getProductUserAgent() },
-        ...(getProxyFetchOptions() as Record<string, unknown>),
-      } as RequestInit)
-      if (!response.ok) {
-        lastError = `key endpoint returned HTTP ${response.status}`
-        return observedKeyUsage
-      }
-      const decoded = decodeKeyPayload(await response.json(), now)
-      if (!decoded) {
-        lastError = 'key endpoint payload undecodable'
-        return observedKeyUsage
-      }
-      observedKeyUsage = decoded
-      lastError = undefined
-      return decoded
+      return observedKeyUsage
     } catch (error) {
+      if (activeIdentity(env) !== identity) {
+        dropIfStale(env)
+        return observedKeyUsage
+      }
       lastError = error instanceof Error ? error.message : String(error)
+      lastErrorSource = auth?.account.keySource
       return observedKeyUsage
     } finally {
       inFlight = null
@@ -184,6 +228,7 @@ export function forgetOpenrouterObservedLimit(): void {
 export function __resetOpenrouterUsageStateForTest(): void {
   observedKeyUsage = null
   lastError = undefined
+  lastErrorSource = undefined
   lastAttemptAtMs = 0
   inFlight = null
   observedLimit = null
