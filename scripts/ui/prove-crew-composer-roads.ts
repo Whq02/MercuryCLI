@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -170,6 +170,9 @@ const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.t
 const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
 const { asAgentId } = await import('../../src/types/ids.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+const { processBashCommand } = await import('../../src/utils/processUserInput/processBashCommand.tsx')
+const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
+const { composerTargetTaskId } = await import('../../src/state/selectors.ts')
 const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
@@ -227,12 +230,16 @@ type Scene = {
 }
 const stateRef = { current: null as null | { getState: () => unknown; setState: (updater: (prev: never) => never) => void } }
 const submits: string[] = []
+const shellResults: Array<Awaited<ReturnType<typeof processBashCommand>>> = []
 const scrollRef = React.createRef<{ getScrollTop: () => number; isSticky: () => boolean; scrollTo: (y: number) => void }>()
 
-function Transcript(): React.ReactNode {
+function Transcript({ messages }: { messages: Awaited<ReturnType<typeof processBashCommand>>['messages'] }): React.ReactNode {
   const rows: string[] = []
   for (let index = 0; index < 40; index++) rows.push(`14:49:${String(20 + index).padStart(2, '0')} [Mercury] LEAD-ROW ${index} — a row of the lead's transcript`)
-  return h(Text, null, rows.join('\n'))
+  return h(Box, { flexDirection: 'column' }, h(Text, null, rows.join('\n')),
+    ...messages.flatMap(message => message.type === 'user' && typeof message.message.content === 'string'
+      ? [h(UserTextMessage, { key: message.uuid, addMargin: false, verbose: false, param: { type: 'text', text: message.message.content } })]
+      : []))
 }
 function Harness(): React.ReactNode {
   const { controls, focus } = useCompactWorkControls()
@@ -243,13 +250,14 @@ function Harness(): React.ReactNode {
   const [help, setHelp] = React.useState(false)
   const [bashes, setBashes] = React.useState<string | boolean>(false)
   const [screen, setScreen] = React.useState('prompt')
+  const [shellMessages, setShellMessages] = React.useState<Awaited<ReturnType<typeof processBashCommand>>['messages']>([])
   const insertRef = React.useRef<unknown>(null)
   const modalScrollRef = React.useRef(null)
   return h(KeybindingSetup, null,
     h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
     h(FullscreenLayout, {
       scrollRef,
-      scrollable: h(TranscriptSwap, { lead: h(Transcript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
+      scrollable: h(TranscriptSwap, { lead: h(Transcript, { messages: shellMessages }), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
       statusBand: h(Text, null, 'waiting on 2 agents'),
       statusBandActive: true,
       modalScrollRef,
@@ -261,7 +269,24 @@ function Harness(): React.ReactNode {
           isLoading: false, verbose: false, submitCount: 1, onShowMessageSelector: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
           onExit: () => {}, getToolUseContext: () => ({} as never),
-          onSubmit: async (text: string) => { submits.push(text) },
+          onSubmit: async (text: string, helpers: { clearBuffer: () => void; resetHistory: () => void; setCursorOffset: (offset: number) => void }) => {
+            submits.push(text)
+            if (pending.mode() !== 'bash') return
+            pending.clearForSubmit(text)
+            pending.edit('')
+            pending.setMode('prompt')
+            helpers.clearBuffer()
+            helpers.resetHistory()
+            helpers.setCursorOffset(0)
+            const result = await processBashCommand(text.trim(), [], [], {
+              options: { verbose: false },
+              abortController: new AbortController(),
+              getAppState: store.getState,
+              setAppState: store.setState,
+            } as never, () => {})
+            shellResults.push(result)
+            setShellMessages(prev => [...prev, ...result.messages])
+          },
           isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
           hasSuppressedDialogs: false, isLocalJSXCommandActive: false, insertTextRef: insertRef,
         } as never),
@@ -310,7 +335,7 @@ function railColsOf(lines: string[]): number {
 }
 const railText = (line: string, railCols: number): string => cells(line).slice(0, railCols).join('')
 const railRow = (lines: string[], needle: string, railCols: number): number => lines.findIndex(line => railText(line, railCols).includes(needle))
-const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│[❯›]/.test(line))
+const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│?[❯›] /.test(line))
 const composerText = (lines: string[]): string => {
   const row = composerRowAt(lines)
   return row < 0 ? '(no composer row)' : lines[row]!.trim()
@@ -347,6 +372,7 @@ async function run(cols: number, rows: number): Promise<void> {
   section(`════ ${cols}x${rows} ════`)
   agentCalls.length = 0
   submits.length = 0
+  shellResults.length = 0
   resumeDelayMs = 0
   resumeReceipt = { outcome: 'applied', detail: '{"queued":true}' }
   const scene = await mount(cols, rows)
@@ -474,22 +500,24 @@ async function run(cols: number, rows: number): Promise<void> {
     check('m on Mercury Lead hands the main chat back (the pin is gone)', scene.state().mainChatTaskId === undefined)
   }
 
-  section(`§5 ${tag('esc on a crewmate between turns: the idle words, no stop sent')}`)
+  section(`§5 ${tag('esc on a crewmate that is not running: no stop sent, the view goes back to Mercury Lead')}`)
   {
     teammateView.enterTeammateView(CEDAR.id, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === CEDAR.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
     check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && headerOf(scene.lines(), railCols).includes(CEDAR.name), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
+    check('the footer says ↵ resumes Lane cedar with your line (the runner resumes a landed hosted crewmate from its transcript), never "↵ sends to Lane cedar"', /↵ resumes Lane cedar with your line/.test(idleFooter) && !/↵ sends to Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(500)
     save('05-idle-crewmate-esc', cols, rows, scene.lines())
     const words = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('esc on the idle crewmate sends no stop to the runner', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
-    check('the composer says cedar is between turns — nothing to interrupt (never "interrupted — its turn is cut")', scene.lines().some(line => line.includes(`${CEDAR.name} is between turns`)) && !scene.lines().some(line => line.includes(`${CEDAR.name} interrupted`)), words.slice(0, 260))
-    await clickRail(scene, LEAD_ROW, railCols)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    check('esc on the crewmate that is not running goes back to Mercury Lead', scene.state().viewingAgentTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+    check('the composer says cedar is landed and the view is back on Mercury Lead (never "interrupted — its turn is cut")', scene.lines().some(line => line.includes(`${CEDAR.name} is landed`) && line.includes(LEAD_ROW)) && !scene.lines().some(line => line.includes(`${CEDAR.name} interrupted`)), words.slice(0, 260))
   }
 
   section(`§6 ${tag('the local road: a line to an idle local agent is refused and kept; a line to a running one paints once when its delivery lands')}`)
@@ -511,6 +539,8 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
+    const idleLocalFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door (r in /teammates), never "↵ sends to Lane local"', /↵ refused — r in \/teammates resumes Lane local/.test(idleLocalFooter) && !/↵ sends to Lane local/.test(idleLocalFooter), idleLocalFooter.slice(0, 260))
     await typeWords(scene, IDLE_LINE)
     scene.push(ENTER)
     await sleep(700)
@@ -540,6 +570,65 @@ async function run(cols: number, rows: number): Promise<void> {
     teammateView.exitTeammateView(scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
   }
+
+  section(`§7 ${tag('a bang command belongs to the lead shell, never to the composer target')}`)
+  for (const entry of [
+    { label: 'viewed crewmate, bang line', viewed: ATLAS.id, pinned: undefined, input: 'line' },
+    { label: 'pinned crewmate with another viewed, pasted bang', viewed: BIRCH.id, pinned: ATLAS.id, input: 'paste' },
+    { label: 'pinned local crewmate, bash mode', viewed: LOCAL_ID, pinned: LOCAL_ID, input: 'mode' },
+  ] as const) {
+    pending.edit('')
+    pending.setMode('prompt')
+    teammateView.clearMainChat(scene.setState as never)
+    teammateView.enterTeammateView(entry.viewed, scene.setState as never)
+    if (entry.pinned !== undefined) teammateView.setMainChat(entry.pinned, scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === entry.viewed, 4000)
+    await sleep(400)
+    const targetBefore = composerTargetTaskId(scene.state() as never)
+    const tasksBefore = JSON.stringify(scene.state().tasks)
+    const files = [
+      join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${ATLAS.id}.jsonl`),
+      join(getProjectDir(CWD), SESSION_ID, 'subagents', `agent-${BIRCH.id}.jsonl`),
+      getAgentTranscriptPath(asAgentId(LOCAL_ID)),
+    ]
+    const transcriptsBefore = files.map(file => readFileSync(file, 'utf8'))
+    const resumesBefore = resumes().length
+    const submitsBefore = submits.length
+    const resultsBefore = shellResults.length
+    if (entry.input !== 'mode') {
+      scene.push(entry.input === 'paste' ? '\x1b[200~! echo hi\x1b[201~' : '! echo hi')
+      await until(() => pending.mode() === 'bash' && pending.text().trim() === 'echo hi', 4000)
+    } else {
+      pending.setMode('bash')
+      await sleep(150)
+      await typeWords(scene, 'echo hi')
+    }
+    await sleep(250)
+    check(`${entry.label}: the bang entry is shell mode before Enter`, pending.mode() === 'bash' && pending.text().trim() === 'echo hi', `mode=${pending.mode()} text=${JSON.stringify(pending.text())}`)
+    scene.push(ENTER)
+    await until(() => shellResults.length > resultsBefore || resumes().length > resumesBefore || JSON.stringify(scene.state().tasks) !== tasksBefore, 6000)
+    await sleep(250)
+    const leaked = resumes().slice(resumesBefore)
+    const crewRows = centreOf(scene.lines(), railCols).filter(line => line.includes('echo hi'))
+    console.log(`${entry.label}: crewmate delivery=${JSON.stringify(leaked.map(({ agentId, note }) => ({ agentId, note })))}; crewmate rows=${JSON.stringify(crewRows.map(line => line.trim()))}`)
+    check(`${entry.label}: the send took the lead road exactly once, not the crewmate road`, submits.length === submitsBefore + 1 && submits.at(-1)?.trim() === 'echo hi' && leaked.length === 0, `lead=${JSON.stringify(submits.slice(submitsBefore))} crewmate=${JSON.stringify(leaked)}`)
+    const result = shellResults[resultsBefore]
+    const shellRows = result?.messages.flatMap(message => message.type === 'user' && typeof message.message.content === 'string' ? [message.message.content] : []) ?? []
+    console.log(`${entry.label}: lead shell rows=${JSON.stringify(shellRows)}`)
+    check(`${entry.label}: the real shell printed hi and exited zero without querying a model`, result?.shouldQuery === false && shellRows.includes('<bash-input>echo hi</bash-input>') && shellRows.some(row => row.startsWith('<bash-stdout>hi</bash-stdout>') && row.includes('<bash-exit-code>0</bash-exit-code>')), JSON.stringify(shellRows))
+    check(`${entry.label}: the crewmates' transcripts and queues are untouched`, crewRows.length === 0 && JSON.stringify(scene.state().tasks) === tasksBefore && files.every((file, index) => readFileSync(file, 'utf8') === transcriptsBefore[index]), crewRows.join(' | '))
+    check(`${entry.label}: the viewed crewmate and pinned target are unchanged`, scene.state().viewingAgentTaskId === entry.viewed && scene.state().mainChatTaskId === entry.pinned && composerTargetTaskId(scene.state() as never) === targetBefore, `viewed=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
+    check(`${entry.label}: the sent shell line has left the composer`, pending.text() === '', JSON.stringify(pending.text()))
+    save(`07-${entry.input}-crewmate`, cols, rows, scene.lines())
+    teammateView.exitTeammateView(scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await sleep(400)
+    const lead = centreOf(scene.lines(), railCols)
+    const bangRows = lead.filter(line => line.includes('! echo hi'))
+    check(`${entry.label}: the bang row paints in the lead transcript, never under an operator-to-crewmate plate`, result !== undefined && bangRows.length === shellResults.length && bangRows.every(line => !line.includes('[you →')) && lead.some(line => /└\s+hi\s*│?$/.test(line)) && lead.some(line => line.includes('exit 0')), bangRows.map(line => line.trim()).join(' | '))
+    save(`07-${entry.input}-lead`, cols, rows, scene.lines())
+  }
+  teammateView.clearMainChat(scene.setState as never)
 
   await scene.close()
 }

@@ -3,9 +3,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import { crewAgentsOf, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
+import { crewSettled, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
-import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
@@ -14,7 +13,8 @@ import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { useAppState } from '../state/AppState.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
 import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import { useSessionCrew } from './tasks/useCrewLedger.js'
+import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
@@ -460,22 +460,16 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const mainChatTaskId = useAppState(s => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
 
-  const sessionId = focusedSessionIdOrNull()
-  const localRows: CrewRow[] = crewAgentsOf(projectWorkRoster(tasks), sessionId).map(f => ({
-    id: f.id,
-    label: f.name,
-    status: tasks[f.id]?.status ?? (f.status as TaskStatus),
-    facts: f,
+  const sessionCrew = useSessionCrew()
+  const crewRows: CrewRow[] = sessionCrew.map(row => ({
+    id: row.facts.id,
+    label: row.facts.name,
+    status: row.facts.status as TaskStatus,
+    ...(row.hosted ? { hosted: true } : {}),
+    facts: row.facts,
   }))
   const keptIds = [viewingAgentTaskId, mainChatTaskId].filter((id): id is string => id != null)
-  const hostedRows: CrewRow[] = crewAgentsOf(roster.rows, sessionId)
-    .filter(f => f.running || keptIds.includes(f.id))
-    .map(f => ({ id: f.id, label: f.name, status: f.running ? (f.status === 'pending' ? 'pending' : 'running') : (f.status as TaskStatus), hosted: true, facts: f }))
-  const crewById = new Map<string, CrewRow>()
-  for (const r of [...localRows, ...hostedRows]) {
-    if (!crewById.has(r.id)) crewById.set(r.id, r)
-  }
-  const crewAll = [...crewById.values()].sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1))
+  const crewAll = [...crewRows].sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1))
   const keptBeyondCap = crewAll.filter((c, i) => i >= CREW_ROWS && keptIds.includes(c.id))
   if (keptBeyondCap.length > 0) {
     const rest = crewAll.filter(c => !keptBeyondCap.includes(c))
@@ -843,6 +837,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const isViewing = viewingAgentTaskId != null && c.id === viewingAgentTaskId
     const isMainChat = mainChatTaskId != null && c.id === mainChatTaskId
     const base = statusTone(c.status, tok)
+    const finished = c.facts !== undefined ? crewSettled(c.facts) : c.status !== 'running' && c.status !== 'pending'
+    const greyed = finished && c.facts?.state !== 'failed'
     const tokensVerb = c.status === 'running' && c.facts !== undefined ? crewTokensLabel(c.facts) : null
     const verbLabel = tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label)
     const g = isMainChat ? GLYPH.star : isViewing ? GLYPH.circledBullet : c.status === 'running' ? GLYPH.busy : GLYPH.idle
@@ -855,13 +851,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         glyphColor={gColor}
         glyphLive={c.status === 'running' && !isViewing && !isMainChat}
         name={c.label}
-        nameColor={tok.textPrimary}
+        nameColor={greyed ? tok.textMuted : tok.textPrimary}
         nameBold={isViewing || isMainChat}
         marked={isViewing}
         tint={isMainChat ? mainChatTint : isViewing ? tok.selection : undefined}
         directActivate
         verb={verbLabel}
-        verbColor={base.tone}
+        verbColor={greyed ? tok.textMuted : base.tone}
         {...railRowProps(isOn, sel, { kind: 'teammate', id: c.id, label: c.hosted ? `crew:h:${c.id}` : c.label })}
       />
     )

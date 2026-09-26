@@ -60,8 +60,11 @@ import {
 } from '../../state/teammateViewHelpers.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, crewmateIdleWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { crewStateLabel } from '../../services/engine-connector/crewFacts.js'
+import { clearCrewmate } from '../../state/crewLedger.js'
 import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
+import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
@@ -1533,6 +1536,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       )
       removeNotification('stash-hint')
 
+      if (pendingInput.mode() === 'bash') {
+        await onSubmit(submitted, helpers, speculationAccept, {
+          fromKeybinding: options.fromKeybinding === true,
+        })
+        return
+      }
+
       const targetId = composerTargetTaskId(fresh)
       if (targetId !== undefined) {
         const intent = classifyAgentViewSubmission(
@@ -1575,15 +1585,18 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             queueOperatorMessage(task.id, text, setAppState)
             appendMessageToLocalAgent(
               task.id,
-              createUserMessage({ content: text }),
+              { ...createUserMessage({ content: text }), queued: true },
               setAppState,
             )
             sendReceipt(`${operatorLinePlate(targetName)} ${crewmateQueuedWords(targetName)}`)
             return true
           }
+          queueCrewmateLine(targetId, text)
           const receipt = await getFocusedSessionConnector().resumeAgent(targetId, text)
           if (receipt.outcome !== 'applied') {
-            sendReceipt(crewmateRefusedWords(targetName, receipt.detail ?? 'no reason given'), 'warning')
+            const why = receipt.detail ?? 'no reason given'
+            refuseCrewmateLine(targetId, text, targetName, why)
+            sendReceipt(crewmateRefusedWords(targetName, why), 'warning')
             return false
           }
           const queued = typeof receipt.detail === 'string' && receipt.detail.includes('"queued":true')
@@ -2095,6 +2108,18 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             return
           }
         }
+        if (rawInput === 'c' && !key.ctrl && !key.meta && focusPane === 'lanes') {
+          const row = currentHelmRow('lanes')
+          if (row !== undefined && row.kind === 'teammate') {
+            event.stopImmediatePropagation()
+            if (!helmRailPastEntryBuffer()) return
+            const ledgerRow = (appStateStore.getState() as AppState).crewLedger[row.id]
+            const facts = ledgerRow?.facts ?? { name: row.id, running: true }
+            const cleared = clearCrewmate(row.id, setAppState)
+            addNotification({ key: 'crewmate-send', text: cleared ? crewClearedWords(facts.name) : crewClearRefusedWords(facts), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+            return
+          }
+        }
         if (
           rawInput !== '' &&
           !key.ctrl &&
@@ -2131,7 +2156,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             facts: crewmate?.facts ?? null,
             onRefused: detail => say(crewmateInterruptRefusedWords(name, detail)),
           })
-          say(road === 'idle' ? crewmateIdleWords(name) : crewmateInterruptedWords(name))
+          if (road === 'idle') {
+            exitTeammateView(setAppState)
+            say(crewmateEscBackWords(name, crewmate?.facts != null ? crewStateLabel(crewmate.facts) : 'between turns'))
+            return
+          }
+          say(crewmateInterruptedWords(name))
           return
         }
       }

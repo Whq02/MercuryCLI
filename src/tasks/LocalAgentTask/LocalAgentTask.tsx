@@ -42,6 +42,7 @@ import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
 import { isOverloadAnswerText, overloadPauseWords } from './agentOverload.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { observedFamilyWindow } from '../../services/capFailover.js'
+import { CREW_INTERRUPTED_BY_OPERATOR_WORDS } from '../../services/engine-connector/crewFacts.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 
@@ -313,7 +314,7 @@ export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[
 export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
 export const AGENT_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
 export const AGENT_INTERRUPTED_STATUS_WORD = 'interrupted'
-export const AGENT_INTERRUPTED_WORDS = 'interrupted by the operator on its screen'
+export const AGENT_INTERRUPTED_WORDS = CREW_INTERRUPTED_BY_OPERATOR_WORDS
 export const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
 
 export function agentStopReasonOf(signalReason: unknown): string | undefined {

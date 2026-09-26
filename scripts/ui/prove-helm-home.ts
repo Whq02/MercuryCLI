@@ -83,12 +83,14 @@ check('drill-in REUSES the existing nav state (viewingAgentTaskId), not a reinve
   /viewingAgentTaskId/.test(lanes) && !/setAppState\(\{ viewingAgentTaskId/.test(lanes))
 const workRosterSrc = read('src/utils/task/workRoster.ts')
 const crewFactsSrc = read('src/services/engine-connector/crewFacts.ts')
-check('S8: CREW sources the projected roster through the crew predicate (the projector leaves the main session out)',
-  /crewAgentsOf\(projectWorkRoster\(tasks\), sessionId\)/.test(lanes) &&
+const crewLedgerSrc = read('src/state/crewLedger.ts')
+check('S8: CREW sources the projected roster through the crew predicate (the projector leaves the main session out), through the session crew ledger',
+  /useSessionCrew\(\)/.test(lanes) &&
+    /crewAgentsOf\(projectWorkRoster\(kept\), sessionId\)/.test(crewLedgerSrc) &&
     workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
     /return row\.kind === 'agent' \|\| row\.kind === 'teammate'/.test(crewFactsSrc))
-check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate) and keeps the viewed or pinned crewmate's row after it lands",
-  /useFocusedWorkRoster\(\)/.test(lanes) && /crewAgentsOf\(roster\.rows, sessionId\)/.test(lanes) && /\.filter\(f => f\.running \|\| keptIds\.includes\(f\.id\)\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
+check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate), keeps every crewmate the session has had — never filtered to the running ones — and pulls the viewed or pinned row into the cap",
+  /crewAgentsOf\(roster\.rows, sessionId\)/.test(crewLedgerSrc) && !/\.filter\(f => f\.running/.test(lanes) && /keptIds\.includes\(c\.id\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
 check('a hosted CREW row opens the agent in the view (the teammate road), never a /tasks command',
   /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/tasks \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',

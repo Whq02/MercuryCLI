@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
 import type { SDKAssistantMessage, SDKUserMessage } from '../entrypoints/sdk/controlTypes.js'
+import { createSignal } from './signal.js'
 
 
 export type SdkEventUsage = {
@@ -54,11 +55,14 @@ export type SdkAgentFrame = (SDKAssistantMessage | SDKUserMessage) & { parent_to
 const QUEUE_CAP = 1000
 
 const queue: SdkEvent[] = []
+const changed = createSignal()
+export const subscribeSdkEvents = changed.subscribe
 
 export function enqueueSdkEvent(event: SdkEvent): void {
   if (!getIsNonInteractiveSession()) return
   if (queue.length >= QUEUE_CAP) queue.shift()
   queue.push(event)
+  changed.emit()
 }
 
 export function drainSdkEvents(): Array<SdkEvent & { uuid: string; session_id: string }> {

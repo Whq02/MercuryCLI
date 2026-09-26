@@ -26,6 +26,9 @@
 # gate-watch: src/utils/settings/mdm/settings.ts src/utils/settings/settings.ts
 # gate-watch: src/utils/settings/settingsCache.ts
 # gate-watch: src/commands/mock-limits/mock-limits.ts
+# gate-watch: src/commands/usage/usage.tsx
+# gate-watch: src/ink/events/input-event.ts
+# gate-watch: src/utils/cockpit/settingsPopup.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

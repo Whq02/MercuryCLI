@@ -30,7 +30,7 @@ import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, u
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
-import { useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { crewmateLive, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 
 
@@ -259,7 +259,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
   const backHint =
     crewmate !== null && !crewmate.pinned
-      ? `${crewmateStatusRightHint(false)} · ${keyHintLabel('⇧← back')}`
+      ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null

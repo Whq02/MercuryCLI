@@ -367,10 +367,12 @@ console.log('— T6 the source pins —')
     src('src/tools/AgentTool/AgentTool.tsx').includes('model: plan.model,\n        toolUseId: context.toolUseId,'),
   )
   const rail = src('src/components/HelmLanesRail.tsx')
+  const ledger = src('src/state/crewLedger.ts')
   check(
-    'T6 the rail builds every crew row from the owner and spells a running verb from it',
-    rail.includes('crewAgentsOf(roster.rows, sessionId)') &&
-      rail.includes('crewAgentsOf(projectWorkRoster(tasks), sessionId)') &&
+    'T6 the rail builds every crew row from the owner (through the session crew ledger) and spells a running verb from it',
+    rail.includes('useSessionCrew()') &&
+      ledger.includes('crewAgentsOf(roster.rows, sessionId)') &&
+      ledger.includes('crewAgentsOf(projectWorkRoster(kept), sessionId)') &&
       rail.includes('crewTokensLabel(c.facts)'),
   )
   check("T6 the rail's overflow row opens the crew surface", rail.includes("command: '/teammates', label: 'crew:more'"))
@@ -382,8 +384,8 @@ console.log('— T6 the source pins —')
   )
   const view = src('src/components/mercury-ui/screens/CrewView.tsx')
   check(
-    'T6 the Crew view lists from the owner and hosts the /tasks card as its drill-in',
-    view.includes('crewAgentsOf(roster.rows, sessionId)') && view.includes('<RosterWorkDetail'),
+    'T6 the Crew view lists from the owner (the same session crew ledger the rail reads) and hosts the /tasks card as its drill-in',
+    view.includes('useSessionCrew()') && view.includes('<RosterWorkDetail'),
   )
   check(
     'T6 /teammates mounts the Crew view',
@@ -401,8 +403,10 @@ console.log('— T7 the status vocabulary and the transcript card —')
       stateOf('killed') === 'stopped' && stateOf('failed') === 'failed',
   )
   check(
-    "T7 an interrupt's stop words land on stopped",
-    stateOf('stopped') === 'stopped' && stateOf('interrupted') === 'stopped' && stateOf('cancelled') === 'stopped',
+    "T7 a stop's words land on stopped; the operator's interrupt reads interrupted, by the runner's word or by the stop reason it settled with",
+    stateOf('stopped') === 'stopped' && stateOf('cancelled') === 'stopped' && stateOf('interrupted') === 'interrupted' &&
+      crew.crewStateOf({ status: 'killed', stopReason: crew.CREW_INTERRUPTED_BY_OPERATOR_WORDS }) === 'interrupted' &&
+      crew.crewStateOf({ status: 'killed', stopReason: 'stopped from the crew view' }) === 'stopped',
   )
   check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 4 agents' && crew.crewWaitingLine([]) === null)
   const ag1 = agents.find(a => a.id === 'ag1')!

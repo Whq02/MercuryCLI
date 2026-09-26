@@ -7,6 +7,7 @@ import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { TaskState } from '../../tasks/types.js'
 import { projectWorkRoster } from '../../utils/task/workRoster.js'
+import { useCrewLedgerRow } from './useCrewLedger.js'
 import { focusedSessionIdOrNull, useFocusedWorkRoster } from './useFocusedWork.js'
 
 export type CrewmateInView = {
@@ -31,6 +32,18 @@ export function crewmateFacts(
   return crewAgentsOf(rosterRows, sessionId).find(agent => agent.id === taskId) ?? null
 }
 
+export function crewmateLive(crewmate: Pick<CrewmateInView, 'facts'> | null): boolean {
+  return crewmate === null || crewmate.facts === null || crewmate.facts.running
+}
+
+export function viewedWords(crewmate: CrewmateInView | null): { name: string; live: boolean } | null {
+  return crewmate === null ? null : { name: crewmate.name, live: crewmateLive(crewmate) }
+}
+
+export function targetWords(crewmate: CrewmateInView): { name: string; pinned: boolean; live: boolean; local: boolean } {
+  return { name: crewmate.name, pinned: crewmate.pinned, live: crewmateLive(crewmate), local: crewmate.local !== undefined }
+}
+
 export function crewmateName(taskId: string, local: TaskState | undefined, facts: CrewAgentFacts | null): string {
   if (facts !== null) return facts.name
   if (local !== undefined && isInProcessTeammateTask(local)) return local.identity.agentName
@@ -43,10 +56,11 @@ export function crewmateInView(
   state: Pick<AppState, 'tasks' | 'mainChatTaskId'>,
   rosterRows: readonly WorkRowV1[],
   sessionId: string | null,
+  remembered: CrewAgentFacts | null = null,
 ): CrewmateInView | null {
   if (taskId === undefined) return null
   const local = state.tasks[taskId]
-  const facts = crewmateFacts(taskId, local, rosterRows, sessionId)
+  const facts = crewmateFacts(taskId, local, rosterRows, sessionId) ?? remembered
   return {
     taskId,
     name: crewmateName(taskId, local, facts),
@@ -62,9 +76,10 @@ function useCrewmate(taskId: string | undefined): CrewmateInView | null {
   const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
   const sessionId = focusedSessionIdOrNull()
+  const remembered = useCrewLedgerRow(taskId)
   return useMemo(
-    () => crewmateInView(taskId, { tasks: taskId === undefined || local === undefined ? {} : { [taskId]: local }, mainChatTaskId }, roster.rows, sessionId),
-    [taskId, local, mainChatTaskId, roster, sessionId],
+    () => crewmateInView(taskId, { tasks: taskId === undefined || local === undefined ? {} : { [taskId]: local }, mainChatTaskId }, roster.rows, sessionId, remembered?.facts ?? null),
+    [taskId, local, mainChatTaskId, roster, sessionId, remembered],
   )
 }
 
