@@ -54,6 +54,7 @@ prove-shift-rect.ts
 prove-spinner-tips.ts
 prove-status-spine-unity.ts
 prove-submit-while-landing.ts
+prove-tab-cells-frames.ts
 prove-team-center.ts
 prove-token-completeness.ts
 prove-tool-verb.ts

@@ -6,6 +6,21 @@
 # gate-watch: src/ink/** src/state/AppState* src/utils/inputRange* src/utils/mercuryTokens*
 # gate-watch: src/components/MessageSelector* src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
+# gate-watch: src/commands/appearance/appearance.tsx src/commands/caching/caching.tsx
+# gate-watch: src/commands/console/console.tsx src/commands/copy/copy.tsx src/commands/effort/EffortSlider.tsx
+# gate-watch: src/commands/health/HealthCertificate.tsx src/commands/home/home.tsx src/commands/run/run.tsx
+# gate-watch: src/components/* src/components/PromptInput/* src/components/Settings/*
+# gate-watch: src/components/agents/studio/AgentStudio.tsx src/components/agents/studio/StudioEditor.tsx
+# gate-watch: src/components/concourse/* src/components/design-system/ThemedBox.tsx
+# gate-watch: src/components/diff/DiffFileList.tsx src/components/extensions/* src/components/mcp/*
+# gate-watch: src/components/memory/MemoryCentreView.tsx src/components/mercury-ui/*
+# gate-watch: src/components/mercury-ui/parity/* src/components/mercury-ui/screens/*
+# gate-watch: src/components/messages/SystemTextMessage.tsx
+# gate-watch: src/components/permissions/rules/RecentDenialsTab.tsx
+# gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/samples/SamplesListView.tsx
+# gate-watch: src/components/skills/SessionSkillsDial.tsx src/components/tasks/*
+# gate-watch: src/components/teams/TeamsDialog.tsx src/hooks/* src/main.tsx src/screens/REPL.tsx
+# gate-watch: src/screens/ResumeConversation.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
