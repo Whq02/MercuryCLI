@@ -181,7 +181,7 @@ if (CASE === undefined || CASE === 'picker') {
   const back = c.marks.get('wheeled-back') ?? []
   const end = c.marks.get('end') ?? []
   const homeF = c.marks.get('home') ?? []
-  check('the picker opened with a focus box', picker.some(l => l.includes('CHOOSE A MODEL')) && focusBoxRow(picker) >= 0, picker.slice(2, 8).join(' | '))
+  check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, picker.slice(2, 8).join(' | '))
   const left = Math.max(0, picker.findIndex(l => l.includes('╭')) >= 0 ? (picker.find(l => l.includes('╭')) ?? '').indexOf('╭') : 0)
   const r0 = focusBoxRow(picker)
   const r1 = focusBoxRow(wheeled)
@@ -189,12 +189,12 @@ if (CASE === undefined || CASE === 'picker') {
   console.log(`  [record] focus box row: opened ${r0} · after two wheel notches down ${r1} · after one notch up ${r2} · End ${focusBoxRow(end)} · Home ${focusBoxRow(homeF)}`)
   const moreAbove = (lines: string[]): boolean => lines.some(l => /↑ \d+ more/.test(l))
   const moreBelow = (lines: string[]): boolean => lines.some(l => /↓ \d+ more/.test(l))
-  check('the picker opened past its first rows (rows folded above the window)', moreAbove(picker), 'no fold marker above')
+  check('the picker opened with rows past the window (the seat\'s group leads, the rest fold below)', moreBelow(picker), 'no fold marker below')
   check('two wheel notches down move the highlight down the picker', r0 >= 0 && r1 > r0, `row ${r0} → ${r1}`)
   check('one notch up brings it back up one row', r1 > r2 && r2 > r0, `row ${r1} → ${r2}`)
   check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left))
   check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
-  check('Home returns the highlight to the first row (the window at the head, nothing folded above)', focusBoxRow(homeF) >= 0 && focusBoxRow(homeF) < r0 && !moreAbove(homeF), `row ${focusBoxRow(homeF)}; folded above: ${moreAbove(homeF)}`)
+  check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
 }
 
 if (CASE === undefined || CASE === 'help') {

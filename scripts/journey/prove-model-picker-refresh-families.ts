@@ -208,7 +208,7 @@ const mount = async (model: string, element?: React.ReactNode) => {
   await flush()
   return { seen: () => stripAnsi(output), clear: () => { output = '' }, unmount: () => instance.unmount(), rerender: () => store.setState(state => ({ ...state, effortValue: 'high' })), send: (keys: string) => { input.push(keys); stdin.emit('readable') } }
 }
-const live = (frame: string, name: string): boolean => new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\n]*(switch|current)`).test(frame)
+const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s{2,}\\S`).test(frame)
 const setKeys = (spec: Family): void => {
   for (const key of KEYS) delete process.env[key]
   for (const [key, value] of Object.entries(spec.keys)) process.env[key] = value
@@ -250,7 +250,7 @@ try {
     await action
     await settle(first.seen, frame => live(frame, spec.newName))
     check(`${spec.word}: the changed rows replace the cached list`, live(first.seen(), spec.newName) && !live(first.seen(), spec.oldName), first.seen().split('\n').filter(l => l.includes('refresh') || l.includes('Refresh')).join(' | '))
-    check(`${spec.word}: the highlight follows the same id when the row moves`, first.seen().includes(`${spec.model} · model IDs`), first.seen().split('\n').filter(l => l.includes('model IDs')).join(' | '))
+    check(`${spec.word}: the highlight follows the same id when the row moves`, new RegExp(`│ │ (?:—|\\S[^│]*?)\\s{2,}${spec.model.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(first.seen()), first.seen().split('\n').filter(l => l.includes('│ │ ')).join(' | '))
     check(`${spec.word}: the changed list paints the family's notice`, first.seen().includes(notice), first.seen().split('\n').filter(l => l.includes('catalogue')).join(' | '))
     first.unmount()
 

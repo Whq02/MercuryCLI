@@ -100,7 +100,7 @@ const K3 = 'k3'
 const K3_NAME = 'K3'
 const K3_256K_NAME = 'K3 256K'
 const KIMI_LABEL = 'Kimi account (device-code sign-in · global (kimi.ai))'
-const MOONSHOT_TITLE = 'MERCURY — MOONSHOT MODELS'
+const MOONSHOT_TITLE = ' MOONSHOT · '
 const OLD_LIST = { object: 'list', data: [
   { id: FAST, object: 'model', created: 200, owned_by: 'moonshot', context_length: 262_144 },
   { id: ALIAS, object: 'model', created: 100, owned_by: 'moonshot', context_length: 262_144, display_name: ALIAS_NAME },
@@ -175,21 +175,25 @@ const until = async (ok: () => boolean, ms: number): Promise<boolean> => {
 }
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const linesOf = (frame: string): string[] => frame.split('\n')
-const hasRow = (frame: string, name: string): boolean => linesOf(frame).some(line => new RegExp(`│ (?:│ | {2})${escape(name)} {2,}[○●⦿] (?:current|switch|unavail|next)`).test(line))
-const lineUnder = (frame: string, title: string): string => {
-  const lines = linesOf(frame)
-  const at = lines.findIndex(line => line.includes(title))
-  if (at < 0) return ''
-  const col = lines[at]!.indexOf(title)
-  const right = lines[at + 1]!.indexOf('│', col)
-  return (lines[at + 1] ?? '').slice(col, right > col ? right : undefined).trim()
-}
+const innerOf = (line: string): string => line.replace(/^\s*│ (?:│ )?/, '').replace(/\s*│(?: │)?\s*$/, '')
+const isHeading = (text: string): boolean => /^[▾▸❯] [A-Z][A-Z0-9.\- ]* · /.test(text)
+const isDoorLine = (text: string): boolean => /^ {2}\S.* · (?:\d+ live|\d+ of \d+)/.test(text) && !/ ctx\b/.test(text)
+const isRowText = (text: string): boolean => /^(?:❯ | {2})\S/.test(text) && !isHeading(text) && !isDoorLine(text) && !/^ {2}[↑↓] \d+ more/.test(text) && !/^ {2}[╭╰─│]/.test(text) && !(text.includes(' · ') && text.trim().split(/ {2,}/).length === 1)
+const rowText = (line: string): string => (line.includes('│ │ ') ? `  ${(line.split('│ │ ')[1] ?? '').replace(/\s*│ │\s*$/, '')}` : innerOf(line))
+const cellsOf = (text: string): string[] => text.replace(/^(?:❯ | {2})/, '').trim().split(/ {2,}/)
+const nameOfCells = (cells: string[]): string => (cells[0] === '—' ? cells[1] ?? '' : cells[0] ?? '')
+const sameName = (painted: string, name: string): boolean => painted === name || (painted.endsWith('…') && name.startsWith(painted.slice(0, -1)))
+const rowLines = (frame: string): string[] => linesOf(frame).filter(line => /│ (?:│ | {2})/.test(line) && isRowText(rowText(line)))
+const rowLine = (frame: string, name: string): string => rowLines(frame).find(line => sameName(nameOfCells(cellsOf(rowText(line))), name)) ?? ''
+const hasRow = (frame: string, name: string): boolean => rowLine(frame, name) !== ''
+const headingOf = (frame: string, title: string): string => innerOf(linesOf(frame).find(line => line.includes(title)) ?? '').trim()
 const focusOf = (frame: string): string => {
-  const card = linesOf(frame).find(line => line.includes('│ │ ')) ?? ''
-  const inner = card.split('│ │ ')[1] ?? ''
-  return inner.replace(/\s+[○●⦿] (?:current|switch|unavail|next|expand|gated)\b.*$/, '').replace(/\s*│.*$/, '').trim()
+  const boxed = linesOf(frame).find(line => line.includes('│ │ '))
+  if (boxed !== undefined) return nameOfCells(cellsOf(rowText(boxed)))
+  const caret = linesOf(frame).map(innerOf).find(text => text.startsWith('❯ ') && isRowText(text))
+  return caret === undefined ? '' : nameOfCells(cellsOf(caret))
 }
-const noticeOf = (frame: string): string => linesOf(frame).map(line => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()).find(line => line.startsWith('Moonshot')) ?? ''
+const noticeOf = (frame: string): string => linesOf(frame).filter(line => !rowLines(frame).includes(line)).map(line => line.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()).find(line => line.startsWith('Moonshot')) ?? ''
 const MOONSHOT_NAMES = new Set([ALIAS_NAME, FAST_NAME, K3_NAME, K3_256K_NAME])
 const onMoonshot = (name: string): boolean => name.startsWith('Moonshot — ') || MOONSHOT_NAMES.has(name)
 const fits = (frame: string, columns: number, rows: number): boolean => linesOf(frame).length <= rows && linesOf(frame).every(line => stringWidth(line) <= columns)
@@ -209,7 +213,7 @@ async function mount(model: string, band: Band) {
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
-  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('CHOOSE A MODEL'), 5000)
+  await until(() => /^\s*╰/.test(linesOf(frame()).at(-1) ?? '') && frame().includes('Mercury · model'), 5000)
   await flush(100)
   const press = async (keys: string, expectChange = true): Promise<boolean> => {
     const before = frame()
@@ -280,13 +284,13 @@ try {
     await until(() => hasRow(stale.frame(), K3_NAME), 1500)
     const frame = stale.frame()
     file(`stale-${tag(band)}-open`, frame)
-    record(`${tag(band)} stale open · under the title "${lineUnder(frame, MOONSHOT_TITLE)}" · rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
+    record(`${tag(band)} stale open · the heading "${headingOf(frame, MOONSHOT_TITLE)}" · rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'} · notice "${noticeOf(frame)}" · requests on open ${requests - before}`)
     check(`${tag(band)}: the open makes one list request although a list is cached (the other families' open law)`, requests === before + 1, `requests ${requests - before}`)
     const planRows = [K3_NAME, K3_256K_NAME].filter(name => hasRow(frame, name))
     check(`${tag(band)}: the Moonshot block is live on open: the plan's K3 rows paint around the current row, the retired list does not stand`, planRows.length >= (band.rows >= 40 ? 2 : 1) && hasRow(frame, ALIAS_NAME), `rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(frame, name)).join(',') || 'none'}`)
-    check(`${tag(band)}: the group line carries the live count beside the sign-in words`, lineUnder(frame, MOONSHOT_TITLE) === 'signed in · 4 models live', lineUnder(frame, MOONSHOT_TITLE))
+    check(`${tag(band)}: the heading carries the live count beside the sign-in door`, /^[▾❯] MOONSHOT · Kimi login(?: · \S+)? · 4 live$/.test(headingOf(frame, MOONSHOT_TITLE)), headingOf(frame, MOONSHOT_TITLE))
     check(`${tag(band)}: the changed list paints the family's existing notice`, noticeOf(frame) === 'Moonshot — the live list changed; rows updated', noticeOf(frame))
-    check(`${tag(band)}: the current mark stays on ${ALIAS} and the frame fits`, frame.includes(`${ALIAS} · model IDs`) && fits(frame, band.columns, band.rows), linesOf(frame).filter(line => line.includes('model IDs')).join(' | '))
+    check(`${tag(band)}: the current mark stays on ${ALIAS} and the frame fits`, cellsOf(rowText(rowLine(frame, ALIAS_NAME))).includes('current') && fits(frame, band.columns, band.rows), rowText(rowLine(frame, ALIAS_NAME)))
     stale.unmount()
   }
 
@@ -301,11 +305,11 @@ try {
     const reached = await unread.walkToMoonshot()
     const frame = unread.frame()
     file(`unread-${tag(band)}-open`, frame)
-    record(`${tag(band)} unread open · focus "${focusOf(frame)}" · under the title "${lineUnder(frame, MOONSHOT_TITLE)}" · notice "${noticeOf(frame)}" · requests on open ${openRequests}`)
+    record(`${tag(band)} unread open · focus "${focusOf(frame)}" · the heading "${headingOf(frame, MOONSHOT_TITLE)}" · notice "${noticeOf(frame)}" · requests on open ${openRequests}`)
     check(`${tag(band)}: the cursor reaches the Moonshot block`, reached, focusOf(frame))
     check(`${tag(band)}: the open reads the list although the last read failed (no wait for ↵)`, openRequests === 1, `requests ${openRequests}`)
     check(`${tag(band)}: the block is live on open, not the unavailable row`, hasRow(frame, K3_NAME) && !focusOf(frame).startsWith('Moonshot — '), focusOf(frame))
-    check(`${tag(band)}: the group line reads signed in with the live count`, lineUnder(frame, MOONSHOT_TITLE) === 'signed in · 4 models live', lineUnder(frame, MOONSHOT_TITLE))
+    check(`${tag(band)}: the heading reads the sign-in door with the live count`, /^[▾❯] MOONSHOT · Kimi login(?: · \S+)? · 4 live$/.test(headingOf(frame, MOONSHOT_TITLE)), headingOf(frame, MOONSHOT_TITLE))
     check(`${tag(band)}: the frame fits`, fits(frame, band.columns, band.rows))
     if (focusOf(frame).startsWith('Moonshot — ')) {
       const gated = linesOf(frame).find(line => line.includes('not selectable') || line.includes('model list unavailable')) ?? ''
@@ -314,7 +318,7 @@ try {
       await until(() => hasRow(unread.frame(), K3_NAME) && noticeOf(unread.frame()).includes('landed'), 3000)
       const after = unread.frame()
       file(`unread-${tag(band)}-after-enter`, after)
-      record(`${tag(band)} after ↵ · under the title "${lineUnder(after, MOONSHOT_TITLE)}" · rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(after, name)).join(',') || 'none'} · notice "${noticeOf(after)}" · requests ${requests - before}`)
+      record(`${tag(band)} after ↵ · the heading "${headingOf(after, MOONSHOT_TITLE)}" · rows ${[K3_NAME, K3_256K_NAME, ALIAS_NAME, FAST_NAME].filter(name => hasRow(after, name)).join(',') || 'none'} · notice "${noticeOf(after)}" · requests ${requests - before}`)
     }
     unread.unmount()
   }
@@ -345,7 +349,7 @@ try {
     const opens = (road: string): number => (wrapper.match(new RegExp(`useCatalogueRefreshOnOpen\\(${road}, setNotice\\)`, 'g')) ?? []).length
     check('the Moonshot road is opened wherever the OpenRouter road is', opens('MOONSHOT_ROAD') === opens('OPENROUTER_ROAD') && opens('MOONSHOT_ROAD') >= 1, `moonshot ${opens('MOONSHOT_ROAD')} · openrouter ${opens('OPENROUTER_ROAD')}`)
     check('the road reads the account-keyed cache and forces its refresh', wrapper.includes('cached: () => getCachedMoonshotCatalogue()') && wrapper.includes('refresh: () => refreshMoonshotCatalogue({ force: true })') && wrapper.includes('kimi-oauth:${kimiAccountKey(tokens)}:${kimiCodingBase(account.region)}'))
-    check('the group line carries the live words the catalogue owner chose', wrapper.includes('moonshotCatalogueSourceWords()'))
+    check('the heading counts the live rows through the one composer (the catalogue owner\'s rows, no second count)', !wrapper.includes('moonshotCatalogueSourceWords()') && wrapper.includes('orderPickerRows(anthropicDoorRows(models)'))
   }
 } finally {
   globalThis.fetch = realFetch

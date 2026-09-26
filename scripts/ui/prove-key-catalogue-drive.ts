@@ -200,7 +200,7 @@ for (const family of FAMILIES) {
       check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
       if (family === 'zai') {
         const words = marks.get('chat') ?? ''
-        check(`${tag}: Z.AI paints its static rows under the key and asks no endpoint`, !wire.some(hit => hit.url.endsWith('/models')) && chat?.model === retired && (!picker.includes('CHOOSE A MODEL') || (picker.includes('Z.AI MODELS') && picker.includes('key present') && picker.includes('GLM-5.3') && (picker.includes('GLM-5.2') || /↓ \d+ more/.test(picker)) && !picker.includes(liveName) && !picker.includes(next))))
+        check(`${tag}: Z.AI paints its static rows under the key and asks no endpoint`, !wire.some(hit => hit.url.endsWith('/models')) && chat?.model === retired && (!picker.includes('Mercury · model') || (/[▾▸❯] Z\.AI · (?:Coding Plan key|API key) · …\S+ · \d+ live/.test(picker) && picker.includes('GLM-5.3') && (picker.includes('GLM-5.2') || /↓ \d+ more/.test(picker)) && !picker.includes(liveName) && !picker.includes(next))))
         check(`${tag}: Z.AI preserves the provider reason after the status`, words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'))
         continue
       }

@@ -38,25 +38,23 @@ console.log('§1 the predicate covers every sentinel spelling')
   }
 }
 
-console.log('\n§2 the id line guards before it prints (call-shaped)')
+console.log('\n§2 the row paints the raw id only for a model row (call-shaped)')
 {
   const src = readFileSync(join(ROOT, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
-  const ladderEnd = src.indexOf('model IDs are real')
-  const ladder = ladderEnd < 0 ? '' : src.slice(src.lastIndexOf('<Text color={FAINT} wrap="truncate-end">', ladderEnd), ladderEnd + 60)
+  const pure = readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelPickerGroups.ts'), 'utf-8')
   check(
-    'the ladder consults isProviderActionRow before the gated/id arms',
-    ladder.includes('isProviderActionRow(focusedModel!.id)') &&
-      ladder.includes('isProviderActionRow') &&
-      ladder.indexOf('isProviderActionRow') < ladder.indexOf('.gated'),
-    ladder.length > 0 ? '' : '(ladder not found)',
+    'a model row is one that is neither an action, a door nor a choice',
+    pure.includes('export function isModelRow(row: PickerRow): boolean {') && pure.includes('return row.action !== true && row.expand === undefined && row.choice === undefined'),
+  )
+  const painter = src.slice(src.indexOf('const model = isModelRow(m)'), src.indexOf('{on && !compact && m.tag !== \'\''))
+  check(
+    'the id column paints m.id only on the model arm; the action arm paints the name across both columns and never the value',
+    painter.includes('{model ? (') && painter.includes('cell(m.id, columns.id)') && painter.includes('cell(m.name, columns.alias + columns.id)') && !painter.slice(painter.indexOf('</>')).includes('cell(m.id'),
+    painter.length > 0 ? '' : '(painter not found)',
   )
   check(
-    'the action arm speaks the action, never the value',
-    ladder.includes('connect action') && !/connect action[^']*\$\{focusedModel/.test(ladder),
-  )
-  check(
-    'the ids-are-real promise still stands on real model rows',
-    src.includes('model IDs are real, never themed'),
+    'the printed ids-are-real sentence is retired: the raw id stands beside its alias on every model row instead',
+    !src.includes('model IDs are real, never themed') && !src.includes('model ids are real'),
   )
 }
 

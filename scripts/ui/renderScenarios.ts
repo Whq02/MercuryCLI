@@ -1570,7 +1570,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
         argv: ['node', BIN, '--resume', SID],
         sends: [
           { atTick: 30, data: '/model\r' },
-          { atTick: 40, awaitText: 'CHOOSE A MODEL', requireAwait: true, awaitSettleTicks: 3, data: '\u001b[H' },
+          { atTick: 40, awaitText: 'Mercury · model', requireAwait: true, awaitSettleTicks: 3, data: '\u001b[H\u001b[B' },
           { atTick: 64, data: 'c' },
         ],
         total: 78,

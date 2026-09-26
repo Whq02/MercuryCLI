@@ -96,7 +96,7 @@ for (const columns of [120, 178]) {
   check(`[${columns}] it is the raw row`, marked[0]?.includes(RAW) === true, marked[0])
   const idx = (id: string): number => lines(frame).findIndex(line => line === rowLine(frame, id))
   check(`[${columns}] the raw row paints below Opus 4.6, the end of the opus block, and above the haiku row`, idx('Opus 4.6') >= 0 && idx(RAW) > idx('Opus 4.6') && idx('Haiku 4.5') > idx(RAW), `${idx('Opus 4.6')} < ${idx(RAW)} < ${idx('Haiku 4.5')}`)
-  check(`[${columns}] the id line names the raw id as a real model id`, frame.includes(`${RAW} · model IDs are real, never themed`))
+  check(`[${columns}] the raw row names the raw id in its id column beside no alias (the raw id is its own name)`, /—\s+claude-opus-5-7\s+current\s+new · no alias/.test(rowLine(frame, RAW) ?? ''), rowLine(frame, RAW))
   check(`[${columns}] the raw row is selectable (never painted unavail)`, !(rowLine(frame, RAW) ?? '').includes('unavail'))
 }
 

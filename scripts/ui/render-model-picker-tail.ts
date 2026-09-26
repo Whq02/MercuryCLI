@@ -77,17 +77,17 @@ function expect(label: string, cond: boolean, detail = ''): void {
 for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
   const scr = shoot(cols, rows)
   const lines = scr.split('\n')
-  const compactTier = !/CHOOSE A MODEL/.test(scr)
+  const compactTier = !/│\s+╭/.test(scr)
   console.log(`\n── @ ${cols}×${rows} (${compactTier ? 'compact' : 'full'} tier) ──`)
-  expect('the picker mounted', /Mercury — model/.test(scr))
+  expect('the picker mounted', /Mercury · model/.test(scr))
   const lastInk = [...lines].reverse().find(l => l.trim().length > 0) ?? ''
   expect('the panel closes on screen (bottom-most ink is its ╰ border)', lastInk.includes('╰'), JSON.stringify(lastInk.slice(0, 60)))
   if (compactTier) {
     expect('compact: the focused (❯) row is on screen', lines.some(l => l.includes('❯')))
-    expect('compact: the footer hints survive below the rows', /esc close/.test(scr))
+    expect('compact: the footer hints survive below the rows', /esc (?:or click outside )?closes/.test(scr))
   } else {
-    expect('full: the seat-slot id-line is on screen (the expansion the clip ate)', /seat slot · precedence: env pin/.test(scr))
-    expect('full: the footer hints survive below the rows', /esc close/.test(scr))
+    expect('full: the focused tail row paints in its box (the expansion the clip ate)', /│\s+╭/.test(scr) && /│\s+╰/.test(scr))
+    expect('full: the footer hints survive below the rows', /esc (?:or click outside )?closes/.test(scr))
     expect('full: the ↑ window counter tells the cut truth at the tail', /↑ \d+ more/.test(scr))
   }
 }

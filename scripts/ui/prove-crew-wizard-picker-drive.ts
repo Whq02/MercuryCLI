@@ -185,8 +185,8 @@ for (const [cols, rows] of SIZES) {
     const focused = frameOf('focused')
     const after = `${frameOf('after')}\n${frameOf('settled')}`
     check(`${tag}: the drive delivered every send (exit 0)`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}; exit ${status}`)
-    check(`${tag}: the model step names the agent and opens the model picker`, picker.includes(`@${NAME} · pick a model`) && (cols < 100 || picker.includes('CHOOSE A MODEL')), picker.split('\n').filter(l => /pick a model|CHOOSE/.test(l)).join(' | '))
-    check(`${tag}: the picker lists the live rows by family group (more than one family heading)`, cols < 100 || picker.split('\n').filter(l => /MERCURY — .* MODELS/.test(l)).length >= 2, picker.split('\n').filter(l => /MODELS/.test(l)).join(' | '))
+    check(`${tag}: the model step names the agent and opens the model picker`, picker.includes(`@${NAME} · pick a model`) && (cols < 100 || picker.includes('Mercury · model')), picker.split('\n').filter(l => /pick a model|Mercury · model/.test(l)).join(' | '))
+    check(`${tag}: the picker lists the live rows by provider group (more than one provider heading)`, cols < 100 || picker.split('\n').filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.split('\n').filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
     check(`${tag}: no generation-key chips remain (no opus · sonnet · fable · fable51 chip row)`, !/│\s*opus\s+.*│\s*sonnet\s+/.test(picker) && !picker.includes('you pick the model per agent'), rowWith(picker, 'opus'))
     check(`${tag}: the footer names the picker's keys`, picker.includes('↑↓ move · ↵ spawn · esc back'), rowWith(picker, 'esc back'))
     const models = crewTeamModels(home)
