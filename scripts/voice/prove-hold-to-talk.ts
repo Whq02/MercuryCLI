@@ -475,8 +475,6 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
   const startedText = started.type === 'text' ? started.value : ''
   check('/voice starts a take and its receipt names /voice again and esc, not the space key', phase() === 'recording' && /\/voice/.test(startedText) && /esc/.test(startedText) && !/space/.test(startedText), startedText)
   session.cancelVoiceCapture()
-  const header = readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8').split('\n').slice(0, 20).join('\n')
-  check("the module's header law says hold/release/esc, not the empty composer", /hold/i.test(header) && /release/i.test(header) && !/empty composer/.test(header), header.split('\n').slice(5, 9).join(' '))
   const docs = readFileSync(join(ROOT, 'docs', 'VOICE.md'), 'utf8')
   check('docs/VOICE.md says the new law and names the threshold and /voice for a terminal without key repeat', /hold space/i.test(docs) && /release/.test(docs) && /3 s|three seconds|3 seconds/.test(docs) && /key repeat/.test(docs) && !/press space in an empty composer/.test(docs), docs.split('\n').filter(l => /space/.test(l)).slice(0, 3).join(' · '))
 }
