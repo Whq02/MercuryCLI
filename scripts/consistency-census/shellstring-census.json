@@ -1865,6 +1865,13 @@
       "why": "drives Shell.exec through the REAL bash path deliberately — stdin-EOF settlement is the subject under test"
     },
     {
+      "file": "scripts/tools/prove-sandbox-retry-ask.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(wrapped, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000 })",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
