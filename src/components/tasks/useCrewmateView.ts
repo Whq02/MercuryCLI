@@ -40,6 +40,10 @@ export function viewedWords(crewmate: CrewmateInView | null): { name: string; li
   return crewmate === null ? null : { name: crewmate.name, live: crewmateLive(crewmate) }
 }
 
+export function targetWords(crewmate: CrewmateInView): { name: string; pinned: boolean; live: boolean; local: boolean } {
+  return { name: crewmate.name, pinned: crewmate.pinned, live: crewmateLive(crewmate), local: crewmate.local !== undefined }
+}
+
 export function crewmateName(taskId: string, local: TaskState | undefined, facts: CrewAgentFacts | null): string {
   if (facts !== null) return facts.name
   if (local !== undefined && isInProcessTeammateTask(local)) return local.identity.agentName

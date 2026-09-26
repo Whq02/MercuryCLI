@@ -181,6 +181,7 @@ const { createStreamingTailStore } = await import('../../src/utils/messages/stre
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
 const teammateView = await import('../../src/state/teammateViewHelpers.ts')
+const crewmateQueue = await import('../../src/components/tasks/crewmateQueue.ts')
 const crewViewStore = await import('../../src/utils/cockpit/crewView.ts')
 const { createTaskStateBase } = await import('../../src/Task.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -236,7 +237,7 @@ function landLine(agentId: string, text: string): void {
 }
 function seedAll(): void {
   seq = 100
-  seedHosted(ATLAS.id, [userRow(ATLAS.id, 0, 'atlas — the picker pop-up'), assistantRow(ATLAS.id, 1, 'ATLAS-ROW 1 — the seam is the session mount.')])
+  seedHosted(ATLAS.id, [userRow(ATLAS.id, 0, 'atlas — the picker pop-up'), ...Array.from({ length: 60 }, (_, n) => assistantRow(ATLAS.id, n + 1, `ATLAS-ROW ${n + 1} — ${n === 0 ? 'the seam is the session mount.' : 'a row of the crewmate\'s own transcript, tall enough that the view has to scroll.'}`))])
   seedHosted(BIRCH.id, [userRow(BIRCH.id, 0, 'birch — the drives say what they drive'), assistantRow(BIRCH.id, 1, 'BIRCH-ROW 1 — the drives named.')])
   seedHosted(CEDAR.id, [userRow(CEDAR.id, 0, 'cedar — the jump pill'), assistantRow(CEDAR.id, 1, 'CEDAR-ROW 1 — the pill shrinks.')])
   seedHosted(DELTA.id, [userRow(DELTA.id, 0, 'delta — the scratchpad'), assistantRow(DELTA.id, 1, 'DELTA-ROW 1 — done, the folder is named.')])
@@ -350,7 +351,11 @@ function crewBox(lines: string[], railCols: number): { header: string; rows: str
   }
   return { header: railText(lines[headerRow]!, railCols).replace(/[│]/g, '').trim(), rows }
 }
-const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│[❯›]/.test(line))
+const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│?[❯›] /.test(line))
+const composerText = (lines: string[]): string => {
+  const row = composerRowAt(lines)
+  return row < 0 ? '(no composer row)' : lines[row]!.trim()
+}
 const footerOf = (lines: string[]): string => {
   const row = composerRowAt(lines)
   return row < 0 ? '' : lines.slice(row + 1, row + 8).map(line => line.trim()).filter(line => line !== '' && !/^[╰─╯╭╮]+$/.test(line)).join('\n')
@@ -403,6 +408,7 @@ async function run(cols: number, rows: number): Promise<void> {
   section(`════ ${cols}x${rows} ════`)
   agentCalls.length = 0
   submits.length = 0
+  crewmateQueue.resetCrewmateQueueForTest()
   rosterRows = freshRows()
   resumeReceipt = { outcome: 'applied', detail: '{"queued":true}' }
   seedAll()
@@ -439,6 +445,25 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(400)
     save('01b-delta-viewed', cols, rows, scene.lines())
     check('delta (landed, still on the roster) is viewed with its transcript', scene.state().viewingAgentTaskId === DELTA.id && headerOf(scene.lines(), railCols).includes(DELTA.name), `viewing=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    const landedFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    console.log(`the footer on the landed crewmate: ${landedFooter.slice(0, 200)}`)
+    check('the footer says what ↵ does to a landed hosted crewmate — ↵ resumes delta with your line — never "↵ sends to delta"', /↵ resumes delta with your line/.test(landedFooter) && !/↵ sends to delta/.test(landedFooter), landedFooter.slice(0, 240))
+    const RESUME_LINE = 'delta, one more folder'
+    resumeReceipt = { outcome: 'applied' }
+    await typeWords(scene, RESUME_LINE)
+    scene.push(ENTER)
+    await waitForCall(() => resumes().filter(call => call.note === RESUME_LINE).length, 1)
+    await sleep(500)
+    save('01b-delta-resumed', cols, rows, scene.lines())
+    const resumeCall = resumes().find(call => call.note === RESUME_LINE)
+    check('↵ on the landed crewmate resumes it with the line through the connector (the runner resumes it from its transcript), the target never falls back to the lead', resumeCall !== undefined && resumeCall.agentId === DELTA.id && submits.length === 0, `${JSON.stringify(resumeCall)} · submits ${JSON.stringify(submits)}`)
+    check('the receipt says delta was between turns and resumed with the message', scene.lines().some(line => line.includes('delta was between turns') && line.includes('resumed with your message')), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
+    check('the line paints in delta\'s transcript at once, marked queued, until the runner writes it', centreOf(scene.lines(), railCols).some(line => line.includes(RESUME_LINE) && /\bqueued\b/.test(line)), centreOf(scene.lines(), railCols).filter(line => line.includes(RESUME_LINE)).join(' | ').slice(0, 200))
+    landLine(DELTA.id, RESUME_LINE)
+    publishRoster()
+    await until(() => centreOf(scene.lines(), railCols).some(line => line.includes(RESUME_LINE) && !/\bqueued\b/.test(line)), 8000)
+    check('…and is the landed row once, the queued mark gone', centreOf(scene.lines(), railCols).filter(line => line.includes(RESUME_LINE)).length === 1, centreOf(scene.lines(), railCols).filter(line => line.includes(RESUME_LINE)).join(' | ').slice(0, 200))
+    resumeReceipt = { outcome: 'applied', detail: '{"queued":true}' }
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(600)
@@ -551,19 +576,52 @@ async function run(cols: number, rows: number): Promise<void> {
     const carrying = (): string[] => centreOf(scene.lines(), railCols).filter(line => line.includes(LINE))
     await typeWords(scene, LINE)
     scene.push(ENTER)
-    await waitForCall(() => resumes().length, 1)
+    await waitForCall(() => resumes().filter(call => call.agentId === ATLAS.id).length, 1)
     await sleep(500)
     save('05-queued-at-once', cols, rows, scene.lines())
     console.log(`the rows carrying the line: ${carrying().map(line => line.trim().slice(0, 100)).join(' | ')}`)
-    check('↵ sent the line to atlas through the connector, once', resumes().length === 1 && resumes()[0]!.agentId === ATLAS.id && resumes()[0]!.note === LINE, JSON.stringify(resumes()))
+    const atlasResumes = (): AgentCall[] => resumes().filter(call => call.agentId === ATLAS.id)
+    check('↵ sent the line to atlas through the connector, once', atlasResumes().length === 1 && atlasResumes()[0]!.note === LINE, JSON.stringify(resumes()))
     check('the line paints in the crewmate\'s transcript at once, plated [you → atlas] and marked queued', carrying().length === 1 && carrying()[0]!.includes(`[you → ${ATLAS.name}]`) && /\bqueued\b/.test(carrying()[0]!), carrying().length === 0 ? 'no row carries the line — only the receipt shows' : carrying().join(' | ').slice(0, 200))
+    const rowIndexOf = (): number => centreOf(scene.lines(), railCols).findIndex(line => line.includes(LINE))
+    const plateColumnOf = (): number => (centreOf(scene.lines(), railCols).find(line => line.includes(LINE)) ?? '').indexOf('[you →')
+    const masked = (): string[] => centreOf(scene.lines(), railCols).map(line => line.replace(/\b\d\d:\d\d:\d\d\b|\bqueued  /g, '········'))
+    const queuedRow = rowIndexOf()
+    const queuedPlateColumn = plateColumnOf()
+    const queuedTranscript = masked()
     landLine(ATLAS.id, LINE)
     publishRoster()
     const landedOnce = await until(() => carrying().length === 1 && !/\bqueued\b/.test(carrying()[0]!), 8000)
     await sleep(300)
     save('05-landed', cols, rows, scene.lines())
-    console.log(`after the runner wrote the row: ${carrying().map(line => line.trim().slice(0, 100)).join(' | ')}`)
+    console.log(`after the runner wrote the row: ${carrying().map(line => line.trim().slice(0, 100)).join(' | ')} · row ${queuedRow} → ${rowIndexOf()} · plate column ${queuedPlateColumn} → ${plateColumnOf()}`)
     check('once the delivery lands on disk the line is the normal row — exactly one, the queued mark gone', landedOnce && carrying().length === 1, `${carrying().length} rows carry the line: ${carrying().map(line => line.trim().slice(0, 80)).join(' | ')}`)
+    check('the landed twin occupies the queued row\'s own row and plate column — the queued mark stood where the clock stands, the transcript never reflows when it lands', rowIndexOf() === queuedRow && plateColumnOf() === queuedPlateColumn && queuedPlateColumn > 0, `row ${queuedRow} → ${rowIndexOf()} · plate column ${queuedPlateColumn} → ${plateColumnOf()}`)
+    const landedTranscript = masked()
+    const firstDiff = landedTranscript.findIndex((line, index) => line !== queuedTranscript[index])
+    check('every other transcript row paints exactly where it did before the landing (the clock column aside)', firstDiff < 0, `first differing row ${firstDiff}: "${(queuedTranscript[firstDiff] ?? '').trim().slice(0, 80)}" → "${(landedTranscript[firstDiff] ?? '').trim().slice(0, 80)}"`)
+    const SECOND = 'atlas, then the footer'
+    scrollRef.current?.scrollTo(2)
+    await sleep(300)
+    const scrolledTop = scrollRef.current?.getScrollTop() ?? -1
+    const topRowOf = (): string => centreOf(scene.lines(), railCols).find(line => /ATLAS-ROW|\[you → atlas\]/.test(line)) ?? ''
+    const scrolledTopRow = topRowOf()
+    await typeWords(scene, SECOND)
+    scene.push(ENTER)
+    await waitForCall(() => resumes().filter(call => call.agentId === ATLAS.id).length, 2)
+    await sleep(500)
+    const queuedTop = scrollRef.current?.getScrollTop() ?? -1
+    const queuedTopRow = topRowOf()
+    landLine(ATLAS.id, SECOND)
+    publishRoster()
+    await sleep(3200)
+    save('05-scrolled-landing', cols, rows, scene.lines())
+    console.log(`the scrolled view across a queued line and its landing: scrollTop ${scrolledTop} → ${queuedTop} → ${scrollRef.current?.getScrollTop()} · top row "${scrolledTopRow.trim().slice(0, 40)}" → "${queuedTopRow.trim().slice(0, 40)}" → "${topRowOf().trim().slice(0, 40)}"`)
+    check(`a scrolled transcript keeps its scroll top and its top row while a line queues below the viewport (scrollTop ${scrolledTop})`, scrolledTop === 2 && queuedTop === scrolledTop && queuedTopRow === scrolledTopRow, `scrollTop ${scrolledTop} → ${queuedTop} · top row "${scrolledTopRow.trim().slice(0, 60)}" → "${queuedTopRow.trim().slice(0, 60)}"`)
+    check('…and across the landing of that line (the queued row and its landed twin occupy the same rows, so nothing above moves)', scrollRef.current?.getScrollTop() === scrolledTop && topRowOf() === scrolledTopRow, `scrollTop ${scrolledTop} → ${scrollRef.current?.getScrollTop()} · top row "${scrolledTopRow.trim().slice(0, 60)}" → "${topRowOf().trim().slice(0, 60)}"`)
+    scrollRef.current?.scrollToBottom()
+    await sleep(300)
+    check('the second line landed once at the bottom, the queued mark gone', centreOf(scene.lines(), railCols).filter(line => line.includes(SECOND)).length === 1 && !centreOf(scene.lines(), railCols).some(line => line.includes(SECOND) && /\bqueued\b/.test(line)), centreOf(scene.lines(), railCols).filter(line => line.includes(SECOND)).join(' | ').slice(0, 200))
   }
 
   section(`§6 ${tag('a refused delivery: the queued row says so instead of vanishing; the draft comes back')}`)
@@ -626,15 +684,26 @@ async function run(cols: number, rows: number): Promise<void> {
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...(prev.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID], status: 'completed', endTime: Date.now() } } }))
     await sleep(400)
     check('the local crewmate that landed reads landed in the CREW box', boxRow(LOCAL_NAME).includes('landed'), boxRow(LOCAL_NAME))
+    teammateView.enterTeammateView(LOCAL_ID, scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
+    await sleep(400)
+    save('07-local-landed-viewed', cols, rows, scene.lines())
+    const localFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · header "${headerOf(scene.lines(), railCols).slice(0, 80)}"`)
+    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/teammates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
+    await clickRail(scene, LEAD_ROW, railCols)
+    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    await sleep(900)
   }
 
   section(`§8 ${tag('a line queued to a crewmate that ends before it lands says so; the last crewmate finishes and is evicted: the box stands, every row greyed, until the operator clears them all')}`)
   {
     const LINE = 'atlas, after you land'
     const carrying = (): string[] => centreOf(scene.lines(), railCols).filter(line => line.includes(LINE) || line.includes('ended before it landed'))
-    await clickRail(scene, 'atlas', railCols)
-    await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
+    const atlasRailRow = await clickRail(scene, 'atlas', railCols)
+    const atlasViewed = await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
     await sleep(300)
+    check('one click on atlas in the rail opens it in the view before the line is sent', atlasViewed, `row ${atlasRailRow} · viewing=${String(scene.state().viewingAgentTaskId)} · rail ${describeBox()}`)
     await typeWords(scene, LINE)
     scene.push(ENTER)
     await waitForCall(() => resumes().filter(call => call.note === LINE).length, 1)

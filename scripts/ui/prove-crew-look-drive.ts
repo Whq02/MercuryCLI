@@ -130,7 +130,7 @@ const see = (needle: string, mark: string, settle = 4, extra: Send = {}): Send =
 const clickOn = (needle: string, extra: Send = {}): Send => ({ data: CLICK, targetText: needle, atTick: 1500, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, ...extra })
 const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 const later = (ticks: number, mark: string): Send => ({ data: '', afterPrevTicks: ticks, mark })
-const popup = (command: string, needle: string, tag: string): Send[] => [type(command, 3), type('\r', 3), see(needle, `${tag}-open`, 6), type(ESC, 3), later(8, `${tag}-closed`)]
+const popup = (command: string, needle: string, tag: string, typeTicks = 3): Send[] => [type(command, typeTicks), type('\r', 3), see(needle, `${tag}-open`, 6), type(ESC, 3), later(8, `${tag}-closed`)]
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const cells = (line: string): string[] => Array.from(line)
@@ -323,8 +323,8 @@ async function leg(cols: number, rows: number): Promise<void> {
     ...popup('/teammates', CREW_TITLE, 'crew'),
     type(PAGE_UP, 3),
     type(PAGE_UP, 3),
-    later(5, 'atlas-scrolled'),
-    ...popup('/usage', USAGE_HINT, 'usage-scrolled'),
+    later(3, 'atlas-scrolled'),
+    ...popup('/usage', USAGE_HINT, 'usage-scrolled', 1),
     clickOn(FJORD_RUNNING),
     see('VIEW · fjord', 'view-fjord', 6),
     type(PAGE_UP, 3),

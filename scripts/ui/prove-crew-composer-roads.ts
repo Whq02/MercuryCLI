@@ -310,7 +310,7 @@ function railColsOf(lines: string[]): number {
 }
 const railText = (line: string, railCols: number): string => cells(line).slice(0, railCols).join('')
 const railRow = (lines: string[], needle: string, railCols: number): number => lines.findIndex(line => railText(line, railCols).includes(needle))
-const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│[❯›]/.test(line))
+const composerRowAt = (lines: string[]): number => lines.findIndex(line => /^│?[❯›] /.test(line))
 const composerText = (lines: string[]): string => {
   const row = composerRowAt(lines)
   return row < 0 ? '(no composer row)' : lines[row]!.trim()
@@ -483,6 +483,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && headerOf(scene.lines(), railCols).includes(CEDAR.name), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
     const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
+    check('the footer says ↵ resumes Lane cedar with your line (the runner resumes a landed hosted crewmate from its transcript), never "↵ sends to Lane cedar"', /↵ resumes Lane cedar with your line/.test(idleFooter) && !/↵ sends to Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     const stopsBefore = stops().length
     scene.push(ESC)
     await sleep(500)
@@ -512,6 +513,8 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
+    const idleLocalFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
+    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door (r in /teammates), never "↵ sends to Lane local"', /↵ refused — r in \/teammates resumes Lane local/.test(idleLocalFooter) && !/↵ sends to Lane local/.test(idleLocalFooter), idleLocalFooter.slice(0, 260))
     await typeWords(scene, IDLE_LINE)
     scene.push(ENTER)
     await sleep(700)

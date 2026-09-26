@@ -151,6 +151,12 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
       : [{ data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-running' }]),
     { data: 'x', atTick: 999, awaitText: 'x again within', requireAwait: true, minTick: 1, awaitSettleTicks: 1, mark: 'armed' },
     { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
+    ...(name === 'card'
+      ? [
+          { data: '', afterPrevTicks: 6, mark: 'stopped-view' },
+          { data: '\x1b', afterPrevTicks: 1 },
+        ]
+      : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     { data: '\r', afterPrevTicks: 4 },
     { data: '\x1b', atTick: 999, awaitText: name === 'tasks' ? 'esc' : 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'crew-later' },
@@ -176,6 +182,14 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
   if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (the header names it as viewing) and the pop-up closes`, /VIEW · [^\n]*viewing/.test(marks['view-open'] ?? '') && !(marks['view-open'] ?? '').includes('Sub-agents'), flat(marks['view-open'] ?? '').slice(0, 200))
+  if (name === 'card') {
+    const stoppedView = marks['stopped-view'] ?? ''
+    const stoppedFlat = flat(stoppedView)
+    check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, /VIEW · [^\n]*viewing/.test(stoppedView) && !stoppedView.includes('Sub-agents') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
+    check(`${tag}: the footer says what the keys do on a stopped crewmate — ↵ resumes it with your line, esc goes back to Mercury Lead — never ↵ sends to / esc interrupts`, stoppedFlat.includes(`↵ resumes ${target} with your line`) && stoppedFlat.includes('esc back to Mercury Lead') && !stoppedFlat.includes(`↵ sends to ${target}`) && !stoppedFlat.includes(`esc interrupts ${target}`), stoppedFlat.slice(-400))
+    const stoppedRail = stoppedView.split('\n').find(line => new RegExp(`[◉◐·] ${target.slice(0, 8)}[^\\n]*· stopped`).test(line))
+    check(`${tag}: the stopped crewmate keeps its CREW row, reading stopped, while it is viewed`, stoppedRail !== undefined, stoppedView.split('\n').filter(line => line.includes(target.slice(0, 8))).map(flat).join(' | ').slice(0, 200) || '(no row)')
+  }
   check(`${tag}: no refusal is painted under the rows`, !after.includes('was refused'), flat(after).slice(0, 200))
   check(`${tag}: the daemon relayed exactly one stop to the runner (the chord fired once, the connector sent it once)`, records.daemonStops.length === 1, `daemon lines ${records.daemonStops.length}`)
   const later = marks['crew-later'] ?? ''

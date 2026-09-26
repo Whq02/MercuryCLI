@@ -12,7 +12,7 @@ export const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
 export const CREW_CLEAR_KEY = 'c clear'
 export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in /teammates`
 
-export type CrewmateWordsState = { name: string; pinned: boolean }
+export type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 
 export function crewmateHeaderGlyph(pinned: boolean): '★' | '✶' {
   return pinned ? '★' : '✶'
@@ -53,9 +53,14 @@ export function crewmateStatusWords(viewed: CrewmateViewedState, target: Crewmat
   return `${VIEWING_WORD} ${viewed.name} · composer → ${target.name} (the ${MAIN_CHAT_WORD})${tail}`
 }
 
+export function crewmateSendClause(target: CrewmateWordsState): string {
+  if (target.live !== false) return `↵ sends to ${target.name}`
+  return target.local === true ? `↵ refused — r in /teammates resumes ${target.name}` : `↵ resumes ${target.name} with your line`
+}
+
 export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState): string {
   const esc = viewed === null ? '' : viewed.live === false ? ` · ${ESC_BACK_HINT}` : ` · esc interrupts ${viewed.name}`
-  return `↵ sends to ${target.name}${esc} · ${target.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
+  return `${crewmateSendClause(target)}${esc} · ${target.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
 }
 
 export const CREWMATE_BETWEEN_TURNS_DETAIL = 'it is between turns and nothing drains a queued line — r in /teammates resumes it from its transcript'
