@@ -19,6 +19,7 @@ import type {
   SandboxDependencyCheck,
   SandboxRuntimeConfig,
   SandboxViolationEvent,
+  WrapWithSandboxOptions,
 } from '@anthropic-ai/sandbox-runtime'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getCwd } from '../cwd.js'
@@ -42,12 +43,14 @@ export type {
   SandboxDependencyCheck,
   SandboxRuntimeConfig,
   SandboxViolationEvent,
+  WrapWithSandboxOptions,
 }
 export { SandboxViolationStore, SandboxRuntimeConfigSchema }
 
 const CONFIG_HOMES = ['.mercury', '.claude']
 const BARE_REPO_ENTRIES = ['HEAD', 'objects', 'refs', 'hooks', 'config']
 const SETTINGS_FILES = ['settings.json', 'settings.local.json']
+const SANDBOX_VIOLATION_MONITOR = true
 
 
 export function resolvePathPatternForSandbox(pattern: string, sourceRoot: string): string {
@@ -385,10 +388,11 @@ export type ISandboxManager = {
   getLinuxHttpSocketPath(): string | undefined
   getLinuxSocksSocketPath(): string | undefined
   waitForNetworkInitialization(): Promise<void>
-  wrapWithSandbox(command: string, innerShell?: string, abortSignal?: AbortSignal): Promise<string>
+  wrapWithSandbox(command: string, innerShell?: string, abortSignal?: AbortSignal, options?: WrapWithSandboxOptions): Promise<string>
   cleanupAfterCommand(): void
   getSandboxViolationStore(): InstanceType<typeof SandboxViolationStore>
   annotateStderrWithSandboxFailures(command: string, stderr: string): string
+  recordedViolations(key: string, since?: number): string[]
   getLinuxGlobPatternWarnings(): string[]
   refreshConfig(): void
   reset(): void
@@ -414,7 +418,7 @@ export const SandboxManager: ISandboxManager = {
             return askCallback(host)
           })
         : undefined
-      await RuntimeSandboxManager.initialize(config, wrappedCallback)
+      await RuntimeSandboxManager.initialize(config, wrappedCallback, SANDBOX_VIOLATION_MONITOR)
       try {
         const settingsModule = require('../settings/changeDetector.js') as {
           onSettingsChanged?(fn: () => void): () => void
@@ -543,12 +547,12 @@ export const SandboxManager: ISandboxManager = {
     await RuntimeSandboxManager.waitForNetworkInitialization()
   },
 
-  async wrapWithSandbox(command: string, innerShell?: string, abortSignal?: AbortSignal): Promise<string> {
+  async wrapWithSandbox(command: string, innerShell?: string, abortSignal?: AbortSignal, options?: WrapWithSandboxOptions): Promise<string> {
     if (SandboxManager.isSandboxingEnabled()) {
       if (!initPromise) throw new Error('Sandbox is enabled but not initialised; refusing to run unsandboxed.')
       await initPromise
     }
-    return RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal)
+    return RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal, options)
   },
 
   cleanupAfterCommand(): void {
@@ -566,6 +570,16 @@ export const SandboxManager: ISandboxManager = {
   getSandboxViolationStore: () => RuntimeSandboxManager.getSandboxViolationStore(),
   annotateStderrWithSandboxFailures: (_command: string, stderr: string) =>
     RuntimeSandboxManager.annotateStderrWithSandboxFailures(_command, stderr),
+  recordedViolations(key: string, since?: number): string[] {
+    try {
+      return RuntimeSandboxManager.getSandboxViolationStore()
+        .getViolationsForCommand(key)
+        .filter(event => since === undefined || event.timestamp.getTime() >= since)
+        .map(event => event.line)
+    } catch {
+      return []
+    }
+  },
 
   getLinuxGlobPatternWarnings(): string[] {
     const platform = getPlatform()
