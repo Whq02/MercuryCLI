@@ -30,7 +30,7 @@ const RAIL_SCAN_LANDED_MARK = '○ '
 
 const SIZES: Array<[number, number]> = [
   [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
-  [149, 40], [150, 40], [151, 40], [160, 50],
+  [149, 40], [150, 40], [151, 40], [160, 50], [269, 70],
 ]
 const CORE_AT_EVERY_SIZE = ['frame', 'resume-2turn']
 const WIDE_BOARDS = ['cockpit-wide', 'sessions', 'help', 'tool-cards']
