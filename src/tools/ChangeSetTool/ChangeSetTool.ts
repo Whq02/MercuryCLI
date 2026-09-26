@@ -73,6 +73,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
 import { checkWritePermissionForTool, describeWriteScope, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
+import { reasonForRule, refusalWithReason } from '../../utils/permissions/ruleReason.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -1219,7 +1220,7 @@ NOT this tool (refused by name): file creation (Write) · binary content · note
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: `Permission to edit ${p} has been denied — a denied path refuses the whole change set (zero writes).`,
+          message: refusalWithReason(`Permission to edit ${p} has been denied — a denied path refuses the whole change set (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
         }
       }
       if (decision.behavior !== 'allow') needsAsk = true
