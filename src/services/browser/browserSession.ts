@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import type { Browser as DriverBrowser, LaunchOptions, Page } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { endProcessTree } from '../../utils/processGroup.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
@@ -56,18 +57,21 @@ export type CloseOutcome = 'closed' | 'killed' | 'gone'
 function killChild(browser: DriverBrowser): void {
   const child = browser.process()
   if (!child) return
-  const pid = child instanceof ChildProcess && process.platform !== 'win32' ? child.pid : undefined
-  try {
-    if (typeof pid === 'number' && pid > 0) process.kill(-pid, 'SIGKILL')
-    else child.kill('SIGKILL')
-    return
-  } catch {
-  }
   try {
     child.kill('SIGKILL')
   } catch {
     return
   }
+}
+
+async function endChild(browser: DriverBrowser): Promise<void> {
+  const child = browser.process()
+  if (!child) return
+  if (child instanceof ChildProcess) {
+    await endProcessTree(child, 'SIGKILL')
+    return
+  }
+  killChild(browser)
 }
 
 export function childGone(browser: DriverBrowser): boolean {
@@ -79,7 +83,7 @@ export function childGone(browser: DriverBrowser): boolean {
 
 async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
   if (childGone(browser)) {
-    killChild(browser)
+    await endChild(browser)
     return 'gone'
   }
   let bound: ReturnType<typeof setTimeout> | undefined
@@ -89,12 +93,12 @@ async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
   try {
     const won = await Promise.race([browser.close().then(() => 'closed' as const), lapse])
     if (won === 'lapsed') {
-      killChild(browser)
+      await endChild(browser)
       return 'killed'
     }
     return 'closed'
   } catch {
-    killChild(browser)
+    await endChild(browser)
     return 'killed'
   } finally {
     if (bound !== undefined) clearTimeout(bound)
