@@ -542,9 +542,9 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
 }
 
 function normalisePath(path: string): string {
-  const absolute = path.startsWith('/')
+  const absolute = /^[\\/]/.test(path)
   const out: string[] = []
-  for (const segment of path.split('/')) {
+  for (const segment of path.split(/[\\/]/)) {
     if (segment === '' || segment === '.') continue
     if (segment === '..') {
       if (out.length > 0 && out[out.length - 1] !== '..') out.pop()
