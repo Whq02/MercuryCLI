@@ -1,9 +1,6 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
-## 1.0.0-beta.22
-- Removed the project notepad: /note, the TABULA rail card, its journal store and fire hooks, and the MERCURY_TABULA flags; WORKBENCH stays and takes the vacated card slot, and old saved notes are left untouched
-
 ## 1.0.0-beta.21
 - Added /jevor on, which runs Jev through the existing OpenRouter sign-in with its own stated-cost meter and cap; /jev on keeps the official TypeSafe service, and signing in never switches JEV on
 - Added a ContextLeft tool: the model can ask how much of the context window is used and how many tokens are left before a compaction, measured on the wire
