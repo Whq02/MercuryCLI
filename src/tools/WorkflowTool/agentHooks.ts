@@ -446,6 +446,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   const onAgentController = deps.onAgentController
   const budget = deps.budget
   const journal = deps.journal
+  const runPauseSeam = (ctx as { workflowPause?: WorkflowExecutionPause }).workflowPause
 
   const spawnStream: SpawnSubagentStream =
     deps.spawnSubagentStream ?? adapterSpawnStream
@@ -623,6 +624,21 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (engine) opts.model = engine.model
       }
 
+      const prompt = String(promptIn)
+      const label =
+        opts?.label != null
+          ? String(opts.label)
+          : prompt.slice(0, 60).replace(/\s+/g, ' ').trim()
+      const phaseTitle = opts?.phase != null ? String(opts.phase) : activePhaseTitle
+
+      const parkedCall = runPauseSeam?.park(
+        { label, ...(phaseTitle !== undefined ? { phaseTitle } : {}) },
+        admitted,
+        ctx.abortController?.signal,
+      )
+      if (parkedCall !== undefined) await parkedCall
+      if (ctx.abortController?.signal.aborted) return new Promise(() => {})
+
       try {
         assertUnderAgentCap()
         assertBudgetRemains()
@@ -632,12 +648,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       }
 
       const index = ++admitted
-      const prompt = String(promptIn)
-      const label =
-        opts?.label != null
-          ? String(opts.label)
-          : prompt.slice(0, 60).replace(/\s+/g, ' ').trim()
-      const phaseTitle = opts?.phase != null ? String(opts.phase) : activePhaseTitle
       const phaseIndex = phaseTitle != null ? resolvePhase(phaseTitle) : undefined
       const stallMs = opts?.stallMs != null ? Number(opts.stallMs) : DEFAULT_STALL_MS
       const promptPreview = previewOf(prompt)
