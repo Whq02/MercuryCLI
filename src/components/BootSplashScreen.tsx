@@ -25,7 +25,7 @@ import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { computedDefault, readComputedDefaultCatalogue } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { takeFaceUpdateNotice } from '../services/privateChannel/quietUpdateNotice.js';
+import { takeFaceUpdateNotice, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { providerFamilyPresences } from '../services/providers/providerUsage.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
@@ -166,7 +166,12 @@ export function BootSplashScreen(): React.ReactNode {
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
-  const [updateLine] = useState(() => takeFaceUpdateNotice());
+  const [updateLine, setUpdateLine] = useState(() => takeFaceUpdateNotice());
+  useEffect(() => {
+    if (updateLine === null) return;
+    const timer = setTimeout(() => setUpdateLine(null), UPDATE_NOTICE_STAY_MS);
+    return () => clearTimeout(timer);
+  }, [updateLine]);
 
   const concourseLive = routeSurfaceRegistered('concourse');
   const plainWhy = plainWorldWhy();
