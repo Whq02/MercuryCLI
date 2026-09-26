@@ -504,6 +504,131 @@ section('§9 auth status names the credential\'s own email; the JSON shape is th
   check('the JSON verb reads the one sign-in email reader, never the record\'s address', read('src/cli/handlers/auth.ts').includes('anthropicSignInEmail') && !read('src/cli/handlers/auth.ts').includes('payload.email = account?.emailAddress'))
 }
 
+type SeatIdentity = import('../../src/services/engine-connector/types.ts').SeatIdentityV1
+section('§10 the seat facts a hosted session answers carry the credential\'s own email; the wire, the daemon\'s seat and the cockpit\'s connector relay it untouched')
+{
+  const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
+  const runner = read('src/cli/print.ts')
+  const armStart = runner.indexOf("case 'session_facts':")
+  const armEnd = runner.indexOf('respondSuccess(requestId, sessionFactsToWire(answer))', armStart)
+  const arm = armStart < 0 || armEnd < 0 ? '' : runner.slice(armStart, armEnd)
+  const identityLiteral = ((): string => {
+    const at = arm.indexOf('identity: {')
+    if (at < 0) return ''
+    const open = at + 'identity: '.length
+    let depth = 0
+    for (let index = open; index < arm.length; index++) {
+      if (arm[index] === '{') depth++
+      if (arm[index] === '}' && --depth === 0) return arm.slice(open, index + 1)
+    }
+    return ''
+  })()
+  check('the runner\'s session_facts arm composes the identity block the seat wire carries', identityLiteral.startsWith('{') && identityLiteral.includes('accountEmail:'), identityLiteral.slice(0, 160))
+  const billing = await import(join(ROOT, 'src/utils/billing.ts'))
+  const identityOf = (): SeatIdentity | string => {
+    try {
+      const compose = new Function('is1PApiCustomer', 'hasConsoleBillingAccess', 'hasClaudeAiBillingAccess', 'getGlobalConfig', 'anthropicSignInEmail', `return (${identityLiteral})`) as (...readers: unknown[]) => SeatIdentity
+      return compose(auth.is1PApiCustomer, billing.hasConsoleBillingAccess, billing.hasClaudeAiBillingAccess, config.getGlobalConfig, usage.anthropicSignInEmail)
+    } catch (error) {
+      return `the identity block did not evaluate: ${error instanceof Error ? error.message : String(error)}`
+    }
+  }
+  const emailOnFacts = (): string => {
+    const identity = identityOf()
+    return typeof identity === 'string' ? identity : JSON.stringify(identity.accountEmail)
+  }
+  settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
+  const identity = identityOf()
+  check('the seat facts\' identity.accountEmail is the credential\'s own email, never the config record', typeof identity !== 'string' && identity.accountEmail === PROFILE_EMAIL, emailOnFacts())
+  check('the other identity facts stand (a subscriber: not a first-party API customer, claude.ai billing)', typeof identity !== 'string' && identity.firstPartyApi === false && identity.claudeAiBilling === true && identity.consoleBilling === false, typeof identity === 'string' ? identity : JSON.stringify(identity))
+  const seatWire = await import(join(ROOT, 'src/services/engine-connector/seatWire.ts'))
+  const zeroUsage = { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }
+  const answerWith = (who: SeatIdentity | string): Record<string, unknown> => ({
+    model: { effective: MODEL, setting: null },
+    usage: zeroUsage,
+    identity: typeof who === 'string' ? { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: who } : who,
+    skills: [],
+    mcp: [],
+    permissionMode: 'default',
+    workspace: { cwd: HOME, originalCwd: HOME, projectRoot: HOME, instructionRoots: [] },
+    queue: [],
+  })
+  const onWire = seatWire.sessionFactsToWire(answerWith(identity) as never) as { identity?: Record<string, unknown> }
+  check('the wire carries it under account_email, the key unchanged by name', onWire.identity?.account_email === PROFILE_EMAIL && !('accountEmail' in (onWire.identity ?? {})), JSON.stringify(onWire.identity))
+  check('the wire\'s identity keys are the contract\'s four', JSON.stringify(Object.keys(onWire.identity ?? {}).sort()) === JSON.stringify(['account_email', 'claude_ai_billing', 'console_billing', 'first_party_api']), JSON.stringify(Object.keys(onWire.identity ?? {})))
+  const decoded = seatWire.sessionFactsFromWire(JSON.parse(JSON.stringify(onWire))) as { identity?: SeatIdentity } | null
+  check('the seat decodes it back as identity.accountEmail', decoded?.identity?.accountEmail === PROFILE_EMAIL, JSON.stringify(decoded?.identity))
+
+  const DAEMON_DIR = join(HOME, 'daemon')
+  mkdirSync(DAEMON_DIR, { recursive: true })
+  process.env.MERCURY_DAEMON_DIR = DAEMON_DIR
+  const seat = await import(join(ROOT, 'src/daemon/sessionSeat.ts'))
+  const supervisor = await import(join(ROOT, 'src/daemon/concourseSupervisor.ts'))
+  const projections = await import(join(ROOT, 'src/services/engine-connector/seatProjections.ts'))
+  const { DaemonSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))
+  const { NoSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
+  const SESSION = 'aaaaaaaa-bbbb-4ccc-8ddd-seatemail001'
+  const SHORT = 'concourse-se1'
+  supervisor.updateConcourseWorkers(workers => {
+    workers[SHORT] = {
+      schema: 1,
+      runnerId: SHORT,
+      sessionId: SESSION,
+      workspaceId: HOME,
+      isolation: 'exclusive',
+      modelKey: MODEL,
+      effort: 'high',
+      spawnedAt: NOW,
+      lastLiveAt: NOW,
+      settingsSnapshot: { schema: 1, snapshotId: 's', sessionId: SESSION, profileRevision: 0, profileDigest: 'd', resolvedAt: NOW, rows: [] },
+      workspaceKind: 'plain-folder',
+    } as never
+  }, DAEMON_DIR)
+  const roster = { control: () => true, list: () => [{ short: SHORT, turnActive: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
+  const published = (): SeatIdentity | undefined => projections.readSessionFacts(SESSION, DAEMON_DIR)?.identity
+  const settled = async (expect: (who: SeatIdentity | undefined) => boolean): Promise<boolean> => {
+    for (let attempt = 0; attempt < 120; attempt++) {
+      if (expect(published())) return true
+      await new Promise<void>(resolve => setTimeout(resolve, 25))
+    }
+    return expect(published())
+  }
+  seat.publishSeatFacts(SHORT, DAEMON_DIR, roster as never)
+  check('before the runner\'s first answer the seat publishes no account email (the skeleton), never the record', await settled(who => who !== undefined && who.accountEmail === null), JSON.stringify(published()))
+  let factsSeq = 0
+  const runnerAnswers = (who: SeatIdentity | string): void => {
+    factsSeq += 1
+    seat.onSeatLine(SHORT, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: `${seat.SESSION_FACTS_REQUEST_PREFIX}${SHORT}-${factsSeq}`, response: seatWire.sessionFactsToWire(answerWith(who) as never) } }), roster as never, DAEMON_DIR)
+  }
+  runnerAnswers(identity)
+  check('the daemon\'s seat publishes the runner\'s identity verbatim: the credential\'s own email on the facts file', await settled(who => who?.accountEmail === PROFILE_EMAIL), JSON.stringify(published()))
+  const record = { sessionId: SESSION, runnerId: SHORT, title: 'seat', projectLabel: 'scratch', workspaceId: HOME, home: HOME }
+  const hosted = new DaemonSessionConnector(record)
+  check('the cockpit\'s hosted connector reads the published identity: the credential\'s own email', hosted.identity().accountEmail === PROFILE_EMAIL && hosted.identity().claudeAiBilling === true, JSON.stringify(hosted.identity()))
+  check('a hosted connector with no facts on disk names nobody', new DaemonSessionConnector({ ...record, sessionId: 'aaaaaaaa-bbbb-4ccc-8ddd-seatemail000' }).identity().accountEmail === null)
+  check('the resting slot names nobody', new NoSessionConnector().identity().accountEmail === null)
+  runnerAnswers(RECEIPT_EMAIL)
+  check('a fresh answer replaces the published address; the connector built on it reads the new one', (await settled(who => who?.accountEmail === RECEIPT_EMAIL)) && new DaemonSessionConnector(record).identity().accountEmail === RECEIPT_EMAIL, JSON.stringify(published()))
+  settleFixture({ record: RECORD_EMAIL })
+  check('a credential with no stored email puts null on the facts, never the record', emailOnFacts() === 'null', emailOnFacts())
+  settleFixture({ envKey: true })
+  check('a key-based sign-in puts null on the facts (unchanged)', emailOnFacts() === 'null', emailOnFacts())
+  settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
+  check('the runner composes accountEmail through the one sign-in email reader, never the config record', identityLiteral.includes('accountEmail: anthropicSignInEmail() ?? null') && !identityLiteral.includes('oauthAccount'), identityLiteral)
+  check('the runner imports the reader from the presence owner', /import \{[^}]*\banthropicSignInEmail\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(runner))
+  check('the wire table spells the key account_email, the type keeps accountEmail: string | null', read('src/services/engine-connector/seatWire.ts').includes("accountEmail: 'account_email'") && read('src/services/engine-connector/types.ts').includes('accountEmail: string | null'))
+  const relays = ['src/services/engine-connector/daemonConnector.ts', 'src/daemon/sessionSeat.ts', 'src/services/engine-connector/noSessionConnector.ts', 'src/services/engine-connector/seatWire.ts', 'src/services/engine-connector/seatProjections.ts']
+  check('the relays derive no address of their own (the seat, the connector, the resting slot, the codecs read no config record)', relays.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('emailAddress')), relays.filter(relative => read(relative).includes('oauthAccount') || read(relative).includes('emailAddress')).join(', '))
+  check('the connector answers the facts\' identity as published, null when none', read('src/services/engine-connector/daemonConnector.ts').includes('return this.facts?.identity ?? { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }'))
+  check('the seat\'s skeleton and the resting slot name nobody', read('src/daemon/sessionSeat.ts').includes('identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }') && read('src/services/engine-connector/noSessionConnector.ts').includes('accountEmail: null,'))
+  const readers = ['src/screens/REPL.tsx', 'src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
+  check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling') && !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')), readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', '))
+  const initialize = read('src/cli/headless/controlHandlers.ts')
+  check('the SDK initialize response names the account through getAccountInformation, the same one reader (never the config record, never the facts)', initialize.includes('const accountInfo = getAccountInformation()') && initialize.includes('email: accountInfo?.email') && !initialize.includes('oauthAccount') && !initialize.includes('accountEmail'))
+  check('getAccountInformation().email in this home is the credential\'s own (the initialize response\'s source)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))
+  delete process.env.MERCURY_DAEMON_DIR
+}
+
 if (framesDir) {
   writeFileSync(join(framesDir, 'index.txt'), [
     'profile-*: the credential stores profile owner@example.com beside the token; the config record says ring@example.com',
