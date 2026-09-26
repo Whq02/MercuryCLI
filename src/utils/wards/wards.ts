@@ -110,6 +110,21 @@ export const GENERATED_DECLARATION =
 export const GENERATED_HEAD_LINES = 12
 export const GENERATED_HEAD_CHARS = 4096
 
+const BUNDLED_SKILLS = [
+  'aesthetic-direction',
+  'app-proof',
+  'drafting-partner',
+  'extension-maker',
+  'mcp-smithy',
+  'pdf-documents',
+  'provider-apis',
+  'skill-forge',
+  'slide-decks',
+  'spreadsheets',
+  'word-documents',
+]
+const BUNDLED_SKILL_MODULES = `^src/skills/bundled/(?:${BUNDLED_SKILLS.join('|')})(?:Content)?\\.ts$`
+
 const GENERATED_PATHS: GeneratedPath[] = [
   { pattern: '^scripts/settings/settings-schema\\.json$', generator: 'bun scripts/settings/gen-settings-schema.ts', sources: 'src/utils/settings/**', check: 'bun scripts/settings/prove-settings-schema.ts' },
   { pattern: '^scripts/ownership/contract-inventory\\.json$', generator: 'bun scripts/ownership/prove-contract-inventory.ts --record', sources: 'the modules the inventory names (files-of:scripts/ownership/contract-inventory.json)', check: 'bun scripts/ownership/prove-contract-inventory.ts' },
@@ -121,6 +136,8 @@ const GENERATED_PATHS: GeneratedPath[] = [
   { pattern: '^assets/completions/(?:mercury\\.bash|_mercury|mercury\\.fish)$', generator: 'bun run build.ts && bun scripts/project-services/gen-completions.ts', sources: 'src/main.tsx src/commands/mcp/addCommand.ts', check: 'bun scripts/project-services/gen-completions.ts --check' },
   { pattern: '^(?:mercury-skills|src/skills/bundled)/extension-maker/references/CONTRACT\\.md$', generator: 'bun scripts/extensions/gen-contract.ts', sources: 'src/extensions/manifest.ts src/extensions/catalogue.ts', check: 'bun scripts/extensions/prove-contract-in-sync.ts' },
   { pattern: '^src/skills/bundled/[^/.]+(?:/.*)?$', generator: 'bun scripts/skills/gen-bundled.ts', sources: 'mercury-skills/**', check: null },
+  { pattern: BUNDLED_SKILL_MODULES, generator: 'bun scripts/skills/gen-bundled.ts', sources: 'mercury-skills/**', check: null },
+  { pattern: '^scripts/ui/lib/emojiProperties\\.ts$', generator: 'bun scripts/ui/lib/gen-emoji-properties.ts <path/to/emoji-data.txt>', sources: "a local copy of Unicode's emoji-data.txt (UTS #51)" },
   { pattern: '^src/services/blender/bridgeFiles\\.generated\\.ts$', generator: 'node scripts/blender-bridge/regen-bridge.mjs', sources: 'assets/blender/bridge/**', check: 'node scripts/blender-bridge/regen-bridge.mjs --check' },
   { pattern: '^src/services/unity/bridgeFiles\\.generated\\.ts$', generator: 'node scripts/unity-bridge/regen-bridge.mjs', sources: 'assets/unity/bridge/**', check: 'node scripts/unity-bridge/regen-bridge.mjs --check' },
   { pattern: '^src/services/vulcan/addonFiles\\.generated\\.ts$', generator: 'node scripts/vulcan/regen-addon.mjs', sources: 'assets/vulcan/addon/**', check: 'node scripts/vulcan/regen-addon.mjs --check' },

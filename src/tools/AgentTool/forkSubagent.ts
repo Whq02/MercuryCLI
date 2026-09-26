@@ -116,8 +116,28 @@ export function buildWorktreeNotice(
   return `You inherited context from a parent working in a different directory (${parentCwd}). You are operating in an isolated worktree of the same repository at ${worktreeCwd}. Translate paths from the inherited context to the worktree root. Files may be stale — re-read a file before editing it. Your changes do not affect the parent.`
 }
 
-export function buildScratchpadNotice(dir: string): string {
-  return `You inherited context from a parent whose environment section names the parent's scratchpad directory; yours is separate. ${scratchpadPromptLine(dir, 'agent')}`
+function scratchpadLineLabel(): string {
+  const mark = '\u0000'
+  const line = scratchpadPromptLine(mark)
+  return line.slice(0, line.indexOf(mark))
+}
+
+export function forkSystemPrompt(parent: readonly string[], scratchpadDir: string): string[] {
+  const label = scratchpadLineLabel()
+  const own = scratchpadPromptLine(scratchpadDir, 'agent')
+  let swapped = false
+  const sections = parent.map(section =>
+    section
+      .split('\n')
+      .map(line => {
+        const head = /^\s*(?:- )?/.exec(line)?.[0] ?? ''
+        if (!line.startsWith(label, head.length)) return line
+        swapped = true
+        return `${head}${own}`
+      })
+      .join('\n'),
+  )
+  return swapped ? sections : [...sections, own]
 }
 
 export function buildFrozenWorktreeNotice(worktreeCwd: string, commit: string): string {

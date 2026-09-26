@@ -81,14 +81,9 @@ type DoorModule = typeof door & {
   CREW_PAUSE_HOSTED_REFUSAL?: string
 }
 type SchemaModule = typeof schemas & { SDKControlPauseGateRequestSchema?: () => { safeParse: (v: unknown) => { success: boolean } } }
-type RunControlModule = typeof runControl & {
-  runnerHostsOnlyRun?: (taskId: string, tasks: Record<string, { status: string }>) => boolean
-  workflowGateRide?: (gate: unknown) => { close: (hostsOnly: boolean) => boolean; open: () => boolean; closed: () => boolean; release: () => void }
-}
 const seatMod = seat as SeatModule
 const doorMod = door as DoorModule
 const schemaMod = schemas as SchemaModule
-const runControlMod = runControl as RunControlModule
 const gate = gateModule.operatorPauseGate
 
 const RUNNER = 'concourse-pw1'
@@ -195,7 +190,7 @@ type Loop = {
   done: Promise<Record<string, unknown>>
 }
 
-function startLoop(): Loop {
+function startLoop(extras: Record<string, unknown> = {}): Loop {
   const modelLatches = new Map<number, Latch>()
   const toolLatches = new Map<number, Latch>()
   const latchIn = (map: Map<number, Latch>, n: number): Latch => {
@@ -274,6 +269,7 @@ function startLoop(): Loop {
     agentId: 'agent-scout',
     seatHolder: 'scout',
     onSeatWait: (words: string | null) => { waitWords = words },
+    ...extras,
   }
   const gen = query({
     messages: [createUserMessage({ content: 'hello from scout' })] as never,
@@ -497,54 +493,55 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   check('the hosted refusal is gone from the door (the verb exists)', !doorSource.includes('no control verb carries a pause'))
 }
 
-section('R1 THE WORKFLOW RIDE — a run pause closes the gate for the run\'s agents only when the runner hosts nothing but that run; a resume or the run\'s end opens it only if the run closed it')
-if (typeof runControlMod.runnerHostsOnlyRun !== 'function' || typeof runControlMod.workflowGateRide !== 'function') {
-  check('runControl.ts exports runnerHostsOnlyRun and workflowGateRide', false, 'absent — a run pause never reaches the gate')
+section('R1 THE RUN\'S OWN GATE — a run pause closes the run\'s gate whatever else the runner hosts; the operator\'s gate never moves for it; the resume that lifts the run pause opens it')
+const seamProbe = new runControl.WorkflowExecutionPause() as InstanceType<typeof runControl.WorkflowExecutionPause> & { gate?: ReturnType<typeof gateModule.createPauseGate> & { pausedBy?: () => string | null } }
+if (seamProbe.gate === undefined || typeof seamProbe.gate.paused !== 'function') {
+  check('WorkflowExecutionPause carries its own gate', false, 'absent — a run pause can only ride the process-wide gate')
 } else {
-  const hostsOnly = runControlMod.runnerHostsOnlyRun
-  const ride = runControlMod.workflowGateRide
-  check('a runner whose only live task is the run hosts nothing but it', hostsOnly('wf-1', { 'wf-1': { status: 'running' }, 'ag-old': { status: 'completed' }, 'sh-old': { status: 'killed' } }))
-  check('another running or pending task means the runner hosts other work', !hostsOnly('wf-1', { 'wf-1': { status: 'running' }, 'ag-2': { status: 'running' } }) && !hostsOnly('wf-1', { 'wf-1': { status: 'running' }, 'wf-2': { status: 'pending' } }))
-  const own = gateModule.createPauseGate()
-  const r = ride(own)
-  check('a run pause while the runner hosts other work leaves the gate open and says so', r.close(false) === false && !own.paused() && !r.closed())
-  check('a run pause while the runner hosts only the run closes the gate', r.close(true) === true && own.paused() && r.closed())
-  check('the run\'s resume opens the gate it closed', r.open() === true && !own.paused() && !r.closed())
-  own.pause()
-  const r2 = ride(own)
-  check('a run pause over a gate the operator already closed takes no ownership', r2.close(true) === false && own.paused() && !r2.closed())
-  check("the run's resume never opens the operator's gate", r2.open() === false && own.paused())
-  own.resume()
-  const r3 = ride(own)
-  r3.close(true)
-  own.resume()
-  own.pause()
-  check("a gate the operator re-closed since the run's own close is not the run's to open", r3.open() === false && own.paused())
-  own.resume()
+  const seam = seamProbe
+  const own = seam.gate!
+  check('the run gate is born open with the seam', !own.paused() && own.parked().length === 0)
+  check('a run-level pause closes the run gate and names the pauser; the operator gate stays open', seam.change(true, 'session abc').outcome === 'applied' && own.paused() && own.pausedBy?.() === 'session abc' && !gate.paused(), `own=${own.paused()} by=${j(own.pausedBy?.())} operator=${gate.paused()}`)
+  check("the run's resume opens the run gate", seam.change(false, 'session abc').outcome === 'applied' && !own.paused())
+  const release = seam.register('agent-a')
+  check('a per-agent pause never closes the run gate', seam.change(true, 'session abc', 'agent-a').outcome === 'applied' && !own.paused())
+  check('a per-agent resume leaves it open', seam.change(false, 'session abc', 'agent-a').outcome === 'applied' && !own.paused())
+  seam.change(true, 'session abc')
+  check('the per-agent resume that lifts a run pause opens the run gate', own.paused() && seam.change(false, 'session abc', 'agent-a').outcome === 'applied' && !own.paused() && !seam.runPaused())
+  release()
+  gate.pause()
+  const other = new runControl.WorkflowExecutionPause() as typeof seamProbe
+  check("the operator's closed gate is not a run's to open: a run's resume touches only its own", other.change(true, 'session abc').outcome === 'applied' && other.change(false, 'session abc').outcome === 'applied' && gate.paused() && !other.gate!.paused())
+  gate.resume()
   const source = read('src/tools/WorkflowTool/WorkflowTool.tsx')
   const arm = source.slice(source.indexOf("case 'pause':"), source.indexOf("case 'kill-agent': {"))
-  check("the tool's pause arm closes the gate synchronously with the run pause (before the manifest's await) on a run-level pause alone, and opens it on the resume that lifts the run pause", arm.includes('const ride = paused && request.agentId === undefined ? gateRide.close(runnerHostsOnlyRun(taskId, context.getAppState().tasks)) : null') && arm.includes('if (!paused && !executionPause.runPaused()) gateRide.open()') && arm.includes('gateRide.close(') && arm.includes('await writeManifest()') && arm.indexOf('gateRide.close(') < arm.indexOf('await writeManifest()'))
-  check("the answer names which road the run's agents park on", arm.includes('WORKFLOW_GATE_CLOSED_WORDS : WORKFLOW_GATE_OPEN_WORDS'))
-  check("the run's end opens the gate it closed and releases the ride", source.includes('workflowGateRide(operatorPauseGate)') && (source.match(/gateRide\.open\(\)/g) ?? []).length >= 2 && source.includes('gateRide.release()'))
+  check("the tool's pause arm is the seam's verb alone (the gate closes inside change, before the manifest's await); no process-wide ride remains", arm.includes('executionPause.change(paused, request.by, request.agentId)') && arm.includes('await writeManifest()') && !source.includes('workflowGateRide') && !source.includes('runnerHostsOnlyRun') && !source.includes('operatorPauseGate'))
+  check("the run's context hands its gate to its agents, and the run's end opens it", source.includes('pauseGate: executionPause.gate') && source.includes('executionPause.gate.resume()'))
 
-  section('R2 THE RIDE PARKS A REAL LOOP — the run\'s agent parks at the seam under the run pause and continues on the resume')
-  const runRide = ride(gate)
-  const agent = startLoop()
-  await until(() => agent.calls === 1, "the run's agent has its first model call in flight")
-  check('a run pause with the runner hosting only the run closes the process gate', runRide.close(hostsOnly('wf-1', { 'wf-1': { status: 'running' } })) === true && gate.paused())
+  section('R2 THE RUN GATE PARKS A REAL LOOP — the run\'s agent parks at the tool seam under the run pause with the run\'s words; a loop outside the run runs on; the resume continues it')
+  const runSeam = new runControl.WorkflowExecutionPause() as typeof seamProbe
+  const agent = startLoop({ pauseGate: runSeam.gate })
+  const bystander = startLoop()
+  await until(() => agent.calls === 1 && bystander.calls === 1, "the run's agent and a bystander loop have their first model call in flight")
+  check('a run pause closes the run gate and leaves the process gate open', runSeam.change(true, 'session abc').outcome === 'applied' && runSeam.gate!.paused() && !gate.paused())
   agent.modelLatch(1).open()
+  bystander.modelLatch(1).open()
   await until(() => agent.wait() !== null, "the run's agent parks at the tool seam")
-  check("the run's agent parks at its next safe point with the gate words, no tool started", agent.wait() === gateModule.pauseGateToolWords('SerialTool') && agent.toolStarts === 0 && j(gate.parked()) === '["scout"]', `wait=${agent.wait()} tools=${agent.toolStarts}`)
-  check("the run's resume opens the gate", runRide.open() === true && !gate.paused())
+  await until(() => bystander.toolStarts === 1, 'the bystander starts its tool')
+  check("the run's agent parks at its next safe point with the run's words (paused by session abc · at a tool (SerialTool) — p resumes it), no tool started", agent.wait() === 'paused by session abc · at a tool (SerialTool) — p resumes it' && agent.toolStarts === 0 && j(runSeam.gate!.parked()) === '["scout"]', `wait=${agent.wait()} tools=${agent.toolStarts} parked=${j(runSeam.gate!.parked())}`)
+  check('the bystander loop (no run gate on its context) runs on: its tool started, no wait words, nothing parked at the process gate', bystander.toolStarts === 1 && bystander.wait() === null && gate.parked().length === 0, `tools=${bystander.toolStarts} wait=${j(bystander.wait())}`)
+  check("the run's resume opens the run gate", runSeam.change(false, 'session abc').outcome === 'applied' && !runSeam.gate!.paused())
   await until(() => agent.toolStarts === 1, "the run's agent continues")
   check("the run's agent continues from where it stopped", agent.toolStarts === 1 && agent.wait() === null)
-  agent.toolLatch(1).open()
-  agent.modelLatch(2).open()
-  agent.toolLatch(2).open()
-  agent.modelLatch(3).open()
+  for (const loop of [agent, bystander]) {
+    loop.toolLatch(1).open()
+    loop.modelLatch(2).open()
+    loop.toolLatch(2).open()
+    loop.modelLatch(3).open()
+  }
   const end = await Promise.race([agent.done, settle(8_000).then(() => ({ reason: 'timeout' }))])
-  check("the run's agent completes", end.reason === 'completed', j(end))
-  runRide.release()
+  const endB = await Promise.race([bystander.done, settle(8_000).then(() => ({ reason: 'timeout' }))])
+  check('both loops complete', end.reason === 'completed' && endB.reason === 'completed', `${j(end)} ${j(endB)}`)
 }
 
 clearTimeout(guard)

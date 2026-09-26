@@ -67,15 +67,10 @@ import {
 import { LocalFileJournal, makeWorkflowHooks } from './agentHooks.js'
 import {
   WORKFLOW_CONTROL_VERSION,
-  WORKFLOW_GATE_CLOSED_WORDS,
-  WORKFLOW_GATE_OPEN_WORDS,
   WorkflowExecutionPause,
-  runnerHostsOnlyRun,
   serveWorkflowControl,
-  workflowGateRide,
   type WorkflowControlOutcome,
 } from './runControl.js'
-import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import {
   deriveWorkflowTerminalStatus,
@@ -632,7 +627,6 @@ const WorkflowToolDef = {
     let journal!: LocalFileJournal
     let closeControl: (() => void) | undefined
     const executionPause = new WorkflowExecutionPause()
-    const gateRide = workflowGateRide(operatorPauseGate)
 
     const transcriptDirsSeen = new Set<string>(priorManifest?.transcriptDirs ?? [])
 
@@ -673,6 +667,7 @@ const WorkflowToolDef = {
     const runCtx: WorkflowToolContext = {
       ...context,
       workflowPause: executionPause,
+      pauseGate: executionPause.gate,
       abortController: task.abortController ?? context.abortController,
       canUseTool: makeWorkflowCanUseTool({
         taskId,
@@ -798,11 +793,9 @@ const WorkflowToolDef = {
           const paused = request.action === 'pause' || request.action === 'pause-agent'
           const result = executionPause.change(paused, request.by, request.agentId)
           if (result.outcome !== 'applied') return result
-          const ride = paused && request.agentId === undefined ? gateRide.close(runnerHostsOnlyRun(taskId, context.getAppState().tasks)) : null
-          if (!paused && !executionPause.runPaused()) gateRide.open()
           markWorkflowPaused(taskId, executionPause.pausedBy(), executionPause.position(), setAppState)
           await writeManifest()
-          return ride === null ? result : { outcome: 'applied', detail: `${result.detail} · ${ride ? WORKFLOW_GATE_CLOSED_WORDS : WORKFLOW_GATE_OPEN_WORDS}` }
+          return result
         }
         case 'kill-agent': {
           const receipt = killWorkflowAgent(taskId, agentId, setAppState)
@@ -1073,8 +1066,7 @@ const WorkflowToolDef = {
         clearInterval(manifestHeartbeat)
         if (trailingManifestWrite !== null) clearTimeout(trailingManifestWrite)
         releasePosition()
-        gateRide.open()
-        gateRide.release()
+        executionPause.gate.resume()
       }
     }
     void runWithCwdOverride(executionCwd, driveRun)

@@ -161,7 +161,10 @@ for (const scene of SCENES) {
     cols: 100,
     rows: 30,
     turns: scene.turns,
-    seedHome: scene.seed,
+    seedHome: (configDir, cwd) => {
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+      scene.seed?.(configDir, cwd)
+    },
     sends: [
       'after:Type a prompt:300:hello',
       'after:hello:400:\\r',

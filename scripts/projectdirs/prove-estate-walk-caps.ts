@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { relativeSlashed } from '../lib/platformPath.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'estate-caps-home-')))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'estate-caps-')))
@@ -34,7 +35,7 @@ section('§1 a small estate is complete, case-folded, sorted, through a symlinke
   writeFileSync(join(aside, 'd.md'), '# d\n')
   symlinkSync(aside, join(estate, 'linked'))
   const walk = await walkMarkdownEstate(estate)
-  const names = walk.files.map(f => f.slice(estate.length + 1))
+  const names = walk.files.map(f => relativeSlashed(estate, f))
   check('the walk is complete with no reason', walk.complete && walk.reason === undefined, JSON.stringify(walk))
   check('both spellings, the nested file and the linked file are found', JSON.stringify(names) === JSON.stringify(['A.MD', 'b.md', 'linked/d.md', 'nested/c.md']), names.join(', '))
   check('the entries examined are counted (five at the root, one nested, one through the link)', walk.entries === 7, String(walk.entries))
@@ -51,7 +52,7 @@ section('§2 a symlink loop ends')
   const t0 = Date.now()
   const walk = await walkMarkdownEstate(estate)
   check('the loop is complete (the cycle guard) within a second', walk.complete && Date.now() - t0 < 1_000, JSON.stringify(walk))
-  check('the looped file is listed once', walk.files.length === 1 && walk.files[0]!.endsWith('inner/x.md'), walk.files.join(', '))
+  check('the looped file is listed once', walk.files.length === 1 && relativeSlashed(estate, walk.files[0]!) === 'inner/x.md', walk.files.join(', '))
 }
 
 section('§3 an estate of 50,000 entries stops at the entry cap and says so')

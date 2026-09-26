@@ -66,7 +66,7 @@ console.log('§2 the screen — the board-browse arm no longer names the coordin
   const list = screen.slice(listStart, listEnd)
   check(
     'the rows keep their own ↑↓ browse and their ↵',
-    listStart > 0 && list.includes('if (key.upArrow || key.downArrow) {') && list.includes('if (key.return && pastGate()) {') && list.includes('selectSession(row.sessionId)'),
+    listStart > 0 && list.includes('if (key.upArrow || key.downArrow) {') && list.includes('if (key.return && pastGate()) {') && list.includes('const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)') && list.includes('if (sel) compactSteerOrEnter(sel)'),
   )
   const enterStart = screen.indexOf('if (key.return && !key.shift) {')
   const enterEnd = screen.indexOf('if (reducedStage) {', enterStart)

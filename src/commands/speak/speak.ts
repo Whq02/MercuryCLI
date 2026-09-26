@@ -1,6 +1,6 @@
 import type { LocalCommandCall } from '../../types/command.js'
 import { localTranscriberRead, transcriberOptionNames } from '../../services/voice/transcribe.js'
-import { describeVoiceOptions, describeVoiceStatus, setVoiceInputEnabled, setVoiceTranscriberChoice, voiceInputEnabled } from '../../services/voice/voiceSession.js'
+import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceOptions, describeVoiceStatus, setVoiceInputEnabled, setVoiceTranscriberChoice, voiceInputEnabled } from '../../services/voice/voiceSession.js'
 import { WHISPER_MODELS, checkWhisperModel, downloadWhisperModel, mbWords, resolveWhisperModelPin, whisperModelByName, whisperModelsDir } from '../../services/voice/whisperModels.js'
 
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
@@ -68,7 +68,7 @@ export const call: LocalCommandCall = async rawArg => {
   return {
     type: 'text',
     value: next
-      ? `voice input ON — press space in an empty composer to start a capture, space or esc to stop; the words land in the composer\n${describeVoiceStatus()}`
+      ? `voice input ON — ${HOLD_WORDS}; the words land in the composer. ${NO_REPEAT_WORDS}\n${describeVoiceStatus()}`
       : 'voice input OFF — space is a space again',
   }
 }

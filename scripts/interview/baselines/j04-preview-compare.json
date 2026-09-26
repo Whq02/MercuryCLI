@@ -3,7 +3,7 @@
  "note": "contract journey 4 — markdown/code preview comparison; focus moves between previewed options",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-26T05:59:53.791Z",
+ "capturedAt": "2026-09-26T15:20:12.331Z",
  "screens": [
   {
    "atMs": 12500,
@@ -24,7 +24,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-DH2soN · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-6EyFo2 · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -73,7 +73,7 @@
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│    model   Opus 5.5                                                                          │",
     "                        │    theme   Jellyfish                                                                         │",
-    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-DH2soN · no git                                                    │",
+    "FILES · flux-arena-cwd-…│    dir     flux-arena-cwd-6EyFo2 · no git                                                    │",
     "  ↵ or click · browse   │                                                                                              │",
     "                        │  ❯ ↵ sends  ·  /workflows /teammates /saturn /health /cockpit /trace                         │",
     "TELEMETRY               │                                                                                              │",
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 06:59:31 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:19:51 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 06:59:31 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 16:19:51 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench · /h…│                                                                                              │",
@@ -149,22 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-DH2soN                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-6EyFo2                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 18051,
-   "frame-recommit": 27
+   "patches": 17949,
+   "frame-recommit": 31
   },
   "frames": {
-   "total": 45,
-   "window": 45,
-   "p50": 0.6724580000009155,
-   "p95": 4.343249999999898,
-   "p99": 16.350124999999935,
-   "maxMs": 16.350124999999935
+   "total": 46,
+   "window": 46,
+   "p50": 0.5593749999989086,
+   "p95": 6.130917000000409,
+   "p99": 18.52095799999995,
+   "maxMs": 18.52095799999995
   }
  },
  "requests": [
@@ -199,19 +199,19 @@
  ],
  "sends": [
   {
-   "atMs": 10559.072971343994,
+   "atMs": 11539.257764816284,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12159.072971343994,
+   "atMs": 13139.257764816284,
    "b64": "DQ=="
   },
   {
-   "atMs": 20559.072971343994,
+   "atMs": 21539.257764816284,
    "b64": "G1tC"
   },
   {
-   "atMs": 22159.072971343994,
+   "atMs": 23139.257764816284,
    "b64": "G1tB"
   }
  ]

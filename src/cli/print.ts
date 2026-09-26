@@ -1,5 +1,6 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
+import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
 import { refusalEnvelope } from './headless/refusalEnvelope.js'
 import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
@@ -257,7 +258,7 @@ import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
@@ -410,6 +411,7 @@ export async function runHeadless(
 ): Promise<void> {
   setAskChannel(options.permissionChannel !== undefined || options.permissionPromptToolName !== undefined ? 'sdk' : 'none')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
+  markSessionBootRules(getAppState().toolPermissionContext)
   const shellRoadNotice = windowsShellRoadNotice()
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   const streamingInput = typeof inputPrompt !== 'string'
@@ -804,6 +806,9 @@ export async function runHeadless(
   const seenInterruptIds = new BoundedUuidSet(INTERRUPT_DEDUPE_CAP)
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
+  let hostAsks: HostAskLiveness | null = null
+  io.setOnControlRequestSent(() => hostAsks?.noteParked())
+  io.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: string | null = null
   let heldSeatModel: { requestId: string; model: string } | null = null
   let heldSeatEffort: { requestId: string; effort: string } | null = null
@@ -1232,6 +1237,13 @@ export async function runHeadless(
         turnAbort.abort(error)
       },
     })
+    hostAsks = keepTurnLiveWhileHostAnswers({
+      watchdog: turnWatchdog,
+      limitMs: turnIdleLimitMs,
+      parkedWithHost: () => io.pendingControlRequestCount(),
+      parkedAsks: () => io.getPendingPermissionRequests().length,
+      settleParkedAsks: cause => io.denyPendingPermissionRequests(cause),
+    })
     const workload = command.workload ?? options.workload
     try {
       await runWithWorkload(workload, async () => {
@@ -1316,6 +1328,8 @@ export async function runHeadless(
         }
       })
     } finally {
+      hostAsks?.stop()
+      hostAsks = null
       turnWatchdog.cancel()
       inFlightAbort = null
       if (heldSeatModel !== null) {

@@ -465,8 +465,8 @@ Available commands include:
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
 - **Memory.** Experience cards and a project notepad. See
   [docs/TABULA-NOTES.md](docs/TABULA-NOTES.md).
-- **Voice input.** Run `/speak on`, then press space in an empty composer to
-  dictate. Transcription can run on-device or through your chosen cloud
+- **Voice input.** Run `/speak on`, then hold space for 3 s to dictate and
+  release it to stop. Transcription can run on-device or through your chosen cloud
   provider. The on-device option uses a 60 MB English model, downloaded once
   with `/speak download`. Audio leaves the machine only after you stop
   recording, and only when using a cloud provider. See

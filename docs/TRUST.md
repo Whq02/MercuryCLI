@@ -101,6 +101,22 @@ and never remove from it.
 Headless and SDK sessions have no trust dialog; trust is implicit in having
 been embedded, so the hook gate stays open there and project-scope helpers run.
 
+A headless session with a permission channel — a switchboard seat, a
+`-p --permission-channel stdio` run, a run with a prompt tool — puts every
+ask to the connected client and waits for the answer: a question to the
+operator, a plan approval, and under flow any call the flow check blocks,
+`git push` among them (anything visible outside this machine). A push in a
+session nobody is watching therefore waits on a present operator unless a
+permission rule pre-authorises it: `Bash(git push:*)` in the
+`permissions.allow` list of the user, project or local settings (a
+switchboard seat carries the rules of the settings it boots with; a `-p` run
+also takes `--allowed-tools "Bash(git push:*)"`) decides the push in the
+engine, so it runs without the channel; a deny rule refuses it outright; an
+ask rule pins it to the operator.
+No push is ever allowed by default — the posture stays the operator's. The
+seat's boot posture tells the model up front which calls need a present
+operator and whether the rules it carries pre-authorise a push.
+
 ## What managed policy changes
 
 Managed policy settings tighten the hook surface beyond the trust gate:

@@ -290,6 +290,8 @@ export type DaemonRequest =
       proto?: number
       clientVersion?: string
       clientBuildTree?: string | null
+      clientPid?: number
+      clientKind?: 'screen' | 'client'
     }
   | {
       op: 'restart-when-idle'

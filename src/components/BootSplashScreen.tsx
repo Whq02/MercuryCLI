@@ -47,8 +47,7 @@ import { BootSettingsScreen } from './BootSettingsScreen.js';
 import { KitMenuScreen } from './KitMenuScreen.js';
 import { MercuryModelDefaultPicker } from '../commands/model/mercuryModel.js';
 import { ModalContext } from '../context/modalContext.js';
-import { panelWidth } from './mercury-ui/geometry.js';
-import { MODEL_PICKER_PANEL } from '../utils/model/modelPickerGroups.js';
+import { modelPickerPopupGeometry } from './ModelPickerPopupSlot.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
@@ -656,7 +655,7 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
 
-
+  const pickerPopup = modelPickerPopupGeometry({ left: 0, top: 0, columns, rows }, rows);
   return (
     <Box flexDirection="column" width={columns} height={rows}>
       {Array.from({ length: rows }, (_, i) => {
@@ -710,13 +709,13 @@ export function BootSplashScreen(): React.ReactNode {
       {modelDefaultOpen ? (
         <Box
           position="absolute"
-          top={Math.max(0, Math.floor((rows - Math.max(10, rows - 7)) / 2))}
-          left={Math.max(0, Math.floor((columns - panelWidth(columns, MODEL_PICKER_PANEL)) / 2))}
-          width={Math.min(columns, panelWidth(columns, MODEL_PICKER_PANEL))}
+          top={pickerPopup.top}
+          left={pickerPopup.left}
+          width={pickerPopup.width}
           flexDirection="column"
           opaque
         >
-          <ModalContext.Provider value={{ rows: Math.max(10, rows - 7), columns, scrollRef: null }}>
+          <ModalContext.Provider value={{ rows: pickerPopup.rows, columns: pickerPopup.columns, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => setModelDefaultOpen(false)}
               onSignIn={family => {

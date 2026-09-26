@@ -7,7 +7,9 @@ import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')
 const HINT = keyHintLabel('⇧→ concourse')
+const FULL_HINT = faceKeyMapHintOf(HINT, true)
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
 
 const tree = DIST === join(ROOT, 'dist', 'mercury.mjs') ? ROOT : dirname(dirname(DIST))
@@ -74,9 +76,9 @@ async function capture(tag: string, home: string, cols: number, rows: number, ex
 }
 
 const compactRow = (cols: number, notice: string): string => ' '.repeat(cols - notice.length - 3 - HINT.length - 2) + notice + '   ' + HINT
-const fullRow = (cols: number, notice: string): string => '  ' + HINT + ' '.repeat(cols - 2 - HINT.length - notice.length - 2) + notice
+const fullRow = (cols: number, notice: string): string => '  ' + FULL_HINT + ' '.repeat(cols - 2 - FULL_HINT.length - notice.length - 2) + notice
 const plainCompactRow = (cols: number): string => ' '.repeat(cols - HINT.length - 2) + HINT
-const plainFullRow = '  ' + HINT
+const plainFullRow = '  ' + FULL_HINT
 
 const sizes: Array<[number, number]> = [[80, 21], [80, 14], [82, 17], [120, 40]]
 console.log(`\n§1 the first boot after a newer release is cached paints the line once, at every size (${sizes.map(s => s.join('x')).join(', ')})`)

@@ -241,6 +241,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     fileReadingLimits: parentContext.fileReadingLimits,
     standingRule: overrides.standingRule,
     requireCanUseTool: overrides.requireCanUseTool,
+    pauseGate: parentContext.pauseGate,
   }
 }
 

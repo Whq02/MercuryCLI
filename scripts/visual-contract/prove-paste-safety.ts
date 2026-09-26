@@ -103,7 +103,7 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
   )
   t.check(
     'the frame survived the paste (the 2J inside the paste never executed)',
-    r.lines.some(l => l.includes('SESSION')) && r.lines.some(l => l.includes('↵ sends')),
+    r.lines.some(l => l.includes('✶ VIEW')) && r.lines.some(l => l.includes('↵ sends')),
     'chrome rows present',
   )
   t.check('tee captured child output', r.tee.length > 0, `${r.tee.length} bytes`)
@@ -193,8 +193,8 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
   )
   t.check(
     'the frame survived the replay (history 2J never executed)',
-    r.lines.some(l => l.includes('SESSION')) && r.lines.some(l => l.includes('? for shortcuts')),
-    'SESSION header + shortcuts footer present after replay',
+    r.lines.some(l => l.includes('✶ VIEW')) && r.lines.some(l => l.includes('? for shortcuts')),
+    '✶ VIEW header + shortcuts footer present after replay',
   )
   t.check(
     'the historical OSC title is never written to the terminal',

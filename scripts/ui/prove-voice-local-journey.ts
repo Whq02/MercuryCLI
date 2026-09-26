@@ -233,6 +233,18 @@ const OPENING: unknown[] = [
   { afterPrevTicks: 3, data: '\r' },
 ]
 const gridLines = (text: string, needle: string): string => text.split('\n').filter(l => l.includes(needle)).join(' · ')
+const RECORDING_LINE = 'recording · release space to stop · esc cancels'
+const REPEAT = { afterPrevTicks: 1, data: ' ' }
+function hold(press: Record<string, unknown>, opts: { mark?: string; beyond?: number } = {}): unknown[] {
+  const repeats = Array.from({ length: 17 }, () => REPEAT)
+  if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
+  return [
+    { ...press, data: ' ' },
+    ...repeats,
+    { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
+    ...Array.from({ length: opts.beyond ?? 2 }, () => REPEAT),
+  ]
+}
 
 console.log('============================================================')
 console.log(` voice input — the on-device road on the bundle (${MODEL.name}, ${PLATFORM})`)
@@ -250,7 +262,7 @@ console.log('[0] poison control — the tripwire trips on a non-loopback fetch')
   check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '))
 }
 
-console.log('[A] no key at all — /speak on names the on-device road; space, space; the words land; nothing leaves')
+console.log('[A] no key at all — /speak on names the on-device road; a hold, its release; the words land; nothing leaves')
 {
   const netlog = join(scratch, 'keyless-net.log')
   const res = drive(
@@ -259,17 +271,16 @@ console.log('[A] no key at all — /speak on names the on-device road; space, sp
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: ' z' },
       { afterPrevTicks: 3, mark: 'typed-after', data: '' },
     ],
-    140,
+    170,
     {},
   )
   check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('/speak on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), gridLines(res.marks.on ?? '', 'transcriber'))
-  check('space: the footer paints ● recording, the started receipt names the on-device transcriber', (res.marks.recording ?? '').includes('● recording · space or esc to stop'), gridLines(res.marks.recording ?? '', 'recording'))
+  check('the hold past the threshold: the footer paints ● recording · release space to stop · esc cancels', (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(res.marks.recording ?? '', 'recording'))
   check('the fixture\'s words land in the composer, decoded on this machine', SPOKEN.test(res.marks.landed ?? ''), gridLines(res.marks.landed ?? '', '❯'))
   check('the cursor sat at the END: a typed character lands after the words', /breakfast\.? z/.test(res.marks['typed-after'] ?? ''), gridLines(res.marks['typed-after'] ?? '', '❯'))
   check('the receipt says transcribed on this machine, naming the model', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes(`transcribed on this machine (${MODEL.name})`), gridLines(res.marks['typed-after'] ?? '', 'transcribed'))
@@ -289,12 +300,11 @@ console.log('[B] an OpenAI key AND the pack — the order law on the bundle: sti
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    140,
+    170,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
@@ -317,12 +327,11 @@ console.log('[C] the pin openai — the cloud road serves: exactly one loopback 
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    140,
+    170,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_TRANSCRIBER: 'openai' },
   )
   fx.child.kill('SIGTERM')
@@ -335,7 +344,7 @@ console.log('[C] the pin openai — the cloud road serves: exactly one loopback 
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[D] the pack present, the model absent — the download door at /speak on; space answers the receipt before any take')
+console.log('[D] the pack present, the model absent — the download door at /speak on; a hold answers the receipt before any take')
 {
   const netlog = join(scratch, 'nomodel-net.log')
   const res = drive(
@@ -344,11 +353,11 @@ console.log('[D] the pack present, the model absent — the download door at /sp
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
       { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device model: /speak download; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    140,
+    170,
     {},
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
@@ -374,12 +383,11 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'the shipped default', awaitStableTicks: 2, mark: 'rows', data: '/speak options openai' },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'default transcriber: openai (saved)', awaitStableTicks: 2, mark: 'switched', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'default transcriber: openai (saved)', awaitStableTicks: 2, mark: 'switched' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
-    200,
+    230,
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
@@ -399,20 +407,19 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
     netlog2,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status', data: ' ' },
-      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
+      ...hold({ requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '\x15' },
       { afterPrevTicks: 2, data: '/speak options default' },
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'the shipped default (saved choice cleared)', awaitStableTicks: 2, mark: 'cleared', data: '' },
       { afterPrevTicks: 2, data: '' },
     ],
-    200,
+    230,
     {},
   )
   check('the second boot delivered every send', second.status === 0, `vshot ${second.status}: ${second.stderr.slice(-300)}`)
   check('the saved choice persisted and is named as not signed in; the on-device road serves', (second.marks.status ?? '').includes('your saved choice (OpenAI) cannot serve: not signed in') && (second.marks.status ?? '').includes('on-device serves'), gridLines(second.marks.status ?? '', 'saved'))
-  check('space starts a take: the footer paints ● recording', (second.marks.recording ?? '').includes('● recording · space or esc to stop'), gridLines(second.marks.recording ?? '', 'recording'))
+  check('a hold opens a take: the footer paints ● recording', (second.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(second.marks.recording ?? '', 'recording'))
   check('the words land on this machine', SPOKEN.test(second.marks.landed ?? '') && (second.marks.landed ?? '').includes('transcribed on this machine'), gridLines(second.marks.landed ?? '', '❯'))
   check('/speak options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
   const lines = netlines(netlog2)

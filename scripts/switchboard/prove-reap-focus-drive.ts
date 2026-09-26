@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -79,6 +80,7 @@ const childEnv = {
   MERCURY_AWAY_SUMMARY: '0',
 }
 const daemon = spawn('node', [BIN, 'daemon', 'run', ground], { cwd: ground, env: childEnv, stdio: ['ignore', logFd, logFd] })
+const clientBeat = startDaemonClientBeat()
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
@@ -259,6 +261,7 @@ try {
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)
   check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', has(r3, '↵ start') && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '))
 } finally {
+  clientBeat.stop()
   try {
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
     const sup = await import('../../src/daemon/concourseSupervisor.ts')
