@@ -28,9 +28,10 @@
       ]
     },
     "width-oracle": {
-      "why": "the ONE width oracle and its pinned wrap dispatcher (prove-width-oracle-sot)",
+      "why": "the ONE width oracle and its pinned wrap dispatcher (prove-width-oracle-sot), and the ONE tab-stop expansion (tabstops) that layout's measure, the compositor's paint and the app-side measurers (the consent body budget, the structured diff, the colour diff) all count stops through — a second expansion would land stops differently at the wrap decision than in the painted cells",
       "modules": [
         "stringWidth",
+        "tabstops",
         "wrapAnsi"
       ]
     },

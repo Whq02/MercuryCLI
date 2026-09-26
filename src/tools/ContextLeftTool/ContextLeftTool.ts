@@ -100,7 +100,7 @@ export function contextLeftOutput(view: ContextFillView): ContextLeftOutput {
 export const ContextLeftTool = buildTool({
   name: CONTEXT_LEFT_TOOL_NAME,
   searchHint: CONTEXT_LEFT_SEARCH_HINT,
-  shouldDefer: false,
+  shouldDefer: true,
   maxResultSizeChars: CONTEXT_LEFT_MAX_RESULT_CHARS,
   capability: {
     intents: [
