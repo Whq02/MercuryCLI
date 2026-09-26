@@ -75,7 +75,11 @@ the complete index; the load-bearing ones:
 - **MCP call inactivity** (`MERCURY_MCP_CALL_IDLE_MINUTES`, default 10
   minutes, `0` disables): a `tools/call` yielding neither result nor progress
   notification settles as a typed stalled-call error and is cancelled on the
-  wire; progress notifications keep a long call alive.
+  wire; progress notifications keep a long call alive. The minutes are
+  minutes of server silence: while the server's own question (a form or URL
+  consent card) is waiting on the operator, the clock pauses, and the time
+  spent answering never counts against the call — it resumes where it
+  stopped the moment the answer lands.
 - **Daemon run wall-clock** (`MERCURY_DAEMON_RUN_TIMEOUT_MS`, default 30
   minutes, read at fire time): a headless run past its cap gets SIGTERM, then
   SIGKILL after a five-second grace.
