@@ -1165,6 +1165,7 @@ export function REPL({
       setIdeSelection(undefined);
       helpers.clearBuffer();
       helpers.setCursorOffset(0);
+      helpers.resetHistory();
       setInputMode('prompt');
       if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
     };
