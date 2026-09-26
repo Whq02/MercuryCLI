@@ -200,7 +200,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; origin?: MessageOrigin },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; origin?: MessageOrigin; skipSlashCommands?: boolean },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -365,6 +365,7 @@ export class QueryEngine {
       ...(options?.batchTail !== undefined ? { batchTail: options.batchTail } : {}),
       isMeta: options?.isMeta,
       ...(options?.origin !== undefined ? { origin: options.origin } : {}),
+      ...(options?.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
       querySource: 'sdk',
       canUseTool: wrappedCanUseTool,
     })
@@ -1002,6 +1003,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   promptUuid?: string
   isMeta?: boolean
   origin?: MessageOrigin
+  skipSlashCommands?: boolean
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
   promptMode?: 'prompt' | 'bash'
@@ -1018,6 +1020,7 @@ export async function* ask(
     promptUuid,
     isMeta,
     origin,
+    skipSlashCommands,
     batchUuids,
     batchTail,
     promptMode,
@@ -1037,6 +1040,7 @@ export async function* ask(
       uuid: promptUuid,
       isMeta,
       ...(origin !== undefined ? { origin } : {}),
+      ...(skipSlashCommands === true ? { skipSlashCommands: true } : {}),
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
       ...(batchUuids !== undefined ? { batchUuids } : {}),
       ...(batchTail !== undefined ? { batchTail } : {}),

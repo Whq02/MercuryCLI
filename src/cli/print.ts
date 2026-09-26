@@ -1256,6 +1256,7 @@ export async function runHeadless(
           ...(batchTail.length > 0 ? { batchTail } : {}),
           isMeta: command.isMeta,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
+          ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
@@ -1765,7 +1766,7 @@ export async function runHeadless(
         mode: 'prompt',
         uuid: randomUUID(),
         priority: 'later',
-        isMeta: true,
+        skipSlashCommands: true,
         workload: 'cron',
         origin: next.origin,
       })
