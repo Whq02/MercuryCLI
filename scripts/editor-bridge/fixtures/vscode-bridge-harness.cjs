@@ -3,7 +3,7 @@
 const Module = require('node:module')
 const path = require('node:path')
 const readline = require('node:readline')
-const { makeStub, Position, Selection } = require('./vscode-stub.cjs')
+const { makeStub, Position, Selection, Uri } = require('./vscode-stub.cjs')
 
 const extensionPath = process.argv[2]
 const workspacePath = process.env.MERCURY_STUB_WORKSPACE || process.cwd()
@@ -45,6 +45,14 @@ rl.on('line', line => {
       editor.selection = new Selection(new Position(2, 0), new Position(3, 5))
       vscode.window.activeTextEditor = editor
       emitters.selection.fire({ textEditor: editor, selections: [editor.selection] })
+    } else if (command.startsWith('open ')) {
+      const file = command.slice(5).trim()
+      const tab = { input: { uri: Uri.file(file) }, label: path.basename(file), isActive: false, isDirty: false }
+      vscode.window.tabGroups.all[0].tabs.push(tab)
+      emitters.tabs.fire({ opened: [tab], closed: [], changed: [] })
+    } else if (command === 'close-tabs') {
+      const closed = vscode.window.tabGroups.all[0].tabs.splice(0)
+      emitters.tabs.fire({ opened: [], closed, changed: [] })
     } else if (command === 'mention') {
       const fn = state.commandFns.get('mercury.mentionInTerminal')
       if (fn) fn()

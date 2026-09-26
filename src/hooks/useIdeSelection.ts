@@ -21,6 +21,7 @@ export type IDESelection = {
   text?: string
   filePath?: string
   lineStart?: number
+  openFiles?: string[]
 }
 
 const SelectionChangedNotificationSchema = z.object({
@@ -38,8 +39,80 @@ const SelectionChangedNotificationSchema = z.object({
   }),
 })
 
+const EditorContextNotificationSchema = z.object({
+  method: z.literal('editor_context'),
+  params: z.object({
+    openFiles: z.array(z.string()).optional(),
+  }),
+})
+
 export function displayedLineOf(wireLine: number): number {
   return wireLine + 1
+}
+
+export function selectionOf(
+  selection: SelectionData,
+  text: string | undefined,
+  filePath: string | undefined,
+  openFiles: string[] | undefined,
+): IDESelection {
+  let lineCount = selection.end.line - selection.start.line + 1
+  if (selection.end.character === 0 && lineCount > 1) lineCount--
+  return {
+    lineCount,
+    text,
+    filePath,
+    lineStart: displayedLineOf(selection.start.line),
+    ...(openFiles !== undefined ? { openFiles } : {}),
+  }
+}
+
+export function withOpenFiles(
+  previous: IDESelection,
+  openFiles: string[] | undefined,
+): IDESelection {
+  const next: IDESelection = { ...previous }
+  if (openFiles === undefined) delete next.openFiles
+  else next.openFiles = openFiles
+  return next
+}
+
+type IdeNotificationClient = Parameters<typeof setMcpNotificationHandler>[0]
+
+export function registerIdeSelectionHandlers(
+  client: IdeNotificationClient,
+  live: () => boolean,
+  latest: () => IDESelection,
+  emit: (next: IDESelection) => void,
+): void {
+  setMcpNotificationHandler(
+    client,
+    SelectionChangedNotificationSchema,
+    notification => {
+      if (!live()) return
+      try {
+        const { selection, text, filePath } = notification.params
+        if (selection) {
+          emit(selectionOf(selection, text, filePath, latest().openFiles))
+        } else if (text !== undefined) {
+        }
+      } catch (error) {
+        logError(error)
+      }
+    },
+  )
+  setMcpNotificationHandler(
+    client,
+    EditorContextNotificationSchema,
+    notification => {
+      if (!live()) return
+      try {
+        emit(withOpenFiles(latest(), notification.params.openFiles))
+      } catch (error) {
+        logError(error)
+      }
+    },
+  )
 }
 
 export function useIdeSelection(
@@ -49,46 +122,26 @@ export function useIdeSelection(
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
   const registeredClientRef = useRef<unknown>(null)
+  const latestRef = useRef<IDESelection>({ lineCount: 0 })
 
   const ideClient = getConnectedIdeClient(mcpClients) ?? null
 
   useEffect(() => {
     if (registeredClientRef.current === ideClient) return
     registeredClientRef.current = ideClient
-    onSelectRef.current({ lineCount: 0 })
+    const emit = (next: IDESelection): void => {
+      latestRef.current = next
+      onSelectRef.current(next)
+    }
+    emit({ lineCount: 0 })
     if (ideClient === null) return
 
-    const report = (
-      selection: SelectionData,
-      text?: string,
-      filePath?: string,
-    ): void => {
-      let lineCount = selection.end.line - selection.start.line + 1
-      if (selection.end.character === 0 && lineCount > 1) lineCount--
-      onSelectRef.current({
-        lineCount,
-        text,
-        filePath,
-        lineStart: displayedLineOf(selection.start.line),
-      })
-    }
-
     try {
-      setMcpNotificationHandler(
+      registerIdeSelectionHandlers(
         ideClient.client,
-        SelectionChangedNotificationSchema,
-        notification => {
-          if (registeredClientRef.current !== ideClient) return
-          try {
-            const { selection, text, filePath } = notification.params
-            if (selection) {
-              report(selection, text, filePath)
-            } else if (text !== undefined) {
-            }
-          } catch (error) {
-            logError(error)
-          }
-        },
+        () => registeredClientRef.current === ideClient,
+        () => latestRef.current,
+        emit,
       )
     } catch (error) {
       logError(error)
