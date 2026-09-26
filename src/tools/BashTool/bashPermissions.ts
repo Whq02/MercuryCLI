@@ -43,7 +43,7 @@ import {
   MULTIPLE_CD_REASON,
   type CommandIdentityCheckers,
 } from './bashCommandHelpers.js'
-import { checkPermissionMode } from './modeValidation.js'
+import { checkPermissionMode, checkStrategyShellRefusal } from './modeValidation.js'
 import { checkPathConstraints } from './pathValidation.js'
 import { checkReadOnlyConstraints } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
@@ -593,6 +593,9 @@ export async function bashToolHasPermission(
   context: ToolPermissionContext,
   prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
 ): Promise<PermissionResult> {
+  const strategyRefusal = checkStrategyShellRefusal(input, context)
+  if (strategyRefusal !== null) return strategyRefusal
+
   const command = input.command
   const compoundHasCd = commandHasAnyCd(command)
   const customPrefixFn = prefixFn !== pinnedCommandAnalysis.getCommandSubcommandPrefix
