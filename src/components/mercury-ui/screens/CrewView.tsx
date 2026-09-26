@@ -160,7 +160,7 @@ export function CrewView({
       void pressCrewPause(reach, operatorPauseGate).then(receipt => setDoorNote(crewPauseDoorNote(receipt)))
       return
     }
-    if (input === 'c' && target !== null && setAppState !== null) {
+    if (input === 'c' && !key.ctrl && !key.meta && target !== null && setAppState !== null) {
       setStopArm(null)
       if (!crewSettled(target)) {
         setDoorNote({ tone: 'muted', text: crewClearRefusedWords(target) })
