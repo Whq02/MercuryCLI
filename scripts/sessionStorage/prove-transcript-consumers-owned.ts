@@ -71,7 +71,7 @@ section('the session ledger rebuild reads the raw record stream through the read
 {
   const reader = src('utils/sessionStorage/transcriptReader.ts')
   const walkStart = reader.indexOf('export function scanTranscriptEntriesForward(')
-  const walk = walkStart === -1 ? '' : reader.slice(walkStart, reader.indexOf('// ── resume leaves', walkStart))
+  const walk = walkStart === -1 ? '' : reader.slice(walkStart, reader.indexOf('export function computeResumeLeaves(', walkStart))
   check('the reader owns the raw forward walk: bounded windows through its io seam, the codec per window', walk.includes('io.readRangeSync(path, from, Math.min(st.size, from + FORWARD_WINDOW_BYTES))') && walk.includes('decodeTranscriptBuffer<Entry>(whole)'))
   check('the raw walk applies no fold, no relink, no prune (the records as written)', walk.length > 0 && !walk.includes('applyTranscriptEntry(') && !walk.includes('applyPreservedSegmentRelinks(') && !walk.includes('applySnipRemovals(') && !walk.includes('pruneRecordBranchesBeforeParse('))
   const rollup = src('utils/sessionStorage/usageRollup.ts')
