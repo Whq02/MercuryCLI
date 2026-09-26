@@ -125,6 +125,9 @@ run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-mod
 say '— the release-day client-contract clock —'
 run_proof scripts/ops/prove-client-contract-clock.ts "$bun" run "$here/prove-client-contract-clock.ts"; check 'client contract: the checked date covers the release day' $?
 
+say '— the deploy skips a launcher it does not own —'
+run_proof scripts/ops/prove-deploy-launcher-step.ts "$bun" run "$here/prove-deploy-launcher-step.ts"; check 'deploy launcher step: a shim that is not ours is skipped quietly; ours is managed; an old one of ours still refuses' $?
+
 say '— workspace backup round-trip (hermetic fixture) —'
 fixrepo="$(mktemp -d /tmp/ops-proof-repo-XXXXXX)"
 git -C "$fixrepo" init -q

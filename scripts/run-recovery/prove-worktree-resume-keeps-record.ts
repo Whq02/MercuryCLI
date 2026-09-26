@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -49,12 +49,12 @@ const { TASK_CREATE_TOOL_NAME } = await import('../../src/tools/TaskCreateTool/c
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/RecordConventionTool/prompt.ts')
 const { REMEMBER_LESSON_TOOL_NAME } = await import('../../src/tools/RememberLessonTool/prompt.ts')
 const { loadConversationForResume } = await import('../../src/utils/conversationRecovery.ts')
-const { processResumedConversation, restoreSessionStateFromLog } = await import('../../src/utils/sessionRestore.ts')
+const sessionRestore = await import('../../src/utils/sessionRestore.ts')
+const { restoreSessionStateFromLog } = sessionRestore
 const { restoreSessionMetadata } = await import('../../src/utils/sessionStorage.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { restoreWorktreeSession, getCurrentWorktreeSession } = await import('../../src/utils/worktree.ts')
-const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { asSessionId } = await import('../../src/types/ids.ts')
 
 const MODEL = 'claude-fable-5-1'
@@ -76,13 +76,6 @@ const projectDir = getProjectDir(repo)
 mkdirSync(projectDir, { recursive: true })
 const transcriptPath = join(projectDir, `${SID}.jsonl`)
 const noop = (): void => {}
-const resumeContext = () => ({
-  mainThreadAgentDefinition: undefined,
-  agentDefinitions: { activeAgents: [], allAgents: [] },
-  currentCwd: repo,
-  cliAgents: [],
-  initialState: getDefaultAppState(),
-})
 
 const freshProcess = (): void => {
   clearSystemPromptSections()
@@ -130,6 +123,16 @@ const load = async () => {
   if (loaded === null) throw new Error('the loader returned null for the fixture transcript')
   return loaded
 }
+const plainRoad = async (loaded: Awaited<ReturnType<typeof load>>): Promise<void> => {
+  state.switchSession(asSessionId(loaded.sessionId), dirname(loaded.fullPath!))
+  await restoreSessionStateFromLog(loaded, noop)
+  restoreSessionMetadata(loaded)
+}
+const sitInWorktree = (): void => {
+  process.chdir(worktree)
+  state.setOriginalCwd(worktree)
+  state.setCwdState(worktree)
+}
 
 try {
   section('§1 the first process — the first exchange is made inside the worktree and writes its record')
@@ -150,32 +153,44 @@ try {
   freshProcess()
   const plain = await load()
   check('the transcript resolves through the session-id road and carries the worktree record', plain.worktreeSession?.worktreePath === worktree && plain.fullPath === transcriptPath, j({ worktree: plain.worktreeSession, fullPath: plain.fullPath }))
-  state.switchSession(asSessionId(plain.sessionId), dirname(plain.fullPath!))
-  await restoreSessionStateFromLog(plain, noop)
-  restoreSessionMetadata(plain)
+  await plainRoad(plain)
   const plainResumed = await build(grownPool)
   check('the plain road re-sends the first request byte for byte although the task tools joined the pool', plainResumed === first, firstDifference(first, plainResumed))
 
-  section('§3 the recorded-worktree road — the resume re-enters the worktree after the loader restored the record; the sections must survive the re-entry')
+  section('§3 the plain road inside the recorded worktree — the runner already sits there, as the daemon spawns it; nothing after the loader re-decides a section')
   freshProcess()
+  sitInWorktree()
   const recorded = await load()
-  await processResumedConversation(recorded, { forkSession: false, transcriptPath: recorded.fullPath }, resumeContext())
-  check('the control: the resume re-entered the worktree (the cwd and the worktree state moved)', process.cwd() === worktree && getCurrentWorktreeSession()?.worktreePath === worktree && state.getOriginalCwd() === worktree, j({ cwd: process.cwd(), worktree: getCurrentWorktreeSession() }))
+  await plainRoad(recorded)
+  check('the control: the runner sits in the worktree and nothing re-entered it (the cwd stays, the in-memory worktree slot stays null, the record is in the cache)', process.cwd() === worktree && state.getOriginalCwd() === worktree && getCurrentWorktreeSession() === null && recorded.worktreeSession?.worktreePath === worktree, j({ cwd: process.cwd(), worktree: getCurrentWorktreeSession() }))
   const cachedUsingTools = state.getSystemPromptSectionCache().get('using_tools')?.value ?? null
-  check('RED WHERE THE WORKTREE RE-ENTRY CLEARS THE SECTION CACHE: the section cache still holds the record\'s "Using your tools" bytes after the worktree resume', cachedUsingTools === recordedUsingTools, `cache holds ${state.getSystemPromptSectionCache().size} section(s) after the resume; using_tools=${j(cachedUsingTools?.slice(0, 80) ?? null)}`)
+  check('the section cache still holds the record\'s "Using your tools" bytes after the resume inside the worktree', cachedUsingTools === recordedUsingTools, `cache holds ${state.getSystemPromptSectionCache().size} section(s) after the resume; using_tools=${j(cachedUsingTools?.slice(0, 80) ?? null)}`)
   const worktreeResumed = await build(grownPool)
-  check('RED WHERE THE WORKTREE RE-ENTRY CLEARS THE SECTION CACHE: the recorded-worktree resume re-sends the first request byte for byte — no work-breakdown bullet rendered from the live pool', worktreeResumed === first && !worktreeResumed.includes(BULLET), firstDifference(first, worktreeResumed))
-  check('RED WHERE THE WORKTREE RE-ENTRY CLEARS THE SECTION CACHE: the two resume roads send identical prefix bytes', worktreeResumed === plainResumed, firstDifference(plainResumed, worktreeResumed))
+  check('the resume inside the worktree re-sends the first request byte for byte — no work-breakdown bullet rendered from the live pool', worktreeResumed === first && !worktreeResumed.includes(BULLET), firstDifference(first, worktreeResumed))
+  check('the plain road sends identical prefix bytes from the repo and from inside the worktree', worktreeResumed === plainResumed, firstDifference(plainResumed, worktreeResumed))
 
-  section('§4 the control — a transcript without a record still drops a warm cache at the worktree re-entry (the live world renders, as today)')
+  section('§4 the control — a transcript without a record on the plain road renders the live world (the pool\'s truth), never a section from elsewhere')
   writeTranscript(null)
   freshProcess()
-  state.setSystemPromptSectionCacheEntry('using_tools', STALE, null)
+  sitInWorktree()
   const recordless = await load()
   check('the recordless transcript carries no record row', !recordless.messages.some(m => m.type === 'attachment' && (m as { attachment: { type: string } }).attachment.type === 'bound_prefix'))
-  await processResumedConversation(recordless, { forkSession: false, transcriptPath: recordless.fullPath }, resumeContext())
+  check('the loader seeded nothing: a fresh process resuming a recordless transcript holds no section', state.getSystemPromptSectionCache().size === 0, `${state.getSystemPromptSectionCache().size} section(s)`)
+  await plainRoad(recordless)
   const recordlessResumed = await build(grownPool)
-  check('a recordless worktree resume renders the pool\'s truth: the stale entry is gone and the bullet appears', !recordlessResumed.includes(STALE) && recordlessResumed.includes(BULLET), firstDifference(first, recordlessResumed))
+  check('a recordless resume renders the pool\'s truth: the bullet appears and no stale bytes stand', !recordlessResumed.includes(STALE) && recordlessResumed.includes(BULLET), firstDifference(first, recordlessResumed))
+
+  section('§5 the retirement — the plain road is the one restore; the recorded-worktree entry and its re-entry helpers are gone')
+  const RED = 'RED WHERE THE RETIRED ENTRY STILL STANDS'
+  const retired = ['processResumed' + 'Conversation', 'restoreWorktree' + 'ForResume', 'exitRestored' + 'Worktree', 'invalidateWorktree' + 'SensitiveCaches', 'carriesBound' + 'PrefixRecord', 'Processed' + 'Resume']
+  const restoreSrc = readFileSync(join(import.meta.dir, '../../src/utils/sessionRestore.ts'), 'utf8')
+  check(`${RED}: sessionRestore.ts exports no resume entry and no worktree re-entry`, !(retired[0]! in sessionRestore) && retired.every(name => !restoreSrc.includes(name)), retired.filter(name => restoreSrc.includes(name)).join(', '))
+  check(`${RED}: sessionRestore.ts moves no directory and clears no cache (the plain road restores; the world's moves reach the model on new rows)`, !restoreSrc.includes('process.chdir(') && !restoreSrc.includes('clearSystemPromptSectionState') && !restoreSrc.includes('clearInstructionFileCaches'), restoreSrc.split('\n').filter(l => /chdir|clear/.test(l)).join(' | '))
+  check('the surviving restore steps stay exported: the state and the metadata restores', typeof sessionRestore.restoreSessionStateFromLog === 'function' && typeof restoreSessionMetadata === 'function' && typeof sessionRestore.restoreAgentFromSession === 'function')
+  const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(d => (d.isDirectory() ? walk(join(dir, d.name)) : /\.(ts|tsx)$/.test(d.name) ? [join(dir, d.name)] : []))
+  const here = join(import.meta.dir, 'prove-worktree-resume-keeps-record.ts')
+  const naming = [...walk(join(import.meta.dir, '../../src')), ...walk(join(import.meta.dir, '../../scripts'))].filter(f => f !== here && readFileSync(f, 'utf8').includes(retired[0]!))
+  check(`${RED}: nothing under src or scripts names the retired entry`, naming.length === 0, naming.map(f => f.slice(f.indexOf('/src/') === -1 ? f.indexOf('/scripts/') : f.indexOf('/src/'))).join(', '))
 } finally {
   freshProcess()
 }

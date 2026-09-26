@@ -942,14 +942,12 @@ async function runTransactionBody(args: {
       addToToolDuration(durationMs)
     } catch {
     }
-    if (error instanceof ToolCallAbandonedError) {
-      logForDebugging(`tool ${tool.name}: ${error.message}`)
-      push(interruptResultUpdate(toolUseID, sourceUUID, turnCutResultText(turnCutOf(signal.reason), tool.name)))
-      return
-    }
-    const isInterrupt = isAbortError(error)
+    const abandoned = error instanceof ToolCallAbandonedError
+    if (abandoned) logForDebugging(`tool ${tool.name}: ${error.message}`)
+    const isInterrupt = abandoned || isAbortError(error)
     const cutByTurn = isInterrupt && signal.aborted
-    const message = error instanceof Error ? error.message : String(error)
+    const cutText = cutByTurn ? turnCutResultText(turnCutOf(signal.reason), tool.name) : undefined
+    const message = cutText ?? (error instanceof Error ? error.message : String(error))
 
     if (error instanceof McpAuthError) {
       try {
@@ -967,23 +965,23 @@ async function runTransactionBody(args: {
       }
     }
 
+    if (cutText !== undefined) push(interruptResultUpdate(toolUseID, sourceUUID, cutText))
     const failureHookMessages: Message[] = []
     for await (const item of runPostToolUseFailureHooks(
       tool,
       toolUseID,
       observableInput,
       message,
-      isInterrupt,
+      cutByTurn,
       toolUseContext,
       permissionMode,
-      signal,
+      cutText === undefined ? signal : undefined,
       hookSeam,
     )) {
       failureHookMessages.push(item.message)
     }
 
-    if (cutByTurn) {
-      push(interruptResultUpdate(toolUseID, sourceUUID, turnCutResultText(turnCutOf(signal.reason), tool.name)))
+    if (cutText !== undefined) {
       for (const failureMessage of failureHookMessages) push({ message: failureMessage })
       return
     }
