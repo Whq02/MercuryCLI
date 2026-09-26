@@ -54,16 +54,38 @@ export const TARGET_PATH_MAX = 4096
 
 function deepestExisting(path: string): { real: string; tail: string[] } {
   const segments = path.split(sep).filter(Boolean)
-  const tail: string[] = []
-  for (let depth = segments.length; depth > 0; depth--) {
-    const candidate = sep + segments.slice(0, depth).join(sep)
+  const realAt = (depth: number): string | null => {
     try {
-      return { real: realpathSync(candidate), tail }
+      return realpathSync(depth === 0 ? sep : sep + segments.slice(0, depth).join(sep))
     } catch {
-      tail.unshift(segments[depth - 1]!)
+      return null
     }
   }
-  return { real: sep, tail }
+  let missing = segments.length
+  const whole = realAt(missing)
+  if (whole !== null) return { real: whole, tail: [] }
+  let found = 0
+  let real: string | null = null
+  for (let step = 1; missing - step > 0; step *= 2) {
+    const probe = missing - step
+    const seen = realAt(probe)
+    if (seen !== null) {
+      found = probe
+      real = seen
+      break
+    }
+    missing = probe
+  }
+  while (missing - found > 1) {
+    const mid = (found + missing) >> 1
+    const seen = realAt(mid)
+    if (seen === null) missing = mid
+    else {
+      found = mid
+      real = seen
+    }
+  }
+  return { real: real ?? realAt(0) ?? sep, tail: segments.slice(found) }
 }
 
 export function realTargetPath(path: string): string {
