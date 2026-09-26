@@ -450,7 +450,12 @@ try {
   const censusStamp = statSync(processSweepCensusPath(home)).mtimeMs
   const registrationsBefore = readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length
   const doctorRead = await readMercuryProcesses()
-  check('a doctor-shaped read lists the same shapes and writes nothing under the config home: the census stamp stands and a registration of a gone pid is not pruned', doctorRead.entries.length === census.entries.length && statSync(processSweepCensusPath(home)).mtimeMs === censusStamp && existsSync(gonePath) && readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length === registrationsBefore, JSON.stringify({ entries: [doctorRead.entries.length, census.entries.length], stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
+  const ownedShapes = [ownedD, staleW, staleR, staleR3, staleS, liveA, liveB, liveR].filter((entry): entry is ProcessSweepEntry => entry !== undefined)
+  const sameOwnedShapes = ownedShapes.every(before => {
+    const after = entryOf(doctorRead.entries, before.process.pid)
+    return after !== undefined && sameSweepIdentity(before, after) && before.kind === after.kind && before.classification === after.classification
+  })
+  check('a doctor-shaped read lists the same owned shapes and writes nothing under the config home: the census stamp stands and a registration of a gone pid is not pruned', sameOwnedShapes && statSync(processSweepCensusPath(home)).mtimeMs === censusStamp && existsSync(gonePath) && readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length === registrationsBefore, JSON.stringify({ entries: [doctorRead.entries.length, census.entries.length], owned: ownedShapes.length, stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
   await recordProcessCensusAtBoot()
   check('the boot road records the census anew and prunes the registration of the gone pid', statSync(processSweepCensusPath(home)).mtimeMs !== censusStamp && !existsSync(gonePath) && alive(gonePid) === false, JSON.stringify({ stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
   check('every shape still stands after two read-only censuses', [staleDaemon.pid!, windowPid, standInPid, livePid, liveHello.pid as number, runner1?.pid, runner2?.pid, runner3?.pid].every(pid => typeof pid === 'number' && alive(pid)))
