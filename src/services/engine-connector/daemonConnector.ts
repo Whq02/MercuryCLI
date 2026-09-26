@@ -1374,10 +1374,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const rows = this.facts?.work ?? []
     const mission = this.facts?.mission ?? []
     const samples = this.facts?.samples ?? []
-    const stamp = JSON.stringify([reported, rows, mission, samples])
+    const pauseGate = this.facts?.pauseGate
+    const stamp = JSON.stringify([reported, rows, mission, samples, pauseGate])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
-    this.workSnapshot = reported ? { rows, mission, samples } : { rows, mission, samples, reported: false }
+    this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(pauseGate !== undefined ? { pauseGate } : {}) }
     emitAll(this.workListeners, 'work')
   }
 
@@ -1881,6 +1882,21 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
       if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
+  async pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'pause-gate', sessionId: this.record.sessionId, by: 'operator', paused })
+      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') {
+        this.readFacts()
+        return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      }
       return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
     } catch (e) {
       return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }

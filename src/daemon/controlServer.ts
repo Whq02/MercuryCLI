@@ -169,9 +169,11 @@ export interface ControlServerDeps {
       | 'resume-agent'
       | 'withdraw-send'
       | 'background-shell'
+      | 'pause-gate'
     sessionId: string
     by: string
     reason?: string
+    paused?: boolean
     hard?: boolean
     clientMessageId?: string
     requestId?: string
@@ -919,13 +921,14 @@ async function routeControlRequest(
         raw.action === 'stop-agent' ||
         raw.action === 'resume-agent' ||
         raw.action === 'withdraw-send' ||
-        raw.action === 'background-shell'
+        raw.action === 'background-shell' ||
+        raw.action === 'pause-gate'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate, sessionId, by }' })
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
@@ -1025,6 +1028,7 @@ async function routeControlRequest(
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
         ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
+        ...(typeof raw.paused === 'boolean' ? { paused: raw.paused } : {}),
       })
       return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }

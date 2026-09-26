@@ -160,6 +160,11 @@ export type SDKControlBackgroundShellRequest = {
   subtype: 'background_shell'
 }
 
+export type SDKControlPauseGateRequest = {
+  subtype: 'pause_gate'
+  paused: boolean
+}
+
 export type SDKControlResumeTaskRequest = {
   subtype: 'resume_task'
   task_id: string
@@ -292,6 +297,7 @@ export type SDKControlRequestInner =
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
   | SDKControlBackgroundShellRequest
+  | SDKControlPauseGateRequest
   | SDKControlResumeTaskRequest
   | SDKControlQuiesceRequest
   | SDKControlApplyFlagSettingsRequest
