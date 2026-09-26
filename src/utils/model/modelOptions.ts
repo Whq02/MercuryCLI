@@ -9,6 +9,8 @@ import {
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
+import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
+import { deepseekDisplayPin } from '../../services/providers/deepseek/deepseekPins.js'
 import {
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
@@ -53,6 +55,8 @@ export type ModelOption = {
   statedContextWindow?: number
   catalogueDoor?: { family: string; total: number }
 }
+
+export const LIVE_UNKNOWN_ROW_WORDS = 'live · unknown to mercury'
 
 export const GPT_CONNECT_OPTION_VALUE = '__hermes_gpt_connect__'
 export const ANTHROPIC_CONNECT_OPTION_VALUE = '__mercury_anthropic_connect__'
@@ -423,11 +427,14 @@ function getQualifiedGptOptions(): ModelOption[] {
     const id = candidate.identity.canonicalId
     listed.add(id)
     const label = gptDisplayName(id) ?? candidate.displayName
+    const liveUnknown = candidate.identity.unparsed === true
     out.push({
       value: id,
       label,
-      description: '',
-      descriptionForModel: `${label} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
+      description: liveUnknown ? LIVE_UNKNOWN_ROW_WORDS : '',
+      descriptionForModel: liveUnknown
+        ? `${label} (${id}) — listed live by the connected ${source} but unknown to Mercury's catalogue (no GPT grammar or pin names it); offered under its raw id on the native OpenAI Responses engine, where the provider's own answer decides.`
+        : `${label} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
       group: OPENAI_MODEL_GROUP,
     })
   }
@@ -448,6 +455,7 @@ export interface KeyLanePin {
   contextWindow?: number
   listedLive?: boolean
   servedAs?: { id: string; displayName: string }
+  liveUnknown?: boolean
 }
 
 export function keyLanePinLabel(pin: Pick<KeyLanePin, 'displayName' | 'servedAs'>): string {
@@ -527,7 +535,7 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneP
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
       require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
-    return moonshotCatalogueRows().rows
+    return moonshotCatalogueRows().rows.map(row => (row.listedLive && kimiDisplayName(row.id) === undefined ? { ...row, liveUnknown: true } : row))
   }
   const { deepseekCatalogueRows } =
     require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
@@ -537,6 +545,7 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneP
     observedAt: row.observedAt,
     ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
     listedLive: row.listedLive,
+    ...(row.listedLive && deepseekDisplayPin(row.id) === undefined ? { liveUnknown: true } : {}),
   }))
 }
 
@@ -567,11 +576,15 @@ export function keyLaneGroupRows(args: {
     ]
   }
   if (args.keyPresent) {
-    return args.pins.map(pin => ({
+    const known = args.pins.filter(pin => pin.liveUnknown !== true)
+    const liveOnly = args.pins.filter(pin => pin.liveUnknown === true)
+    return [...known, ...liveOnly].map(pin => ({
       value: pin.id,
       label: keyLanePinLabel(pin),
-      description: '',
-      descriptionForModel: `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
+      description: pin.liveUnknown === true ? LIVE_UNKNOWN_ROW_WORDS : '',
+      descriptionForModel: pin.liveUnknown === true
+        ? `${pin.displayName} (${pin.id}) — listed live by the ${args.providerName} account but unknown to Mercury's catalogue (no pin or grammar names it); offered under its raw id on the native chat-completions engine, where the provider's own answer decides.`
+        : `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
       group: args.group,
       ...(pin.contextWindow !== undefined ? { statedContextWindow: pin.contextWindow } : {}),
     }))
