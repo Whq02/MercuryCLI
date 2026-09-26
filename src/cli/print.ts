@@ -131,7 +131,7 @@ import {
   registerLocalWakeSink,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
-import { isSaturnOrigin } from '../utils/messages/noticeRows.js'
+import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -1768,8 +1768,7 @@ export async function runHeadless(
         uuid: randomUUID(),
         priority: 'later',
         skipSlashCommands: true,
-        workload: 'cron',
-        origin: next.origin,
+        ...saturnQueueStamp(next.origin),
       })
       driver.kick()
     }
@@ -3072,7 +3071,7 @@ export async function runHeadless(
             sentAt,
             ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
             ...(typed.priority !== undefined ? { priority: typed.priority } : {}),
-            ...(isSaturnOrigin(typed.origin) ? { origin: typed.origin } : {}),
+            ...saturnQueueStamp(typed.origin),
           })
           driver.kick()
         }

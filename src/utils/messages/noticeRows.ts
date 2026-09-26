@@ -1,5 +1,6 @@
 import { TASK_NOTIFICATION_TAG } from '../../constants/xml.js'
 import { stripTerminalControls } from '../stringUtils.js'
+import { WORKLOAD_CRON, type Workload } from '../workloadContext.js'
 
 export type SaturnOrigin = {
   kind: 'saturn'
@@ -50,6 +51,12 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
   return o.kind === 'saturn' && (o.fire === 'wake' || o.fire === 'cron') && typeof o.firedAt === 'string'
+}
+
+export type SaturnQueueStamp = { origin: SaturnOrigin; workload: Workload }
+
+export function saturnQueueStamp(origin: unknown): SaturnQueueStamp | Record<never, never> {
+  return isSaturnOrigin(origin) ? { origin, workload: WORKLOAD_CRON } : {}
 }
 
 function clockOf(iso: string | undefined): string | null {

@@ -995,6 +995,7 @@ const resultEnvelopeFields = {
   total_cost_usd: z.number().describe('Estimated dollar cost of the run'),
   usage: z.unknown().describe('Aggregate token usage for the run'),
   model_usage: z.record(z.string(), ModelUsageSchema()).optional().describe('Per-model usage breakdown, keyed by model id'),
+  workload_usage: z.record(z.string(), ModelUsageSchema()).optional().describe("Per-workload usage breakdown, keyed by workload tag ('cron' is scheduled work); a turn outside any workload is in no bucket"),
   permission_denials: z.array(SDKPermissionDenialSchema()).optional().describe('Tool calls the permission system refused'),
   stop_reason: z.string().nullable().optional().describe('Why generation stopped, when the API said'),
   uuid: z.string().describe('Unique id for this message'),

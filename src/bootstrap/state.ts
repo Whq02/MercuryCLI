@@ -1,6 +1,6 @@
-import type { ModelUsage } from './runtime/usage-ledger.js'
+import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime/usage-ledger.js'
 import type { HookEvent } from '../entrypoints/agentSdkTypes.js'
-export type { ModelUsage } from './runtime/usage-ledger.js'
+export type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime/usage-ledger.js'
 import type { SessionId } from '../types/ids.js'
 import type { ApiRequestParams } from '../types/wire.js'
 import type { ModelSetting } from '../utils/model/model.js'
@@ -212,6 +212,22 @@ export function getTotalUnpricedTurns(): number {
   return usageLedger.getTotalUnpricedTurns()
 }
 
+export function addToWorkloadUsageState(workload: string, delta: ModelUsage, modelName: string): void {
+  usageLedger.addToWorkloadUsageState(workload, delta, modelName)
+}
+
+export function recordWorkloadUnpricedTurn(workload: string, modelName: string): void {
+  usageLedger.recordWorkloadUnpricedTurn(workload, modelName)
+}
+
+export function getWorkloadUsage(): WorkloadUsage {
+  return usageLedger.workloadUsage
+}
+
+export function getWorkloadUnpricedTurns(): WorkloadUnpricedTurns {
+  return usageLedger.workloadUnpricedTurns
+}
+
 export function resetCostState(): void {
   usageLedger.resetCostState()
   resetJevLedger()
@@ -228,6 +244,8 @@ export function setCostStateForRestore(restore: {
   lastDuration: number | undefined
   modelUsage: { [modelName: string]: ModelUsage } | undefined
   unpricedTurns?: { [modelName: string]: number } | undefined
+  workloadUsage?: WorkloadUsage | undefined
+  workloadUnpricedTurns?: WorkloadUnpricedTurns | undefined
 }): void {
   usageLedger.setCostStateForRestore(restore)
 }

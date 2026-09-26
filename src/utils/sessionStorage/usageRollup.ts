@@ -16,6 +16,8 @@ export type RolledModelUsage = {
 export type TranscriptUsageRollup = {
   modelUsage: { [modelName: string]: RolledModelUsage }
   unpricedTurns: { [modelName: string]: number }
+  workloadUsage: { [workload: string]: { [modelName: string]: RolledModelUsage } }
+  workloadUnpricedTurns: { [workload: string]: { [modelName: string]: number } }
   totalCostUSD: number
   responses: number
   files: number
@@ -30,7 +32,7 @@ type CountedUsage = {
   cache_creation?: { ephemeral_1h_input_tokens: number }
 }
 
-type CountedRow = { seq: number; key: string; model: string; usage: CountedUsage }
+type CountedRow = { seq: number; key: string; model: string; usage: CountedUsage; workload?: string }
 
 function count(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
@@ -61,30 +63,39 @@ function countedRowOf(entry: Entry, seq: number): CountedRow | null {
   const usage = countedUsageOf(message.usage)
   if (usage === null) return null
   const id = message.id
-  return { seq, key: typeof id === 'string' && id !== '' ? id : entry.uuid, model, usage }
+  const workload = (entry as { workload?: unknown }).workload
+  return { seq, key: typeof id === 'string' && id !== '' ? id : entry.uuid, model, usage, ...(typeof workload === 'string' && workload !== '' ? { workload } : {}) }
+}
+
+function emptyRolledUsage(): RolledModelUsage {
+  return { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 }
+}
+
+function foldUsage(record: RolledModelUsage, usage: CountedUsage, cost: number): RolledModelUsage {
+  record.inputTokens += usage.input_tokens
+  record.outputTokens += usage.output_tokens
+  record.cacheReadInputTokens += usage.cache_read_input_tokens
+  record.cacheCreationInputTokens += usage.cache_creation_input_tokens
+  record.webSearchRequests += usage.server_tool_use?.web_search_requests ?? 0
+  record.costUSD += cost
+  return record
 }
 
 function foldResponse(rollup: TranscriptUsageRollup, row: CountedRow): void {
   const cost = calculateUSDCost(row.model, row.usage)
-  const record = rollup.modelUsage[row.model] ?? {
-    inputTokens: 0,
-    outputTokens: 0,
-    cacheReadInputTokens: 0,
-    cacheCreationInputTokens: 0,
-    webSearchRequests: 0,
-    costUSD: 0,
-  }
-  record.inputTokens += row.usage.input_tokens
-  record.outputTokens += row.usage.output_tokens
-  record.cacheReadInputTokens += row.usage.cache_read_input_tokens
-  record.cacheCreationInputTokens += row.usage.cache_creation_input_tokens
-  record.webSearchRequests += row.usage.server_tool_use?.web_search_requests ?? 0
-  record.costUSD += cost
-  rollup.modelUsage[row.model] = record
+  rollup.modelUsage[row.model] = foldUsage(rollup.modelUsage[row.model] ?? emptyRolledUsage(), row.usage, cost)
   rollup.totalCostUSD += cost
   rollup.responses += 1
-  if (modelPricingBasis(row.model) === 'unpriced') {
+  const unpriced = modelPricingBasis(row.model) === 'unpriced'
+  if (unpriced) {
     rollup.unpricedTurns[row.model] = (rollup.unpricedTurns[row.model] ?? 0) + 1
+  }
+  if (row.workload === undefined) return
+  const bucket = (rollup.workloadUsage[row.workload] ??= {})
+  bucket[row.model] = foldUsage(bucket[row.model] ?? emptyRolledUsage(), row.usage, cost)
+  if (unpriced) {
+    const turns = (rollup.workloadUnpricedTurns[row.workload] ??= {})
+    turns[row.model] = (turns[row.model] ?? 0) + 1
   }
 }
 
@@ -110,7 +121,7 @@ export function rollupTranscriptUsage(rollup: TranscriptUsageRollup, path: strin
 }
 
 export function emptyUsageRollup(): TranscriptUsageRollup {
-  return { modelUsage: {}, unpricedTurns: {}, totalCostUSD: 0, responses: 0, files: 0 }
+  return { modelUsage: {}, unpricedTurns: {}, workloadUsage: {}, workloadUnpricedTurns: {}, totalCostUSD: 0, responses: 0, files: 0 }
 }
 
 export async function rollupSessionUsage(transcriptPath: string, sessionId: string): Promise<TranscriptUsageRollup> {

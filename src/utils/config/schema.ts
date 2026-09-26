@@ -73,6 +73,21 @@ export type ProjectConfig = {
     }
   >
   lastUnpricedTurns?: Record<string, number>
+  lastWorkloadUsage?: Record<
+    string,
+    Record<
+      string,
+      {
+        inputTokens: number
+        outputTokens: number
+        cacheReadInputTokens: number
+        cacheCreationInputTokens: number
+        webSearchRequests: number
+        costUSD: number
+      }
+    >
+  >
+  lastWorkloadUnpricedTurns?: Record<string, Record<string, number>>
   lastSessionMetrics?: Record<string, number>
   exampleFiles?: string[]
   exampleFilesGeneratedAt?: number

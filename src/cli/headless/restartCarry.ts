@@ -22,6 +22,7 @@ import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { AgentId } from '../../types/ids.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
+import { saturnQueueStamp } from '../../utils/messages/noticeRows.js'
 import { enqueue, enqueuePendingNotification } from '../../input-core/command-queue.js'
 import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
@@ -77,7 +78,7 @@ export function requeueUndeliveredLines(lines: Iterable<string>): number {
       priority: 'next',
       uuid,
       ...(row.sentAt !== undefined ? { sentAt: row.sentAt } : row.at !== undefined ? { sentAt: row.at } : {}),
-      ...(row.origin !== undefined ? { origin: row.origin } : {}),
+      ...saturnQueueStamp(row.origin),
     } as QueuedCommand
     enqueue(command)
     requeued++

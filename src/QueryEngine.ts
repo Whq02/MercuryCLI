@@ -43,10 +43,11 @@ import {
   localCommandOutputToSDKAssistantMessage,
   toSDKCompactMetadata,
   toSDKModelUsage,
+  toSDKWorkloadUsage,
 } from './utils/messages/mappers.js'
 import { buildSystemInitMessage } from './utils/messages/systemInit.js'
 import { getMainLoopModel } from './utils/model/model.js'
-import { getModelUsage, getTotalAPIDuration, getTotalCostUSD } from './bootstrap/state.js'
+import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getWorkloadUsage } from './bootstrap/state.js'
 import { notePrintPhase } from './utils/printPhases.js'
 import { processUserInput } from './utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from './commands.js'
@@ -441,6 +442,7 @@ export class QueryEngine {
         total_cost_usd: getTotalCostUSD(),
         usage: this.#accumulatedUsage,
         model_usage: toSDKModelUsage(getModelUsage()),
+        workload_usage: toSDKWorkloadUsage(getWorkloadUsage()),
         permission_denials: [...this.#permissionDenials],
         uuid: randomUUID(),
       }
