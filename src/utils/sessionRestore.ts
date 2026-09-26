@@ -1,36 +1,20 @@
-import { dirname } from 'node:path'
-
-import { clearSystemPromptSectionState, getMainLoopModelOverride, getSessionId, setMainLoopModelOverride, setMainThreadAgentType, setOriginalCwd, switchSession, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
+import { getMainLoopModelOverride, getSessionId, setMainLoopModelOverride, setMainThreadAgentType, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
-import { clearInstructionFileCaches } from '../services/instructions/engine.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
-import type { SessionId } from '../types/ids.js'
 import type { PersistedWorktreeSession } from '../types/logs.js'
 import type { AssistantMessage, Message } from '../types/message.js'
-import { renameRecordingForSession } from './asciicast.js'
 import type { AttributionState } from './commitAttribution.js'
-import { updateSessionName } from './concurrentSessions.js'
 import { logForDebugging } from './debug.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from './hooks/missionHook.js'
 import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
-import { getPlansDirectory } from './plans.js'
-import { restoreSessionMetadata, saveWorktreeState } from './sessionStorage/logs.js'
 import { initializeTeammateContextFromSession } from './swarm/reconnection.js'
-import {
-  adoptResumedSessionFile,
-  recordContentReplacement,
-  resetSessionFilePointer,
-} from './sessionStorage/writer.js'
-import { setCwd } from './Shell.js'
 import { isTaskToolsEnabled } from './tasks.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
-import type { WorktreeSession } from './worktree.js'
-import { getCurrentWorktreeSession, restoreWorktreeSession } from './worktree.js'
 
 
 export type ResumedConversationLog = {
@@ -179,151 +163,4 @@ export function restoreConversationModelFromMessages(messages?: Message[]): stri
   if (servedModel === undefined) return null
 
   return billingSafeRetainedForm(servedModel)
-}
-
-function invalidateWorktreeSensitiveCaches(keepPromptSections = false): void {
-  clearInstructionFileCaches()
-  if (!keepPromptSections) clearSystemPromptSectionState()
-  getPlansDirectory.cache.clear()
-}
-
-function carriesBoundPrefixRecord(messages: readonly Message[]): boolean {
-  return messages.some(message => message.type === 'attachment' && message.attachment.type === 'bound_prefix')
-}
-
-export function restoreWorktreeForResume(
-  worktreeSession: PersistedWorktreeSession | null | undefined,
-  opts?: { keepPromptSections?: boolean },
-): void {
-  const freshWorktree = getCurrentWorktreeSession()
-  if (freshWorktree !== null) {
-    saveWorktreeState(freshWorktree)
-    return
-  }
-  if (!worktreeSession) return
-
-  try {
-    process.chdir(worktreeSession.worktreePath)
-  } catch {
-    saveWorktreeState(null)
-    return
-  }
-  setCwd(worktreeSession.worktreePath)
-  setOriginalCwd(worktreeSession.worktreePath)
-  restoreWorktreeSession(worktreeSession as WorktreeSession)
-  invalidateWorktreeSensitiveCaches(opts?.keepPromptSections === true)
-}
-
-export function exitRestoredWorktree(): void {
-  const current = getCurrentWorktreeSession()
-  if (current === null) return
-  restoreWorktreeSession(null)
-  saveWorktreeState(null)
-  invalidateWorktreeSensitiveCaches()
-  try {
-    process.chdir(current.originalCwd)
-  } catch {
-    return
-  }
-  setCwd(current.originalCwd)
-  setOriginalCwd(current.originalCwd)
-}
-
-export type ProcessedResume = {
-  messages: Message[]
-  fileHistorySnapshots: FileHistorySnapshot[]
-  contentReplacements: ContentReplacementRecord[]
-  agentName: string | undefined
-  agentColor: AgentColorName | undefined
-  restoredAgentDef: AgentDefinition | undefined
-  initialState: AppState
-}
-
-export async function processResumedConversation(
-  result: ResumedConversationLog,
-  opts: {
-    forkSession: boolean
-    sessionIdOverride?: string
-    transcriptPath?: string
-    includeAttribution?: boolean
-  },
-  context: {
-    mainThreadAgentDefinition: AgentDefinition | undefined
-    agentDefinitions: AgentDefinitionsResult
-    currentCwd: string
-    cliAgents: AgentDefinition[]
-    initialState: AppState
-  },
-): Promise<ProcessedResume> {
-  if (!opts.forkSession) {
-    const adoptedSessionId = (opts.sessionIdOverride ??
-      result.sessionId ??
-      (
-        result.messages.find(
-          m => typeof (m as { sessionId?: unknown }).sessionId === 'string',
-        ) as { sessionId?: string } | undefined
-      )?.sessionId) as SessionId
-    switchSession(adoptedSessionId, opts.transcriptPath ? dirname(opts.transcriptPath) : null)
-    await renameRecordingForSession()
-    await resetSessionFilePointer()
-    restoreCostStateForSession(adoptedSessionId)
-  } else if (result.contentReplacements && result.contentReplacements.length > 0) {
-    await recordContentReplacement(result.contentReplacements)
-  }
-
-  restoreSessionMetadata({
-    customTitle: result.customTitle,
-    tag: result.tag,
-    agentName: result.agentName,
-    agentColor: result.agentColor,
-    agentSetting: result.agentSetting,
-    mode: result.mode,
-    prNumber: result.prNumber,
-    prUrl: result.prUrl,
-    prRepository: result.prRepository,
-    ...(opts.forkSession ? {} : { worktreeSession: result.worktreeSession }),
-  })
-
-  if (!opts.forkSession) {
-    restoreWorktreeForResume(result.worktreeSession, { keepPromptSections: carriesBoundPrefixRecord(result.messages) })
-    adoptResumedSessionFile()
-  }
-
-  const { agentDefinition: restoredAgentDefinition, agentType } = restoreAgentFromSession(
-    result.agentSetting,
-    context.mainThreadAgentDefinition,
-    context.agentDefinitions,
-  )
-  const standaloneAgentContext = computeStandaloneAgentContext(result.agentName, result.agentColor)
-  const attributionState = opts.includeAttribution ? computeRestoredAttributionState(result) : undefined
-
-  if (result.agentName !== undefined) {
-    void updateSessionName(result.agentName)
-  }
-
-  const initialState: AppState = {
-    ...context.initialState,
-    agentDefinitions: context.agentDefinitions,
-    ...(agentType !== undefined ? { agent: agentType } : {}),
-    ...(attributionState !== undefined ? { attribution: attributionState } : {}),
-    ...(standaloneAgentContext !== undefined ? { standaloneAgentContext } : {}),
-  }
-
-  if (!opts.forkSession) {
-    restoreMissionContinuity(result, updater => {
-      updater(initialState)
-    })
-  }
-
-  return {
-    messages: result.messages,
-    fileHistorySnapshots: result.fileHistorySnapshots ?? [],
-    contentReplacements: result.contentReplacements ?? [],
-    agentName: result.agentName,
-    agentColor: (result.agentColor === DEFAULT_AGENT_COLOR ? undefined : result.agentColor) as
-      | AgentColorName
-      | undefined,
-    restoredAgentDef: restoredAgentDefinition,
-    initialState,
-  }
 }

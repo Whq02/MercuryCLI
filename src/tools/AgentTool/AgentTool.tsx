@@ -107,11 +107,13 @@ import {
 import {
   buildForkedMessages,
   buildFrozenWorktreeNotice,
+  buildScratchpadNotice,
   buildWorktreeNotice,
   FORK_AGENT,
   isForkSubagentEnabled,
   isInForkChild,
 } from './forkSubagent.js'
+import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { getPrompt } from './prompt.js'
@@ -726,6 +728,12 @@ export const AgentTool = buildTool({
           `AgentTool: system prompt build failed: ${errorMessage(error)}`,
         )
       }
+    }
+    if (isFork) {
+      promptMessages = [
+        ...promptMessages,
+        createUserMessage({ content: buildScratchpadNotice(ensureScratchpadDir(earlyAgentId)) }),
+      ]
     }
 
     let worktreeInfo:

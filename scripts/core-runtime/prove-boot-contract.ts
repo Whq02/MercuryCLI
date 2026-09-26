@@ -283,7 +283,8 @@ function staticImports(src: string): {
 
 {
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
-  const restoreSrc = readFileSync(join(SRC, 'utils/sessionRestore.ts'), 'utf8')
+  const loaderSrc = readFileSync(join(SRC, 'utils/conversationRecovery.ts'), 'utf8')
+  const doorSrc = readFileSync(join(SRC, 'cli/headless/resume.ts'), 'utf8')
   const resumeBlock = mainSrc.slice(
     mainSrc.indexOf('} else if (opts.resume || opts.fromPr) {'),
     mainSrc.indexOf('launchPayload = {', mainSrc.indexOf('} else if (opts.resume || opts.fromPr) {')),
@@ -308,8 +309,9 @@ function staticImports(src: string): {
       readFileSync(join(SRC, 'daemon/concourseSupervisor.ts'), 'utf8').includes("? ['--resume', args.sessionId!,"),
   )
   check(
-    'resume-identity: the restore owner adopts the override first',
-    /opts\.sessionIdOverride \?\?\s*(?:\n\s*)?result\.sessionId/.test(restoreSrc),
+    'resume-identity: the restore owner adopts the resolved id — the id road carries the id asked for, and the runner door switches to it',
+    loaderSrc.includes('sessionId = asSessionId(source)') &&
+      (doorSrc.match(/switchSession\(\s*asSessionId\(result\.sessionId\),/g) ?? []).length === 2,
   )
 }
 

@@ -74,7 +74,7 @@ if span is None:
     span, verb = bare_span(src), 'migrated'
 is_mercury_launcher = span is not None or 'mercury_resolve_home' in src or re.search(r'^args=\(\)', src, re.M)
 if not is_mercury_launcher:
-    print(f'launcher action block: REFUSED — {launcher} does not look like a Mercury launcher (no block, no resolver, no args anchor); nothing written')
+    print(f'launcher action block: skipped — not ours: {launcher} (no block, no resolver, no args anchor); nothing written')
     sys.exit(0)
 # the pairing guard: the splash run line outside the block must capture
 # the exit code, or the block is a permanent no-op
