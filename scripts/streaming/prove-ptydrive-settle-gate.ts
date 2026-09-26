@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resolveCaptureDriver } from '../lib/captureDriver.ts'
+import { resolveCaptureDriver, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { grabScreens, requireDist, runArtifactArena, visibleText, type PtyRead } from './artifactArena.ts'
 
 requireDist()
@@ -16,6 +16,7 @@ if (driver.kind !== 'posix-pty') {
 const PTYDRIVE = join(import.meta.dir, 'ptydrive.py')
 const PTYDRIVE_STILL_MS = 400
 const PTYDRIVE_SETTLE_CEILING_MS = 2000
+const SCALE = vshotBudgetScale()
 type SendRecord = { sent: number; atMs: number; b64: string; after?: string; paintAt?: number; settledAt?: number; stillMs?: number; ceiling?: boolean }
 const COMPOSER = 'Type a prompt'
 const COLS = 100
@@ -121,29 +122,32 @@ section('§2 the state anchor arms on the settled composer, so a fixed-ms rider 
     const quietBefore = before === undefined ? -1 : send.sent - before.ts
     console.log(`  the anchor's receipt: ${JSON.stringify({ paintAt: anchor.paintAt, stillMs: anchor.stillMs, ceiling: anchor.ceiling, shiftMs: anchor.shiftMs })}; the rider went ${send.sent - paint.ts}ms after the placeholder painted, ${quietBefore}ms after the last output`)
     check(`the anchor record carries the settled-paint receipt (stillMs ≥ ${PTYDRIVE_STILL_MS}, no ceiling)`, typeof anchor.paintAt === 'number' && typeof anchor.stillMs === 'number' && anchor.stillMs >= PTYDRIVE_STILL_MS - 1 && anchor.ceiling === false, JSON.stringify(anchor))
-    check('the rider typed 500ms after the SETTLED composer, never 500ms after its first paint', send.sent - paint.ts >= PTYDRIVE_STILL_MS + 500 - 60, `${send.sent - paint.ts}ms after the paint`)
+    check(`the rider typed ${500 * SCALE}ms after the SETTLED composer, never that soon after its first paint`, send.sent - paint.ts >= PTYDRIVE_STILL_MS + 500 * SCALE - 60, `${send.sent - paint.ts}ms after the paint`)
     const echo = echoAfter(reads, send.sent, WORD)
     check('the rider landed (its word echoed)', echo !== undefined)
   }
   run.cleanup()
 }
 
-section('§3 the driver alone: a needle whose output never holds still fires at the ceiling and says so; a never-painted needle stays unfired')
+section(`§3 the driver alone: a needle whose output never holds still fires at the ceiling and says so; a never-painted needle stays unfired (the capture profile's scale here: ${SCALE})`)
 {
   const scratch = mkdtempSync(join(tmpdir(), 'ptydrive-settle-'))
   const out = join(scratch, 'drive.jsonl')
+  const ceilingMs = PTYDRIVE_SETTLE_CEILING_MS * SCALE
+  const chatterTicks = Math.ceil((ceilingMs + 1500) / 100)
+  const wallSeconds = Math.ceil((chatterTicks * 100 + 1500) / 1000 / SCALE)
   const res = spawnSync(
     driver.python,
-    [PTYDRIVE, '--cols', '40', '--rows', '10', '--seconds', '5', '--out', out, '--send', 'after:hello:0:X', '--send', 'after:absent:0:N', '--', 'sh', '-c', 'printf hello; i=0; while [ $i -lt 32 ]; do printf x; sleep 0.1; i=$((i+1)); done'],
-    { encoding: 'utf8', timeout: 30_000 },
+    [PTYDRIVE, '--cols', '40', '--rows', '10', '--seconds', String(wallSeconds), '--out', out, '--send', 'after:hello:0:X', '--send', 'after:absent:0:N', '--', 'sh', '-c', `printf hello; i=0; while [ $i -lt ${chatterTicks} ]; do printf x; sleep 0.1; i=$((i+1)); done`],
+    { encoding: 'utf8', timeout: 30_000 + chatterTicks * 100 },
   )
   const rows = driveRows(out)
   const sent = rows.find(r => typeof r.sent === 'number')
   const t0 = rows.find(r => typeof r.ts === 'number')?.ts ?? 0
   const report = (res.stdout ?? '').trim().split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
   const parsed = JSON.parse(report) as { sends?: number; unfired?: string[] }
-  console.log(`  the chatty child: X sent ${sent === undefined ? 'never' : `+${sent.sent! - t0}ms`} · ${JSON.stringify({ stillMs: sent?.stillMs, ceiling: sent?.ceiling })} · unfired ${JSON.stringify(parsed.unfired)}`)
-  check(`a needle whose output never holds still fires at the ceiling (${PTYDRIVE_SETTLE_CEILING_MS}ms after its paint), recorded as such`, sent !== undefined && sent.ceiling === true && typeof sent.settledAt === 'number' && typeof sent.paintAt === 'number' && sent.settledAt - sent.paintAt >= PTYDRIVE_SETTLE_CEILING_MS - 60 && sent.settledAt - sent.paintAt <= PTYDRIVE_SETTLE_CEILING_MS + 400, JSON.stringify(sent))
+  console.log(`  the chatty child (${chatterTicks} paints 100ms apart, the wall ${wallSeconds}s × ${SCALE}): X sent ${sent === undefined ? 'never' : `+${sent.sent! - t0}ms`} · ${JSON.stringify({ stillMs: sent?.stillMs, ceiling: sent?.ceiling })} · unfired ${JSON.stringify(parsed.unfired)}`)
+  check(`a needle whose output never holds still fires at the ceiling (${ceilingMs}ms after its paint: ${PTYDRIVE_SETTLE_CEILING_MS} × the scale), recorded as such`, sent !== undefined && sent.ceiling === true && typeof sent.settledAt === 'number' && typeof sent.paintAt === 'number' && sent.settledAt - sent.paintAt >= ceilingMs - 60 && sent.settledAt - sent.paintAt <= ceilingMs + 400, JSON.stringify(sent))
   check('a needle that never paints never fires, and the closing report names it', parsed.sends === 1 && Array.isArray(parsed.unfired) && parsed.unfired.length === 1 && /'absent'.*never painted/.test(parsed.unfired[0] ?? ''), report)
   rmSync(scratch, { recursive: true, force: true })
 }

@@ -6,6 +6,7 @@ import { check, childEnv, DIST, endLeg, FACE_READY, finish, netlines, nonLoopbac
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 import { stringWidth } from '../../src/ink/stringWidth.ts'
+import { MODEL_PICKER_EXIT_WORDS } from '../../src/utils/model/modelPickerFooter.ts'
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
@@ -31,7 +32,7 @@ async function capture(tag: string, cols: number, rows: number, wayBack: boolean
     { atTick: 999, awaitText: IDLE_COUNTS, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
     { afterPrevTicks: 1, data: '/model' },
     { afterPrevTicks: 2, data: '\r' },
-    { atTick: 999, awaitText: 'esc close', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '\u001b[A' },
+    { atTick: 999, awaitText: MODEL_PICKER_EXIT_WORDS, minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '\u001b[A' },
     { afterPrevTicks: 3, data: '\r' },
     { atTick: 999, awaitText: NOTICE_HEAD, minTick: 3, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'notice' },
     { atTick: 999, awaitText: '0 agents here', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'later' },

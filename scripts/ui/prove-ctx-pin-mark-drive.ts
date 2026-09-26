@@ -38,6 +38,7 @@ for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH
   delete process.env[k]
 }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
+const { MODEL_PICKER_TITLE } = await import('../../src/utils/model/modelPickerGroups.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -242,7 +243,7 @@ try {
           { data: 'hello\r', atTick: 999, awaitText: 'ready · type a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: '· 872k', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'landed' },
           { data: '/model\r', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
-          { data: '\x1b', atTick: 999, awaitText: '· model IDs', requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
+          { data: '\x1b', atTick: 999, awaitText: MODEL_PICKER_TITLE, requireAwait: true, minTick: 3, awaitSettleTicks: 2 },
           { data: '', atTick: 999, awaitText: 'Kept model as', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'live' },
         ]
       : [...FACE_THEN_COMPOSER, { data: '', atTick: 999, awaitText: readyText, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' }]
