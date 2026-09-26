@@ -22,6 +22,7 @@ The events wired most often:
 | PreCompact / PostCompact | around a compaction |
 | ConfigChange | when a settings file changes on disk — a blocking result vetoes the hot reload |
 | Notification | when the harness raises a notification |
+| Interrupt | when a turn is cut (esc, an SDK interrupt, a timeout, the parent's stop) — observe only; the matcher is the cut reason, and nothing the hook answers can change the cut |
 
 The full event enum — subagent and task events, worktree events, FileChanged, CwdChanged and the rest — is in the generated schema's hooks section; every event name there is wireable.
 

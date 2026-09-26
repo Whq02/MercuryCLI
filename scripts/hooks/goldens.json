@@ -114,5 +114,52 @@
    "hookSource": "settings"
   }
  ],
- "getMatchingHooks/no-session-store": []
+ "getMatchingHooks/no-session-store": [],
+ "getMatchingHooks/interrupt-reason-matcher": [
+  {
+   "hook": {
+    "command": "echo the-operator",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  },
+  {
+   "hook": {
+    "command": "echo any-cut",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  },
+  {
+   "hook": {
+    "command": "echo always",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  }
+ ],
+ "executeInterruptHooks/input-shape-via-session-callback": {
+  "captured": {
+   "cwd": "«parity-cwd-abs»",
+   "hook_event_name": "Interrupt",
+   "permission_mode": "default",
+   "reason": "operator",
+   "session_id": "«u1»",
+   "tools": [
+    "Bash",
+    "Bash"
+   ],
+   "transcript_path": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1».jsonl",
+   "turn_id": "chain-fixture"
+  },
+  "results": [
+   {
+    "blocked": false,
+    "command": "callback",
+    "output": "",
+    "succeeded": true
+   }
+  ]
+ },
+ "executeInterruptHooks/nothing-wired-runs-nothing": []
 }
