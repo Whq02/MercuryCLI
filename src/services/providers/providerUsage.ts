@@ -1048,11 +1048,11 @@ export function usageForProvider(
   if (provider === 'openrouter') {
     const keyPresent = reads?.openrouterKeyPresent?.() ?? resolveOpenrouterApiKey() !== undefined
     if (!keyPresent) {
-      const expired = readMintedOpenrouterKey()?.expiredMessage !== undefined
+      const refused = readMintedOpenrouterKey()?.expiredMessage !== undefined
       return {
         provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend,
-        whyNot: expired ? 'no usable key — the OAuth-minted key expired; /logins adds OpenRouter' : 'not connected — /logins adds OpenRouter',
-        ...(expired ? { readerNote: 'OAuth-minted key expired — no usable key', readerNoteCompact: 'OAuth-minted key expired — no usable key' } : {}),
+        whyNot: refused ? 'no usable key — the OAuth-minted key was refused; /logins adds OpenRouter' : 'not connected — /logins adds OpenRouter',
+        ...(refused ? { readerNote: 'OAuth-minted key refused — no usable key', readerNoteCompact: 'OAuth-minted key refused — no usable key' } : {}),
       }
     }
     const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()

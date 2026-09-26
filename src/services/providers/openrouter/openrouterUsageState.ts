@@ -98,9 +98,9 @@ async function keyErrorMessage(response: Response): Promise<string> {
     const parsed: unknown = await response.json()
     const error = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>).error : undefined
     const message = typeof error === 'object' && error !== null ? (error as Record<string, unknown>).message : undefined
-    if (typeof message === 'string' && message.trim()) return message
+    if (typeof message === 'string' && message.trim()) return message.trim().replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
   } catch {}
-  return response.status === 401 ? 'API key expired' : `key endpoint returned HTTP ${response.status}`
+  return `key endpoint returned HTTP ${response.status}`
 }
 
 export function refreshOpenrouterKeyUsage(opts?: {

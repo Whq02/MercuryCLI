@@ -95,7 +95,7 @@ try {
   check('an expired OAuth-minted OpenRouter key must not shadow a valid stored API key', accounts.resolveOpenrouterApiKey()?.key === storedKey)
   check('the credits read retries the stored key at once after the minted 401', requests.join('|') === 'GET /key minted|GET /key stored', requests.join(' | '))
   check('the stored key 200 credits are observed', observed.usage?.limitRemaining === 37.5 && observed.lastError === undefined, JSON.stringify(observed))
-  check('the minted slot is expired with OpenRouter words and how to drop it', !minted.active && /expired.*API key expired/.test(minted.stateNote ?? '') && (minted.stateNote ?? '').includes('⌫ removes it'), minted.stateNote ?? '(no note)')
+  check('the minted slot keeps the expired provider message and how to drop it', !minted.active && minted.stateNote === 'API key expired · /logins openrouter: ⌫ removes it', minted.stateNote ?? '(no note)')
   check('the stored slot is active, not shadowed, and has no minted 401 words', stored.active && stored.stateNote === undefined, stored.stateNote ?? '(no note)')
   check('request auth uses the stored bearer for calls', accounts.resolveOpenrouterRequestAuth()?.headers.authorization === `Bearer ${storedKey}`)
   check('unknown auth-file fields survive the expiry update', JSON.parse(readFileSync(accounts.openrouterAuthPathForDisplay(), 'utf8')).retained === true)
@@ -122,33 +122,39 @@ try {
   const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
   const ink = await import('../../src/ink.js')
   const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-  for (const size of [[178, 51], [80, 21]]) {
-    ;[columns, rows] = size as [number, number]
-    for (const surface of ['rail', 'usage']) {
-      const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
-      const stream = new PassThrough()
-      stream.resume()
-      const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
-      const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: new ink.EventEmitter(), internal_querier: null }
-      const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : React.createElement(Usage, { width: columns === 178 ? 146 : 76, rowBudget: rows === 51 ? 29 : 21, openToken: columns })
-      const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { flexDirection: 'column', width: columns }, child))
-      let painted = () => {}
-      const firstFrame = new Promise<void>(resolve => { painted = resolve })
-      const instance = await ink.render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
-      await firstFrame
-      for (let tick = 0; tick < 8; tick++) { ink.flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 5)) }
-      const frame = stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n').map(line => line.trimEnd()).join('\n')
-      const name = `${surface}-${columns}x${rows}.txt`
-      if (frames) { writeFileSync(join(frames, name), frame); index.push(name) }
-      const text = compact(frame)
-      check(`${surface} ${columns}x${rows}: source render stays within both budgets and carries both slot headings`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('OAuth-minted key') && text.includes('API key'), frame)
-      check(`${surface} ${columns}x${rows}: minted error and removal paint before the API slot`, /OAuth-minted key.*expired.*API key expired.*⌫ removes it.*API key/.test(text), text)
-      const apiAt = text.indexOf('API key', text.indexOf('⌫ removes it'))
-      check(`${surface} ${columns}x${rows}: API slot has stored credits, not the minted failure`, apiAt >= 0 && text.slice(apiAt).includes('37.50') && !text.slice(apiAt).includes('API key expired'), text)
-      instance.unmount(); instance.cleanup(); stream.destroy()
+  async function renderRefusal(message: string, tag: string) {
+    for (const size of [[178, 51], [80, 21]]) {
+      ;[columns, rows] = size as [number, number]
+      for (const surface of ['rail', 'usage']) {
+        const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
+        const stream = new PassThrough()
+        stream.resume()
+        const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
+        const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: new ink.EventEmitter(), internal_querier: null }
+        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : React.createElement(Usage, { width: columns === 178 ? 146 : 76, rowBudget: rows === 51 ? 29 : 21, openToken: columns })
+        const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { flexDirection: 'column', width: columns }, child))
+        let painted = () => {}
+        const firstFrame = new Promise<void>(resolve => { painted = resolve })
+        const instance = await ink.render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
+        await firstFrame
+        for (let tick = 0; tick < 8; tick++) { ink.flushPendingSyncWork(); await new Promise<void>(resolve => setTimeout(resolve, 5)) }
+        const frame = stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n').map(line => line.trimEnd()).join('\n')
+        const name = `${tag}-${surface}-${columns}x${rows}.txt`
+        if (frames) { writeFileSync(join(frames, name), frame); index.push(name) }
+        const text = compact(frame)
+        check(`${name}: source render stays within both budgets and carries both slot headings`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('OAuth-minted key') && text.includes('API key'), frame)
+        const mintedAt = text.indexOf('OAuth-minted key')
+        const messageAt = text.indexOf(message, mintedAt)
+        const removalAt = text.indexOf('⌫ removes it', messageAt)
+        const apiAt = text.indexOf('API key', removalAt)
+        check(`${name}: the provider message paints verbatim under the minted slot`, mintedAt >= 0 && messageAt > mintedAt && removalAt > messageAt && apiAt > removalAt, text)
+        check(`${name}: expiry is not invented when the provider did not say expired`, message.includes('expired') || !text.includes('expired'), text)
+        check(`${name}: API slot has stored credits, not the minted failure`, apiAt >= 0 && text.slice(apiAt).includes('37.50') && !text.slice(apiAt).includes(message), text)
+        instance.unmount(); instance.cleanup(); stream.destroy()
+      }
     }
   }
-  if (frames) writeFileSync(join(frames, 'index.txt'), index.join('\n') + '\nSource-rendered real USAGE surfaces with isolated minted 401 and stored 200 keys. Rail component also rendered at the compact terminal size; the full cockpit normally hides that rail there.\n')
+  await renderRefusal('API key expired', 'expired')
 
   process.env.OPENROUTER_API_KEY = envKey
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
@@ -170,20 +176,29 @@ try {
   seedMint()
   mintedBody = { error: { code: 401, message: 'User not found.' } }
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-  check('a minted bearer 401 keeps User not found. under its slot, not the fallback', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'expired — User not found. · /logins openrouter: ⌫ removes it')
+  check('a minted bearer 401 keeps User not found. without inventing expiry', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'User not found. · /logins openrouter: ⌫ removes it')
   check('User not found. still marks the minted key unusable', accounts.readMintedOpenrouterKey()?.expiredMessage === 'User not found.' && accounts.resolveOpenrouterApiKey() === undefined)
+  check('the no-usable-key notice does not invent expiry', owner.usageForProvider('openrouter').readerNote === 'OAuth-minted key refused — no usable key' && !owner.usageForProvider('openrouter').whyNot?.includes('expired'), JSON.stringify(owner.usageForProvider('openrouter')))
+  seedMint()
+  secrets.writeStoredOpenrouterApiKey(storedKey)
+  mintedBody = { error: { code: 401, message: ' \r\nUser not\nfound.\r\n ' } }
+  await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
+  check('provider words are trimmed to one line before persistence and display', accounts.readMintedOpenrouterKey()?.expiredMessage === 'User not found.' && readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'User not found. · /logins openrouter: ⌫ removes it')
+  await renderRefusal('User not found.', 'invalid')
+  if (frames) writeFileSync(join(frames, 'index.txt'), index.join('\n') + '\nSource-rendered real USAGE surfaces with isolated minted refusals and stored 200 keys. The compact cockpit hides its rail; the small rail captures exercise the component.\n')
+  secrets.writeStoredOpenrouterApiKey(null)
   const connect = accounts.beginOpenrouterConnect({ mode: 'headless', skipBrowserOpen: true, fetchImpl })
   connect.completeWithRedirect('fixture-code')
   await connect.result
   check('re-minting clears expiration even when the fixture reuses the key', accounts.resolveOpenrouterApiKey()?.source === 'oauth' && readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === undefined)
   mintedBody = undefined
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-  check('a bodiless minted 401 falls back to API key expired under its slot', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'expired — API key expired · /logins openrouter: ⌫ removes it')
-  check('a bodiless 401 still marks the minted key unusable', accounts.readMintedOpenrouterKey()?.expiredMessage === 'API key expired' && accounts.resolveOpenrouterApiKey() === undefined)
+  check('a bodiless minted 401 reports HTTP 401 without inventing expiry', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'key endpoint returned HTTP 401 · /logins openrouter: ⌫ removes it')
+  check('a bodiless 401 still marks the minted key unusable', accounts.readMintedOpenrouterKey()?.expiredMessage === 'key endpoint returned HTTP 401' && accounts.resolveOpenrouterApiKey() === undefined)
   seedMint()
   mintedBody = { error: { code: 401 } }
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-  check('an envelope with no provider words also falls back to API key expired', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote?.includes('API key expired') === true)
+  check('an envelope with no provider words reports HTTP 401', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'key endpoint returned HTTP 401 · /logins openrouter: ⌫ removes it')
   seedMint()
   mintedStatus = 503
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
