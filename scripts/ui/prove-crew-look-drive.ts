@@ -131,7 +131,12 @@ const see = (needle: string, mark: string, settle = 4, extra: Send = {}): Send =
 const clickOn = (needle: string, extra: Send = {}): Send => ({ data: CLICK, targetText: needle, atTick: 1500, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, ...extra })
 const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 const later = (ticks: number, mark: string): Send => ({ data: '', afterPrevTicks: ticks, mark })
-const popup = (command: string, needle: string, tag: string, typeTicks = 3): Send[] => [type(command, typeTicks), type('\r', 3), see(needle, `${tag}-open`, 6), type(ESC, 3), later(8, `${tag}-closed`)]
+const popupTitles = { '/usage': USAGE_TITLE, '/config': CONFIG_TITLE, '/model': MODEL_TITLE, '/files': FILES_TITLE, '/teammates': CREW_TITLE }
+const regexLiteral = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const seePopup = (title: string, needle: string, mark: string): Send => see(needle, mark, 6, {
+  awaitPattern: String.raw`\A[^\n]*╭─+╮(?=[\s\S]*${regexLiteral(title)})(?=[\s\S]*${regexLiteral(needle)})(?=[\s\S]*\n│[❯›][^\n]*│(?: *\n| *\Z))`,
+})
+const popup = (command: keyof typeof popupTitles, needle: string, tag: string, typeTicks = 3): Send[] => [type(command, typeTicks), type('\r', 3), seePopup(popupTitles[command], needle, `${tag}-open`), type(ESC, 3), later(8, `${tag}-closed`)]
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const cells = (line: string): string[] => Array.from(line)
@@ -319,8 +324,8 @@ async function leg(cols: number, rows: number): Promise<void> {
     see('ledger row 40', 'view-atlas', 8),
     ...popup('/usage', USAGE_HINT, 'usage'),
     ...popup('/config', CONFIG_HINT, 'config'),
-    ...popup('/model', MODEL_TITLE, 'model'),
-    ...popup('/files', FILES_TITLE, 'files'),
+    ...popup('/model', '↑↓ select · ↵ switch', 'model'),
+    ...popup('/files', '↑↓ move · ↵ open', 'files'),
     ...popup('/teammates', CREW_TITLE, 'crew'),
     type(PAGE_UP, 3),
     type(PAGE_UP, 3),
@@ -339,7 +344,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     later(10, 'rapid'),
     type('/teammates', 3),
     type('\r', 3),
-    see(CREW_TITLE, 'crew-over-lead', 6),
+    seePopup(CREW_TITLE, 'm main chat', 'crew-over-lead'),
     type('m', 3),
     see('★ VIEW · ', 'pinned', 6),
     ...popup('/usage', USAGE_HINT, 'usage-pinned'),

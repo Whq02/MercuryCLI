@@ -18,7 +18,7 @@ const CFG_KEYS = [
 ]
 const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPrevMs"']
 const SEND_KEYS = [
-  '"atTick"', '"afterPrevTicks"', '"awaitText"', '"awaitRaw"',
+  '"atTick"', '"afterPrevTicks"', '"awaitText"', '"awaitRaw"', '"awaitPattern"',
   '"minTick"', '"awaitSettleTicks"', '"awaitStableTicks"', '"data"', '"mark"',
   '"requireAwait"', '"awaitStableRegion"', '"targetText"', '"targetDx"', '"awaitRedraws"',
   '"signal"',
