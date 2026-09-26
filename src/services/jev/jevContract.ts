@@ -10,7 +10,8 @@ export const JEV_MAX_CHOICE_OPTIONS = 255
 export const JEV_MIN_SCORE_LEVELS = 2
 export const JEV_MAX_SCORE_LEVELS = 10
 export const JEV_TIMEOUT_MS = 10_000
-export const JEV_SUBAGENT_CALL_BUDGET = 2
+export const JEV_SUBAGENT_CALL_BUDGET = 200
+export const JEV_SUBAGENT_PACE_PER_MINUTE = 50
 export const JEV_TOOL_NAME = 'JevEval'
 export const JEV_PROVIDER_NAME = 'TypeSafe'
 export type JevRoad = 'official' | 'openrouter'
@@ -109,7 +110,7 @@ export interface JevWireFailure {
 
 export type JevWireOutcome = { ok: true; response: JevResponse; requestId?: string } | { ok: false; failure: JevWireFailure }
 
-export type JevLocalRefusalKind = 'allowance-hit' | 'pace-hit' | 'ceiling-hit' | 'subagent-budget-hit'
+export type JevLocalRefusalKind = 'allowance-hit' | 'pace-hit' | 'ceiling-hit' | 'subagent-budget-hit' | 'subagent-pace-hit'
 
 export type JevStatusKind =
   | 'ready'
@@ -134,6 +135,7 @@ export const JEV_STATUS_KINDS: readonly JevStatusKind[] = [
   'pace-hit',
   'ceiling-hit',
   'subagent-budget-hit',
+  'subagent-pace-hit',
   'rate-limited',
   'provider-down',
   'provider-credit',

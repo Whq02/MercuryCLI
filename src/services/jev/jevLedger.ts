@@ -1,5 +1,6 @@
 import {
   JEV_SUBAGENT_CALL_BUDGET,
+  JEV_SUBAGENT_PACE_PER_MINUTE,
   type JevLocalRefusalKind,
   type JevRoad,
   type JevStatusKind,
@@ -53,6 +54,7 @@ interface LedgerState {
   inputTokens: number
   unconfirmedCharges: number
   attemptTimes: number[]
+  subagentAttemptTimes: number[]
   subagentAttempts: Map<string, number>
   lastWire: JevWireRecord | null
   holdUntil: number
@@ -73,6 +75,7 @@ function fresh(): LedgerState {
     inputTokens: 0,
     unconfirmedCharges: 0,
     attemptTimes: [],
+    subagentAttemptTimes: [],
     subagentAttempts: new Map(),
     lastWire: null,
     holdUntil: 0,
@@ -88,7 +91,9 @@ const states: Record<JevRoad, LedgerState> = { official: fresh(), openrouter: fr
 
 function pruneWindow(state: LedgerState, now: number): void {
   const floor = now - JEV_PACE_WINDOW_MS
-  while (state.attemptTimes.length > 0 && state.attemptTimes[0]! <= floor) state.attemptTimes.shift()
+  for (const times of [state.attemptTimes, state.subagentAttemptTimes]) {
+    while (times.length > 0 && times[0]! <= floor) times.shift()
+  }
 }
 
 export function jevLedgerSnapshot(now: number = Date.now(), road: JevRoad = readJevSettings().road): JevLedgerSnapshot {
@@ -103,7 +108,7 @@ export function jevLedgerSnapshot(now: number = Date.now(), road: JevRoad = read
     attempts: state.attempts,
     inputTokens: state.inputTokens,
     unconfirmedCharges: state.unconfirmedCharges,
-    attemptsThisMinute: state.attemptTimes.length,
+    attemptsThisMinute: state.attemptTimes.length + state.subagentAttemptTimes.length,
     lastWire: state.lastWire,
     holdUntil: state.holdUntil,
     refusals: state.refusals,
@@ -137,17 +142,21 @@ export function jevAdmission(settings: JevSettings, now: number = Date.now(), ag
       words: `request ceiling hit — ${state.attempts} of ${settings.requestCeiling} requests this session; /clear resets the count, /jev raises or clears the ceiling`,
     }
   }
-  if (state.attemptTimes.length >= settings.pacePerMinute) {
-    const retryInMs = Math.max(1, state.attemptTimes[0]! + JEV_PACE_WINDOW_MS - now)
-    return {
-      ok: false,
-      kind: 'pace-hit',
-      words: `pace hit — ${state.attemptTimes.length} requests in the last minute is the pace set in /jev (${settings.pacePerMinute} a minute); the next is admitted in ${jevWaitLabel(retryInMs)}`,
-      retryInMs,
-    }
-  }
   if (agentId !== undefined && (state.subagentAttempts.get(agentId) ?? 0) >= JEV_SUBAGENT_CALL_BUDGET) {
     return { ok: false, kind: 'subagent-budget-hit', words: `sub-agent budget hit — this agent has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided` }
+  }
+  const times = agentId === undefined ? state.attemptTimes : state.subagentAttemptTimes
+  const pace = agentId === undefined ? settings.pacePerMinute : JEV_SUBAGENT_PACE_PER_MINUTE
+  if (times.length >= pace) {
+    const retryInMs = Math.max(1, times[0]! + JEV_PACE_WINDOW_MS - now)
+    return {
+      ok: false,
+      kind: agentId === undefined ? 'pace-hit' : 'subagent-pace-hit',
+      words: agentId === undefined
+        ? `pace hit — ${times.length} requests in the last minute is the pace set in /jev (${pace} a minute); the next is admitted in ${jevWaitLabel(retryInMs)}`
+        : `sub-agent pace hit — ${times.length} requests in the last minute is the shared sub-agent pace (${pace} a minute per session); the next is admitted in ${jevWaitLabel(retryInMs)}`,
+      retryInMs,
+    }
   }
   return { ok: true }
 }
@@ -156,8 +165,11 @@ export function noteJevAttempt(now: number = Date.now(), agentId?: string, road:
   const state = states[road]
   pruneWindow(state, now)
   state.attempts += 1
-  state.attemptTimes.push(now)
-  if (agentId !== undefined) state.subagentAttempts.set(agentId, (state.subagentAttempts.get(agentId) ?? 0) + 1)
+  if (agentId === undefined) state.attemptTimes.push(now)
+  else {
+    state.subagentAttemptTimes.push(now)
+    state.subagentAttempts.set(agentId, (state.subagentAttempts.get(agentId) ?? 0) + 1)
+  }
 }
 
 export function settleJevCall(usage: JevUsage, model: string, now: number = Date.now(), road: JevRoad = readJevSettings().road, requestId?: string): number {

@@ -210,7 +210,8 @@ const exclusions: Array<[string, RegExp]> = [
   ['numbers are opinions, 0 and 1 prove nothing', /0 and 1 prove nothing/],
   ['confidence is concentration, noul has none', /how concentrated the distribution is/],
   ['never attribute a rationale', /never attribute a rationale to it/],
-  ['the sub-agent budget', /A sub-agent has 2 calls/],
+  ['the sub-agent budget', /A sub-agent has 200 calls/],
+  ['the shared sub-agent session pace', /all sub-agents in a session share 50 requests a minute/],
 ]
 for (const [label, rx] of exclusions) check(label, rx.test(prompt))
 const headwords = JEV_STATUS_KINDS.filter(k => k !== 'ready').map(k => JEV_STATUS_HEADWORDS[k])

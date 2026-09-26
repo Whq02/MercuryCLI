@@ -25,6 +25,7 @@ export const JEV_STATUS_HEADWORDS: Readonly<Record<JevStatusKind, string>> = Obj
   'pace-hit': 'pace hit',
   'ceiling-hit': 'request ceiling hit',
   'subagent-budget-hit': 'sub-agent budget hit',
+  'subagent-pace-hit': 'sub-agent pace hit',
   'rate-limited': 'rate limited by the provider',
   'provider-down': 'provider down',
   'provider-credit': 'provider refused for credit',
@@ -53,7 +54,7 @@ export function jevSharedStatus(settings: JevSettings, key: JevKeyPresence): Jev
 export function resolveJevStatus(inputs: JevStatusInputs): JevStatus {
   const { settings, key, ledger, now, agent } = inputs
   if (!settings.enabled) return jevSharedStatus(settings, key)
-  if (agent?.subagent === true && !settings.subagents) return { kind: 'off', words: 'off — JEV is not offered to sub-agents until the sub-agents setting in /jev is on' }
+  if (agent?.subagent === true && !settings.subagents) return { kind: 'off', words: 'off — JEV is not offered to sub-agents; the Sub-agents row in /jev is off by choice' }
   if (!key.present) return jevSharedStatus(settings, key)
   const wire = ledger.lastWire
   const provider = settings.road === 'openrouter' ? 'OpenRouter' : 'the provider'
