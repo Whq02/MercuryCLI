@@ -19,8 +19,10 @@ async function main(): Promise<void> {
   const { join } = await import('node:path')
   process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wards-omission-home-'))
   const { BUILTIN_WARDS, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
+  type WardRule = (typeof BUILTIN_WARDS)[number]
   const { registerWardsHook, resetWardsEngagedSessionsForTest } = await import('../../src/utils/hooks/wardsHook.js')
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
+  const { measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
   const { readFileSync } = await import('node:fs')
 
   type Call = { toolName: string; input: Record<string, unknown> }
@@ -264,72 +266,72 @@ async function main(): Promise<void> {
     check('a multi-line template literal with the placeholder on its own line ⇒ denied (write it split or escaped)', deniedBy(template) === RULE, denialText(template))
   }
 
-  section('I. the matcher is linear on adversarial lines (whitespace runs, dot runs, repeated words)')
+  section('I. the matcher is linear on adversarial lines (whitespace runs, dot runs, repeated words): the cost of a doubled input is bounded by the law, not by a wall clock')
   {
-    const lines: Array<[string, boolean]> = [
-      [' '.repeat(12_500), false],
-      [' '.repeat(100_000), false],
-      ['\t'.repeat(100_000), false],
-      [' '.repeat(100_000) + '// rest of code ...', true],
-      [' '.repeat(100_000) + 'x', false],
-      ['// ' + '-'.repeat(100_000), false],
-      ['// ' + '.'.repeat(100_000), false],
-      ['// ' + '…'.repeat(50_000), false],
-      ['// ' + Array(20_000).fill('existing').join(' '), false],
-      ['// ' + Array(20_000).fill('rest of').join(' ') + ' ...', false],
-      ['... ' + Array(20_000).fill('rest of').join(' ') + ' x', false],
-      ['(' + '('.repeat(50_000) + 'unchanged ...' + ')'.repeat(50_000), false],
-      ['x'.repeat(100_000) + ' ...', false],
-      ['rest of code ' + '.'.repeat(100_000), true],
-      ['... ' + 'abc '.repeat(180_000), false],
-      ['a.. b.. '.repeat(90_000), false],
-      ['é'.repeat(100_000) + ' ...', false],
-      ['😀'.repeat(100_000) + ' ...', false],
-      ['"content": "' + 'text\\n'.repeat(8_000) + '... ' + 'more text\\n'.repeat(1_000) + '"', false],
-      ['// ... existing code' + ' '.repeat(4_000) + 'x', false],
-      ['// ... existing code' + ' '.repeat(100_000) + 'x', false],
-      ['// ... existing code' + '\t'.repeat(100_000) + 'x', false],
-      ['//' + ' '.repeat(100_000) + 'x ...', false],
-      ['#' + ' '.repeat(100_000) + 'x ...', false],
-      ['... ' + ' '.repeat(100_000) + 'x', false],
-      ['unchanged' + ' '.repeat(100_000) + 'x ...', false],
-      ['rest of code ...' + ' '.repeat(100_000) + '.', true],
-      ['// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(100), false],
-      [('x' + ' '.repeat(7_000)).repeat(100) + '// ... existing code ...', false],
-      ['// ... existing code' + ')'.repeat(100_000) + 'x', false],
-      ['// ... existing code' + '*/'.repeat(50_000) + 'x', false],
-      ['// ... existing code' + '-->'.repeat(30_000) + 'x', false],
-      ['// ... existing code ...' + ' .'.repeat(12_500) + 'x', false],
-      ['// ... existing code ...' + ' ..'.repeat(12_500) + 'x', false],
-      ['rest of' + ' the'.repeat(100_000) + ' ...', false],
-    ]
-    for (const [line, deny] of lines) {
-      const t0 = performance.now()
-      const v = verdictOf(write(file, around(line)))
-      const ms = performance.now() - t0
-      check(`${JSON.stringify(line.slice(0, 24))}… (${line.length} chars) evaluates in ${ms.toFixed(1)}ms (< 50ms), verdict ${deny ? 'deny' : 'allow'}`, ms < 50 && v.allow === !deny)
+    const growthOf = (build: (n: number) => string, sizes: readonly number[], rules: readonly WardRule[] = BUILTIN_WARDS, attempts?: number) => {
+      const contents = new Map(sizes.map(n => [n, build(n)] as const))
+      return measureGrowth(n => { evaluateWards(rules, write(file, contents.get(n)!)) }, sizes, attempts === undefined ? {} : { attempts })
     }
-    const indented = Array(10_000).fill(' '.repeat(200) + '// ... existing code ... x').join('\n')
-    const t1 = performance.now()
-    const vi = verdictOf(write(file, indented))
-    const msi = performance.now() - t1
-    check(`10 000 deeply indented near-miss lines evaluate in ${msi.toFixed(1)}ms (< 250ms) and pass`, msi < 250 && vi.allow)
-    const padded = Array(5_000).fill(' '.repeat(200) + '// ... existing code' + ' '.repeat(200) + 'x').join('\n')
-    const t2 = performance.now()
-    const vp = verdictOf(write(file, padded))
-    const msp = performance.now() - t2
-    check(`5 000 lines padded on both sides of the phrase evaluate in ${msp.toFixed(1)}ms (< 250ms) and pass`, msp < 250 && vp.allow)
-    const growth = [25_000, 50_000, 100_000].map(n => {
-      const t = performance.now()
-      verdictOf(write(file, '// ... existing code ...' + ' ..'.repeat(n) + 'x'))
-      return performance.now() - t
-    })
-    check(`a space-separated dot run after the phrase grows linearly (${growth.map(g => g.toFixed(0)).join(' / ')}ms at 25k / 50k / 100k; each doubling < 3x)`, growth[1]! < growth[0]! * 3 + 5 && growth[2]! < growth[1]! * 3 + 5)
-    const big = around('const x = 1').repeat(2000)
-    const t0 = performance.now()
-    const v = verdictOf(write(file, big))
-    const ms = performance.now() - t0
-    check(`a ${big.length}-byte clean Write evaluates in ${ms.toFixed(1)}ms (< 250ms) and passes`, ms < 250 && v.allow)
+    const lines: Array<[(n: number) => string, number, boolean]> = [
+      [n => ' '.repeat(n), 12_500, false],
+      [n => ' '.repeat(n), 100_000, false],
+      [n => '\t'.repeat(n), 100_000, false],
+      [n => ' '.repeat(n) + '// rest of code ...', 100_000, true],
+      [n => ' '.repeat(n) + 'x', 100_000, false],
+      [n => '// ' + '-'.repeat(n), 100_000, false],
+      [n => '// ' + '.'.repeat(n), 100_000, false],
+      [n => '// ' + '…'.repeat(n), 50_000, false],
+      [n => '// ' + Array(n).fill('existing').join(' '), 20_000, false],
+      [n => '// ' + Array(n).fill('rest of').join(' ') + ' ...', 20_000, false],
+      [n => '... ' + Array(n).fill('rest of').join(' ') + ' x', 20_000, false],
+      [n => '(' + '('.repeat(n) + 'unchanged ...' + ')'.repeat(n), 50_000, false],
+      [n => 'x'.repeat(n) + ' ...', 100_000, false],
+      [n => 'rest of code ' + '.'.repeat(n), 100_000, true],
+      [n => '... ' + 'abc '.repeat(n), 180_000, false],
+      [n => 'a.. b.. '.repeat(n), 90_000, false],
+      [n => 'é'.repeat(n) + ' ...', 100_000, false],
+      [n => '😀'.repeat(n) + ' ...', 100_000, false],
+      [n => '"content": "' + 'text\\n'.repeat(n) + '... ' + 'more text\\n'.repeat(n / 8) + '"', 8_000, false],
+      [n => '// ... existing code' + ' '.repeat(n) + 'x', 4_000, false],
+      [n => '// ... existing code' + ' '.repeat(n) + 'x', 100_000, false],
+      [n => '// ... existing code' + '\t'.repeat(n) + 'x', 100_000, false],
+      [n => '//' + ' '.repeat(n) + 'x ...', 100_000, false],
+      [n => '#' + ' '.repeat(n) + 'x ...', 100_000, false],
+      [n => '... ' + ' '.repeat(n) + 'x', 100_000, false],
+      [n => 'unchanged' + ' '.repeat(n) + 'x ...', 100_000, false],
+      [n => 'rest of code ...' + ' '.repeat(n) + '.', 100_000, true],
+      [n => '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(n), 100, false],
+      [n => ('x' + ' '.repeat(7_000)).repeat(n) + '// ... existing code ...', 100, false],
+      [n => '// ... existing code' + ')'.repeat(n) + 'x', 100_000, false],
+      [n => '// ... existing code' + '*/'.repeat(n) + 'x', 50_000, false],
+      [n => '// ... existing code' + '-->'.repeat(n) + 'x', 30_000, false],
+      [n => '// ... existing code ...' + ' .'.repeat(n) + 'x', 12_500, false],
+      [n => '// ... existing code ...' + ' ..'.repeat(n) + 'x', 12_500, false],
+      [n => 'rest of' + ' the'.repeat(n) + ' ...', 100_000, false],
+    ]
+    for (const [build, n, deny] of lines) {
+      const line = build(n)
+      const v = verdictOf(write(file, around(line)))
+      const growth = growthOf(size => around(build(size)), [n / 2, n])
+      check(`${JSON.stringify(line.slice(0, 24))}… (${line.length} chars) evaluates linearly (${growth.summary}), verdict ${deny ? 'deny' : 'allow'}`, growth.linear && v.allow === !deny)
+    }
+    const indented = (n: number): string => Array(n).fill(' '.repeat(200) + '// ... existing code ... x').join('\n')
+    const vi = verdictOf(write(file, indented(10_000)))
+    const gi = growthOf(indented, [5_000, 10_000])
+    check(`10 000 deeply indented near-miss lines evaluate linearly in the line count (${gi.summary}) and pass`, gi.linear && vi.allow)
+    const padded = (n: number): string => Array(n).fill(' '.repeat(200) + '// ... existing code' + ' '.repeat(200) + 'x').join('\n')
+    const vp = verdictOf(write(file, padded(5_000)))
+    const gp = growthOf(padded, [2_500, 5_000])
+    check(`5 000 lines padded on both sides of the phrase evaluate linearly in the line count (${gp.summary}) and pass`, gp.linear && vp.allow)
+    const dots = growthOf(n => '// ... existing code ...' + ' ..'.repeat(n) + 'x', [25_000, 50_000, 100_000])
+    check(`a space-separated dot run after the phrase grows linearly across 25k / 50k / 100k (${dots.summary})`, dots.linear)
+    const big = (n: number): string => around('const x = 1').repeat(n)
+    const v = verdictOf(write(file, big(2_000)))
+    const gb = growthOf(big, [1_000, 2_000])
+    check(`a ${big(2_000).length}-byte clean Write evaluates linearly in its size (${gb.summary}) and passes`, gb.linear && v.allow)
+    const planted: WardRule = { name: 'planted-quadratic', teach: 'a start lookbehind on an unanchored pattern rescans the run from every index', scope: 'edit', patterns: ['(?<=^[ \\t]*)x$'], flags: '', skipCommentLines: false }
+    const quadratic = growthOf(n => ' '.repeat(n) + 'y', [8_000, 16_000], [planted], 1)
+    check(`the growth law has teeth: a planted quadratic pattern, measured the same way, is refused (${quadratic.summary})`, !quadratic.linear)
   }
 
   section('J. the armed hook road denies with the teaching string')
@@ -358,20 +360,20 @@ async function main(): Promise<void> {
     check('the hook denies a Structure preview whose replacement carries the placeholder', typeof structure === 'string' && structure.includes(`Ward '${RULE}'`), String(structure).slice(0, 200))
     const git = await cb([], undefined as never, ctx('Git', { op: 'resolve', path: 'src/service.ts', content: '// ... rest of the file unchanged\n' }))
     check('the hook denies a Git resolve whose content carries the placeholder', typeof git === 'string' && git.includes(`Ward '${RULE}'`), String(git).slice(0, 200))
-    const timed = async (label: string, content: string): Promise<void> => {
+    const timed = async (label: string, build: (n: number) => string, n: number): Promise<void> => {
+      const contents = new Map([n / 2, n].map(size => [size, build(size)] as const))
       const armed = performance.now()
       let fired = -1
       const timer = new Promise<void>(resolve => setTimeout(() => { fired = performance.now() - armed; resolve() }, 100))
-      const t0 = performance.now()
-      const result = await cb([], undefined as never, ctx('Write', { file_path: file, content }))
-      const ms = performance.now() - t0
+      const result = await cb([], undefined as never, ctx('Write', { file_path: file, content: contents.get(n)! }))
       await timer
-      check(`${label}: the hook answers in ${ms.toFixed(1)}ms (< 50ms) and passes; the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms, the loop was never blocked)`, result === true && ms < 50 && fired < 1000)
+      const growth = await measureGrowthAsync(async size => { await cb([], undefined as never, ctx('Write', { file_path: file, content: contents.get(size)! })) }, [n / 2, n])
+      check(`${label}: the hook passes; the 100ms timer armed first fired at ${fired.toFixed(0)}ms (< 1000ms, the loop was never blocked); the answer grows linearly (${growth.summary})`, result === true && fired < 1000 && growth.linear)
     }
-    await timed('100 000 spaces', ' '.repeat(100_000))
-    await timed('the phrase, 4 000 spaces, then x (4 021 chars)', '// ... existing code' + ' '.repeat(4_000) + 'x')
-    await timed('a 700 000-char line with 100 interior blank runs', '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(100))
-    await timed('a comment leader, 100 000 spaces, then x ...', '//' + ' '.repeat(100_000) + 'x ...')
+    await timed('100 000 spaces', n => ' '.repeat(n), 100_000)
+    await timed('the phrase, 4 000 spaces, then x (4 021 chars)', n => '// ... existing code' + ' '.repeat(n) + 'x', 4_000)
+    await timed('a 700 000-char line with 100 interior blank runs', n => '// ... existing code' + ('x' + ' '.repeat(7_000)).repeat(n), 100)
+    await timed('a comment leader, 100 000 spaces, then x ...', n => '//' + ' '.repeat(n) + 'x ...', 100_000)
     resetWardsEngagedSessionsForTest()
   }
 
