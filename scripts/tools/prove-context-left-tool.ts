@@ -53,7 +53,11 @@ const tool = offered.find(candidate => candidate.name === TOOL_NAME)
 check(`getTools() offers a tool named ${TOOL_NAME}`, tool !== undefined, `offered: ${offered.map(candidate => candidate.name).join(', ')}`)
 check(`getAllBaseTools() lists ${TOOL_NAME} unconditionally`, getAllBaseTools().some(candidate => candidate.name === TOOL_NAME))
 check(`assembleToolPool() shows ${TOOL_NAME} to the model`, assembleToolPool(permissionContext, []).some(candidate => candidate.name === TOOL_NAME))
-check(`${TOOL_NAME} is never announced name-only (no discovery round trip before the model can ask)`, tool !== undefined && !isDeferredTool(tool))
+check(`${TOOL_NAME} defers like every rare tool — announced name-only, its schema fetched through ToolSearch — so the first request's twelve daily tools stay the whole eager set`, tool !== undefined && isDeferredTool(tool))
+const { searchToolsWithKeywords } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+const deferred = offered.filter(candidate => isDeferredTool(candidate))
+const found = await searchToolsWithKeywords('how much context window is left', deferred, offered, 3)
+check(`a ToolSearch for the context window finds ${TOOL_NAME} first among the deferred tools`, found[0] === TOOL_NAME, `found: ${found.join(', ')}`)
 
 let mod: typeof import('../../src/tools/ContextLeftTool/ContextLeftTool.ts') | null = null
 try {
