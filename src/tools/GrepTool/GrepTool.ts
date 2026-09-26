@@ -67,19 +67,19 @@ const inputSchema = z.strictObject({
       'What comes back: "files_with_matches" (the default) lists hit paths, "content" prints the matching lines, "count" tallies matches.',
     ),
   '-B': semanticNumber(z.number().optional()).describe(
-    'Context lines printed before each hit (rg -B); only meaningful with output_mode "content", ignored otherwise.',
+    'Context lines printed before each hit (rg -B; "content" mode only).',
   ),
   '-A': semanticNumber(z.number().optional()).describe(
-    'Context lines printed after each hit (rg -A); only meaningful with output_mode "content", ignored otherwise.',
+    'Context lines printed after each hit (rg -A; "content" mode only).',
   ),
   '-C': semanticNumber(z.number().optional()).describe(
-    'Context lines printed both sides of each hit (rg -C); only meaningful with output_mode "content", ignored otherwise.',
+    'Context lines printed both sides of each hit (rg -C; "content" mode only).',
   ),
   context: semanticNumber(z.number().optional()).describe(
-    'Same as -C: surrounding context lines per hit. Needs output_mode "content".',
+    'Same as -C: surrounding context lines per hit ("content" mode only).',
   ),
   '-n': semanticBoolean(z.boolean().optional()).describe(
-    'Prefix output with line numbers (rg -n); "content" mode only, ignored otherwise. On by default.',
+    'Prefix output with line numbers (rg -n; "content" mode only). On by default.',
   ),
   '-i': semanticBoolean(z.boolean().optional()).describe('Match case-insensitively (rg -i)'),
   type: z

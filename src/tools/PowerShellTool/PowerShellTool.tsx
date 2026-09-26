@@ -103,7 +103,7 @@ function buildModelSchema() {
     description: z.string().optional().describe('A short description of what the command does, in active voice.'),
     run_in_background: semanticBoolean(z.boolean().optional()).describe('Set to true to run the command in the background and read its output later.'),
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),
-    inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process). By default they are scrubbed and the result names them; a proof or a build must not see them."),
+    inherit_session_env: semanticBoolean(z.boolean().optional()).describe("Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them."),
     max_output_chars: maxOutputCharsField.describe(describeMaxOutputChars()),
   })
 }

@@ -80,6 +80,7 @@ try {
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
+      MERCURY_DAP_ADAPTERS: JSON.stringify({ fixture: { command: 'true', args: [], connect: 'stdio' } }),
       ANTHROPIC_BASE_URL: base,
       ...(route === 'anthropic' ? { ANTHROPIC_API_KEY: key, MERCURY_TOOL_SEARCH: 'on' } : { OPENAI_API_KEY: key, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/chatgpt`, MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth` }),
     }
@@ -107,6 +108,9 @@ try {
     const systemBytes = Buffer.byteLength(normalize(system), 'utf8')
     const eagerBytes = eager.reduce((total, tool) => total + bytes(tool), 0)
     const attachmentBytes = reminderTexts.reduce((total: number, text: string) => total + Buffer.byteLength(normalize(text), 'utf8'), 0)
+    const deferred = tools.filter(tool => tool.defer_loading === true)
+    console.log(`  [INFO] ${route}: eager definitions: ${eager.map(tool => `${tool.name}(${bytes(tool)})`).join(' ')}`)
+    console.log(`  [INFO] ${route}: ${deferred.length} deferred definitions on the wire (${deferred.reduce((total, tool) => total + bytes(tool), 0)} bytes) · Debug ${tools.some(tool => tool.name === 'Debug') ? 'present' : 'absent'} · coordination tools ${tools.filter(tool => String(tool.name).startsWith('mcp__mercury__')).length} · system ${systemBytes} · attachments ${attachmentBytes} · request ${bytes(body)}`)
     check(`${route}: system text stays under 27500 bytes`, systemBytes <= 27500, String(systemBytes))
     check(`${route}: initial definitions stay under 46000 bytes`, eagerBytes <= 46000, String(eagerBytes))
     check(`${route}: at most twelve tools load initially`, eager.length <= 12, String(eager.length))
