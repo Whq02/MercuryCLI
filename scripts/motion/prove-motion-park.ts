@@ -45,8 +45,8 @@ const teeDir = mkdtempSync(join(tmpdir(), 'glide-park-'))
 const tee = join(teeDir, 'tee.jsonl')
 const run = await runArtifactArena({
   turns: [{ kind: 'text', text: 'REPLY-PARK done.' }],
-  sends: ['4500:warm up', '5300:\\r', '7000:/model', '7800:\\r', '27000:\\x1b'],
-  seconds: 30,
+  sends: ['after:Type a prompt:500:warm up\\r', 'after:REPLY-PARK done.:500:/help\\r', 'after:Mercury — help:19000:\\x1b'],
+  seconds: 45,
   keep: true,
   extraEnv: { MERCURY_LIVE_GLYPHS: '1', INK_COMPOSED_TEE: tee },
 })
@@ -65,9 +65,9 @@ for (const line of readFileSync(tee, 'utf8').split('\n')) {
   } catch {
   }
 }
-const isModal = (r: TeeRec): boolean => r.rows.some(row => row.startsWith('▔▔▔▔'))
+const isModal = (r: { rows: string[] }): boolean => r.rows.some(row => row.startsWith('▔▔▔▔'))
 const modal = recs.filter(isModal)
-check('the picker opened as a claims-modal (▔ frames captured)', modal.length >= 1, `frames=${modal.length}`)
+check('the help sheet opened as a claims-modal', modal.length >= 1, `frames=${modal.length}`)
 
 if (modal.length >= 1) {
   const openTs = modal[0]!.ts
@@ -80,11 +80,11 @@ if (modal.length >= 1) {
   }
   check(
     'the settled covered window is quiet (≤3 byte-identical composes in 6s; unfixed 14+)',
-    identical <= 3,
+    isModal(recs.filter(r => r.ts <= quietFrom).at(-1) ?? { rows: [] }) && isModal(recs.filter(r => r.ts <= quietTo).at(-1) ?? { rows: [] }) && win.every(isModal) && identical <= 3,
     `identical=${identical} composes=${win.length}`,
   )
   const closeFrame = recs.find(r => r.ts > quietTo && !isModal(r))
-  check('the picker closed (a non-modal compose follows coverage)', closeFrame !== undefined)
+  check('the help closed (a non-modal compose follows coverage)', closeFrame !== undefined)
   if (closeFrame) {
     const resumed = recs.filter(r => r.ts >= closeFrame.ts && r.ts <= closeFrame.ts + 3000)
     check('motion resumes after close (≥2 composes in 3s)', resumed.length >= 2, `resumed=${resumed.length}`)
@@ -92,7 +92,7 @@ if (modal.length >= 1) {
 }
 
 const [snap] = grabScreens(run, 120, 40, [S(12000)])
-check('the covered-window picker frame is intact', snap!.rows.some(r => r.startsWith('▔▔▔▔')))
+check('the covered-window help frame is intact', snap !== undefined && isModal(snap))
 
 run.cleanup()
 rmSync(teeDir, { recursive: true, force: true })
