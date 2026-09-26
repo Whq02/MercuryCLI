@@ -114,7 +114,6 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(OUT_DIR, `daemon-${tag}`),
     MERCURY_TEAMS_DIR: join(OUT_DIR, `teams-${tag}`),
-    MERCURY_TABULA_DIR: join(OUT_DIR, `tabula-${tag}`),
     MERCURY_HOME: join(OUT_DIR, `mhome-${tag}`),
     VISUAL: '',
     EDITOR: '',

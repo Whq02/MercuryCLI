@@ -125,7 +125,6 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_CONFIG_DIR: config,
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
   MERCURY_TEAMS_DIR: join(home, 'teams'),
-  MERCURY_TABULA_DIR: join(home, 'tabula'),
   MERCURY_HOME: join(home, 'product-home'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',

@@ -10,9 +10,8 @@ const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'cmd-privacy-drive-'))
 const daemonDir = join(SCRATCH, 'daemon')
-const tabulaDir = join(SCRATCH, 'tabula')
 const work = join(SCRATCH, 'work-alpha')
-for (const d of [daemonDir, tabulaDir, work]) mkdirSync(d, { recursive: true })
+for (const d of [daemonDir, work]) mkdirSync(d, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CONCOURSE = 'always'
@@ -57,7 +56,6 @@ const spawnDaemon = (configHome: string): void => {
       ...process.env,
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_DAEMON_DIR: daemonDir,
-      MERCURY_TABULA_DIR: tabulaDir,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
@@ -87,7 +85,7 @@ const run = await runArtifactArena({
     'after:Alpha count:2500:\t',
     'after:Alpha count:4000:\r',
     'after:Alpha count:5200:\r',
-    'after:Alpha count:9000:/note remember the milk',
+    'after:Alpha count:9000:/remember Pin the fixture home before loading modules that cache project paths.',
     'after:Alpha count:10500:\r',
     'after:Alpha count:14000:/crew',
     'after:Alpha count:15500:\r',
@@ -120,7 +118,6 @@ const run = await runArtifactArena({
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
     MERCURY_DAEMON_DIR: daemonDir,
-    MERCURY_TABULA_DIR: tabulaDir,
     ANTHROPIC_BASE_URL: api.url,
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_CACHE_CLOCK: '0',
@@ -138,13 +135,14 @@ try {
   }
   const text = (g: { rows: string[] }): string => g.rows.join('\n')
 
-  const projDirs = existsSync(tabulaDir) ? readdirSync(tabulaDir) : []
-  const journalOf = (d: string): string => {
-    const p = join(tabulaDir, d, 'journal.jsonl')
-    return existsSync(p) ? readFileSync(p, 'utf8') : ''
-  }
-  const holders = projDirs.filter(d => journalOf(d).includes('remember the milk'))
-  check('§1 the note EXECUTED into the notepad estate', holders.length === 1, `holders: ${holders.join(',') || 'none'}`)
+  const projects = join(process.env.MERCURY_CONFIG_DIR!, 'projects')
+  const projectDirs = readdirSync(projects, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
+  const holders = projectDirs.filter(dir => {
+    const memory = join(projects, dir, 'memory')
+    if (!existsSync(memory)) return false
+    return readdirSync(memory).some(name => name.endsWith('.md') && readFileSync(join(memory, name), 'utf8').includes('Pin the fixture home before loading modules that cache project paths.'))
+  })
+  check('§1 the lesson EXECUTED into the memory estate', holders.length === 1, `holders: ${holders.join(',') || 'none'}`)
   check(
     "§1 …keyed by the SCREEN's project (the arena cwd), not the worker's workspace",
     holders.every(h => h.includes('flux-arena-cwd')) && !holders.some(h => h.includes('work-alpha')),
@@ -154,21 +152,21 @@ try {
   const transcriptPath = join(paths.getProjectDir(arenaCwd), `${alphaId}.jsonl`)
   const transcript = existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8') : ''
   check('§2 the session transcript exists and carries the counting turn', transcript.includes('counting'), transcriptPath)
-  check('§2 NO transcript byte carries the /note line (poison: the persisted user row)', !transcript.includes('/note') && !transcript.includes('remember the milk') && !transcript.includes('command-message>note'), '')
+  check('§2 NO transcript byte carries the /remember line (poison: the persisted user row)', !transcript.includes('/remember') && !transcript.includes('Pin the fixture home before loading modules that cache project paths.') && !transcript.includes('command-message>remember'), '')
   check('§2 NO transcript byte carries the /crew line', !transcript.includes('/crew') && !transcript.includes('command-message>crew'), '')
 
-  const wireHits = api.requests.filter((r: { raw: string }) => r.raw.includes('/note') || r.raw.includes('remember the milk') || r.raw.includes('/crew')).length
+  const wireHits = api.requests.filter((r: { raw: string }) => r.raw.includes('/remember') || r.raw.includes('Pin the fixture home before loading modules that cache project paths.') || r.raw.includes('/crew')).length
   check('§3 the wire saw NO request carrying either line', wireHits === 0, `${wireHits} of ${api.requests.length}`)
 
   const chatFrames = grabs.filter(g => g.atMs >= S(12000) && g.atMs <= S(17000))
-  check('§4 the /note receipt painted (Captured …)', chatFrames.some(g => /Captured/.test(text(g))), chatFrames.map(g => String(g.atMs)).join(','))
+  check('§4 the /remember receipt painted (Banked)', chatFrames.some(g => /Banked/.test(text(g))), chatFrames.map(g => String(g.atMs)).join(','))
   const crewFrames = grabs.filter(g => g.atMs >= S(15000) && g.atMs <= S(24000))
   check(
     '§4 the /crew directory painted as the chat receipt',
     crewFrames.some(g => /sources: identity|the crew directory is empty/.test(text(g))),
     crewFrames.map(g => String(g.atMs)).join(','),
   )
-  check('§4 the steering queue NEVER took the line (no counted steer or next-turn hold carries the note)', !grabs.some(g => (/\d+ folds? in at the next step/.test(text(g)) || /\d+ waits? for the next turn/.test(text(g))) && /remember the milk/.test(text(g))), '')
+  check('§4 the steering queue NEVER took the line (no counted steer or next-turn hold carries the note)', !grabs.some(g => (/\d+ folds? in at the next step/.test(text(g)) || /\d+ waits? for the next turn/.test(text(g))) && /Pin the fixture home before loading modules that cache project paths./.test(text(g))), '')
 } finally {
   run.cleanup()
 }
@@ -217,7 +215,6 @@ console.log('leg 2 — /halt mid-turn interrupts the running turn (never queues 
           ...process.env,
           MERCURY_CONFIG_DIR: configDir,
           MERCURY_DAEMON_DIR: daemonDir2,
-          MERCURY_TABULA_DIR: tabulaDir,
           ANTHROPIC_API_KEY: 'fixture-key-000',
           ANTHROPIC_BASE_URL: api2.url,
           MERCURY_CACHE_CLOCK: '0',
@@ -243,7 +240,6 @@ console.log('leg 2 — /halt mid-turn interrupts the running turn (never queues 
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
       MERCURY_DAEMON_DIR: daemonDir2,
-      MERCURY_TABULA_DIR: tabulaDir,
       ANTHROPIC_BASE_URL: api2.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_CACHE_CLOCK: '0',

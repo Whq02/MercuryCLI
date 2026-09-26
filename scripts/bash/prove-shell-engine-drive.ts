@@ -249,7 +249,6 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_SKIP_PERMISSIONS: '1',
     ANTHROPIC_BASE_URL: fixtureBase,

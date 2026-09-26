@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/prompts-panel/** scripts/ui/vshot.py scripts/ui/renderScenarios.ts
 # gate-watch: src/components/prompts-panel/** src/commands/workbench/**
-# gate-watch: src/utils/savedPrompts/** src/utils/tabula/** src/commands/tabula/**
+# gate-watch: src/utils/savedPrompts/**
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/hooks/useSessionConnector.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

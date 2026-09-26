@@ -14,34 +14,36 @@ const CEILINGS: Record<string, { borderPct: number; accent: number; bold: number
   'frame--80x24--dark--truecolor--full': { borderPct: 24, accent: 390, bold: 33 },
   'frame--97x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
   'frame--99x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
-  'frame--100x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 63 },
-  'frame--101x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 63 },
-  'frame--120x40--dark--truecolor--full': { borderPct: 24, accent: 540, bold: 77 },
-  'frame--149x40--dark--truecolor--full': { borderPct: 27, accent: 640, bold: 75, deepRows: 13 },
-  'frame--150x40--dark--truecolor--full': { borderPct: 30, accent: 660, bold: 102, deepRows: 15 },
-  'frame--151x40--dark--truecolor--full': { borderPct: 30, accent: 660, bold: 102, deepRows: 15 },
-  'frame--160x50--dark--truecolor--full': { borderPct: 27, accent: 720, bold: 102, deepRows: 15 },
-  'frame--269x70--dark--truecolor--full': { borderPct: 27, accent: 720, bold: 102, deepRows: 9 },
-  'cockpit-wide--120x40--dark--truecolor--full': { borderPct: 24, accent: 540, bold: 120 },
+  'frame--100x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
+  'frame--101x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
+  'frame--120x40--dark--truecolor--full': { borderPct: 16, accent: 540, bold: 54 },
+  'frame--149x40--dark--truecolor--full': { borderPct: 17, accent: 640, bold: 54, deepRows: 0 },
+  'frame--150x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
+  'frame--151x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
+  'frame--160x50--dark--truecolor--full': { borderPct: 20, accent: 720, bold: 76, deepRows: 9 },
+  'frame--269x70--dark--truecolor--full': { borderPct: 13, accent: 720, bold: 76, deepRows: 9 },
+  'cockpit-wide--120x40--dark--truecolor--full': { borderPct: 16, accent: 540, bold: 95 },
   'resume-2turn--60x18--dark--truecolor--full': { borderPct: 24, accent: 300, bold: 20 },
   'resume-2turn--80x24--dark--truecolor--full': { borderPct: 24, accent: 390, bold: 33 },
   'resume-2turn--97x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
   'resume-2turn--99x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
-  'resume-2turn--100x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 63 },
-  'resume-2turn--101x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 63 },
-  'resume-2turn--120x40--dark--truecolor--full': { borderPct: 24, accent: 540, bold: 77 },
-  'resume-2turn--149x40--dark--truecolor--full': { borderPct: 27, accent: 640, bold: 75, deepRows: 13 },
-  'resume-2turn--150x40--dark--truecolor--full': { borderPct: 30, accent: 660, bold: 102, deepRows: 15 },
-  'resume-2turn--151x40--dark--truecolor--full': { borderPct: 30, accent: 660, bold: 102, deepRows: 15 },
-  'resume-2turn--160x50--dark--truecolor--full': { borderPct: 27, accent: 720, bold: 102, deepRows: 15 },
-  'resume-2turn--269x70--dark--truecolor--full': { borderPct: 27, accent: 720, bold: 102, deepRows: 9 },
+  'resume-2turn--100x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
+  'resume-2turn--101x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
+  'resume-2turn--120x40--dark--truecolor--full': { borderPct: 16, accent: 540, bold: 54 },
+  'resume-2turn--149x40--dark--truecolor--full': { borderPct: 17, accent: 640, bold: 54, deepRows: 0 },
+  'resume-2turn--150x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
+  'resume-2turn--151x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
+  'resume-2turn--160x50--dark--truecolor--full': { borderPct: 20, accent: 720, bold: 76, deepRows: 9 },
+  'resume-2turn--269x70--dark--truecolor--full': { borderPct: 13, accent: 720, bold: 76, deepRows: 9 },
   'sessions--120x40--dark--truecolor--full': { borderPct: 24, accent: 440, bold: 103 },
-  'tool-cards--120x40--dark--truecolor--full': { borderPct: 24, accent: 545, bold: 110 },
+  'tool-cards--120x40--dark--truecolor--full': { borderPct: 16, accent: 545, bold: 85 },
   'help--120x40--dark--truecolor--full': { borderPct: 24, accent: 545, bold: 60 },
 }
 const DEFAULT_PER_CELL = { borderPct: 30, accentPerKcell: 200, boldPerKcell: 30 }
 
-const manifest = readManifest()
+const baselineAt = process.argv.indexOf('--baseline')
+const baselineDir = baselineAt < 0 ? undefined : process.argv[baselineAt + 1]
+const manifest = readManifest(baselineDir)
 if (!manifest) {
   console.log('FAIL  manifest present')
   process.exit(1)
@@ -49,7 +51,7 @@ if (!manifest) {
 
 for (const e of manifest.entries) {
   if (e.theme !== 'dark' || e.colorMode !== 'truecolor' || e.motion !== 'full') continue
-  const grid = readStoredGrid(e)
+  const grid = readStoredGrid(e, baselineDir)
   const total = e.cols * e.rows
   let border = 0
   for (const row of grid.text) for (const ch of row) if (BORDER.has(ch)) border++

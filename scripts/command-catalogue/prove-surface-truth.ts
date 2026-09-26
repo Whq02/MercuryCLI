@@ -17,11 +17,9 @@ function section(t: string): void {
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'surface-truth-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
-process.env.MERCURY_TABULA_DIR = join(SCRATCH, 'tabula')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-mkdirSync(process.env.MERCURY_TABULA_DIR, { recursive: true })
 process.env.MERCURY_MODEL = 'claude-fable-5[1m]'
 process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 for (const pin of ['MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) {

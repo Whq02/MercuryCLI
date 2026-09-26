@@ -123,7 +123,6 @@ const childEnv = (home: string): NodeJS.ProcessEnv => ({
   MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor-state'),
   MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
   MERCURY_TEAMS_DIR: join(scratch, 'teams'),
-  MERCURY_TABULA_DIR: join(scratch, 'tabula'),
   MERCURY_MAX_RETRIES: '0',
   ANTHROPIC_API_KEY: PROOF_KEY,
   ANTHROPIC_BASE_URL: DEAD,

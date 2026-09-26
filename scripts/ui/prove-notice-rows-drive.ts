@@ -268,7 +268,6 @@ function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {
     MERCURY_CONFIG_DIR: leg.home,
     MERCURY_DAEMON_DIR: join(leg.home, 'daemon'),
     MERCURY_TEAMS_DIR: join(leg.home, 'teams'),
-    MERCURY_TABULA_DIR: join(leg.home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

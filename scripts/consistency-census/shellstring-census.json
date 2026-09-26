@@ -2600,13 +2600,6 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
-      "file": "scripts/ui/render-tabula.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(60000), env })",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
       "file": "scripts/ui/render-thinking-row.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfgPath], {",

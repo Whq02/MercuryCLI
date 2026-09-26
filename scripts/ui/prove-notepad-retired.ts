@@ -49,6 +49,7 @@ enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
 const { builtinCommands } = await import('../../src/commands.ts')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
 let checks = 0
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -60,6 +61,7 @@ const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true 
 const modules = files(join(ROOT, 'src')).filter(file => /tabula/i.test(file.slice(ROOT.length + 1)))
 check('no retired notepad module under src', modules.length === 0, modules.map(file => file.slice(ROOT.length + 1)).join(', '))
 check('the command catalogue has no /note', !builtinCommands().some(command => command.name === 'note' || command.aliases?.includes('note')))
+check('the help domains carry no dead note name', !COMMAND_DOMAINS.some(domain => domain.names.includes('note')))
 check('the registry has no retired notepad flag or directory override', !FLAG_REGISTRY.some(flag => /^MERCURY_TABULA(?:_|$)/.test(flag.env)))
 
 class Output extends EventEmitter {
@@ -107,6 +109,8 @@ try {
     check(`${cols}x${rows}: the real cockpit mounted`, frame.includes('SEAT') && frame.includes('WORKBENCH'))
     check(`${cols}x${rows}: no TABULA card or /note invitation`, !/TABULA|\/note\b/.test(frame))
     const lines = frame.split('\n')
+    check(`${cols}x${rows}: WORKBENCH occupies the vacated card slot`, lines.findIndex(line => line.includes('WORKBENCH')) + 1 === (cols === 178 ? 7 : 5))
+    check(`${cols}x${rows}: deep-row density matches the card-free tier`, lines.filter(line => (line.match(/│/g) ?? []).length >= 6).length === (cols === 178 ? 8 : 0))
     console.log(`MEASURE ${cols}x${rows}: workbench row ${lines.findIndex(line => line.includes('WORKBENCH')) + 1}; notepad row ${lines.findIndex(line => line.includes('TABULA')) + 1}; deep rows ${lines.filter(line => (line.match(/│/g) ?? []).length >= 6).length}`)
     ink.unmount()
     await ink.waitUntilExit()

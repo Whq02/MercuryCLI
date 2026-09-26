@@ -24,7 +24,6 @@ process.env.MERCURY_OPERATOR = 'sam'
 process.env.MERCURY_HOME = join(HOME, 'proof-home')
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
 process.env.MERCURY_TEAMS_DIR = join(HOME, 'teams')
-process.env.MERCURY_TABULA_DIR = join(HOME, 'tabula')
 process.env.BROWSER = '/usr/bin/true'
 const PROJECT = join(HOME, 'proof-project')
 mkdirSync(PROJECT, { recursive: true })

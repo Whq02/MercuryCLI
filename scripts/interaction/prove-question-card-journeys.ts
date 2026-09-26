@@ -221,7 +221,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
     ANTHROPIC_API_KEY: API_KEY,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
     MERCURY_CRITTER_IDLE: '0',

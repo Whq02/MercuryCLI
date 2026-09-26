@@ -191,6 +191,12 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const rCurator = applyBootMenuEnv(file, envCurator)
   check('a saved choice for the retired notepad-curator row is dropped as retired (never applied, never refused), the row beside it still applied', rCurator !== null && rCurator.retired.length === 1 && rCurator.retired[0] === 'MERCURY_TABULA_MINERVA' && rCurator.refused.length === 0 && envCurator.MERCURY_TABULA_MINERVA === undefined && envCurator.MERCURY_SAMPLES === '1')
   check('no menu row is the retired curator row', STARTUP_MENU.every(r => r.env !== 'MERCURY_TABULA_MINERVA'))
+  for (const key of 'MERCURY_TABULA MERCURY_TABULA_DIR'.split(' ')) {
+    write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { [key]: key.endsWith('_DIR') ? '/old/notepad' : '0', MERCURY_SAMPLES: '1' } })
+    const env: NodeJS.ProcessEnv = {}
+    const result = applyBootMenuEnv(file, env)
+    check(`${key}: an old saved value is retired, never applied or refused`, result?.retired.includes(key) === true && result.refused.length === 0 && env[key] === undefined && env.MERCURY_SAMPLES === '1')
+  }
   const menuSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'startupMenu.ts'), 'utf-8')
   const retiredRows = (menuSource.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/) ?? [])[1]?.split(' ') ?? []
   check('the retired list names the curator row', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 8 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))

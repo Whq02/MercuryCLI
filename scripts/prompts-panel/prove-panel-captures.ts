@@ -351,7 +351,7 @@ for (const [cols, rows] of SIZES) {
       check(`[${size}] L11 the card carries the LAST sent prompt (or the honest shed pointer names /workbench)`, cardShown || pointerShown, gp.includes('WORKBENCH') ? 'header without content' : 'no WORKBENCH in the rail band')
     }
     if (cardShown) {
-      check(`[${size}] L11 the card sits UNDER the TABULA card`, gp.indexOf('TABULA') !== -1 && gp.indexOf('TABULA') < gp.indexOf('WORKBENCH'))
+      check(`[${size}] L11 the card follows SEAT without the retired notepad`, gp.indexOf('SEAT') !== -1 && gp.indexOf('SEAT') < gp.indexOf('WORKBENCH') && !/TABULA/.test(gp))
     }
     const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'type a prompt', total: 110 })))
     const emptyShown = /WORKBENCH/.test(ge) && /no prompts sent/.test(ge)

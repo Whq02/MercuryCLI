@@ -273,7 +273,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_WIRE_DUMP: join(home, 'wire'),
     MERCURY_AUTOCOMPACT_PCT_OVERRIDE: AUTO_PCT,

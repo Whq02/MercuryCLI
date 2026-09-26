@@ -67,7 +67,6 @@ for (const [cols, rows] of geometries) {
       MERCURY_CONFIG_DIR: config,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),
-      MERCURY_TABULA_DIR: join(home, 'tabula'),
       MERCURY_HOME: join(home, 'product-home'),
       MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
       MERCURY_CREDENTIAL_STORE: 'file',

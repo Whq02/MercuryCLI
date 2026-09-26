@@ -326,7 +326,6 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
-    MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
     BROWSER: seeded.browser,
   }
   for (const key of [

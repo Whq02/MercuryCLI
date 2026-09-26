@@ -81,7 +81,7 @@ if -1 in stops:
     out.append(snapshot(-1))
 
 SEG = re.compile(r'[a-z]+-segment')
-RAIL_LANES = re.compile(r'SEAT|CREW|TASKS|TABULA|TELEMETRY|lanes')
+RAIL_LANES = re.compile(r'SEAT|CREW|TASKS|TELEMETRY|lanes')
 BORDER = re.compile(r'[│╭╰╮╯]')
 CJK_NEEDLE = 'formation字符 network 测试ablation'
 wire = b''.join(data for _, data in recs)
