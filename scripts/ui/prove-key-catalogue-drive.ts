@@ -93,7 +93,9 @@ for (const family of FAMILIES) {
       if (!address || typeof address === 'string') throw new Error('fixture has no port')
       const base = `http://127.0.0.1:${address.port}`
       const env: NodeJS.ProcessEnv = {
-        PATH: process.env.PATH, HOME: home, TMPDIR: realpathSync(tmpdir()),
+        PATH: process.env.PATH, HOME: home, TMPDIR: '.',
+        VSHOT_SLOTS: process.env.VSHOT_SLOTS,
+        MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE,
         TERM: 'xterm-256color', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor',
         MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
         ANTHROPIC_API_KEY: KEY, ANTHROPIC_BASE_URL: DEAD, MERCURY_CUSTOM_OAUTH_URL: DEAD,
