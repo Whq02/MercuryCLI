@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { decodeTranscriptBuffer, type MalformedLine } from '../../fabric/transcriptDecode.js'
+import { decodeTranscriptBuffer, type DecodedTranscript, type InvalidShape, type MalformedLine } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
@@ -31,6 +31,7 @@ const WINDOW_BYTES = 4096
 const RECENT_MAX = 2
 const SNAPSHOT_REFRESH_BYTES = 1024 * 1024
 const BACKWARD_WINDOW_BYTES = 64 * 1024
+const FORWARD_WINDOW_BYTES = 1024 * 1024
 const FRAGMENT_SCAN_MAX = 16 * 1024 * 1024
 const NEWLINE = 0x0a
 const EMPTY = Buffer.alloc(0)
@@ -662,6 +663,69 @@ export function scanTranscriptLinesBackward(path: string, visit: (line: string) 
     visitedFrom = from > 0 && firstNl !== -1 ? from + firstNl + 1 : visitedFrom
     if (from === 0) return
   }
+}
+
+export function scanTranscriptEntriesForward(path: string, visit: (entry: Entry) => void): TranscriptRead {
+  const st = io.statSync(path)
+  if (st === null) return { kind: 'none', accounting: ZERO_ACCOUNTING, refusal: null }
+  const accounting: TranscriptReadAccounting = { malformed: 0, invalid: 0, totalLines: 0 }
+  let carry: Buffer = EMPTY
+  let first = true
+  let from = 0
+  while (from < st.size) {
+    const buf = io.readRangeSync(path, from, Math.min(st.size, from + FORWARD_WINDOW_BYTES))
+    transcriptReaderCensus.bytesRead += buf.length
+    if (buf.length === 0) break
+    from += buf.length
+    const joined = carry.length === 0 ? buf : Buffer.concat([carry, buf])
+    const last = from >= st.size
+    const nl = joined.lastIndexOf(NEWLINE)
+    let whole: Buffer
+    if (last) {
+      whole = joined
+      carry = EMPTY
+    } else if (nl === -1) {
+      carry = joined
+      continue
+    } else {
+      whole = joined.subarray(0, nl + 1)
+      carry = Buffer.from(joined.subarray(nl + 1))
+    }
+    if (whole.length === 0) continue
+    let decoded = decodeTranscriptBuffer<Entry>(whole)
+    if (decoded.refusal) {
+      if (first) return { kind: 'cold', accounting: { ...accounting, totalLines: accounting.totalLines + decoded.totalLines }, refusal: decoded.refusal }
+      decoded = decodeLineByLine(whole)
+    }
+    first = false
+    accounting.malformed += decoded.malformed.length
+    accounting.invalid += decoded.invalid.length
+    accounting.totalLines += decoded.totalLines
+    for (const entry of decoded.entries) visit(entry)
+  }
+  return { kind: 'cold', accounting, refusal: null }
+}
+
+function decodeLineByLine(whole: Buffer): DecodedTranscript<Entry> {
+  const entries: Entry[] = []
+  const malformed: MalformedLine[] = []
+  const invalid: InvalidShape[] = []
+  let totalLines = 0
+  let lineNo = 0
+  for (const line of whole.toString('utf8').split('\n')) {
+    lineNo++
+    if (line.trim().length === 0) continue
+    totalLines++
+    const one = decodeTranscriptBuffer<Entry>(line)
+    if (one.refusal) {
+      invalid.push({ index: lineNo, kind: 'not-a-record', reason: one.refusal })
+      continue
+    }
+    for (const m of one.malformed) malformed.push({ line: lineNo, snippet: m.snippet })
+    invalid.push(...one.invalid)
+    entries.push(...one.entries)
+  }
+  return { entries, malformed, invalid, totalLines }
 }
 
 

@@ -218,7 +218,7 @@ section('§3 the ledger counts the turns it could not price, and every spend vie
     persisted = stored?.unpricedTurns?.['compat/fixture-model'] === 2 && stored?.unpricedTurns?.['openrouter/nobody/nothing'] === 1
     resetCostState()
     check('resetCostState clears the count', getTotalUnpricedTurns() === 0)
-    tracker.restoreCostStateForSession(getSessionId())
+    await tracker.restoreCostStateForSession(getSessionId())
   } catch (error) {
     console.log(`  (persistence leg threw: ${String(error)})`)
   }

@@ -104,6 +104,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-attribution-spelling
 echo "── core-runtime: the ledger on every exit (FN-018 ranks 1 + 5 + 11)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-ledger-every-exit.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-ledger-every-exit.ts "$__t" "$__rc"
 
+echo "── core-runtime: the ledger on resume (the raw records, not the project slot)"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-ledger-resume-rebuild.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-ledger-resume-rebuild.ts "$__t" "$__rc"
+
 echo "── core-runtime: the served-model law (the stamp and the bill follow the serving model)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-served-model.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-served-model.ts "$__t" "$__rc"
 

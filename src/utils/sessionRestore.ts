@@ -36,6 +36,7 @@ import { getCurrentWorktreeSession, restoreWorktreeSession } from './worktree.js
 export type ResumedConversationLog = {
   messages: Message[]
   sessionId?: string
+  fullPath?: string
   fileHistorySnapshots?: FileHistorySnapshot[]
   contentReplacements?: ContentReplacementRecord[]
   teamName?: string
@@ -65,10 +66,10 @@ export function lastAssistantTimestamp(messages: ReadonlyArray<{ type: string; t
   return null
 }
 
-export function restoreSessionStateFromLog(
+export async function restoreSessionStateFromLog(
   result: ResumedConversationLog,
   setAppState: (updater: (prev: AppState) => AppState) => void,
-): void {
+): Promise<void> {
   if (result.fileHistorySnapshots && result.fileHistorySnapshots.length > 0) {
     fileHistoryRestoreStateFromLog(result.fileHistorySnapshots, state => {
       setAppState(prev => ({ ...prev, fileHistory: state }))
@@ -81,7 +82,7 @@ export function restoreSessionStateFromLog(
   }
 
   const adopted = adoptedSessionIdOf(result)
-  if (adopted === getSessionId()) restoreCostStateForSession(adopted)
+  if (adopted === getSessionId()) await restoreCostStateForSession(adopted, result.fullPath)
 
   if (result.teamName && result.agentName) {
     initializeTeammateContextFromSession(setAppState, result.teamName, result.agentName)
@@ -266,7 +267,7 @@ export async function processResumedConversation(
     switchSession(adoptedSessionId, opts.transcriptPath ? dirname(opts.transcriptPath) : null)
     await renameRecordingForSession()
     await resetSessionFilePointer()
-    restoreCostStateForSession(adoptedSessionId)
+    await restoreCostStateForSession(adoptedSessionId, opts.transcriptPath)
   } else if (result.contentReplacements && result.contentReplacements.length > 0) {
     await recordContentReplacement(result.contentReplacements)
   }

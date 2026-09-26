@@ -67,6 +67,21 @@ section('the line-folding consumers ride the reader\'s byte cursor and backward 
   check('the retained-model walk reads newest lines first through the reader', supervisor.includes('scanTranscriptLinesBackward(transcript, line => {') && !supervisor.includes('readFileSync(transcript'))
 }
 
+section('the session ledger rebuild reads the raw record stream through the reader')
+{
+  const reader = src('utils/sessionStorage/transcriptReader.ts')
+  const walkStart = reader.indexOf('export function scanTranscriptEntriesForward(')
+  const walk = walkStart === -1 ? '' : reader.slice(walkStart, reader.indexOf('// ── resume leaves', walkStart))
+  check('the reader owns the raw forward walk: bounded windows through its io seam, the codec per window', walk.includes('io.readRangeSync(path, from, Math.min(st.size, from + FORWARD_WINDOW_BYTES))') && walk.includes('decodeTranscriptBuffer<Entry>(whole)'))
+  check('the raw walk applies no fold, no relink, no prune (the records as written)', walk.length > 0 && !walk.includes('applyTranscriptEntry(') && !walk.includes('applyPreservedSegmentRelinks(') && !walk.includes('applySnipRemovals(') && !walk.includes('pruneRecordBranchesBeforeParse('))
+  const rollup = src('utils/sessionStorage/usageRollup.ts')
+  check('the rollup walks records only through the reader and opens no file of its own', rollup.includes("from './transcriptReader.js'") && rollup.includes('scanTranscriptEntriesForward(path, entry =>') && !/from ['"](node:)?fs/.test(rollup) && !rollup.includes('readFileSync(') && !rollup.includes('readTranscript('))
+  check('the rollup counts served rows by the one provenance law and prices through the one owner', rollup.includes('servedModelOfAssistantRow(entry)') && rollup.includes('calculateUSDCost(row.model, row.usage)') && rollup.includes("modelPricingBasis(row.model) === 'unpriced'"))
+  check('the rollup enumerates sub-agent transcripts through the path-shape owner', rollup.includes('listAgentTranscriptPaths(transcriptPath, sessionId)') && src('utils/sessionStorage/paths.ts').includes("join(dirname(transcriptPath), sessionId, 'subagents')"))
+  const costTracker = src('cost-tracker.ts')
+  check('the ledger restore takes the rollup by dynamic import (the reader estate stays out of the ledger graph)', costTracker.includes("await import('./utils/sessionStorage/usageRollup.js')") && !/^import \{[^}]*\} from '\.\/utils\/sessionStorage\/usageRollup\.js'/m.test(costTracker))
+}
+
 section('the bounded window readers stay bounded')
 {
   const hop = src('services/switchboard/hopIntoSession.ts')

@@ -25,7 +25,10 @@ import type { ProviderSessionSpend } from './services/providers/providerUsage.js
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
+import { logForDebugging } from './utils/debug.js'
 import { formatDuration, formatNumber } from './utils/format.js'
+import { getTranscriptPathForSession } from './utils/sessionStorage/paths.js'
+import type { TranscriptUsageRollup } from './utils/sessionStorage/usageRollup.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import { modelPricingBasis } from './utils/modelCost.js'
 import { getCanonicalName } from './utils/model/model.js'
@@ -152,23 +155,55 @@ export function getStoredSessionCosts(
     totalLinesAdded: config.lastLinesAdded ?? 0,
     totalLinesRemoved: config.lastLinesRemoved ?? 0,
     lastDuration: config.lastDuration,
-    modelUsage: config.lastModelUsage
-      ? mapValues(config.lastModelUsage, (stored, model) => ({
-          ...stored,
-          contextWindow: getContextWindowForModel(model, getSdkBetas()),
-          maxOutputTokens: getModelMaxOutputTokens(model).default,
-        }))
-      : undefined,
+    modelUsage: config.lastModelUsage ? withDerivedLimits(config.lastModelUsage) : undefined,
     unpricedTurns: config.lastUnpricedTurns ? { ...config.lastUnpricedTurns } : undefined,
   }
 }
 
-export function restoreCostStateForSession(sessionId: string): boolean {
+function withDerivedLimits(usage: {
+  [modelName: string]: Omit<ModelUsage, 'contextWindow' | 'maxOutputTokens'>
+}): { [modelName: string]: ModelUsage } {
+  return mapValues(usage, (stored, model) => ({
+    ...stored,
+    contextWindow: getContextWindowForModel(model, getSdkBetas()),
+    maxOutputTokens: getModelMaxOutputTokens(model).default,
+  }))
+}
+
+async function transcriptLedgerForSession(
+  sessionId: string,
+  transcriptPath: string | undefined,
+): Promise<TranscriptUsageRollup | null> {
+  try {
+    const { rollupSessionUsage } = await import('./utils/sessionStorage/usageRollup.js')
+    const rollup = await rollupSessionUsage(transcriptPath ?? getTranscriptPathForSession(sessionId), sessionId)
+    return rollup.responses > 0 ? rollup : null
+  } catch (error) {
+    logForDebugging(`cost restore: the transcript rollup for ${sessionId} failed: ${String(error)}`)
+    return null
+  }
+}
+
+export async function restoreCostStateForSession(
+  sessionId: string,
+  transcriptPath?: string,
+): Promise<boolean> {
   const stored = getStoredSessionCosts(sessionId)
-  if (!stored) {
+  const rebuilt = await transcriptLedgerForSession(sessionId, transcriptPath)
+  if (rebuilt === null && stored === undefined) {
     return false
   }
-  setCostStateForRestore(stored)
+  setCostStateForRestore({
+    totalCostUSD: rebuilt?.totalCostUSD ?? stored?.totalCostUSD ?? 0,
+    totalAPIDuration: stored?.totalAPIDuration ?? 0,
+    totalAPIDurationWithoutRetries: stored?.totalAPIDurationWithoutRetries ?? 0,
+    totalToolDuration: stored?.totalToolDuration ?? 0,
+    totalLinesAdded: stored?.totalLinesAdded ?? 0,
+    totalLinesRemoved: stored?.totalLinesRemoved ?? 0,
+    lastDuration: stored?.lastDuration,
+    modelUsage: rebuilt ? withDerivedLimits(rebuilt.modelUsage) : stored?.modelUsage,
+    unpricedTurns: rebuilt ? { ...rebuilt.unpricedTurns } : stored?.unpricedTurns,
+  })
   return true
 }
 
