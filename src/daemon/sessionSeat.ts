@@ -1103,7 +1103,9 @@ function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: st
     detail: older
       ? waiter.verb === 'background-shell'
         ? "this session's runner predates shift+B · /daemon restart, then reopen the session"
-        : "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session"
+        : waiter.verb === 'pause-gate'
+          ? "this session's runner predates the pause gate · /daemon restart, then reopen the session"
+          : "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session"
       : error,
   })
   return true
@@ -1143,6 +1145,44 @@ export function backgroundSessionShell(
     }
     // eslint-disable-next-line no-console
     console.error(`[daemon] seat background-shell sent: ${rec.runnerId}`)
+  })
+}
+
+export function pauseSessionGate(
+  sessionId: string,
+  paused: boolean,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  const requestId = `${SEAT_AGENT_REQUEST_PREFIX}pause-gate-${rec.runnerId}-${Date.now().toString(36)}-${(++agentVerbSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!agentVerbWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the pause-gate within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    agentVerbWaiters.set(requestId, {
+      short: rec.runnerId,
+      verb: 'pause-gate',
+      settle: outcome => {
+        clearTimeout(timer)
+        agentVerbWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(rec.runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'pause_gate', paused } }))
+    if (!delivered) {
+      clearTimeout(timer)
+      agentVerbWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat pause-gate sent: ${rec.runnerId} → ${paused ? 'closed' : 'open'}`)
   })
 }
 

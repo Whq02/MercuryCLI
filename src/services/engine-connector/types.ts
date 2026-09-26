@@ -64,6 +64,11 @@ export type AgentControlReceiptV1 = {
   detail?: string
 }
 
+export type PauseGateFactsV1 = {
+  paused: boolean
+  parked: number
+}
+
 
 export type ModelFactsV1 = {
   effective: string
@@ -293,6 +298,7 @@ export type WorkRosterV1 = {
   mission: readonly MissionRowV1[]
   samples?: readonly SampleRowV1[]
   reported?: boolean
+  pauseGate?: PauseGateFactsV1
 }
 
 
@@ -348,6 +354,7 @@ export interface EngineConnectorV1 {
   stopAgent(agentId: string): Promise<AgentControlReceiptV1>
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   backgroundShell(): Promise<AgentControlReceiptV1>
+  pauseGate(paused: boolean): Promise<AgentControlReceiptV1>
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void

@@ -164,6 +164,9 @@ export const SDKControlStopTaskRequestSchema = lazySchema(() =>
 export const SDKControlBackgroundShellRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('background_shell') }),
 )
+export const SDKControlPauseGateRequestSchema = lazySchema(() =>
+  z.object({ subtype: z.literal('pause_gate'), paused: z.boolean() }),
+)
 export const SDKControlResumeTaskRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('resume_task'), task_id: z.string(), note: z.string().optional() }),
 )
@@ -268,6 +271,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlScheduleRosterRequestSchema(),
     SDKControlStopTaskRequestSchema(),
     SDKControlBackgroundShellRequestSchema(),
+    SDKControlPauseGateRequestSchema(),
     SDKControlResumeTaskRequestSchema(),
     SDKControlQuiesceRequestSchema(),
     SDKControlApplyFlagSettingsRequestSchema(),

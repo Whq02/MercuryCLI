@@ -3,6 +3,8 @@ import { watch, type FSWatcher } from 'node:fs'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import type { PauseGate } from '../../run-core/pauseGate.js'
+import { isTerminalTaskStatus, type TaskStatus } from '../../Task.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import {
@@ -506,4 +508,48 @@ export class WorkflowExecutionPause {
 
 export function workflowControlBy(sessionId: string | undefined, pid: number): string {
   return sessionId !== undefined && sessionId !== '' ? `session ${sessionId.slice(0, 8)}` : `process ${pid}`
+}
+
+export const WORKFLOW_GATE_CLOSED_WORDS = 'the gate closes: a tool block in flight finishes, the next one parks'
+
+export const WORKFLOW_GATE_OPEN_WORDS = 'the gate stays open (the runner hosts other work) — its agents park at their next model call'
+
+export function runnerHostsOnlyRun(taskId: string, tasks: Record<string, { status: TaskStatus | string }>): boolean {
+  for (const [id, task] of Object.entries(tasks)) {
+    if (id === taskId) continue
+    if (!isTerminalTaskStatus(task.status as TaskStatus)) return false
+  }
+  return true
+}
+
+export type WorkflowGateRide = {
+  close(hostsOnlyThisRun: boolean): boolean
+  open(): boolean
+  closed(): boolean
+  release(): void
+}
+
+export function workflowGateRide(gate: Pick<PauseGate, 'pause' | 'resume' | 'subscribe'>): WorkflowGateRide {
+  let own = false
+  const unsubscribe = gate.subscribe(state => {
+    if (!state.paused) own = false
+  })
+  return {
+    close: hostsOnlyThisRun => {
+      if (!hostsOnlyThisRun || own) return false
+      if (!gate.pause()) return false
+      own = true
+      return true
+    },
+    open: () => {
+      if (!own) return false
+      own = false
+      return gate.resume()
+    },
+    closed: () => own,
+    release: () => {
+      own = false
+      unsubscribe()
+    },
+  }
 }

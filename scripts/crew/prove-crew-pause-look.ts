@@ -67,12 +67,16 @@ async function main(): Promise<void> {
   ]
   const parked = (): WorkRowV1[] => running().map((row, i) => ({ ...row, activity: undefined, ...(i === 0 ? { wait: toolWords } : { wait: modelWords }) }))
 
-  type Seat = { setWork(rows: WorkRowV1[]): void; setCarrier(carrier: 'daemon' | 'in-process'): void }
+  type Seat = { setWork(rows: WorkRowV1[]): void; setCarrier(carrier: 'daemon' | 'in-process'): void; pauseGateCalls: boolean[] }
   function seatFixture(rows: WorkRowV1[]): Seat {
     const listeners = new Set<() => void>()
-    let roster = { rows, mission: [] as never[], samples: [] as never[], reported: true }
+    let roster: { rows: WorkRowV1[]; mission: never[]; samples: never[]; reported: boolean; pauseGate?: { paused: boolean; parked: number } } = { rows, mission: [] as never[], samples: [] as never[], reported: true }
+    const publish = (): void => {
+      for (const listener of listeners) listener()
+    }
     const seat = Object.assign(Object.create(noSessionConnector()), {
       carrier: 'daemon',
+      pauseGateCalls: [] as boolean[],
       sessionId: () => 'fx-session',
       records: () => [],
       subscribeRecords: () => () => {},
@@ -85,9 +89,15 @@ async function main(): Promise<void> {
       },
       identity: () => ({ firstPartyApi: true, consoleBilling: false, claudeAiBilling: true, accountEmail: null }),
       spawnSwitches: () => ({ subagents: { on: true, source: 'default' }, workflows: { on: true, source: 'default' } }),
+      async pauseGate(paused: boolean): Promise<{ outcome: 'applied'; detail: string }> {
+        seat.pauseGateCalls.push(paused)
+        roster = { ...roster, pauseGate: { paused, parked: 0 } }
+        publish()
+        return { outcome: 'applied', detail: JSON.stringify({ paused, parked: 0, changed: true }) }
+      },
       setWork(next: WorkRowV1[]): void {
         roster = { ...roster, rows: next }
-        for (const listener of listeners) listener()
+        publish()
       },
       setCarrier(carrier: 'daemon' | 'in-process'): void {
         seat.carrier = carrier
@@ -172,7 +182,7 @@ async function main(): Promise<void> {
     slot._resetFocusedSessionConnectorForTesting()
   }
 
-  section('L3 the P key — a hosted session answers the honest refusal; an in-process carrier toggles the gate, the chip and the door follow')
+  section('L3 the P key — a hosted session sends the verb through the connector and the chip reads the runner\'s fact; an in-process carrier toggles the local gate, the chip and the door follow')
   {
     const seat = seatFixture(running())
     slot.setFocusedSessionConnector(seat as never)
@@ -180,7 +190,11 @@ async function main(): Promise<void> {
     await board.key('p')
     const hosted = board.frame()
     saveFrame('crew-pause-178x51-p-on-hosted', hosted)
-    check('p on a daemon-hosted session: the door note names why the pause cannot reach the runner (no verb minted)', doorModule !== null && hosted.includes(doorModule.CREW_PAUSE_HOSTED_REFUSAL.slice(0, 60)) && gateModule !== null && !gateModule.operatorPauseGate.paused(), hosted.split('\n').filter(line => line.includes('·')).slice(-2).join(' | '))
+    check("p on a daemon-hosted session: the press sends pauseGate(true) through the connector's door and the note says every loop parks", JSON.stringify(seat.pauseGateCalls) === '[true]' && doorModule !== null && hosted.includes(doorModule.CREW_PAUSED_NOTE.slice(0, 40)), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hosted.split('\n').filter(line => line.includes('·')).slice(-2).join(' | ')}`)
+    check("p on a daemon-hosted session: the chip reads the runner's fact, never the face's own gate (which stays open), and the door reads p resume", hosted.includes('[ paused by the operator ]') && hosted.includes('p resume') && gateModule !== null && !gateModule.operatorPauseGate.paused(), hosted.split('\n').slice(0, 10).join(' | '))
+    await board.key('p')
+    const hostedResumed = board.frame()
+    check('p again on the hosted session sends pauseGate(false): the chip goes, the note says resumed, the door reads p pause', JSON.stringify(seat.pauseGateCalls) === '[true,false]' && !hostedResumed.includes('[ paused by the operator') && doorModule !== null && hostedResumed.includes(doorModule.CREW_RESUMED_NOTE.slice(0, 30)) && hostedResumed.includes('p pause'), `calls=${JSON.stringify(seat.pauseGateCalls)} · ${hostedResumed.split('\n').slice(-3).join(' | ')}`)
     seat.setCarrier('in-process')
     await board.key('p')
     const pausedFrame = board.frame()

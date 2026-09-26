@@ -59,6 +59,7 @@ type Mode =
   | { view: 'chat'; name?: string; spawn?: boolean; fromDoor: boolean }
 
 const EMPTY_NAMED: readonly CrewGlanceMember[] = []
+const OPEN_GATE = { paused: false, parked: 0 } as const
 
 const NAME_W = 20
 const MODEL_W = 18
@@ -110,7 +111,9 @@ export function CrewView({
   const [doorNote, setDoorNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
   const armedTarget = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (agents.find(a => a.id === stopArm.id) ?? null) : null
   const gateState = useSyncExternalStore(operatorPauseGate.subscribe, operatorPauseGate.state, operatorPauseGate.state)
-  const pauseChip = crewPauseChipWords(agents, gateState)
+  const carrier = getFocusedSessionConnector().carrier
+  const hostedGate = roster.pauseGate ?? OPEN_GATE
+  const pauseChip = crewPauseChipWords(agents, carrier === 'in-process' ? gateState : hostedGate)
   const pauseDoor = crewPauseDoorKey(pauseChip !== null)
 
   useEffect(() => {
@@ -143,8 +146,10 @@ export function CrewView({
     }
     if (input === 'p') {
       setStopArm(null)
-      const reach = hasFocusedSession() ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier } : { kind: 'blank' as const }
-      setDoorNote(crewPauseDoorNote(pressCrewPause(reach, operatorPauseGate)))
+      const reach = hasFocusedSession()
+        ? { kind: 'carrier' as const, carrier: getFocusedSessionConnector().carrier, hostedPaused: hostedGate.paused, send: (paused: boolean) => getFocusedSessionConnector().pauseGate(paused) }
+        : { kind: 'blank' as const }
+      void pressCrewPause(reach, operatorPauseGate).then(receipt => setDoorNote(crewPauseDoorNote(receipt)))
       return
     }
     if (input === 'r' && target !== null && !target.running) {

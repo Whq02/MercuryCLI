@@ -13,6 +13,7 @@ import type {
   McpRosterEntryV1,
   MissionRowV1,
   NoticeRowV1,
+  PauseGateFactsV1,
   SampleRowV1,
   SeatIdentityV1,
   SkillsRosterEntryV1,
@@ -55,6 +56,7 @@ export interface SessionFactsAnswerV1 {
   spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
   box?: BoxReadingV1
   openaiCatalogue?: OpenaiCatalogueFactV1
+  pauseGate?: PauseGateFactsV1
 }
 
 export interface FileCheckpointFactsV1 {
