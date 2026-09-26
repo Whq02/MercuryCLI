@@ -215,30 +215,55 @@ async function openSeat(key: string, idleMinutes: string): Promise<{ seat: Seat;
 
 const LIMIT_MINUTES = '0.05'
 const LIMIT_MS = 3_000
-const HOLD_MS = Math.round(LIMIT_MS * 3.5)
+const LIMIT_CAUSE = "nobody answered within 3s, the turn's no-progress limit"
 
-tally.section(`L1 — an ask parked with a silent host outlives the unattended-turn limit (${LIMIT_MS} ms); the host's later deny settles the tool and the turn carries on`)
+tally.section(`L1 — an ask parked with a silent host: at the unattended limit (${LIMIT_MS} ms) the ask is denied as unanswered, the turn is kept, and the next provider request is issued`)
 {
   const { seat, fixture, ask, t0 } = await openSeat('park', LIMIT_MINUTES)
   if (ask !== null) {
-    const { requestId, toolUseId } = askOf(ask)
+    const { toolUseId } = askOf(ask)
     const mark = seat.frames.length
-    const early = await seat.waitFor('a result or a cut while the ask is parked', f => isResult(f) || cutWordsOf(f) !== null || toolResultsOf(f).some(r => r.toolUseId === toolUseId), HOLD_MS, mark)
-    const heldMs = Date.now() - t0
-    const requestsWhileParked = fixture.requests.length
-    tally.check(`L1: the parked ask outlived 3.5x the limit with no cut, no result and no tool error minted (${heldMs} ms held)`, early === null && seat.alive(), early === null ? `the seat exited (${seat.exitCode()})` : `after ${heldMs} ms: ${j(early).slice(0, 300)}`)
-    tally.check('L1: nothing the seat wrote while the ask was parked blames the provider', !seat.frames.slice(mark).some(e => cutWordsOf(e.frame) !== null), j(seat.frames.slice(mark).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
-    tally.check('L1: no provider request was issued while the ask was parked (the first request answered with the tool call is the only one)', requestsWhileParked === 1, `${requestsWhileParked} request(s)`)
-    const beforeAnswer = seat.frames.length
-    seat.send({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { behavior: 'deny', message: HOST_DENY } } })
-    const result = await seat.waitFor('the result after the host answered', isResult, bound(30_000), beforeAnswer)
-    const toolError = seat.frames.slice(beforeAnswer).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
+    const settledFrame = await seat.waitFor('the settlement of the parked ask', f => toolResultsOf(f).some(r => r.toolUseId === toolUseId), bound(LIMIT_MS * 3), mark)
+    const settledMs = Date.now() - t0
+    const toolError = settledFrame === null ? undefined : toolResultsOf(settledFrame).find(r => r.toolUseId === toolUseId)
+    const text = toolError?.text ?? ''
+    tally.check(`L1: the parked ask settled at the limit, not before it and not long after (${settledMs} ms)`, settledFrame !== null && settledMs >= LIMIT_MS - 200 && settledMs < LIMIT_MS * 2, settledFrame === null ? `no settlement; seat alive ${seat.alive()} exit ${seat.exitCode()}` : `${settledMs} ms`)
+    tally.check('L1: the settlement is the typed denial naming the absent client and the limit — never the abort text', toolError !== undefined && toolError.isError && text.includes(DENIED_LEAD) && text.includes(CLIENT_AWAY_WORDS) && text.includes(LIMIT_CAUSE) && !text.includes(ABORT_TEXT), j(text.slice(0, 400)))
+    const result = await seat.waitFor('the result after the settlement', isResult, bound(30_000), mark)
     const second = fixture.requests[1]
-    tally.check("L1: the host's deny settled as the tool's error result", toolError !== undefined && toolError.isError && toolError.text.includes(HOST_DENY), j(toolError ?? null))
-    tally.check('L1: the NEXT provider request was issued and consumed, carrying that error (the fixture saw request 2)', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError && r.text.includes(HOST_DENY)), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
+    tally.check('L1: nothing the seat wrote blames the provider (no cut, no no-progress words)', !seat.frames.slice(mark).some(e => cutWordsOf(e.frame) !== null), j(seat.frames.slice(mark).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
+    tally.check('L1: the NEXT provider request was issued and consumed, carrying the denial (the fixture saw request 2)', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError && r.text.includes(CLIENT_AWAY_WORDS)), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
     tally.check("L1: the turn ended with the model's own text, never the timer's words", result !== null && result.subtype === 'success' && result.result === DONE, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
+    const again = seat.frames.length
+    seat.send(user(AGAIN, randomUUID()))
+    const next = await seat.waitFor('the next turn after the unanswered ask', isResult, bound(30_000), again)
+    tally.check('L1: the seat kept its turn and answers the next prompt (never lost to a cut)', next !== null && next.result === STILL, next === null ? `no result; alive ${seat.alive()} exit ${seat.exitCode()}` : j(String(next.result ?? '')).slice(0, 120))
     const code = await seat.stop(bound(10_000))
-    tally.check('L1: the seat stays alive through the parked ask and exits 0 when the host closes the stream', code === 0, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
+    tally.check('L1: the seat exits 0 when the host closes the stream', code === 0, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
+    evidence(fixture, seat, t0, toolUseId)
+  } else {
+    await seat.stop(bound(5_000))
+  }
+  await fixture.close()
+}
+
+tally.section("L4 — the host answers before the limit: the host's deny wins, the turn carries on, and no unanswered denial follows at the limit")
+{
+  const { seat, fixture, ask, t0 } = await openSeat('answered', LIMIT_MINUTES)
+  if (ask !== null) {
+    const { requestId, toolUseId } = askOf(ask)
+    await sleep(1_500)
+    const before = seat.frames.length
+    seat.send({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { behavior: 'deny', message: HOST_DENY } } })
+    const result = await seat.waitFor('the result after the host answered', isResult, bound(30_000), before)
+    const toolError = seat.frames.slice(before).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
+    tally.check("L4: the host's own deny settled as the tool's error result", toolError !== undefined && toolError.isError && toolError.text.includes(HOST_DENY) && !toolError.text.includes(CLIENT_AWAY_WORDS), j(toolError ?? null))
+    tally.check("L4: the turn carried on to the model's own text", result !== null && result.subtype === 'success' && result.result === DONE && fixture.requests.length === 2, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 120)} · ${fixture.requests.length} request(s)`)
+    await sleep(LIMIT_MS + 1_000)
+    const late = seat.frames.slice(before).filter(e => j(e.frame).includes(CLIENT_AWAY_WORDS) || (e.frame.type === 'control_cancel_request'))
+    tally.check('L4: past the limit nothing else settled the answered ask (no unanswered denial, no withdrawal on the wire)', late.length === 0 && seat.alive(), j(late.map(e => e.frame)).slice(0, 300))
+    const code = await seat.stop(bound(10_000))
+    tally.check('L4: the seat exits 0 when the host closes the stream', code === 0, `exit ${code}`)
     evidence(fixture, seat, t0, toolUseId)
   } else {
     await seat.stop(bound(5_000))

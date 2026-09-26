@@ -807,6 +807,7 @@ export async function runHeadless(
   let inFlightAbort: AbortController | null = null
   let hostAsks: HostAskLiveness | null = null
   io.setOnControlRequestSent(() => hostAsks?.noteParked())
+  io.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: string | null = null
   let heldSeatModel: { requestId: string; model: string } | null = null
   let heldSeatEffort: { requestId: string; effort: string } | null = null
@@ -1239,6 +1240,8 @@ export async function runHeadless(
       watchdog: turnWatchdog,
       limitMs: turnIdleLimitMs,
       parkedWithHost: () => io.pendingControlRequestCount(),
+      parkedAsks: () => io.getPendingPermissionRequests().length,
+      settleParkedAsks: cause => io.denyPendingPermissionRequests(cause),
     })
     const workload = command.workload ?? options.workload
     try {
