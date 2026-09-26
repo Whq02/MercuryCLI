@@ -43,7 +43,7 @@ writeFileSync(
     sends: [
       { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
       { atTick: 110, awaitText: 'Type a prompt', minTick: 50, awaitSettleTicks: 4, requireAwait: true, data: '/model' + ENTER },
-      { atTick: 160, awaitText: 'Mercury — model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },
+      { atTick: 160, awaitText: 'Mercury · model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },
       { afterPrevTicks: 4, mark: 'after-ctrl-n', data: CTRL_P },
       { afterPrevTicks: 4, mark: 'after-ctrl-p', data: ARROW_DOWN },
       { afterPrevTicks: 4, mark: 'after-down', data: '' },
@@ -90,7 +90,7 @@ const open = marks.open ?? ''
 const afterN = marks['after-ctrl-n'] ?? ''
 const afterP = marks['after-ctrl-p'] ?? ''
 const afterDown = marks['after-down'] ?? ''
-check('the drive delivered (the picker opened, every mark taken)', res.status === 0 && open.includes('Mercury — model') && afterN !== '' && afterP !== '' && afterDown !== '', `status=${res.status} end=${endReason} ${(res.stderr ?? '').slice(-300)}\n${open.split('\n').slice(0, 8).join('\n')}`)
+check('the drive delivered (the picker opened, every mark taken)', res.status === 0 && open.includes('Mercury · model') && afterN !== '' && afterP !== '' && afterDown !== '', `status=${res.status} end=${endReason} ${(res.stderr ?? '').slice(-300)}\n${open.split('\n').slice(0, 8).join('\n')}`)
 const diffRows = (a: string, b: string): number[] => {
   const x = a.split('\n')
   const y = b.split('\n')
