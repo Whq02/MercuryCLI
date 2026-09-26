@@ -107,9 +107,9 @@ import {
 import {
   buildForkedMessages,
   buildFrozenWorktreeNotice,
-  buildScratchpadNotice,
   buildWorktreeNotice,
   FORK_AGENT,
+  forkSystemPrompt,
   isForkSubagentEnabled,
   isInForkChild,
 } from './forkSubagent.js'
@@ -729,11 +729,8 @@ export const AgentTool = buildTool({
         )
       }
     }
-    if (isFork) {
-      promptMessages = [
-        ...promptMessages,
-        createUserMessage({ content: buildScratchpadNotice(ensureScratchpadDir(earlyAgentId)) }),
-      ]
+    if (isFork && systemPromptOverride !== undefined) {
+      systemPromptOverride = forkSystemPrompt(systemPromptOverride, ensureScratchpadDir(earlyAgentId))
     }
 
     let worktreeInfo:
