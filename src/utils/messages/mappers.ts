@@ -110,6 +110,25 @@ export function toSDKModelUsage(
   return out
 }
 
+export function toSDKWorkloadUsage(
+  usage: Record<string, Record<string, ModelUsage>> | undefined,
+): Record<string, SDKModelUsage> {
+  const out: Record<string, SDKModelUsage> = {}
+  for (const [workload, bucket] of Object.entries(usage ?? {})) {
+    const sum: SDKModelUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, web_search_requests: 0, cost_usd: 0 }
+    for (const row of Object.values(bucket)) {
+      sum.input_tokens += row.inputTokens
+      sum.output_tokens += row.outputTokens
+      sum.cache_read_input_tokens += row.cacheReadInputTokens
+      sum.cache_creation_input_tokens += row.cacheCreationInputTokens
+      sum.web_search_requests += row.webSearchRequests
+      sum.cost_usd += row.costUSD
+    }
+    out[workload] = sum
+  }
+  return out
+}
+
 
 export function toSDKStatusPayload(status: unknown): unknown {
   if (status === null || typeof status !== 'object') return status

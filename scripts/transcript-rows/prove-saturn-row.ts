@@ -173,9 +173,15 @@ function askOptionsOf(command: Raw): Raw {
   }
 }
 
+function sinkSpreadsStamp(): boolean {
+  const sinkAt = RUNNER.indexOf('const deliverLocalWake = ')
+  return sinkAt >= 0 && RUNNER.slice(sinkAt, RUNNER.indexOf('driver.kick()', sinkAt)).includes('...saturnQueueStamp(next.origin)')
+}
+
 function seatlessWakeCommand(value: string, uuid: string): Raw {
   const step = localWakeStep({ closed: false }, Date.parse(ROW_AT), FIRED_AT, undefined, { spelling: 'in ~900s', reason: REASON })
-  return { value, uuid, ...sinkFlagsOfRunner(), origin: step.step === 'deliver' ? step.origin : undefined }
+  const origin = step.step === 'deliver' ? step.origin : undefined
+  return { value, uuid, ...sinkFlagsOfRunner(), ...(sinkSpreadsStamp() ? (rows.saturnQueueStamp as (origin: unknown) => Raw)(origin) : { origin }) }
 }
 
 function seatedFireCommand(value: string, uuid: string): Raw {
