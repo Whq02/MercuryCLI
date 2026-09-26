@@ -75,7 +75,7 @@ t('workbench renders on workbenchNodes, under the TABULA card in BOTH branches',
   const busyWb = rail.lastIndexOf("section('workbench'")
   return solo !== -1 && soloWb > solo && busyWb > busy
 })())
-t('busy crew section sheds whole', /shedSet\.has\('crew'\) \|\| crewEntries\.length === 0 \? null : section\(/.test(rail))
+t('busy crew section sheds whole', /shedSet\.has\('crew'\) \|\| \(crewEntries\.length === 0 && keptIds\.length === 0\) \? null : section\(/.test(rail))
 
 t('shed pointer is display-only (no sel registration)', /shedSet\.size > 0 \? \(/.test(rail) && !/sel\(\{[^}]*shed/.test(rail))
 
