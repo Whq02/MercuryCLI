@@ -81,8 +81,12 @@ if direct and journey:
                     for i in range(4) for j in range(SPAN)
                     if bd[i][3][j] != bj[i][3][j]), 'all equal'))
     def has_critter(g):
-        return any('▟' in ''.join(c['c'] for c in row) or '▙' in ''.join(c['c'] for c in row)
-                   for row in g['grid'])
+        lines = [''.join(c['c'] for c in row) for row in g['grid']]
+        for y, line in enumerate(lines[:-2]):
+            x = line.find('▀▀▄▄▄▄▄▀▀')
+            if x >= 0 and all(lines[y + dy][x:x + 9] == '▀' * 9 for dy in (1, 2)):
+                return True
+        return False
     check('R4 critter: mascot art present in both final frames',
           has_critter(direct) and has_critter(journey))
 
