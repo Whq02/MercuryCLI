@@ -19,7 +19,7 @@ export const JEV_DEFAULT_SETTINGS: Readonly<JevSettings> = Object.freeze({
   allowanceUsd: JEV_DEFAULT_ALLOWANCE_USD,
   pacePerMinute: JEV_DEFAULT_PACE_PER_MINUTE,
   requestCeiling: null,
-  subagents: false,
+  subagents: true,
 })
 
 type StoredJev = NonNullable<ReturnType<typeof getGlobalConfig>['jev']>
@@ -40,7 +40,7 @@ export function jevSettingsFromStored(stored: StoredJev | undefined): JevSetting
     allowanceUsd: positiveMoney(road === 'openrouter' ? stored?.openrouterAllowanceUsd : stored?.allowanceUsd) ?? JEV_DEFAULT_ALLOWANCE_USD,
     pacePerMinute: positiveCount(stored?.pacePerMinute) ?? JEV_DEFAULT_PACE_PER_MINUTE,
     requestCeiling: positiveCount(stored?.requestCeiling) ?? null,
-    subagents: stored?.subagents === true,
+    subagents: stored?.subagents !== false,
   }
 }
 
@@ -64,7 +64,7 @@ function writeJev(mutate: (stored: StoredJev) => StoredJev): JevSettings {
     if (positiveMoney(next.openrouterAllowanceUsd) !== undefined && next.openrouterAllowanceUsd !== JEV_DEFAULT_ALLOWANCE_USD) trimmed.openrouterAllowanceUsd = next.openrouterAllowanceUsd
     if (positiveCount(next.pacePerMinute) !== undefined && next.pacePerMinute !== JEV_DEFAULT_PACE_PER_MINUTE) trimmed.pacePerMinute = next.pacePerMinute
     if (positiveCount(next.requestCeiling) !== undefined) trimmed.requestCeiling = next.requestCeiling
-    if (next.subagents === true) trimmed.subagents = true
+    if (next.subagents === false) trimmed.subagents = false
     out = jevSettingsFromStored(trimmed)
     const rest = { ...config }
     if (Object.keys(trimmed).length === 0) delete rest.jev
@@ -146,7 +146,7 @@ export const JEV_MENU_ROW = {
   defaultLabel: 'off',
   applicationClass: 'live',
   summary:
-    "a second opinion from TypeSafe's Jev, never an approval; off by default; /jev chooses official or OpenRouter, each with its own key, spend and cap",
+    "a second opinion from TypeSafe's Jev, never an approval; JEV off by default; once on, sub-agents get it by default, off by choice; /jev chooses official or OpenRouter, each with its own key, spend and cap",
   detail: {
     controls:
       'Whether JevEval is in the roster on the road saved in /jev. Official needs a TypeSafe key in /jev; OpenRouter uses its sign-in from /logins. It never answers a permission request. Applies at the next turn boundary.',
