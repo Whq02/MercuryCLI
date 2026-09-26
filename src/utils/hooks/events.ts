@@ -9,6 +9,7 @@ import type {
   FileChangedHookInput,
   HookInput,
   InstructionsLoadedHookInput,
+  InterruptHookInput,
   NotificationHookInput,
   PermissionDeniedHookInput,
   PermissionRequestHookInput,
@@ -740,6 +741,54 @@ export async function executeSessionEndHooks(
   if (setAppState) {
     const sessionId = getSessionId()
     clearSessionHooks(setAppState, sessionId)
+  }
+}
+
+export async function executeInterruptHooks(
+  interrupt: {
+    turnId: string
+    reason: InterruptHookInput['reason']
+    detail?: string
+    tools: readonly string[]
+  },
+  toolUseContext?: ToolUseContext,
+  permissionMode?: string,
+  timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
+): Promise<HookOutsideReplResult[]> {
+  try {
+    const appState = toolUseContext?.getAppState()
+    if (!hasHookForEvent('Interrupt', appState, getSessionId())) return []
+
+    const hookInput: InterruptHookInput = {
+      ...createBaseHookInput(permissionMode, undefined, toolUseContext),
+      hook_event_name: 'Interrupt',
+      turn_id: interrupt.turnId,
+      reason: interrupt.reason,
+      ...(interrupt.detail !== undefined ? { detail: interrupt.detail } : {}),
+      tools: [...interrupt.tools],
+    }
+
+    const results = await executeHooksOutsideREPL({
+      getAppState: toolUseContext?.getAppState,
+      hookInput,
+      timeoutMs,
+      matchQuery: interrupt.reason,
+    })
+
+    for (const result of results) {
+      if (result.blocked) {
+        logForDebugging(
+          `Interrupt hook [${result.command}] answered blocking; the cut stands (nothing an Interrupt hook answers can change it): ${result.output.trim()}`,
+          { level: 'error' },
+        )
+      } else if (!result.succeeded) {
+        logForDebugging(`Interrupt hook [${result.command}] failed: ${result.output.trim()}`, { level: 'error' })
+      }
+    }
+    return results
+  } catch (error) {
+    logForDebugging(`Interrupt hooks could not run: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    return []
   }
 }
 

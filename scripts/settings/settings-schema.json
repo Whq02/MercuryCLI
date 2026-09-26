@@ -281,7 +281,8 @@
           "WorktreeRemove",
           "InstructionsLoaded",
           "CwdChanged",
-          "FileChanged"
+          "FileChanged",
+          "Interrupt"
         ]
       },
       "additionalProperties": {
