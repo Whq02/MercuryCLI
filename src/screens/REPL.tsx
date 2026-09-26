@@ -52,7 +52,7 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
-import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
+import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
@@ -1428,7 +1428,7 @@ export function REPL({
 
   useEffect(() => {
     const disarm = scheduleQuietUpdateNotice(text =>
-      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'low', timeoutMs: 20_000 }),
+      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'low', timeoutMs: UPDATE_NOTICE_STAY_MS }),
     );
     return disarm;
     // eslint-disable-next-line react-hooks/exhaustive-deps

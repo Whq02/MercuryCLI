@@ -13,6 +13,7 @@ export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
 export const UPDATE_NOTICE_FIRST_DELAY_MS = 8_000
 export const UPDATE_NOTICE_CHECK_LIMIT_MS = 20_000
+export const UPDATE_NOTICE_STAY_MS = 5 * 60 * 1000
 export const UPDATE_NOTICE_KEY = 'update-available'
 
 export interface UpdateNoticeCacheV1 {
