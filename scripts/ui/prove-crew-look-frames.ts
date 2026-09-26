@@ -145,6 +145,18 @@ async function stub(path: string, fixture: (actual: Record<string, unknown>) => 
   mock.module(path, () => ({ ...actual, ...fixture(actual) }))
 }
 await stub('../../src/components/tasks/useFocusedWork.ts', () => ({ focusedRunnerPresence: () => 'live' }))
+let heldRead: Promise<void> | undefined
+let readHeld = false
+await stub('../../src/utils/sessionStorage/loading.ts', actual => {
+  const load = actual.loadTranscriptFile as typeof import('../../src/utils/sessionStorage/loading.ts').loadTranscriptFile
+  return { loadTranscriptFile: async (...args: Parameters<typeof load>) => {
+    if (heldRead !== undefined && args[0].includes('agent-a-atlas.')) {
+      readHeld = true
+      await heldRead
+    }
+    return load(...args)
+  } }
+})
 
 const React = await import('react')
 const { default: Ink } = await import('../../src/ink/ink.tsx')
@@ -438,8 +450,16 @@ for (const [cols, rows] of sizes) {
   await sleep(300)
   frame = scene.lines()
   check(`${size}: PgUp on the short transcript changes nothing and raises no pill`, !frame.some(line => line.includes(PILL)) && transcriptOf(frame, cockpit).filter(line => line.trim() !== '')[0]!.includes('[you → fjord]'), frame.some(line => line.includes(PILL)) ? 'the pill stands' : transcriptOf(frame, cockpit).filter(line => line.trim() !== '')[0] ?? '')
+  let releaseRead = () => {}
+  readHeld = false
+  heldRead = new Promise<void>(resolve => { releaseRead = resolve })
   await click(scene, 8, atlasRow)
   await until(() => /VIEW · atlas/.test(headerRow(scene.lines())), 6000)
+  await until(() => readHeld && scene.lines().some(line => line.includes('reading the crewmate')), 6000)
+  save('6-atlas-reading', scene.lines())
+  check(`${size}: the return waits on a real pending transcript read`, readHeld && scene.lines().some(line => line.includes('reading the crewmate')))
+  releaseRead()
+  heldRead = undefined
   await until(() => scene.lines().some(line => line.includes('ledger row')), 6000)
   await sleep(400)
   frame = scene.lines()

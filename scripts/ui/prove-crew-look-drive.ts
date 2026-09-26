@@ -75,6 +75,7 @@ async function capture(name: string, cfg: Record<string, unknown>, env: Record<s
   })
   if (!existsSync(outPath)) throw new Error(`vshot wrote no grid for ${name}: ${stderr.join('').slice(0, 400)}`)
   const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid; cols: number; rows: number }>; endReason?: string }
+  if (FRAMES !== undefined) writeFileSync(join(FRAMES, `${name}-timing.json`), JSON.stringify({ ...payload, sends: cfg.sends }, (key, value) => key === 'grid' ? undefined : value, 2) + '\n')
   const marks: Record<string, Mark> = {}
   const toMark = (grid: Grid): Mark => ({ rows: rowsOf(grid), grid, cols: grid[0]?.length ?? 0, lines: grid.length })
   for (const m of payload.marks ?? []) marks[m.label] = toMark(m.grid)
@@ -309,7 +310,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     ...bootSends(LEAD_ASK),
     see(HARBOUR_RUNNING, 'lead', 8),
     clickOn(HARBOUR_RUNNING),
-    see('VIEW · harbour', 'view-harbour', 6),
+    see('[harbour]', 'view-harbour', 6),
     type(`\x1b[200~${PASTED}\x1b[201~`, 2),
     type('\r', 3),
     later(6, 'pasted'),
@@ -326,11 +327,11 @@ async function leg(cols: number, rows: number): Promise<void> {
     later(3, 'atlas-scrolled'),
     ...popup('/usage', USAGE_HINT, 'usage-scrolled', 1),
     clickOn(FJORD_RUNNING),
-    see('VIEW · fjord', 'view-fjord', 6),
+    see('[fjord]', 'view-fjord', 6),
     type(PAGE_UP, 3),
     later(5, 'fjord-pgup'),
     clickOn(ATLAS_RUNNING),
-    see('VIEW · atlas', 'view-atlas-again', 6),
+    see('ledger row', 'view-atlas-again', 6),
     swap(FJORD_RUNNING, 'VIEW · atlas'),
     swap(ATLAS_RUNNING, 'VIEW · fjord'),
     swap(FJORD_RUNNING, 'VIEW · atlas'),
