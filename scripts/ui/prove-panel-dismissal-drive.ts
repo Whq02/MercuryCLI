@@ -26,7 +26,12 @@ type Grid = Cell[][]
 type Mark = { label: string; grid: Grid }
 type Capture = { grid: Grid; marks: Mark[]; endReason: string }
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c).join('')).join('\n')
+const inkOfRow = (grid: Grid, needle: string): string | null => {
+  const row = grid.find(cells => cells.map(cell => cell.c).join('').includes(needle))
+  return row === undefined ? null : row.map(cell => `${cell.c}${cell.fg}/${cell.bg}/${cell.bold ? 1 : 0}`).join(' ')
+}
 const click = (x: string | number, y: string | number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
+const VSHOT_SLOT_WAIT_MS = 300_000
 let failures = 0
 const index: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
@@ -84,7 +89,7 @@ try {
       const child = spawn(driver.python, [captureEngineEntry(driver, root), config], { env, stdio: ['ignore', 'ignore', 'pipe'] })
       let stderr = ''
       child.stderr.on('data', chunk => { stderr += String(chunk) })
-      const timer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(150_000))
+      const timer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(150_000) + VSHOT_SLOT_WAIT_MS)
       const code = await new Promise<number>((resolve, reject) => { child.on('close', code => resolve(code ?? 1)); child.on('error', reject) }).finally(() => clearTimeout(timer))
       check(`${tag}: the complete journey reaches its marks`, code === 0, stderr)
       if (!existsSync(out)) continue
@@ -100,7 +105,10 @@ try {
       }
       if (code !== 0) continue
       const marks = Object.fromEntries(capture.marks.map(mark => [mark.label, mark.grid]))
-      if (noDim) check(`${tag}: the backdrop is a blank claim, not dimmed chat`, !text(marks.open!).includes('✶ VIEW'))
+      const viewBefore = inkOfRow(marks.chat!, '✶ VIEW')
+      const viewOpen = inkOfRow(marks.open!, '✶ VIEW')
+      if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the view header row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      else if (panel === 'teammates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the view header row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))
