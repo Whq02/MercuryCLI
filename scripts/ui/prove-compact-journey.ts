@@ -30,6 +30,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { kind: 'text', text: 'Queued words delivered.' },
     { kind: 'text', text: 'Finished.' },
   ], null)
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   const out = join(scratch, `${tag}.json`)
   const log = join(scratch, `${tag}-engine.log`)
   const cfgPath = join(scratch, `${tag}-config.json`)
@@ -58,7 +59,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     ]),
     { afterPrevTicks: 6, data: 'z', mark: 'tiny' },
     { atTick: 999, awaitText: 'keep-this-draftz', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\u001b[5~', mark: 'compact-restored' },
-    { afterPrevTicks: 4, data: '', mark: 'scrolled' },
+    { atTick: 999, awaitText: 'keep-this-draftz', minTick: 2, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'scrolled' },
     { afterPrevTicks: 8, data: '', mark: 'full-restored' },
   ]
   const resizes = variant !== 'resize' ? [] : [

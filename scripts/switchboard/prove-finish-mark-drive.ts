@@ -110,7 +110,7 @@ const theme = getTheme('dark')
 const WARNING = hexOf(theme.warning)
 const SUCCESS = hexOf(theme.success)
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const TAG = keyHintLabel('⇧← back')

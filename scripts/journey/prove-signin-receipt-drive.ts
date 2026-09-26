@@ -157,6 +157,7 @@ function seedHome(runHome: string, fixtureCwd: string): { browser: string; opens
         scopes: ['user:profile', 'user:inference', 'user:sessions:claude_code', 'user:mcp_servers', 'user:file_upload'],
         subscriptionType: 'max',
         rateLimitTier: 'default_claude_max_5x',
+        tokenAccount: { uuid: 'uuid-first-account', emailAddress: FIRST_EMAIL, organizationUuid: 'org-first' },
       },
     }),
     { mode: 0o600 },
@@ -281,7 +282,7 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     argv: [NODE, DIST, '--model', 'claude-opus-5'],
     cwd: FIXTURE_CWD,
     sends: leg === 'chat' ? chatSends() : faceSends(),
-    readyText: leg === 'chat' ? ['Mercury — status'] : ['↑↓ choose'],
+    readyText: leg === 'chat' ? ['Mercury · status'] : ['↑↓ choose'],
     readySettleTicks: 6,
     stableTicks: 8,
     total: 800,
@@ -296,7 +297,7 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     MERCURY_CONFIG_DIR: RUN_HOME,
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_CUSTOM_OAUTH_URL: `http://127.0.0.1:${fixture.port}`,
-    ANTHROPIC_BASE_URL: DEAD,
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${fixture.port}`,
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: DEAD,
     MERCURY_OPENAI_AUTH_BASE: DEAD,
@@ -448,7 +449,7 @@ if (LEG === 'chat' || LEG === 'both') {
   const statusRow = end.split('\n').find(l => /^\s*│?\s*Anthropic\s/.test(l))
   if (statusRow === undefined) {
     record('/status', `the account rows are folded at ${COLS}x${ROWS}; the Anthropic row is not on this frame`)
-    check('/status never names the account stored before the switch', end.includes('Mercury — status') && !end.includes(FIRST_EMAIL), tail(end, 20))
+    check('/status never names the account stored before the switch', end.includes('Mercury · status') && !end.includes(FIRST_EMAIL), tail(end, 20))
   } else {
     check('/status names the account that just signed in, with no /accounts opened', statusRow.includes(SECOND_EMAIL) && !statusRow.includes(FIRST_EMAIL), statusRow.trim())
   }

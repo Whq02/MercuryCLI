@@ -78,6 +78,7 @@ try {
     process.exit(1)
   }
   stripRow = final.rows.findIndex(r => r.includes('SESSIONS'))
+  if (stripRow < 0) stripRow = final.rows.findIndex(r => r.includes('⇧← back'))
   if (stripRow < 0) stripRow = ROWS - 8
   paneBottom = stripRow - 3
   for (let r = tailRow; r < stripRow; r++) if ((final.rows[r] ?? '')[24] === '╰') paneBottom = r - 1

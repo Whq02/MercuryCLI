@@ -100,7 +100,7 @@ const sends: Send[] = [
   { data: ESC, awaitText: "Past the machine's reading", requireAwait: true, awaitSettleTicks: 3, mark: 'seat-card' },
   { data: '\t', afterPrevTicks: 3 },
   { data: 'm', afterPrevTicks: 2, mark: 'live-legend' },
-  { data: ESC, awaitText: 'MODEL —', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
+  { data: ESC, awaitText: 'CHOOSE A MODEL', requireAwait: true, awaitSettleTicks: 3, mark: 'model-picker' },
   { data: 'e', afterPrevTicks: 2 },
   { data: ESC, awaitText: 'EFFORT —', requireAwait: true, awaitSettleTicks: 3, mark: 'effort-picker' },
   { data: DOWN + DOWN + DOWN + DOWN + DOWN, afterPrevTicks: 2 },
