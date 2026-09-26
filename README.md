@@ -15,15 +15,15 @@ I use Mercury to develop Mercury, working with several agents and models
 across long sessions. Keeping track of that work matters to me: what is still
 running, what changed, and what needs a decision.
 
-![One prompt on the session concourse launches two sessions, each on its own branch; one asks before it edits, and both land ready to review with what each changed](docs/media/agents.gif)
+![One prompt in the session list launches two sessions, each on its own branch; one asks before editing, and both finish with their changes ready to review](docs/media/agents.gif)
 
 Mercury is source-available. See [Licence](#licence) for the production-use terms.
 
 ## Install
 
 Release archives are available for Apple silicon and Intel Macs, Linux x64,
-and Windows x64. Each includes Node and ripgrep, so you need `git` but do not
-need to install Node separately.
+and Windows x64. Install `git` separately; each archive includes Node and
+ripgrep, so a separate Node installation is unnecessary.
 
 Choose one installation method:
 
@@ -93,9 +93,9 @@ you how to update yours. When an update is available, the home screen shows
 `vX.Y.Z available · mercury update` once in its bottom-right corner, and the
 chat shows a temporary notice. Set `MERCURY_UPDATE_NOTICE=0` to hide both.
 
-Install and update requests use the public release list and archives without
-an account or token. A signed-in GitHub CLI (`gh`) is consulted only if the
-anonymous request is refused; it is not a requirement.
+Install and update requests fetch the public release list and archives
+anonymously. You can run them without an account or token. If an anonymous
+request is refused, Mercury consults a signed-in GitHub CLI (`gh`).
 
 After an update, Mercury checks whether the command on your PATH points to
 the updated installation. If another installation takes precedence, or the
@@ -109,9 +109,10 @@ Before activating a release, Mercury checks its archive against
 key in its compiled-in trust roster before staging the update. A rejected
 signature leaves the active installation unchanged.
 
-`--allow-unsigned` permits an unsigned payload only. It does not accept an
-unknown signing key, a malformed signing block, or tampered contents. Both
-the command's result and its local receipt record that exception.
+Use `--allow-unsigned` to accept an unsigned payload. Mercury still rejects
+unknown signing keys, malformed signing blocks and tampered contents. The
+command result and its local record both show that you allowed an unsigned
+payload.
 
 From 1.0.0-beta.3, archives are signed during packaging and their signatures
 are verified before publication. A verified installation adds no signature
@@ -129,9 +130,9 @@ check an archive manually.
 
 ### Platform notes
 
-There is no native Linux arm64 or Windows arm64 archive. On Linux arm64, the
-installer directs you to [build from source](#build-from-source). On Windows
-arm64, the x64 build runs under emulation.
+On Linux arm64, follow the installer’s instruction to
+[build from source](#build-from-source). On Windows arm64, use the x64 archive
+under emulation. Mercury has no native archive for either arm64 platform.
 
 Intel Mac archives are available from 1.0.0-beta.3. They are cross-packaged on
 an Apple silicon runner and tested at startup under Rosetta before
@@ -157,8 +158,8 @@ The Node minimum includes the fix for nodejs/node#56645. Below 24.20.0,
 headless `-p` runs that call a tool abort on exit on Windows.
 
 Launchers select Node in this order: the explicit `MERCURY_NODE` binary, the
-bundled runtime, then a compatible Node installation on PATH. A missing
-runtime is reported rather than silently skipped.
+bundled runtime, then a compatible Node installation on PATH. If the runtime
+is missing, the launcher reports an error.
 
 ### Windows shells
 
@@ -166,11 +167,11 @@ Git for Windows supplies `bash.exe`, which the Bash tool uses when available.
 Release archives also include Mercury's bash-compatible shell engine. It is
 used automatically on Windows when `bash.exe` is missing.
 
-The doctor's `shell` row tells you which shell is active and why: Git Bash
-found on the machine, or the bundled engine because no `bash.exe` was found.
-The bundled engine currently cannot run a `.cmd` shim such as `npm` directly;
-use `cmd /c npm …` instead. It also needs an absolute program path when running
-a program after `cd`.
+Read the doctor’s `shell` row to see which shell is active and why. It shows
+Git Bash when `bash.exe` is available, or the bundled engine when it is
+missing. The bundled engine requires `cmd /c npm …` to run a `.cmd` shim
+such as `npm`; running the shim directly fails. After `cd`, give the engine
+an absolute path to the program you want to run.
 
 Set `MERCURY_SHELL_ENGINE=brush`, or choose `brush` in `/config` under Shell
 engine, to use the bundled engine even when `bash.exe` is available.
@@ -241,13 +242,13 @@ launcher at `<config home>/bin/mercury`. Add that directory to PATH; for zsh:
 echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 ```
 
-The launcher reports a missing runtime as an error; it does not silently
+The launcher stops with an error if the runtime is missing. It does not
 switch to another build. Node selection follows the order in
 [Requirements](#requirements).
 
-Release installations use `mercury install` and `mercury update` instead.
-They do not modify a source checkout or require a GitHub sign-in; `gh` is
-consulted only if the anonymous release request is refused.
+For a release installation, run `mercury install` or `mercury update`. These
+commands leave source checkouts unchanged and need no GitHub sign-in.
+Mercury consults `gh` only if the anonymous release request is refused.
 
 [AGENTS.md](AGENTS.md) is the short build-and-run guide.
 [BUILD-NOTES.md](BUILD-NOTES.md) covers the build in more detail.
@@ -282,13 +283,13 @@ have session history:
 - **Saturn Scheduler** schedules sessions. See
   [docs/SATURN.md](docs/SATURN.md).
 - **Logins** connects provider accounts.
-- **Session Concourse** opens the current project's session board.
+- **Session Concourse** opens the current project’s session list.
 - **Sessions · Projects** lets you choose a session or repository.
 
 Menu entries open over the home screen, and `Esc` returns to the entry you
-selected. Session Concourse is the exception: it opens a separate screen,
-also available with `Shift+→`. A prompt argument, `--continue` or `--resume`
-takes you directly to the chat.
+selected. The session list opens on a separate screen, also available with
+`Shift+→`. A prompt argument, `--continue` or `--resume` takes you directly
+to the chat.
 
 ### Motion, sub-agents and workflows
 
@@ -307,9 +308,9 @@ change the setting at the next turn boundary.
 ### Starting a session
 
 Press `Enter` on New Session to create a session in the current folder with
-the model shown on screen. The session, chat and board entry are created
-together. Mercury keeps a runner ready behind the menu to reduce startup
-work.
+the model shown on screen. Mercury opens its chat and adds it to the session
+list at the same time. It keeps a process ready behind the menu to reduce
+startup work.
 
 Starting another session does not stop the previous one. You can leave a
 task running and work elsewhere.
@@ -322,35 +323,37 @@ as compact cards or with full output. Choose the display in `/config` under
 Tool output; the setting is saved for later launches.
 
 Use `/model` and `/effort` to adjust the session. `/permissions` controls what
-can run without approval and what must ask first; `/policy` controls the
-governance policy.
+can run without approval and what must ask first. `/policy` is a read-only
+view of the current permission mode, sandbox settings and other permission
+controls.
 
 Review changes with `/diff`, by source, file and hunk. `/tasks` shows running
-shells and agents. `/clear` parks the chat, `/title` names it, and `/help`
+shells and agents. When no turn is running, `/clear` saves the current chat
+for later and opens a fresh session; `/title` names the chat, and `/help`
 lists the available commands.
 
 ### Moving between screens
 
 `Shift+←` and `Shift+→` move between the screens currently available. A fresh
-launch has the home screen and Session Concourse. The chat screen is added
-when a session is focused and removed when the last chat closes. The key
-hints show only the available moves.
+launch has the home screen and session list. The chat screen is added when
+a session is focused and removed when the last chat closes. The key hints
+show only the available moves.
 
 Closing every chat returns you to the home screen. Use `--chat` for just the
-home screen and chat, without the concourse. `--concourse-off` saves that
+home screen and chat, without the session list. `--concourse-off` saves that
 preference for future launches; `--concourse-on` or `/config` turns it back on.
 
 ### Managing sessions
 
-Open Session Concourse with `/concourse` or `Shift+→` from the home screen.
-It shows the current project's running sessions, followed by parked chats,
-newest first.
+Open the session list with `/concourse` or `Shift+→` from the home screen.
+It shows the current project’s running sessions first, followed by saved
+chats that are not running, newest first.
 
-Each live session has a NOW cell showing its current activity. Select a row
-and press `Enter` to return to it while the other sessions keep running. A
-crashed session stays on the board as NEEDS YOU, with the reason, until you
-release it. The terminal bell sounds once when a session needs attention or
-finishes a run.
+Each running session has a NOW cell showing its current activity. Select a
+row and press `Enter` to return to the chat while the other sessions keep
+running. A crashed session stays on the session list as NEEDS YOU, with the
+reason, until you release it. The terminal bell sounds once when a session
+needs attention or finishes a run.
 
 [docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
@@ -375,10 +378,10 @@ protocol, credentials and error handling. A request does not fall back from
 one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
 
 New sessions use your most recently connected provider and the newest model
-available to that account. Models the account cannot access are not selected.
+available to that account. Models the account cannot access are skipped.
 If that provider has no usable model, Mercury checks the next most recently
-connected provider. This is the selection process for a new session, not
-request failover.
+connected provider. This choice happens when the session starts; a failed
+request in an existing session stays with its provider.
 
 `/model` explains the selection. With no provider connected, the home screen
 and `/model` direct you to `/logins`. `/defaultprovider` lets you explicitly
@@ -441,8 +444,9 @@ Available commands include:
 - **MCPs & Skills.** Per-repository configuration for what sessions load,
   with named presets and controls you can change during a session. See
   [docs/KIT.md](docs/KIT.md).
-- **Agents and teams.** Named agents, an agent studio, workflow runs and
-  boards for monitoring their work. See [docs/TEAMS.md](docs/TEAMS.md).
+- **Agents and teams.** Chat with named agents, create agent definitions in
+  the agent studio, and follow agents and workflow runs in their status
+  views. See [docs/TEAMS.md](docs/TEAMS.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See
   [docs/SATURN.md](docs/SATURN.md).
@@ -452,8 +456,8 @@ Available commands include:
 - **Trust and permissions.** Workspace trust, permission rules and modes,
   and the commands every session refuses. See
   [docs/TRUST.md](docs/TRUST.md).
-- **Apollo Mode.** An initial interview fills in the missing specification,
-  then uses it to build a prototype. See
+- **Apollo Mode**, the specification interview: answer the agent’s questions
+  to complete the specification it will use to build a prototype. See
   [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
 - **Editor integrations.** `mercury acp` connects to editors that support the
   Agent Client Protocol. The VS Code extension (`mercury editor install`)
@@ -464,7 +468,7 @@ Available commands include:
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
 - **Memory.** Experience cards and a project notepad. See
   [docs/TABULA-NOTES.md](docs/TABULA-NOTES.md).
-- **Voice input.** Run `/speak on`, then hold space for 3 s to dictate and
+- **Voice input.** Run `/speak on`, then hold space for 1 s to dictate and
   release it to stop. Transcription can run on-device or through your chosen cloud
   provider. The on-device option uses a 60 MB English model, downloaded once
   with `/speak download`. Audio leaves the machine only after you stop
@@ -472,10 +476,12 @@ Available commands include:
   [docs/VOICE.md](docs/VOICE.md).
 - **Computer use.** Enabled by default when the desktop driver is available.
   The model can see your screen and control the mouse and keyboard in the
-  foreground application. The first action in each application asks for
-  permission by name. `Esc` stops it, only one session can control the
-  desktop at a time, and screenshots are not stored in the saved
-  conversation. Set `MERCURY_COMPUTER_USE=0` to remove the tool. See
+  foreground application. Mercury checks the application by name before
+  acting. It asks for approval unless an applicable permission rule, session
+  grant, access setting or permission mode already allows the action; explicit
+  denies stay blocked. `Esc` stops it, only one session can control the desktop at a time,
+  and screenshots are not stored in the saved conversation. Set
+  `MERCURY_COMPUTER_USE=0` to remove the tool. See
   [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
 - **Recovery.** Atomic publication, journaled operations and startup
   reconciliation. See [docs/DURABILITY.md](docs/DURABILITY.md).
@@ -489,11 +495,12 @@ Runtime flags are defined in `src/substrate/flagRegistry.ts`, exposed as
 documented in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). The full
 documentation index is [docs/README.md](docs/README.md).
 
-## Every slash command
+## Slash commands
 
-`/help` lists the interactive commands, `/palette` provides fuzzy search over
-the current catalogue, and `/surfaces` indexes the available interfaces. The
-table below follows the grouping used by `/help`.
+`/help` lists the available interactive commands. Use `/palette` for fuzzy
+command search and `/surfaces` to find the available interfaces. The table
+below groups the main built-in commands by the categories used in `/help`;
+the live list can also include skills and extension commands.
 
 | Domain | Commands |
 | --- | --- |
@@ -512,12 +519,11 @@ table below follows the grouping used by `/help`.
 and copying. The preference is saved and appears in `/config` as Mouse
 capture.
 
-A skill whose argument hint opens with a required part (`<…>` —
-`/update-config`, `/debug`, `/app-proof` and the like) answers with its
-one-line description and its usage when sent bare, and starts no turn; a
-skill with no required argument (`/simplify`, `/loop`) runs at once. In the
-typeahead, Enter on such a skill leaves the composer at `/name ` for the
-argument instead of sending it.
+A required argument starts with `<…>` in a skill’s usage. For example,
+`/update-config`, `/debug` and `/app-proof` need an argument. Send one
+alone and you get its description and usage; no turn starts. Select it
+in typeahead and Enter leaves `/name ` ready for you to add the argument.
+`/simplify` and `/loop` have no required argument and run immediately.
 
 ## Reporting a problem
 
@@ -532,8 +538,8 @@ steps. Bug and provider reports also need `mercury doctor --json`, or
 `node dist/mercury.mjs doctor --json` for a source build. A transcript of the
 failing screen helps.
 
-Report security problems through the repository's Security tab rather than
-a public issue. See [SECURITY.md](SECURITY.md).
+Report security problems privately through the repository’s Security tab.
+Keep them out of public issues. See [SECURITY.md](SECURITY.md).
 [CONTRIBUTING.md](CONTRIBUTING.md) covers issues, pull requests and checks.
 
 ## Licence
