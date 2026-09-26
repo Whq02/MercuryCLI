@@ -32,6 +32,7 @@ import { ripgrepCommand, searchToolsAvailability } from '../ripgrep.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { whichSync } from '../which.js'
+import { startMacOSViolationReader, type MacOSViolationReader } from './macos-violation-reader.js'
 
 export type {
   FsReadRestrictionConfig,
@@ -400,6 +401,8 @@ export type ISandboxManager = {
 
 let initPromise: Promise<void> | null = null
 let settingsSubscription: (() => void) | null = null
+let violationReader: MacOSViolationReader | null = null
+const readsViolationsItself = (): boolean => SANDBOX_VIOLATION_MONITOR && getPlatform() === 'macos'
 
 export const SandboxManager: ISandboxManager = {
   async initialize(askCallback?: SandboxAskCallback): Promise<void> {
@@ -418,7 +421,10 @@ export const SandboxManager: ISandboxManager = {
             return askCallback(host)
           })
         : undefined
-      await RuntimeSandboxManager.initialize(config, wrappedCallback, SANDBOX_VIOLATION_MONITOR)
+      await RuntimeSandboxManager.initialize(config, wrappedCallback, SANDBOX_VIOLATION_MONITOR && !readsViolationsItself())
+      if (readsViolationsItself() && violationReader === null) {
+        violationReader = startMacOSViolationReader(RuntimeSandboxManager.getSandboxViolationStore(), () => SandboxManager.getIgnoreViolations())
+      }
       try {
         const settingsModule = require('../settings/changeDetector.js') as {
           onSettingsChanged?(fn: () => void): () => void
@@ -552,7 +558,9 @@ export const SandboxManager: ISandboxManager = {
       if (!initPromise) throw new Error('Sandbox is enabled but not initialised; refusing to run unsandboxed.')
       await initPromise
     }
-    return RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal, options)
+    const wrapped = await RuntimeSandboxManager.wrapWithSandbox(command, innerShell, undefined, abortSignal, options)
+    violationReader?.learn(wrapped)
+    return wrapped
   },
 
   cleanupAfterCommand(): void {
@@ -606,6 +614,8 @@ export const SandboxManager: ISandboxManager = {
   reset(): void {
     settingsSubscription?.()
     settingsSubscription = null
+    violationReader?.stop()
+    violationReader = null
     cachedWorktreeMainRepo = undefined
     worktreeResolved = false
     scrubList = []
