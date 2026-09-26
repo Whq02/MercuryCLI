@@ -143,6 +143,7 @@ section('§2 — the loud exit under node (a bundle of the real shutdown owner)'
         name: 'stub-shutdown-restoration',
         setup(b) {
           b.onResolve({ filter: /shutdownRestoration\.js$/ }, () => ({ path: stub }))
+          b.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: join(ROOT, 'node_modules', 'jsonc-parser', 'lib', 'esm', 'main.js') }))
         },
       },
     ],

@@ -24,6 +24,14 @@ const build = await Bun.build({
   outdir: outDir,
   naming: 'proxy.node.mjs',
   external: ['undici', 'axios', 'https-proxy-agent'],
+  plugins: [
+    {
+      name: 'jsonc-parser-esm-as-dist',
+      setup(b) {
+        b.onResolve({ filter: /^jsonc-parser$/ }, () => ({ path: join(repo, 'node_modules', 'jsonc-parser', 'lib', 'esm', 'main.js') }))
+      },
+    },
+  ],
 })
 if (!build.success) {
   console.error('❌ NODE TRANSPORT LANE — bundle failed')
