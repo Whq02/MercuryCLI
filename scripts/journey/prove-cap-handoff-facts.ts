@@ -50,7 +50,8 @@ const port = await new Promise<number>((resolvePort, reject) => {
 }).catch(error => { fixture.kill(); throw error })
 const base = `http://127.0.0.1:${port}`
 const env: NodeJS.ProcessEnv = {
-  PATH: process.env.PATH, HOME: home, TMPDIR: realpathSync(tmpdir()), TERM: 'xterm-256color', LANG: 'en_US.UTF-8', SHELL: '/bin/zsh',
+  PATH: process.env.PATH, HOME: home, TMPDIR: '.', TERM: 'xterm-256color', LANG: 'en_US.UTF-8', SHELL: '/bin/zsh',
+  VSHOT_SLOTS: process.env.VSHOT_SLOTS,
   MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
   ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: base,
   MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,

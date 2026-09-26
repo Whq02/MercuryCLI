@@ -9,6 +9,7 @@ const read = fs.readFileSync.bind(fs)
 const append = fs.appendFileSync.bind(fs)
 const write = fs.writeFileSync.bind(fs)
 const rename = promises.rename.bind(promises)
+const renameSync = fs.renameSync.bind(fs)
 const stdout = process.stdout.write.bind(process.stdout)
 const configPath = home && join(home, 'facts-window.json')
 if (configPath && fs.existsSync(configPath)) {
@@ -28,6 +29,12 @@ if (configPath && fs.existsSync(configPath)) {
   promises.rename = async function (from, to) {
     const facts = factsPath(to) ? factsOf(read(from, 'utf8')) : null
     const result = await rename(from, to)
+    if (facts !== null) record('facts-write', facts)
+    return result
+  }
+  fs.renameSync = function (from, to) {
+    const facts = factsPath(to) ? factsOf(read(from, 'utf8')) : null
+    const result = renameSync(from, to)
     if (facts !== null) record('facts-write', facts)
     return result
   }
