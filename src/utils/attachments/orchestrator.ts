@@ -31,6 +31,7 @@ import {
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
   getOpenedFileFromIDE,
+  getOpenFilesFromIDE,
   getSelectedLinesFromIDE,
   processAgentMentions,
   processAtMentionedFiles,
@@ -280,6 +281,9 @@ export async function getAttachments(
         ),
         maybe('ide_opened_file', async () =>
           getOpenedFileFromIDE(ideSelection, toolUseContext),
+        ),
+        maybe('ide_open_files', async () =>
+          getOpenFilesFromIDE(ideSelection, toolUseContext),
         ),
         maybe('diagnostics', async () =>
           getDiagnosticAttachments(toolUseContext),

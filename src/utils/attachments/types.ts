@@ -223,6 +223,10 @@ export type Attachment =
       filename: string
     }
   | {
+      type: 'open_files_in_ide'
+      filenames: string[]
+    }
+  | {
       type: 'task_reminder'
       content: Task[]
       itemCount: number

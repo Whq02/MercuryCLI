@@ -798,6 +798,7 @@ class TerminalBridge {
     this.diffs = new Map()
     this.latestSelection = null
     this.selectionTimer = null
+    this.contextTimer = null
     this.disposables = []
     this.disposables.push(vscode.workspace.registerFileSystemProvider(DIFF_SCHEME, this.fsProvider, { isCaseSensitive: true }))
     this.fsProvider.onWrite = (uri, text) => this.onDiffSaved(uri, text)
@@ -808,7 +809,12 @@ class TerminalBridge {
       vscode.window.onDidChangeTextEditorSelection(e => {
         if (!e.selections[0].isEmpty) this.latestSelection = selectionWire(e.textEditor)
         this.queueSelection(e.textEditor)
+        this.queueEditorContext()
       }),
+      vscode.window.onDidChangeActiveTextEditor(() => this.queueEditorContext()),
+      vscode.window.onDidChangeVisibleTextEditors(() => this.queueEditorContext()),
+      vscode.languages.onDidChangeDiagnostics(() => this.queueEditorContext()),
+      vscode.workspace.onDidChangeWorkspaceFolders(() => this.queueEditorContext()),
     )
   }
 
@@ -971,6 +977,7 @@ class TerminalBridge {
         this.attachedPid = msg.params.pid
         this.updateStatus()
         log(`terminal bridge: Mercury pid ${msg.params.pid} attached`)
+        this.queueEditorContext()
       }
       return
     }
@@ -1180,6 +1187,7 @@ class TerminalBridge {
   }
 
   onTabsChanged(e) {
+    this.queueEditorContext()
     for (const tab of e.closed || []) {
       const input = tab.input
       if (!input || !input.modified) continue
@@ -1204,6 +1212,16 @@ class TerminalBridge {
         fileUrl: wire.fileUrl,
         selection: wire.selection,
       })
+    }, 100)
+  }
+
+  queueEditorContext() {
+    if (this.streams.size === 0 || !liveContextEnabled()) return
+    if (this.contextTimer) clearTimeout(this.contextTimer)
+    this.contextTimer = setTimeout(() => {
+      this.contextTimer = null
+      if (this.streams.size === 0) return
+      this.broadcast('editor_context', editorContextWire(undefined))
     }, 100)
   }
 
