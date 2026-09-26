@@ -7,6 +7,7 @@
 # gate-watch: src/screens/REPL.tsx src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/switchboard/hopIntoSession.ts src/services/tools/toolExecution.ts src/utils/*
 # gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
+# gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -31,6 +32,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-insert-adver
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-discovery-scan-pool.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-discovery-scan-pool.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-listing-memo.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-listing-memo.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-read-economy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-history-read-economy.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-walk-fresh.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-history-walk-fresh.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-cleared-mark-wired.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cleared-mark-wired.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-failure-surfaces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-store-failure-surfaces.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-degradation-stated.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-degradation-stated.ts" "$__t" "$__rc"
