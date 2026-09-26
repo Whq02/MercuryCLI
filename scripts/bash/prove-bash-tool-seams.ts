@@ -448,7 +448,7 @@ if (!existsSync(DIST) || !nodeBin) {
   const descriptions = fixture.messageRequests().map(r => ((r.body as { tools?: Array<{ name?: string; description?: string }> })?.tools ?? []).find(t => t.name === 'Bash')?.description ?? '')
   if (ready) {
     check("artifact: a bare mktemp succeeds under the sandbox and the child's TMPDIR reads the product root", fifth !== undefined && !fifth.isError && fifthPath.startsWith('/') && (platformTemp === null || realpathSync(dirname(fifthPath)) === platformTemp) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
-    check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied|Read-only file system/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
+    check('artifact: a write outside the allow-write set is refused by the sandbox; under the bypass posture the rerun ask is auto-answered, the command runs outside and the result says so', third !== undefined && /^\[ran outside the sandbox after the ask: the sandboxed run exited [1-9]\d* on .*file-write/.test(third.text) && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
     check("artifact: the tool's description tells the model commands run in a sandbox", descriptions.length > 0 && descriptions.every(d => d.includes('# Command sandbox')))
   } else {
     check('artifact (unavailable sandbox): print mode says the sandbox is OFF for the session, with the reason', /sandboxing is OFF for this session/.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
