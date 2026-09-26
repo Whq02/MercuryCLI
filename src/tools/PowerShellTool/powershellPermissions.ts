@@ -31,7 +31,7 @@ import {
   argLeaksValue,
 } from './readOnlyValidation.js'
 import { checkPathConstraints, isDangerousRemovalRawPath, dangerousRemovalDeny } from './pathValidation.js'
-import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.js'
+import { checkPermissionMode, checkStrategyShellRefusal, isSymlinkCreatingCommand } from './modeValidation.js'
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 
@@ -140,6 +140,8 @@ export async function powershellToolHasPermission(
   if (command === '') return { behavior: 'allow', updatedInput: input, decisionReason: other('Nothing to run.') }
 
   const parsed = await pinnedCommandAnalysis.parsePowerShellCommand(command)
+  const strategyRefusal = checkStrategyShellRefusal(parsed, toolPermissionContext)
+  if (strategyRefusal !== null) return strategyRefusal
 
   const exact = powershellToolCheckExactMatchPermission({ command }, toolPermissionContext)
   if (exact.behavior === 'deny') return exact
