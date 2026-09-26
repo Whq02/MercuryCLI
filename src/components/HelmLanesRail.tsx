@@ -468,11 +468,14 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     ...(row.hosted ? { hosted: true } : {}),
     facts: row.facts,
   }))
-  const crewAll = [...crewRows].sort((a, b) => {
-    const score = (c: CrewRow) =>
-      (c.status === 'running' ? 0 : 2) + (c.id === viewingAgentTaskId ? -1 : 0)
-    return score(a) - score(b)
-  })
+  const keptIds = [viewingAgentTaskId, mainChatTaskId].filter((id): id is string => id != null)
+  const crewAll = [...crewRows].sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1))
+  const keptBeyondCap = crewAll.filter((c, i) => i >= CREW_ROWS && keptIds.includes(c.id))
+  if (keptBeyondCap.length > 0) {
+    const rest = crewAll.filter(c => !keptBeyondCap.includes(c))
+    rest.splice(Math.max(0, CREW_ROWS - keptBeyondCap.length), 0, ...keptBeyondCap)
+    crewAll.splice(0, crewAll.length, ...rest)
+  }
   const telemetry = useTelemetry()
   const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
   fluxWhy('rail-lanes', railWhyRef, () => ({
@@ -612,6 +615,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const solo =
     peers.length === 0 &&
     crewAll.length === 0 &&
+    keptIds.length === 0 &&
     runsAll.length === 0 &&
     daemonCrew.length === 0
 
@@ -1233,7 +1237,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         <>
           {
 }
-          {shedSet.has('crew') || crewEntries.length === 0 ? null : section(
+          {shedSet.has('crew') || (crewEntries.length === 0 && keptIds.length === 0) ? null : section(
             'crew',
             GLYPH.fisheye,
             'CREW',

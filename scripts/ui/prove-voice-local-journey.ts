@@ -246,6 +246,18 @@ const OPENING: unknown[] = [
   { afterPrevTicks: 3, data: '\r' },
 ]
 const gridLines = (text: string, needle: string): string => text.split('\n').filter(l => l.includes(needle)).join(' · ')
+const paneFlow = (screen: string): string =>
+  screen
+    .split('\n')
+    .map(row => {
+      const left = row.indexOf('│')
+      const right = row.lastIndexOf('│')
+      return left >= 0 && right > left ? row.slice(left + 1, right) : row
+    })
+    .map(l => l.trim())
+    .filter(l => l !== '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
 const RECORDING_LINE = 'recording · release space to stop · esc cancels'
 const REPEAT = { afterPrevTicks: 1, data: ' ' }
 const TICK_MS = 200
@@ -385,7 +397,8 @@ console.log('[D] the pack present, the model absent — the download door at /sp
   )
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   const on = res.marks.on ?? ''
-  check('/speak on carries the download door: the size, the model, the licence, the verb', on.includes('one-time 60 MB download') && on.includes('Whisper base.en') && on.includes('(MIT)') && on.includes('/speak download starts it'), gridLines(on, 'download'))
+  const door = paneFlow(on)
+  check('/speak on carries the download door: the size, the model, the licence, the verb (read from the pane flowed whole, wherever the rows wrap)', door.includes('one-time 60 MB download') && door.includes('Whisper base.en') && door.includes('(MIT)') && door.includes('/speak download starts it'), gridLines(on, 'download'))
   check('the receipt names the download door then the cloud doors, before any take', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device model: /speak download; or /logins openai (API key) or /logins gemini') && !(res.marks.receipt ?? '').includes('recording ·'), gridLines(res.marks.receipt ?? '', 'transcribes'))
   const lines = netlines(netlog)
   check('nothing left loopback, and no download was attempted', nonLoopback(lines).length === 0 && !lines.some(l => l.includes('huggingface')), lines.join(' · '))
