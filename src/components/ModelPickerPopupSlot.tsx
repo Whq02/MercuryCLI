@@ -31,7 +31,7 @@ export function modelPickerPopupGeometry(host: ModelPickerPopupHost, terminalRow
   const width = Math.min(host.columns, panelWidth(host.columns, MODEL_PICKER_PANEL))
   const budget = Math.max(MODEL_PICKER_POPUP_MIN_ROWS, terminalRows - MODEL_PICKER_POPUP_SPARE_ROWS)
   const top = Math.max(host.top, Math.floor((terminalRows - budget) / 2))
-  const rows = Math.max(MODEL_PICKER_POPUP_MIN_ROWS, Math.min(budget, terminalRows - top))
+  const rows = Math.max(MODEL_PICKER_POPUP_MIN_ROWS, Math.min(budget, host.top + host.rows - top))
   return {
     left: host.left + (centred ? Math.max(0, Math.floor((host.columns - width) / 2)) : 0),
     top,

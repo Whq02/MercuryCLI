@@ -244,16 +244,17 @@ if (bootWindow !== null && sessionWindow !== null) {
   check(`the window's left edge equals the Boot face's (${bootWindow.left})`, sessionWindow.left === bootWindow.left, `session ${sessionWindow.left}`)
   check(`the window's top row equals the Boot face's (${bootWindow.top})`, sessionWindow.top === bootWindow.top, `session ${sessionWindow.top}`)
   check(`the window's width equals the Boot face's (${bootWindow.width})`, sessionWindow.width === bootWindow.width, `session ${sessionWindow.width}`)
-  check(`the window's height equals the Boot face's (${bootWindow.height})`, sessionWindow.height === bootWindow.height, `session ${sessionWindow.height}`)
   const footer = inner(sessionWindow.rows[sessionWindow.height - 2]!)
   check('the keys row is the window\'s last inner row', footer.startsWith(KEYS), footer)
   const cells = cellsOf(session.frame[sessionWindow.top + 2] ?? '')
   check('the lanes rail stays visible left of the window', cells.slice(0, sessionWindow.left).join('').trim() !== '', 'nothing painted left of the window')
   const viewLeft = cellsOf(session.frame[0] ?? '').indexOf('╭')
   const viewBottom = session.frame.findIndex((line, row) => row > 0 && cellsOf(line)[viewLeft] === '╰')
-  console.log(`the view's bottom border row ${viewBottom} · the window's bottom border row ${sessionWindow.bottom} · the composer's input row ${composerRow}`)
-  check(`the window's bottom border sits above the composer's input row (row ${composerRow})`, composerRow > sessionWindow.bottom, `window bottom ${sessionWindow.bottom}`)
-  check(`the window stays inside the terminal's ${ROWS} rows and its bottom border paints whole`, sessionWindow.bottom < ROWS && wholeBottom(sessionWindow), `window bottom ${sessionWindow.bottom} · last cell ${JSON.stringify(Array.from(sessionWindow.rows[sessionWindow.height - 1]!).at(-1))}`)
+  const viewRows = viewBottom - sessionWindow.top
+  const viewBudget = Math.min(bootWindow.height, viewRows)
+  console.log(`the view's bottom border row ${viewBottom} · the window's bottom border row ${sessionWindow.bottom} · the composer's input row ${composerRow} · the Boot face's ${bootWindow.height} rows against the view's ${viewRows} inner rows from row ${sessionWindow.top}`)
+  check(`the window's height is the view's budget (${viewBudget}: the lesser of the Boot face's ${bootWindow.height} and the view's ${viewRows} inner rows from row ${sessionWindow.top})`, sessionWindow.height === viewBudget, `session ${sessionWindow.height}`)
+  check(`the window ends above the view's bottom border (row ${viewBottom}) and its bottom border paints whole`, viewBottom > 0 && sessionWindow.bottom < viewBottom && wholeBottom(sessionWindow), `window bottom ${sessionWindow.bottom} · last cell ${JSON.stringify(Array.from(sessionWindow.rows[sessionWindow.height - 1]!).at(-1))}`)
 }
 if (sessionWindow !== null) {
   const before = session.scene.lines()
