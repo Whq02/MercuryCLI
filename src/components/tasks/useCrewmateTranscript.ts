@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { crewmateQueuedRows, crewmateQueueSize, crewmateQueueVersion, pruneLandedCrewmateLines, subscribeCrewmateQueue } from './crewmateQueue.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
 import type { TaskState } from '../../tasks/types.js'
@@ -94,10 +95,24 @@ export async function readCrewmateTranscriptFile(file: string, agentId: string):
   return rows
 }
 
+export function landedUserTexts(rows: readonly Message[]): string[] {
+  const texts: string[] = []
+  for (const row of rows) {
+    const text = userRowText(row)
+    if (text !== null) texts.push(text)
+  }
+  return texts
+}
+
 export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterStamp: unknown): CrewmateTranscript | null {
   const taskId = crewmate?.taskId
   const local = crewmate?.local
+  const name = crewmate?.name ?? ''
+  const running = crewmate?.facts?.running ?? true
+  const endedAt = crewmate?.facts?.endedAt ?? null
   const [disk, setDisk] = useState<{ taskId: string; rows: Message[]; read: boolean }>({ taskId: '', rows: EMPTY, read: false })
+  const [tick, setTick] = useState(0)
+  const queueVersion = useSyncExternalStore(subscribeCrewmateQueue, crewmateQueueVersion, crewmateQueueVersion)
   const inFlight = useRef(false)
   const lastStamp = useRef<string>('')
   const file = useMemo(() => {
@@ -124,13 +139,18 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
         if (stamp === lastStamp.current) return
         lastStamp.current = stamp
         const rows = stamp === 'absent' ? EMPTY : await readCrewmateTranscriptFile(file, agentId)
-        if (alive) setDisk({ taskId, rows, read: true })
+        if (!alive) return
+        pruneLandedCrewmateLines(taskId, landedUserTexts(rows))
+        setDisk({ taskId, rows, read: true })
       } finally {
         inFlight.current = false
       }
     }
     void read()
-    const timer = setInterval(() => void read(), CREWMATE_TRANSCRIPT_TICK_MS)
+    const timer = setInterval(() => {
+      void read()
+      if (crewmateQueueSize(taskId) > 0) setTick(n => n + 1)
+    }, CREWMATE_TRANSCRIPT_TICK_MS)
     timer.unref?.()
     return () => {
       alive = false
@@ -143,9 +163,12 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
   }, [taskId])
   return useMemo(() => {
     if (taskId === undefined) return null
+    void queueVersion
+    void tick
     const fresh = disk.taskId === taskId
-    const rows = mergeTranscriptRows(fresh ? disk.rows : EMPTY, liveTailOf(local))
+    const queued = crewmateQueuedRows(taskId, { running, endedAt }, name, Date.now())
+    const rows = mergeTranscriptRows(fresh ? disk.rows : EMPTY, [...liveTailOf(local), ...queued])
     const state = rows.length > 0 ? 'ready' : fresh && disk.read ? 'empty' : 'reading'
     return { messages: rows, state }
-  }, [taskId, disk, local])
+  }, [taskId, disk, local, queueVersion, tick, running, endedAt, name])
 }

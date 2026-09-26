@@ -25,6 +25,7 @@ import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestio
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import type { AllowedPrompt } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import type { Store } from './store.js'
+import type { CrewLedger } from './crewLedger.js'
 
 
 type ImmutablePrimitive =
@@ -178,6 +179,7 @@ type AppStateMutableHalf = {
   foregroundedTaskId?: string
   viewingAgentTaskId?: string | undefined
   mainChatTaskId?: string | undefined
+  crewLedger: CrewLedger
   selectedIPAgentIndex: number
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
   teamContext?: TeamContext
@@ -300,6 +302,7 @@ export function getDefaultAppState(): AppState {
 
     tasks: {},
     agentNameRegistry: new Map(),
+    crewLedger: {},
     selectedIPAgentIndex: -1,
     viewSelectionMode: 'none',
 
