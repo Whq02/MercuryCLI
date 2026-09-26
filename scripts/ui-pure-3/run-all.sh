@@ -10,6 +10,15 @@
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
 # gate-watch: src/state/AppStateStore* src/substrate/bootNotes* src/tools/BriefTool/UI*
 # gate-watch: src/types/logs* src/utils/**
+# gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json design-system/readme.md
+# gate-watch: mercury-skills/provider-apis/SKILL.md scripts/engine-durability/harness.ts
+# gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/lib/* src/commands.ts src/commands/**
+# gate-watch: src/context/surfaceRoute.ts src/extensions/load/keybindings.ts src/hooks/* src/ink.ts
+# gate-watch: src/input-core/pending-input.ts src/keybindings/* src/native-ts/color-diff/index.ts
+# gate-watch: src/screens/** src/services/concourse/* src/services/engine-connector/*
+# gate-watch: src/services/switchboard/bornSession.ts src/services/tips/tipRegistry.ts
+# gate-watch: src/services/tips/tipScheduler.ts src/skills/bundled/provider-apis/SKILL.md
+# gate-watch: src/state/telemetryBus.ts src/substrate/flagRegistry.ts src/tools/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

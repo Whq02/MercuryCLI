@@ -9,6 +9,10 @@
 # gate-watch: scripts/notifications/concourseReferenceSeed.ts
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
 # gate-watch: scripts/streaming/artifactArena.ts
+# gate-watch: src/commands/login/login.tsx src/constants/figures.ts src/fabric/entryCodec.ts
+# gate-watch: src/fabric/ordinal.ts src/services/api/errors.ts src/services/tips/tipRegistry.ts
+# gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
+# gate-watch: src/tools/WorkflowTool/runManifest.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

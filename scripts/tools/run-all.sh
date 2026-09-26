@@ -35,6 +35,8 @@
 # gate-watch: src/services/tools/toolOrchestration.ts src/services/vulcan/portabilityDoctor.ts
 # gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/** src/types/logs.ts src/vim/types.ts
+# gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx
+# gate-watch: src/fabric/transcriptDecode.ts src/fabric/validate.ts src/services/tools/toolHooks.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
