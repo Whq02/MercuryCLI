@@ -328,7 +328,7 @@ section('§4 the wire shapes against the loopback transcriber — multipart, inl
   delete process.env.MERCURY_GEMINI_API_BASE
 }
 
-section('§5 the session — the refusals before a take, v/v, the landing, esc, zero network before the stop')
+section('§5 the session — the refusals before a take, start/stop, the landing, esc, zero network before the stop')
 {
   const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
   const { getGlobalConfig } = await import('../../src/utils/config.js')
@@ -347,7 +347,7 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
 
   check('voice input is OFF by default', !session.voiceInputEnabled() && !session.voiceSnapshot().enabled)
   let outcome = await session.toggleVoiceCapture({ env: noTools() })
-  check('with /speak off, v refuses with the toggle words and no take', outcome.kind === 'refused' && outcome.text === session.VOICE_OFF_RECEIPT && session.voiceSnapshot().phase === 'idle' && session.voiceSnapshot().receipt?.text === session.VOICE_OFF_RECEIPT, JSON.stringify(outcome))
+  check('with /speak off, a start refuses with the toggle words and no take', outcome.kind === 'refused' && outcome.text === session.VOICE_OFF_RECEIPT && session.voiceSnapshot().phase === 'idle' && session.voiceSnapshot().receipt?.text === session.VOICE_OFF_RECEIPT, JSON.stringify(outcome))
 
   session.setVoiceInputEnabled(true)
   check('/speak on persists the toggle', session.voiceInputEnabled() && getGlobalConfig().voiceInputEnabled === true && session.voiceSnapshot().enabled)
@@ -368,14 +368,14 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
 
   pendingInput.edit('hello')
   outcome = await session.toggleVoiceCapture({ env: noTools() })
-  check('v starts a take: recording, on the fixture backend', outcome.kind === 'started' && session.voiceSnapshot().phase === 'recording' && session.voiceSnapshot().backend === 'fixture', JSON.stringify(outcome))
+  check('a start opens a take: recording, on the fixture backend', outcome.kind === 'started' && session.voiceSnapshot().phase === 'recording' && session.voiceSnapshot().backend === 'fixture', JSON.stringify(outcome))
   await sleep(150)
   check('ZERO requests while the take runs (the network tripwire law)', fetchCalls.length === 0 && posts(fx.lines()).length === 0, fetchCalls.join(','))
   check('the status line reads the ACTIVE take\'s stream state while it runs', session.describeVoiceStatus(noTools()).includes('this take: the input stream is clean'), session.describeVoiceStatus(noTools()))
   outcome = await session.toggleVoiceCapture({ env: noTools() })
-  check('v again stops the take: transcribing', outcome.kind === 'stopping' && session.voiceSnapshot().phase === 'transcribing', JSON.stringify(outcome))
+  check('the toggle again stops the take: transcribing', outcome.kind === 'stopping' && session.voiceSnapshot().phase === 'transcribing', JSON.stringify(outcome))
   const busy = await session.toggleVoiceCapture({ env: noTools() })
-  check('a press while transcribing is answered, not a second take', busy.kind === 'busy' && busy.text === session.BUSY_RECEIPT)
+  check('a start while transcribing is answered, not a second take', busy.kind === 'busy' && busy.text === session.BUSY_RECEIPT)
   check('the words land in the composer, one space from the draft', await until(() => pendingInput.text() === 'hello the quick brown fox jumps over the lazy dog'), pendingInput.text())
   check('…and the session is idle again with the transcribing receipt', await until(() => session.voiceSnapshot().phase === 'idle') && /transcribed by OpenAI \(gpt-4o-transcribe\) · 1s/.test(session.voiceSnapshot().receipt?.text ?? ''), session.voiceSnapshot().receipt?.text ?? '')
   check('once the take is stopped the status line reads the LAST take\'s recorded state', session.describeVoiceStatus(noTools()).includes('last take: the input stream stayed clean') && !session.describeVoiceStatus(noTools()).includes('this take:'), session.describeVoiceStatus(noTools()))
@@ -431,7 +431,7 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
     const servedBefore = posts(fx.lines()).length
     pendingInput.edit('')
     outcome = await session.toggleVoiceCapture({ env: noTools() })
-    check('with the pack and the model present a take starts on the on-device road, beside the signed-in key', outcome.kind === 'started' && outcome.text === `recording — space or esc stops it (on-device transcriber (${ON_DEVICE_MODEL}) transcribes)`, JSON.stringify(outcome))
+    check('with the pack and the model present a take starts on the on-device road, beside the signed-in key', outcome.kind === 'started' && outcome.text === `recording — /voice again stops it, esc cancels (on-device transcriber (${ON_DEVICE_MODEL}) transcribes)`, JSON.stringify(outcome))
     await sleep(100)
     outcome = await session.toggleVoiceCapture({ env: noTools() })
     check('the take stops: transcribing', outcome.kind === 'stopping')
@@ -451,14 +451,14 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
     const beforeSaved = fetchCalls.length
     pendingInput.edit('')
     outcome = await session.toggleVoiceCapture({ env: noTools() })
-    check('the saved family serves over the present pack: the started receipt names its credential', outcome.kind === 'started' && outcome.text === 'recording — space or esc stops it (OpenAI API key (env) transcribes)', JSON.stringify(outcome))
+    check('the saved family serves over the present pack: the started receipt names its credential', outcome.kind === 'started' && outcome.text === 'recording — /voice again stops it, esc cancels (OpenAI API key (env) transcribes)', JSON.stringify(outcome))
     await session.toggleVoiceCapture({ env: noTools() })
     check('…and exactly one request leaves', await until(() => session.voiceSnapshot().phase === 'idle') && fetchCalls.length === beforeSaved + 1, fetchCalls.slice(beforeSaved).join(','))
     session.setVoiceTranscriberChoice('gemini')
     pendingInput.edit('')
     process.env.MERCURY_VOICE_FIXTURE_WAV = SPEECH
     outcome = await session.toggleVoiceCapture({ env: noTools() })
-    check('a saved family that is not signed in: the started receipt names it and the on-device road transcribes', outcome.kind === 'started' && outcome.text === 'recording — space or esc stops it (on-device transcribes — your saved Gemini is not signed in)', JSON.stringify(outcome))
+    check('a saved family that is not signed in: the started receipt names it and the on-device road transcribes', outcome.kind === 'started' && outcome.text === 'recording — /voice again stops it, esc cancels (on-device transcribes — your saved Gemini is not signed in)', JSON.stringify(outcome))
     await session.toggleVoiceCapture({ env: noTools() })
     check('…the words land on this machine with no request', await until(() => /lighthouse|seven|ships/i.test(pendingInput.text()), 60_000) && (await until(() => session.voiceSnapshot().phase === 'idle')) && fetchCalls.length === beforeSaved + 1, `${pendingInput.text()} · ${fetchCalls.slice(beforeSaved).join(',')}`)
     session.setVoiceTranscriberChoice(null)

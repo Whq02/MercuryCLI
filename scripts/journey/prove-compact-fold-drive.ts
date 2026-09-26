@@ -327,7 +327,8 @@ function stripOf(frame: string | undefined): { glyph: string; words: string } | 
 }
 function belowChat(frame: string | undefined): string[] {
   const lines = (frame ?? '').split('\n')
-  return lines.slice(-9).map(l => l.replace(/\d+m\b|\d+s\b|\d\d:\d\d:\d\d|⤳\d+|auto-compact: \d+%/g, '#').replace(/ for #\s*/, ' ').replace(/\s+(esc interrupts)/, ' $1'))
+  const border = lines.map((l, i) => (/^\s+╰─+╯\s*$/.test(l) ? i : -1)).filter(i => i >= 0).pop() ?? Math.max(0, lines.length - 7)
+  return lines.slice(border).map(l => l.replace(/\d+m\b|\d+s\b|\d\d:\d\d:\d\d|⤳\d+|auto-compact: \d+%/g, '#').replace(/ for #\s*/, ' ').replace(/\s+(esc interrupts)/, ' $1'))
 }
 
 function frames(prefix: string, count: number, gap = 3): Array<Record<string, unknown>> {

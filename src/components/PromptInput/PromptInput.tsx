@@ -49,7 +49,8 @@ import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
-import { cancelVoiceCapture, subscribeVoice, toggleVoiceCapture, voiceSnapshot } from '../../services/voice/voiceSession.js'
+import { holdToTalkKey, setHoldToTalkEditor } from '../../services/voice/holdToTalk.js'
+import { cancelVoiceCapture, subscribeVoice, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   clearMainChat,
@@ -103,7 +104,6 @@ import {
 } from '../../utils/cockpit/helmConsole.js'
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
-import { MAIN_DRAFT_KEY, stashViewDraft, takeViewDraft } from './viewDrafts.js'
 import { getModeFromInput, getValueFromInput, prependModeCharacterToInput } from './inputModes.js'
 import { maybeTruncateMessageForInput } from './inputPaste.js'
 import { normalizePastedInput } from '../../input-core/composer-document.js'
@@ -963,21 +963,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         : viewedTask.agentType
       : undefined)
   const viewedAgentColor = viewedTeammate?.identity?.color
-
-  const draftKey = viewingAgentTaskId ?? MAIN_DRAFT_KEY
-  const draftKeyRef = useRef(draftKey)
-  const liveTextRef = useRef(input)
-  liveTextRef.current = input
-  useEffect(() => {
-    if (draftKeyRef.current === draftKey) return
-    const previousKey = draftKeyRef.current
-    draftKeyRef.current = draftKey
-    stashViewDraft(previousKey, liveTextRef.current)
-    const incoming = takeViewDraft(draftKey)
-    pendingInput.edit(incoming)
-    lastSelfWriteRef.current = incoming
-    setCursorOffset(incoming.length)
-  }, [draftKey, setCursorOffset])
 
   useEffect(() => {
     setPromptEmpty(input.trim() === '')
@@ -2498,19 +2483,23 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const composerViewportStartRef = useRef<number | undefined>(undefined)
 
-  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
-    if (rawInput !== ' ' || key.ctrl || key.meta) return rawInput
-    const live = voiceSnapshot()
-    if (live.phase === 'recording' || (live.phase === 'transcribing' && live.enabled)) {
-      void toggleVoiceCapture()
-      return ''
-    }
-    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
-      void toggleVoiceCapture()
-      return ''
-    }
-    return rawInput
-  }, [])
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => holdToTalkKey(rawInput, key), [])
+  useEffect(() => {
+    setHoldToTalkEditor({
+      text: () => pendingInput.text(),
+      cursor: () => cursorRef.current,
+      splice: (deleteBefore, insert) => {
+        const text = pendingInput.text()
+        const at = Math.max(0, Math.min(cursorRef.current, text.length))
+        const from = Math.max(0, at - deleteBefore)
+        const next = text.slice(0, from) + insert + text.slice(at)
+        pendingInput.edit(next)
+        lastSelfWriteRef.current = next
+        setCursorOffset(from + insert.length)
+      },
+    })
+    return () => setHoldToTalkEditor(null)
+  }, [setCursorOffset])
   const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel)
   const capLane = capFailoverLaneOf(declaredRouteOf(capEffectiveModel))
   const capNote = capHandoffState()

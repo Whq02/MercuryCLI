@@ -52,6 +52,7 @@ const WARM_TICKS = 25
 const ENTER_BUDGET_TICKS = 3
 const ESC = String.fromCharCode(27)
 const SHIFT_LEFT = `${ESC}[1;2D`
+const DOWN = `${ESC}[B`
 
 type Send = Record<string, unknown>
 type Capture = {
@@ -151,6 +152,17 @@ function printFrame(id: string, lines: string[]): void {
   console.log('└──')
 }
 const firstRows = (text: string): string => text.split('\n').slice(0, 6).join(' | ').slice(0, 200)
+const paneFlat = (frame: string): string =>
+  frame
+    .split('\n')
+    .map(l => {
+      const left = l.indexOf('│')
+      const right = l.lastIndexOf('│')
+      return left >= 0 && right > left ? l.slice(left + 1, right).replace(/[│╭╮╰╯]/g, ' ').trim() : ''
+    })
+    .filter(l => l !== '')
+    .join(' ')
+    .replace(/ +/g, ' ')
 
 const recordsOf = (home: string): ReturnType<typeof readSessionWorkers> => readSessionWorkers(join(home, 'daemon'))
 const liveRecords = (home: string): ReturnType<typeof readSessionWorkers> =>
@@ -318,18 +330,26 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
       { afterPrevTicks: 3, data: '\r' },
       g('Mercury · status', '', { mark: 'status', awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: ESC },
+      { afterPrevTicks: 4, data: '/config' },
+      { afterPrevTicks: 3, data: '\r' },
+      g('Auto-compact', 'Session concourse', { awaitSettleTicks: 4 }),
+      g('off this boot (--chat)', DOWN, { awaitSettleTicks: 3 }),
+      g('the switch governs', '', { mark: 'config', awaitSettleTicks: 3 }),
+      { afterPrevTicks: 2, data: ESC },
       g(COMPOSER, '', { mark: 'closed', awaitSettleTicks: 3 }),
     ],
     stableTicks: 6,
-    total: 320,
+    total: 360,
   })
-  printFrame('p4 (after the three commands)', c.lines)
+  printFrame('p4 (after the four commands)', c.lines)
   const party = markText(c, 'party')
-  const partyFlat = party.split('\n').map(l => l.replace(/[│╭╮╰╯]/g, ' ').trim()).join(' ').replace(/ +/g, ' ')
-  check('P4 /fleet typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /fleet command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse/i.test(l)).join(' | ').slice(0, 300))
+  const partyFlat = paneFlat(party)
+  check('P4 /fleet typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /fleet command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
   check('P4 POISON absent: never "Unknown skill", never the generic enablement line, no crash', !c.text.includes('Unknown skill') && !c.text.includes('exists but is not enabled') && !c.text.includes('Mercury exited on an error'))
   check('P4 /sessions opens the session manager (the plain CLI\'s own — not gated with the concourse)', markText(c, 'sessions').includes(MANAGER_FOOTER), firstRows(markText(c, 'sessions')))
-  check('P4 /status carries the Concourse row: "off this boot (--chat)" with the way back', markText(c, 'status').includes('off this boot (--chat)') && markText(c, 'status').includes('a plain `mercury` boot has it'), markText(c, 'status').split('\n').filter(l => /Concourse/i.test(l)).join(' | ').slice(0, 300))
+  check('P4 /status opens the status card (the session snapshot line and its environment rows)', markText(c, 'status').includes('session snapshot') && markText(c, 'status').includes('Session & environment'), firstRows(markText(c, 'status')))
+  const configFlat = paneFlat(markText(c, 'config'))
+  check('P4 /config carries the Session concourse row saying "off this boot (--chat)", and its note names the next plain boot', configFlat.includes('Session concourse') && configFlat.includes('off this boot (--chat)') && configFlat.includes('the switch governs the next plain `mercury` boot'), markText(c, 'config').split('\n').filter(l => /concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
   check('P4 the chat is still the frame after the dialogs close (the composer is live on the post-esc frame itself)', markText(c, 'closed').includes(COMPOSER), firstRows(markText(c, 'closed')))
   reapHome(home)
 }

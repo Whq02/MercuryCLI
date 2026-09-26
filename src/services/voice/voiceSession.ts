@@ -46,10 +46,15 @@ export interface VoiceSnapshot {
   receipt: VoiceReceipt | null
 }
 
-export const RECORDING_FOOTER = 'recording · space or esc to stop'
+export const HOLD_TO_TALK_MS = 3_000
+export const HOLD_WORDS = `hold space for ${HOLD_TO_TALK_MS / 1000} s to speak, release it to stop, esc cancels`
+export const NO_REPEAT_WORDS = '/voice starts and stops a take without the key — the road for a terminal whose key repeat is off (a held key that never repeats cannot open a take)'
+
+export const RECORDING_FOOTER = 'recording · release space to stop · esc cancels'
 export const TRANSCRIBING_FOOTER = 'transcribing…'
 
-export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then space in an empty composer starts a capture'
+export const VOICE_OFF_RECEIPT = `voice input is off — /speak on turns it on; then ${HOLD_WORDS}`
+export const ALREADY_RECORDING_RECEIPT = 'already recording — /voice again or esc ends the take'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
 export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /speak options <family> chooses a cloud transcriber'
@@ -209,8 +214,23 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
 }
 
 export type VoiceToggleOutcome = { kind: 'started' | 'stopping' | 'busy' | 'refused'; text: string }
+export type VoiceRoad = 'hold' | 'command'
 
 export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {}): Promise<VoiceToggleOutcome> {
+  if (snapshot.phase === 'recording' && active !== null) {
+    stopVoiceCapture(opts)
+    return { kind: 'stopping', text: TRANSCRIBING_FOOTER }
+  }
+  return startVoiceCapture({ ...opts, road: 'command' })
+}
+
+export function stopVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {}): boolean {
+  if (snapshot.phase !== 'recording' || active === null) return false
+  void finishCapture('key', opts.env ?? process.env)
+  return true
+}
+
+export async function startVoiceCapture(opts: { env?: NodeJS.ProcessEnv; road?: VoiceRoad } = {}): Promise<VoiceToggleOutcome> {
   const env = opts.env ?? process.env
   const refuse = (text: string): VoiceToggleOutcome => {
     receipt(text, 'error')
@@ -221,8 +241,8 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
     return { kind: 'busy', text: BUSY_RECEIPT }
   }
   if (snapshot.phase === 'recording' && active !== null) {
-    void finishCapture('key', env)
-    return { kind: 'stopping', text: TRANSCRIBING_FOOTER }
+    receipt(ALREADY_RECORDING_RECEIPT, 'info')
+    return { kind: 'busy', text: ALREADY_RECORDING_RECEIPT }
   }
   if (!voiceInputEnabled()) return refuse(VOICE_OFF_RECEIPT)
   const backend = resolveCaptureBackend(env)
@@ -251,7 +271,8 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
     saved !== null && saved.state === 'unavailable'
       ? `${choiceDisplayName(transcriber.choice)} transcribes — your saved ${saved.display} ${saved.short ?? 'cannot serve'}`
       : `${transcriber.choice.label} transcribes`
-  return { kind: 'started', text: `recording — space or esc stops it (${words})` }
+  const stop = opts.road === 'command' ? '/voice again stops it, esc cancels' : 'release space to stop, esc cancels'
+  return { kind: 'started', text: `recording — ${stop} (${words})` }
 }
 
 export function cancelVoiceCapture(): boolean {
@@ -343,7 +364,8 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   const onDevice = onDeviceWords(transcriber)
   const door = downloadDoorWords(transcriber)
   return [
-    `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
+    `voice input ${on ? `ON — ${HOLD_WORDS}` : 'OFF — /speak on turns it on'}`,
+    ...(on ? [NO_REPEAT_WORDS] : []),
     `transcriber: ${transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? transcriberWords(transcriber) : `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}`) : `none — ${transcriber.note}`}`,
     defaultWords(transcriber),
     ...(onDevice !== null ? [onDevice] : []),

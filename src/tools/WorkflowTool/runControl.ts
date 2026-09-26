@@ -3,8 +3,7 @@ import { watch, type FSWatcher } from 'node:fs'
 import { mkdir, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-import type { PauseGate } from '../../run-core/pauseGate.js'
-import { isTerminalTaskStatus, type TaskStatus } from '../../Task.js'
+import { createPauseGate, type PauseGate } from '../../run-core/pauseGate.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import {
@@ -376,6 +375,7 @@ export async function serveWorkflowControl(opts: {
 }
 
 export class WorkflowExecutionPause {
+  readonly gate: PauseGate = createPauseGate()
   private runPausedBy: string | undefined
   private readonly agents = new Map<string, { by?: string; listeners: Set<() => void> }>()
   private readonly parkedCalls = new Map<symbol, { call: WorkflowParkedCall; after: number; wake: () => void }>()
@@ -449,6 +449,7 @@ export class WorkflowExecutionPause {
           if (otherId !== agentId && other.by === undefined) other.by = this.runPausedBy
         }
         this.runPausedBy = undefined
+        this.gate.resume()
         this.wakeParkedCalls()
       }
       entry.by = paused ? by : undefined
@@ -459,6 +460,8 @@ export class WorkflowExecutionPause {
         return { outcome: 'refused', reason: 'the run is not paused — nothing to resume' }
       }
       this.runPausedBy = paused ? by : undefined
+      if (paused) this.gate.pause(by)
+      else this.gate.resume()
       for (const entry of this.agents.values()) {
         if (!paused) entry.by = undefined
         for (const listener of entry.listeners) listener()
@@ -469,7 +472,7 @@ export class WorkflowExecutionPause {
       outcome: 'applied',
       detail: paused
         ? agentId === undefined
-          ? `paused by ${by} — the run parks before its next agent call and its agents before their next model call; work in flight finishes first`
+          ? `paused by ${by} — the run parks before its next agent call and its agents at their next safe point (a model call or a tool block); work in flight finishes first`
           : `paused by ${by} — the agent parks before the next model call; work in flight finishes first`
         : `resumed by ${by} — the same ${agentId === undefined ? 'run continues from where it stopped' : 'agent continues'}`,
     }
@@ -508,48 +511,4 @@ export class WorkflowExecutionPause {
 
 export function workflowControlBy(sessionId: string | undefined, pid: number): string {
   return sessionId !== undefined && sessionId !== '' ? `session ${sessionId.slice(0, 8)}` : `process ${pid}`
-}
-
-export const WORKFLOW_GATE_CLOSED_WORDS = 'the gate closes: a tool block in flight finishes, the next one parks'
-
-export const WORKFLOW_GATE_OPEN_WORDS = 'the gate stays open (the runner hosts other work) — its agents park at their next model call'
-
-export function runnerHostsOnlyRun(taskId: string, tasks: Record<string, { status: TaskStatus | string }>): boolean {
-  for (const [id, task] of Object.entries(tasks)) {
-    if (id === taskId) continue
-    if (!isTerminalTaskStatus(task.status as TaskStatus)) return false
-  }
-  return true
-}
-
-export type WorkflowGateRide = {
-  close(hostsOnlyThisRun: boolean): boolean
-  open(): boolean
-  closed(): boolean
-  release(): void
-}
-
-export function workflowGateRide(gate: Pick<PauseGate, 'pause' | 'resume' | 'subscribe'>): WorkflowGateRide {
-  let own = false
-  const unsubscribe = gate.subscribe(state => {
-    if (!state.paused) own = false
-  })
-  return {
-    close: hostsOnlyThisRun => {
-      if (!hostsOnlyThisRun || own) return false
-      if (!gate.pause()) return false
-      own = true
-      return true
-    },
-    open: () => {
-      if (!own) return false
-      own = false
-      return gate.resume()
-    },
-    closed: () => own,
-    release: () => {
-      own = false
-      unsubscribe()
-    },
-  }
 }

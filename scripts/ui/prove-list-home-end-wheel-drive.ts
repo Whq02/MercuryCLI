@@ -154,7 +154,17 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 
-const focusBoxRow = (lines: string[]): number => lines.findIndex(l => l.includes('│ │ '))
+const pickerLeft = (lines: string[]): number => {
+  const title = lines.find(l => l.includes('Mercury · model')) ?? ''
+  return title === '' ? -1 : title.lastIndexOf('│', title.indexOf('Mercury · model'))
+}
+const pickerWindow = (lines: string[]): string[] => {
+  const title = lines.find(l => l.includes('Mercury · model')) ?? ''
+  const left = pickerLeft(lines)
+  const right = title.indexOf('│', title.indexOf('Mercury · model'))
+  return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
+}
+const focusBoxRow = (lines: string[]): number => pickerWindow(lines).findIndex(l => l.includes('│ │ '))
 const outsideOf = (lines: string[], left: number): string => lines.map(l => l.slice(0, left)).join('\n')
 
 if (CASE === undefined || CASE === 'picker') {
@@ -182,7 +192,7 @@ if (CASE === undefined || CASE === 'picker') {
   const end = c.marks.get('end') ?? []
   const homeF = c.marks.get('home') ?? []
   check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, picker.slice(2, 8).join(' | '))
-  const left = Math.max(0, picker.findIndex(l => l.includes('╭')) >= 0 ? (picker.find(l => l.includes('╭')) ?? '').indexOf('╭') : 0)
+  const left = Math.max(0, pickerLeft(picker))
   const r0 = focusBoxRow(picker)
   const r1 = focusBoxRow(wheeled)
   const r2 = focusBoxRow(back)

@@ -9,7 +9,7 @@ import type { MessageUpdateLazy } from './toolExecution.js'
 import { runToolUse } from './toolExecution.js'
 import { closeRound } from './loopGuard.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
-import { operatorPauseGate, pauseGateSeatOf, pauseGateToolWords } from '../../run-core/pauseGate.js'
+import { parkBeforeTool } from '../../run-core/pauseGate.js'
 import { randomUUID } from 'node:crypto'
 
 
@@ -70,10 +70,7 @@ function removeInProgress(context: ToolUseContext, id: string): void {
 }
 
 async function parkBeforeBlock(block: ToolUseBlock, context: ToolUseContext): Promise<void> {
-  if (!operatorPauseGate.paused()) return
-  context.onSeatWait?.(pauseGateToolWords(block.name))
-  await operatorPauseGate.park(context.abortController.signal, pauseGateSeatOf(context))
-  context.onSeatWait?.(null)
+  await parkBeforeTool(context, block.name)
 }
 
 export async function* runTools(

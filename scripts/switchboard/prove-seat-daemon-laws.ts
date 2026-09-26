@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
+import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -73,6 +74,7 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
   },
   stdio: ['ignore', logFd, logFd],
 })
+const clientBeat = startDaemonClientBeat()
 
 try {
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
@@ -314,6 +316,7 @@ try {
     check('W the pool re-warms behind the claim (a second pre-spawn in the log)', await untilAsync(() => daemonLog().split('\n').filter(l => l.includes('warm runner pre-spawned') && l.includes(work2)).length >= 2, 15_000))
   }
 } finally {
+  clientBeat.stop()
   try {
     await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {

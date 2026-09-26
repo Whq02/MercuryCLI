@@ -33,9 +33,11 @@
    ],
    "src/cli/structuredIO.ts": [
     "BROKEN_STDOUT_LINE",
+    "PERMISSION_CHANNEL_CLOSED_CAUSE",
     "SANDBOX_NETWORK_ACCESS_TOOL_NAME",
     "StructuredIO",
-    "isBrokenPipeError"
+    "isBrokenPipeError",
+    "unansweredAskCause"
    ]
   },
   "settings": {

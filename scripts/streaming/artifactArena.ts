@@ -39,6 +39,11 @@ export interface SendRecord {
   sent: number
   atMs: number
   b64: string
+  after?: string
+  paintAt?: number
+  settledAt?: number
+  stillMs?: number
+  ceiling?: boolean
 }
 
 export interface ProbeMark {

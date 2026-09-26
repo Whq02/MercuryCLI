@@ -105,6 +105,7 @@ function seedWorld(): { home: string; cwd: string } {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'motion-doors-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'motion-doors-cwd-')))
   seedFirstRun(home, [cwd])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   return { home, cwd }
 }
 
@@ -156,7 +157,8 @@ const BACKSPACE = '\x7f'
 const ESC = '\x1b'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
-const TO_MOTION = DOWN.repeat(STARTUP_MENU.length + 1)
+const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
+const TO_MOTION = DOWN.repeat(withJevRow(STARTUP_MENU).length + 1)
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -166,7 +168,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: 'm', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: 's', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: TO_MOTION, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: RIGHT, awaitText: 'doors: /config · Boot Menu', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-motion' },
         { data: ESC, awaitText: 'motion full · set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-full' },

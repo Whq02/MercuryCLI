@@ -2,6 +2,8 @@
 import argparse, base64, errno, fcntl, json, os, pty, re, select, signal, struct, sys, termios, time
 
 ANSI_RE = re.compile(rb"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]")
+STILL_MS = 400.0
+SETTLE_CEILING_MS = 2000.0
 
 
 def unescape(s: str) -> bytes:
@@ -42,6 +44,8 @@ def main() -> None:
     if not (scale > 0):
         scale = 1.0
     a.seconds *= scale
+    still_ms = STILL_MS
+    settle_ceiling_ms = SETTLE_CEILING_MS * scale
 
     sends = []
     afters = []
@@ -49,7 +53,8 @@ def main() -> None:
         if spec.startswith("after:"):
             _, needle, delay_s, text = spec.split(":", 3)
             afters.append({"needle": needle.encode(), "delay": float(delay_s) * scale,
-                           "payload": unescape(text), "armed_ms": None, "fired": False})
+                           "payload": unescape(text), "seen_ms": None, "armed_ms": None,
+                           "still_ms": None, "ceiling": False, "fired": False})
             continue
         at, _, text = spec.partition(":")
         sends.append((float(at) * scale, unescape(text)))
@@ -66,7 +71,8 @@ def main() -> None:
     anchor = None
     if a.anchor:
         needle, _, at_s = a.anchor.rpartition(":")
-        anchor = {"needle": needle.encode(), "at": float(at_s) * scale, "armed_ms": None}
+        anchor = {"needle": needle.encode(), "at": float(at_s) * scale, "seen_ms": None,
+                  "armed_ms": None, "still_ms": None, "ceiling": False}
 
     pid, fd = pty.fork()
     if pid == 0:
@@ -81,9 +87,47 @@ def main() -> None:
     ended = "deadline"
     tail = b""
     raw_tail = b""
+    last_read_ms = None
+
+    def settled(rec, now_ms):
+        if rec["seen_ms"] is None or rec["armed_ms"] is not None:
+            return False
+        quiet = now_ms - last_read_ms
+        if quiet < still_ms and now_ms - rec["seen_ms"] < settle_ceiling_ms:
+            return False
+        rec["armed_ms"] = now_ms
+        rec["still_ms"] = quiet
+        rec["ceiling"] = quiet < still_ms
+        return True
+
+    def rebase_anchor(now_ms):
+        nonlocal sends, resizes, deadline
+        shift = now_ms - anchor["at"]
+        rest = [(ms + shift if ms >= anchor["at"] else ms, p) for ms, p in sends[si:]]
+        rest.sort(key=lambda x: x[0])
+        sends = sends[:si] + rest
+        resizes = sorted(
+            [(ms + shift if ms >= anchor["at"] else ms, c, r) for ms, c, r in resizes],
+            key=lambda x: x[0])
+        if shift > 0:
+            deadline += shift / 1000.0
+        if out:
+            out.write(json.dumps({"anchor": int(time.time() * 1000),
+                                  "atMs": round(anchor["at"], 1),
+                                  "shiftMs": round(shift, 1),
+                                  "paintAt": round(anchor["seen_ms"], 1),
+                                  "stillMs": round(anchor["still_ms"], 1),
+                                  "ceiling": anchor["ceiling"],
+                                  "needle": anchor["needle"].decode("utf-8", "replace")}) + "\n")
+            out.flush()
+
     try:
         while time.time() < deadline:
             now_ms = (time.time() - t0) * 1000.0
+            if anchor is not None and settled(anchor, now_ms):
+                rebase_anchor(now_ms)
+            for af in afters:
+                settled(af, now_ms)
             def held(ms):
                 return anchor is not None and anchor["armed_ms"] is None and ms >= anchor["at"]
             while resizes and resizes[0][0] <= now_ms and not held(resizes[0][0]):
@@ -108,6 +152,10 @@ def main() -> None:
                         out.write(json.dumps({"sent": int(time.time() * 1000),
                                               "atMs": round(af["armed_ms"] + af["delay"], 1),
                                               "after": af["needle"].decode("utf-8", "replace"),
+                                              "paintAt": round(af["seen_ms"], 1),
+                                              "settledAt": round(af["armed_ms"], 1),
+                                              "stillMs": round(af["still_ms"], 1),
+                                              "ceiling": af["ceiling"],
                                               "b64": base64.b64encode(af["payload"]).decode()}) + "\n")
                         out.flush()
                     af["fired"] = True
@@ -126,30 +174,15 @@ def main() -> None:
                 break
             nbytes += len(data)
             nreads += 1
+            last_read_ms = (time.time() - t0) * 1000.0
             if afters or anchor:
                 raw_tail = (raw_tail + data)[-16384:]
                 tail = ANSI_RE.sub(b"", raw_tail)[-8192:]
-                arm_ms = (time.time() - t0) * 1000.0
                 for af in afters:
-                    if af["armed_ms"] is None and af["needle"] in tail:
-                        af["armed_ms"] = arm_ms
-                if anchor and anchor["armed_ms"] is None and anchor["needle"] in tail:
-                    anchor["armed_ms"] = arm_ms
-                    shift = arm_ms - anchor["at"]
-                    rest = [(ms + shift if ms >= anchor["at"] else ms, p) for ms, p in sends[si:]]
-                    rest.sort(key=lambda x: x[0])
-                    sends = sends[:si] + rest
-                    resizes = sorted(
-                        [(ms + shift if ms >= anchor["at"] else ms, c, r) for ms, c, r in resizes],
-                        key=lambda x: x[0])
-                    if shift > 0:
-                        deadline += shift / 1000.0
-                    if out:
-                        out.write(json.dumps({"anchor": int(time.time() * 1000),
-                                              "atMs": round(anchor["at"], 1),
-                                              "shiftMs": round(shift, 1),
-                                              "needle": anchor["needle"].decode("utf-8", "replace")}) + "\n")
-                        out.flush()
+                    if af["seen_ms"] is None and af["needle"] in tail:
+                        af["seen_ms"] = last_read_ms
+                if anchor and anchor["seen_ms"] is None and anchor["needle"] in tail:
+                    anchor["seen_ms"] = last_read_ms
             if out:
                 out.write(json.dumps({"ts": int(time.time() * 1000),
                                       "b64": base64.b64encode(data).decode()}) + "\n")
@@ -161,8 +194,13 @@ def main() -> None:
             print(f"ptydrive[{time.time()-t0:.2f}s] {msg}", file=sys.stderr, flush=True)
         if anchor is not None and anchor["armed_ms"] is None:
             held_n = sum(1 for ms, _ in sends[si:] if ms >= anchor["at"])
-            trace(f"ANCHOR-NEVER-PAINTED: {anchor['needle'].decode('utf-8', 'replace')!r} never appeared; "
-                  f"{held_n} post-anchor send(s) held unfired — the world never arrived as authored")
+            if anchor["seen_ms"] is None:
+                trace(f"ANCHOR-NEVER-PAINTED: {anchor['needle'].decode('utf-8', 'replace')!r} never appeared; "
+                      f"{held_n} post-anchor send(s) held unfired — the world never arrived as authored")
+            else:
+                trace(f"ANCHOR-NEVER-SETTLED: {anchor['needle'].decode('utf-8', 'replace')!r} painted at "
+                      f"{anchor['seen_ms']:.0f}ms and the output never held still for {still_ms:.0f}ms before the deadline; "
+                      f"{held_n} post-anchor send(s) held unfired")
         reaped = None
         def drain(seconds):
             until = time.time() + seconds
@@ -215,8 +253,9 @@ def main() -> None:
     unfired = []
     for af in afters:
         if not af["fired"]:
-            state = ("never painted" if af["armed_ms"] is None
-                     else "armed at %dms, delay %dms unreached" % (af["armed_ms"], af["delay"]))
+            state = ("never painted" if af["seen_ms"] is None
+                     else "painted at %dms, never held still for %dms" % (af["seen_ms"], still_ms) if af["armed_ms"] is None
+                     else "settled at %dms, delay %dms unreached" % (af["armed_ms"], af["delay"]))
             unfired.append("after %r (+%dms): %s" % (af["needle"].decode("utf-8", "replace"), af["delay"], state))
     for atms, _payload in sends[si:]:
         unfired.append("at %dms: never reached" % atms)

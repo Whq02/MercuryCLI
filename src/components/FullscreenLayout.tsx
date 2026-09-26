@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import { Box, MotionParkContext, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
@@ -48,6 +49,8 @@ import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
+import { ModelPickerPopupSlot } from './ModelPickerPopupSlot.js'
+import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
 import { SettingsPopupSlot } from './SettingsPopupSlot.js'
 import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
@@ -126,7 +129,10 @@ export function computeUnseenDivider(
   return { firstUnseenUuid: (anchor as { uuid: string }).uuid, count }
 }
 
-export function useUnseenDivider(messageCount: number): {
+export function useUnseenDivider(
+  messageCount: number,
+  scrollRef?: React.RefObject<ScrollBoxHandle | null>,
+): {
   dividerIndex: number | null
   dividerYRef: React.MutableRefObject<number | null>
   onScrollAway: (handle: ScrollBoxHandle) => void
@@ -139,6 +145,10 @@ export function useUnseenDivider(messageCount: number): {
   const countRef = useRef(messageCount)
   countRef.current = messageCount
   const clearSnapshotRef = useRef(false)
+  const previousCountRef = useRef(messageCount)
+  const shrunkRef = useRef(false)
+  if (messageCount < previousCountRef.current) shrunkRef.current = true
+  previousCountRef.current = messageCount
 
   if (dividerIndex !== null && messageCount < dividerIndex) {
     setDividerIndex(null)
@@ -151,6 +161,30 @@ export function useUnseenDivider(messageCount: number): {
       dividerYRef.current = null
     }
   }, [dividerIndex])
+
+  useLayoutEffect(() => {
+    if (!shrunkRef.current) return
+    shrunkRef.current = false
+    const handle = scrollRef?.current
+    if (!handle) return
+    const height = handle.getFreshScrollHeight()
+    const max = Math.max(0, height - handle.getViewportHeight())
+    const atBottom =
+      handle.isSticky() ||
+      handle.getScrollTop() + handle.getPendingDelta() >= max
+    if (!atBottom) {
+      if (dividerYRef.current !== null && dividerYRef.current > height) {
+        dividerYRef.current = height
+      }
+      return
+    }
+    const past = handle.getScrollTop() > max
+    if (!past && dividerYRef.current === null && dividerIndex === null) return
+    if (past) handle.scrollTo(max)
+    handle.scrollToBottom()
+    dividerYRef.current = null
+    setDividerIndex(null)
+  })
 
   const onScrollAway = useCallback(
     (handle: ScrollBoxHandle) => {
@@ -345,6 +379,7 @@ export function FullscreenLayout({
   const centerFrame = cockpit
   const plan = railPlan(columns)
   const modalUp = modal !== undefined && modal !== null
+  const popupUp = useSyncExternalStore(subscribeModelPickerPopup, modelPickerPopupClaimed, modelPickerPopupClaimed) && modalUp
   const ink = useContext(InkInstanceContext)
   const covered = useContext(MotionParkContext)
   useInsertionEffect(() => {
@@ -507,7 +542,13 @@ export function FullscreenLayout({
   )
 
   const motionParked = modalUp && modalPeek === 0
-  const modalPane = modalUp ? (
+  const modalPane = popupUp ? (
+    <MotionParkContext.Provider value={false}>
+      <ModelPickerPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
+        {modal}
+      </ModelPickerPopupSlot>
+    </MotionParkContext.Provider>
+  ) : modalUp ? (
     <MotionParkContext.Provider value={false}>
       <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={Math.max(0, terminalRows - modalPeek)} flexDirection="column" overflow="hidden" opaque={true}>
         {blankClaims && <Box flexGrow={1} />}{modalSeparatorRows > 0 ? <Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box> : null}

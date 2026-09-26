@@ -8,6 +8,7 @@ prove-classify-tool-error.ts
 prove-command-domains.ts
 prove-command-palette.ts
 prove-composer-draft-survives-dispatch.ts
+prove-composer-persist-roads.ts
 prove-concourse-caret-vertical.ts
 prove-content-search.ts
 prove-ctx-forecast.ts
@@ -30,6 +31,7 @@ prove-helm-home.ts
 prove-helm-tasks-card.ts
 prove-hover-owner.ts
 prove-interaction-grammar.ts
+prove-jump-pill-shrink.ts
 prove-keydead-static.ts
 prove-lifecycle-teardown.ts
 prove-logins-copy-key-consumed.ts
@@ -67,4 +69,5 @@ prove-usage-error-humanized.ts
 prove-usage-limit-honesty.ts
 prove-visual-manifest.ts
 prove-width-oracle-sot.ts
+prove-model-picker-popup-frames.ts
 prove-agent-view-frames.ts

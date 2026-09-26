@@ -259,17 +259,17 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const both = marks.get('both-queued') ?? ''
     const drained = marks.get('drained') ?? fin
     const lineOf = (frame: string, re: RegExp): number => frame.split('\n').findIndex(l => re.test(l))
-    const queuedNotice = new RegExp(`queued\\s+${NOTICE_ROW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    const heldNotice = new RegExp(`held\\s+since \\d\\d:\\d\\d:\\d\\d ${NOTICE_ROW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
     const sentNotice = new RegExp(`\\d\\d:\\d\\d:\\d\\d ${NOTICE_ROW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
     const queuedWords = /queued\s+\[sam\] ❯ first queued words/
     const sentWords = /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/
-    section(`${label} — N1/N2: the crew notice paints queued when it arrives, above the words typed after it`)
+    section(`${label} — N1/N2: the crew notice paints held, since its arrival clock, above the words typed after it`)
     check(`${label}: vshot ran the notice journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
-    check(`${label}: the errand's notice painted QUEUED before the operator typed`, queuedNotice.test(arrived) && !/first queued words/.test(arrived), tail(arrived))
-    check(`${label}: the typed words paint QUEUED below the notice`, queuedNotice.test(both) && queuedWords.test(both) && lineOf(both, queuedNotice) < lineOf(both, queuedWords), tail(both))
+    check(`${label}: the errand's notice painted HELD since its arrival clock before the operator typed`, heldNotice.test(arrived) && !/first queued words/.test(arrived), tail(arrived))
+    check(`${label}: the typed words paint QUEUED below the held notice`, heldNotice.test(both) && queuedWords.test(both) && lineOf(both, heldNotice) < lineOf(both, queuedWords), tail(both))
     section(`${label} — N3/N4: the drain moves nothing`)
     check(`${label}: after the drain both rows wear clocks, the notice still above the words`, sentNotice.test(drained) && sentWords.test(drained) && lineOf(drained, sentNotice) < lineOf(drained, sentWords), tail(drained))
-    check(`${label}: no queued row survives the drain`, !/queued\s+(●|\[sam\])/.test(drained), tail(drained))
+    check(`${label}: no queued or held row survives the drain`, !/(queued|held)\s+(since \d\d:\d\d:\d\d )?(●|\[sam\])/.test(drained), tail(drained))
     check(`${label}: the reply landed and the turn is over (no esc clause on the strip)`, drained.includes(REPLY) && !/esc interrupts/.test(drained), tail(drained))
     const folded = calls.find(c => c.arm === 'launch-and-sleep' && (c as { step?: number }).step === 2)
     check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background agent completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))

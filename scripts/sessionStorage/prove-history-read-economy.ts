@@ -122,7 +122,8 @@ section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 
   check('the appended line is the newest line of the compacted file', newest.includes('after the compaction'), newest.slice(0, 80))
   check('the newest old line survived the rewrite', text.includes(`"big-${lastBig}"`), `looked for "big-${lastBig}" · tail: ${text.slice(-160).replace(/\n/g, ' ↵ ')}`)
   check('the oldest line is gone', !text.includes('"big-0"'), `head: ${text.slice(0, 80)}`)
-  check('the owner-only mode is kept through the rewrite', (statSync(filePath).mode & 0o777) === 0o600, (statSync(filePath).mode & 0o777).toString(8))
+  if (process.platform === 'win32') console.log('  [SKIP] the owner-only mode is kept through the rewrite — win32: NTFS keeps no POSIX mode bits (node reads 0o666 whatever the chmod); the mode on the rewrite rides the POSIX pool')
+  else check('the owner-only mode is kept through the rewrite', (statSync(filePath).mode & 0o777) === 0o600, (statSync(filePath).mode & 0o777).toString(8))
   check('the flush lock is released', !existsSync(`${filePath}.lock`))
   reset()
   const seen: string[] = []

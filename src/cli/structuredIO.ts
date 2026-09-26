@@ -28,8 +28,10 @@ import type {
   PermissionUpdate,
 } from '../types/permissions.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
+import { formatLimit, isDeadlineExceeded } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
+import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../utils/messages/rejectionText.js'
 import { stripBOM } from '../utils/jsonRead.js'
 import { executePermissionRequestHooks } from '../utils/hooks.js'
 import { logError } from '../utils/log.js'
@@ -48,6 +50,17 @@ import { Stream } from '../utils/stream.js'
 export const SANDBOX_NETWORK_ACCESS_TOOL_NAME = 'SandboxNetworkAccess'
 
 const RESOLVED_TOOL_USE_CAP = 1000
+
+export const PERMISSION_CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
+
+export function unansweredAskCause(reason: unknown): string | undefined {
+  if (reason === 'workflow-permission-timeout') return 'the permission ask timed out'
+  if (turnCutOf(reason).kind !== 'idle-timeout') return undefined
+  const limitMs = isDeadlineExceeded(reason) ? (reason as { limitMs?: unknown }).limitMs : undefined
+  return typeof limitMs === 'number' && Number.isFinite(limitMs) && limitMs > 0
+    ? `nobody answered within ${formatLimit(limitMs)}, the turn's no-progress limit`
+    : "nobody answered before the turn's no-progress timeout"
+}
 
 class AbortError extends Error {
   constructor(message = 'Request was aborted') {
@@ -369,9 +382,29 @@ export class StructuredIO {
     })
   }
 
+  denyPendingPermissionRequests(cause: string): number {
+    let settled = 0
+    for (const [requestId, envelope] of [...this.#pendingCanUseTool]) {
+      const pending = this.#pending.get(requestId)
+      if (pending === undefined) continue
+      const toolName = (envelope.request as { tool_name?: unknown }).tool_name
+      this.outbound.enqueue({ type: 'control_cancel_request', request_id: requestId })
+      if (pending.toolUseID !== undefined) this.#resolvedToolUses.add(pending.toolUseID)
+      pending.resolve({
+        behavior: 'deny',
+        message: UNANSWERED_ASK_REJECT_MESSAGE(typeof toolName === 'string' && toolName !== '' ? toolName : 'the tool', cause),
+      })
+      this.#onControlRequestResolved?.(requestId)
+      pending.cleanup()
+      settled++
+    }
+    return settled
+  }
+
   #closeInput(): void {
     if (this.#inputClosed) return
     this.#inputClosed = true
+    this.denyPendingPermissionRequests(PERMISSION_CHANNEL_CLOSED_CAUSE)
     for (const [requestId, pending] of [...this.#pending]) {
       pending.reject(
         new Error(
@@ -461,7 +494,7 @@ export class StructuredIO {
       const requestId = randomUUID()
       const parentSignal = toolUseContext.abortController.signal
       const requestController = new AbortController()
-      const forwardParentAbort = (): void => requestController.abort()
+      const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
       parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
       try {
         const engineResult = (forceDecision ??
@@ -602,6 +635,15 @@ export class StructuredIO {
           toolUseContext,
         )
       } catch (error) {
+        const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
+        if (unanswered !== undefined) {
+          return this.#convertHostPermissionResult(
+            { behavior: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) },
+            tool as Tool,
+            input,
+            toolUseContext,
+          )
+        }
         return {
           behavior: 'deny',
           message: `Tool permission request failed: ${error instanceof Error ? error.message : String(error)}`,
