@@ -331,6 +331,10 @@ while True:
                 send_redraw_snapshot = snapshot
                 send_redraw_tick = tick
             due = send_redraw_count >= redraws
+        if nxt.get("awaitPattern") and not re.search(nxt["awaitPattern"], grid_text()):
+            due = False
+            send_await_seen_tick = None
+            send_stable_run = 0
         send_payload = None
         if due:
             if nxt.get("signal"):

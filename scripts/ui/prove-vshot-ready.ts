@@ -211,6 +211,19 @@ console.log('════ vshot observed-ready laws ════')
   )
 }
 
+{
+  const awaitPattern = String.raw`\A[^\n]*╭─+╮(?=[\s\S]*POPUP-READY)(?=[\s\S]*\n│[❯›][^\n]*│(?: *\n| *\Z))`
+  const send = { atTick: 1, awaitText: 'POPUP-READY', awaitPattern, requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'popup' }
+  for (const missing of ['first row', 'composer row']) {
+    const initial = `\x1b[2J\x1b[H${missing === 'first row' ? '' : '╭────────╮'}\x1b[3;1HPOPUP-READY${missing === 'composer row' ? '' : '\x1b[7;1H│❯ message atlas │'}`
+    const c = capture({ total: 6, sends: [send], argv: ['python3', '-u', '-c', `import time;print(${JSON.stringify(initial)},end='',flush=True);time.sleep(60)`] })
+    check(`12. FRAME: a popup without its ${missing} never satisfies the sample gate`, c.status === 4 && (c.payload.sendReceipts ?? []).length === 0, `status=${c.status} receipts=${JSON.stringify(c.payload.sendReceipts)}`)
+  }
+  const initial = '\x1b[2J\x1b[H╭────────╮\x1b[3;1HPOPUP-READY'
+  const c = capture({ total: 20, readyText: 'POPUP-READY', sends: [send], argv: ['python3', '-u', '-c', `import time;print(${JSON.stringify(initial)},end='',flush=True);time.sleep(0.8);print('\\x1b[7;1H│❯ message atlas │',end='',flush=True);time.sleep(60)`] })
+  check('12. FRAME: the sample waits until popup, first row and composer coexist', c.status === 0 && c.payload.sendReceipts?.length === 1 && c.payload.sendReceipts[0]!.atTick >= 6, `status=${c.status} receipts=${JSON.stringify(c.payload.sendReceipts)}`)
+}
+
 rmSync(work, { recursive: true, force: true })
 if (failures === 0) {
   console.log(' ✅ VSHOT OBSERVED-READY GREEN')
