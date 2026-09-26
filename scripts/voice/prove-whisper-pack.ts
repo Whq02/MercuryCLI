@@ -385,12 +385,12 @@ if (load.state === 'ok') {
     const held = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
     check('a decode is held', transcribe.localDecodesInFlight() === 1)
     let outcome = await voiceSession.toggleVoiceCapture()
-    check('space refuses a new take while the engine is held, naming the wait and the cloud door, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
+    check('a start refuses a new take while the engine is held, naming the wait and the cloud door, and stays idle', outcome.kind === 'refused' && outcome.text === voiceSession.ENGINE_BUSY_RECEIPT && voiceSession.voiceSnapshot().phase === 'idle', JSON.stringify(outcome))
     await held
     await transcribe.transcribeWav(fixture, { choice })
     check('the engine is free once the held decode ends', transcribe.localDecodesInFlight() === 0)
     outcome = await voiceSession.toggleVoiceCapture()
-    check('…and space opens a take again', outcome.kind === 'started', JSON.stringify(outcome))
+    check('…and a start opens a take again', outcome.kind === 'started', JSON.stringify(outcome))
     voiceSession.cancelVoiceCapture()
     voiceSession.setVoiceInputEnabled(false)
     delete process.env.MERCURY_VOICE_BACKEND
