@@ -9,7 +9,7 @@
 # gate-watch: src/hooks/fileSuggestions.ts src/hooks/useTypeahead.tsx src/utils/suggestions/directoryCompletion.ts
 # gate-watch: src/hooks/useHistorySearch.ts
 # gate-watch: src/components/ScrollKeybindingHandler.tsx src/components/MercuryModelPicker.tsx
-# gate-watch: src/utils/tabula/** src/components/HelmLanesRail.tsx
+# gate-watch: src/components/HelmLanesRail.tsx
 # gate-watch: scripts/lib/* scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/commands.ts
 # gate-watch: src/daemon/controlSocket.ts src/hooks/useTextInput.ts src/ink/session/capabilities.ts
 # gate-watch: src/services/crew/obligations.ts src/utils/config/globalConfig.ts src/utils/cwd.ts

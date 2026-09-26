@@ -146,7 +146,7 @@ for (const legName of LEGS) {
         MERCURY_HUGGINGFACE_API_BASE: `${base}/hf/v1`, MERCURY_HUGGINGFACE_HUB_BASE: DEAD,
         MERCURY_LOCAL_PROBE_TARGETS: leg.families.includes('local') ? `ollama=${base}/ollama` : 'none',
         MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
-        MERCURY_TABULA_DIR: join(home, 'tabula'), MERCURY_HOME: join(home, 'proof-home'),
+        MERCURY_HOME: join(home, 'proof-home'),
         MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
         MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0',
         MERCURY_CRITTER: 'clam', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',

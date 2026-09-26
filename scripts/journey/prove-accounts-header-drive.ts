@@ -219,7 +219,6 @@ async function runBoard(): Promise<{ payload: Payload | null; status: number | n
     MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
-    MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
     BROWSER: '/usr/bin/true',
   }
   for (const key of [

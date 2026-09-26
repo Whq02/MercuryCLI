@@ -14,7 +14,6 @@ import { dynamicWorkflowsEnabled } from '../../tools/WorkflowTool/workflowEnable
 import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
-import { isTabulaEnabled } from '../tabula/tabulaGates.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function harnessMapEnabled(): boolean {
@@ -88,9 +87,6 @@ export function computeHarnessMapLines(): string[] {
     '- Provider-API reference: invoke the bundled provider-apis skill for request shapes, streaming, tool calls and caching. Model currency is covered by the model-currency instruction.',
     isAutoMemoryEnabled() || experienceCardsEnabled()
       ? '- Experience cards: /cards reviews the durable lessons in memory.'
-      : null,
-    isTabulaEnabled()
-      ? '- Project notepad (TABULA): /note <text> captures a note for this project into a notepad file under the config home. Notes survive /clear — prefer them for cross-session reminders.'
       : null,
     dynamicWorkflowsEnabled()
       ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'

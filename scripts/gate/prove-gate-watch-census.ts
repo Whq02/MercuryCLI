@@ -46,6 +46,7 @@ export const WHOLE_TREE: Record<string, string> = {
   ui: 'prove-terminal-handback and prove-tty-suspend walk src (terminal owners)',
   'ui-2': 'prove-vshot-send-hygiene walks scripts (vshot sends)',
   'ui-pure-1': 'prove-branch-chip walks src (chip owners)',
+  'ui-pure-2': 'prove-notepad-retired walks src (retired module absence)',
   'ui-pure-3': 'prove-no-new-hex walks src (hex colours); prove-width-oracle-sot walks src (width oracles)',
   verify: 'prove-impact-manifest loads every runner under scripts and reads git ls-files; a whole-tree ratchet owed by every fold',
   'visual-contract': 'prove-focal-ramp walks src (focal ramps)',

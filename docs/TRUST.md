@@ -59,11 +59,12 @@ Until trust is granted in an interactive session:
 
 ## Commands that never reach the model
 
-`/note`, `/remember`, and — when the Taste Loop is on — `/good`
+`/remember` and — when the Taste Loop is on — `/good`
 and `/meh` are user-private: the line runs on the screen alone, on every
 seat — it never enters the session's conversation,
 never starts a turn, and never rides the wire of a later turn; it lands in the
-project notepad or the memory estate and nothing else sees it. The dispatch rule folds a
+memory estate. A saved lesson can later be recalled as memory, but the command
+itself is never a conversation row. The dispatch rule folds a
 user-private command into the screen seat, so a session runner's table never
 carries it. `/halt` sits on the
 same seat: the screen's brake fires interrupt-first, acting while a turn runs,

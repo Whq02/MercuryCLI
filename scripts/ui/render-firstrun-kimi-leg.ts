@@ -126,7 +126,6 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
   MERCURY_TEAMS_DIR: join(home, 'teams'),
-  MERCURY_TABULA_DIR: join(home, 'tabula'),
   MERCURY_HOME: join(home, 'proof-home'),
   ANTHROPIC_BASE_URL: DEAD,
   MERCURY_OPENAI_API_BASE: DEAD,

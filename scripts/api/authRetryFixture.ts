@@ -94,7 +94,7 @@ export async function authWorld(arm: Arm, retryAfter = '0.001') {
     TERM: 'xterm-256color', COLORTERM: 'truecolor', LANG: 'en_US.UTF-8',
     MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'), MERCURY_HOME: join(home, 'proof-home'),
+    MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
     MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_TURN_RECEIPT: '0', MERCURY_VERIFY_EVIDENCE: '0',

@@ -7,9 +7,8 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'effort-seat-drive-'))
 const daemonDir = join(SCRATCH, 'daemon')
-const tabulaDir = join(SCRATCH, 'tabula')
 const work = join(SCRATCH, 'work-effort')
-for (const d of [daemonDir, tabulaDir, work]) mkdirSync(d, { recursive: true })
+for (const d of [daemonDir, work]) mkdirSync(d, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_MODEL
@@ -59,7 +58,6 @@ const spawnDaemon = (configHome: string): void => {
       ...fixture.env,
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_DAEMON_DIR: daemonDir,
-      MERCURY_TABULA_DIR: tabulaDir,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
       MERCURY_TERMINAL_TITLE: '0',
@@ -129,7 +127,6 @@ const run = await runArtifactArena({
     ...fixture.env,
     MERCURY_CONCOURSE: 'always',
     MERCURY_DAEMON_DIR: daemonDir,
-    MERCURY_TABULA_DIR: tabulaDir,
     MERCURY_CACHE_CLOCK: '0',
   },
 })

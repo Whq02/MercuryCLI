@@ -134,7 +134,6 @@ async function capture(): Promise<Capture> {
       MERCURY_SKIP_PERMISSIONS: '1',
       MERCURY_DAEMON_DIR: join(HOME, 'daemon'),
       MERCURY_TEAMS_DIR: join(HOME, 'teams'),
-      MERCURY_TABULA_DIR: join(HOME, 'tabula'),
       MERCURY_TERMINAL_TITLE: '0',
       ANTHROPIC_API_KEY: 'fixture-key-000',
       ANTHROPIC_BASE_URL: api.url,

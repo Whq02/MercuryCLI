@@ -81,7 +81,6 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     MERCURY_DAEMON_DIR: SCRATCH('daemon'),
     MERCURY_TEAMS_DIR: SCRATCH('teams'),
-    MERCURY_TABULA_DIR: SCRATCH('tabula'),
     MERCURY_HOME: SCRATCH('home'),
     VISUAL: '',
     EDITOR: '',

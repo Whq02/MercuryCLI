@@ -1321,7 +1321,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
   process.env.MERCURY_TEAMS_DIR = join(tmpdir(), `mercury-render-teams-${process.pid}`)
   process.env.MERCURY_CREW_DIR = join(tmpdir(), `mercury-render-crew-${process.pid}`)
-  process.env.MERCURY_TABULA_DIR = join(tmpdir(), `mercury-render-tabula-${process.pid}`)
   process.env.MERCURY_TURN_RECEIPT = '0'
   process.env.MERCURY_VERIFY_EVIDENCE = process.env.MERCURY_VERIFY_EVIDENCE ?? '0'
   process.env.MERCURY_HOME = join(tmpdir(), `mercury-render-home-${process.pid}`)
@@ -4269,7 +4268,7 @@ export function cleanupScenario(name: string): void {
   if (name === 'cockpit-console' || name === 'tasks-mission') {
     cleanupMissionLedgerFixture()
   }
-  for (const store of ['tabula', 'daemon', 'crew', 'teams', 'doctor']) {
+  for (const store of ['daemon', 'crew', 'teams', 'doctor']) {
     try {
       rmSync(join(tmpdir(), `mercury-render-${store}-${process.pid}`), { recursive: true, force: true })
     } catch {

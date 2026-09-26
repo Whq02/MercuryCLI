@@ -344,7 +344,7 @@ function crewBox(lines: string[], railCols: number): { header: string; rows: str
   const rows: string[] = []
   for (let y = headerRow + 1; y < lines.length; y++) {
     const text = railText(lines[y]!, railCols)
-    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(WORK|RUNS|TABULA|WORKBENCH|FILES|SATURN|RECENT|MISSION|NEXT|SEAT)\b/.test(text.replace(/[│]/g, '│'))) break
+    if (/[╰╭]/.test(text) || /^│\s*[▤◐◆◉✶◇○◌·]?\s*(WORK|RUNS|WORKBENCH|FILES|SATURN|RECENT|MISSION|NEXT|SEAT)\b/.test(text.replace(/[│]/g, '│'))) break
     const bare = text.replace(/[│]/g, '').trim()
     if (bare === '') break
     rows.push(bare)

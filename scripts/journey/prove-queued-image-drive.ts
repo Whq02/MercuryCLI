@@ -111,7 +111,6 @@ const childEnv: Record<string, string> = {
   MERCURY_CONFIG_DIR: HOME,
   MERCURY_DAEMON_DIR: DAEMON_DIR,
   MERCURY_TEAMS_DIR: join(SCRATCH, 'teams'),
-  MERCURY_TABULA_DIR: join(SCRATCH, 'tabula'),
   MERCURY_HOME: join(SCRATCH, 'proof-home'),
   ANTHROPIC_API_KEY: FIXTURE_API_KEY,
   ANTHROPIC_BASE_URL: api.url,

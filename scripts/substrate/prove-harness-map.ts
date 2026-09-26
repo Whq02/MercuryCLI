@@ -8,13 +8,11 @@ import { join } from 'node:path'
 
 const saved = {
   map: process.env.MERCURY_HARNESS_MAP,
-  tabula: process.env.MERCURY_TABULA,
   workflows: process.env.MERCURY_WORKFLOWS,
   godot: process.env.MERCURY_GODOT,
   mneme: process.env.MERCURY_MNEME,
 }
 delete process.env.MERCURY_HARNESS_MAP
-delete process.env.MERCURY_TABULA
 delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
 delete process.env.MERCURY_MNEME
@@ -37,7 +35,7 @@ check('header present', on !== null && on.startsWith('# Mercury harness map'))
 check('names the native identity', on !== null && on.includes('natively inside Mercury'))
 check('routes discovery to /capabilities', on !== null && on.includes('/capabilities'))
 check('routes provider-API work to the bundled provider-apis skill (task #9)', on !== null && on.includes('provider-apis'))
-check('TABULA advertised when its gate is ON', on !== null && on.includes('/note'))
+check('the retired notepad is not advertised', on !== null && !on.includes('/note'))
 check(
   'no exhortation drift: single # header only',
   on !== null && on.split('\n').filter(l => l.startsWith('# ')).length === 1,
@@ -68,12 +66,12 @@ check('=0 ⇒ null section', getHarnessMapSection() === null)
 delete process.env.MERCURY_HARNESS_MAP
 
 resetHarnessMapForTest()
-process.env.MERCURY_TABULA = '0'
+process.env.MERCURY_WORKFLOWS = '0'
 const partial = getHarnessMapSection()
 check('map still present with some gates off', partial !== null)
-check('TABULA line dropped when MERCURY_TABULA=0', partial !== null && !partial.includes('/note'))
+check('workflow line dropped when MERCURY_WORKFLOWS=0', partial !== null && !partial.includes('Deterministic multi-agent orchestration'))
 check('missing-surface disclaimer present', partial !== null && partial.includes('gated off in this boot'))
-delete process.env.MERCURY_TABULA
+delete process.env.MERCURY_WORKFLOWS
 
 {
   resetHarnessMapForTest()
@@ -159,7 +157,6 @@ check('flagRegistry row present exactly once', rowCount === 1, `count=${rowCount
 
 for (const [k, v] of Object.entries({
   MERCURY_HARNESS_MAP: saved.map,
-  MERCURY_TABULA: saved.tabula,
   MERCURY_WORKFLOWS: saved.workflows,
   MERCURY_GODOT: saved.godot,
   MERCURY_MNEME: saved.mneme,

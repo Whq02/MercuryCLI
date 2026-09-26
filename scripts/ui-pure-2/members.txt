@@ -33,6 +33,7 @@ prove-logins-key-lines.ts
 prove-markdown-marker-gate.ts
 prove-model-picker-layout.ts
 prove-no-emoji.ts
+prove-notepad-retired.ts
 prove-open-event-gate.ts
 prove-panel-dismissal.ts
 prove-project-onboarding-renders.ts

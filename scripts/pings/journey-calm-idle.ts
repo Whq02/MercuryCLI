@@ -222,7 +222,6 @@ function drive(cols: number, rows: number): void {
     MERCURY_DOCTOR_STATE_DIR: join(aux, 'doctor'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
     MERCURY_TEAMS_DIR: join(aux, 'teams'),
-    MERCURY_TABULA_DIR: join(aux, 'tabula'),
     VSHOT_TEE: teePath,
     NODE_OPTIONS: `--require ${TRIPWIRE}`,
   }
