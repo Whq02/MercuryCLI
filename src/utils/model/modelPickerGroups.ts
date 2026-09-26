@@ -1,3 +1,6 @@
+import { stringWidth } from '../../ink/stringWidth.js'
+import { truncateToWidth } from '../truncate.js'
+
 export type CatalogueDoorFacet = { group: string; family: string; total: number; open?: boolean }
 
 export type PickerRow = {
@@ -240,34 +243,47 @@ export function providerNameOfGroup(group: string): string {
   return inner.toUpperCase()
 }
 
+const WORD_GAP = ' · '
+
+function joinWithinWidth(parts: readonly string[], accountAt: number, width: number | undefined): string {
+  const whole = parts.join(WORD_GAP)
+  if (width === undefined || accountAt < 0 || stringWidth(whole) <= width) return whole
+  const rest = parts.filter((_, index) => index !== accountAt)
+  const budget = width - stringWidth(rest.join(WORD_GAP)) - WORD_GAP.length
+  if (budget < 2) return rest.join(WORD_GAP)
+  return parts.map((part, index) => (index === accountAt ? truncateToWidth(part, budget) : part)).join(WORD_GAP)
+}
+
 export function headingWords(
   heading: ProviderHeading | undefined,
   group: string,
   counts: { live: number; matched?: number; total?: number },
+  width?: number,
 ): string {
   const name = heading?.name ?? providerNameOfGroup(group)
   const count = countWords(counts.live, counts.matched, counts.total)
   if (heading === undefined) return counts.live === 0 && counts.matched === undefined ? name : `${name} · ${count}`
   const parts = [name]
+  let accountAt = -1
   if (heading.doors.length === 1) {
     const [door] = heading.doors
     parts.push(door!.door)
-    if (door!.account !== undefined) parts.push(door!.account)
+    if (door!.account !== undefined) accountAt = parts.push(door!.account) - 1
   } else if (heading.doors.length >= 2) {
     parts.push(heading.doors.map(door => door.door).join(' + '))
   }
   if (heading.reason !== undefined) parts.push(heading.reason)
   if (heading.reason === undefined || counts.live > 0 || counts.matched !== undefined) parts.push(count)
   if (heading.note !== undefined) parts.push(heading.note)
-  return parts.join(' · ')
+  return joinWithinWidth(parts, accountAt, width)
 }
 
-export function doorWords(door: ProviderDoor, counts: { live: number; matched?: number; total?: number }): string {
+export function doorWords(door: ProviderDoor, counts: { live: number; matched?: number; total?: number }, width?: number): string {
   const parts = [door.door]
-  if (door.account !== undefined) parts.push(door.account)
+  const accountAt = door.account === undefined ? -1 : parts.push(door.account) - 1
   parts.push(countWords(counts.live, counts.matched, counts.total))
   if (door.active === true) parts.push('active')
-  return parts.join(' · ')
+  return joinWithinWidth(parts, accountAt, width)
 }
 
 export type PickerColumns = { alias: number; id: number; state: number; ctx: number; tail: number }
