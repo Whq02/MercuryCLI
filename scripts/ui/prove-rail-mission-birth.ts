@@ -54,7 +54,7 @@ const cfg = {
   sends: [
     { requireAwait: true, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, data: '\r', mark: 'face' },
     { requireAwait: true, awaitText: 'Type a prompt', minTick: 4, awaitSettleTicks: 2, data: '', mark: 'composer' },
-    { requireAwait: true, awaitText: ' work \u00b7 ready', minTick: 1, awaitSettleTicks: 3, data: `/mission ${MISSION}\r`, mark: 'sent' },
+    { requireAwait: true, awaitText: ' ready \u00b7 ', minTick: 1, awaitSettleTicks: 3, data: `/mission ${MISSION}\r`, mark: 'sent' },
     { afterPrevTicks: 1, data: '', mark: 'plus1' },
     { afterPrevTicks: BUDGET_TICKS - 1, data: '', mark: 'budget' },
     { afterPrevTicks: 40 - BUDGET_TICKS, data: '', mark: 'plus40' },
@@ -96,7 +96,7 @@ if (res.status === 0 && existsSync(out) && !undelivered) {
   const plus40 = mark('plus40')
   const afterTab = mark('after-tab')
   for (const m of [sent, plus1, budget, plus40, afterTab]) if (m) writeFileSync(join(SCRATCH, `${m.label}.txt`), `${textOf(m.grid)}\n`)
-  check('the seat was ready before the command (the hosted chat held the slot, so the mission arms under its id)', sent !== undefined && textOf(sent.grid).includes(' work \u00b7 ready'), sent ? textOf(sent.grid).split('\n').filter(l => l.includes('work')).join(' | ') : 'no mark')
+  check('the seat was ready before the command (the hosted chat held the slot, so the mission arms under its id)', sent !== undefined && textOf(sent.grid).includes(' ready \u00b7 '), sent ? textOf(sent.grid).split('\n').filter(l => l.includes('work')).join(' | ') : 'no mark')
   check('the mission command was taken (its result row paints)', sent !== undefined && budget !== undefined && textOf(budget.grid).includes(`Mission set: ${MISSION}`), budget ? textOf(budget.grid).split('\n').filter(l => l.includes('Mission')).join(' | ') : 'no mark')
   check(`the MISSION card paints within the rail's own repaint budget (${BUDGET_TICKS} ticks after /mission) with no other input`, budget !== undefined && missionRow(budget.grid) !== null, budget ? `no "\u25c6 ${MISSION}" row at tick ${budget.atTick}` : 'no mark')
   check('…and stands 40 ticks later', plus40 !== undefined && missionRow(plus40.grid) !== null, plus40 ? `absent at tick ${plus40.atTick}` : 'no mark')

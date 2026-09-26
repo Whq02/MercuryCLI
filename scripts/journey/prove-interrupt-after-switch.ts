@@ -103,7 +103,7 @@ const cfg = {
     { atTick: 80, minTick: 20, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello sol\r', mark: 'hello-sent' },
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
     { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
-    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: `${LONG_THINK_ASK}\r`, mark: 'think-sent' },
+    { atTick: 260, minTick: 10, awaitText: 'ready · Opus 5 ·', requireAwait: true, awaitSettleTicks: 2, data: `${LONG_THINK_ASK}\r`, mark: 'think-sent' },
     { afterPrevTicks: 20, atTick: 320, data: '\x1b', mark: 'esc-sent' },
   ],
   readyText: ['Interrupted'],
@@ -172,7 +172,7 @@ section('L1 — the GPT leg ran and the switch applied on the real binary')
   check('the Responses fixture served the GPT turn', gptCalls.length >= 1, `openai calls=${gptCalls.length} vshot status=${res.status} hits=${wire.map(c => `${c.kind}:${c.url ?? ''}`).join('|') || 'NONE'}`)
   check('the switch send fired on its await, not its deadline (the GPT reply painted)', (receipts[2]?.atTick ?? 999) < 120, `switch-sent at tick ${receipts[2]?.atTick}`)
   check('the confirm fired on its await (the preview card painted and settled)', (receipts[3]?.atTick ?? 999) < 180, `confirm at tick ${receipts[3]?.atTick}`)
-  check("the think ask fired on its await (the chip repainted 'Opus 5 · ●' — the switch applied)", (receipts[4]?.atTick ?? 999) < 250, `think-sent at tick ${receipts[4]?.atTick}`)
+  check("the think ask fired on its await (the status row rested on 'ready · Opus 5 ·' — the switch applied)", (receipts[4]?.atTick ?? 999) < 250, `think-sent at tick ${receipts[4]?.atTick}`)
   check('the esc was sent after the ask', escAt > thinkAt && thinkAt > 0, `think ${thinkAt} esc ${escAt}`)
 }
 

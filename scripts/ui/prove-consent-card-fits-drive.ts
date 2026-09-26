@@ -32,6 +32,7 @@ function section(t: string): void {
 const CTRL_F = '\\x06'
 const RESIZE_AT = 15000
 const CHORD_AFTER_RESIZE = [17500, 20000]
+const CARD_NOMINAL_MS = 8000
 
 const paragraph = (i: number): string => {
   let s = `Paragraph ${String(i + 1).padStart(2, '0')} of the handoff: `
@@ -169,6 +170,7 @@ for (const scene of SCENES) {
       ...CHORD_AFTER_RESIZE.map(at => `${at}:${CTRL_F}`),
     ],
     resizes: [`${RESIZE_AT}:120:40`],
+    anchor: { needle: scene.needle, atMs: CARD_NOMINAL_MS },
     seconds: 24,
     keep: true,
   })

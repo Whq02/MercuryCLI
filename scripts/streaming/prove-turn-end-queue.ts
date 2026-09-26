@@ -134,8 +134,9 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const noticeSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${NOTICE_ASK}\r` },
-      { requireAwait: true, minTick: 10, awaitText: 'sleep 12', awaitSettleTicks: 15, data: `${FIRST}\r`, mark: 'notice-queued' },
-      { afterPrevTicks: 8, data: '', mark: 'both-queued' },
+      { requireAwait: true, minTick: 10, awaitText: 'sleep 12', awaitSettleTicks: 2, data: '' },
+      { requireAwait: true, minTick: 2, awaitText: NOTICE_ROW, awaitSettleTicks: 2, data: `${FIRST}\r`, mark: 'notice-queued' },
+      { requireAwait: true, minTick: 1, awaitText: `[sam] ❯ ${FIRST}`, awaitSettleTicks: 2, data: '', mark: 'both-queued' },
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'drained' },
   ]
   const cfg = {
@@ -368,8 +369,9 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   check(`${label}: exactly one hold`, holds.length === 1, JSON.stringify(holds))
   check(`${label}: the ask was issued once — never a reissue`, calls.filter(c => c.arm === 'hold-after-settle').length === 1 && !calls.some(c => /dropped mid-response|Pick up exactly/.test(c.ask ?? '')), JSON.stringify(calls.map(c => [c.n, c.arm, c.ask?.slice(0, 40)])))
   const held = holds[0]
-  const drained = calls.find(c => (c.ask ?? '').includes(FIRST))
-  check(`${label}: the second call carries both queued messages`, drained !== undefined && (drained.ask ?? '').includes(FIRST) && (drained.ask ?? '').includes(SECOND), drained?.ask)
+  const carriedBy = (c: Wire): string[] => [...((c as { carries?: string[] }).carries ?? []), c.ask ?? '']
+  const drained = calls.find(c => carriedBy(c).some(t => t.includes(FIRST)))
+  check(`${label}: the second call carries both queued messages`, drained !== undefined && [FIRST, SECOND].every(w => carriedBy(drained).some(t => t.includes(w))), JSON.stringify(drained === undefined ? calls.map(c => [c.n, c.arm, carriedBy(c)]) : carriedBy(drained)))
   const gap = held !== undefined && drained !== undefined ? drained.at - held.at : -1
   check(`${label}: the drain came at the budget with no keystroke`, gap >= BUDGET_MS - 200 && gap <= BUDGET_MS + 6_000, `gap=${gap}ms budget=${BUDGET_MS}ms`)
 

@@ -105,7 +105,7 @@ const run = await runArtifactArena({
   rows: 40,
   keep: true,
   seedHome: async (configDir, cwd) => {
-    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ model: SCREEN_MODEL_SETTING }))
+    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ model: SCREEN_MODEL_SETTING, sessionsBar: true }))
     seedFirstRun(configDir, [cwd, work])
     spawnDaemon(configDir)
     check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000))
@@ -170,7 +170,7 @@ try {
   const stripRows = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞'))
   check(`P2 the strip's effort chip is the SESSION's word (${SEAT_MODEL_LABEL} · … ${SEAT_EFFORT})`, stripRows.length > 0 && stripRows.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), stripRows[0] ?? '')
 
-  const statusFrames = distinct.filter(f => f.text.includes('Mercury — status'))
+  const statusFrames = distinct.filter(f => f.text.includes('Mercury · status'))
   check('P3 the status dashboard painted', statusFrames.length > 0)
   const sessionRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => /│\s+Session\s{2,}/.test(r)))
   check(`P3 the dashboard's Session row names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))

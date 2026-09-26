@@ -148,7 +148,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
         ]
       : [{ data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-running' }]),
     { data: 'x', atTick: 999, awaitText: 'x again within', requireAwait: true, minTick: 1, awaitSettleTicks: 1, mark: 'armed' },
-    { data: '\x1b', afterPrevTicks: 7, mark: 'crew-after' },
+    { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
     ...(name === 'card' ? [{ data: '\x1b', afterPrevTicks: 3, mark: 'list-after' }] : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     { data: '\r', afterPrevTicks: 4 },

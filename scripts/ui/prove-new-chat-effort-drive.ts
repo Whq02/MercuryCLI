@@ -55,7 +55,7 @@ for (const world of worlds) {
   writeFileSync(join(home, 'settings.json'), JSON.stringify(world.saved === null ? {} : { effortLevel: world.saved }))
   const out = join(SCRATCH, world.tag, 'grid.json')
   const full = world.cols >= 100 && world.rows >= 26
-  const bornNeedle = full ? ' work \u00b7 ready' : '1 session on'
+  const bornNeedle = full ? ' ready \u00b7 ' : '1 session on'
   const stripPrompt = 'hello from the strip'
   const cfg = {
     argv: ['node', DIST],

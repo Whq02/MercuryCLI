@@ -102,11 +102,11 @@ const cfg = {
   cwd: FIXTURE_CWD,
   sends: [
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 80, minTick: 20, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello sol\r' },
+    { atTick: 80, minTick: 20, awaitText: 'Type a prompt', awaitStableTicks: 3, awaitSettleTicks: 2, data: 'hello sol\r' },
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
     { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
-    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: `${SLOW_INGEST_ASK}\r`, mark: 'ask-sent' },
-    { atTick: 330, minTick: 2, awaitText: 'ingesting a', data: '', mark: 'wait-seen' },
+    { atTick: 260, minTick: 10, awaitText: 'ready · Opus 5 ·', requireAwait: true, awaitSettleTicks: 2, data: `${SLOW_INGEST_ASK}\r`, mark: 'ask-sent' },
+    { atTick: 330, minTick: 2, awaitText: 'ingesting a', awaitSettleTicks: 2, data: '', mark: 'wait-seen' },
   ],
   readyText: [OPUS_REPLY],
   stableTicks: 4,
@@ -171,7 +171,7 @@ section('L1 — the GPT leg ran and the switch applied on the real binary')
   check('the Responses fixture served the GPT turn', wire.some(c => c.kind === 'openai'), `vshot status=${res.status} hits=${wire.map(c => c.kind).join('|') || 'NONE'}`)
   check('the switch send fired on its await (the GPT reply painted)', (receipts[2]?.atTick ?? 999) < 120, `tick ${receipts[2]?.atTick}`)
   check('the confirm fired on its await (the preview card painted and settled)', (receipts[3]?.atTick ?? 999) < 180, `tick ${receipts[3]?.atTick}`)
-  check("the ask fired on its await (the chip repainted 'Opus 5 · ●')", (receipts[4]?.atTick ?? 999) < 250, `tick ${receipts[4]?.atTick}`)
+  check("the ask fired on its await (the status row rested on 'ready · Opus 5 ·')", (receipts[4]?.atTick ?? 999) < 250, `tick ${receipts[4]?.atTick}`)
 }
 
 section('L2 — THE WAIT IS SPOKEN while the Opus headers are held')

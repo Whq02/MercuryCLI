@@ -58,7 +58,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOO, OTHER, GAMMA_MERC])
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const WARM_TICKS = 25
 const TOLERATED_PROJECT_KEYS = new Set(['hasTrustDialogAccepted', 'hasCompletedProjectOnboarding', 'exampleFiles', 'exampleFilesGeneratedAt', 'permissionPosture'])
