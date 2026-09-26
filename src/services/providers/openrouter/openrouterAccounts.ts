@@ -40,6 +40,7 @@ export interface OpenrouterMintedKey {
   key: string
   mintedAtMs: number
   label?: string
+  expiredMessage?: string
 }
 
 interface OpenrouterAuthFile {
@@ -97,6 +98,16 @@ export function disconnectOpenrouterOauthKey(): void {
   })
 }
 
+export function markOpenrouterMintedKeyExpired(expected: OpenrouterMintedKey, message: string): boolean {
+  const current = readMintedOpenrouterKey()
+  if (current?.key !== expected.key || current.mintedAtMs !== expected.mintedAtMs) return false
+  writeAuthFile(file => ({
+    ...file,
+    minted: { ...current, expiredMessage: message || 'API key expired' },
+  }))
+  return true
+}
+
 
 export type OpenrouterKeySource = 'env' | 'oauth' | 'stored'
 
@@ -113,7 +124,7 @@ export function resolveOpenrouterApiKey(
   const envKey = env.OPENROUTER_API_KEY?.trim()
   if (envKey) return { key: envKey, source: 'env' }
   const minted = readMintedOpenrouterKey()
-  if (minted) return { key: minted.key, source: 'oauth' }
+  if (minted && !minted.expiredMessage) return { key: minted.key, source: 'oauth' }
   const stored = readStoredOpenrouterApiKey()
   return stored ? { key: stored, source: 'stored' } : undefined
 }

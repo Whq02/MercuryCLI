@@ -23,6 +23,7 @@ import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctx
 import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
 import { scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { providerIdentityLine } from '../services/providers/providerIdentityLine.js'
+import { openrouterSlots } from '../services/providers/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
@@ -259,7 +260,24 @@ function HelmTelemetryRailImpl({
       </Text>
     </Box>,
   )
+  const appendOpenrouterSlots = (source: ActiveSourceUsage, key: string): void => {
+    if (source.provider !== 'openrouter') return
+    for (const slot of openrouterSlots()) {
+      const lines = [
+        `${slot.kindLabel}${slot.active ? ' · active' : ''}`,
+        ...(slot.stateNote ? [slot.stateNote] : []),
+      ]
+      for (const [index, line] of lines.flatMap(text => wrapPlain(text, rowW - 2)).entries()) {
+        usageNodes.push(
+          <Box key={`${key}:${slot.id}:${index}`} width={rowW} height={1}>
+            <Text color={tok.textMuted}>{`  ${line}`}</Text>
+          </Box>,
+        )
+      }
+    }
+  }
   identityLine(usage, 'usage:account')
+  appendOpenrouterSlots(usage, 'usage:slots')
   if (usage.provider === 'zai' && usage.absence !== undefined) {
     for (const [index, line] of wrapPlain(usage.absence, rowW - 2).entries()) {
       usageNodes.push(
@@ -287,13 +305,23 @@ function HelmTelemetryRailImpl({
     )
     const credits = usageCreditsLine(usage.credits, now, 'compact')
     if (credits !== undefined) {
-      usageNodes.push(
-        <Box key="usage:credits" width={rowW}>
-          <Text wrap="truncate-end">
-            <Text color={tok.textMuted}>{`  ${credits}`}</Text>
-          </Text>
-        </Box>,
-      )
+      if (usage.provider === 'openrouter') {
+        for (const [index, line] of wrapPlain(credits, rowW - 2).entries()) {
+          usageNodes.push(
+            <Box key={`usage:credits:${index}`} width={rowW} height={1}>
+              <Text color={tok.textMuted}>{`  ${line}`}</Text>
+            </Box>,
+          )
+        }
+      } else {
+        usageNodes.push(
+          <Box key="usage:credits" width={rowW}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{`  ${credits}`}</Text>
+            </Text>
+          </Box>,
+        )
+      }
     }
   } else if (usageEmpty && usage.sourceKind === 'none') {
     usageNodes.push(<EmptyHint key="usage:whynot" text={usage.whyNot ?? 'not connected'} width={rowW} />)
@@ -330,7 +358,15 @@ function HelmTelemetryRailImpl({
       if (usage.provider === 'moonshot') appendKimiDetails(w, `usage:${w.key}`)
     }
   }
-  if (usage.readerNoteCompact !== undefined) {
+  if (usage.provider === 'openrouter' && usage.readerNoteCompact !== undefined) {
+    for (const [index, line] of wrapPlain(usage.readerNoteCompact, rowW - 2).entries()) {
+      usageNodes.push(
+        <Box key={`usage:reader:${index}`} width={rowW} height={1}>
+          <Text color={tok.warning}>{`  ${line}`}</Text>
+        </Box>,
+      )
+    }
+  } else if (usage.readerNoteCompact !== undefined) {
     usageNodes.push(
       <Box key="usage:reader" width={rowW}>
         <Text wrap="truncate-end">
@@ -380,6 +416,7 @@ function HelmTelemetryRailImpl({
       </Box>,
     )
     identityLine(other, `usage:other:${other.provider}:account`)
+    appendOpenrouterSlots(other, `usage:other:${other.provider}:slots`)
     const otherRows: Array<{ w: UsageWindowView; pool: boolean }> = [
       ...other.windows.filter(x => x.state === 'live').map(w => ({ w, pool: false })),
       ...other.pools.filter(x => x.state === 'live').map(w => ({ w, pool: true })),
