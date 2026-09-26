@@ -2,6 +2,7 @@ import { memoize } from 'lodash-es'
 
 import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
 import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
+import { INTERRUPT_REASONS } from '../../entrypoints/sdk/coreSchemas.js'
 import { getRegisteredHooks } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import {
@@ -199,6 +200,12 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       summary: 'Runs when a watched file changes',
       description:
         'Payload: the changed path and an event of change, add, or unlink. MERCURY_ENV_FILE is set. The matcher field names files to watch in the current directory, pipe-separated; the structured output may carry watch paths that dynamically update the watch list.',
+    },
+    Interrupt: {
+      summary: 'Runs when a turn is interrupted',
+      description:
+        "Payload: the run's turn id, the cut's reason (operator, idle-timeout, parent-stop or cut) with its words when it has any, and the names of the tool calls the interrupt ended. Fire-and-forget: output and exit codes are ignored; nothing a hook answers can block or change the cut.",
+      matcherMetadata: { field: 'reason', values: [...INTERRUPT_REASONS] },
     },
   }
 }

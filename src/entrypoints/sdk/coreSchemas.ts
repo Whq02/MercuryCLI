@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
 import { MEMORY_TYPES } from '../../memdir/memoryTypes.js'
+import type { TurnCutKind } from '../../utils/messages/turnCut.js'
 import { EFFORT_LEVELS } from './runtimeTypes.js'
 
 export const HOOK_EVENTS_SCHEMA_TUPLE = [
@@ -33,6 +34,7 @@ export const HOOK_EVENTS_SCHEMA_TUPLE = [
   'InstructionsLoaded',
   'CwdChanged',
   'FileChanged',
+  'Interrupt',
 ] as const
 
 export const ModelUsageSchema = lazySchema(() =>
@@ -546,6 +548,17 @@ export const SessionEndHookInputSchema = lazySchema(() =>
       .describe('Why the session is ending'),
   }),
 )
+export const INTERRUPT_REASONS = ['operator', 'idle-timeout', 'parent-stop', 'cut'] as const satisfies readonly TurnCutKind[]
+export const InterruptHookInputSchema = lazySchema(() =>
+  z.object({
+    ...baseHookFields,
+    hook_event_name: z.literal('Interrupt'),
+    turn_id: z.string().describe('The id of the run the interrupt cut'),
+    reason: z.enum(INTERRUPT_REASONS).describe("Why the turn was cut: the operator's stop, a no-progress timeout, the parent's stop, or a typed cut"),
+    detail: z.string().optional().describe("The cut's own words when it has any (a typed cut, a timeout with a message)"),
+    tools: z.array(z.string()).describe('The names of the tool calls the interrupt ended, one per call'),
+  }),
+)
 export const HookInputSchema = lazySchema(() =>
   z.union([
     PreToolUseHookInputSchema(),
@@ -576,6 +589,7 @@ export const HookInputSchema = lazySchema(() =>
     CwdChangedHookInputSchema(),
     FileChangedHookInputSchema(),
     SessionEndHookInputSchema(),
+    InterruptHookInputSchema(),
   ]),
 )
 

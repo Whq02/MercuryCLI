@@ -29,9 +29,11 @@ section('§1 THE PREDICATE')
   for (const ev of ['PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'PermissionRequest']) {
     check(`${ev} carries the tool dimension`, supports(ev) === true)
   }
-  for (const ev of ['SessionStart', 'Stop', 'SessionEnd', 'UserPromptSubmit']) {
+  for (const ev of ['SessionStart', 'Stop', 'SessionEnd', 'UserPromptSubmit', 'Interrupt']) {
     check(`${ev} does not`, supports(ev) === false)
   }
+  const { HOOK_EVENTS } = await import('../../src/entrypoints/sdk/coreTypes.js')
+  check('Interrupt is a hook event of the vocabulary (a cut has no tool input to gate on)', (HOOK_EVENTS as readonly string[]).includes('Interrupt'), JSON.stringify(HOOK_EVENTS))
 }
 
 section('§2 THE HEADLESS DRIVE: SKIPPED, AND SAID')

@@ -215,6 +215,7 @@ function matchQueryForInput(hookInput: HookInput): string | undefined {
     case 'Notification':
       return hookInput.notification_type
     case 'SessionEnd':
+    case 'Interrupt':
       return hookInput.reason
     case 'StopFailure':
       return hookInput.error
