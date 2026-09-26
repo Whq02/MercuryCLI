@@ -2033,7 +2033,7 @@ export async function runHeadless(
             }
             switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
             if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
-            restoreSessionStateFromLog(resumed, setAppState)
+            await restoreSessionStateFromLog(resumed, setAppState)
             restoreSessionMetadata(resumed)
             messages.splice(0, messages.length, ...resumed.messages)
             contentReplacementState = {
