@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { MODEL_PICKER_TITLE } from '../../src/utils/model/modelPickerGroups.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const arg = (flag: string): string | undefined => {
@@ -51,14 +52,17 @@ try {
       writeFileSync(join(home, 'settings.json'), '{}')
       const out = join(world, 'capture.json')
       const config = join(world, 'capture-config.json')
-      const needle = panel === 'teammates' ? 'Sub-agents' : `Mercury — ${panel}`
+      const title = panel === 'teammates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
+      const needle = panel === 'teammates' ? 'Sub-agents' : title
       const ready = { requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
         { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' },
         { ...ready, data: `/${panel}\r`, mark: 'chat' },
-        { ...panelReady, targetText: `Mercury — ${panel === 'teammates' ? 'crew' : panel}`, targetDx: -8, data: click('{X}', '{Y}'), mark: 'open' },
-        { afterPrevTicks: 6, data: '\x1b[<0;1;1M', mark: 'edge' },
+        { ...panelReady, targetText: title, targetDx: panel === 'model' ? -2 : -8, data: click('{X}', '{Y}'), mark: 'open' },
+        panel === 'model'
+          ? { afterPrevTicks: 6, targetText: title, targetDx: -11, data: '\x1b[<0;{X};{Y}M', mark: 'edge' }
+          : { afterPrevTicks: 6, data: '\x1b[<0;1;1M', mark: 'edge' },
         { afterPrevTicks: 4, data: '\x1b[<32;2;1M\x1b[<0;2;1m', mark: 'pressed' },
         { afterPrevTicks: 6, data: '\x1b', mark: 'clicked' },
         { ...ready, data: `/${panel}\r`, mark: 'closed' },
