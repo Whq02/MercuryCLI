@@ -9,6 +9,9 @@ import stringWidth from 'string-width'
 import type { DOMElement, DOMNode } from '../../src/ink/dom.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+for (const name of Object.keys(process.env)) {
+  if (/^(ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_)/.test(name)) delete process.env[name]
+}
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
 const ROOT = join(import.meta.dir, '../..')
@@ -220,11 +223,13 @@ for (const fixture of ['absent', 'signed-in']) {
     const top = painted()
     check('the four meters are 42 cells and the top frame paints three of them byte-exact (the JEV row costs the viewport one row, so the last weekly pool waits one step below)', bars.length === 4 && bars.every(bar => stringWidth(bar) === 42) && top.length === 3, `${bars.length} bars · ${top.length} painted`)
     await board.key('down')
+    await board.key('down')
     const stepped = painted()
-    check('one down-step paints the fourth meter, the second weekly pool, at 42 cells too', stepped.length === 4 && bars.every(bar => stepped.includes(bar)), `${stepped.length} painted`)
+    check('two down-steps paint the fourth meter, the second weekly pool, at 42 cells too (the identity line under the title costs the second step)', stepped.length === 4 && bars.every(bar => stepped.includes(bar)), `${stepped.length} painted`)
+    await board.key('up')
     await board.key('up')
     const back = painted()
-    check('one up-step returns to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted`)
+    check('two up-steps return to the top frame', back.length === 3 && back.every(bar => top.includes(bar)), `${back.length} painted`)
   } else {
     check('six providers at the top leave the exact four names from the design', board.frame().includes('↓ 4 more · Z.AI · OpenRouter · Custom endpoint · Local models'))
   }

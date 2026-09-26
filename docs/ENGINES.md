@@ -327,7 +327,7 @@ A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
 lands. The sign-in's own receipt names that account, and every surface that
 names the account (the face's account chip and its Logins roster, `/status`,
-`/accounts`, the `/usage` popup's subscription slot, the cockpit's usage
+`/accounts`, the `/usage` popup's Anthropic block, the cockpit's usage
 card and the `auth status` verb) reads the email stored beside the token
 itself — the profile, else the exchange's receipt — never a recorded copy or
 a fresh probe while painting; a credential with neither names none, in each
@@ -340,6 +340,20 @@ the recorded copy; the value changed, the key and its shape did not. The
 whenever the two disagree; until it answers, the board names the recorded
 copy beside the credential's own address, labelled as a snapshot, only when
 the two differ.
+
+Every provider's usage block, on the cockpit's usage card and in the
+`/usage` popup, prints one identity line under its title, and no block goes
+without one: the signed-in account when the family's own store recorded one
+(the Claude and ChatGPT sign-ins' emails, the Hugging Face username), else
+the credential's own words — a key as the model picker's heading words it,
+its kind and masked tail (`API key · …4321`, `Coding Plan key · …YtbT`,
+`OAuth key · …abcd`, `token · …abcd`), a nameless sign-in or a local server
+by the label its resolver gives it — else `no account`. The popup says
+`Signed in as <account>` for an account and prints a credential's words
+bare; the card prints the bare value at its own width. One composer answers
+for every family, over the presence enumeration and the accounts roster's
+slots, so the block, the roster and the picker never disagree about who a
+family is signed in as.
 Organisation roles enrich only the account and authentication scope that
 requested them; changing accounts or leaving the sign-in flow discards a
 late reply without delaying sign-in.
