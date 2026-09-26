@@ -66,7 +66,7 @@ try {
   check("178x51 rail, GLM focused: the GLM block prints actual 5h and 7d mini-bars with the stated percents (the same grammar as Kimi's rows)", /5h [█░]{4} 17%/.test(frame) && /7d [█░]{4} 3%/.test(frame), `GLM block rows: ${quote(glmRows)}`)
   check('178x51 rail: the GLM block carries the two provider-stated resets on their own rows', glmRows.includes(`resets ${quota.formatClock(world.glmFiveHourResetAtMs)}`) && glmRows.includes(`resets ${quota.formatClock(world.glmWeekResetAtMs)}`), `GLM block rows: ${quote(glmRows)}`)
   check('178x51 rail: the GLM block carries the read age in the one vocabulary under each meter', glmRows.filter(row => row === ageWords(fresh, glm.windows[0], world.now())).length === 2, `GLM block rows: ${quote(glmRows)}`)
-  check("178x51 rail: the GLM block's rows are the same shape as the Kimi block's rows (label, bar, resets, read age, twice)", glmRows.length === kimiRows.length && glmRows.length === 7, `GLM ${quote(glmRows)} vs Kimi ${quote(kimiRows)}`)
+  check("178x51 rail: the GLM block's rows are the same shape as the Kimi block's rows (label, the identity row under it, then bar, resets, read age, twice)", glmRows.length === kimiRows.length && glmRows.length === 8 && glmRows[1] === 'Coding Plan key · …-key' && /^5h /.test(glmRows[2] ?? '') && /^Kimi account/.test(kimiRows[1] ?? '') && /^5h /.test(kimiRows[2] ?? ''), `GLM ${quote(glmRows)} vs Kimi ${quote(kimiRows)}`)
   check('178x51 rail: the Kimi block paints beside it with its own pair', /5h [█░]{4} 50%/.test(frame) && /7d [█░]{4} 25%/.test(frame), quote(kimiRows))
   check('178x51 rail: no absence sentence, no dated claim, no console link on the GLM block', !glmRows.some(row => /No Z\.AI usage read|checked 20|manage-apikey/.test(row)), quote(glmRows))
   check('178x51 rail: the frame stays inside 178x51 without render errors', world.inBounds(frame, WIDE) && !frame.includes('RENDER ERROR'))
@@ -153,7 +153,7 @@ try {
   const noPlanRows = railBlock(board.runs(), 'zai')
   world.save('usage-card-glm-no-plan', board.frame(), WIDE)
   console.log(`rail GLM block for a key with no coding plan: ${quote(noPlanRows)}`)
-  check("178x51 rail, a key the endpoint says has no coding plan: 'usage: not on a coding plan'  — the one sentence, wrapped at the 28-cell card, nothing else", noPlanRows.slice(1).join(' ') === 'usage: not on a coding plan' && !noPlanRows.some(row => /[█░]{4}|no usage read/.test(row)), quote(noPlanRows))
+  check("178x51 rail, a key the endpoint says has no coding plan: the identity row under the title, then 'usage: not on a coding plan' — the one sentence, wrapped at the 28-cell card, nothing else", noPlanRows[1] === 'Coding Plan key · …-key' && noPlanRows.slice(2).join(' ') === 'usage: not on a coding plan' && !noPlanRows.some(row => /[█░]{4}|no usage read/.test(row)), quote(noPlanRows))
   world.setQuotaBody({ code: 200, msg: 'Operation successful', data: { limits: [world.glmFiveHour, world.glmWeek, world.glmTools], level: 'pro' }, success: true })
 
   zaiReader.__resetZaiUsageForTest()

@@ -705,6 +705,7 @@ function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentia
   return (
     <Box flexDirection="column">
       <Text bold>Z.AI usage</Text>
+      <IdentityLine family="zai" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="GLM Coding Plan" />
         {coding ? (
