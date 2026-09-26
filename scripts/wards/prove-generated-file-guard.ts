@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
   const { parseGeneratedAssetsMap, GENERATED_ASSETS_MAP } = await import('../../src/utils/hooks/generatedAssets.js')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-  const { measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
+  const { judgeGrowth, measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
 
   const ROOT = join(import.meta.dir, '..', '..')
   type Resolved = { path: string; root: string | undefined }
@@ -486,19 +486,20 @@ async function main(): Promise<void> {
       const walk = underGrowth.points[1]!.ms
       const perSegment = reference.points[1]!.ms
       check(`a ${underMax.length}-char path under PATH_MAX still resolves to its repository; the walk grows linearly (${underGrowth.summary}) and costs no more than one realpath per absent segment (${walk.toFixed(1)}ms against ${perSegment.toFixed(1)}ms for 1 900 realpaths of one absent path, + 1ms)`, underGrowth.linear && walk <= perSegment + 1 && underResolved.root === real(repo), JSON.stringify(underResolved).slice(0, 120))
-      const plantedSizes = [8_000, 64_000]
-      const plantedOptions = { repetitions: 5, budgetMs: Number.POSITIVE_INFINITY, attempts: 1 }
-      let sink = 0
-      const walkRows = (rows: number, width: number): void => {
-        let s = 0
-        for (let i = 0; i < rows; i++) for (let j = 0; j < width; j++) s += j & 1
-        sink += s
+      const plantedSizes = [128, 1_024]
+      const countVisits = (rows: number, width: number): number => {
+        let visits = 0
+        for (let i = 0; i < rows; i++) for (let j = 0; j < width; j++) visits++
+        return visits
       }
-      walkRows(8_000, 8_000)
-      const linear = measureGrowth(n => walkRows(n, 8_000), plantedSizes, plantedOptions)
-      check(`a planted linear walk passes the same growth measurement (${linear.summary})`, linear.linear && sink > 0)
-      const planted = measureGrowth(n => walkRows(n, n), plantedSizes, plantedOptions)
-      check(`the growth law has teeth: a planted quadratic walk, measured the same way, is refused (${planted.summary})`, !planted.linear && sink > 0)
+      const linearVisits = plantedSizes.map(size => ({ size, visits: countVisits(size, 128) }))
+      const quadraticVisits = plantedSizes.map(size => ({ size, visits: countVisits(size, size) }))
+      check('the planted walks count every inner-loop visit', linearVisits.every(p => p.visits === p.size * 128) && quadraticVisits.every(p => p.visits === p.size * p.size))
+      const workGrowth = (points: typeof linearVisits) => judgeGrowth(points.map(p => ({ size: p.size, ms: p.visits })), { slackMs: 0 })
+      const linear = workGrowth(linearVisits)
+      check(`a planted linear walk passes the growth law by counted work (${linear.summary.replaceAll('ms', ' visits')})`, linear.linear)
+      const planted = workGrowth(quadraticVisits)
+      check(`the growth law has teeth: a planted quadratic walk is refused by counted work (${planted.summary.replaceAll('ms', ' visits')})`, !planted.linear)
       const gitFile = join(repo, 'src', 'generated', 'new.ts')
       check('the .git walk starts at the deepest EXISTING ancestor, so a planted .git deeper than any existing directory cannot be reached', resolve(gitFile).root === real(repo))
       check('the resolver factory realpaths its fallback once and answers it for a path over PATH_MAX', resolve('/' + 'b/'.repeat(3_000) + 'y.ts').root === real(scratch))
