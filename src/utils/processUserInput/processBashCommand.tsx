@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { Box } from '../../ink.js'
 import type { SetToolJSXFn } from '../../Tool.js'
-import { BASH_INPUT_TAG } from '../../constants/xml.js'
+import { BASH_DURATION_MS_TAG, BASH_EXIT_CODE_TAG, BASH_INPUT_TAG } from '../../constants/xml.js'
 import { escapeXml } from '../xml.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, UserMessage } from '../../types/message.js'
@@ -38,9 +38,19 @@ function echoedCommandMessage(
   })
 }
 
-function outputMessage(stdout: string, stderr: string): UserMessage {
+type SettledShell = { code: number; durationMs: number }
+
+function settledShell(code: number | undefined, startedAt: number): SettledShell | null {
+  return typeof code === 'number' ? { code, durationMs: Math.max(0, Date.now() - startedAt) } : null
+}
+
+function outputMessage(stdout: string, stderr: string, settled: SettledShell | null): UserMessage {
+  const exit =
+    settled === null
+      ? ''
+      : `<${BASH_EXIT_CODE_TAG}>${settled.code}</${BASH_EXIT_CODE_TAG}><${BASH_DURATION_MS_TAG}>${settled.durationMs}</${BASH_DURATION_MS_TAG}>`
   return createUserMessage({
-    content: `<${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}><${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>`,
+    content: `<${BASH_STDOUT_TAG}>${stdout}</${BASH_STDOUT_TAG}><${BASH_STDERR_TAG}>${escapeXml(stderr)}</${BASH_STDERR_TAG}>${exit}`,
   })
 }
 
@@ -97,6 +107,7 @@ export async function processBashCommand(
     },
   }
 
+  const startedAt = Date.now()
   try {
     const result = await tool.call(
       {
@@ -117,7 +128,7 @@ export async function processBashCommand(
         caveat,
         commandMessage,
         ...attachmentMessages,
-        outputMessage(data.stdout, data.stderr),
+        outputMessage(data.stdout, data.stderr, settledShell(data.code, startedAt)),
       ],
       shouldQuery: false,
     }
@@ -140,7 +151,7 @@ export async function processBashCommand(
           caveat,
           commandMessage,
           ...attachmentMessages,
-          outputMessage(shellError.stdout ?? '', shellError.stderr ?? ''),
+          outputMessage(shellError.stdout ?? '', shellError.stderr ?? '', settledShell(shellError.code, startedAt)),
         ],
         shouldQuery: false,
       }
