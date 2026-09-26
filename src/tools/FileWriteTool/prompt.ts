@@ -11,7 +11,7 @@ export function getWriteToolDescription(): string {
 
 Usage:
 - An existing file at the path is overwritten in place.
-- Overwriting? ${FILE_READ_TOOL_NAME} has to have read the file first — an unread overwrite fails. A file you wrote with this tool in this conversation counts as read as it stands: no ${FILE_READ_TOOL_NAME} is needed before writing it again.
+- Overwriting? ${FILE_READ_TOOL_NAME} has to have read the file first — an unread overwrite fails.
 - ALWAYS prefer editing existing files with the ${FILE_EDIT_TOOL_NAME} tool — it sends only the diff, while this tool sends the entire file. Reserve this tool for new files and complete rewrites.
 - Documentation files (*.md, READMEs) appear only on an explicit request — never proactively.
 - Keep emoji out of written files unless the user has specifically asked for them.`

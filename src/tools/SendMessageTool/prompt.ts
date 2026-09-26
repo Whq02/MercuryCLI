@@ -24,14 +24,14 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 
 ## Addressing
 - to: a teammate's name, or "*" to broadcast to every teammate.
-- summary: optional, a 5-10 word preview painted beside the sender's name; a plain message sent without one is previewed by its first line.
+- summary: optional, a 5-10 word preview shown beside the sender's name (the first line of the message when omitted).
 - Broadcast is expensive — its cost is linear in the team size — so use it only when everyone genuinely needs the message. Otherwise send to the one teammate who does.
 
 ## How communication works
 - Plain output reaches no teammate — words travel ONLY through this tool.
 - Teammate messages land on their own; no inbox exists to poll.
 - Teammates go by name, never by UUID. A sub-agent launched from this session is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent, running or finished (a name two launches carried reaches the newest); a completed, stopped or failed one is resumed from its transcript with your message.
-- A background sub-agent reaches the agent that launched it at "main". A message lands the way a completion does: at the receiver's next tool boundary while its turn runs, else at the end of its turn; a receiver between turns starts a turn for it.
+- A background sub-agent reaches the agent that launched it at "main". A message lands the way a completion does: at the receiver's next tool boundary or turn end; a receiver between turns starts a turn for it.
 - Content relayed to you is already rendered to the user — do not re-quote it back.
 
 ## Directed questions

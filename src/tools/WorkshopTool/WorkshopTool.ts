@@ -41,7 +41,7 @@ const cellSchema = () =>
     code: z.string().min(1).describe('The cell body. State persists across cells and Workshop calls.'),
     timeoutMs: semanticNumber(
       z.number().int().min(0).optional(),
-    ).describe(`Active-runtime budget per cell (default ${DEFAULT_CELL_TIMEOUT_MS}ms, min ${MIN_CELL_TIMEOUT_MS}ms, max ${MAX_CELL_TIMEOUT_MS}ms; a value outside the bounds is clamped to them and the result says so; nested tool/agent waits pause it)`),
+    ).describe(`Active-runtime budget per cell (default ${DEFAULT_CELL_TIMEOUT_MS}ms, min ${MIN_CELL_TIMEOUT_MS}ms, max ${MAX_CELL_TIMEOUT_MS}ms, clamped to those bounds; nested tool/agent waits pause it)`),
     reset: semanticBoolean(z.boolean().optional()).describe(
       'true = discard this language runtime\'s retained state BEFORE running this cell (explicit, visible)',
     ),
@@ -106,11 +106,11 @@ export const WorkshopTool = buildTool({
       : ''
     return `Run code cells on a persistent session-owned JS/TS runtime. State persists ACROSS cells and Workshop calls (top-level var/let/const/class/function; in cells using top-level await, simple "const x = …" bindings persist — complex patterns stay cell-local). Use Workshop for multi-step analysis, retained data transforms, and programmatic tool composition; keep single file reads/edits on the primitive tools.
 
-Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts needs a workspace typescript package (Mercury does not bundle a compiler — an absent one refuses honestly). py needs python3 on PATH (absent ⇒ honest refusal; no packages are ever auto-installed; interactive stdin raises). require() resolves from the session cwd and re-reads changed local files on later cells (dynamic import() stays cached). One cell runs at a time per runtime; later cells queue. A JS/TS timeout or cancel TERMINATES the runtime — retained state is lost and reported, never silently; a py cancel INTERRUPTS first (KeyboardInterrupt — state retained) and kills only if the interrupt does not land within 2s. reset: true discards state explicitly.
+Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts needs a workspace typescript package (Mercury bundles no compiler); py needs python3 on PATH (no packages are ever auto-installed; interactive stdin raises). require() resolves from the session cwd and re-reads changed local files on later cells (dynamic import() stays cached). One cell runs at a time per runtime; later cells queue. A JS/TS timeout or cancel TERMINATES the runtime (retained state is lost); a py cancel INTERRUPTS first (KeyboardInterrupt — state retained) and kills only if the interrupt does not land within 2s. reset: true discards state explicitly.
 
 The bridge (inside cells):
 · await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused); the call throws only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward)
-· await mercury.tool('Bash', { command }) — a command that RAN returns { code, stdout, stderr } whatever it exited: code is the exit code (null while a command runs in the background), stdout is the command's one interleaved capture (the same text the Bash tool returns), stderr is always '' because the Bash tool keeps one stream; a non-zero exit is a value, never a throw — the cell decides what it means
+· await mercury.tool('Bash', { command }) — a command that RAN returns { code, stdout, stderr } whatever it exited: code is the exit code (null while a command runs in the background), stdout is the command's one interleaved capture, stderr is always '' because the Bash tool keeps one stream; a non-zero exit is a value, never a throw — the cell decides what it means
 · await mercury.agent(input) — delegate to a sub-agent (the same input shape as a direct launch); the result includes the structured envelope
 · await mercury.inspect(ref) — read a mercury:// resource
 · mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)${sampleLine}

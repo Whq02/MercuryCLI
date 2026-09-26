@@ -26,9 +26,9 @@ Single-phase shapes worth chaining across turns:
 
 Chain them one turn at a time for bigger efforts — digest each result before shaping the next launch. Every workflow stays one tightly scoped fan-out, with you between them.
 
-**Supercode.** While the session carries a live supercode reminder, the opt-in is standing: launch a workflow (or a sub-agent, or a fleet) whenever parallel agents would materially improve the speed or the quality of the answer, and optimize for the most complete, most verified answer rather than for token spend. Where they would not, work solo at max — delegation is a judgment, never a reflex. Multi-phase efforts become several sequential workflows — one per phase, with your judgment between launches. Draw on the quality patterns below (refute-to-survive checks, split-lens verification, dry-well stopping, a gap critic) wherever they fit. Once a reminder announces supercode is off, the strict opt-in above is back in force.
+**Supercode.** While the session carries a live supercode reminder, the opt-in is standing: launch a workflow (or a sub-agent, or a fleet) whenever parallel agents would materially improve the speed or the quality of the answer, and optimize for the most complete, most verified answer rather than for token spend. Where they would not, work solo at max — delegation is a judgment, never a reflex. Draw on the quality patterns below (refute-to-survive checks, split-lens verification, dry-well stopping, a gap critic) wherever they fit. Once a reminder announces supercode is off, the strict opt-in above is back in force.
 
-Send the script inline through \`script\` — no need to Write it anywhere yourself. The launch persists an exact copy into the session's own storage and hands the path back in its result; iterate by editing that persisted file (Write/Edit), then relaunching with \`{scriptPath: "<path>"}\` so the whole script is never resent.
+Send the script inline through \`script\` — no need to Write it anywhere yourself; iterate by editing the persisted copy the result names (Write/Edit), then relaunching with \`{scriptPath: "<path>"}\`.
 
 Every script opens with \`export const meta = {...}\` as its first statement:
   export const meta = {
@@ -40,33 +40,30 @@ Every script opens with \`export const meta = {...}\` as its first statement:
     ],
   }
   // body follows — agent()/parallel()/pipeline()/phase()/log()
-  phase('Inventory')
-  const pairs = await agent('List every doc file and the module it documents.', { schema: PAIRS_SCHEMA })
-  ...
 
 \`meta\` is required to be a pure literal — variables, function calls, spreads, and template interpolation are all rejected. \`name\` and \`description\` are required; \`whenToUse\` (shown when workflows are listed) and \`phases\` are optional. Phase titles pair with phase() calls by exact string match — a phase() with no meta entry simply opens its own progress group — and a phases entry may carry a \`model\` field when one phase runs on a specific override.
 
 The script body's hooks:
 
 - agent(prompt, opts?) → Promise<any> — dispatch one subagent.
-  - Return value: the agent's closing text, returned as a string, when no schema is given; given \`schema\` — any JSON Schema object — the agent must deliver through a structured-output tool call, validation runs at the tool layer (failed validation makes the agent correct itself), and agent() resolves to the validated object — nothing to parse.
+  - Return value: the agent's closing text as a string; given \`schema\` (any JSON Schema object) the validated object instead — failed validation makes the agent correct itself.
   - Resolves to null in two cases: the user skipped this agent mid-run, or it died on an unrecoverable API error after the built-in retries. Fan-out code should \`.filter(Boolean)\`.
   - opts.label — the display name in progress surfaces (defaults to a prompt prefix).
   - opts.phase — pin this call to a named progress group. Inside pipeline()/parallel() stages always pin explicitly; the ambient phase() pointer is global state and concurrent stages race it. Same string, same group.
   - opts.model — a model for THIS call. Omitted, the agent runs on the session's resolved model, which is the right default. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. Never invent an id; if the operator named no model and the task doesn't demand a tier, leave it out.
-  - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session's own level, so a supercode session does not multiply every agent to max. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier and the transcript says so). Setting it also turns on extended reasoning where the model supports it, and the reasoning lands in the agent's transcript for the /workflows inspector.
-  - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. Validation is unconditional (a junk tier throws no matter what), but routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
+  - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session's own level, so a supercode session does not multiply every agent to max. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier). Setting it also turns on extended reasoning where the model supports it.
+  - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. A junk tier throws; routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
   - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per agent); use it only when concurrent agents would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
-  - opts.agentType — dispatch a custom subagent type (say, 'code-reviewer') rather than the built-in workflow worker. Looked up in the registry every sub-agent launch shares, and composable with \`schema\` (the structured-return contract is appended to the custom prompt).
-- pipeline(items, stage1, stage2, ...) → Promise<any[]> — push each item through the stage chain independently, with NO synchronization between stages: item three can be in its last stage while item seven is still in its first. This is the default engine for multi-stage work — total wall-clock tracks the slowest single item, not the slowest stage times the stage count. Each stage receives (previousResult, originalItem, index), so later stages can label their work without smuggling context through earlier stages' return values. A stage that throws turns that item into null and its remaining stages are skipped.
+  - opts.agentType — dispatch a custom subagent type (say, 'code-reviewer') rather than the built-in workflow worker; composable with \`schema\`.
+- pipeline(items, stage1, stage2, ...) → Promise<any[]> — push each item through the stage chain independently, with NO synchronization between stages: item three can be in its last stage while item seven is still in its first. This is the default engine for multi-stage work — total wall-clock tracks the slowest single item, not the slowest stage times the stage count. Each stage receives (previousResult, originalItem, index). A stage that throws turns that item into null and its remaining stages are skipped.
 - parallel(thunks) → Promise<any[]> — run an array of zero-argument functions concurrently and wait for ALL of them (a barrier). The promise always fulfills: rejected thunks (agent deaths included) become null slots in the returned array, so \`.filter(Boolean)\` before use. Reserve it for moments that genuinely need every result at once.
 - log(message) — one line of narration shown to the user above the run's progress display.
 - phase(title) — open a progress group; agent() calls that follow (without opts.phase) attach to it.
-- args — the value the Workflow call passed as \`args\`, verbatim; undefined when absent. Pass real JSON values, never a stringified JSON blob: \`args: {targets: ['api', 'cli']}\` reaches the script as an object, while a quoted blob arrives as one string and every \`args.targets.map\`-style access dies. This is how saved workflows take parameters (a question, a target path, a config object).
-- budget — {total, spent(), remaining()}: the turn's output-token target when the operator set one. total is null with no target; spent() counts output tokens across the whole turn (main loop plus every workflow — one shared pool); remaining() is max(0, total − spent()), or Infinity when target-less. That target is a hard wall: when spent() crosses total, any later agent() call throws. Loop dynamically — \`while (budget.total && budget.remaining() > 60_000) { ... }\` — or size a fleet statically: \`const LANES = budget.total ? Math.max(2, Math.floor(budget.total / 120_000)) : 4\`. Always gate such loops on budget.total — when no target exists, remaining() reads Infinity and nothing stops the loop short of the 1000-agent cap.
-- workflow(nameOrRef, args?) → Promise<any> — start a second workflow inline and hand back its result. A string names a saved workflow (the same registry as {name: "..."}); {scriptPath} runs a script file you saved earlier. A child run inherits the parent's agent counter, concurrency ceiling, abort signal, and token pool; in /workflows its agents sit inside a "▸ <name>" group, and their spend lands in budget.spent(). The second argument arrives as the child's \`args\`. Exactly one level of nesting — a child calling workflow() throws. Unknown names, unreadable paths, and child syntax errors all throw; catch if you want to degrade gracefully.
+- args — the value the Workflow call passed as \`args\`, verbatim; undefined when absent. Pass real JSON values, never a stringified JSON blob: \`args: {targets: ['api', 'cli']}\` reaches the script as an object, while a quoted blob arrives as one string and every \`args.targets.map\`-style access dies.
+- budget — {total, spent(), remaining()}: the turn's output-token target when the operator set one. total is null with no target; spent() counts output tokens across the whole turn (main loop plus every workflow — one shared pool); remaining() is max(0, total − spent()), or Infinity when target-less. That target is a hard wall: when spent() crosses total, any later agent() call throws. Loop dynamically (the budget-scaled loop below) or size a fleet statically: \`const LANES = budget.total ? Math.max(2, Math.floor(budget.total / 120_000)) : 4\`. Always gate such loops on budget.total — when no target exists, remaining() reads Infinity and nothing stops the loop short of the 1000-agent cap.
+- workflow(nameOrRef, args?) → Promise<any> — start a second workflow inline and hand back its result. A string names a saved workflow (the same registry as {name: "..."}); {scriptPath} runs a script file you saved earlier. A child run inherits the parent's agent counter, concurrency ceiling, abort signal, and token pool (its spend lands in budget.spent()). The second argument arrives as the child's \`args\`. Exactly one level of nesting — a child calling workflow() throws. Unknown names, unreadable paths, and child syntax errors all throw; catch if you want to degrade gracefully.
 
-Workers are instructed that their final text IS their return value — they hand back raw data with no pleasantries. Whenever the result has fields, prefer \`schema\` over prose-parsing: the validation loop is free correctness.
+Workers hand back raw data as their final text. Whenever the result has fields, prefer \`schema\` over prose-parsing: the validation loop is free correctness.
 
 Mixing providers: because opts.model is per-call, one workflow may run Claude-family agents and a connected GPT lane's agents side by side. The strongest use is independence — run finders on one provider and the refute/verify lane on another, so verifier blind spots do not correlate with finder blind spots. Only mix when the second provider is actually connected for this session; a model string the catalog cannot resolve fails the dispatch.
 
@@ -79,14 +76,9 @@ Default to pipeline(). A barrier earns its place only when the next stage needs 
 - an aggregate early-exit ("zero candidates → skip verification")
 - prompts that must reference sibling results ("compare against the other proposals")
 
-Not sufficient reasons for a barrier:
-- "I have to flatten/map/filter between stages" — fold the reshape into a stage of its own: pipeline(items, stageA, r => remap(r), stageB)
-- "the stages feel like separate steps" — pipeline() already models separate steps; separateness is not synchrony
-- "the code reads cleaner" — the idle time is real; with uneven finder durations a barrier throws away most of the fast lanes' head start
+Smell test: parallel(...) followed by a pure reshape followed by another parallel(...) is a pipeline wearing a disguise — fold the reshape into a stage of its own: pipeline(items, stageA, r => remap(r), stageB). Separate steps are not synchrony, and with uneven finder durations a barrier throws away the fast lanes' head start. Unsure? pipeline.
 
-Smell test: parallel(...) followed by a pure reshape followed by another parallel(...) is a pipeline wearing a disguise — fold the reshape into a stage. Unsure? pipeline.
-
-Limits: at most min(16, CPU cores − 2) agents run at once per workflow (the capacity governor can narrow this further); extra calls queue and start as slots free. Hand parallel()/pipeline() a hundred items freely — they all finish, just not all at once. A single run may make at most 1000 agent() calls (a runaway-loop backstop, far past any sane workflow), and one parallel()/pipeline() call takes at most 4096 items — beyond that is a thrown error, never a silent cut.
+Limits: at most min(16, CPU cores − 2) agents run at once per workflow (the capacity governor can narrow this further); extra calls queue and start as slots free. Hand parallel()/pipeline() a hundred items freely — they all finish, just not all at once. A single run may make at most 1000 agent() calls (a runaway-loop backstop), and one parallel()/pipeline() call takes at most 4096 items — beyond that throws.
 
 The canonical multi-stage shape — pipeline by default, verification starting per-angle as each review lands:
   export const meta = {
@@ -128,33 +120,11 @@ Budget-scaled loop — depth tracks the operator's token target (note the budget
     log(\`\${found.length} so far · \${(budget.remaining() / 1000).toFixed(0)}k left\`)
   }
 
-A composed harness — rounds until the well runs dry, dedup against everything seen, majority vote across distinct lenses:
-  const seen = new Set(), kept = []
-  let dryRounds = 0
-  while (dryRounds < 2) {
-    const round = (await parallel(HUNTERS.map(h => () =>                 // barrier: gather the round
-      agent(h.brief, {phase: 'Hunt', schema: ISSUES_SCHEMA})))).filter(Boolean).flatMap(r => r.issues)
-    const fresh = round.filter(i => !seen.has(sig(i)))                   // straight code — no agent needed
-    if (!fresh.length) { dryRounds++; continue }
-    dryRounds = 0
-    for (const i of fresh) seen.add(sig(i))
-    const voted = await parallel(fresh.map(i => () =>
-      parallel(['logic','security','repro'].map(lens => () =>
-        agent(\`Through the \${lens} lens: is "\${i.desc}" a real defect?\`, {phase: 'Vote', schema: RULING_SCHEMA})))
-        .then(rs => ({ i, real: rs.filter(Boolean).filter(r => r.real).length >= 2 }))))
-    kept.push(...voted.flatMap(v => (v.real ? [v.i] : [])))
-  }
-  return kept
-  // dedup keys off \`seen\`, not \`kept\` — otherwise rejected issues resurface every round and the loop never dries.
-
 Quality patterns — mechanisms to compose, not a fixed menu:
-- Refute-to-survive: give each candidate to N independent skeptics whose brief is to DISPROVE it, with "uncertain means refuted". A majority of refutations kills it. This is what stops plausible-sounding wrongness.
-    const rulings = await parallel([0, 1, 2].map(() => () =>
-      agent(\`Disprove this if you can: \${claim}. When uncertain, rule it refuted.\`, {schema: RULING_SCHEMA})))
-    const upheld = rulings.filter(Boolean).filter(r => r.refuted === false).length >= 2
+- Refute-to-survive: give each candidate to N independent skeptics whose brief is to DISPROVE it ("Disprove this if you can; when uncertain, rule it refuted"). A majority of refutations kills it. This is what stops plausible-sounding wrongness.
 - Split lenses: when something can be wrong in several ways, give each verifier a DIFFERENT lens (logic, security, performance, reproducibility) instead of three copies of the same skeptic — diversity catches what redundancy repeats.
 - Contender panel: produce N independent solutions from distinct starting biases, score them with independent judges, then build the final answer on the winner while folding in the runners-up's best pieces. Wins over iterate-on-one whenever the space of workable designs is broad.
-- Dry-well stopping: for discovery of unknown size, keep launching rounds until K consecutive rounds add nothing new. Fixed quotas stop too early exactly when the tail matters.
+- Dry-well stopping: for discovery of unknown size, keep launching rounds until K consecutive rounds add nothing new (dedup against everything seen, not only what was kept, or rejected findings resurface every round and the well never dries). Fixed quotas stop too early exactly when the tail matters.
 - Blind angles: several searchers, each restricted to a different modality (by name, by content, by owner, by date). None sees the others' results; the union sees what any single approach misses.
 - Gap critic: end with one agent whose only question is "what did this run NOT do — which angle unswept, which claim unchecked, which source unread?" Its answer seeds the next round.
 - Named caps: whenever the script bounds its own coverage (top-N, sampling, skip-on-retry), log() the cut. An unlogged cap reads as full coverage to whoever gets the report.
@@ -167,7 +137,7 @@ Use Workflow when control flow deserves to be code (loops, conditionals, fan-out
 
 ## Resume
 
-Every launch reports a runId. After a pause, a kill, or an edit to the script, launch again with Workflow({scriptPath, resumeFromRunId}): agent() calls whose (position, prompt, opts) prefix is unchanged replay instantly from the journal; the first call that differs, plus all calls after it, run live. Unchanged script plus unchanged args replays 100%; changing \`args\` invalidates the chain on purpose (the input steers the run). This replay is WHY Date.now()/Math.random()/new Date() are banned in scripts. If no journal survives, the fallback is manual: read the agent-<id>.jsonl transcripts under the run's transcript directory and write a continuation script from what already finished.`;
+Every launch reports a runId. After a pause, a kill, or an edit to the script, launch again with Workflow({scriptPath, resumeFromRunId}): agent() calls whose (position, prompt, opts) prefix is unchanged replay instantly from the journal; the first call that differs, plus all calls after it, run live. Unchanged script plus unchanged args replays 100%; changing \`args\` invalidates the chain on purpose (the input steers the run). If no journal survives, the fallback is manual: read the agent-<id>.jsonl transcripts under the run's transcript directory and write a continuation script from what already finished.`;
 
 const AUTHORING_DOCTRINE_SECTION = `
 
@@ -180,7 +150,7 @@ const LEDGER_GLOBAL_SECTION = `
 
 ## The ledger global (evolution rows)
 
-- ledger: {record(row): Promise<{ok, path?, deduped?, reason?}>, read(program): Promise<row[]>, report(program): Promise<string>} — an append-only record of ITERATED improvement work (patch loops, hardening rounds, audit campaigns). record() accepts {program, subject, outcome, iteration?, hypothesis?, mechanism?, lineage?, score?: {dev?, holdout?, unit?}, delta?, evidenceRefs?, notes?}; outcome is one of 'baseline'|'improved'|'regressed'|'tie'|'accepted'|'refused'|'error'. A row whose outcome is 'improved' or 'accepted' must name at least one evidenceRef (a gate log, judge rulings, a transcript path) — claims without evidence are refused by construction. Each row is anchored to the run's own raw traces automatically and deduplicated by identity, so replays after a resume cannot double-append. read(program) hands back that program's earlier rows; report(program) renders frontier, drift, and the recent tail. The loop contract: open with report() plus the earlier rows before proposing; a 'baseline' row goes in before anything changes; every candidate gets a row, failed ones too; and roughly three straight iterations that never log an 'improved' row mean the loop converged — stop there. (Method detail: the harness-evolution skill, plus docs/workflows/patch-loop.workflow.js.) One-shot work — a review, a migration, a research sweep — has no business writing rows.`
+- ledger: {record(row): Promise<{ok, path?, deduped?, reason?}>, read(program): Promise<row[]>, report(program): Promise<string>} — an append-only record of ITERATED improvement work (patch loops, hardening rounds, audit campaigns). record() accepts {program, subject, outcome, iteration?, hypothesis?, mechanism?, lineage?, score?: {dev?, holdout?, unit?}, delta?, evidenceRefs?, notes?}; outcome is one of 'baseline'|'improved'|'regressed'|'tie'|'accepted'|'refused'|'error'. A row whose outcome is 'improved' or 'accepted' must name at least one evidenceRef (a gate log, judge rulings, a transcript path) — claims without evidence are refused by construction. read(program) hands back that program's earlier rows; report(program) renders frontier, drift, and the recent tail. The loop contract: open with report() plus the earlier rows before proposing; a 'baseline' row goes in before anything changes; every candidate gets a row, failed ones too; and roughly three straight iterations that never log an 'improved' row mean the loop converged — stop there. (Method detail: the harness-evolution skill, plus docs/workflows/patch-loop.workflow.js.) One-shot work — a review, a migration, a research sweep — has no business writing rows.`
 
 export function getWorkflowToolPrompt(): string {
   let text = WORKFLOW_TOOL_PROMPT
