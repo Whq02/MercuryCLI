@@ -353,6 +353,7 @@ try {
   const sw1 = await setModel(sid, GPT_ID)
   check('the switch was APPLIED (never "no live control channel")', sw1.ok === true && sw1.outcome === 'applied', JSON.stringify(sw1))
   console.log(`      switch receipt: ${JSON.stringify(sw1)}`)
+  check('the receipt on a runner with no standing crash row is the plain "<runner> → <model>"', sw1.detail === `${readRec(sid)?.runnerId} → ${GPT_ID}`, JSON.stringify(sw1))
   check('the record and the facts carry the new model', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
   const before3 = mainHits().length
   const again = await say('hello again', sid)
@@ -437,7 +438,7 @@ try {
   const sw3 = await setModel(sid, GPT_ID)
   console.log(`      switch receipt on the respawned runner: ${JSON.stringify(sw3)}`)
   check('C2 the family switch on the respawned runner is APPLIED', sw3.ok === true && sw3.outcome === 'applied', JSON.stringify(sw3))
-  check('C2 the receipt takes the live-runner shape ("<runner> → <model>": no exit, no restart, no respawned flag)', sw3.detail === `${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify(sw3))
+  check('C2 the receipt names the exit the record still shows and the landing in place: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) and is back — <runner> → <model>", the clock the crash row\'s own, no respawned flag', sw3.detail === `the runner had exited at ${clockOf(crash6?.at ?? 0)} (crashed mid-run (exit none · signal SIGKILL)) and is back — ${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify({ sw3, at: crash6?.at }))
   check('C2 the switch landed in place: the respawned pid stands', readRec(sid)?.pid === pidBack && alive(pidBack), JSON.stringify({ pid: readRec(sid)?.pid, pidBack }))
   check("C2 the record's crash row still stands after the switch (the row says the runner exited and resumed; the receipt did not)", readRec(sid)?.crash?.respawning === true && readRec(sid)?.crash?.at === crash6?.at, JSON.stringify(readRec(sid)?.crash))
   check('C2 the record and the facts carry the GPT row', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readRec(sid)?.pendingModelKey === undefined && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))

@@ -1986,9 +1986,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
       this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
-      if (outcome === 'applied' && (reply as { respawned?: unknown }).respawned === true) {
-        this.readFacts()
-        return detail !== undefined ? { state: 'applied', note: detail } : { state: 'applied' }
+      if (outcome === 'applied') {
+        const respawned = (reply as { respawned?: unknown }).respawned === true
+        if (respawned) this.readFacts()
+        if (detail !== undefined && (respawned || detail !== `${this.record.runnerId} → ${target}`)) return { state: 'applied', note: detail }
       }
       return { state: outcome }
     } catch (e) {
