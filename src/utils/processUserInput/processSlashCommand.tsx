@@ -853,6 +853,7 @@ async function runLocalCommand(
       return {
         messages: [
           compaction.boundaryMarker,
+          ...(compaction.operatorMessages !== undefined ? [compaction.operatorMessages] : []),
           ...compaction.summaryMessages,
           ...(compaction.messagesToKeep ?? []),
           createSyntheticUserCaveatMessage(),

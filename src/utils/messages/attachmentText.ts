@@ -46,6 +46,7 @@ import {
   formatDecisionRecordForPlanning,
   latestDecisionRecordSync,
 } from '../../services/interview/decisionRecord.js'
+import { operatorMessagesBlockText } from '../../services/compact/operatorMessages.js'
 import { createUserMessage } from './factories.js'
 import {
   wrapCommandText,
@@ -1102,6 +1103,10 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     }
     case 'user_context': {
       return [createUserMessage({ content: attachment.body, isMeta: true })]
+    }
+    case 'compact_operator_messages': {
+      if (attachment.messages.length === 0) return []
+      return [createUserMessage({ content: operatorMessagesBlockText(attachment), isMeta: true })]
     }
     case 'deepthink_effort': {
       return wrapMessagesInSystemReminder([

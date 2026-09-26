@@ -517,6 +517,11 @@ export type Attachment =
       type: 'user_context'
       body: string
     }
+  | {
+      type: 'compact_operator_messages'
+      messages: Array<{ ordinal: number; text: string; truncated?: boolean }>
+      omitted: number
+    }
 
 export type TeammateMailboxAttachment = {
   type: 'teammate_mailbox'

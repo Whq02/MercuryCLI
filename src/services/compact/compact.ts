@@ -71,6 +71,7 @@ import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
+import { selectOperatorMessages } from './operatorMessages.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
 import type { CompactProgressEvent } from '../../Tool.js'
 import {
@@ -291,6 +292,7 @@ function recordFoldRoad(
 
 export type CompactionResult = {
   boundaryMarker: SystemCompactBoundaryMessage
+  operatorMessages?: AttachmentMessage
   summaryMessages: UserMessage[]
   messagesToKeep?: Message[]
   attachments: AttachmentMessage[]
@@ -312,9 +314,10 @@ export type RecompactionInfo = {
 
 
 export function buildPostCompactMessages(result: CompactionResult): Message[] {
-  const { boundaryMarker, summaryMessages, messagesToKeep, attachments, hookResults } = result
+  const { boundaryMarker, operatorMessages, summaryMessages, messagesToKeep, attachments, hookResults } = result
   return [
     boundaryMarker,
+    ...(operatorMessages !== undefined ? [operatorMessages] : []),
     ...summaryMessages,
     ...(messagesToKeep ?? []),
     ...attachments,
@@ -575,6 +578,7 @@ function describeAttachment(message: AttachmentMessage): string {
   const attachment = message.attachment as { type: string; filename?: string; planFilePath?: string }
   if (attachment.type === 'file' || attachment.type === 'compact_file_reference') return `file ${attachment.filename ?? '?'}`
   if (attachment.type === 'plan_file_reference') return `plan ${attachment.planFilePath ?? '?'}`
+  if (attachment.type === 'compact_operator_messages') return 'operator messages'
   return attachment.type
 }
 
@@ -600,6 +604,11 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
       estimate = estimateContextTokens(buildPostCompactMessages(current))
     }
     if (estimate < threshold) break
+  }
+  if (estimate >= threshold && current.operatorMessages !== undefined) {
+    shed.push(describeAttachment(current.operatorMessages))
+    current = { ...current, operatorMessages: undefined }
+    estimate = estimateContextTokens(buildPostCompactMessages(current))
   }
   return { result: current, estimate, shed }
 }
@@ -1199,6 +1208,13 @@ export async function compactConversation(
         logForDebugging(`compact: verbatim tail keeps ${tail.roundsKept} rounds (${tail.keep.length} messages)`)
       }
     }
+    const operatorSelection = selectOperatorMessages(messages, {
+      keptUuids: new Set((messagesToKeep ?? []).map(message => message.uuid)),
+    })
+    const operatorMessages = operatorSelection === null ? undefined : createAttachmentMessage(operatorSelection)
+    if (operatorSelection !== null) {
+      logForDebugging(`compact: operator messages block carries ${operatorSelection.messages.length} of ${operatorSelection.messages.length + operatorSelection.omitted} prompts verbatim`)
+    }
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
     const snapshot = snapshotAndClearReadState(context)
@@ -1242,6 +1258,7 @@ export async function compactConversation(
       : 0
     let partial: CompactionResult = {
       boundaryMarker: boundary,
+      operatorMessages,
       summaryMessages,
       messagesToKeep,
       attachments: postCompactFileAttachments,
@@ -1415,8 +1432,10 @@ export async function partialCompactConversation(
         (usage.cache_creation_input_tokens ?? 0) +
         (usage.output_tokens ?? 0)
       : 0
+    const operatorSelection = selectOperatorMessages(summarize)
     const partialResult: CompactionResult = {
       boundaryMarker: boundary,
+      operatorMessages: operatorSelection === null ? undefined : createAttachmentMessage(operatorSelection),
       summaryMessages: [summaryMessage],
       messagesToKeep: kept,
       attachments,
