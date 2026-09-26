@@ -150,10 +150,10 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       const answered = answeredTool(items)
       let route: Route
       if (seat !== null) route = 'seat'
+      else if (lastUserText.includes('crew-drive: fail') && offersTool(body, 'Agent')) route = 'fail-launch'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (answered === 'Agent') route = 'launched'
       else if (lastUserText.includes('crew-drive: launch') && offersTool(body, 'Agent')) route = 'launch'
-      else if (lastUserText.includes('crew-drive: fail') && offersTool(body, 'Agent')) route = 'fail-launch'
       else route = 'side'
       const priorReads = readsOf(items)
       const userHeads = items.map(i => `${i.role === 'user' ? 'U' : 'A'}:${textOf(i.content).replace(/\s+/g, ' ').slice(0, 36)}${blocksOf(i.content).some(b => b.type === 'tool_result') ? '[tool_result]' : ''}${blocksOf(i.content).some(b => b.type === 'tool_use') ? '[tool_use]' : ''}`)
@@ -414,7 +414,12 @@ if (cap !== null) {
   check('K2 the stopped row names its reason and offers the resume door', rowsWith(m['x2'], /crew view|r resumes/).length > 0, rowsWith(m['x2'], /stopped|resume/).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— K3 the notices —')
-  const notes = fixture.hits.filter(h => h.route === 'note')
+  const notes = fixture.hits.filter(h => h.seat === null).flatMap(h =>
+    (h.lastUserText.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? []).map(lastUserText => ({ ...h, lastUserText })),
+  )
+  const nextLine = fixture.hits.find(h => h.route === 'fail-launch')
+  check('K3 held notices deliver before the next operator line in the same turn', nextLine !== undefined && nextLine.lastUserText.indexOf('<task-notification>') >= 0 && nextLine.lastUserText.indexOf('<task-notification>') < nextLine.lastUserText.indexOf('crew-drive: fail'))
+  check('K3 after esc no held notice starts a turn before that operator line', nextLine !== undefined && notes.every(h => h.atMs >= nextLine.atMs))
   for (const note of notes) console.log(`  note: ${flat(note.lastUserText).slice(0, 220)}`)
   const killedFor = (name: string): Hit[] => notes.filter(h => h.lastUserText.includes('<status>killed</status>') && h.lastUserText.includes(name))
   check(`K3 exactly one 'killed' notice reached the main agent, naming ${SEATS[stoppedSeat]}`, killedFor(SEATS[stoppedSeat]).length === 1, `${killedFor(SEATS[stoppedSeat]).length} notices`)
@@ -424,6 +429,7 @@ if (cap !== null) {
   const failedNotes = notes.filter(h => h.lastUserText.includes('<status>failed</status>') && h.lastUserText.includes(SEATS.three))
   check(`K3 the declined seat delivered exactly one 'failed' notice naming ${SEATS.three}`, failedNotes.length === 1, `${failedNotes.length} notices; ${notes.length} notes total`)
   check('K3 the failed notice carries the decline text', failedNotes.some(h => h.lastUserText.includes(DECLINE_TEXT)))
+  check('K3 a notice arriving alone after the operator turn still takes the notice-only route', fixture.hits.some(h => h.route === 'note' && h.lastUserText.includes('<status>failed</status>') && !h.lastUserText.includes('crew-drive: fail')))
 
   console.log('\n— K4 resume —')
   const resumedHits = fixture.hits.filter(h => h.seat === stoppedSeat && h.atMs >= resumeAt - 200)

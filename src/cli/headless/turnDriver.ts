@@ -58,6 +58,7 @@ export type TurnDriverPorts = {
     command: QueuedCommand,
     batch: QueuedCommand[],
     onMessage: (message: StdoutMessage) => void,
+    initialNotices?: QueuedCommand[],
   ): Promise<void>
   beforeCycle(): Promise<void>
   onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): StdoutMessage | undefined
@@ -100,6 +101,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let heldBackResult: StdoutMessage | null = null
   let outputClosed = false
   let holdReleased = false
+  let noticesAwaitOperator = false
+  let wakeAgentWait: (() => void) | undefined
 
   const settledAt = new Map<string, number>()
   let holding = false
@@ -107,7 +110,11 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let wall: (WatchWall & { recheckAtMs: number }) | null = null
   let wallTimerArmed = false
   const now = (): number => ports.clock.now?.() ?? Date.now()
-  const queuedMainThread = (): readonly QueuedCommand[] => ports.queuedMainThread?.() ?? []
+  const queuedMainThread = (): readonly QueuedCommand[] => {
+    if (ports.queuedMainThread !== undefined) return ports.queuedMainThread()
+    const head = ports.peek()
+    return head === undefined ? [] : [head]
+  }
 
   const takeQueued = (): QueuedCommand | undefined => {
     const taken = ports.dequeue()
@@ -168,6 +175,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const dueQueued = (): boolean => {
     const head = ports.peek()
     if (head === undefined) return false
+    if (noticesAwaitOperator) return queuedMainThread().some(isOperatorWords)
     if (!isTaskNotification(head)) return true
     if (queuedMainThread().some(c => !isTaskNotification(c))) return true
     return !(wall !== null && wall.closed && now() < wall.recheckAtMs)
@@ -186,7 +194,11 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     holding = false
     wallHeld = false
     const head = ports.peek()
-    if (head === undefined) return undefined
+    if (head === undefined || holdReleased) return undefined
+    if (noticesAwaitOperator) {
+      const words = queuedMainThread().find(isOperatorWords)
+      return words === undefined ? undefined : ports.dequeueCommand(words)
+    }
     const words = wordsBefore(head)
     if (words !== undefined) return words
     const window = ports.settleWindowMs ?? 0
@@ -237,6 +249,14 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
   async function runOneTurn(first: QueuedCommand): Promise<void> {
     let command = first
+    const initialNotices: QueuedCommand[] = []
+    if (noticesAwaitOperator && isOperatorWords(first)) {
+      noticesAwaitOperator = false
+      for (const notice of queuedMainThread().filter(isTaskNotification)) {
+        const taken = ports.dequeueCommand(notice)
+        if (taken !== undefined) initialNotices.push(taken)
+      }
+    }
 
     const batch: QueuedCommand[] = [command]
     if (command.mode === 'prompt') {
@@ -255,7 +275,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         }
       }
     }
-    const batchUuids = batch
+    const batchUuids = [...initialNotices, ...batch]
       .map(c => c.uuid)
       .filter((u): u is NonNullable<typeof u> => u !== undefined)
 
@@ -291,7 +311,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
     await ports.executeTurn(command, batch.length > 1 ? batch : [], message => {
       deliver(message)
-    }).catch((error: unknown) => {
+    }, initialNotices).catch((error: unknown) => {
       if (answered) throw error
       deliver(ports.onCycleError(error))
     })
@@ -342,13 +362,17 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         }
 
         waitingForAgents = false
-        if ((!holdReleased && ports.hasWaitableBackgroundTasks()) || dueQueued()) {
+        if (!holdReleased && (ports.hasWaitableBackgroundTasks() || dueQueued())) {
           waitingForAgents = true
           if (ports.peek() === undefined || holding || wallHeld) {
             phase = 'waiting_for_agents'
             const running = ports.waitableBackgroundTaskCount?.() ?? (ports.hasWaitableBackgroundTasks() ? 1 : 0)
             announceWait(holding ? running : Math.max(1, running))
-            await ports.clock.sleep(AGENT_WAIT_TICK_MS)
+            await new Promise<void>(resolve => {
+              wakeAgentWait = resolve
+              void ports.clock.sleep(AGENT_WAIT_TICK_MS).then(resolve)
+            })
+            wakeAgentWait = undefined
           }
         }
       } while (waitingForAgents)
@@ -403,7 +427,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   }
 
   function kick(): void {
-    if (phase !== 'idle') {
+    if (phase !== 'idle' || (noticesAwaitOperator && !dueQueued())) {
       return
     }
     seatContext(() => {
@@ -419,6 +443,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     releaseHold: () => {
       if (phase === 'idle') return
       holdReleased = true
+      noticesAwaitOperator = true
+      wakeAgentWait?.()
     },
     closeOutputOnce,
   }
