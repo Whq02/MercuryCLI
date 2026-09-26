@@ -81,7 +81,7 @@ export type TaskRecord = {
 export type Output = {
   retrieval_status: RetrievalStatus
   task: TaskRecord | null
-  interrupted_by?: { task_id: string; description: string; status: string; error?: string }
+  interrupted_by?: { task_id: string; description: string; status: string; error?: string } | { new_input: string }
   clamped?: string
 }
 
@@ -243,10 +243,14 @@ export const TaskOutputTool = buildTool({
       data: { type: 'waiting_for_task', taskDescription: task.description, taskType: task.type },
     })
 
+    const { NEW_INPUT_REASON, newInputForTurn } = await import('../../utils/newInputWatch.js')
     const startedAt = Date.now()
     const deadline = startedAt + timeout
     while (timeout > 0 && !isSettled(task.status)) {
       if (context.abortController.signal.aborted) throw new AbortError()
+      if (newInputForTurn(context.agentId) !== undefined) {
+        return { data: { retrieval_status: 'not_ready', task: await extractTaskRecord(task), interrupted_by: { new_input: NEW_INPUT_REASON }, ...said } satisfies Output }
+      }
       if (Date.now() >= deadline) break
       await sleep(POLL_INTERVAL_MS)
       const next = readTask()
@@ -285,12 +289,11 @@ export const TaskOutputTool = buildTool({
     }
     if (output.interrupted_by) {
       const member = output.interrupted_by
-      parts.push(
-        tagged(
-          'interrupted_by',
-          `the wait ended early: agent "${member.description}" [${member.task_id}] ${member.status}${member.error ? ` — ${member.error}` : ''}; the waited task runs on (its own notice follows)`,
-        ),
-      )
+      const cause =
+        'new_input' in member
+          ? member.new_input
+          : `agent "${member.description}" [${member.task_id}] ${member.status}${member.error ? ` — ${member.error}` : ''}`
+      parts.push(tagged('interrupted_by', `the wait ended early: ${cause}; the waited task runs on (its own notice follows)`))
     }
     if (output.clamped) parts.push(tagged('clamped', output.clamped))
     return {

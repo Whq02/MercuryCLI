@@ -137,6 +137,7 @@ export const SleepTool = buildTool({
   },
   async call({ seconds }, { abortController, getAppState, agentId }) {
     const { flagEnv } = await import('../../substrate/flagRegistry.js')
+    const { NEW_INPUT_REASON, watchForNewInput } = await import('../../utils/newInputWatch.js')
     if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1' && seconds > 300) {
       throw new Error(
         'refused: this background session must not hold its turn open — ending the turn IS idling here; the switchboard wakes it on the next delivery. Use waits under 300s only for real short backoffs.',
@@ -147,15 +148,24 @@ export const SleepTool = buildTool({
     const start = Date.now()
     let interrupted = false
     let armed = countTrackedRunningAgents(getAppState, agentId) > 0
+    let newInput = false
     await new Promise<void>(resolve => {
       const signal = abortController.signal
+      let stopWatch: (() => void) | undefined
       const cleanup = (): void => {
         clearTimeout(timer)
         clearInterval(watch)
+        stopWatch?.()
         signal.removeEventListener('abort', onAbort)
       }
       const onAbort = (): void => {
         interrupted = true
+        cleanup()
+        resolve()
+      }
+      const onNewInput = (): void => {
+        interrupted = true
+        newInput = true
         cleanup()
         resolve()
       }
@@ -187,6 +197,7 @@ export const SleepTool = buildTool({
         return
       }
       signal.addEventListener('abort', onAbort)
+      stopWatch = watchForNewInput(agentId, onNewInput)
     })
     const sleptSeconds = Math.round((Date.now() - start) / 1000)
     const settledEarly =
@@ -194,7 +205,9 @@ export const SleepTool = buildTool({
     return {
       data: {
         message: interrupted
-          ? `Sleep interrupted after ${sleptSeconds}s`
+          ? newInput
+            ? `Sleep interrupted after ${sleptSeconds}s: ${NEW_INPUT_REASON}`
+            : `Sleep interrupted after ${sleptSeconds}s`
           : settledEarly
             ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished. ` +
               'Mercury tracks agent tasks for you; their completion arrives on its own, so a wait ' +
