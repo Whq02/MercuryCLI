@@ -21,6 +21,7 @@ import {
   refreshProviderUsage,
   usageCreditsLine,
   usageForProvider,
+  zaiAccountFacts,
   type ActiveSourceUsage,
   type ProviderFamilyPresence,
   type ProviderSessionSpend,
@@ -266,7 +267,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   zai: {
     title: 'Z.AI usage',
     connect: '/logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY works too)',
-    limitsNote: 'Usage bills to your Z.AI account; no polled limit meter exists on this lane.',
+    limitsNote: 'A GLM Coding Plan key meters its 5-hour and weekly credit windows; a general key bills usage to your Z.AI account.',
   },
   openrouter: {
     title: 'OpenRouter usage',
@@ -605,6 +606,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'gemini') return <GeminiUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'huggingface') return <HuggingfaceUsageSection />
   if (section.id === 'moonshot') return <MoonshotUsageSection {...(width !== undefined ? { width } : {})} />
+  if (section.id === 'zai') return <ZaiUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
   return (
@@ -618,7 +620,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         presentLabel={section.family.credentialLabel}
         isActive={section.family.credentialed}
         spend={spend}
-        {...(section.id !== 'zai' && usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
+        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       {section.family.credentialed && usage.readerNote !== undefined ? (
         <Text dimColor>{usage.readerNote}</Text>
@@ -676,6 +678,59 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account
           ? ENGINE_USAGE_PRESENTATION.moonshot!.limitsNote
           : `Not connected — ${ENGINE_USAGE_PRESENTATION.moonshot!.connect}.`}
+      </Text>
+    </Box>
+  )
+}
+
+function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentialLabel?: string }): React.ReactNode {
+  const account = zaiAccountFacts()
+  const coding = account?.plan === 'coding'
+  const spend = providerSessionSpend('zai')
+  const usage = useOwnerUsage('zai', account !== undefined)
+  const windows = usage.windows
+  const figures = figuresLine(usage)
+  return (
+    <Box flexDirection="column">
+      <Text bold>Z.AI usage</Text>
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="GLM Coding Plan" />
+        {coding ? (
+          <Box flexDirection="column">
+            <Text dimColor>{[credentialLabel ?? 'GLM Coding Plan key', usage.tier].filter((part): part is string => part !== undefined).join(' · ')}</Text>
+            <Text dimColor>{spendLine(spend, false)}</Text>
+            {usage.absence !== undefined ? (
+              <Text dimColor>{usage.absence}</Text>
+            ) : windows.length > 0 ? (
+              windows.map(window => (
+                <ObservedWindowMeter
+                  key={window.key}
+                  window={window}
+                  {...(window.label === '7d' ? { title: 'Current week (7d)' } : {})}
+                  {...(width !== undefined ? { maxWidth: width } : {})}
+                />
+              ))
+            ) : (
+              <Text dimColor>{usage.readerNote ?? 'Plan windows: not yet observed — the quota endpoint is asked on this tab.'}</Text>
+            )}
+            {windows.length > 0 && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
+            {figures !== undefined ? <Text dimColor>{figures}</Text> : null}
+          </Box>
+        ) : (
+          <Text dimColor>{absentSlotLine('/logins zai adds a GLM Coding Plan key')}</Text>
+        )}
+      </Box>
+      <ApiKeySlot
+        presentLabel={!coding && account !== undefined ? credentialLabel ?? 'Z.AI API key' : undefined}
+        isActive={!coding && account !== undefined}
+        spend={spend}
+      />
+      <Text dimColor>
+        {account === undefined
+          ? `Not connected — ${ENGINE_USAGE_PRESENTATION.zai!.connect}.`
+          : coding
+            ? ENGINE_USAGE_PRESENTATION.zai!.limitsNote
+            : (usage.absence ?? ENGINE_USAGE_PRESENTATION.zai!.limitsNote)}
       </Text>
     </Box>
   )

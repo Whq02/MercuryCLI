@@ -228,6 +228,7 @@ function HelmTelemetryRailImpl({
   }, [wfDisk, workRows, now])
 
   const usageNodes: React.ReactNode[] = []
+  const detailRows = (provider: ActiveSourceUsage['provider']): boolean => provider === 'moonshot' || provider === 'zai'
   const appendKimiDetails = (w: UsageWindowView, key: string): void => {
     const details = [
       w.resetsAtMs !== undefined ? `resets ${formatClock(w.resetsAtMs)}` : undefined,
@@ -301,6 +302,10 @@ function HelmTelemetryRailImpl({
     usageNodes.push(<EmptyHint key="usage:whynot" text={usage.whyNot ?? 'not connected'} width={rowW} />)
   } else if (usageEmpty && usage.absence) {
     usageNodes.push(<EmptyHint key="usage:absence" text={usage.absence} width={rowW} />)
+  } else if (usageEmpty && usage.provider === 'zai') {
+    if (usage.readerNoteCompact === undefined) {
+      usageNodes.push(<EmptyHint key="usage:unsampled" text={`${NO_USAGE_READ_WORDS} · /usage`} width={rowW} />)
+    }
   } else if (usageEmpty) {
     usageNodes.push(<EmptyHint key="usage:none" text={`${NO_USAGE_READ_WORDS} · fills after first reply`} width={rowW} />)
   } else {
@@ -322,14 +327,14 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={usage.provider === 'moonshot' ? undefined : meterTail(w, pool)}
+                  resetIn={detailRows(usage.provider) ? undefined : meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
           )
         })(),
       )
-      if (usage.provider === 'moonshot') appendKimiDetails(w, `usage:${w.key}`)
+      if (detailRows(usage.provider)) appendKimiDetails(w, `usage:${w.key}`)
     }
   }
   if (usage.readerNoteCompact !== undefined) {
@@ -399,14 +404,14 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={other.provider === 'moonshot' ? undefined : meterTail(w, pool)}
+                  resetIn={detailRows(other.provider) ? undefined : meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
           )
         })(),
       )
-      if (other.provider === 'moonshot') appendKimiDetails(w, `usage:${other.provider}:${w.key}`)
+      if (detailRows(other.provider)) appendKimiDetails(w, `usage:${other.provider}:${w.key}`)
     }
   }
   {

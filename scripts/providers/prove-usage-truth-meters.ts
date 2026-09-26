@@ -299,7 +299,7 @@ section("§8 the doctor's usage row is the owner's summary — windows, pools, f
   check('the summary leads with the tier and walks the pair then the pools', words.startsWith('Claude Max · 5h 36%') && words.indexOf('7d 44%') !== -1 && words.indexOf('7d 44%') < words.indexOf('Fable 87%') && words.includes('Opus 61%') && words.includes('Sonnet 20%'), words)
   check('…and names the feed and age once for the block', words.includes(' · endpoint-fed · read 10 s ago'), words)
   const key = owner.usageSummaryWords(owner.usageForProvider('zai', { zaiKeyPresent: () => true, spend: () => spend }), NOW)
-  check('an api-key summary carries the tier, the absence and the credits line', key.startsWith('API billing · ') && key.includes('credits: not reported by the provider') && key.includes('No Z.AI usage read found') && key.includes('https://z.ai/manage-apikey/subscription'), key)
+  check('an api-key summary carries the tier, the absence and the credits line', key.startsWith('API billing · ') && key.includes('credits: not reported by the provider') && key.includes('No usage road for a general Z.AI key') && key.includes('https://z.ai/manage-apikey/billing'), key)
   const none = owner.usageSummaryWords(owner.usageForProvider('openrouter', { openrouterKeyPresent: () => false, spend: () => spend }), NOW)
   check("a signed-out family's summary is its why-not", none === 'not connected — /logins adds OpenRouter', none)
   const limited = owner.usageSummaryWords({ ...view, limited: { resetsAtMs: NOW + 30 * MIN } }, NOW)
