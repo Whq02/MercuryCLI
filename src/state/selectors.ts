@@ -20,15 +20,27 @@ export function getViewedTeammateTask(
   return task
 }
 
+export function composerTargetTaskId(
+  appState: Pick<AppState, 'viewingAgentTaskId' | 'mainChatTaskId'>,
+): string | undefined {
+  return appState.mainChatTaskId ?? appState.viewingAgentTaskId
+}
+
+export function composerTargetPinned(
+  appState: Pick<AppState, 'mainChatTaskId'>,
+): boolean {
+  return appState.mainChatTaskId !== undefined
+}
+
 export type ActiveAgentForInput =
   | { type: 'leader' }
   | { type: 'viewed'; task: InProcessTeammateTaskState }
   | { type: 'named_agent'; task: LocalAgentTaskState }
 
 export function getActiveAgentForInput(
-  appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks'>,
+  appState: Pick<AppState, 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks'>,
 ): ActiveAgentForInput {
-  const taskId = appState.viewingAgentTaskId
+  const taskId = composerTargetTaskId(appState)
   if (!taskId) return { type: 'leader' }
   const task = appState.tasks[taskId]
   if (!task) return { type: 'leader' }

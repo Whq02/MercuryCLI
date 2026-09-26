@@ -15,6 +15,7 @@ export type InteractiveRowProps = {
   directActivate?: boolean
   selectionBand?: boolean
   actionLabel?: string
+  tint?: string
   rowRef?: React.Ref<DOMElement>
   width?: number | string
   height?: number
@@ -42,6 +43,7 @@ export function InteractiveRow({
   onActivate,
   directActivate = false,
   selectionBand = true,
+  tint,
   rowRef,
   width,
   height,
@@ -90,7 +92,7 @@ export function InteractiveRow({
       flexShrink={flexShrink}
       flexGrow={flexGrow}
       overflow="hidden"
-      backgroundColor={bandPainted ? tokens.selectionBand : hoverFillPainted ? tokens.surface2 : undefined}
+      backgroundColor={bandPainted ? tokens.selectionBand : hoverFillPainted ? tokens.surface2 : tint}
       onClick={handleClick}
       onMouseEnter={interactive ? () => claimHover(id) : undefined}
       onMouseLeave={interactive ? () => releaseHover(id) : undefined}

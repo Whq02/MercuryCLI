@@ -154,6 +154,7 @@ export type SDKControlScheduleRosterRequest = {
 export type SDKControlStopTaskRequest = {
   subtype: 'stop_task'
   task_id: string
+  note?: string
 }
 
 export type SDKControlBackgroundShellRequest = {

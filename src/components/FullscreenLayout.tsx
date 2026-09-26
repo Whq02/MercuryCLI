@@ -56,6 +56,9 @@ import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
 import { WorkCapsule } from './mercury-ui/WorkCapsule.js'
 import { PromptInputFooterSuggestions } from './PromptInput/PromptInputFooterSuggestions.js'
+import { CrewViewSlot } from './CrewViewSlot.js'
+import { CrewmateCard } from './CrewmateCard.js'
+import { useViewedCrewmate } from './tasks/useCrewmateView.js'
 import type {
   Message as WireMessage,
   NormalizedMessage,
@@ -450,6 +453,7 @@ export function FullscreenLayout({
   })
 
   const elevatedRef = useElevatedSurface()
+  const viewedCrewmate = useViewedCrewmate()
 
   useEffect(() => {
     setRecessTarget(recessTargetFor(tokens))
@@ -632,12 +636,16 @@ export function FullscreenLayout({
                           minWidth={0}
                           justifyContent="center"
                         >
-                          <WorkCapsule
-                            active={!!statusBandActive}
-                            width={sizeVal.columns - 4 - 1 - CR_COLS}
-                          >
-                            {statusBand}
-                          </WorkCapsule>
+                          {viewedCrewmate !== null ? (
+                            <CrewmateCard crewmate={viewedCrewmate} width={sizeVal.columns - 4 - 1 - CR_COLS} />
+                          ) : (
+                            <WorkCapsule
+                              active={!!statusBandActive}
+                              width={sizeVal.columns - 4 - 1 - CR_COLS}
+                            >
+                              {statusBand}
+                            </WorkCapsule>
+                          )}
                         </Box>
                       </Box>
                     ) : null}
@@ -646,6 +654,7 @@ export function FullscreenLayout({
                     </TerminalSizeContext.Provider>
                   </TerminalSizeContext.Provider>
                   <FilesMenuSlot hostRef={centreBoxRef} framed={centerFrame} />
+                  <CrewViewSlot hostRef={centreBoxRef} framed={centerFrame} />
                 </Box>
                 {}
                 <Box ref={telemetryBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.telemetry ? plan.telemetryW : 0}>

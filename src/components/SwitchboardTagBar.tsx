@@ -30,6 +30,8 @@ import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, u
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+import { useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
 
 
 const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
@@ -240,6 +242,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const bornEffort = useFocusedBornEffort()
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
+  const crewmate = useViewedCrewmate()
   const c = getFocusedSessionConnector()
   const painting = hasSeatLive(c)
   useEffect(() => {
@@ -251,9 +254,12 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   }, [painting])
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
-  const line = statusLine(live, status, crew)
+  const line = crewmate !== null ? crewmateStatusWords(crewmate, crewmate.running) : statusLine(live, status, crew)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
-  const backHint = escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
+  const backHint =
+    crewmate !== null && !crewmate.pinned
+      ? `${crewmateStatusRightHint(false)} · ${keyHintLabel('⇧← back')}`
+      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null

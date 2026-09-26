@@ -23,6 +23,8 @@ export const AttachedAttributionContext = React.createContext<
 
 export const NameplateAccentContext = React.createContext<string | null>(null)
 
+export const CrewmatePlateContext = React.createContext<{ agent: string; user: string } | null>(null)
+
 type MessageMeta = {
   timestamp?: string
   role: MessageRole
@@ -117,15 +119,19 @@ export function TranscriptNameplate(): React.ReactNode {
   const critter = useSessionAccent()
   const { accentSoft: userBloom } = useMercuryTokens()
   const paneAccent = React.useContext(NameplateAccentContext)
+  const crewmatePlate = React.useContext(CrewmatePlateContext)
 
   if (!meta) return null
   if (isContinuation) return null
   const clock = formatClock(meta.timestamp)
-  if (!clock && !meta.attachedAuthor) return null
+  if (!clock && !meta.attachedAuthor && crewmatePlate === null) return null
   const isAgent = meta.role === 'assistant'
   let name: string
   let nameColor: string
-  if (meta.attachedAuthor) {
+  if (crewmatePlate !== null) {
+    name = isAgent ? crewmatePlate.agent : crewmatePlate.user
+    nameColor = isAgent ? (paneAccent ?? critter.accent) : userBloom
+  } else if (meta.attachedAuthor) {
     name = attachedPlateName(meta.attachedAuthor)
     nameColor =
       meta.attachedAuthor === 'agent'

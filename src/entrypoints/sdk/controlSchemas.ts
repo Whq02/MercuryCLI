@@ -159,7 +159,7 @@ export const SDKControlScheduleRosterRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('schedule_roster'), schedules: z.unknown() }),
 )
 export const SDKControlStopTaskRequestSchema = lazySchema(() =>
-  z.object({ subtype: z.literal('stop_task'), task_id: z.string() }),
+  z.object({ subtype: z.literal('stop_task'), task_id: z.string(), note: z.string().optional() }),
 )
 export const SDKControlBackgroundShellRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('background_shell') }),

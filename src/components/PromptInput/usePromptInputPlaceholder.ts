@@ -5,8 +5,9 @@ import type { AppState } from '../../state/AppStateStore.js'
 import { getExampleCommandFromCache } from '../../utils/exampleCommands.js'
 import { noteProjectOnboardingShown, projectOnboardingHint } from '../../projectOnboardingState.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
+import { crewmatePlaceholder } from '../../utils/cockpit/crewmateWords.js'
 
-const AGENT_NAME_MAX_COLUMNS = 20
+const AGENT_NAME_MAX_COLUMNS = 24
 
 export function usePromptInputPlaceholder({
   input,
@@ -35,7 +36,7 @@ export function usePromptInputPlaceholder({
   return useMemo(() => {
     if (input !== '') return undefined
     if (viewingAgentName) {
-      return `Message ${truncateToWidth(viewingAgentName, AGENT_NAME_MAX_COLUMNS)}…`
+      return crewmatePlaceholder(truncateToWidth(viewingAgentName, AGENT_NAME_MAX_COLUMNS))
     }
     if (onboardingHint !== undefined) {
       return onboardingHint

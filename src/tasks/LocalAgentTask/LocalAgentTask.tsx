@@ -282,6 +282,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   lastReportedTokenCount?: number
   isBackgrounded: boolean
   pendingMessages?: string[]
+  operatorMessages?: string[]
   retain?: boolean
   diskLoaded?: boolean
   evictAfter?: number
@@ -310,9 +311,19 @@ export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[
 
 
 export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
+export const AGENT_INTERRUPT_BY_OPERATOR = 'operator-interrupt'
+export const AGENT_INTERRUPTED_STATUS_WORD = 'interrupted'
+export const AGENT_INTERRUPTED_WORDS = 'interrupted by the operator on its screen'
+export const AGENT_INTERRUPTED_NOTE = 'the operator cut it off on purpose — not a fault, not a loop stop'
 
 export function agentStopReasonOf(signalReason: unknown): string | undefined {
-  return signalReason === AGENT_STOP_BY_OPERATOR ? 'stopped from the crew view' : undefined
+  if (signalReason === AGENT_STOP_BY_OPERATOR) return 'stopped from the crew view'
+  if (signalReason === AGENT_INTERRUPT_BY_OPERATOR) return AGENT_INTERRUPTED_WORDS
+  return undefined
+}
+
+export function agentStopStatusWordOf(signalReason: unknown): string | undefined {
+  return signalReason === AGENT_INTERRUPT_BY_OPERATOR ? AGENT_INTERRUPTED_STATUS_WORD : undefined
 }
 
 export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by SendMessage to its id'
@@ -890,6 +901,41 @@ export function queuePendingMessage(
   if (queued) recordAgentMessage(taskId, message)
 }
 
+export function queueOperatorMessage(
+  taskId: string,
+  message: string,
+  setAppState: SetAppState,
+): void {
+  let queued = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task)) return task
+    queued = true
+    return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
+  })
+  if (queued) recordAgentMessage(taskId, message)
+}
+
+export function peekOperatorMessages(task: unknown): string[] {
+  return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
+}
+
+export function takeOperatorMessages(
+  taskId: string,
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+): string[] {
+  const task = getAppState().tasks?.[taskId]
+  const queued = peekOperatorMessages(task)
+  if (queued.length === 0) return []
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+    ...current,
+    operatorMessages: [],
+  }))
+  consumeAgentMessages(taskId)
+  for (const notice of queued) speakAgentMessageFrame(taskId, notice)
+  return queued
+}
+
 export function drainPendingMessages(
   taskId: string,
   getAppState: () => AppState,
@@ -973,7 +1019,9 @@ export function enqueueAgentNotification(args: {
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
         ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
-        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
+        : args.statusWord === AGENT_INTERRUPTED_STATUS_WORD
+          ? `Agent "${args.description}" was ${args.stopReason ?? AGENT_INTERRUPTED_WORDS} — ${AGENT_INTERRUPTED_NOTE}${landed}; its work is kept; ${AGENT_RESUME_DOOR}`
+          : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`

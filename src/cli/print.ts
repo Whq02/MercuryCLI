@@ -255,7 +255,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
@@ -2797,7 +2797,7 @@ export async function runHeadless(
         }
         case 'stop_task': {
           try {
-            const receipt = await stopAgentByOperator(request.task_id, { getAppState, setAppState })
+            const receipt = await stopAgentByOperator(request.task_id, { getAppState, setAppState }, request.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})
             if (receipt.outcome === 'applied') respondSuccess(requestId, { receipt: 'applied', kind: receipt.kind, status: receipt.status })
             else respondError(requestId, receipt.reason)
             for (const event of drainSdkEvents()) io.outbound.enqueue(event)
@@ -2824,7 +2824,13 @@ export async function runHeadless(
           }
           const target = getAppState().tasks[request.task_id]
           if (target !== undefined && target.status === 'running') {
-            respondError(requestId, 'the agent is running — nothing to resume')
+            const note = request.note !== undefined ? request.note.trim() : ''
+            if (note === '' || !isLocalAgentTask(target)) {
+              respondError(requestId, 'the agent is running — nothing to resume')
+              return
+            }
+            queueOperatorMessage(request.task_id, note, setAppState)
+            respondSuccess(requestId, { queued: true, agent_id: request.task_id })
             return
           }
           try {

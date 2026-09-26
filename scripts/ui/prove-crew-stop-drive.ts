@@ -144,12 +144,13 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
     ...(name === 'card'
       ? [
           { data: '\r', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-          { data: 'x', atTick: 999, awaitText: 'esc back', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'card-running' },
+          { data: openView, atTick: 999, awaitText: 'viewing', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view-open' },
+          { data: '\r', afterPrevTicks: 4 },
+          { data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'list-again' },
         ]
       : [{ data: 'x', atTick: 999, awaitText: listGate, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'crew-running' }]),
     { data: 'x', atTick: 999, awaitText: 'x again within', requireAwait: true, minTick: 1, awaitSettleTicks: 1, mark: 'armed' },
     { data: '\x1b', atTick: 999, awaitText: 'stopped', requireAwait: true, minTick: 1, awaitSettleTicks: 3, mark: 'crew-after' },
-    ...(name === 'card' ? [{ data: '\x1b', afterPrevTicks: 3, mark: 'list-after' }] : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     { data: '\r', afterPrevTicks: 4 },
     { data: '\x1b', atTick: 999, awaitText: name === 'tasks' ? 'esc' : 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'crew-later' },
@@ -171,10 +172,10 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   check(`${tag}: the row runs before the chord`, runningRow !== undefined && /\brunning\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
   const armed = marks['armed'] ?? ''
   check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), flat(armed).slice(0, 200))
-  const after = (name === 'card' ? marks['list-after'] : marks['crew-after']) ?? ''
+  const after = marks['crew-after'] ?? ''
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
-  if (name === 'card') check(`${tag}: the card's own footer offered the chord and no refusal is painted on the card`, (marks['card-running'] ?? '').includes('x x stop') && !(marks['crew-after'] ?? '').includes('was refused'), flat(marks['card-running'] ?? '').slice(0, 200))
+  if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (the header names it as viewing) and the pop-up closes`, /VIEW · [^\n]*viewing/.test(marks['view-open'] ?? '') && !(marks['view-open'] ?? '').includes('Sub-agents'), flat(marks['view-open'] ?? '').slice(0, 200))
   check(`${tag}: no refusal is painted under the rows`, !after.includes('was refused'), flat(after).slice(0, 200))
   check(`${tag}: the daemon relayed exactly one stop to the runner (the chord fired once, the connector sent it once)`, records.daemonStops.length === 1, `daemon lines ${records.daemonStops.length}`)
   const later = marks['crew-later'] ?? ''

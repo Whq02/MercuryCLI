@@ -28,6 +28,8 @@ import {
   type SuggestionType,
 } from './PromptInputFooterSuggestions.js'
 import { getNewlineInstructions } from './utils.js'
+import { crewmateComposerHint } from '../../utils/cockpit/crewmateWords.js'
+import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 
 const NARROW_COLUMNS = 80
 
@@ -90,6 +92,7 @@ export function PromptInputFooter({
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   useSyncExternalStore(subscribeExtendedKeysSupport, extendedKeysSupportedNow, extendedKeysSupportedNow)
+  const composerCrewmate = useComposerCrewmate()
   const fullscreen = isFullscreenEnvEnabled()
   const narrow = columns < NARROW_COLUMNS
   const stripHint = useSyncExternalStore(
@@ -148,6 +151,7 @@ export function PromptInputFooter({
       {!exitPending && !isPasting ? (
         <Text dimColor wrap="truncate-end">
           {getNewlineInstructions()}
+          {composerCrewmate !== null ? ` · ${crewmateComposerHint(composerCrewmate)}` : ''}
           {fullscreen && stripHint !== '' ? ` · ${stripHint}` : ''}
         </Text>
       ) : null}

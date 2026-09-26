@@ -101,6 +101,14 @@ export function exitTeammateView(setAppState: SetAppState): void {
   })
 }
 
+export function setMainChat(taskId: string, setAppState: SetAppState): void {
+  setAppState(prev => (prev.mainChatTaskId === taskId ? prev : { ...prev, mainChatTaskId: taskId }))
+}
+
+export function clearMainChat(setAppState: SetAppState): void {
+  setAppState(prev => (prev.mainChatTaskId === undefined ? prev : { ...prev, mainChatTaskId: undefined }))
+}
+
 export function stopOrDismissAgent(taskId: string, setAppState: SetAppState, reason?: string): void {
   setAppState(prev => {
     const task = prev.tasks[taskId]
@@ -116,6 +124,7 @@ export function stopOrDismissAgent(taskId: string, setAppState: SetAppState, rea
       ...prev,
       tasks: { ...prev.tasks, [taskId]: released },
       ...(wasViewed ? { viewingAgentTaskId: undefined, viewSelectionMode: 'none' as const } : {}),
+      ...(prev.mainChatTaskId === taskId ? { mainChatTaskId: undefined } : {}),
     }
   })
 }

@@ -41,6 +41,8 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { BACK_HINT } from '../../utils/cockpit/crewmateWords.js'
+import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
@@ -77,6 +79,7 @@ export function PromptInputFooterLeftSide({
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
   )
+  const composerCrewmate = useComposerCrewmate()
   const treeShowing = useAppState(
     (state: AppState) => state.expandedView === 'teammates',
   )
@@ -222,7 +225,11 @@ export function PromptInputFooterLeftSide({
   )
   if (viewingTeammate && viewedTeammateCompleted) {
     parts.push(
-      <KeyboardShortcutHint key="return" shortcut="esc" action="return to leader" />,
+      <KeyboardShortcutHint key="return" shortcut="esc" action={`resume ${composerCrewmate?.name ?? 'the crewmate'} with your next line · ${BACK_HINT}`} />,
+    )
+  } else if (viewingTeammate) {
+    parts.push(
+      <KeyboardShortcutHint key="interrupt" shortcut="esc" action={`interrupt ${composerCrewmate?.name ?? 'the crewmate'}`} />,
     )
   } else {
     if (isLoading) {

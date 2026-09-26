@@ -21,6 +21,7 @@ import { commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, is
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
+import { TranscriptSwap } from '../components/CrewmateTranscript.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
 import {
   MessageActionsKeybindings,
@@ -2588,7 +2589,20 @@ export function REPL({
           hideSticky={inVirtualTranscript ? undefined : false}
           newMessageCount={inVirtualTranscript ? 0 : newMessageCount}
           onPillClick={inVirtualTranscript ? onTranscriptPillClick : onPillClick}
-          scrollable={transcriptBody}
+          scrollable={
+            inVirtualTranscript ? transcriptBody : (
+              <TranscriptSwap
+                lead={transcriptBody}
+                tools={mergedTools}
+                commands={commands}
+                screen={screen}
+                agentDefinitions={agentDefinitions}
+                scrollRef={scrollRef}
+                showAllInTranscript={showAllInTranscript}
+                trackStickyPrompt={fullscreen}
+              />
+            )
+          }
           bottom={
             <Box flexDirection="column">
               {

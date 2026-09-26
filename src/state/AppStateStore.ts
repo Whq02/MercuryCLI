@@ -177,6 +177,7 @@ type AppStateMutableHalf = {
   agentNameRegistry: Map<string, string>
   foregroundedTaskId?: string
   viewingAgentTaskId?: string | undefined
+  mainChatTaskId?: string | undefined
   selectedIPAgentIndex: number
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
   teamContext?: TeamContext
