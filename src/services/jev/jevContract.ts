@@ -13,6 +13,11 @@ export const JEV_TIMEOUT_MS = 10_000
 export const JEV_SUBAGENT_CALL_BUDGET = 2
 export const JEV_TOOL_NAME = 'JevEval'
 export const JEV_PROVIDER_NAME = 'TypeSafe'
+export type JevRoad = 'official' | 'openrouter'
+export const JEV_OPENROUTER_MODEL_PIN = 'typesafe/jev-1.13'
+export const jevRoadWords = (road: JevRoad): string => road === 'openrouter' ? 'OpenRouter' : 'official'
+export const jevMaxRequestTokens = (road: JevRoad): number => road === 'openrouter' ? 32_000 : JEV_MAX_REQUEST_TOKENS
+export const jevMaxCallUsd = (road: JevRoad): number => jevMaxRequestTokens(road) * JEV_USD_PER_INPUT_TOKEN
 
 export type JevText = string | Record<string, unknown> | readonly unknown[]
 export type JevState = JevText
@@ -42,6 +47,7 @@ export interface JevRequest {
   model: string
   state: JevState
   questions: Record<string, JevQuestion>
+  provider?: { data_collection: 'deny'; allow_fallbacks: false }
 }
 
 export interface JevNoulAnswer {
@@ -69,6 +75,7 @@ export type JevAnswer = JevNoulAnswer | JevChoiceAnswer | JevScoreAnswer
 export interface JevUsage {
   input_tokens: number
   output_tokens: number
+  cost?: number
 }
 
 export interface JevResponse {
@@ -85,6 +92,10 @@ export type JevWireFailureKind =
   | 'provider-refused'
   | 'parse-failed'
   | 'aborted'
+  | 'in-flight-budget'
+  | 'key-limit'
+  | 'provider-credit'
+  | 'model-not-served'
 
 export interface JevWireFailure {
   kind: JevWireFailureKind
@@ -92,6 +103,8 @@ export interface JevWireFailure {
   detail: string
   retryAfterMs?: number
   requestId?: string
+  limitSource?: string
+  providerCode?: string
 }
 
 export type JevWireOutcome = { ok: true; response: JevResponse; requestId?: string } | { ok: false; failure: JevWireFailure }
@@ -108,6 +121,9 @@ export type JevStatusKind =
   | 'provider-down'
   | 'provider-credit'
   | 'provider-refused'
+  | 'in-flight-budget'
+  | 'key-limit'
+  | 'model-not-served'
 
 export const JEV_STATUS_KINDS: readonly JevStatusKind[] = [
   'ready',
@@ -122,6 +138,9 @@ export const JEV_STATUS_KINDS: readonly JevStatusKind[] = [
   'provider-down',
   'provider-credit',
   'provider-refused',
+  'in-flight-budget',
+  'key-limit',
+  'model-not-served',
 ]
 
 export interface JevStatus {
@@ -134,7 +153,18 @@ export function jevChargeUsd(inputTokens: number): number {
   return Math.max(0, inputTokens) * JEV_USD_PER_INPUT_TOKEN
 }
 
-export function jevWireFailureKindForStatus(status: number): JevWireFailureKind {
+export function jevWireFailureKindForStatus(status: number, road: JevRoad = 'official', limitSource?: string): JevWireFailureKind {
+  if (road === 'openrouter') {
+    if (status === 402) {
+      if (limitSource === 'openrouter_in_flight_budget') return 'in-flight-budget'
+      if (limitSource === 'openrouter_key_limit') return 'key-limit'
+      if (limitSource === 'openrouter_credits') return 'provider-credit'
+    }
+    if (status === 403) return 'provider-refused'
+    if (status === 404) return 'model-not-served'
+    if (status === 408) return 'provider-down'
+    if (status === 413) return 'bad-request'
+  }
   if (status === 401 || status === 403) return 'invalid-key'
   if (status === 400 || status === 422) return 'bad-request'
   if (status === 429) return 'rate-limited'

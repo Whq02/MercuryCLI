@@ -1,6 +1,6 @@
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { jevSystemOne } from '../../services/jev/jevClient.js'
-import type { JevStatus } from '../../services/jev/jevContract.js'
+import type { JevRoad, JevStatus } from '../../services/jev/jevContract.js'
 import { jevKeyPresence, resolveJevApiKey } from '../../services/jev/jevKey.js'
 import { noteJevAttempt, noteJevWireFailure, settleJevCall, takeJevNotice } from '../../services/jev/jevLedger.js'
 import { readJevSettings } from '../../services/jev/jevSetting.js'
@@ -36,31 +36,36 @@ export function jevEvalEnabled(): boolean {
   return settings.subagents || jevAgentIdentity() === undefined
 }
 
-function unavailable(status: JevStatus): JevEvalOutput {
-  return { status: status.kind, text: jevEvalUnavailableText(status, takeJevNotice(status.kind)) }
+function unavailable(status: JevStatus, road: JevRoad = readJevSettings().road): JevEvalOutput {
+  return { status: status.kind, text: jevEvalUnavailableText(status, takeJevNotice(status.kind, road)) }
 }
 
 export async function jevEvalCall(input: JevEvalInput, signal?: AbortSignal): Promise<JevEvalOutput> {
   const agent = jevAgentIdentity()
-  const before = jevStatus(agent, Date.now())
-  if (before.kind !== 'ready') return unavailable(before)
-  const assembled = assembleJevEvalRequest(input)
+  const settings = readJevSettings()
+  const road = settings.road
+  const before = jevStatus(agent, Date.now(), settings)
+  if (before.kind !== 'ready') return unavailable(before, road)
+  const assembled = assembleJevEvalRequest(input, road)
   if (!assembled.ok) return { status: 'refused', text: jevEvalRefusedText(assembled.reason) }
-  const key = resolveJevApiKey()
-  if (key === undefined) return unavailable(jevStatus(agent, Date.now()))
-  noteJevAttempt(Date.now(), agent?.id)
-  const outcome = await jevSystemOne(assembled.request, key.key, signal ? { signal } : {})
+  const key = resolveJevApiKey(process.env, road)
+  if (key === undefined) return unavailable(jevStatus(agent, Date.now(), settings), road)
+  noteJevAttempt(Date.now(), agent?.id, road)
+  const outcome = await jevSystemOne(assembled.request, key.key, { signal, road })
   const now = Date.now()
   if (outcome.ok) {
-    const charge = settleJevCall(outcome.response.usage, outcome.response.model, now)
-    return { status: 'ok', text: jevEvalAnsweredText(outcome.response, charge, assembled.order) }
+    const charge = settleJevCall(outcome.response.usage, outcome.response.model, now, road, outcome.requestId)
+    return { status: 'ok', text: jevEvalAnsweredText(outcome.response, charge, assembled.order, outcome.requestId) }
   }
-  noteJevWireFailure(outcome.failure, now)
+  noteJevWireFailure(outcome.failure, now, Math.random, road)
   if (outcome.failure.kind === 'bad-request') return { status: 'bad-request', text: jevEvalBadRequestText(outcome.failure) }
-  if (outcome.failure.kind === 'aborted') return { status: 'aborted', text: jevEvalAbortedText() }
-  const after = jevStatus(agent, now)
+  if (outcome.failure.kind === 'aborted') return { status: 'aborted', text: jevEvalAbortedText(road) }
+  const after = jevStatus(agent, now, settings)
   if (after.kind === 'ready') return { status: outcome.failure.kind, text: jevEvalFailureText(outcome.failure) }
-  return unavailable(after)
+  const unavailableResult = unavailable(after, road)
+  const [headline, ...notices] = unavailableResult.text.split('\n')
+  const evidence = `HTTP ${outcome.failure.status ?? 'unreported'}: ${outcome.failure.detail}${outcome.failure.requestId ? ` | id=${outcome.failure.requestId}` : ''}`
+  return { ...unavailableResult, text: [`${headline} | ${evidence}`, ...notices].join('\n') }
 }
 
 export const JevEvalTool = buildTool({
@@ -79,7 +84,7 @@ export const JevEvalTool = buildTool({
     class: 'observation',
     cancellation: 'cooperative',
     latency: 'interactive',
-    conditions: ['the JEV switch on with a TypeSafe API key stored through /jev; a sub-agent only when the sub-agents setting is on'],
+    conditions: ['JEV on: official key in /jev or OpenRouter key in /logins; sub-agents only when enabled'],
     proof: 'scripts/jev/run-all.sh',
   },
   get inputSchema(): JevEvalInputSchema {

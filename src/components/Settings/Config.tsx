@@ -542,7 +542,7 @@ export function Config({
     items.push({
       id: 'jev',
       label: 'JEV',
-      searchText: 'jev typesafe second opinion jeveval eval tool key allowance pace ceiling sub-agents',
+      searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling sub-agents',
       kind: 'boolean',
       value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
       warning: [jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings)), ...jevSettingLines(jevSettings)].join(' · '),

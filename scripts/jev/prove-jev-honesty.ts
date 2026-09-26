@@ -140,7 +140,7 @@ resetJevLedger()
 check('through every local reason the stand-in received nothing', standin.received.length === 0)
 
 section('§4 every wire reason: exactly one request, then refused locally with nothing sent; the notice once')
-type WireCase = { label: string; script: Parameters<typeof standin.next>[0]; kind: string; final: boolean; words: RegExp }
+type WireCase = { label: string; script: Parameters<typeof standin.next>[0]; kind: string; final: boolean; words: RegExp; road?: 'official' | 'openrouter' }
 const wireCases: WireCase[] = [
   { label: '401', script: { status: 401, body: { error: { message: 'Invalid API key' } } }, kind: 'invalid-key', final: true, words: /the provider answered 401 at \d\d:\d\d; replace the key in \/jev/ },
   { label: '429 with retry-after-ms', script: { status: 429, body: { error: { message: 'Too Many Requests' } }, headers: { 'retry-after-ms': '5000' } }, kind: 'rate-limited', final: false, words: /429 at \d\d:\d\d, it asked for 5s; the next attempt is admitted in (\d+m( \d+s)?|\d+s)/ },
@@ -151,7 +151,15 @@ const wireCases: WireCase[] = [
   { label: '418 naming nothing known', script: { status: 418, raw: 'I am a teapot' }, kind: 'provider-refused', final: false, words: /418 "I am a teapot"/ },
   { label: 'a 200 Mercury cannot read', script: { status: 200, raw: '{"model":"jev-1.13.0","answers":{},"usage":{"input_tokens":1,"output_tokens":0}}' }, kind: 'provider-down', final: false, words: /could not read \("answers\.skew: missing or not an object"\)/ },
 ]
+wireCases.push(
+  { label: 'OpenRouter transient 402', road: 'openrouter', script: { status: 402, headers: { 'retry-after': '5' }, body: { error: { message: 'credits', metadata: { limit_source: 'openrouter_in_flight_budget' } } } }, kind: 'in-flight-budget', final: false, words: /OpenRouter's transient 402/ },
+  { label: 'OpenRouter key limit', road: 'openrouter', script: { status: 402, body: { error: { message: 'key cap', metadata: { limit_source: 'openrouter_key_limit' } } } }, kind: 'key-limit', final: true, words: /key limit is used up/ },
+  { label: 'OpenRouter model absent', road: 'openrouter', script: { status: 404, body: { error: { message: 'not served' } } }, kind: 'model-not-served', final: true, words: /OpenRouter answered 404/ },
+)
+process.env.OPENROUTER_API_KEY = PROOF_KEY
+process.env.MERCURY_OPENROUTER_API_BASE = `${standin.base}/v1`
 for (const c of wireCases) {
+  setJevEnabled(true, c.road ?? 'official')
   resetJevLedger()
   standin.reset()
   standin.next(c.script)
@@ -166,6 +174,7 @@ for (const c of wireCases) {
   check('  the next call is refused locally with the same reason — nothing sent', second.status === c.kind && standin.received.length === 1, `${second.status} / ${standin.received.length}`)
   check('  the notice appears on the first result only', !/notice:/.test(second.text) && second.text.split('\n').length === 1, second.text)
 }
+setJevEnabled(true, 'official')
 resetJevLedger()
 standin.reset()
 standin.next({ status: 200, raw: '{"model":"jev-1.13.0","answers":{},"usage":{"input_tokens":1,"output_tokens":0}}' })

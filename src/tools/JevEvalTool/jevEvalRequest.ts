@@ -1,5 +1,6 @@
 import {
-  JEV_MAX_REQUEST_TOKENS,
+  jevMaxRequestTokens,
+  type JevRoad,
   JEV_MAX_STATE_PLUS_QUESTION_TOKENS,
   type JevQuestion,
   type JevRequest,
@@ -33,7 +34,8 @@ export function jevEvalWireQuestion(question: JevEvalQuestion): JevQuestion {
   return { type: 'score', instructions: question.ask, criteria: [...(question.levels ?? [])] }
 }
 
-export function assembleJevEvalRequest(input: JevEvalInput): JevEvalAssembly {
+export function assembleJevEvalRequest(input: JevEvalInput, road: JevRoad = 'official'): JevEvalAssembly {
+  const maxRequestTokens = jevMaxRequestTokens(road)
   const questions: Record<string, JevQuestion> = {}
   const order: string[] = []
   for (const question of input.questions) {
@@ -62,10 +64,10 @@ export function assembleJevEvalRequest(input: JevEvalInput): JevEvalAssembly {
       estimate,
     }
   }
-  if (totalTokens > JEV_MAX_REQUEST_TOKENS) {
+  if (totalTokens > maxRequestTokens) {
     return {
       ok: false,
-      reason: `evidence plus all ${order.length} questions is about ${totalTokens} tokens (${JEV_EVAL_TOKENIZER_NOTE}); the provider takes at most ${JEV_MAX_REQUEST_TOKENS} a request — trim the evidence or drop questions (the longest is "${longestId}" at about ${longestTokens}); nothing was sent`,
+      reason: `evidence plus all ${order.length} questions is about ${totalTokens} tokens (${JEV_EVAL_TOKENIZER_NOTE}); the provider takes at most ${maxRequestTokens} a request — trim the evidence or drop questions (the longest is "${longestId}" at about ${longestTokens}); nothing was sent`,
       estimate,
     }
   }

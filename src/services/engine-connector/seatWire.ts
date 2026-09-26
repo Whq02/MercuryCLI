@@ -70,6 +70,9 @@ const BAND: KeyTable = {
   observedAtMs: 'observed_at_ms',
 }
 const JEV: KeyTable = {
+  lastCostUsd: 'last_cost_usd',
+  lastRequestId: 'last_request_id',
+  lastFailure: 'last_failure',
   spendUsd: 'spend_usd',
   inputTokens: 'input_tokens',
   unconfirmedCharges: 'unconfirmed_charges',
@@ -239,7 +242,12 @@ function usageNested(
       if (isRow(laneWindow)) out[key] = renamed(laneWindow, laneWindowTable)
     }
     const jev = out.jev
-    if (isRow(jev)) out.jev = renamed(jev, jevTable)
+    if (isRow(jev)) {
+      const next = renamed(jev, jevTable)
+      const failureKey = jevTable.lastFailure ?? 'lastFailure'
+      if (isRow(next[failureKey])) next[failureKey] = renamed(next[failureKey] as Row, jevTable.lastRequestId ? { requestId: 'request_id' } : { request_id: 'requestId' })
+      out.jev = next
+    }
     void table
   }
 }

@@ -208,10 +208,10 @@ const cases: Case[] = [
   { name: 'a row with spendUsd NaN', jev: { ...internalRow, spendUsd: Number.NaN }, reported: false },
   { name: "a row whose status.kind is 'nonsense'", jev: { ...internalRow, status: { kind: 'nonsense', words: 'x' } }, reported: false },
 ]
-const absentUsageRow = `${usage.JEV_USAGE_LABEL}: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`
-const absentPopupLine = `switch off · no key · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · allowance $20.00 · off`
-const reportedUsageRow = `${usage.JEV_USAGE_LABEL}: $0.42 · 3 calls (1 unconfirmed) · allowance $20.00 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
-const reportedPopupLine = 'switch off · no key · spend $0.42 of $20.00 · allowance hit'
+const absentUsageRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_SPEND_UNREPORTED_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`
+const absentPopupLine = `off · official · no key · ${reader.JEV_SPEND_UNREPORTED_SHORT_WORDS} · cap $20.00 · off`
+const reportedUsageRow = `${usage.JEV_USAGE_LABEL} official · Mercury's count: $0.42 · 3 calls (1 unconfirmed) · allowance $20.00 · allowance hit · credits: ${CREDITS_UNREPORTED_WORDS}`
+const reportedPopupLine = 'off · official · no key · spend $0.42 / $20.00 · allowance hit'
 
 let n = 0
 for (const c of cases) {
@@ -246,9 +246,9 @@ section(`§${n + 1} no session in the slot`)
   slot.releaseFocusedSessionConnector()
   check('the reader answers no-session', !slot.hasFocusedSession() && reader.jevSessionFacts().state === 'no-session')
   const row = safe(() => usage.jevUsageRow())
-  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL}: ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
+  check('the /usage row reads no chat open beside the shared parts', row === `${usage.JEV_USAGE_LABEL} official · Mercury's count: ${reader.JEV_NO_SESSION_WORDS} · allowance $20.00 · off · credits: ${CREDITS_UNREPORTED_WORDS}`, row)
   const line = safe(() => jevBody.jevPopupLine())
-  check('the /jev summary line reads no chat', line === `switch off · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · allowance $20.00 · off`, line)
+  check('the /jev summary line reads no chat', line === `off · official · no key · ${reader.JEV_NO_SESSION_SHORT_WORDS} · cap $20.00 · off`, line)
   const jev = await paintJev()
   check('the /jev popup paints without a throw', jev.ok, jev.ok ? '' : jev.error)
   if (jev.ok) {
@@ -297,7 +297,7 @@ section(`§${n + 3} the source pins`)
   check('the boundary files the report under the origin it was given, message-boundary by default', boundary.includes("persistCrashReport(error, errorInfo, this.props.origin ?? 'message-boundary')"))
   const readerSrc = readFileSync(join(REPO, 'src/services/jev/jevSessionFacts.ts'), 'utf8')
   check('the reader decodes the row through the one total decoder', readerSrc.includes('const facts = jevFactsOfRow(getFocusedSessionConnector().usage().jev)') && readerSrc.includes('export function jevFactsOfRow(value: unknown): JevFactsV1 | undefined'))
-  const allowed = new Set(['session.facts.spendUsd', 'settings.allowanceUsd', 'facts.spendUsd', 'facts.session.facts.spendUsd', 'facts.settings.allowanceUsd', 'JEV_MAX_CALL_USD', 'JEV_DEFAULT_ALLOWANCE_USD', 'usd'])
+  const allowed = new Set(['session.facts.spendUsd', 'settings.allowanceUsd', 'facts.spendUsd', 'facts.session.facts.spendUsd', 'facts.settings.allowanceUsd', 'maxCall', 'usage.limitRemaining', 'session.facts.lastCostUsd', 'JEV_DEFAULT_ALLOWANCE_USD', 'usd'])
   const offenders = ['src/components/Settings/Jev.tsx', 'src/components/Settings/Usage.tsx'].flatMap(rel => [...readFileSync(join(REPO, rel), 'utf8').matchAll(/jevUsdLabel\(([^()]*)\)/g)].map(m => m[1]!.trim()).filter(arg => !allowed.has(arg)).map(arg => `${rel}: ${arg}`))
   check('Jev.tsx and Usage.tsx hand jevUsdLabel only the decoded facts, the settings or a constant', offenders.length === 0, offenders.join(' | '))
   const contractSrc = readFileSync(join(REPO, 'src/services/jev/jevContract.ts'), 'utf8')

@@ -204,7 +204,7 @@ const exclusions: Array<[string, RegExp]> = [
   ['report the answer even when it contradicts you', /even when it contradicts you/],
   ['one batched call', /in ONE call/],
   ['filtered evidence only and why', /filtered excerpts, never whole files, never the transcript/],
-  ['why: it leaves the machine and is retained', /leaves the machine and is retained by the provider/],
+  ['why: it leaves the machine under the chosen road policy', /leaves the machine under the selected road's data policy/],
   ['why: unrelated material costs accuracy', /unrelated material measurably costs accuracy/],
   ['every option in, allow_none set', /an option you omit cannot be chosen/],
   ['numbers are opinions, 0 and 1 prove nothing', /0 and 1 prove nothing/],

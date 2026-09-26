@@ -31,7 +31,7 @@ const {
   takeJevNotice,
 } = ledger
 
-const defaults = { enabled: true, allowanceUsd: 20, pacePerMinute: 10, requestCeiling: null, subagents: false }
+const defaults = { enabled: true, road: 'official' as const, allowanceUsd: 20, pacePerMinute: 10, requestCeiling: null, subagents: false }
 const mid = (): number => 0.5
 const T0 = 1_700_000_000_000
 

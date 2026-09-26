@@ -1,17 +1,17 @@
 import {
-  JEV_MAX_CALL_USD,
   JEV_SUBAGENT_CALL_BUDGET,
   type JevLocalRefusalKind,
+  type JevRoad,
   type JevStatusKind,
   type JevUsage,
   type JevWireFailure,
-  type JevWireFailureKind,
   jevChargeUsd,
+  jevMaxCallUsd,
   jevRefusalNamesCredit,
   jevUsdLabel,
   jevWaitLabel,
 } from './jevContract.js'
-import type { JevSettings } from './jevSetting.js'
+import { type JevSettings, readJevSettings } from './jevSetting.js'
 
 export const JEV_PACE_WINDOW_MS = 60_000
 export const JEV_COOL_DOWN_BASE_MS = 30_000
@@ -20,17 +20,15 @@ export const JEV_COOL_DOWN_JITTER = 0.25
 export const JEV_HOLD_CEILING_MS = 24 * 60 * 60_000
 const STREAK_DECAY_MS = 2 * JEV_COOL_DOWN_CAP_MS
 
-export interface JevWireRecord {
-  kind: JevWireFailureKind
-  status?: number
-  detail: string
+export interface JevWireRecord extends JevWireFailure {
   at: number
-  retryAfterMs?: number
-  requestId?: string
 }
 
 export interface JevLedgerSnapshot {
+  road: JevRoad
   spendUsd: number
+  lastCostUsd: number | null
+  lastRequestId: string | null
   calls: number
   attempts: number
   inputTokens: number
@@ -48,6 +46,8 @@ export type JevAdmission = { ok: true } | { ok: false; kind: JevLocalRefusalKind
 
 interface LedgerState {
   spendUsd: number
+  lastCostUsd: number | null
+  lastRequestId: string | null
   calls: number
   attempts: number
   inputTokens: number
@@ -66,6 +66,8 @@ interface LedgerState {
 function fresh(): LedgerState {
   return {
     spendUsd: 0,
+    lastCostUsd: null,
+    lastRequestId: null,
     calls: 0,
     attempts: 0,
     inputTokens: 0,
@@ -82,17 +84,21 @@ function fresh(): LedgerState {
   }
 }
 
-let state: LedgerState = fresh()
+const states: Record<JevRoad, LedgerState> = { official: fresh(), openrouter: fresh() }
 
-function pruneWindow(now: number): void {
+function pruneWindow(state: LedgerState, now: number): void {
   const floor = now - JEV_PACE_WINDOW_MS
   while (state.attemptTimes.length > 0 && state.attemptTimes[0]! <= floor) state.attemptTimes.shift()
 }
 
-export function jevLedgerSnapshot(now: number = Date.now()): JevLedgerSnapshot {
-  pruneWindow(now)
+export function jevLedgerSnapshot(now: number = Date.now(), road: JevRoad = readJevSettings().road): JevLedgerSnapshot {
+  const state = states[road]
+  pruneWindow(state, now)
   return {
+    road,
     spendUsd: state.spendUsd,
+    lastCostUsd: state.lastCostUsd,
+    lastRequestId: state.lastRequestId,
     calls: state.calls,
     attempts: state.attempts,
     inputTokens: state.inputTokens,
@@ -115,8 +121,9 @@ export function jevCoolDownWindowMs(refusals: number, random: () => number): num
 }
 
 export function jevAdmission(settings: JevSettings, now: number = Date.now(), agentId?: string): JevAdmission {
-  pruneWindow(now)
-  if (state.spendUsd + JEV_MAX_CALL_USD > settings.allowanceUsd) {
+  const state = states[settings.road]
+  pruneWindow(state, now)
+  if (state.spendUsd + jevMaxCallUsd(settings.road) > settings.allowanceUsd) {
     return {
       ok: false,
       kind: 'allowance-hit',
@@ -140,25 +147,26 @@ export function jevAdmission(settings: JevSettings, now: number = Date.now(), ag
     }
   }
   if (agentId !== undefined && (state.subagentAttempts.get(agentId) ?? 0) >= JEV_SUBAGENT_CALL_BUDGET) {
-    return {
-      ok: false,
-      kind: 'subagent-budget-hit',
-      words: `sub-agent budget hit — this agent has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided`,
-    }
+    return { ok: false, kind: 'subagent-budget-hit', words: `sub-agent budget hit — this agent has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided` }
   }
   return { ok: true }
 }
 
-export function noteJevAttempt(now: number = Date.now(), agentId?: string): void {
-  pruneWindow(now)
+export function noteJevAttempt(now: number = Date.now(), agentId?: string, road: JevRoad = readJevSettings().road): void {
+  const state = states[road]
+  pruneWindow(state, now)
   state.attempts += 1
   state.attemptTimes.push(now)
   if (agentId !== undefined) state.subagentAttempts.set(agentId, (state.subagentAttempts.get(agentId) ?? 0) + 1)
 }
 
-export function settleJevCall(usage: JevUsage, model: string, now: number = Date.now()): number {
-  const charge = jevChargeUsd(usage.input_tokens)
+export function settleJevCall(usage: JevUsage, model: string, now: number = Date.now(), road: JevRoad = readJevSettings().road, requestId?: string): number {
+  const state = states[road]
+  const cost = road === 'openrouter' && typeof usage.cost === 'number' && Number.isFinite(usage.cost) && usage.cost >= 0 ? usage.cost : null
+  const charge = cost ?? jevChargeUsd(usage.input_tokens)
   state.spendUsd += charge
+  state.lastCostUsd = cost
+  state.lastRequestId = requestId ?? null
   state.calls += 1
   state.inputTokens += Math.max(0, usage.input_tokens)
   state.lastWire = null
@@ -169,48 +177,47 @@ export function settleJevCall(usage: JevUsage, model: string, now: number = Date
   return charge
 }
 
-export function noteJevWireFailure(failure: JevWireFailure, now: number = Date.now(), random: () => number = Math.random): number {
-  state.lastWire = {
-    kind: failure.kind,
-    status: failure.status,
-    detail: failure.detail,
-    at: now,
-    retryAfterMs: failure.retryAfterMs,
-    requestId: failure.requestId,
-  }
+export function jevCreditHold(failure: JevWireFailure, road: JevRoad): boolean {
+  return failure.kind === 'provider-credit' || failure.kind === 'key-limit' || (road === 'official' && failure.kind === 'provider-refused' && jevRefusalNamesCredit(failure.detail))
+}
+
+export function noteJevWireFailure(failure: JevWireFailure, now: number = Date.now(), random: () => number = Math.random, road: JevRoad = readJevSettings().road): number {
+  const state = states[road]
+  state.lastWire = { ...failure, at: now }
   if (failure.kind === 'parse-failed' || failure.kind === 'aborted') {
     state.unconfirmedCharges += 1
-    state.spendUsd += JEV_MAX_CALL_USD
+    state.spendUsd += jevMaxCallUsd(road)
   }
   if (failure.kind === 'invalid-key' || failure.kind === 'bad-request' || failure.kind === 'aborted') return 0
-  if (failure.kind === 'provider-refused' && jevRefusalNamesCredit(failure.detail)) {
+  if (jevCreditHold(failure, road) || failure.kind === 'model-not-served') {
     state.holdUntil = Number.MAX_SAFE_INTEGER
     return Number.MAX_SAFE_INTEGER
   }
   state.refusals = now - state.lastRefusalAt <= STREAK_DECAY_MS ? state.refusals + 1 : 1
   state.lastRefusalAt = now
   const ladder = jevCoolDownWindowMs(state.refusals, random)
-  const window = Math.min(JEV_HOLD_CEILING_MS, Math.max(ladder, failure.retryAfterMs ?? 0))
+  const window = Math.min(JEV_HOLD_CEILING_MS, failure.kind === 'in-flight-budget' ? failure.retryAfterMs ?? ladder : Math.max(ladder, failure.retryAfterMs ?? 0))
   state.holdUntil = now + window
   return window
 }
 
-export function noteJevKeyChanged(): void {
-  if (state.lastWire?.kind === 'invalid-key') state.lastWire = null
-  if (state.lastWire?.kind === 'provider-refused' && jevRefusalNamesCredit(state.lastWire.detail)) {
+export function noteJevKeyChanged(road: JevRoad = readJevSettings().road): void {
+  const state = states[road]
+  if (state.lastWire && (state.lastWire.kind === 'invalid-key' || jevCreditHold(state.lastWire, road))) {
     state.lastWire = null
     state.holdUntil = 0
   }
-  state.notices.delete('invalid-key')
-  state.notices.delete('no-key')
+  for (const kind of ['invalid-key', 'no-key', 'provider-credit', 'key-limit'] as const) state.notices.delete(kind)
 }
 
-export function takeJevNotice(kind: JevStatusKind): boolean {
+export function takeJevNotice(kind: JevStatusKind, road: JevRoad = readJevSettings().road): boolean {
+  const state = states[road]
   if (state.notices.has(kind)) return false
   state.notices.add(kind)
   return true
 }
 
 export function resetJevLedger(): void {
-  state = fresh()
+  states.official = fresh()
+  states.openrouter = fresh()
 }

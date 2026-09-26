@@ -75,6 +75,7 @@ import terminalSetup from './commands/terminalSetup/index.js'
 import mockLimits from './commands/mock-limits/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
+import jevor from './commands/jevor/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
 import permissions from './commands/permissions/index.js'
@@ -267,6 +268,7 @@ const COMMANDS = memoize((): Command[] => [
   mockLimits,
   usage,
   jev,
+  jevor,
   defaultprovider,
   insightsShim,
   vim,

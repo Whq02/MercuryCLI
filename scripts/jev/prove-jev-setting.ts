@@ -63,6 +63,17 @@ check('jevEnabled() is the same truth as readJevSettings().enabled', jevEnabled(
 check('the stored bytes were not rewritten by a read', JSON.stringify(readConfig().jev) === JSON.stringify({ enabled: 'yes', allowanceUsd: -3, pacePerMinute: 2.5, requestCeiling: 0, subagents: 1 }))
 check('an absent block reads as the defaults', JSON.stringify(jevSettingsFromStored(undefined)) === JSON.stringify(first))
 
+const roadOf = (value: ReturnType<typeof readJevSettings>) => (value as unknown as { road?: string }).road
+check('an absent road reads official', roadOf(jevSettingsFromStored(undefined)) === 'official')
+for (const stray of ['unknown', null, 42]) {
+  const stored = { road: stray, openrouterAllowanceUsd: -2 } as never
+  const normalized = jevSettingsFromStored(stored)
+  check('a stray road reads official with the default allowance, without throwing', roadOf(normalized) === 'official' && normalized.allowanceUsd === 20)
+}
+const separate = jevSettingsFromStored({ road: 'openrouter', allowanceUsd: 7, openrouterAllowanceUsd: 3 } as never)
+check('OpenRouter selects only its own stored allowance', roadOf(separate) === 'openrouter' && separate.allowanceUsd === 3)
+check('an invalid OpenRouter allowance defaults without borrowing the official one', jevSettingsFromStored({ road: 'openrouter', allowanceUsd: 7, openrouterAllowanceUsd: -1 } as never).allowanceUsd === 20)
+
 section('§2 one writer, one truth: every setter lands in the one config key and reads back')
 const on = setJevEnabled(true)
 check('setJevEnabled(true) returns enabled', on.enabled === true)
@@ -126,8 +137,8 @@ check('two bad ceilings refused', threw === 2, String(threw))
 check('nothing landed from the refusals', !('jev' in readConfig()))
 
 section('§4 the words every door speaks')
-check('value words: off', jevValueWords(readJevSettings()) === 'off')
-check('value words: on', jevValueWords({ ...readJevSettings(), enabled: true }) === 'on')
+check('value words: off', jevValueWords(readJevSettings()) === 'off · official')
+check('value words: on', jevValueWords({ ...readJevSettings(), enabled: true }) === 'on · official')
 check('the on receipt names the roster and the key', /roster/.test(jevReceiptWords({ ...readJevSettings(), enabled: true })) && /key/.test(jevReceiptWords({ ...readJevSettings(), enabled: true })))
 check('the off receipt says nothing is sent', /nothing is sent/.test(jevReceiptWords(readJevSettings())))
 const lines = jevSettingLines(readJevSettings())
