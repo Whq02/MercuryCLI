@@ -540,7 +540,7 @@ export const GitTool = buildTool({
   async prompt() {
     return `The typed LOCAL Git work-graph surface — structured observation and preview-first, stale-safe commit transactions. It never pushes, never fetches, never rewrites history, never discards uncommitted content. (Plain Bash git remains available; use this surface when the work should be inspectable and verifiable.)
 
-Where it runs: cwd (optional) names the folder; the session folder when absent. The repository containing that folder is used (git walks up from it). When the folder is not inside a repository but holds exactly one repository directly below it, that one is used and the result names it. A folder with no repository, or with several directly below it, is refused with the folder named — pass cwd:"<one of them>".
+Where it runs: cwd (optional) names the folder; the session folder when absent. The repository containing that folder is used, or the one repository directly below it. A folder with no repository, or with several directly below it, is refused — pass cwd:"<one of them>".
 
 Observation (free):
 - op:"status" — branch · changed files · the tree DIGEST plans pin to. mercury://git/status
@@ -550,7 +550,7 @@ Observation (free):
 
 Commit plans:
 - op:"plan" (groups: [{files, hunks?, message, checks?}]) — a preview-FIRST atomic plan: validates every file really changed, no file in two groups, names exclusions and ambiguous (staged+unstaged) files, pins the tree digest. COMMITS NOTHING. mercury://git/plan/<id>
-- op:"apply" (planId) — revalidates the digest (a changed tree REFUSES: stale plan), then per group stages EXACTLY the planned files/hunks, commits, and VERIFIES the created commit's file list from the commit itself; one evidence-backed transaction per commit. Failure mid-plan stops honestly: created commits stand, content is never lost.
+- op:"apply" (planId) — revalidates the digest (a changed tree REFUSES: stale plan), then per group stages EXACTLY the planned files/hunks, commits, and VERIFIES the created commit's file list from the commit itself. A failure mid-plan stops there: created commits stand, content is never lost.
 - op:"verify" (planId) — is the plan still applicable / what did it create?
 
 Index operations (asked):
@@ -569,9 +569,9 @@ Review (observational; push/comment stay with explicit workflows):
 
 Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
 - op:"hostSearch" (searchKind: code|commits|prs|issues, query, limit?) — bounded typed host search.
-- op:"prDiff" (pr?, file?, page?) — the PR's changed-file list, or ONE file's diff a page at a time (80 lines/page; one host fetch serves every page). mercury://repo/pr/<n>/diff
+- op:"prDiff" (pr?, file?, page?) — the PR's changed-file list, or ONE file's diff a page at a time (80 lines/page). mercury://repo/pr/<n>/diff
 - op:"runs" (limit? · run?) — workflow-run list, or one run with its jobs. mercury://repo/runs
-- op:"runWatch" (run, cancel?) — a CANCELLABLE watch on one run, living on the execution plane (returns immediately; the RUNS lane tracks it; settles from the observed conclusion).`
+- op:"runWatch" (run, cancel?) — a CANCELLABLE watch on one run (returns immediately; settles from the observed conclusion).`
         : ''
     }`
   },

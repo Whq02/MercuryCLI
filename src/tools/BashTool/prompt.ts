@@ -26,11 +26,11 @@ export function getMaxTimeoutMs(): number {
 }
 
 export function describeMaxOutputChars(): string {
-  return `Optional character budget for this call's inline result: the head and the tail of the output around a notice of what was cut, in place of the default ${getMaxOutputLength()} (the operator's cap and the most any call shows inline; a larger value clamps to it, a value under ${getMinOutputLength()} clamps up to that, and the result says so). Pass a small value for a huge log where only the beginning and the verdict at the end matter; omit it for a build whose whole output you want inline, up to the cap. A run_in_background call ignores it (its output goes to the task's file, not inline), and a run that exits 0 with output over the cap is saved to a file and shown as a fixed preview with the path instead of this window.`
+  return `Character budget for this call's inline result: the head and the tail of the output around a notice of what was cut. Default and cap ${getMaxOutputLength()} (a larger value clamps down to it); floor ${getMinOutputLength()} (a smaller value clamps up). Pass a small value for a huge log where only the beginning and the verdict at the end matter; omit it to see everything up to the cap. A run_in_background call ignores it (its output goes to the task's file).`
 }
 
 export function maxOutputCharsBullet(): string {
-  return `The optional \`max_output_chars\` parameter sets this call's inline output window in characters — the head and the tail of the output around a notice of what was cut — in place of the default ${getMaxOutputLength()} (the operator's cap and the most any call shows inline; a larger value clamps to it, a value under ${getMinOutputLength()} clamps up, and the result says so). Use it for a huge log where only the beginning and the verdict at the end matter; leave it out to see everything up to the cap. A run that exits 0 with output over the cap is saved to a file and shown as a fixed preview with the path instead of this window.`
+  return 'The optional `max_output_chars` parameter bounds this call\'s inline output to its head and tail (the field\'s description has the bounds): pass a small value for a huge log where only the beginning and the verdict at the end matter.'
 }
 
 
@@ -111,7 +111,7 @@ function buildInstructions(embedded: boolean, offers: (name: string) => boolean)
     maxOutputCharsBullet(),
   ]
   bullets.push(
-    'Set `run_in_background: true` when the result can wait: the command detaches, you are notified on completion, there is no need to check its output right away, and no trailing `&` is required.',
+    'Set `run_in_background: true` when the result can wait: the command detaches (no trailing `&`) and completion is notified.',
   )
   bullets.push(
     'When issuing multiple commands:\n  - independent commands should be separate parallel tool calls in one message (for example, one call for `git status` and another for `git diff`);\n  - dependent commands should be one call chained with `&&`; use `;` only when an earlier failure does not matter;\n  - commands never separate on a bare newline (newlines WITHIN a quoted string are fine).',
@@ -174,7 +174,7 @@ function buildSandboxSection(): string {
       '- Default to running inside the sandbox. Reach for `dangerouslyDisableSandbox: true` only when the user has asked outright for an unsandboxed run (most failures have nothing to do with the sandbox).',
     )
     lines.push(
-      '- When a sandboxed command exits non-zero and the sandbox recorded a violation, the harness itself asks once, inside the same call, whether to rerun it outside the sandbox — worded from the recorded violation — and reruns on yes; the result then says in one clause that it ran outside the sandbox. Declined, or with no one to ask, the result is a refusal naming the violation and the `/sandbox` command, which manages the restrictions. You never retry by hand on such evidence; a failure with no recorded violation asks nothing and is not a sandbox failure.',
+      '- When a sandboxed command fails on a recorded violation, the harness itself asks once, inside the same call, whether to rerun it outside the sandbox, and the result says how that went; never retry by hand with the override. A failure with no recorded violation is not a sandbox failure. The `/sandbox` command manages the restrictions.',
     )
     lines.push('- Treat each overridden command individually; a recent override does not carry forward.')
     lines.push(
