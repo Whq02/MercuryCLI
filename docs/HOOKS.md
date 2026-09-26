@@ -96,6 +96,11 @@ Every hook input carries `hook_event_name`, `session_id`, `transcript_path`,
 | `FileChanged` | when a watched file changes | `file_path`, `event` |
 | `Interrupt` | when a turn is cut (the operator's stop, a timeout, the parent's stop or a typed cut); nothing it answers can block or change the cut | `turn_id`, `reason` (`operator`, `idle-timeout`, `parent-stop` or `cut`), `detail`, `tools` |
 
+When a tool call is interrupted, its `PostToolUseFailure` hooks (`is_interrupt`
+true) run under a budget of 1.5 seconds, or the hook's own `timeout` when that
+is shorter: a hook still running at the budget is ended, and the interrupt
+settles without it.
+
 ## What a hook answers
 
 A `command` hook answers with its exit code and its stdout:
