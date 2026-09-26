@@ -338,7 +338,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
     server.listen(port, '127.0.0.1', () => resolve())
   })
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`,
     hits,
     close: () =>
       new Promise<void>(resolve => {
@@ -479,7 +479,7 @@ console.log(" a child's death, address, stop reason and status — real bundle, 
 console.log('============================================================')
 const KEEP = process.env.AGENT_TRUTH_KEEP === '1'
 const { home, cwd } = seedWorld()
-const fixture = await startFixture(Number(process.env.AGENT_TRUTH_PORT ?? 25211), cwd)
+const fixture = await startFixture(Number(process.env.AGENT_TRUTH_PORT ?? 0), cwd)
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -568,7 +568,10 @@ if (cap !== null) {
   console.log(`  receipt ids: lantern=${lanternId ?? 'none'} foliage=${foliageId ?? 'none'}`)
 
   console.log('\n— F the death is delivered once, with its cause —')
-  const inputRow = (l: string): boolean => /"kind":\s*"input"/.test(l)
+  const inputRow = (l: string): boolean => {
+    const { payload } = JSON.parse(l) as { payload?: { kind?: string; attachmentType?: string } }
+    return payload?.kind === 'input' || (payload?.kind === 'attachment' && payload.attachmentType === 'queued_command')
+  }
   const faultRows = foliage?.lines.filter(l => /"kind":\s*"output"/.test(l) && l.includes('stream fault after partial content')) ?? []
   const recoveryRows = foliage?.lines.filter(l => l.includes('asked the model to continue from where it stopped')) ?? []
   check(`F1 the child's transcript holds two faults and the one recovery between them (${faultRows.length} faults, ${recoveryRows.length} recovery notices)`, faultRows.length === 2 && recoveryRows.length === 1)
