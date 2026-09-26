@@ -183,7 +183,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   geometry('viewing')
   setMainChat(taskId, store!.setState)
   exitTeammateView(store!.setState)
-  check(`${size}: returning to the lead restores its model and effort even while the crewmate stays pinned`, await until(() => strip().includes(leadLabel) && /\bhigh\b/.test(strip())) && store!.getState().mainChatTaskId === taskId && !strip().includes(agentLabel), strip())
+  check(`${size}: returning to the lead restores its model and effort even while the crewmate stays pinned`, await until(() => lines().some(line => line.includes('[Mercury] the lead transcript')) && strip().includes(leadLabel) && /\bhigh\b/.test(strip())) && store!.getState().mainChatTaskId === taskId && !strip().includes(agentLabel), strip())
   snapshot('returned-lead')
   geometry('returned-lead')
 

@@ -68,7 +68,9 @@ import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './ta
 import type { AppState } from '../state/AppState.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
-import { EffortChip } from './mercury-ui/EffortChip.js'
+import { EffortChip, RecordedEffortChip } from './mercury-ui/EffortChip.js'
+import { useViewedCrewmate } from './tasks/useCrewmateView.js'
+import { useCrewmateModel } from './tasks/useCrewmateModel.js'
 import { FailoverMark } from './mercury-ui/FailoverMark.js'
 import { TrimChip } from './mercury-ui/TrimChip.js'
 import { HarnessChip } from './mercury-ui/HarnessChip.js'
@@ -131,7 +133,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const cols = tier.columns
 
   const dir = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || cwd
-  const modelName = useDisplayedSessionModel().compact
+  const sessionModelName = useDisplayedSessionModel().compact
+  const viewedCrewmate = useViewedCrewmate()
+  const crewmateModel = useCrewmateModel(routeSurface ? null : viewedCrewmate)
+  const modelName = crewmateModel === null ? sessionModelName : crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)
   const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
@@ -443,9 +448,13 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
           <Text>
             <Sep />
             <Text color={tok.textSecondary}>{modelName}</Text>
-            <FailoverMark model={model} />
-            <EffortChip model={model} />
-            <HarnessChip model={model} show={showBehavior} />
+            {crewmateModel === null ? (
+              <>
+                <FailoverMark model={model} />
+                <EffortChip model={model} />
+                <HarnessChip model={model} show={showBehavior} />
+              </>
+            ) : <RecordedEffortChip effort={crewmateModel.effort} />}
           </Text>
         ) : null}
         <Sep />
@@ -507,8 +516,12 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
               ) : part.id === 'model' ? (
                 <Text>
                   <Text color={tok.textSecondary}>{part.text}</Text>
-                  <FailoverMark model={windowModel} />
-                  <EffortChip model={windowModel} plain maxWidth={Math.max(0, cols - stringWidth(line))} />
+                  {crewmateModel === null ? (
+                    <>
+                      <FailoverMark model={windowModel} />
+                      <EffortChip model={windowModel} plain maxWidth={Math.max(0, cols - stringWidth(line))} />
+                    </>
+                  ) : <RecordedEffortChip effort={crewmateModel.effort} plain maxWidth={Math.max(0, cols - stringWidth(line))} />}
                 </Text>
               ) : (
                 <Text color={tok.textMuted}>{part.text}</Text>
