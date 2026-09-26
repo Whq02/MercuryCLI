@@ -1105,7 +1105,7 @@
         "cancellation": "cooperative",
         "latency": "interactive",
         "conditions": [
-          "the JEV switch on with a TypeSafe API key stored through /jev; a sub-agent only when the sub-agents setting is on"
+          "JEV on: official key in /jev or OpenRouter key in /logins; sub-agents on by default, off by choice in /jev"
         ],
         "proof": "scripts/jev/run-all.sh"
       }
