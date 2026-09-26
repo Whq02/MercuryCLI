@@ -188,6 +188,8 @@ const RIGHT = '\x1b[C'
 const BACKSPACE = '\x7f'
 const ESC = '\x1b'
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
+const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
+const TO_SEATS = DOWN.repeat(withJevRow(STARTUP_MENU).length)
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -197,8 +199,8 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: 'm', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-        { data: DOWN.repeat(STARTUP_MENU.length), awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: 's', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: TO_SEATS, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: RIGHT, awaitText: "· this machine's reading", requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-seats' },
         { data: BACKSPACE, awaitText: 'set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-raised' },
         { data: ESC, awaitText: 'seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },

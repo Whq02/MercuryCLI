@@ -8,6 +8,7 @@ import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { gridToPng } from './gridToPng.ts'
 import { STARTUP_MENU } from '../../src/substrate/startupMenu.ts'
+import { withJevRow } from '../../src/components/BootSettingsScreen.tsx'
 
 const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
@@ -43,8 +44,8 @@ try {
     const output = join(home, 'capture.json')
     const config = join(home, 'capture-config.json')
     const sends = [
-      { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, data: 'm' },
-      { awaitText: STARTUP_MENU[0]!.label, requireAwait: true, awaitSettleTicks: 4, data: '\u001b[B'.repeat(STARTUP_MENU.length) },
+      { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, data: 's' },
+      { awaitText: STARTUP_MENU[0]!.label, requireAwait: true, awaitSettleTicks: 4, data: '\u001b[B'.repeat(withJevRow(STARTUP_MENU).length) },
       { awaitText: "· this machine's reading", requireAwait: true, awaitSettleTicks: 4, data: '\u001b[C', mark: 'menu-reading' },
       { awaitText: 'set by you', requireAwait: true, awaitSettleTicks: 4, data: '\u001b', mark: 'menu-raised' },
       { awaitText: 'New Session', requireAwait: true, awaitSettleTicks: 4, data: '\r' },

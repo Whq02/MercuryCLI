@@ -171,11 +171,10 @@ try {
   check(`P2 the strip's effort chip is the SESSION's word (${SEAT_MODEL_LABEL} · … ${SEAT_EFFORT})`, stripRows.length > 0 && stripRows.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), stripRows[0] ?? '')
 
   const statusFrames = distinct.filter(f => f.text.includes('Mercury · status'))
-  check('P3 the status dashboard painted', statusFrames.length > 0)
-  const sessionRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => /│\s+Session\s{2,}/.test(r)))
-  check(`P3 the dashboard's Session row names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))
-  const idRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => r.includes('Session ID')))
-  check(`P3 the dashboard's Session ID row is the seat's own id (${seatId.slice(0, 8)}…)`, idRows.length > 0 && idRows.every(r => r.includes(seatId.slice(0, 8))), idRows.join(' | ').slice(0, 300))
+  check('P3 the status card painted', statusFrames.length > 0)
+  const sessionRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => r.includes('✶ VIEW')))
+  check(`P3 the view box header over the status card names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))
+  check('P3 the card opens on the session snapshot line', statusFrames.every(f => f.text.includes('session snapshot ·')), statusFrames.map(f => rowsWith(f.text, 'snapshot').join(' | ')).join(' ‖ ').slice(0, 300))
   const statusModelRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => (r.includes(SEAT_MODEL_LABEL) || r.includes('Fable 5')) && !r.includes('▚▛▀▜▞')))
   check(`P3 /status names the session's model (${SEAT_MODEL_LABEL}), never the screen's`, statusModelRows.some(r => r.includes(SEAT_MODEL_LABEL)) && !statusModelRows.some(r => r.includes('Fable 5')), statusModelRows.join(' | ').slice(0, 300))
 

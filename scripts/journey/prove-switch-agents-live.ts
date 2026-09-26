@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -323,6 +323,16 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
   text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
+function sessionFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const out: string[] = []
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name)
+    if (statSync(path).isDirectory()) out.push(...sessionFiles(path))
+    else if (name.endsWith('.jsonl')) out.push(path)
+  }
+  return out
+}
 
 const bootSends = (ask: string, faceReady = '↑↓ choose'): Array<Record<string, unknown>> => [
   { data: '\r', atTick: 999, awaitText: faceReady, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
@@ -456,20 +466,26 @@ async function restartLeg(): Promise<void> {
   if (KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)
   console.log(`  hits: ${hitLine(fixture.hits)} · killed pid ${fixture.killedPid ?? 'none'}`)
   check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
-  check(`${tag}: the runner was killed while both agents ran`, fixture.killedPid !== null && fixture.hits.filter(h => h.route === 'seat').length === 2)
+  const seatHits = fixture.hits.filter(h => h.route === 'seat')
+  const seatLine = seatHits.map(h => `${h.seat}:pid${h.pid}`).join(' ')
+  check(`${tag}: the runner was killed while both agents ran`, fixture.killedPid !== null && seatHits.filter(h => h.pid === fixture.killedPid).length === 2, `seats ${seatLine} · killed ${fixture.killedPid}`)
   const ack = fixture.hits.find(h => h.route === 'inspect-ack')
   const continueHit = fixture.hits.find(h => h.route === 'continue')
   check(`${tag}: the daemon relaunched the runner — the continue rode a NEW pid`, continueHit !== undefined && continueHit.pid !== null && continueHit.pid !== fixture.killedPid, `continue pid ${continueHit?.pid} · killed ${fixture.killedPid}`)
-  check(`${tag}: the model's next request carried TWO death notices — one per launch receipt`, ack !== undefined && ack.notices === 2, `notices ${ack?.notices}`)
-  check(`${tag}: the registry answered the model: 2 task(s) · 0 running (settled records, nothing live)`, ack?.registry === '2 task(s) · 0 running', ack?.registry)
+  check(`${tag}: the fresh runner relaunched both agents from their transcripts — each seat's request reached the wire again on the new pid`, seatHits.filter(h => h.pid !== null && h.pid !== fixture.killedPid).length === 2, `seats ${seatLine}`)
+  check(`${tag}: the model's next request carried NO death notice — the relaunched agents live`, ack !== undefined && ack.notices === 0, `notices ${ack?.notices}`)
+  check(`${tag}: the registry answered the model: 2 task(s) · 2 running (the relaunched records, both live)`, ack?.registry === '2 task(s) · 2 running', ack?.registry)
   check(`${tag}: told the truth, the model launched nothing more`, fixture.hits.filter(h => h.route === 'launch').length === 1)
   check(`${tag}: the Inspect answer landed within ${INSPECT_BOUND_MS} ms at ${COLS}×${ROWS}`, ack !== undefined && (ack.inspectMs ?? Infinity) < INSPECT_BOUND_MS, `${ack?.inspectMs}ms`)
   const crew = marks['crew-restart'] ?? ''
   const crewRows = crew.split('\n').filter(line => line.includes(SEAT_ONE) || line.includes(SEAT_TWO) || line.includes('sub-agents'))
-  check(`${tag}: the Crew view reads both agents stopped — never running, never the store's word`, agentRow(crew, SEAT_ONE, /\bstopped\b/) && agentRow(crew, SEAT_TWO, /\bstopped\b/) && crewRows.every(line => !/\brunning\b\s*(·|—)?\s*$/.test(line) || line.includes('0 running')) && !crewRows.some(line => line.includes('killed')) && crew.includes('0 running · 2 sub-agents'))
-  check(`${tag}: the registry's own rows read stopped, never the store's word`, /\(stopped · harbour/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'))
+  check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('2 running · 2 sub-agents'), crewRows.map(flat).join(' | ').slice(0, 300))
+  check(`${tag}: the registry's own rows read running, never the store's word`, /\(running · harbour/.test(flat(marks['after-restart'] ?? '')) && /\(running · lantern/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'), flat(marks['after-restart'] ?? '').slice(0, 300))
   const afterRestart = flat((marks['after-restart'] ?? '').replace(/^│ ?/gm, ''))
-  check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 0 running') && afterRestart.includes('notices 2'))
+  check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 2 running') && afterRestart.includes('notices 0'), afterRestart.slice(0, 300))
+  const carryRow = 'runner restarted after a crash: 2 background agents relaunched, 0 delivered from their receipts, 0 stopped'
+  const sessionText = sessionFiles(join(home, 'projects')).map(f => readFileSync(f, 'utf8')).join('\n')
+  check(`${tag}: the session file holds the one row that says what the restart carried: ${carryRow}`, sessionText.includes(carryRow), sessionText.split('\n').filter(l => l.includes('runner restarted')).map(l => l.slice(0, 200)).join(' | ') || 'no restart row')
   if (failures > before && !KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)
   if (failures > before || KEEP) dump(`${tag} · final grid`, cap.text, COLS)
   if (KEEP) console.log(`[keep] ${tag} home ${home} cwd ${cwd}`)

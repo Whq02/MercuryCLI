@@ -1,5 +1,8 @@
 import type { ChildProcess } from 'node:child_process'
 
+export const PTYDRIVE_STILL_MS = 400
+export const PTYDRIVE_SETTLE_CEILING_MS = 2000
+
 export function driverClosed(child: ChildProcess): Promise<void> {
   return new Promise<void>(resolve => child.once('close', () => resolve()))
 }
@@ -36,8 +39,9 @@ export function lastSendMs(sends: readonly string[]): number {
   return last
 }
 
-export function driveWallSeconds(sends: readonly string[], opts: { tailMs?: number; bootMs?: number } = {}): number {
+export function driveWallSeconds(sends: readonly string[], opts: { tailMs?: number; bootMs?: number; settleMs?: number } = {}): number {
   const tailMs = opts.tailMs ?? 3000
   const bootMs = opts.bootMs ?? 4000
-  return Math.ceil((lastSendMs(sends) + tailMs + bootMs) / 1000)
+  const settleMs = opts.settleMs ?? PTYDRIVE_SETTLE_CEILING_MS
+  return Math.ceil((lastSendMs(sends) + tailMs + bootMs + settleMs) / 1000)
 }
