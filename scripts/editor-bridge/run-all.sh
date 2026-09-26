@@ -12,6 +12,9 @@
 # gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/journeys/runner.ts
 # gate-watch: src/services/mcp/client.ts src/services/resources/registry.ts src/services/run/*
 # gate-watch: src/substrate/sourceState.ts src/utils/* src/utils/git/gitFilesystem.ts
+# gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts src/hooks/useIdeSelection.ts
+# gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
+# gate-watch: src/utils/messages/attachmentText.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

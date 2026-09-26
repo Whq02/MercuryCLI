@@ -9,6 +9,8 @@
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/state/AppStateStore.ts src/tasks.ts src/tools/AgentTool/runAgent.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/cwd.ts src/utils/task/workRoster.ts
+# gate-watch: src/components/tasks/WorkflowsBoard.tsx src/ink.ts src/ink/components/StdinContext.ts
+# gate-watch: src/state/AppState.tsx src/utils/config.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -33,6 +33,7 @@ export const WHOLE_TREE: Record<string, string> = {
   permissions: 'prove-mode-alias walks src (permission-mode spellings)',
   projectdirs: 'prove-no-literal-homes walks src (literal home paths)',
   provauth: 'prove-signin-roads-pinned walks scripts (sign-in road pins)',
+  'run-recovery': 'prove-worktree-resume-keeps-record walks src and scripts (the retired resume road names nothing)',
   'provider-compat': 'prove-route-law and prove-transport-reached-via-router walk src (provider routes)',
   substrate: 'prove-live-e2e-hermetic walks scripts (hermetic-fixture hygiene)',
   switchboard: 'prove-seat-lifecycle walks src (seat ghosts)',
