@@ -77,6 +77,8 @@ import { isTerminalLifecycle } from '../services/run/runKernel.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { lerpHex } from '../utils/theme.js'
+import { LEAD_ROW_NAME } from '../utils/cockpit/crewmateWords.js'
 
 
 type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
@@ -162,12 +164,20 @@ function RailRow({
   verbColor,
   verbPulse = false,
   selected = false,
+  marked = false,
+  nameBold = false,
+  directActivate = false,
+  tint,
   rowIndex,
   rowSig,
 }: {
   width: number
   glyph: string
   glyphColor: string
+  marked?: boolean
+  nameBold?: boolean
+  directActivate?: boolean
+  tint?: string
   glyphLive?: boolean
   name: string
   nameColor: string
@@ -200,9 +210,17 @@ function RailRow({
       id={`helm:lanes:${rowSig ?? rowIndex ?? 'static'}`}
       selected={selected}
       unavailable={!clickable}
+      tint={tint}
       onSelect={
         clickable
-          ? () => (rowSig ? setHelmCursorBySig('lanes', rowSig) : setHelmCursor('lanes', rowIndex))
+          ? () => {
+              if (rowSig) setHelmCursorBySig('lanes', rowSig)
+              else setHelmCursor('lanes', rowIndex)
+              if (directActivate) {
+                if (rowSig) requestHelmRowActivationBySig('lanes', rowSig)
+                else requestHelmRowActivation('lanes', rowIndex)
+              }
+            }
           : undefined
       }
       onActivate={
@@ -216,14 +234,14 @@ function RailRow({
       width={width}
     >
       <Text wrap="truncate-end">
-        <Text color={accent}>{selected ? `${GLYPH.prompt} ` : '  '}</Text>
+        <Text color={selected ? accent : tok.textSecondary}>{selected ? `${GLYPH.prompt} ` : marked ? `${GLYPH.chevronRight} ` : '  '}</Text>
         {glyphLive ? (
           <WorkingGlyph color={glyphColor} active />
         ) : (
           <Text color={glyphColor}>{glyph}</Text>
         )}
         <Text> </Text>
-        <Text color={nameColor}>{nameT}</Text>
+        <Text color={nameColor} bold={nameBold}>{nameT}</Text>
         {verbT ? (
           <Text>
             <Text color={tok.textMuted}>{sep}</Text>
@@ -439,6 +457,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
   const tasks = useAppState(s => s.tasks)
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
+  const mainChatTaskId = useAppState(s => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
 
   const sessionId = focusedSessionIdOrNull()
@@ -479,6 +498,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     tasks,
     roster,
     viewingAgentTaskId,
+    mainChatTaskId,
     telemetry,
   }))
 
@@ -782,16 +802,18 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
   const viewingChild = viewingAgentTaskId != null
   const crewShed = shedSet.has('crew')
+  const mainChatTint = lerpHex(tok.success, tok.surface1, 0.78)
   const rootNode: React.ReactNode = crewShed ? null : (
     <RailRow
       key={`crewroot:${MAIN_CONVERSATION_ID}`}
       width={rowW}
       glyph={GLYPH.spark}
       glyphColor={viewingChild ? tok.textMuted : accent}
-      name="Mercury"
+      name={LEAD_ROW_NAME}
       nameColor={viewingChild ? tok.textPrimary : accent}
-      verb={viewingChild ? '‹ main' : 'lead'}
-      verbColor={viewingChild ? accent : tok.textMuted}
+      nameBold
+      marked={!viewingChild}
+      directActivate
       {...railRowProps(isOn, sel, { kind: 'main', label: 'crew:root' })}
     />
   )
@@ -815,30 +837,28 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     }
     const c = entry.row
     const isViewing = viewingAgentTaskId != null && c.id === viewingAgentTaskId
+    const isMainChat = mainChatTaskId != null && c.id === mainChatTaskId
     const base = statusTone(c.status, tok)
     const tokensVerb = c.status === 'running' && c.facts !== undefined ? crewTokensLabel(c.facts) : null
-    const verbLabel = isViewing ? 'viewing' : (tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label))
-    const tone = isViewing ? accent : base.tone
-    const g = c.status === 'running' ? GLYPH.busy : GLYPH.idle
-    const gColor = isViewing ? accent : c.status === 'running' ? tok.success : tok.textMuted
+    const verbLabel = tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label)
+    const g = isMainChat ? GLYPH.star : isViewing ? GLYPH.circledBullet : c.status === 'running' ? GLYPH.busy : GLYPH.idle
+    const gColor = isMainChat ? tok.warning : isViewing ? accent : c.status === 'running' ? tok.success : tok.textMuted
     return (
       <RailRow
         key={`crew:${c.id}`}
         width={rowW}
         glyph={g}
         glyphColor={gColor}
-        glyphLive={c.status === 'running'}
+        glyphLive={c.status === 'running' && !isViewing && !isMainChat}
         name={c.label}
-        nameColor={isViewing ? accent : tok.textPrimary}
+        nameColor={tok.textPrimary}
+        nameBold={isViewing || isMainChat}
+        marked={isViewing}
+        tint={isMainChat ? mainChatTint : isViewing ? tok.selection : undefined}
+        directActivate
         verb={verbLabel}
-        verbColor={tone}
-        {...railRowProps(
-          isOn,
-          sel,
-          c.hosted
-            ? { kind: 'command', command: `/tasks ${c.id}`, label: `crew:h:${c.id}` }
-            : { kind: 'teammate', id: c.id, label: c.label },
-        )}
+        verbColor={base.tone}
+        {...railRowProps(isOn, sel, { kind: 'teammate', id: c.id, label: c.hosted ? `crew:h:${c.id}` : c.label })}
       />
     )
   })

@@ -30,9 +30,11 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  peekOperatorMessages,
   publishAgentProgressSoon,
   publishAgentWaitFromEvent,
   type ProgressTracker,
+  takeOperatorMessages,
   updateAgentProgress,
   updateProgressFromMessage,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
@@ -855,6 +857,42 @@ export function armOverloadProbe(args: {
   return timer
 }
 
+export async function deliverOperatorMessagesAfterStop(
+  taskId: string,
+  description: string,
+  toolUseContext: ToolUseContext,
+  rootSetAppState: SetAppState,
+  canUseTool?: CanUseToolFn,
+): Promise<boolean> {
+  const stateReader =
+    toolUseContext.getAppState ??
+    ((): ReturnType<NonNullable<ToolUseContext['getAppState']>> => {
+      let captured: unknown
+      rootSetAppState(prev => {
+        captured = prev
+        return prev
+      })
+      return captured as ReturnType<NonNullable<ToolUseContext['getAppState']>>
+    })
+  const queued = peekOperatorMessages(stateReader().tasks[taskId])
+  if (queued.length === 0) return false
+  try {
+    const { resumeAgentBackground } = await import('./resumeAgent.js')
+    const resumed = await resumeAgentBackground({
+      agentId: taskId,
+      prompt: queued.join('\n\n'),
+      toolUseContext: { ...toolUseContext, abortController: new AbortController() },
+      canUseTool,
+    })
+    if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
+    takeOperatorMessages(taskId, stateReader, rootSetAppState)
+    return true
+  } catch (error) {
+    logForDebugging(`agent lifecycle: the operator's queued lines did not deliver after the stop: ${errorMessage(error)}`)
+    return false
+  }
+}
+
 
 export async function runAsyncAgentLifecycle(args: {
   taskId: string
@@ -1025,7 +1063,7 @@ export async function runAsyncAgentLifecycle(args: {
         const queued = (() => {
           const state = stateReader()
           const task = state.tasks[taskId]
-          return isLocalAgentTask(task) ? (task.pendingMessages ?? []) : []
+          return isLocalAgentTask(task) ? [...(task.pendingMessages ?? []), ...peekOperatorMessages(task)] : []
         })()
         if (queued.length > 0) {
           const { resumeAgentBackground } = await import('./resumeAgent.js')
@@ -1037,6 +1075,7 @@ export async function runAsyncAgentLifecycle(args: {
           })
           if (resumed.note) enqueueAgentReceiptRow({ taskId, description, summary: resumed.note.trimStart() })
           drainPendingMessages(taskId, stateReader, rootSetAppState)
+          takeOperatorMessages(taskId, stateReader, rootSetAppState)
         }
       } catch (error) {
         logForDebugging(
@@ -1141,6 +1180,7 @@ export async function runAsyncAgentLifecycle(args: {
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
+      await deliverOperatorMessagesAfterStop(taskId, description, toolUseContext, rootSetAppState, args.canUseTool)
       return
     }
     stopSummarization?.()

@@ -52,9 +52,14 @@ import * as pendingInput from '../../input-core/pending-input.js'
 import { cancelVoiceCapture, subscribeVoice, toggleVoiceCapture, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
+  clearMainChat,
   enterTeammateView,
   exitTeammateView,
+  setMainChat,
 } from '../../state/teammateViewHelpers.js'
+import { composerTargetTaskId } from '../../state/selectors.js'
+import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
+import { crewmateInterruptedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
@@ -64,6 +69,7 @@ import {
   consumeCommandDispatch,
   consumeHelmActivation,
   consumePromptPrefill,
+  currentHelmRow,
   cycleHelmFocus,
   getHelmCursor,
   getHelmFocus,
@@ -132,7 +138,7 @@ import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
 import { injectUserMessageToTeammate } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
-import { appendMessageToLocalAgent, isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedTeammateTask } from '../../state/selectors.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
@@ -945,7 +951,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const viewedTeammate = getViewedTeammateTask(
     appStateStore.getState(),
   )
+  const composerCrewmate = useComposerCrewmate()
+  const composerCrewmateRef = useRef(composerCrewmate)
+  composerCrewmateRef.current = composerCrewmate
   const viewedAgentName =
+    composerCrewmate?.name ??
     viewedTeammate?.identity?.agentName ??
     (viewedTask !== undefined && isLocalAgentTask(viewedTask)
       ? viewedTask.description !== ''
@@ -1534,28 +1544,44 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       )
       removeNotification('stash-hint')
 
-      if (fresh.viewingAgentTaskId !== undefined) {
+      const targetId = composerTargetTaskId(fresh)
+      if (targetId !== undefined) {
         const intent = classifyAgentViewSubmission(
           submitted,
           options.fromKeybinding === true,
           commands,
         )
-        const deliver = (text: string): void => {
+        const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
+        const sendReceipt = (text: string, color?: 'warning'): void =>
+          addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
+        const deliver = async (text: string): Promise<boolean> => {
           if (onAgentSubmit) {
             onAgentSubmit(text)
-            return
+            return true
           }
-          const task = fresh.tasks[fresh.viewingAgentTaskId as string]
+          const task = fresh.tasks[targetId]
           if (task !== undefined && isInProcessTeammateTask(task)) {
             injectUserMessageToTeammate(task.id, text, setAppState)
-          } else if (task !== undefined && isLocalAgentTask(task)) {
-            queuePendingMessage(task.id, text, setAppState)
+            return true
+          }
+          if (task !== undefined && isLocalAgentTask(task)) {
+            queueOperatorMessage(task.id, text, setAppState)
             appendMessageToLocalAgent(
               task.id,
               createUserMessage({ content: text }),
               setAppState,
             )
+            sendReceipt(`${operatorLinePlate(targetName)} ${crewmateQueuedWords(targetName)}`)
+            return true
           }
+          const receipt = await getFocusedSessionConnector().resumeAgent(targetId, text)
+          if (receipt.outcome !== 'applied') {
+            sendReceipt(crewmateRefusedWords(targetName, receipt.detail ?? 'no reason given'), 'warning')
+            return false
+          }
+          const queued = typeof receipt.detail === 'string' && receipt.detail.includes('"queued":true')
+          sendReceipt(`${operatorLinePlate(targetName)} ${queued ? crewmateQueuedWords(targetName) : crewmateResumedWords(targetName)}`)
+          return true
         }
         switch (intent.kind) {
           case 'session-command':
@@ -1572,11 +1598,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             })
             return
           case 'agent-literal':
-            deliver(intent.text)
+            if (!(await deliver(intent.text))) return
             break
           case 'agent-command':
           case 'agent-guidance':
-            deliver(submitted)
+            if (!(await deliver(submitted))) return
             break
         }
         pendingInput.clearForSubmit(submitted)
@@ -2055,6 +2081,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           requestHelmRowActivation(focusPane, getHelmCursor(focusPane))
           return
         }
+        if (rawInput === 'm' && !key.ctrl && !key.meta && focusPane === 'lanes') {
+          const row = currentHelmRow('lanes')
+          if (row !== undefined && (row.kind === 'teammate' || row.kind === 'main')) {
+            event.stopImmediatePropagation()
+            if (!helmRailPastEntryBuffer()) return
+            if (row.kind === 'main') clearMainChat(setAppState)
+            else {
+              setMainChat(row.id, setAppState)
+              enterTeammateView(row.id, setAppState)
+            }
+            setHelmFocus('prompt')
+            return
+          }
+        }
         if (
           rawInput !== '' &&
           !key.ctrl &&
@@ -2078,6 +2118,25 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       const emptyPlainPrompt =
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
+
+      if (key.escape && voice.phase !== 'recording' && mode === 'prompt' && footerSelection === null && !helpOpen && !isSearchingHistory) {
+        const freshState = appStateStore.getState() as AppState
+        const viewed = freshState.viewingAgentTaskId
+        if (viewed !== undefined) {
+          event.stopImmediatePropagation()
+          if (freshState.mainChatTaskId !== viewed) {
+            exitTeammateView(setAppState)
+            return
+          }
+          const crewmate = composerCrewmateRef.current
+          const localTask = freshState.tasks[viewed]
+          const name = crewmate?.taskId === viewed ? crewmate.name : viewed
+          if (localTask !== undefined && isLocalAgentTask(localTask)) localTask.abortController?.abort(`interrupted by the operator from ${name}'s screen`)
+          else void getFocusedSessionConnector().stopAgent(viewed)
+          addNotification({ key: 'crewmate-send', text: crewmateInterruptedWords(name), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+          return
+        }
+      }
 
       if (voice.phase === 'recording' && key.escape) {
         event.stopImmediatePropagation()

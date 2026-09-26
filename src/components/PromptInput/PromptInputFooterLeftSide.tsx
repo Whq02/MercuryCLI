@@ -41,6 +41,8 @@ import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
+import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 
 const XTERMJS_HOSTS = new Set(['vscode', 'cursor', 'windsurf', 'codium', 'antigravity'])
 
@@ -77,6 +79,8 @@ export function PromptInputFooterLeftSide({
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
   )
+  const mainChatTaskId = useAppState((state: AppState) => state.mainChatTaskId)
+  const composerCrewmate = useComposerCrewmate()
   const treeShowing = useAppState(
     (state: AppState) => state.expandedView === 'teammates',
   )
@@ -220,9 +224,13 @@ export function PromptInputFooterLeftSide({
   const runningAgents = taskList.filter(
     task => isLocalAgentTask(task) && task.status === 'running',
   )
-  if (viewingTeammate && viewedTeammateCompleted) {
+  if (viewingTeammate && (viewedTeammateCompleted || mainChatTaskId !== viewingAgentTaskId)) {
     parts.push(
-      <KeyboardShortcutHint key="return" shortcut="esc" action="return to leader" />,
+      <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
+    )
+  } else if (viewingTeammate) {
+    parts.push(
+      <KeyboardShortcutHint key="interrupt" shortcut="esc" action={`interrupt ${composerCrewmate?.name ?? 'the crewmate'}`} />,
     )
   } else {
     if (isLoading) {

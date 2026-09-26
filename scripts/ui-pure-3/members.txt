@@ -67,3 +67,4 @@ prove-usage-error-humanized.ts
 prove-usage-limit-honesty.ts
 prove-visual-manifest.ts
 prove-width-oracle-sot.ts
+prove-agent-view-frames.ts

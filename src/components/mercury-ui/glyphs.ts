@@ -23,6 +23,7 @@ export const GLYPH = {
   handoff: '⇄',
   trace: '⟡',
   spark: '✶',
+  star: '★',
   sparkBright: '✦',
   sparkFaint: '✧',
   cloud: '⊛',

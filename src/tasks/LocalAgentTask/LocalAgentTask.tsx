@@ -282,6 +282,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   lastReportedTokenCount?: number
   isBackgrounded: boolean
   pendingMessages?: string[]
+  operatorMessages?: string[]
   retain?: boolean
   diskLoaded?: boolean
   evictAfter?: number
@@ -888,6 +889,41 @@ export function queuePendingMessage(
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
   if (queued) recordAgentMessage(taskId, message)
+}
+
+export function queueOperatorMessage(
+  taskId: string,
+  message: string,
+  setAppState: SetAppState,
+): void {
+  let queued = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (!isLocalAgentTask(task)) return task
+    queued = true
+    return { ...task, operatorMessages: [...(task.operatorMessages ?? []), message] }
+  })
+  if (queued) recordAgentMessage(taskId, message)
+}
+
+export function peekOperatorMessages(task: unknown): string[] {
+  return isLocalAgentTask(task) ? [...(task.operatorMessages ?? [])] : []
+}
+
+export function takeOperatorMessages(
+  taskId: string,
+  getAppState: () => AppState,
+  setAppState: SetAppState,
+): string[] {
+  const task = getAppState().tasks?.[taskId]
+  const queued = peekOperatorMessages(task)
+  if (queued.length === 0) return []
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
+    ...current,
+    operatorMessages: [],
+  }))
+  consumeAgentMessages(taskId)
+  for (const notice of queued) speakAgentMessageFrame(taskId, notice)
+  return queued
 }
 
 export function drainPendingMessages(

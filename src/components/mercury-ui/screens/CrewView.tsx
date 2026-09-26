@@ -47,6 +47,10 @@ import { useStableSelection } from '../useStableSelection.js'
 import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
 import { crewPauseDoorKey, crewPauseDoorNote, pressCrewPause } from './crewPauseDoor.js'
 import { TeammateChatsView } from './TeammateChatsView.js'
+import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
+import { enterTeammateView, setMainChat } from '../../../state/teammateViewHelpers.js'
+import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
+import { CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY } from '../../../utils/cockpit/crewmateWords.js'
 
 
 type Row =
@@ -70,16 +74,20 @@ export function CrewView({
   onClose,
   initialChat,
   initialSpawn = false,
+  popup = false,
 }: {
   onClose: () => void
   initialChat?: string
   initialSpawn?: boolean
+  popup?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns, rows: termRows } = useTerminalSize()
   const now = useNowTick(1000)
   const roster = useFocusedWorkRoster()
   const sessionId = focusedSessionIdOrNull()
+  const setAppState = useSetAppStateMaybe()
+  const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
   const presence = useMemo(() => focusedRunnerPresence(), [roster])
   const agents = useMemo(() => crewAgentsOf(roster.rows, sessionId), [roster, sessionId])
   const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
@@ -183,14 +191,39 @@ export function CrewView({
       if (!pastMount()) return
       const row = rows[sel]
       if (row === undefined) return
-      if (row.kind === 'agent') setMode({ view: 'card', id: row.facts.id })
-      else setMode({ view: 'chat', name: row.member.name, fromDoor: false })
+      if (row.kind === 'agent') {
+        if (!popup || setAppState === null) {
+          setMode({ view: 'card', id: row.facts.id })
+          return
+        }
+        enterTeammateView(row.facts.id, setAppState)
+        onClose()
+        return
+      }
+      if (!popup) {
+        setMode({ view: 'chat', name: row.member.name, fromDoor: false })
+        return
+      }
+      onClose()
+      requestCommandDispatch(`/teammates ${row.member.name}`)
+      return
+    }
+    if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
+      if (!pastMount()) return
+      setMainChat(selected.facts.id, setAppState)
+      enterTeammateView(selected.facts.id, setAppState)
+      onClose()
       return
     }
     if (input === 'n' && namedOn) {
       const gate = spawnGate()
       if (gate !== null) {
         setSpawnNote(gate)
+        return
+      }
+      if (popup) {
+        onClose()
+        requestCommandDispatch('/teammates +new')
         return
       }
       setMode({ view: 'chat', spawn: true, fromDoor: false })
@@ -230,13 +263,16 @@ export function CrewView({
   const win = paneWindow(rows.length, sel, visible)
   const firstNamedIx = rows.findIndex(r => r.kind === 'named')
   const selectedRow = rows[sel]
-  const footer = [
-    '↑↓ move',
-    rows.length > 0 ? '↵ open' : undefined,
-    ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
-    namedOn ? 'n new named agent' : undefined,
-    'esc close',
-  ]
+  const footer = (armedTarget !== null
+    ? [crewStopHint(armedTarget.name), 'esc close']
+    : [
+        '↑↓ move',
+        rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
+        selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
+        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
+        namedOn ? 'n new named agent' : undefined,
+        'esc close',
+      ])
     .filter(Boolean)
     .join(' · ')
 
