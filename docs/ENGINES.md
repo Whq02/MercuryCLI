@@ -632,10 +632,11 @@ click outside closes it. It lists every provider, the signed-in ones first in
 the order of their most recent sign-in — the same sign-in record the computed
 default reads — and each in its own shape: the first-party subscription's
 rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
-sign-in's plan windows, an OpenRouter key's credit totals and cap, the
-DeepSeek and Moonshot balances, and an honest one-line absence for a lane
-whose provider publishes no usage Mercury can read (Z.AI, Gemini, Hugging
-Face, a custom endpoint, an API key on a subscription lane, a local server).
+sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
+key's credit totals and cap, the DeepSeek and Moonshot balances, and an honest
+one-line absence for a lane whose provider publishes no usage Mercury can read
+(a general Z.AI key, Gemini, Hugging Face, a custom endpoint, an API key on a
+subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
 balance endpoints, the remaining credit under an OpenRouter key cap), and
@@ -643,6 +644,23 @@ balance endpoints, the remaining credit under an OpenRouter key cap), and
 spend presented as a balance. Every figure is a reader's last observation with
 its stamp, sampled in the popup through one door and dropped the moment the
 credential it belongs to changes — never remembered, never invented.
+
+A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
+5-hour and weekly credit windows as used-percent bars with their resets, on
+the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on
+the coding base (the one the Z.AI console and Z.AI's own usage plugin read; it
+is not a documented API, so its shape is decoded by the window's unit and
+length and the stated percent, and an answer Mercury cannot decode is a
+labelled "no usage read" line, never a wrong meter). The read is asked the
+way every plan read is — when a meter is shown, on a sign-in, on the
+operator's retry, no more than once a minute and never on a clock. The key
+goes in the Authorization header as Z.AI's own tooling sends it; a key the
+endpoint refuses in that form is retried once as a bearer token and the form
+that answered is kept for the next read. The plan tier the endpoint states
+("GLM Coding Pro") is the block's tier line, and the monthly MCP tool-call
+quota rides as one figure in `/usage`. A general Z.AI key has no usage road
+and keeps its one line; a Coding Plan key whose account the endpoint says has
+no plan reads "usage: not on a coding plan".
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,

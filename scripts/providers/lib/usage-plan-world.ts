@@ -72,7 +72,21 @@ export async function usagePlanWorld() {
   const week = window(7 * 24 * 60, '250', '1000', resetAtMs + 7 * 86_400_000)
   let body: unknown = { limits: [week, fiveHour] }
   let refused = false
+  const glmFiveHourResetAtMs = resetAtMs + 47 * 60_000
+  const glmWeekResetAtMs = resetAtMs + 6 * 86_400_000
+  const glmKey = 'zai-fixture-coding-key'
+  const glmRow = (unit: number, number: number, usage: number, currentValue: number, percentage: number, nextResetTime?: number) => ({
+    type: 'CREDIT_LIMIT', unit, number, usage, currentValue, remaining: usage - currentValue, percentage,
+    ...(nextResetTime !== undefined ? { nextResetTime } : {}),
+  })
+  const glmFiveHour = glmRow(3, 5, 12000, 2040, 17, glmFiveHourResetAtMs)
+  const glmWeek = glmRow(6, 1, 60000, 1800, 3, glmWeekResetAtMs)
+  const glmTools = { type: 'TIME_LIMIT', unit: 5, number: 1, usage: 1000, currentValue: 2, remaining: 998, percentage: 0, nextResetTime: glmWeekResetAtMs + 20 * 86_400_000, usageDetails: [{ modelCode: 'web-reader', usage: 2 }] }
+  let quotaBody: unknown = { code: 200, msg: 'Operation successful', data: { limits: [glmFiveHour, glmWeek, glmTools], level: 'pro' }, success: true }
+  let quotaRefused = false
+  let quotaAuth: 'both' | 'bearer-only' = 'both'
   const requests: string[] = []
+  const quotaAuthForms: string[] = []
   const escaped: string[] = []
   const server = Bun.serve({
     hostname: '127.0.0.1',
@@ -80,12 +94,20 @@ export async function usagePlanWorld() {
     fetch(request) {
       const path = new URL(request.url).pathname
       requests.push(`${request.method} ${path}`)
+      if (request.method === 'GET' && path === '/api/monitor/usage/quota/limit') {
+        const authorization = request.headers.get('authorization')
+        const form = authorization === glmKey ? 'raw' : authorization === `Bearer ${glmKey}` ? 'bearer' : 'other'
+        quotaAuthForms.push(form)
+        if (form === 'other' || (quotaAuth === 'bearer-only' && form === 'raw')) return Response.json({ code: 1001, msg: 'Authorization Token Missing', success: false })
+        return quotaRefused ? new Response(null, { status: 503 }) : Response.json(quotaBody)
+      }
       if (request.method !== 'GET' || path !== '/coding/v1/usages' || request.headers.get('authorization') !== 'Bearer kimi-fixture-access') return new Response(null, { status: 403 })
       return refused ? new Response(null, { status: 503 }) : Response.json(body)
     },
   })
   const base = `http://127.0.0.1:${server.port}`
   process.env.MERCURY_MOONSHOT_CODING_BASE = `${base}/coding/v1`
+  process.env.MERCURY_ZAI_API_BASE = `${base}/coding/paas/v4`
   const originalFetch = globalThis.fetch
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
@@ -108,13 +130,14 @@ export async function usagePlanWorld() {
   const accounts = await import(path('src/services/providers/moonshot/moonshotAccounts.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotAccounts.js')
   const secrets = await import(path('src/utils/router/providerSecrets.ts')) as typeof import('../../../src/utils/router/providerSecrets.js')
   accounts.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh' }, 'global')
-  secrets.writeStoredZaiApiKey('zai-fixture-coding-key', 'coding')
+  secrets.writeStoredZaiApiKey(glmKey, 'coding')
   const reader = await import(path('src/services/providers/moonshot/moonshotUsageState.ts')) as typeof import('../../../src/services/providers/moonshot/moonshotUsageState.js')
   const owner = await import(path('src/services/providers/providerUsage.ts')) as typeof import('../../../src/services/providers/providerUsage.js')
   const fresh = await import(path('src/services/providers/usageFreshness.ts')) as typeof import('../../../src/services/providers/usageFreshness.js')
   const quota = await import(path('src/utils/cockpit/quota.ts')) as typeof import('../../../src/utils/cockpit/quota.js')
   const records = await import(path('src/services/claudeAiLimits.ts')) as typeof import('../../../src/services/claudeAiLimits.js')
   await owner.refreshProviderUsage('moonshot', { fetchImpl, now: () => observedAtMs, force: true })
+  await owner.refreshProviderUsage('zai', { fetchImpl, now: () => observedAtMs, force: true })
   const ids = ['moonshot', 'zai', 'anthropic', 'openai', 'openrouter', 'gemini', 'deepseek', 'huggingface', 'openai-compat', 'local']
   await stub('src/services/providers/providerUsage.ts', {
     providerFamilyPresences: () => ids.map(id => ({ id, available: id === 'moonshot' || id === 'zai', credentialed: id === 'moonshot' || id === 'zai', credentialLabel: id === 'zai' ? 'GLM Coding Plan key' : accounts.resolveMoonshotAccount()?.label })),
@@ -143,9 +166,11 @@ export async function usagePlanWorld() {
   })
   await stub('src/state/telemetryBus.ts', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
   await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
-  await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => ({ columns: 178, rows: 51 }) })
+  let size = { columns: 178, rows: 51 }
+  await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => size })
   await stub('src/components/mercury-ui/components.tsx', { useNowTick: () => React.useSyncExternalStore(subscribeClock, () => now, () => now) })
   const ink = await import(path('src/ink.ts')) as typeof import('../../../src/ink.js')
+  const { InputEvent } = await import(path('src/ink/events/input-event.ts')) as typeof import('../../../src/ink/events/input-event.js')
   const { default: StdinContext } = await import(path('src/ink/components/StdinContext.ts'))
   const { default: squashText } = await import(path('src/ink/squash-text-nodes.ts')) as typeof import('../../../src/ink/squash-text-nodes.js')
   const mounted = new Set<() => void>()
@@ -160,15 +185,16 @@ export async function usagePlanWorld() {
     if (node.nodeName === 'ink-text') return [squashText(node)]
     return node.childNodes.flatMap(runs)
   }
-  async function mount(content: React.ReactNode) {
+  async function mount(content: React.ReactNode, at: { columns: number; rows: number } = { columns: 178, rows: 51 }) {
+    size = at
     const emitter = new ink.EventEmitter()
     const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
     const stream = new PassThrough()
     stream.resume()
-    const stdout = Object.assign(stream, { columns: 178, rows: 51 }) as unknown as NodeJS.WriteStream
+    const stdout = Object.assign(stream, { columns: at.columns, rows: at.rows }) as unknown as NodeJS.WriteStream
     const ref = React.createRef<DOMElement>()
     const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
-    const node = (child: React.ReactNode) => React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { ref, width: 178, height: 51, flexDirection: 'column' }, child))
+    const node = (child: React.ReactNode) => React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { ref, width: at.columns, height: at.rows, flexDirection: 'column' }, child))
     let painted = (): void => {}
     const firstFrame = new Promise<void>(resolve => { painted = resolve })
     const instance = await ink.render(node(content), { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
@@ -180,23 +206,33 @@ export async function usagePlanWorld() {
       frame: () => stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n').map(line => line.trimEnd()).join('\n'),
       runs: () => ref.current ? runs(ref.current) : [],
       async repaint(next: React.ReactNode) { instance.rerender(node(next)); await settle() },
+      async key(name: string) {
+        emitter.emit('input', new InputEvent({ name, sequence: '', ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never))
+        await settle()
+        await new Promise<void>(resolve => setTimeout(resolve, 60))
+        await settle()
+      },
       close,
     }
   }
   const frames = argument('--frames')
   if (frames) mkdirSync(frames, { recursive: true })
-  function save(name: string, frame: string) {
-    if (frames) writeFileSync(join(frames, `${name}-178x51.txt`), frame + '\n')
+  function save(name: string, frame: string, at: { columns: number; rows: number } = { columns: 178, rows: 51 }) {
+    if (frames) writeFileSync(join(frames, `${name}-${at.columns}x${at.rows}.txt`), frame + '\n')
   }
   return {
     root, path, owner, accounts, secrets, reader, fresh, quota, records, ink, mount, settle, save,
     resetAtMs, observedAtMs, fiveHour, week, requests, escaped, fetchImpl,
+    glmKey, glmFiveHour, glmWeek, glmTools, glmFiveHourResetAtMs, glmWeekResetAtMs, quotaAuthForms,
     now: () => now,
     setNow: (value: number) => { now = value; for (const listener of clockListeners) listener() },
     focus: (value: 'moonshot' | 'zai') => { model = value === 'moonshot' ? 'kimi-fixture' : 'glm-fixture'; for (const listener of modelListeners) listener() },
     setBody: (value: unknown) => { body = value },
     refuse: (value: boolean) => { refused = value },
-    inBounds: (frame: string) => frame.split('\n').length <= 51 && frame.split('\n').every(line => stringWidth(line) <= 178),
+    setQuotaBody: (value: unknown) => { quotaBody = value },
+    refuseQuota: (value: boolean) => { quotaRefused = value },
+    setQuotaAuth: (value: 'both' | 'bearer-only') => { quotaAuth = value },
+    inBounds: (frame: string, at: { columns: number; rows: number } = { columns: 178, rows: 51 }) => frame.split('\n').length <= at.rows && frame.split('\n').every(line => stringWidth(line) <= at.columns),
     close() {
       for (const close of mounted) close()
       server.stop(true)
