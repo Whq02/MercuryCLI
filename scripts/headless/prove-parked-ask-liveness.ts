@@ -27,6 +27,9 @@ const AGAIN = 'are you still there'
 const STILL = 'still here'
 const HOST_DENY = 'the operator declined at the switchboard'
 const ABORT_TEXT = 'Tool permission request failed: Tool permission request was aborted'
+const STREAM_CLOSED_TEXT = 'Tool permission request failed: Permission stream closed before response was received for request '
+const DENIED_LEAD = 'Permission to use AskUserQuestion has been denied: '
+const CLIENT_AWAY_WORDS = "the operator's client was not there to answer"
 const QUESTION = { questions: [{ question: 'Which way?', header: 'Way', options: [{ label: 'left', description: 'go left' }, { label: 'right', description: 'go right' }], multiSelect: false }] }
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -286,8 +289,12 @@ tally.section('L3 — the host leaves while the ask is parked: the ask settles a
     const settledMs = Date.now() - leftAt
     const toolError = seat.frames.slice(before).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
     const second = fixture.requests[1]
-    tally.check('L3: the ask settled as a tool error the model can read (not the abort text)', toolError !== undefined && toolError.isError && !toolError.text.includes(ABORT_TEXT), j(toolError ?? null))
-    console.log(`  the denial the model read: ${j(toolError?.text ?? null)}`)
+    const text = toolError?.text ?? ''
+    const closedShape = text.includes(STREAM_CLOSED_TEXT)
+    const denialShape = text.includes(DENIED_LEAD) && text.includes(CLIENT_AWAY_WORDS)
+    tally.check('L3: the ask settled as a tool error the model can read (not the abort text)', toolError !== undefined && toolError.isError && !text.includes(ABORT_TEXT), j(toolError ?? null))
+    tally.check(`L3: the error wears one of the two known shapes — the stream-closed failure or the typed denial (${closedShape ? 'stream-closed' : denialShape ? 'typed denial' : 'neither'})`, closedShape || denialShape, j(text.slice(0, 300)))
+    console.log(`  the denial the model read: ${j(text)}`)
     tally.check('L3: the NEXT provider request was issued and consumed, carrying that error', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
     tally.check(`L3: the turn ended with the model's own text within seconds (${settledMs} ms)`, result !== null && result.result === DONE && settledMs < bound(15_000), result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 200)}`)
     const code = await seat.stop(bound(10_000))
