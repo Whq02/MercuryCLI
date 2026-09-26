@@ -171,13 +171,10 @@ function buildSandboxSection(): string {
 
   if (unsandboxedAllowed) {
     lines.push(
-      '- Default to running inside the sandbox. Reach for `dangerouslyDisableSandbox: true` only when the user has asked outright for an unsandboxed run, or when a specific command just failed with evidence pointing at a sandbox restriction (most failures have nothing to do with the sandbox).',
+      '- Default to running inside the sandbox. Reach for `dangerouslyDisableSandbox: true` only when the user has asked outright for an unsandboxed run (most failures have nothing to do with the sandbox).',
     )
     lines.push(
-      '- Evidence of a sandbox restriction: an operation-not-permitted error on a file or network operation; access denied to a path outside the allowed directories; a connection failure to a non-allowlisted host; or a unix-socket connection error.',
-    )
-    lines.push(
-      '- On such evidence, retry immediately with the override, without asking; briefly explain which restriction likely caused the failure and mention that the `/sandbox` command manages restrictions, and say that the override raises a permission prompt.',
+      '- When a sandboxed command exits non-zero and the sandbox recorded a violation, the harness itself asks once, inside the same call, whether to rerun it outside the sandbox — worded from the recorded violation — and reruns on yes; the result then says in one clause that it ran outside the sandbox. Declined, or with no one to ask, the result is a refusal naming the violation and the `/sandbox` command, which manages the restrictions. You never retry by hand on such evidence; a failure with no recorded violation asks nothing and is not a sandbox failure.',
     )
     lines.push('- Treat each overridden command individually; a recent override does not carry forward.')
     lines.push(
