@@ -134,10 +134,18 @@ if (FRAMES !== undefined) {
 }
 if (res.status !== 0) console.log((res.stderr ?? '').trim().split('\n').slice(-8).join('\n'))
 
-const focusLine = (lines: string[]): string => (lines.find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
+const pickerWindow = (lines: string[]): string[] => {
+  const title = lines.find(l => l.includes('Mercury · model')) ?? ''
+  const at = title.indexOf('Mercury · model')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
+}
+const focusLine = (lines: string[]): string => (pickerWindow(lines).find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
 const nameOf = (row: string): string => row.split(/\s{2,}/)[0] ?? ''
 const windowOf = (row: string): string => /(\d+k|\d+M) ctx/.exec(row)?.[1] ?? ''
-const anthropicGroup = (lines: string[]): string[] => {
+const anthropicGroup = (frame: string[]): string[] => {
+  const lines = pickerWindow(frame)
   const start = lines.findIndex(l => /[▾▸❯] ANTHROPIC · /.test(l))
   if (start < 0) return []
   const rows: string[] = []

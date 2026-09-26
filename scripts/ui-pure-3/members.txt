@@ -69,3 +69,4 @@ prove-usage-error-humanized.ts
 prove-usage-limit-honesty.ts
 prove-visual-manifest.ts
 prove-width-oracle-sot.ts
+prove-model-picker-popup-frames.ts

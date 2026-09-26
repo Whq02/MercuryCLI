@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import { Box, MotionParkContext, Text, measureElement } from '../ink.js'
 import type { DOMElement } from '../ink.js'
@@ -48,6 +49,8 @@ import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
+import { ModelPickerPopupSlot } from './ModelPickerPopupSlot.js'
+import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
 import { SettingsPopupSlot } from './SettingsPopupSlot.js'
 import { PinnedCritterBerth } from './MercuryHome.js'
 import { CR_COLS } from '../utils/cockpit/critterData.js'
@@ -373,6 +376,7 @@ export function FullscreenLayout({
   const centerFrame = cockpit
   const plan = railPlan(columns)
   const modalUp = modal !== undefined && modal !== null
+  const popupUp = useSyncExternalStore(subscribeModelPickerPopup, modelPickerPopupClaimed, modelPickerPopupClaimed) && modalUp
   const ink = useContext(InkInstanceContext)
   const covered = useContext(MotionParkContext)
   useInsertionEffect(() => {
@@ -534,7 +538,13 @@ export function FullscreenLayout({
   )
 
   const motionParked = modalUp && modalPeek === 0
-  const modalPane = modalUp ? (
+  const modalPane = popupUp ? (
+    <MotionParkContext.Provider value={false}>
+      <ModelPickerPopupSlot hostRef={centreBoxRef} framed={centerFrame} scrollRef={modalScrollRef ?? null}>
+        {modal}
+      </ModelPickerPopupSlot>
+    </MotionParkContext.Provider>
+  ) : modalUp ? (
     <MotionParkContext.Provider value={false}>
       <Box ref={recessOn ? elevatedRef : undefined} position="absolute" bottom={0} width="100%" height={blankClaims ? terminalRows : undefined} maxHeight={Math.max(0, terminalRows - modalPeek)} flexDirection="column" overflow="hidden" opaque={true}>
         {blankClaims && <Box flexGrow={1} />}{modalSeparatorRows > 0 ? <Box flexShrink={0}><Text color="info">{"▔".repeat(Math.max(1, columns))}</Text></Box> : null}

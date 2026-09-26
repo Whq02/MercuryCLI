@@ -170,6 +170,13 @@ const ledgerNamesSwitch = (ledger: string): boolean => {
   }
 }
 
+const pickerWindow = (lines: string[]): string[] => {
+  const title = lines.find(l => l.includes('Mercury · model')) ?? ''
+  const at = title.indexOf('Mercury · model')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  return left < 0 || right < 0 ? lines : lines.map(l => l.slice(left, right + 1))
+}
 const innerOf = (line: string): string => line.replace(/^.*?│ ?/, '').replace(/\s*│\s*$/, '').trim()
 const headingOf = (lines: string[], name: string): string => innerOf(lines.find(l => new RegExp(`[▾▸❯] ${name} · `).test(l)) ?? '')
 const headingRow = (lines: string[], name: string): number => lines.findIndex(l => new RegExp(`[▾▸❯] ${name} · `).test(l))
@@ -272,19 +279,20 @@ try {
     mkdirSync(FRAMES, { recursive: true })
     for (const [mark, lines] of c.marks) writeFileSync(join(FRAMES, `groups-178x51-${mark}.txt`), lines.join('\n') + '\n')
   }
-  const open = c.marks.get('open') ?? []
-  const filtered = c.marks.get('filtered') ?? []
-  const cleared = c.marks.get('cleared') ?? []
-  const folded = c.marks.get('folded') ?? []
-  const unfolded = c.marks.get('unfolded') ?? []
+  const open = pickerWindow(c.marks.get('open') ?? [])
+  const filtered = pickerWindow(c.marks.get('filtered') ?? [])
+  const cleared = pickerWindow(c.marks.get('cleared') ?? [])
+  const folded = pickerWindow(c.marks.get('folded') ?? [])
+  const unfolded = pickerWindow(c.marks.get('unfolded') ?? [])
   const switched = c.marks.get('switched') ?? []
-  const reopened = c.marks.get('reopened') ?? []
-  const metacharacter = c.marks.get('metacharacter') ?? []
+  const reopened = pickerWindow(c.marks.get('reopened') ?? [])
+  const metacharacter = pickerWindow(c.marks.get('metacharacter') ?? [])
   const draftOpen = c.marks.get('draft-open') ?? []
+  const draftOpenPicker = pickerWindow(draftOpen)
   const draftClosed = c.marks.get('draft-closed') ?? []
   const back = c.marks.get('back') ?? []
-  const second = c.marks.get('second') ?? []
-  const refreshed = c.marks.get('refreshed') ?? []
+  const second = pickerWindow(c.marks.get('second') ?? [])
+  const refreshed = pickerWindow(c.marks.get('refreshed') ?? [])
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   check('the picker opens with the plain title and no CHOOSE A MODEL line', open.some(l => innerOf(l) === 'Mercury · model') && !open.some(l => l.includes('CHOOSE A MODEL')), open.slice(2, 6).map(innerOf).join(' | '))
   check("the seat's own provider leads: ANTHROPIC · API key · its tail · N live, its current row boxed", /^▾ ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(open, 'ANTHROPIC')) && headingRow(open, 'ANTHROPIC') < headingRow(open, 'OPENROUTER') && /\S.* {2,}claude-\S+ {2,}current {2,}/.test(boxedRow(open)), `${headingOf(open, 'ANTHROPIC')} · ${boxedRow(open)}`)
@@ -304,9 +312,9 @@ try {
   const matchHeader = /Mercury · model · (\d+) of ([1-9]\d*) match/.exec(metacharacter.map(innerOf).join('\n'))
   check(`a regex metacharacter in the filter is text: "(" matches exactly the rows whose alias carries one (the grown ${GROWN_ALIAS_WORD} row once it has landed, never a heading) and the header counts them of the whole reach, never 0 of 0`, matchHeader !== null && Number(matchHeader[1]) === parenthesised && !metacharacter.some(l => l.includes('0 of 0 match')) && metacharacter.some(l => innerOf(l) === '/ (') && (parenthesised === 0 ? headingRow(metacharacter, 'OPENROUTER') < 0 : headingRow(metacharacter, 'ANTHROPIC') < 0 && showsId(boxedRow(metacharacter), GROWN_ID)), `${metacharacter.filter(l => l.includes('Mercury · model') || l.includes('/ (')).map(innerOf).join(' | ')} · ${parenthesised} parenthesised row(s) · boxed: ${boxedRow(metacharacter)}`)
   const composerOf = (lines: string[]): string => (lines.find(l => l.includes('│❯ ')) ?? '').replace(/^.*?│❯ /, '').replace(/\s*│?\s*$/, '').trim()
-  check('the picker opened by the chord over a typed draft (the composer never submitted it: no receipt, the picker whole over the chat)', draftOpen.some(l => innerOf(l) === 'Mercury · model') && !draftOpen.some(l => l.includes('Set model to') || l.includes('Kept model as')), draftOpen.slice(1, 4).map(innerOf).join(' | '))
+  check('the picker opened by the chord over a typed draft (the composer never submitted it: the draft still stands in the composer under the picker, no switch receipt)', draftOpenPicker.some(l => innerOf(l) === 'Mercury · model') && composerOf(draftOpen) === DRAFT && !draftOpen.some(l => l.includes('Set model to')), `${draftOpenPicker.slice(1, 4).map(innerOf).join(' | ')} · composer "${composerOf(draftOpen)}"`)
   check(`a click outside the picker (col ${OUTSIDE.col}, row ${OUTSIDE.row}: the margin beside the panel) closes it and the draft is back in the composer exactly as typed`, !draftClosed.some(l => l.includes('Mercury · model')) && draftClosed.some(l => l.includes('Kept model as')) && composerOf(draftClosed) === DRAFT, `composer "${composerOf(draftClosed)}"`)
-  const laterOpens = [reopened, metacharacter, draftOpen, second, refreshed]
+  const laterOpens = [reopened, metacharacter, draftOpenPicker, second, refreshed]
   const requestsServed = fixtureOutput.split('\n').filter(l => l.startsWith('REQUEST '))
   const grewAt = requestsServed.findIndex(l => l.endsWith('rows=6')) + 1
   check('the list grows only after the product recorded the switch (the fixture served the first open five rows; the grown list answers a later request)', existsSync(growMarker) && grewAt >= 2, `${requestsServed.length} requests · grown from request ${grewAt || 'never'}`)
