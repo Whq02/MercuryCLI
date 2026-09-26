@@ -148,7 +148,7 @@ import {
   LEGACY_BRIEF_TOOL_NAME,
 } from '../tools/BriefTool/prompt.js'
 import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
-import { executeStopFailureHooks } from '../utils/hooks.js'
+import { executeInterruptHooks, executeStopFailureHooks } from '../utils/hooks.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
@@ -159,7 +159,7 @@ import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
-import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
+import { interruptedToolsLine, turnCutOf, turnCutResultText, turnCutWhy } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { recordSentRequest } from '../utils/forkedAgent.js'
 import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
@@ -288,6 +288,24 @@ function* emitSyntheticSettlements(
       })
     }
   }
+}
+
+function fireInterruptHooks(
+  toolUseContext: ToolUseContext,
+  toolUseBlocks: readonly ToolUseBlock[],
+): void {
+  const cut = turnCutOf(toolUseContext.abortController.signal.reason)
+  const why = turnCutWhy(cut)
+  void executeInterruptHooks(
+    {
+      turnId: toolUseContext.queryTracking?.chainId ?? '',
+      reason: cut.kind,
+      ...(why !== null ? { detail: why } : {}),
+      tools: toolUseBlocks.map(block => block.name),
+    },
+    toolUseContext,
+    toolUseContext.getAppState().toolPermissionContext.mode,
+  )
 }
 
 
@@ -1234,6 +1252,7 @@ export async function* runEventCore(
         steer,
         message: steer ? null : createUserInterruptionMessage({ toolUse: false, reason: cutReason }),
       })
+      fireInterruptHooks(toolUseContext, toolUseBlocks)
       const terminal: Terminal = { reason: 'aborted_streaming' }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
@@ -1537,6 +1556,7 @@ export async function* runEventCore(
       )
 
       if (stopHookResult.preventContinuation) {
+        if (toolUseContext.abortController.signal.aborted) fireInterruptHooks(toolUseContext, [])
         const terminal: Terminal = { reason: 'stop_hook_prevented' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
@@ -1745,6 +1765,7 @@ export async function* runEventCore(
         kind: 'notice',
         message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
       })
+      fireInterruptHooks(toolUseContext, toolUseBlocks)
       const nextTurnCountOnAbort = turnCount + 1
       if (
         maxTurns !== undefined &&
@@ -1798,6 +1819,7 @@ export async function* runEventCore(
       )
 
       if (stopHookResult.preventContinuation) {
+        if (toolUseContext.abortController.signal.aborted) fireInterruptHooks(toolUseContext, [])
         const terminal: Terminal = { reason: 'stop_hook_prevented' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
