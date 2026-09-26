@@ -341,7 +341,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
   if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
     return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
   }
-  if (opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
+  if (opt.liveUnknown === true || opt.statedContextWindow !== undefined || qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined) {
     return {
       id: opt.value,
       name: opt.label,

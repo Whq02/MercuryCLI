@@ -54,6 +54,7 @@ export type ModelOption = {
   unavailable?: string
   statedContextWindow?: number
   catalogueDoor?: { family: string; total: number }
+  liveUnknown?: boolean
 }
 
 export const LIVE_UNKNOWN_ROW_WORDS = 'live · unknown to mercury'
@@ -436,6 +437,7 @@ function getQualifiedGptOptions(): ModelOption[] {
         ? `${label} (${id}) — listed live by the connected ${source} but unknown to Mercury's catalogue (no GPT grammar or pin names it); offered under its raw id on the native OpenAI Responses engine, where the provider's own answer decides.`
         : `${label} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
       group: OPENAI_MODEL_GROUP,
+      ...(liveUnknown ? { liveUnknown: true } : {}),
     })
   }
   for (const pin of GPT_DISPLAY_PINS) {
@@ -587,6 +589,7 @@ export function keyLaneGroupRows(args: {
         : `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
       group: args.group,
       ...(pin.contextWindow !== undefined ? { statedContextWindow: pin.contextWindow } : {}),
+      ...(pin.liveUnknown === true ? { liveUnknown: true } : {}),
     }))
   }
   return [
