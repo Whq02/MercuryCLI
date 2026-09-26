@@ -190,7 +190,6 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
         MERCURY_TEAMS_DIR: join(home, 'teams'),
-        MERCURY_TABULA_DIR: join(home, 'tabula'),
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',

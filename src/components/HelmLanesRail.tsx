@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
+import { getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { crewSettled, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
@@ -32,8 +32,6 @@ function formatSpan(ms: number): string {
   return `${Math.round(h / 24)}d`
 }
 import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
-import { isTabulaEnabled, tabulaProjectDir } from '../utils/tabula/tabulaGates.js'
-import { readNotesAsync, type TabulaNote } from '../utils/tabula/tabulaStore.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { isCrewSession } from '../utils/sessionClass.js'
@@ -269,7 +267,6 @@ function railRowProps(
 
 const lastKnownRecent = new Map<string, LogOption[]>()
 let lastKnownWakeGlance: { count: number; nextFireMs: number | null } | null = null
-const lastKnownTabulaOpenByDir = new Map<string, TabulaNote[]>()
 const lastKnownWorkShape = new Map<string, string>()
 
 const subscribeFocusedRecords = subscribeThroughFocused((c, l) => c.subscribeRecords(l))
@@ -681,25 +678,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     }
   }, [])
 
-  const tabulaVersion = getHelmLanesVersion()
-  const tabulaDir = tabulaProjectDir(getOriginalCwd())
-  const [tabulaOpen, setTabulaOpen] = React.useState<TabulaNote[]>(() => lastKnownTabulaOpenByDir.get(tabulaDir) ?? [])
-  React.useEffect(() => {
-    if (!isTabulaEnabled()) return
-    let alive = true
-    setTabulaOpen(lastKnownTabulaOpenByDir.get(tabulaDir) ?? [])
-    void readNotesAsync(tabulaDir)
-      .then(r => {
-        if (!alive) return
-        const open = r.notes.filter(n => !n.done)
-        lastKnownTabulaOpenByDir.set(tabulaDir, open)
-        setTabulaOpen(open)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [tabulaVersion, tabulaDir])
   const selfName = getOperatorName()
   const peersShown = peers.slice(0, PEER_ROWS)
   const peersMore = peers.length - peersShown.length
@@ -708,9 +686,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const shedCeiling = availRows ?? Infinity
   const density = densityPlan(activity, availRows ?? Infinity)
   const hintCap = hintBudget(density)
-  const intentTabula = !isTabulaEnabled()
-    ? 0
-    : tabulaOpen.length === 0 ? 1 : Math.min(3, tabulaOpen.length) + (tabulaOpen.length > 3 ? 1 : 0)
   const seatGlanceRows = 1 + peersShown.length + (peersMore > 0 ? 1 : 0)
   const intents: Record<string, number> = {
     seat: 0,
@@ -719,7 +694,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     runs: solo ? 0 : runsShown.length + (runsMore > 0 ? 1 : 0),
     recent: solo ? (recent == null ? 1 : recent.length) : 0,
     mission: solo && mission ? 1 : 0,
-    tabula: intentTabula,
     workbench: workbenchRows ? workbenchRows.length : 1,
     next: solo ? Math.min(5 + (mission ? 0 : 1), hintCap) : 0,
     files: filesOff ? 0 : 1,
@@ -741,7 +715,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 +
-      (['seat', 'crew', 'work', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next', 'files'] as const)
+      (['seat', 'crew', 'work', 'runs', 'recent', 'mission', 'workbench', 'next', 'files'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
       (seatGlanceRows + SECTION_CHROME) +
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
@@ -953,45 +927,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         {...railRowProps(isOn, sel, { kind: 'command', command: '/mission', label: 'mission' })}
       />
     ) : null
-  const tabulaNodes: React.ReactNode[] = []
-  if (isTabulaEnabled() && !shedSet.has('tabula')) {
-    if (tabulaOpen.length === 0) {
-      tabulaNodes.push(
-        <RailRow
-          key="tabula:empty"
-          width={rowW}
-          glyph={GLYPH.sparkFaint}
-          glyphColor={tok.textMuted}
-          name="no notes — /note"
-          nameColor={tok.textMuted}
-        />,
-      )
-    }
-    for (const n of tabulaOpen.slice(0, 3)) {
-      tabulaNodes.push(
-        <RailRow
-          key={`tabula:${n.id}`}
-          width={rowW}
-          glyph={n.firedAt ? GLYPH.busy : n.pri === 'now' ? GLYPH.spark : GLYPH.sparkFaint}
-          glyphColor={n.firedAt ? tok.success : n.pri === 'now' ? tok.warning : tok.textMuted}
-          name={n.text}
-          nameColor={tok.textPrimary}
-        />,
-      )
-    }
-    if (tabulaOpen.length > 3) {
-      tabulaNodes.push(
-        <RailRow
-          key="tabula:more"
-          width={rowW}
-          glyph={GLYPH.dot}
-          glyphColor={tok.textMuted}
-          name={`+${tabulaOpen.length - 3} more`}
-          nameColor={tok.textMuted}
-        />,
-      )
-    }
-  }
   const workbenchNodes: React.ReactNode[] = []
   if (!shedSet.has('workbench')) {
     workbenchNodes.push(
@@ -1216,14 +1151,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           {}
           {missionNode ? section('mission', GLYPH.mission, 'MISSION', undefined, missionNode, { open: '/mission' }) : null}
 
-          {
-}
-          {tabulaNodes.length > 0
-            ? section('tabula', GLYPH.leaseHeld, 'TABULA', String(tabulaOpen.length), tabulaNodes)
-            : null}
-
-          {
-}
           {workbenchNodes.length > 0
             ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
             : null}
@@ -1264,14 +1191,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             ? section('runs', GLYPH.turns, 'RUNS', `${runsLive} live`, runNodes, { open: '/tasks' })
             : null}
 
-          {
-}
-          {tabulaNodes.length > 0
-            ? section('tabula', GLYPH.leaseHeld, 'TABULA', String(tabulaOpen.length), tabulaNodes)
-            : null}
-
-          {
-}
           {workbenchNodes.length > 0
             ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
             : null}

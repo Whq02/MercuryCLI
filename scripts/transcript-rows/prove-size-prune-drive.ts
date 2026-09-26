@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -13,7 +13,7 @@ const root = resolve(arg('--root') ?? join(import.meta.dir, '../..'))
 const dist = resolve(arg('--dist') ?? join(root, 'dist/mercury.mjs'))
 const output = resolve(arg('--output') ?? mkdtempSync(join(tmpdir(), 'size-prune-frames-')))
 mkdirSync(output, { recursive: true })
-const home = mkdtempSync(join(output, 'world-'))
+const home = realpathSync(mkdtempSync(join(output, 'world-')))
 const cwd = join(home, 'work')
 const config = join(home, 'config')
 mkdirSync(cwd)
@@ -65,11 +65,12 @@ const env: NodeJS.ProcessEnv = {
   TEMP: tmpdir(),
   LANG: 'en_US.UTF-8',
   TERM: 'xterm-256color',
+  VSHOT_SLOTS: process.env.VSHOT_SLOTS,
+  MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE,
   ...fixture.env,
   MERCURY_CONFIG_DIR: config,
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
   MERCURY_TEAMS_DIR: join(home, 'teams'),
-  MERCURY_TABULA_DIR: join(home, 'tabula'),
   MERCURY_HOME: join(home, 'product-home'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',

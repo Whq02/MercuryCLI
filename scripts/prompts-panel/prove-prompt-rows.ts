@@ -153,7 +153,7 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
     !/useSyncExternalStore\(\s*connector\./.test(panel) && panel.includes('() => connector.records()') && panel.includes('connector.subscribeRecords(cb)'),
   )
   check('the composer hand-off is nextInput (never submitNextInput)', route.includes('nextInput') && !route.includes('submitNextInput'))
-  check('the store is the only writer path the panel touches (saved prompts)', panel.includes('savedPromptsStore.js') && !panel.includes('tabulaStore'))
+  check('the store is the only writer path the panel touches (saved prompts)', panel.includes('savedPromptsStore.js'))
   check('a damaged saved-prompts file is said out loud (the panel reads the store’s problem seam; never a silent "reading…")', panel.includes('getSavedPromptsProblem') && panel.includes('could not be read'))
   const code = panel
     .split('\n')

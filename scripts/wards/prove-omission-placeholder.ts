@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   type WardRule = (typeof BUILTIN_WARDS)[number]
   const { registerWardsHook, resetWardsEngagedSessionsForTest } = await import('../../src/utils/hooks/wardsHook.js')
   const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
-  const { measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
+  const { judgeGrowth, measureGrowth, measureGrowthAsync } = await import('../lib/linearGrowth.js')
   const { readFileSync } = await import('node:fs')
 
   type Call = { toolName: string; input: Record<string, unknown> }
@@ -268,9 +268,9 @@ async function main(): Promise<void> {
 
   section('I. the matcher is linear on adversarial lines (whitespace runs, dot runs, repeated words): the cost of a doubled input is bounded by the law, not by a wall clock')
   {
-    const growthOf = (build: (n: number) => string, sizes: readonly number[], rules: readonly WardRule[] = BUILTIN_WARDS, options: import('../lib/linearGrowth.js').GrowthOptions = {}) => {
+    const growthOf = (build: (n: number) => string, sizes: readonly number[]) => {
       const contents = new Map(sizes.map(n => [n, build(n)] as const))
-      return measureGrowth(n => { evaluateWards(rules, write(file, contents.get(n)!)) }, sizes, options)
+      return measureGrowth(n => { evaluateWards(BUILTIN_WARDS, write(file, contents.get(n)!)) }, sizes)
     }
     const lines: Array<[(n: number) => string, number, boolean]> = [
       [n => ' '.repeat(n), 12_500, false],
@@ -329,14 +329,30 @@ async function main(): Promise<void> {
     const v = verdictOf(write(file, big(2_000)))
     const gb = growthOf(big, [1_000, 2_000])
     check(`a ${big(2_000).length}-byte clean Write evaluates linearly in its size (${gb.summary}) and passes`, gb.linear && v.allow)
-    const plantedSizes = [8_000, 64_000]
-    const plantedOptions = { repetitions: 5, budgetMs: Number.POSITIVE_INFINITY, attempts: 1 }
+    const plantedSizes = [128, 1_024]
     const planted: WardRule = { name: 'planted-quadratic', teach: 'a start lookbehind on an unanchored pattern rescans the run from every index', scope: 'edit', patterns: ['(?<=^[ \\t]*)x$'], flags: '', skipCommentLines: false }
     const anchored: WardRule = { ...planted, name: 'planted-linear', patterns: ['^[ \\t]*x$'] }
-    const linear = growthOf(n => ' '.repeat(n) + 'y', plantedSizes, [anchored], plantedOptions)
-    check(`a planted linear pattern passes the same growth measurement (${linear.summary})`, linear.linear)
-    const quadratic = growthOf(n => ' '.repeat(n) + 'y', plantedSizes, [planted], plantedOptions)
-    check(`the growth law has teeth: a planted quadratic pattern, measured the same way, is refused (${quadratic.summary})`, !quadratic.linear)
+    const countPrefixComparisons = (text: string, end: number): number => {
+      let comparisons = 0
+      for (let i = 0; i < end; i++) {
+        comparisons++
+        if (text[i] !== ' ' && text[i] !== '\t') break
+      }
+      return comparisons
+    }
+    const costs = plantedSizes.map(size => {
+      const text = ' '.repeat(size) + 'y'
+      const linear = countPrefixComparisons(text, size)
+      let quadratic = 0
+      for (let end = 1; end <= size; end++) quadratic += countPrefixComparisons(text, end)
+      check(`both planted patterns pass the ${size}-space near miss and deny its matching sibling`, [anchored, planted].every(rule => evaluateWards([rule], write(file, text)).allow && !evaluateWards([rule], write(file, ' '.repeat(size) + 'x')).allow))
+      return { size, linear, quadratic }
+    })
+    check('the pattern cost models count one prefix walk versus every prefix rescan', costs.every(p => p.linear === p.size && p.quadratic === p.size * (p.size + 1) / 2))
+    const linear = judgeGrowth(costs.map(p => ({ size: p.size, ms: p.linear })), { slackMs: 0 })
+    check(`a planted linear pattern passes the growth law's prefix-comparison cost model (${linear.summary.replaceAll('ms', ' comparisons')})`, linear.linear)
+    const quadratic = judgeGrowth(costs.map(p => ({ size: p.size, ms: p.quadratic })), { slackMs: 0 })
+    check(`the growth law has teeth: a planted quadratic pattern is refused by the prefix-rescan cost model (${quadratic.summary.replaceAll('ms', ' comparisons')})`, !quadratic.linear)
   }
 
   section('J. the armed hook road denies with the teaching string')

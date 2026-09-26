@@ -134,7 +134,6 @@ if (!existsSync(DIST)) {
     MERCURY_CONFIG_DIR: RUN_HOME,
     MERCURY_DAEMON_DIR: join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: join(RUN_HOME, 'teams'),
-    MERCURY_TABULA_DIR: join(RUN_HOME, 'tabula'),
     MERCURY_HOME: join(RUN_HOME, 'proof-home'),
     ANTHROPIC_API_KEY: PROBE_KEY,
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,

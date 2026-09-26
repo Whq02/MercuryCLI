@@ -32,6 +32,7 @@ prove-kit-menu.ts
 prove-list-door-single-swing.ts
 prove-markdown-layout.ts
 prove-model-chip.ts
+prove-viewed-model-chip.ts
 prove-never-stranded-input.ts
 prove-no-color-honored.ts
 prove-notice-row-paint.ts

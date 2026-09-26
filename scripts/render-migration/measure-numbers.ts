@@ -113,7 +113,6 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
     '--env', `MERCURY_CONFIG_DIR=${home}`,
     '--env', `MERCURY_DAEMON_DIR=${join(OUT, `daemon-${leg}`)}`,
     '--env', `MERCURY_TEAMS_DIR=${join(OUT, `teams-${leg}`)}`,
-    '--env', `MERCURY_TABULA_DIR=${join(OUT, `tabula-${leg}`)}`,
     '--env', `MERCURY_HOME=${join(OUT, `mhome-${leg}`)}`,
     '--env', 'MERCURY_LIVE_GLYPHS=0',
     '--env', 'MERCURY_CRITTER_GAZE=0',

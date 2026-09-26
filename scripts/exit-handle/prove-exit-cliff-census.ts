@@ -95,14 +95,13 @@ async function runCase(
   writeFileSync(join(fix, 'second.md'), '# second markdown\n')
   seedFirstRun(home, [fix, realpathSync(fix)])
   const censusPath = join(home, 'census.json')
-  for (const d of ['daemon', 'teams', 'tabula']) mkdirSync(join(home, d), { recursive: true })
+  for (const d of ['daemon', 'teams']) mkdirSync(join(home, d), { recursive: true })
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     MERCURY_SCRIPTED_STREAM: script,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'),
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     EXIT_CENSUS_OUT: censusPath,
     VISUAL: '',

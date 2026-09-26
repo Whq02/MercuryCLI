@@ -164,7 +164,6 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
     ['src/memdir/mnemeConsolidate.ts', /renameSync\(`\$\{p\}\.tmp`/],
     ['src/tools/WorkflowTool/runManifest.ts', /await rename\(tmp/],
     ['src/services/mcp/config.ts', /await rename\(tempPath, mcpJsonPath\)/],
-    ['src/utils/tabula/tabulaStore.ts', /renameSync\(tmp/],
     ['src/tools/ToolSearchTool/cooccurPrior.ts', /renameSync\(tmp/],
     ['src/utils/artifacts/store.ts', /await rename\(tmpPath, metaPath\)/],
     ['src/utils/cache/cacheClock.ts', /renameSync\(tmpPath, finalPath\)/],

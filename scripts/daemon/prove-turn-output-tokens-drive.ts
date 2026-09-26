@@ -166,7 +166,6 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_TEAMS_DIR: join(home, 'teams'),
-    MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetMs(1000) / 1000),
     MERCURY_OPERATOR: 'sam',

@@ -97,7 +97,8 @@ if (run.report && run.report.endReason === 'steps-done') {
   const afterExit = mark(r, 'after-exit')!
 
   const live = samplesBetween(r, 0, back.ms + 1).filter(s => s.stat !== null)
-  check(`the process was sampled throughout (${live.length} samples)`, live.length >= 20)
+  const sampledPhases = new Set(live.map(s => s.label))
+  check(`the process was sampled before, during both deep runs and after (${live.length} samples)`, ['fast-settled', 'poll:deep-1', 'poll:deep-2', 'back-on-face'].every(label => sampledPhases.has(label)), [...sampledPhases].join(', '))
   check('the process NEVER entered T (no stop, at any sample)', live.every(s => !s.stat!.startsWith('T')), live.filter(s => s.stat!.startsWith('T')).map(s => `${s.label}@${s.ms}`).slice(0, 5).join(','))
   check('Mercury’s process group stayed the terminal’s foreground group at EVERY sample', live.every(s => s.foreground === true), live.filter(s => s.foreground !== true).map(s => `${s.label}@${s.ms}: pgid=${s.pgid} tpgid=${s.tpgid}`).slice(0, 5).join(' ; '))
   const grabbers = live.flatMap(s => s.tree.filter(p => p.pid !== r.bundlePid && p.pgid === p.tpgid && p.pgid !== s.pgid))

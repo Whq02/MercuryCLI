@@ -231,7 +231,7 @@ for (const spec of specs) {
 
   const copiedChanged = copied !== 'poise-PR09-SENTINEL'
   const railGlyphInCopy = /[│╭╰╮╯]/.test(copied)
-  const railTextInCopy = /(SEAT|CREW|TASKS|TABULA|TELEMETRY|lanes)/.test(copied)
+  const railTextInCopy = /(SEAT|CREW|TASKS|TELEMETRY|lanes)/.test(copied)
   const newlines = (copied.match(/\n/g) ?? []).length
   const copiedWords = WORDS.filter(w => copied.includes(`${w}-segment`))
 

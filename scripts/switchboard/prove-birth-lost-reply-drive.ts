@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
+import { controlSockPath } from '../../src/daemon/controlSocket.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -95,6 +96,8 @@ for (const k of Object.keys(process.env)) {
 }
 const worldEnv: NodeJS.ProcessEnv = {
   HOME: home,
+  TMPDIR: tmpdir(),
+  VSHOT_SLOTS: process.env.VSHOT_SLOTS,
   PATH: `/usr/bin:/bin:${dirname(NODE)}`,
   TERM: 'xterm-256color',
   ...deadBases,
@@ -105,7 +108,6 @@ const worldEnv: NodeJS.ProcessEnv = {
   MERCURY_CONFIG_DIR: configDir,
   MERCURY_DAEMON_DIR: daemonDir,
   MERCURY_TEAMS_DIR: join(world, 'teams'),
-  MERCURY_TABULA_DIR: join(world, 'tabula'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_BOOT_PREFLIGHT: '0',
@@ -131,8 +133,9 @@ const daemon = spawn(NODE, [DIST, 'daemon', 'run', cwd], {
   stdio: ['ignore', logFd, logFd, 'pipe'],
 })
 spawned.push(daemon)
-const sockPath = join(daemonDir, 'control.sock')
-const upstreamPath = join(daemonDir, 'control.upstream.sock')
+process.env.MERCURY_DAEMON_DIR = daemonDir
+const sockPath = controlSockPath()
+const upstreamPath = `${sockPath}.up`
 const supervisorPath = join(daemonDir, 'supervisor.json')
 const workersPath = join(daemonDir, 'concourse-workers.json')
 {

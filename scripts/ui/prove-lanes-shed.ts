@@ -17,7 +17,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 t('shed plan exists and the rail walks it', /for \(const k of density\.shedOrder\)/.test(rail))
 t(
   'the pinned calm priority order lives at the density owner (workbench yields first — the ruled card adds itself without moving anything else; the party slot left with the seat retirement)',
-  /const CALM_ORDER = \['workbench', 'next', 'tabula', 'recent', 'crew'\]/.test(density),
+  /const CALM_ORDER = \['workbench', 'next', 'recent', 'crew'\]/.test(density),
 )
 t(
   'no ladder revives the retired party slot',
@@ -61,19 +61,21 @@ t(
 )
 t('chat builder stays retired with the two-seat coordination mode (no chatRows, no chat section)', !rail.includes('chatRows') && !rail.includes("section('chat'") && !rail.includes("has('chat')"))
 t('recent builder gated', /if \(solo && !shedSet\.has\('recent'\)\)/.test(rail))
-t('tabula builder gated', /if \(isTabulaEnabled\(\) && !shedSet\.has\('tabula'\)\)/.test(rail))
+t('the retired notepad has no builder or shed slot', !/tabula/i.test(rail) && !/tabula/i.test(density))
 t('workbench builder gated', /if \(!shedSet\.has\('workbench'\)\)/.test(rail))
 t('party builder stays retired (no partyPeers, no party section)', !rail.includes('partyPeers') && !rail.includes("section('party'") && !rail.includes("has('party')"))
 t('next builder gated', /if \(solo && !shedSet\.has\('next'\)\)/.test(rail))
 
 t('recent renders on soloNodes', /soloNodes\.length > 0 \? section\('recent'/.test(rail))
 t('next renders on hintNodes', /hintNodes\.length > 0 \? section\('next'/.test(rail))
-t('workbench renders on workbenchNodes, under the TABULA card in BOTH branches', (rail.match(/workbenchNodes\.length > 0\n\s*\? section\('workbench'/g) ?? []).length === 2 && (() => {
-  const solo = rail.indexOf("section('tabula'")
+t('workbench renders on workbenchNodes after mission or runs in BOTH branches', (rail.match(/workbenchNodes\.length > 0\n\s*\? section\('workbench'/g) ?? []).length === 2 && (() => {
+  const mission = rail.indexOf("section('mission'")
   const soloWb = rail.indexOf("section('workbench'")
-  const busy = rail.lastIndexOf("section('tabula'")
+  const next = rail.indexOf("section('next'")
+  const runs = rail.lastIndexOf("section('runs'")
   const busyWb = rail.lastIndexOf("section('workbench'")
-  return solo !== -1 && soloWb > solo && busyWb > busy
+  const files = rail.lastIndexOf("section('files'")
+  return mission > -1 && soloWb > mission && next > soloWb && runs > -1 && busyWb > runs && files > busyWb
 })())
 t('busy crew section sheds whole', /shedSet\.has\('crew'\) \|\| \(crewEntries\.length === 0 && keptIds\.length === 0\) \? null : section\(/.test(rail))
 

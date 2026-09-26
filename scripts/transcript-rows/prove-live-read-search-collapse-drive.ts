@@ -146,7 +146,7 @@ try {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: '.daemon',
-      MERCURY_TEAMS_DIR: join(home, 'teams'), MERCURY_TABULA_DIR: join(home, 'tabula'),
+      MERCURY_TEAMS_DIR: join(home, 'teams'),
       MERCURY_HOME: join(home, 'files'), MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
       MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_BOOT_PREFLIGHT: '0', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1',

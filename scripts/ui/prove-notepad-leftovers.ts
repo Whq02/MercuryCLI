@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { CONFIG_HOME, RUNTIME_CWD, scenario, cleanupScenario } from './renderScenarios.ts'
@@ -26,7 +27,8 @@ console.log(' NOTEPAD LEFTOVERS — an earlier build\'s home boots whole')
 console.log('============================================================')
 
 const cfg = scenario('resume-2turn', 120, 40) as Record<string, unknown> & { sends?: unknown[]; total?: number; out?: string }
-const out = `/tmp/tabula-leftovers-grid-${process.pid}.json`
+const captureDir = mkdtempSync(join(tmpdir(), 'notepad-leftovers-'))
+const out = join(captureDir, 'grid.json')
 cfg.out = out
 cfg.sends = [
   { atTick: 34, data: '/submodels\r', mark: 'cockpit' },
@@ -45,7 +47,7 @@ const seed = (path: string, body: string): void => {
 }
 
 seed(
-  join(process.env.MERCURY_TABULA_DIR!, slug, 'journal.jsonl'),
+  join(CONFIG_HOME, 'tabula', slug, 'journal.jsonl'),
   [
     { t: '2026-07-08T09:00:00Z', op: 'add', id: 'aa11bb', text: 'ship the telemetry board', pri: 'now' },
     { t: '2026-07-08T09:01:00Z', op: 'add', id: 'bb22cc', text: 'benchmark the pooled gate' },
@@ -96,12 +98,12 @@ seed(
   JSON.stringify({ _v: 1, drafts: [{ stagedId: 'sd1', state: 'staged', originalText: 'a', refinedText: 'A', conversationId: 'cv-minerva-1', provenance: { source: 'minerva-chat', refinedBy: 'minerva' }, createdAt: 1 }] }) + '\n',
 )
 
-const cfgPath = `/tmp/vshot-tabula-leftovers-${process.pid}.json`
+const cfgPath = join(captureDir, 'capture.json')
 writeFileSync(cfgPath, JSON.stringify(cfg))
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   MERCURY_CONFIG_DIR: CONFIG_HOME,
-  MERCURY_CHANNEL_ROOM: `tabula-leftovers-${process.pid}`,
+  MERCURY_CHANNEL_ROOM: `notepad-leftovers-${process.pid}`,
 }
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(90000), env })
 check('the drive exits 0', res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-400)} ${(res.stderr ?? '').slice(-400)}`)
@@ -114,8 +116,8 @@ if (res.status === 0 && !undelivered) {
   const submodels = text(payload.marks.find(m => m.label === 'submodels')?.grid ?? [])
   const final = text(payload.grid)
   check('the cockpit painted (a resumed session with the rail)', cockpit.replace(/\s/g, '').length >= 40 && /RECENT|NEXT/.test(cockpit), cockpit.slice(0, 400))
-  check('the TABULA card counts the two open notes', /TABULA · 2/.test(cockpit), cockpit.split('\n').filter(l => /TABULA/.test(l)).join(' | '))
-  check("the card shows the operator's wording, never the leftover refinement", /ship the telemetry/.test(cockpit) && !/proof paths/.test(cockpit), cockpit.split('\n').filter(l => /telemetry/.test(l)).join(' | '))
+  check('the retired card stays absent even with old notes on disk', !/TABULA|no notes — \/note/.test(cockpit), cockpit.split('\n').filter(l => /TABULA/.test(l)).join(' | '))
+  check('neither the old note nor its refinement leaks into the cockpit', !/ship the telemetry|proof paths/.test(cockpit))
   check('nothing on the cockpit names the curator (its two product spellings)', !/MINERVA|Minerva/.test(cockpit), cockpit.split('\n').filter(l => /MINERVA|Minerva/.test(l)).join(' | '))
   check('the retired boot-env choice raised no error line', !/error|refused|crash/i.test(cockpit), cockpit.split('\n').filter(l => /error|refused|crash/i.test(l)).join(' | '))
   check('/submodels opened on the Console', /CONSOLE — side questions/.test(submodels), submodels.split('\n').slice(4, 10).join(' | '))
@@ -142,6 +144,7 @@ if (res.status === 0 && !undelivered) {
   )
 }
 cleanupScenario('resume-2turn')
+rmSync(captureDir, { recursive: true, force: true })
 
 console.log('\n' + '='.repeat(60))
 console.log(failures === 0 ? ' ✅ NOTEPAD LEFTOVERS PASS' : ` ❌ NOTEPAD LEFTOVERS — ${failures} failure(s)`)

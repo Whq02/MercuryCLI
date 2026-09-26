@@ -289,7 +289,6 @@ function worldEnv(world: World, fixtureBase: string): NodeJS.ProcessEnv {
     MERCURY_CONFIG_DIR: world.home,
     MERCURY_DAEMON_DIR: join(world.home, 'daemon'),
     MERCURY_TEAMS_DIR: join(world.home, 'teams'),
-    MERCURY_TABULA_DIR: join(world.home, 'tabula'),
     MERCURY_TMPDIR: join(world.home, 'tmp'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

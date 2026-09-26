@@ -44,10 +44,9 @@ function makeRepo(dir: string, files: number): void {
   git(dir, 'add', '-A')
   git(dir, 'commit', '-qm', 'seed')
 }
-function countObjects(dir: string): { count: number; size: number } {
-  const out = git(dir, 'count-objects', '-v')
-  const num = (k: string): number => Number(new RegExp(`^${k}: (\\d+)$`, 'm').exec(out)?.[1] ?? NaN)
-  return { count: num('count'), size: num('size') }
+function countObjects(dir: string): { count: number; size: number; objects: string } {
+  const rows = git(dir, 'cat-file', '--batch-all-objects', '--batch-check=%(objectname) %(objectsize)').trim().split('\n').filter(Boolean).sort()
+  return { count: rows.length, size: rows.reduce((sum, row) => sum + Number(row.split(' ')[1]), 0), objects: rows.join('\n') }
 }
 
 makeRepo(FIX, 5000)
@@ -106,7 +105,7 @@ const QUIT: Send[] = [
   { afterPrevTicks: 2, data: '\x04' },
 ]
 type Row = { start: number; cwd: string; argv: string }
-type Surface = { surface: string; lines: string[]; rows: Row[]; minutes: number; before: { count: number; size: number }; after: { count: number; size: number }; endReason: unknown; status: string }
+type Surface = { surface: string; lines: string[]; rows: Row[]; minutes: number; before: ReturnType<typeof countObjects>; after: ReturnType<typeof countObjects>; endReason: unknown; status: string }
 
 function reapHome(home: string): void {
   for (const rec of Object.values(readSessionWorkers(join(home, 'daemon')))) {
@@ -234,7 +233,7 @@ for (const r of results) {
   check(`D1 ${r.surface}: the fingerprint runs at most ${DIGEST_CEILING_PER_MIN}/min at idle`, perMin(digests) <= DIGEST_CEILING_PER_MIN, `${digests} in ${r.minutes.toFixed(2)} min`)
   check(`D1 ${r.surface}: every digest step that ran was one of the four (no stray shapes)`, r.rows.filter(x => isDigestStep(x.argv)).every(x => x.cwd === FIX))
   check(`D2 ${r.surface}: all git calls stay under ${TOTAL_CEILING_PER_MIN}/min at idle`, perMin(r.rows.length) <= TOTAL_CEILING_PER_MIN, `${r.rows.length} in ${r.minutes.toFixed(2)} min`)
-  check(`D3 ${r.surface}: the repository gained no object`, r.after.count === r.before.count && r.after.size === r.before.size, `${r.before.count}→${r.after.count}`)
+  check(`D3 ${r.surface}: the repository gained no object`, r.after.objects === r.before.objects && r.after.count === r.before.count && r.after.size === r.before.size, `${r.before.count}→${r.after.count}`)
   check(`D5 ${r.surface}: the launch folder's git status stays empty (nothing at boot writes under it)`, r.status === '', r.status.split('\n').slice(0, 4).join(' | '))
 }
 const chat = results.find(r => r.surface === 'chat')

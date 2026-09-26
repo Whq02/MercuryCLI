@@ -156,7 +156,7 @@ if (driver.kind !== 'posix-pty') {
   const stops = picker.composePickerLines(pickerGroups, picker.initialPickerFolds(pickerGroups, ANTHROPIC_MODEL_GROUP), '', () => undefined).filter(line => picker.isCursorStop(line))
   const openrouterIndex = stops.findIndex(line => line.kind === 'row' && line.row.group === OPENROUTER_MODEL_GROUP)
   if (openrouterIndex < 0) throw new Error('OpenRouter is absent from the catalogue')
-  const PICKER_REGION = [0, 0, 64, 40]
+  const PICKER_REGION = [24, 0, 96, 40]
   const fixture = spawn(process.execPath, ['run', FIXTURE, String(PENDING_HOLD_MS)], { stdio: ['ignore', 'pipe', 'pipe'] })
   let port = 0
   try {
@@ -186,8 +186,7 @@ if (driver.kind !== 'posix-pty') {
           { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
-          { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' },
-          ...Array.from({ length: openrouterIndex }, () => ({ afterPrevTicks: 1, data: '\u001b[B' })),
+          { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' + '\u001b[B'.repeat(openrouterIndex) },
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
           { requireAwait: true, awaitText: `OPENROUTER · API key · …${OPENROUTER_KEY_TAIL} · ${FIXTURE_ROWS} live`, awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },

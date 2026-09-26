@@ -47,6 +47,7 @@ mkdirSync(aux, { recursive: true })
 const cwd = realpathSync(join(scratch, 'cwd')).normalize('NFC')
 spawnSync('git', ['init', '-q'], { cwd })
 seedFirstRun(home, [cwd])
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
 const SID = '00000000-aaaa-bbbb-cccc-000000000042'
 
 {
@@ -221,7 +222,6 @@ function drive(cols: number, rows: number): void {
     MERCURY_DOCTOR_STATE_DIR: join(aux, 'doctor'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
     MERCURY_TEAMS_DIR: join(aux, 'teams'),
-    MERCURY_TABULA_DIR: join(aux, 'tabula'),
     VSHOT_TEE: teePath,
     NODE_OPTIONS: `--require ${TRIPWIRE}`,
   }

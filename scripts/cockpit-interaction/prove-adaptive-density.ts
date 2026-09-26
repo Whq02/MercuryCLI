@@ -54,7 +54,7 @@ t.section('§1 — the plan re-ranks; it never empties')
   const calm = densityPlan('calm', TALL)
   t.check(
     'calm keeps the established shed order behind the ruled workbench card (it yields first — nothing else moves; the party slot left with the seat retirement)',
-    calm.shedOrder.join(',') === 'workbench,next,tabula,recent,crew',
+    calm.shedOrder.join(',') === 'workbench,next,recent,crew',
     calm.shedOrder.join(','),
   )
   t.check('calm affords the whole authored hint list', hintBudget(calm) >= 6, `${hintBudget(calm)}`)
@@ -86,7 +86,7 @@ t.section('§1 — the plan re-ranks; it never empties')
   t.check('review names its own emphasis', review.emphasis === 'review', review.emphasis)
   t.check(
     'and yields the ambient lanes while the review surface owns the screen',
-    review.shedOrder.includes('tabula') && review.shedOrder.includes('crew'),
+    review.shedOrder.includes('recent') && review.shedOrder.includes('crew'),
     review.shedOrder.join(','),
   )
 
@@ -146,7 +146,7 @@ t.section('§3 — the rail consumes the plan; no lane order is written twice')
   )
   t.check(
     'no hardcoded shed order survives in the rail',
-    !rail.includes("['next', 'tabula', 'party', 'recent', 'chat', 'crew']"),
+    !/for \(const k of \[/.test(rail),
     'single source',
   )
   t.check(
@@ -372,7 +372,6 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor-live'),
         MERCURY_DAEMON_DIR: join(scratch, 'daemon-live'),
         MERCURY_TEAMS_DIR: join(scratch, 'teams-live'),
-        MERCURY_TABULA_DIR: join(scratch, 'tabula-live'),
       },
     })
     let driverOut = ''

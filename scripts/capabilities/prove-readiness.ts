@@ -80,10 +80,10 @@ try {
 
   const envRows = base.filter(r => r.kind === 'env')
   check(envRows.length >= 150, `environment section carries the registry (${envRows.length} rows ≥ 150 — no caps)`)
-  const tabulaOff = probe(home, { MERCURY_TABULA: '0' })
-  const tabulaRow = tabulaOff.find(r => r.id === 'env:MERCURY_TABULA')
-  check(tabulaRow?.state === 'disabled', `=0'd default-on gate reads disabled (got ${tabulaRow?.state})`)
-  check(/off — /.test(tabulaRow?.detail ?? ''), 'disabled gate detail carries the off contract')
+  const workflowsOff = probe(home, { MERCURY_WORKFLOWS: '0' })
+  const workflowsRow = workflowsOff.find(r => r.id === 'env:MERCURY_WORKFLOWS')
+  check(workflowsRow?.state === 'disabled', `=0'd default-on gate reads disabled (got ${workflowsRow?.state})`)
+  check(/off — /.test(workflowsRow?.detail ?? ''), 'disabled gate detail carries the off contract')
   const wfEnv = base.find(r => r.id === 'env:MERCURY_WORKFLOWS')
   check(wfEnv?.state === 'ready', 'unset default-on gate reads ready (default)')
 

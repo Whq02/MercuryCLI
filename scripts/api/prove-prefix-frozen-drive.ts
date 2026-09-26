@@ -204,7 +204,6 @@ process.stdin.on('end', () => process.exit(0))
     MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_TEAMS_DIR: path.join(RUN_HOME, 'teams'),
-    MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
   }
   delete baseEnv.NODE_ENV
   delete baseEnv.ANTHROPIC_AUTH_TOKEN

@@ -72,7 +72,7 @@ const DESCOPED = [
   'the away-summary recap card: content-sized box over the live git/health row — pinned OFF (MERCURY_AWAY_SUMMARY=0) until the owned fixture repo lands',
   'action IDs / hit regions / focus owner per cell: staged on the S4–S6 interaction kernel instrumentation',
   'terminal profiles beyond pyte-xterm: byte/capability profiles staged for S18 (manual emulator checklist)',
-  'scenario long-tail (party/tabula/workflows/…): joins per-slice as those surfaces are touched',
+  'scenario long-tail (workflows/…): joins per-slice as those surfaces are touched',
 ]
 
 function colorModeEnv(mode: CaptureSpec['colorMode']): Record<string, string> {

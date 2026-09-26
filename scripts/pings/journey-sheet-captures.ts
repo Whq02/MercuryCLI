@@ -53,6 +53,7 @@ function makeWorld(tag: string): World {
   const cwd = realpathSync(join(scratch, 'cwd')).normalize('NFC')
   spawnSync('git', ['init', '-q'], { cwd })
   seedFirstRun(home, [cwd])
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
   let n = 0
   const ctx = {
     sessionId: SID as never,
@@ -108,7 +109,6 @@ function baseEnv(w: World, extra: Record<string, string | undefined> = {}): Node
     MERCURY_DOCTOR_STATE_DIR: join(w.aux, 'doctor'),
     MERCURY_DAEMON_DIR: join(w.aux, 'daemon'),
     MERCURY_TEAMS_DIR: join(w.aux, 'teams'),
-    MERCURY_TABULA_DIR: join(w.aux, 'tabula'),
     ...extra,
   }
   for (const k of ['ANTHROPIC_API_KEY', 'CI', 'NODE_ENV', 'OPENROUTER_API_KEY']) {

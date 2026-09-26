@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-26T22:45:18.075Z",
+ "capturedAt": "2026-09-26T23:17:39.056Z",
  "screens": [
   {
    "atMs": 12500,
@@ -16,7 +16,7 @@
     "  ↵ or click · browse   ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "TELEMETRY               │                                                                                              │",
-    "  · spend —             ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "  · spend $0.00         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Migration",
@@ -37,7 +37,7 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-G1JEDt                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-v9RJlf                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -51,7 +51,7 @@
     "  ↵ or click · browse   ││  ▀▀▀▀▀▀▀▀▀                                                                                 ││",
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "TELEMETRY               │                                                                                              │",
-    "  · spend —             ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "  · spend $0.00         ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Migration",
@@ -72,23 +72,22 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-G1JEDt                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-v9RJlf                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12739,
-   "frame-recommit": 29,
-   "tail-publish": 2
+   "patches": 11839,
+   "frame-recommit": 19
   },
   "frames": {
-   "total": 45,
-   "window": 45,
-   "p50": 2.346749999998792,
-   "p95": 20.914584000000104,
-   "p99": 56.837375000000975,
-   "maxMs": 56.837375000000975
+   "total": 30,
+   "window": 30,
+   "p50": 1.0967920000002778,
+   "p95": 7.625041999999667,
+   "p99": 18.813916999999947,
+   "maxMs": 18.813916999999947
   }
  },
  "requests": [
@@ -108,7 +107,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-26.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-27.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -123,11 +122,11 @@
  ],
  "sends": [
   {
-   "atMs": 9050.73094367981,
+   "atMs": 6749.324083328247,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 9850.73094367981,
+   "atMs": 7549.324083328247,
    "b64": "DQ=="
   }
  ]
