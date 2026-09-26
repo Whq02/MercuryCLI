@@ -6,7 +6,8 @@ export const CREW_OPEN_IN_VIEW_KEY = '↵ open in the view'
 export const MAIN_CHAT_CARD_LINE = 'THE MAIN CHAT — what you type goes to this agent'
 export const MAIN_CHAT_RETURN_HINT = `m on ${LEAD_ROW_NAME} returns the ${MAIN_CHAT_WORD}`
 export const MAIN_CHAT_HAND_BACK_HINT = `m on ${LEAD_ROW_NAME} hands the ${MAIN_CHAT_WORD} back`
-export const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
+export const BACK_HINT = `${LEAD_ROW_NAME} in the rail goes back`
+export const ESC_INTERRUPT_HINT = 'esc interrupts'
 
 export type CrewmateWordsState = { name: string; pinned: boolean }
 
@@ -19,7 +20,7 @@ export function crewmateHeaderTail(state: CrewmateWordsState): string {
 }
 
 export function crewmateCardKeys(pinned: boolean): string {
-  return pinned ? `${MAIN_CHAT_HAND_BACK_HINT} · x stop · p pause` : `${CREW_MAIN_CHAT_KEY} · x stop · p pause · ${ESC_BACK_HINT}`
+  return pinned ? `${ESC_INTERRUPT_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · x stop · p pause` : `${ESC_INTERRUPT_HINT} · ${CREW_MAIN_CHAT_KEY} · x stop · p pause · ${BACK_HINT}`
 }
 
 export function crewmateStatusWords(state: CrewmateWordsState, running: number): string {
@@ -30,23 +31,27 @@ export function crewmateStatusWords(state: CrewmateWordsState, running: number):
 }
 
 export function crewmateComposerHint(state: CrewmateWordsState): string {
-  return `↵ sends to ${state.name} · ${state.pinned ? MAIN_CHAT_RETURN_HINT : ESC_BACK_HINT}`
+  return `↵ sends to ${state.name} · esc interrupts ${state.name} · ${state.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
 }
 
-export function crewmateEscHint(pinned: boolean): string {
-  return pinned ? 'esc interrupt' : 'esc back'
+export function crewmateEscHint(name: string): string {
+  return `esc interrupt ${name}`
 }
 
 export function crewmateStatusRightHint(pinned: boolean): string {
-  return pinned ? 'esc interrupts' : `${ESC_BACK_HINT} · ${CREW_MAIN_CHAT_KEY} in /teammates`
+  return pinned ? ESC_INTERRUPT_HINT : `${ESC_INTERRUPT_HINT} · ${CREW_MAIN_CHAT_KEY} in /teammates · ${BACK_HINT}`
 }
 
 export function crewmatePlaceholder(name: string): string {
   return `message ${name}`
 }
 
+export function operatorPlateName(name: string): string {
+  return `you → ${name}`
+}
+
 export function operatorLinePlate(name: string): string {
-  return `[you → ${name}]`
+  return `[${operatorPlateName(name)}]`
 }
 
 export function crewmateQueuedWords(name: string): string {
@@ -62,5 +67,9 @@ export function crewmateRefusedWords(name: string, detail: string): string {
 }
 
 export function crewmateInterruptedWords(name: string): string {
-  return `${name} interrupted — a queued message lands as it stops`
+  return `${name} interrupted — its turn is cut, ${LEAD_ROW_NAME} is told; a queued message lands as it stops`
+}
+
+export function crewmateIdleWords(name: string): string {
+  return `${name} is between turns — nothing to interrupt; your next line resumes it`
 }

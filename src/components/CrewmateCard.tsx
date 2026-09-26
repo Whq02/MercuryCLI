@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { crewElapsedLabel, crewModelLabel, crewStatusWords, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import { crewmateCardKeys, MAIN_CHAT_CARD_LINE } from '../utils/cockpit/crewmateWords.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { displayWidth, GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
@@ -26,6 +26,7 @@ export function CrewmateCard({ crewmate, width }: { crewmate: CrewmateInView; wi
   const running = facts !== null ? facts.running : false
   const line = crewmateFactsLine(facts, now)
   const detail = facts?.description ?? facts?.activity ?? null
+  const keys = crewmateCardKeys(crewmate.pinned)
   return (
     <Box flexDirection="column" flexShrink={0} width={width}>
       <Text wrap="truncate-end">
@@ -41,8 +42,8 @@ export function CrewmateCard({ crewmate, width }: { crewmate: CrewmateInView; wi
         {crewmate.pinned ? <Text color={tokens.warning}>{'   '}{MAIN_CHAT_CARD_LINE}</Text> : null}
       </Text>
       <Text wrap="truncate-end">
-        {detail !== null ? <Text color={tokens.textMuted}>{detail}{'   '}</Text> : null}
-        <Text color={tokens.textSecondary}>{crewmateCardKeys(crewmate.pinned)}</Text>
+        {detail !== null ? <Text color={tokens.textMuted}>{truncateToWidth(detail, Math.max(12, width - displayWidth(keys) - 3))}{'   '}</Text> : null}
+        <Text color={tokens.textSecondary}>{keys}</Text>
       </Text>
     </Box>
   )

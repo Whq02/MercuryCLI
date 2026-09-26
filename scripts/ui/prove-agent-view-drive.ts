@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -110,6 +110,20 @@ const RAIL_COLS = 32
 const railText = (line: string): string => cells(line).slice(0, RAIL_COLS).join('')
 const railRow = (text: string, needle: string): string | undefined => text.split('\n').map(railText).find(line => line.includes(needle))
 const headerRow = (text: string): string => text.split('\n').find(line => /VIEW/.test(cells(line).slice(RAIL_COLS).join(''))) ?? ''
+const centreText = (line: string): string => cells(line).slice(RAIL_COLS, RAIL_COLS + 205).join('')
+function sessionRecords(home: string): string[] {
+  const out: string[] = []
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (entry.name.endsWith('.jsonl')) for (const line of readFileSync(path, 'utf8').split('\n')) if (line.includes('task-notification')) out.push(line)
+    }
+  }
+  const projects = join(home, 'projects')
+  if (existsSync(projects)) walk(projects)
+  return out
+}
 const composerRow = (text: string): string | undefined => text.split('\n').find(line => /^│[❯›]/.test(line))
 
 type Window = { top: number; bottom: number; left: number; right: number; width: number; height: number; rows: string[] }
@@ -171,12 +185,16 @@ async function leg(cols: number, rows: number): Promise<void> {
     { data: TAB, atTick: 999, awaitText: 'message sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'main-chat' },
     { data: UP + UP + UP + UP, afterPrevTicks: 4 },
     { data: 'm', afterPrevTicks: 4 },
-    { data: ESC, afterPrevTicks: 6, mark: 'handed-back' },
+    { data: FOCUS_IN, afterPrevTicks: 6, mark: 'handed-back' },
+    { data: ESC, atTick: 999, awaitText: 'you → sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'view' },
+    { data: FOCUS_IN, atTick: 999, awaitText: 'the interrupt ended', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'cut-row' },
+    { data: TAB, afterPrevTicks: 4 },
+    { data: '\r', afterPrevTicks: 5 },
     { data: FOCUS_IN, afterPrevTicks: 8, mark: 'back' },
   ]
   let cap: Capture | null = null
   try {
-    cap = await capture({ cols, rows, total: 420, cwd, argv: ['node', DIST], sends, stableTicks: 6 }, driveEnv(home, fixture.base))
+    cap = await capture({ cols, rows, total: 520, cwd, argv: ['node', DIST], sends, stableTicks: 6 }, driveEnv(home, fixture.base))
   } finally {
     await fixture.close()
   }
@@ -206,12 +224,29 @@ async function leg(cols: number, rows: number): Promise<void> {
   check(`${tag}: the footer says ↵ sends to sleeper · m on Mercury Lead returns the main chat`, main.includes('sends to sleeper') && main.includes('m on Mercury Lead returns the main chat'), flat(main).slice(-400))
   const handed = marks['handed-back'] ?? ''
   check(`${tag}: m on Mercury Lead hands the main chat back (no ★ row)`, railRow(handed, '★') === undefined, railRow(handed, '★') ?? '')
+  const view = marks['view'] ?? ''
+  const viewHeader = headerRow(view)
+  console.log(`  the view header after the hand-back: "${flat(viewHeader).slice(0, 120)}"`)
+  check(`${tag}: the sleeper's own transcript takes the centre (its prompt wears the [you → sleeper] plate, the lead's rows are gone)`, /VIEW · sleeper · viewing/.test(viewHeader) && view.split('\n').some(line => centreText(line).includes('[you → sleeper]')) && !view.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(view).slice(0, 300))
+  const cut = marks['cut-row'] ?? ''
+  const cutRow = cut.split('\n').map(centreText).find(line => line.includes('the interrupt ended') || line.includes('Interrupted ·'))
+  console.log(`  the cut row in the sleeper's transcript: "${(cutRow ?? '').trim().slice(0, 120)}"`)
+  check(`${tag}: esc interrupts the sleeper alone — its transcript shows the interrupt row (the tool-phase cut names the tool it ended)`, cutRow !== undefined && /the interrupt ended Sleep — the turn is over|Interrupted · What should Mercury do instead\?/.test(cutRow), cutRow ?? 'no cut row in the centre')
+  check(`${tag}: the sleeper's card reads stopped and the lead's own turn is untouched (the status row still names the session)`, cut.split('\n').some(line => centreText(line).includes('◉ sleeper') && centreText(line).includes('stopped')), flat(cut).slice(0, 200))
+  check(`${tag}: the view stays on the sleeper after the interrupt`, /VIEW · sleeper/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
   const back = marks['back'] ?? ''
   const backHeader = headerRow(back)
-  check(`${tag}: esc goes back to Mercury Lead (the header reads the plain view)`, /VIEW/.test(backHeader) && !/viewing|main chat/.test(backHeader), flat(backHeader).slice(0, 160))
-  check(`${tag}: Mercury Lead wears the view mark again`, /›/.test(railRow(back, LEAD_ROW) ?? ''), railRow(back, LEAD_ROW) ?? 'no lead row')
+  check(`${tag}: Mercury Lead in the rail goes back (the header reads the plain view, the lead's rows return)`, /VIEW/.test(backHeader) && !/viewing|main chat/.test(backHeader) && back.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(backHeader).slice(0, 160))
+  const leadRowBack = railRow(back, LEAD_ROW)
+  check(`${tag}: Mercury Lead wears the view mark again (or the crew lane rests, its one crewmate stopped)`, leadRowBack === undefined || /›/.test(leadRowBack), leadRowBack ?? '')
+  const records = sessionRecords(home)
+  const interruptedNotice = records.find(line => line.includes('<status>interrupted</status>'))
+  console.log(`  the lead's notice in the session records: ${interruptedNotice === undefined ? '(none)' : interruptedNotice.slice(0, 200)}`)
+  check(`${tag}: the lead's notice carries the typed kind <status>interrupted</status> and says the operator interrupted it`, interruptedNotice !== undefined && interruptedNotice.includes('interrupted by the operator on its screen'), records.filter(line => line.includes('task-notification')).join(' | ').slice(0, 300))
+  check(`${tag}: the notice is the operator's kind, never the crew view's stop`, !records.some(line => line.includes('stopped from the crew view')))
   if (failures > before || process.env.AGENT_VIEW_KEEP === '1') {
     for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
+    dump(`${tag} · final`, cap.text)
     console.log(`  [fixture] ${fixture.hits.map(h => `${h.route}${h.step ? `#${h.step}` : ''}`).join(',')}`)
   }
   if (KEEP) console.log(`  [keep] ${tag} home ${home} cwd ${cwd}`)

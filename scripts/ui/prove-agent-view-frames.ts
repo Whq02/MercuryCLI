@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
@@ -160,6 +161,10 @@ const { noSessionConnector } = await import('../../src/services/engine-connector
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const teammatesCommand = await import('../../src/commands/teammates/teammates.tsx')
+const swapModule = (await import('../../src/components/CrewmateTranscript.tsx').catch(() => null)) as null | { TranscriptSwap: React.ComponentType<Record<string, unknown>> }
+const transcriptModule = (await import('../../src/components/tasks/useCrewmateTranscript.ts').catch(() => null)) as null | { crewmateTranscriptFile: (crewmate: { taskId: string; local: undefined }, hosted: { sessionId: string; originalCwd: string }) => string | null }
+const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
@@ -167,9 +172,11 @@ const overrides: Record<string, unknown> = {
   sessionId: () => SESSION_ID,
   workRoster: () => roster,
   subscribeWork: (listener: () => void) => { workListeners.add(listener); return () => { workListeners.delete(listener) } },
-  stopAgent: async (agentId: string) => { agentCalls.push({ verb: 'stop', agentId }); return { outcome: 'applied' } },
+  stopAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'stop', agentId, note }); return { outcome: 'applied' } },
   resumeAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'resume', agentId, note }); return { outcome: 'applied', detail: '{"queued":true}' } },
+  interrupt: () => { leadInterrupts += 1; return false },
 }
+let leadInterrupts = 0
 const fake = new Proxy(resting, {
   get(target, key) {
     if (typeof key === 'string' && key in overrides) return overrides[key]
@@ -178,17 +185,35 @@ const fake = new Proxy(resting, {
   },
 })
 setFocusedSessionConnector(fake as never)
+const ATLAS_NEEDLE = 'ATLAS-ROW'
+const ATLAS_CWD = (fake as { workspace: () => { originalCwd: string; cwd: string } }).workspace().originalCwd || process.cwd()
+const ATLAS_FILE = join(getProjectDir(ATLAS_CWD), SESSION_ID, 'subagents', 'agent-a-atlas.jsonl')
+const resolvedFile = transcriptModule === null ? null : transcriptModule.crewmateTranscriptFile({ taskId: 'a-atlas', local: undefined }, { sessionId: SESSION_ID, originalCwd: ATLAS_CWD })
+check('the hosted crewmate\'s transcript path resolves under the focused session\'s subagents folder', resolvedFile === ATLAS_FILE, transcriptModule === null ? 'no crewmate transcript reader exists on this tree' : String(resolvedFile))
+{
+  mkdirSync(dirname(ATLAS_FILE), { recursive: true })
+  const stamp = (n: number): string => new Date(NOW - 300_000 + n * 1000).toISOString()
+  const uuid = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+  const row = (n: number, extra: Record<string, unknown>): Record<string, unknown> => ({ isSidechain: true, agentId: 'a-atlas', entrypoint: 'cli', cwd: process.cwd(), sessionId: SESSION_ID, version: '1.0.0', gitBranch: 'main', parentUuid: n === 0 ? null : uuid(n - 1), uuid: uuid(n), timestamp: stamp(n), ...extra })
+  writeFileSync(ATLAS_FILE, encodeSeedTranscript([
+    row(0, { type: 'user', message: { role: 'user', content: 'Lane atlas — the model picker in a session draws as a bottom sheet; make it the floating pop-up the files menu uses' } }),
+    row(1, { type: 'assistant', message: { id: 'msg_atlas_1', type: 'message', role: 'assistant', model: 'claude-fable-5-1', content: [{ type: 'text', text: `${ATLAS_NEEDLE} 1 — the seam: the session mount passes overlay={false}, the Boot face's mount hosts the centre box.` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
+    row(2, { type: 'user', message: { role: 'user', content: 'what is your cut budget number and why?' } }),
+    row(3, { type: 'assistant', message: { id: 'msg_atlas_2', type: 'message', role: 'assistant', model: 'claude-fable-5-1', content: [{ type: 'text', text: `${ATLAS_NEEDLE} 2 — two seconds: the tree's own leash and twice the abort grace.` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
+  ] as never, SESSION_ID))
+}
 
 type Scene = { lines: () => string[]; push: (data: string) => void; state: () => Record<string, unknown>; submits: string[]; setModal: (node: React.ReactNode) => void; close: () => Promise<void> }
 
 const stateRef = { current: null as null | { getState: () => unknown } }
+const scrollRef = React.createRef<{ getScrollTop: () => number; isSticky: () => boolean; scrollTo: (y: number) => void }>()
 const modalRef = { current: null as null | ((node: React.ReactNode) => void) }
 const submits: string[] = []
 
 const TRANSCRIPT_NEEDLE = 'TRANSCRIPT-ROW'
 function Transcript(): React.ReactNode {
   const rows = ['14:49:11 [Mercury] ● ▪ Update records/LANE-VOICE-HOLD.md · +1/-1', '  └ Added 1 line, removed 1 line', '14:49:16 [Mercury] Brief re-trued. Now the correction batch and the log line.']
-  for (let index = 0; index < 52; index++) rows.push(`14:49:${String(20 + index).padStart(2, '0')} [Mercury] ${TRANSCRIPT_NEEDLE} ${index} — a row of the lead's transcript under the crew window`)
+  for (let index = 0; index < 90; index++) rows.push(`14:49:${String(20 + index).padStart(2, '0')} [Mercury] ${TRANSCRIPT_NEEDLE} ${index} — a row of the lead's transcript under the crew window`)
   return h(Text, null, rows.join('\n'))
 }
 function Harness(): React.ReactNode {
@@ -207,7 +232,8 @@ function Harness(): React.ReactNode {
   return h(KeybindingSetup, null,
     h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
     h(FullscreenLayout, {
-      scrollable: h(Transcript),
+      scrollRef,
+      scrollable: swapModule === null ? h(Transcript) : h(swapModule.TranscriptSwap, { lead: h(Transcript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
       statusBand: h(Text, null, 'waiting on 15 agents · 1 shell'),
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
@@ -314,8 +340,16 @@ check('no main chat is pinned at rest', scene.state().mainChatTaskId === undefin
 section('§2 screen 2: a click on a CREW row opens that agent in the view')
 scene.push(FOCUS_IN)
 await sleep(300)
+const SCROLL_MARK = 4
+scrollRef.current?.scrollTo(SCROLL_MARK)
+await sleep(300)
+const scrollBefore = { top: scrollRef.current?.getScrollTop() ?? -1, sticky: scrollRef.current?.isSticky() ?? true }
+console.log(`the lead's transcript before the view: scrollTop ${scrollBefore.top} · sticky ${scrollBefore.sticky}`)
+check('the lead\'s transcript was scrolled off the bottom before the view (the state the return must restore)', scrollBefore.top === SCROLL_MARK && !scrollBefore.sticky, JSON.stringify(scrollBefore))
 scene.push(press(8, pickerRow) + release(8, pickerRow))
 await sleep(500)
+const transcriptLanded = await until(() => scene.lines().some(line => centre(line).includes(ATLAS_NEEDLE)), 6000)
+await sleep(300)
 frame = scene.lines()
 save('screen-2-viewing', frame)
 const viewedAfterClick = scene.state().viewingAgentTaskId
@@ -332,23 +366,47 @@ console.log(`the view header: "${header2}"`)
 check('the view header names the crewmate and says viewing', /VIEW · Lane atlas · viewing/.test(header2), `the header reads "${header2}"`)
 const cardRows = frame.slice(2, 6).map(centre).join(' ')
 check('the card carries the crewmate\'s facts (its name, its model)', cardRows.includes('Lane atlas') && cardRows.includes('claude-fable-5-1'), cardRows.trim().slice(0, 200))
-check('the card names the keys: m main chat · esc back to Mercury Lead', cardRows.includes('m main chat') && cardRows.includes('esc back to Mercury Lead'), cardRows.trim().slice(0, 200))
+check('the card names the keys: esc interrupts · m main chat · Mercury Lead in the rail goes back', cardRows.includes('esc interrupts') && cardRows.includes('m main chat') && cardRows.includes('Mercury Lead in the rail goes back'), cardRows.trim().slice(0, 200))
+const centreRows = frame.map(centre)
+const atlasRows = centreRows.filter(line => line.includes(ATLAS_NEEDLE))
+console.log(`the centre's crewmate rows: ${atlasRows.map(line => line.trim().slice(0, 90)).join(' | ')}`)
+check('the crewmate\'s transcript takes over the centre (its rows paint, the lead\'s rows do not)', transcriptLanded && atlasRows.length === 2 && !centreRows.some(line => line.includes(TRANSCRIPT_NEEDLE)), `crewmate rows ${atlasRows.length} · lead rows ${centreRows.filter(line => line.includes(TRANSCRIPT_NEEDLE)).length}`)
+check('the crewmate\'s rows wear its own nameplate, the operator\'s lines the [you → Lane atlas] plate', atlasRows.every(line => line.includes('[Lane atlas]')) && centreRows.some(line => line.includes('[you → Lane atlas]')), centreRows.filter(line => /\[(Lane atlas|you →)/.test(line)).map(line => line.trim().slice(0, 60)).join(' | '))
 const composer2 = composerRow(frame)
 check('the composer stays on screen under the view', composer2 > 0, 'no composer row')
 const footer2 = frame.slice(composer2, composer2 + 6).join('\n')
-check('the footer says ↵ sends to the crewmate and esc goes back to Mercury Lead', /sends to Lane atlas/.test(footer2) && /esc back to Mercury Lead/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
+check('the footer says ↵ sends to the crewmate · esc interrupts it · Mercury Lead in the rail goes back', /sends to Lane atlas/.test(footer2) && /esc interrupts Lane atlas/.test(footer2) && /Mercury Lead in the rail goes back/.test(footer2), footer2.replace(/\s+/g, ' ').slice(0, 300))
 check('the click dispatched no command (no /tasks board opened)', scene.submits.length === 0, `submits=${JSON.stringify(scene.submits)}`)
 if (viewedAfterClick === undefined) {
   scene.push(press(8, pickerRow) + release(8, pickerRow))
   await sleep(500)
   console.log(`after a second click: viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · submits=${JSON.stringify(scene.submits)}`)
 }
+
+section('§2b esc on the crewmate\'s screen interrupts that crewmate alone')
+const stopsBefore = agentCalls.filter(call => call.verb === 'stop').length
 scene.push(ESC)
-await sleep(400)
+await sleep(500)
+frame = scene.lines()
+save('screen-2-interrupt', frame)
+const stops = agentCalls.filter(call => call.verb === 'stop')
+console.log(`after esc: stop calls ${JSON.stringify(stops)} · lead interrupts ${leadInterrupts} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+check('esc interrupts the viewed crewmate alone — one stop, its id, the operator-interrupt note', stops.length === stopsBefore + 1 && stops[stops.length - 1]!.agentId === 'a-atlas' && stops[stops.length - 1]!.note === 'operator-interrupt', JSON.stringify(stops))
+check('the other fourteen crewmates and the lead\'s turn are untouched', stops.every(call => call.agentId === 'a-atlas') && leadInterrupts === 0, `lead interrupts ${leadInterrupts}`)
+check('the view stays on the crewmate after the interrupt', scene.state().viewingAgentTaskId === 'a-atlas', `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+check('the composer says the crewmate was interrupted and Mercury Lead is told', frame.some(line => line.includes('Lane atlas interrupted') && line.includes('Mercury Lead is told')), frame.slice(composerRow(frame)).map(line => line.trim()).filter(Boolean).join(' | ').slice(0, 300))
+
+section('§2c Mercury Lead in the rail goes back, the lead\'s transcript exactly as it was')
+scene.push(press(8, crewHeader + 1) + release(8, crewHeader + 1))
+await sleep(500)
 frame = scene.lines()
 save('screen-2-back', frame)
-check('esc goes back to Mercury Lead (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+const scrollAfter = { top: scrollRef.current?.getScrollTop() ?? -1, sticky: scrollRef.current?.isSticky() ?? true }
+console.log(`the lead's transcript after the return: scrollTop ${scrollAfter.top} · sticky ${scrollAfter.sticky}`)
+check('one click on Mercury Lead goes back (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
 check('the header reads the plain view again', /VIEW/.test(headerRow(frame)) && !/viewing/.test(headerRow(frame)), headerRow(frame))
+check('the lead\'s rows are back in the centre and the crewmate\'s are gone', frame.some(line => centre(line).includes(TRANSCRIPT_NEEDLE)) && !frame.some(line => centre(line).includes(ATLAS_NEEDLE)))
+check('the lead\'s scroll state is restored exactly (top and stickiness)', scrollAfter.top === scrollBefore.top && scrollAfter.sticky === scrollBefore.sticky, `${JSON.stringify(scrollBefore)} → ${JSON.stringify(scrollAfter)}`)
 check('the composer target went back to the lead (no main chat pinned)', scene.state().mainChatTaskId === undefined)
 
 section('§3 screen 3: /teammates opens the crew view as a floating pop-up')
@@ -408,6 +466,7 @@ const composerText = composer4 >= 0 ? frame[composer4]!.trim() : ''
 check('the composer placeholder reads "message Lane fjord"', composerText.includes('message Lane fjord'), `the composer row reads "${composerText.slice(0, 80)}"`)
 const footer4 = frame.slice(composer4, composer4 + 6).join('\n')
 check('the footer says ↵ sends to the crewmate · m on Mercury Lead returns the main chat', /sends to Lane fjord/.test(footer4) && /m on Mercury Lead returns the main chat/.test(footer4), footer4.replace(/\s+/g, ' ').slice(0, 300))
+check('a crewmate with no transcript on disk says so in the centre, never a blank', frame.some(line => centre(line).includes('no transcript yet')), frame.slice(6, 12).map(centre).join(' | ').slice(0, 200))
 if (frame.some(line => line.includes(CREW_TITLE))) {
   scene.push(ESC)
   await sleep(400)
@@ -431,8 +490,10 @@ save('screen-5-handed-back', frame)
 console.log(`after Tab, m on the lead's row: mainChatTaskId=${String(scene.state().mainChatTaskId)} · rail banner "${railText(frame[0] ?? '').trim()}"`)
 check('m on Mercury Lead hands the main chat back', scene.state().mainChatTaskId === undefined, `mainChatTaskId=${String(scene.state().mainChatTaskId)}`)
 check('no ★ row remains in the rail', railRow(frame, '★') < 0)
-scene.push(ESC)
-await sleep(300)
+scene.push(press(8, crewHeader + 1) + release(8, crewHeader + 1))
+await sleep(400)
+frame = scene.lines()
+check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingAgentTaskId === undefined && /VIEW/.test(headerRow(frame)) && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 
 await scene.close()
 console.error = originalError

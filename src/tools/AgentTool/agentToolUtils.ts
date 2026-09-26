@@ -13,6 +13,7 @@ import {
   AGENT_RESUME_DOOR,
   AGENT_WINDOW_RESUME_NOTE,
   agentStopReasonOf,
+  agentStopStatusWordOf,
   completeAgentTask,
   overloadPauseOf,
   pauseAgentTask,
@@ -1149,6 +1150,7 @@ export async function runAsyncAgentLifecycle(args: {
     if (error instanceof AbortError) {
       stopSummarization?.()
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
+      const stopStatusWord = agentStopStatusWordOf(args.abortController.signal.reason)
       killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       closeOverloadEpisode(taskId)
       const worktreeResult = await getWorktreeResult()
@@ -1177,6 +1179,7 @@ export async function runAsyncAgentLifecycle(args: {
         usage,
         landedWrites: landedWritesOf(accumulated),
         ...(stopReason !== undefined ? { stopReason } : {}),
+        ...(stopStatusWord !== undefined ? { statusWord: stopStatusWord } : {}),
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })

@@ -1073,7 +1073,7 @@ export function controlSessionAgent(
     })
     const request =
       verb === 'stop-agent'
-        ? { subtype: 'stop_task', task_id: agentId }
+        ? { subtype: 'stop_task', task_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }
         : { subtype: 'resume_task', task_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }
     const delivered = roster.control(rec.runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request }))
     if (!delivered) {

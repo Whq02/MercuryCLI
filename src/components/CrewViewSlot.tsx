@@ -1,54 +1,45 @@
 import * as React from 'react'
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Box, measureElement, type DOMElement } from '../ink.js'
+import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
+import { Box, type DOMElement } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
+import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { closeCrewView, crewViewVersion, isCrewViewOpen, subscribeCrewView } from '../utils/cockpit/crewView.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { CrewView } from './mercury-ui/screens/CrewView.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { modelPickerPopupGeometry, modelPickerPopupHost, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
 
 export const CREW_POPUP_WIDTH = 124
 export const CREW_POPUP_MIN_WIDTH = 60
-export const CREW_POPUP_CHROME_ROWS = 6
 
 export type CrewPopupGeometry = { left: number; top: number; width: number; rows: number }
 
-export function crewPopupGeometry(cols: number, rows: number, height: number | null): CrewPopupGeometry {
-  const width = Math.min(CREW_POPUP_WIDTH, Math.max(CREW_POPUP_MIN_WIDTH, cols))
-  const left = Math.max(0, Math.floor((cols - width) / 2))
-  const budget = Math.max(CREW_POPUP_CHROME_ROWS + 1, rows)
-  const top = height === null ? 0 : Math.max(0, Math.floor((rows - Math.min(height, rows)) / 2))
-  return { left, top, width, rows: budget }
+export function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number): CrewPopupGeometry {
+  const shared = modelPickerPopupGeometry(host, terminalRows)
+  const width = Math.min(CREW_POPUP_WIDTH, Math.max(CREW_POPUP_MIN_WIDTH, host.columns))
+  const left = Math.max(0, Math.floor((host.columns - width) / 2))
+  return { left, top: Math.max(0, shared.top - host.top), width, rows: shared.rows }
 }
 
 export function CrewViewSlot({ hostRef, framed }: { hostRef: React.RefObject<DOMElement | null>; framed: boolean }): React.ReactNode {
   useSyncExternalStore(subscribeCrewView, crewViewVersion, crewViewVersion)
   const tokens = useMercuryTokens()
+  const { rows: terminalRows } = useTerminalSize()
   const open = isCrewViewOpen()
-  const slotRef = useRef<DOMElement | null>(null)
-  const [host, setHost] = useState<{ columns: number; rows: number } | null>(null)
-  const [height, setHeight] = useState<number | null>(null)
+  const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
   useLayoutEffect(() => {
     if (!open) return
     const element = hostRef.current
     if (!element) return
-    const measured = measureElement(element)
-    if (measured.width <= 0 || measured.height <= 0) return
-    if (host === null || host.columns !== measured.width || host.rows !== measured.height) {
-      setHost({ columns: measured.width, rows: measured.height })
-    }
-    const slot = slotRef.current
-    if (!slot) return
-    const own = measureElement(slot).height
-    if (own > 0 && own !== height) setHeight(own)
+    const next = modelPickerPopupHost(element, framed)
+    if (next === null) return
+    if (host === null || host.left !== next.left || host.top !== next.top || host.columns !== next.columns || host.rows !== next.rows) setHost(next)
   })
   if (!open || host === null) return null
-  const inset = framed ? 1 : 0
-  const geometry = crewPopupGeometry(host.columns - 2 * inset, host.rows - 2 * inset, height)
+  const geometry = crewPopupGeometry(host, terminalRows)
   const ground = estateGroundBg(tokens)
   return (
     <Box
-      ref={slotRef}
       position="absolute"
       top={geometry.top}
       left={geometry.left}

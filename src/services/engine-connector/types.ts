@@ -351,7 +351,7 @@ export interface EngineConnectorV1 {
   recallableSend(): RecallableSendV1 | null
   withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1>
 
-  stopAgent(agentId: string): Promise<AgentControlReceiptV1>
+  stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   backgroundShell(): Promise<AgentControlReceiptV1>
   pauseGate(paused: boolean): Promise<AgentControlReceiptV1>

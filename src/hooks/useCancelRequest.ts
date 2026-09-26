@@ -32,6 +32,7 @@ import {
   SUMMARY_TAG,
   TASK_NOTIFICATION_TAG,
 } from '../constants/xml.js'
+import { interruptCrewmate } from '../components/tasks/crewmateInterrupt.js'
 
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
@@ -196,15 +197,12 @@ export function CancelRequestHandler({
     () => {
       if (compactWork?.read() === 'detail') return false
       if (compactWork?.read() === 'summary') compactWork.set('composer')
-      const viewingTeammateNow = store.getState().viewingAgentTaskId !== undefined
-      if (viewingTeammateNow) {
-        const killed = killRunningAgents(() => store.getState() as AppState, setAppState)
-        if (killed) onAgentsKilled?.()
-        setAppState(prev => ({
-          ...prev,
-          viewingAgentTaskId: undefined,
-          viewSelectionMode: 'none' as const,
-        }))
+      const freshState = store.getState() as AppState
+      const viewedCrewmate = freshState.viewingAgentTaskId
+      const viewingTeammateNow = viewedCrewmate !== undefined
+      if (viewedCrewmate !== undefined) {
+        interruptCrewmate(viewedCrewmate, freshState, setAppState)
+        return
       }
       if (taskRunning) {
         settleAsksAndCancel()

@@ -60,7 +60,8 @@ import {
 } from '../../state/teammateViewHelpers.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
 import { useComposerCrewmate } from '../tasks/useCrewmateView.js'
-import { crewmateInterruptedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { crewmateIdleWords, crewmateInterruptedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
@@ -2109,16 +2110,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const viewed = freshState.viewingAgentTaskId
         if (viewed !== undefined) {
           event.stopImmediatePropagation()
-          if (freshState.mainChatTaskId !== viewed) {
-            exitTeammateView(setAppState)
-            return
-          }
           const crewmate = composerCrewmateRef.current
-          const localTask = freshState.tasks[viewed]
           const name = crewmate?.taskId === viewed ? crewmate.name : viewed
-          if (localTask !== undefined && isLocalAgentTask(localTask)) localTask.abortController?.abort(`interrupted by the operator from ${name}'s screen`)
-          else void getFocusedSessionConnector().stopAgent(viewed)
-          addNotification({ key: 'crewmate-send', text: crewmateInterruptedWords(name), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+          const road = interruptCrewmate(viewed, freshState, setAppState)
+          addNotification({ key: 'crewmate-send', text: road === 'idle' ? crewmateIdleWords(name) : crewmateInterruptedWords(name), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
           return
         }
       }

@@ -24,6 +24,7 @@ export type OperatorStopContext = {
 export type OperatorStopOptions = {
   settleMs?: number
   sleep?: (ms: number) => Promise<void>
+  reason?: string
 }
 
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
@@ -67,7 +68,7 @@ export async function stopAgentByOperator(
     return { outcome: 'applied', kind: 'workflow', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
   }
   if (isLocalAgentTask(task)) {
-    stopOrDismissAgent(taskId, context.setAppState, AGENT_STOP_BY_OPERATOR)
+    stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)
     const signalled = context.getAppState().tasks?.[taskId]
     if (isLocalAgentTask(signalled) && signalled.status === 'running' && signalled.abortController !== undefined && !signalled.abortController.signal.aborted) {
       return { outcome: 'refused', reason: `the stop did not reach ${name} — its controller stands unaborted` }

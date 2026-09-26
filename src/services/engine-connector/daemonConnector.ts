@@ -1880,8 +1880,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     })
   }
 
-  stopAgent(agentId: string): Promise<AgentControlReceiptV1> {
-    return this.agentVerb('stop-agent', agentId)
+  stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+    return this.agentVerb('stop-agent', agentId, note)
   }
 
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
