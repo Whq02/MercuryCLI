@@ -123,7 +123,8 @@ section('§B the panes read the receipt (note wiring pins)')
     'utf8',
   )
   check('the channel answers the settled arm by name, never success',
-    control.includes('already ${manifest.status === \'paused\' ? \'paused on disk\' : \'settled\'} — nothing to ${verbOf(input.action)}'))
+    control.includes('paused on disk (its owner is gone) — nothing to ${verbOf(input.action)}') &&
+      control.includes('already settled — nothing to ${verbOf(input.action)}'))
   const tool = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'WorkflowTool.tsx'),
     'utf8',
