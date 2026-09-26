@@ -27,6 +27,7 @@ import {
   type WorkflowRunUsage,
   type WorkflowUsageRollup,
 } from '../../tools/WorkflowTool/workflowUsage.js'
+import type { WorkflowPausePosition } from '../../tools/WorkflowTool/runManifest.js'
 
 export type { WorkflowRunUsage, WorkflowUsageRollup }
 
@@ -83,6 +84,7 @@ export type LocalWorkflowTaskState = Omit<TaskStateBase, 'status'> & {
   workflowRunId: string
   runDir?: string
   pausedBy?: string
+  pausedAt?: WorkflowPausePosition
   workflowProgress: WorkflowProgressEvent[]
   progressVersion: number
   agentCount: number
@@ -432,12 +434,13 @@ export function killWorkflowAgent(
 export function markWorkflowPaused(
   taskId: string,
   pausedBy: string | undefined,
+  pausedAt: WorkflowPausePosition | undefined,
   setAppState: SetAppState,
 ): void {
   updateTaskState<LocalWorkflowTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
-    if (task.pausedBy === pausedBy) return task
-    return { ...task, pausedBy }
+    if (task.pausedBy === pausedBy && JSON.stringify(task.pausedAt) === JSON.stringify(pausedAt)) return task
+    return { ...task, pausedBy, pausedAt: pausedBy === undefined ? undefined : pausedAt }
   })
 }
 

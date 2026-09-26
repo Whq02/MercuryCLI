@@ -330,7 +330,9 @@ function realCanonicalPath(p: string): string {
 
 function projectManifestStatus(
   liveStatus: LocalWorkflowTaskState['status'] | undefined,
+  pausedBy: string | undefined,
 ): WorkflowRunManifest['status'] {
+  if (liveStatus === 'running' && pausedBy !== undefined) return 'paused'
   return liveStatus === 'completed' ||
     liveStatus === 'failed' ||
     liveStatus === 'killed' ||
@@ -596,10 +598,11 @@ const WorkflowToolDef = {
       }
       priorManifest = prior
       if (recordedOwnerAlive(prior, prior.mtimeMs, Date.now())) {
+        const parkedLive = prior.status === 'paused'
         throw new WorkflowInputError(
-          `workflow ${input.resumeFromRunId} is still RUNNING (its owner's heartbeat is fresh` +
+          `workflow ${input.resumeFromRunId} is ${parkedLive ? 'PAUSED in a live process' : 'still RUNNING'} (its owner's heartbeat is fresh` +
             `${prior.owner ? `, epoch ${prior.owner.epoch}` : ''}). ` +
-            `Stop it first; never resume under a healthy owner. Nothing was started.`,
+            `${parkedLive ? 'Resume it there (P in /workflows) or stop it first' : 'Stop it first'}; never resume under a healthy owner. Nothing was started.`,
         )
       }
       const recorded = prior.origin?.cwd
@@ -714,6 +717,8 @@ const WorkflowToolDef = {
       const progressRows = final
         ? settleInFlightAgentRows(live?.workflowProgress ?? [], now)
         : (live?.workflowProgress ?? [])
+      const status = final?.status ?? projectManifestStatus(live?.status, live?.pausedBy)
+      const parked = status === 'paused'
       const snapshot: WorkflowRunManifest = {
         version: RUN_MANIFEST_VERSION,
         runId,
@@ -729,13 +734,14 @@ const WorkflowToolDef = {
         runDir,
         startTime: task.startTime,
         endTime: final ? now : undefined,
-        status: final?.status ?? projectManifestStatus(live?.status),
+        status,
         origin,
         owner: { instanceId: claim.instanceId, epoch: claim.epoch },
         transcriptDirs: [...transcriptDirsSeen],
         ownerPid: process.pid,
         controlVersion: WORKFLOW_CONTROL_VERSION,
-        ...(live?.pausedBy !== undefined ? { pausedBy: live.pausedBy } : {}),
+        ...(parked && live?.pausedBy !== undefined ? { pausedBy: live.pausedBy } : {}),
+        ...(parked && live?.pausedAt !== undefined ? { pausedAt: live.pausedAt } : {}),
         ...(final?.endedBy !== undefined ? { endedBy: final.endedBy } : {}),
         agentCount: live?.agentCount ?? 0,
         totalTokens: live?.totalTokens ?? 0,
@@ -789,7 +795,7 @@ const WorkflowToolDef = {
           const paused = request.action === 'pause' || request.action === 'pause-agent'
           const result = executionPause.change(paused, request.by, request.agentId)
           if (result.outcome === 'applied') {
-            markWorkflowPaused(taskId, executionPause.pausedBy(), setAppState)
+            markWorkflowPaused(taskId, executionPause.pausedBy(), executionPause.position(), setAppState)
             await writeManifest()
           }
           return result
@@ -828,6 +834,11 @@ const WorkflowToolDef = {
       }
     }
 
+    const releasePosition = executionPause.onPosition(() => {
+      markWorkflowPaused(taskId, executionPause.pausedBy(), executionPause.position(), setAppState)
+      void writeManifest()
+    })
+
     try {
       claim = await claimRun(runDir)
       journal = new LocalFileJournal(runDir, {
@@ -852,6 +863,7 @@ const WorkflowToolDef = {
       }
     } catch (e) {
       closeControl?.()
+      releasePosition()
       const msg = e instanceof Error ? e.message : String(e)
       setAppState(prev => {
         const tasks = { ...prev.tasks }
@@ -1056,6 +1068,7 @@ const WorkflowToolDef = {
         closeControl?.()
         clearInterval(manifestHeartbeat)
         if (trailingManifestWrite !== null) clearTimeout(trailingManifestWrite)
+        releasePosition()
       }
     }
     void runWithCwdOverride(executionCwd, driveRun)
