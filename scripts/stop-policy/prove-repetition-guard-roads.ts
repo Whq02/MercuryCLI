@@ -76,7 +76,8 @@ function lastAnswer(items: Item[]): string {
     const results = toolResultsOf(items[i]!)
     if (results.length === 0) continue
     const last = results[results.length - 1]!
-    return `${last.is_error === true ? 'error:' : ''}${typeof last.content === 'string' ? last.content : j(last.content)}`
+    const body = typeof last.content === 'string' ? last.content : j(last.content)
+    return `${last.is_error === true ? 'error:' : ''}${body.replace(/\n\n<system-reminder>[\s\S]*?<\/system-reminder>\s*$/, '')}`
   }
   return ''
 }
