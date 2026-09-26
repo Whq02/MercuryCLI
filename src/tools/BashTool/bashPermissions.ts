@@ -3,8 +3,9 @@ import type {
   PermissionResult,
   PermissionDecisionReason,
 } from '../../utils/permissions/PermissionResult.js'
-import type { PendingClassifierCheck } from '../../types/permissions.js'
+import type { PendingClassifierCheck, PermissionRule } from '../../types/permissions.js'
 import { getCwd } from '../../utils/cwd.js'
+import { refusalWithReason, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
@@ -346,8 +347,30 @@ function matchRules(
   mode: 'exact' | 'prefix',
   skipCompoundGuard: boolean,
 ): string | null {
+  return walkRules(command, context, behavior, mode, skipCompoundGuard, false)[0] ?? null
+}
+
+function matchAllRules(
+  command: string,
+  context: ToolPermissionContext,
+  behavior: 'allow' | 'deny' | 'ask',
+  mode: 'exact' | 'prefix',
+  skipCompoundGuard: boolean,
+): string[] {
+  return walkRules(command, context, behavior, mode, skipCompoundGuard, true)
+}
+
+function walkRules(
+  command: string,
+  context: ToolPermissionContext,
+  behavior: 'allow' | 'deny' | 'ask',
+  mode: 'exact' | 'prefix',
+  skipCompoundGuard: boolean,
+  all: boolean,
+): string[] {
+  const found: string[] = []
   const rulesByContent = getRuleByContentsForToolName(context, TOOL_NAME, behavior)
-  if (rulesByContent.size === 0) return null
+  if (rulesByContent.size === 0) return found
   const candidates = generateCandidates(command, mode, behavior)
   const alwaysSkip = behavior === 'deny' || behavior === 'ask' || skipCompoundGuard
   const compoundOf = new Map<string, boolean>()
@@ -359,11 +382,22 @@ function matchRules(
     for (const candidate of candidates) {
       const isCompound = alwaysSkip ? false : compoundOf.get(candidate) ?? false
       if (ruleMatches(parsed, candidate, mode, isCompound, alwaysSkip)) {
-        return ruleContent
+        found.push(ruleContent)
+        if (!all) return found
+        break
       }
     }
   }
-  return null
+  return found
+}
+
+function ruleFor(
+  context: ToolPermissionContext,
+  ruleContent: string,
+  behavior: 'allow' | 'deny' | 'ask',
+): PermissionRule {
+  const rule = getRuleByContentsForToolName(context, TOOL_NAME, behavior).get(ruleContent)
+  return rule ?? { source: 'localSettings', ruleBehavior: behavior, ruleValue: { toolName: TOOL_NAME, ruleContent } }
 }
 
 function ruleReason(
@@ -371,10 +405,22 @@ function ruleReason(
   ruleContent: string,
   behavior: 'allow' | 'deny' | 'ask',
 ): PermissionDecisionReason {
-  const rule = getRuleByContentsForToolName(context, TOOL_NAME, behavior).get(ruleContent)
+  return { type: 'rule', rule: ruleFor(context, ruleContent, behavior) }
+}
+
+function denyByRule(
+  context: ToolPermissionContext,
+  sentence: string,
+  ruleContent: string,
+  matches: () => string[],
+): PermissionResult {
+  const said = withRuleReason(context, ruleFor(context, ruleContent, 'deny'), () =>
+    matches().map(content => ruleFor(context, content, 'deny')),
+  )
   return {
-    type: 'rule',
-    rule: rule ?? { source: 'localSettings', ruleBehavior: behavior, ruleValue: { toolName: TOOL_NAME, ruleContent } },
+    behavior: 'deny',
+    message: refusalWithReason(sentence, said.ruleValue.reason),
+    decisionReason: { type: 'rule', rule: said },
   }
 }
 
@@ -422,11 +468,7 @@ export function bashToolCheckExactMatchPermission(
   const command = input.command.trim()
   const deny = matchRules(command, context, 'deny', 'exact', true)
   if (deny !== null) {
-    return {
-      behavior: 'deny',
-      message: `${TOOL_NAME}(${command}) is blocked by a deny rule.`,
-      decisionReason: ruleReason(context, deny, 'deny'),
-    }
+    return denyByRule(context, `${TOOL_NAME}(${command}) is blocked by a deny rule.`, deny, () => matchAllRules(command, context, 'deny', 'exact', true))
   }
   const ask = matchRules(command, context, 'ask', 'exact', true)
   if (ask !== null) {
@@ -460,7 +502,7 @@ export function bashToolCheckPermission(
   const skipCompoundGuard = astCommand !== undefined
   const deny = matchRules(command, context, 'deny', 'prefix', true)
   if (deny !== null) {
-    return { behavior: 'deny', message: `${TOOL_NAME} deny rule matched.`, decisionReason: ruleReason(context, deny, 'deny') }
+    return denyByRule(context, `${TOOL_NAME} deny rule matched.`, deny, () => matchAllRules(command, context, 'deny', 'prefix', true))
   }
   const ask = matchRules(command, context, 'ask', 'prefix', true)
   if (ask !== null) {
@@ -526,7 +568,7 @@ function sandboxAutoAllow(input: BashInput, context: ToolPermissionContext): Per
   const command = input.command
   const fullDeny = matchRules(command, context, 'deny', 'prefix', true)
   if (fullDeny !== null) {
-    return { behavior: 'deny', message: `${command} is blocked by a deny rule.`, decisionReason: ruleReason(context, fullDeny, 'deny') }
+    return denyByRule(context, `${command} is blocked by a deny rule.`, fullDeny, () => matchAllRules(command, context, 'deny', 'prefix', true))
   }
   const subcommands = pinnedCommandAnalysis.splitCommand(command)
   let stashedAsk: string | null = null
@@ -535,7 +577,7 @@ function sandboxAutoAllow(input: BashInput, context: ToolPermissionContext): Per
       const sub = raw.trim()
       const subDeny = matchRules(sub, context, 'deny', 'prefix', true)
       if (subDeny !== null) {
-        return { behavior: 'deny', message: `${command} is blocked by a deny rule.`, decisionReason: ruleReason(context, subDeny, 'deny') }
+        return denyByRule(context, `${command} is blocked by a deny rule.`, subDeny, () => matchAllRules(sub, context, 'deny', 'prefix', true))
       }
       if (stashedAsk === null) {
         const subAsk = matchRules(sub, context, 'ask', 'prefix', true)
@@ -724,7 +766,9 @@ export async function bashToolHasPermission(
 
   const denied = decisions.find(d => d.behavior === 'deny')
   if (denied) {
-    return { behavior: 'deny', message: 'A subcommand was denied.', decisionReason: subcommandResultsReason(subcommands, decisions) }
+    const deniedReason = 'decisionReason' in denied ? denied.decisionReason : undefined
+    const words = deniedReason?.type === 'rule' ? deniedReason.rule.ruleValue.reason : undefined
+    return { behavior: 'deny', message: refusalWithReason('A subcommand was denied.', words), decisionReason: subcommandResultsReason(subcommands, decisions) }
   }
 
   const originalPath = checkPathConstraints(
@@ -830,7 +874,7 @@ function earlyExitDenyCheck(input: BashInput, context: ToolPermissionContext): P
   if (exact.behavior !== 'passthrough') return exact
   const deny = matchRules(input.command.trim(), context, 'deny', 'prefix', true)
   if (deny !== null) {
-    return { behavior: 'deny', message: `${input.command} is blocked by a deny rule.`, decisionReason: ruleReason(context, deny, 'deny') }
+    return denyByRule(context, `${input.command} is blocked by a deny rule.`, deny, () => matchAllRules(input.command.trim(), context, 'deny', 'prefix', true))
   }
   return null
 }
@@ -841,7 +885,7 @@ function semanticsDenyCheck(input: BashInput, context: ToolPermissionContext, co
   for (const command of commands) {
     const deny = matchRules(command.text.trim(), context, 'deny', 'prefix', true)
     if (deny !== null) {
-      return { behavior: 'deny', message: `${command.text} is blocked by a deny rule.`, decisionReason: ruleReason(context, deny, 'deny') }
+      return denyByRule(context, `${command.text} is blocked by a deny rule.`, deny, () => matchAllRules(command.text.trim(), context, 'deny', 'prefix', true))
     }
   }
   return null

@@ -87,12 +87,17 @@ type ReadonlyRulesBySource = {
   readonly [K in PermissionRuleSource]?: readonly string[]
 }
 
+type ReadonlyRuleReasonsBySource = {
+  readonly [K in PermissionRuleSource]?: { readonly [spelling: string]: string }
+}
+
 export type ToolPermissionContext = {
   readonly mode: InternalPermissionMode
   readonly additionalWorkingDirectories: ReadonlyMap<string, unknown>
   readonly alwaysAllowRules: ReadonlyRulesBySource
   readonly alwaysDenyRules: ReadonlyRulesBySource
   readonly alwaysAskRules: ReadonlyRulesBySource
+  readonly ruleReasons?: ReadonlyRuleReasonsBySource
   readonly isBypassPermissionsModeAvailable: boolean
   readonly isAutoModeAvailable?: boolean
   readonly strippedDangerousRules?: readonly string[]
