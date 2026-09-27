@@ -20,7 +20,7 @@ export const call = async (_args: string, _context: LocalJSXCommandContext): Pro
   ]
   openSettingsPopup({
     view: 'usage',
-    width: 150,
+    width: hostColumns => Math.min(150, hostColumns),
     rows: 29,
     line: `${providerFamilyPresences().length} providers · ${subscriptions} subscriptions signed in${meters.length ? ` · Anthropic ${meters.join(' · ')}` : ''}`,
     hint: '↑↓ scroll · esc or click outside closes',

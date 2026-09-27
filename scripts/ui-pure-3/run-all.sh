@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/ui/** scripts/ui-pure-3/** src/bootstrap/state*
+# gate-watch: scripts/ui/** scripts/ui-pure-3/** src/bootstrap/state* scripts/notifications/concourseReferenceSeed.ts
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel*
 # gate-watch: src/commands/team/index* src/components/** src/context/overlayContext*

@@ -1,13 +1,13 @@
 import * as React from 'react'
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { Box, type DOMElement } from '../ink.js'
+import { type DOMElement } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { closeCrewView, crewViewVersion, isCrewViewOpen, subscribeCrewView } from '../utils/cockpit/crewView.js'
-import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { CrewView } from './mercury-ui/screens/CrewView.js'
-import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { modelPickerPopupGeometry, modelPickerPopupHost, type ModelPickerPopupHost } from './ModelPickerPopupSlot.js'
+import { PopupGutter, popupWidth } from './PopupGutter.js'
+import { ModalContext } from '../context/modalContext.js'
 
 export const CREW_POPUP_WIDTH = 124
 export const CREW_POPUP_MIN_WIDTH = 60
@@ -16,14 +16,13 @@ export type CrewPopupGeometry = { left: number; top: number; width: number; rows
 
 export function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number): CrewPopupGeometry {
   const shared = modelPickerPopupGeometry(host, terminalRows)
-  const width = Math.min(CREW_POPUP_WIDTH, Math.max(CREW_POPUP_MIN_WIDTH, host.columns))
+  const width = popupWidth(CREW_POPUP_WIDTH, host.columns)
   const left = Math.max(0, Math.floor((host.columns - width) / 2))
   return { left, top: Math.max(0, shared.top - host.top), width, rows: Math.min(shared.rows, host.top + host.rows - shared.top) }
 }
 
 export function CrewViewSlot({ hostRef, framed }: { hostRef: React.RefObject<DOMElement | null>; framed: boolean }): React.ReactNode {
   useSyncExternalStore(subscribeCrewView, crewViewVersion, crewViewVersion)
-  const tokens = useMercuryTokens()
   const { rows: terminalRows } = useTerminalSize()
   const open = isCrewViewOpen()
   const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
@@ -37,21 +36,13 @@ export function CrewViewSlot({ hostRef, framed }: { hostRef: React.RefObject<DOM
   })
   if (!open || host === null) return null
   const geometry = crewPopupGeometry(host, terminalRows)
-  const ground = estateGroundBg(tokens)
   return (
-    <Box
-      position="absolute"
-      top={geometry.top}
-      left={geometry.left}
-      width={geometry.width}
-      flexDirection="column"
-      flexShrink={0}
-      opaque={true}
-      {...(ground !== undefined ? { backgroundColor: ground } : {})}
-    >
-      <TerminalSizeContext.Provider value={{ columns: geometry.width - 4, rows: geometry.rows }}>
-        <CrewView onClose={closeCrewView} popup />
-      </TerminalSizeContext.Provider>
-    </Box>
+    <PopupGutter {...geometry}>
+      <ModalContext.Provider value={{ columns: geometry.width, rows: geometry.rows, scrollRef: null }}>
+        <TerminalSizeContext.Provider value={{ columns: geometry.width - 4, rows: geometry.rows }}>
+          <CrewView onClose={closeCrewView} popup />
+        </TerminalSizeContext.Provider>
+      </ModalContext.Provider>
+    </PopupGutter>
   )
 }

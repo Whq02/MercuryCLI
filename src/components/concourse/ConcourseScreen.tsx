@@ -53,6 +53,7 @@ import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { RowPickModal } from './RowPickModal.js';
 import { MercuryModelDefaultPicker, MercurySessionModelPicker } from '../../commands/model/mercuryModel.js';
 import { ModalContext } from '../../context/modalContext.js';
+import { FloatingPopup } from '../PopupGutter.js';
 import { SessionMirror } from './SessionMirror.js'
 import { askTileCopy, useLiveTile, useWorkChip } from './liveTiles.js';
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js';
@@ -2503,43 +2504,18 @@ export function ConcourseScreen({
 }
       {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} /> : null}
       {settingsOpen && geo.profile !== 'wide' ? (
-        <Box
-          position="absolute"
-          top={Math.max(1, Math.floor(termRows / 2) - 10)}
-          left={Math.max(2, Math.floor((cols - Math.min(72, Math.max(48, cols - 8))) / 2))}
-          width={Math.min(72, Math.max(48, cols - 8))}
-          opaque
-        >
-          <CoordinatorModelPicker
-            callbacks={callbacks}
-            onClose={() => closeCoordinatorSettings()}
-            allottedRows={Math.max(10, termRows - 8)}
-            allottedWidth={Math.min(72, Math.max(48, cols - 8)) - 4}
-          />
-        </Box>
+        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 10}>
+          {size => <CoordinatorModelPicker callbacks={callbacks} onClose={() => closeCoordinatorSettings()} allottedRows={size.rows} allottedWidth={size.width - 4} />}
+        </FloatingPopup>
       ) : null}
       {capacityAsk ? <CapacityAskModal cols={cols} rows={termRows} onAnswer={answerCapacityAsk} /> : null}
       {seatAsk !== null ? (
-        <Box
-          position="absolute"
-          top={Math.max(1, Math.floor(termRows / 2) - 7)}
-          left={Math.max(2, Math.floor((cols - Math.min(72, Math.max(48, cols - 8))) / 2))}
-          width={Math.min(72, Math.max(48, cols - 8))}
-          flexDirection="column"
-          opaque
-        >
+        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
           <SeatOverloadCard live={seatAsk.live} ceiling={seatAsk.ceiling} onAnswer={answerSeatAsk} />
-        </Box>
+        </FloatingPopup>
       ) : null}
       {managerSeatAsk !== null ? (
-        <Box
-          position="absolute"
-          top={Math.max(1, Math.floor(termRows / 2) - 7)}
-          left={Math.max(2, Math.floor((cols - Math.min(72, Math.max(48, cols - 8))) / 2))}
-          width={Math.min(72, Math.max(48, cols - 8))}
-          flexDirection="column"
-          opaque
-        >
+        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
           <ManagerSeatAskCard
             live={managerSeatAsk.live}
             ceiling={managerSeatAsk.ceiling}
@@ -2547,36 +2523,24 @@ export function ConcourseScreen({
             focused={region === 'coordinator'}
             onAnswer={answerManagerSeatAsk}
           />
-        </Box>
+        </FloatingPopup>
       ) : null}
       {groundPickerOpen ? (
-        <Box
-          position="absolute"
-          top={Math.max(1, Math.floor(termRows / 2) - 9)}
-          left={Math.max(2, Math.floor((cols - Math.min(74, Math.max(44, cols - 8))) / 2))}
-          opaque
-        >
+        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={74} top={Math.floor(termRows / 2) - 9}>
           <GroundPicker
             currentGround={getCwd()}
             bootGround={getOriginalCwd()}
             onPick={dir => pickGround(dir)}
             onClose={() => setGroundPickerOpen(false)}
           />
-        </Box>
+        </FloatingPopup>
       ) : null}
       {trustAsk !== null ? (
         <TrustAskModal cols={cols} rows={termRows} dir={trustAsk.dir} onAnswer={answerTrustAsk} />
       ) : null}
       {rowPick !== null && rowPick.kind === 'model' ? (
-        <Box
-          position="absolute"
-          top={Math.max(0, geo.mainBand[0] - 1)}
-          left={Math.max(0, Math.floor((cols - panelWidth(cols, MODEL_PICKER_PANEL)) / 2))}
-          width={Math.min(cols, panelWidth(cols, MODEL_PICKER_PANEL))}
-          flexDirection="column"
-          opaque
-        >
-          <ModalContext.Provider value={{ rows: geo.mainRows, columns: cols, scrollRef: null }}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+          {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercurySessionModelPicker
               currentModel={sessionRows.find(r => r.sessionId === rowPick.sessionId)?.modelId}
               currentEffort={snapshot.peek?.sessionId === rowPick.sessionId ? snapshot.context.effortLabel : undefined}
@@ -2594,8 +2558,8 @@ export function ConcourseScreen({
                 if (!callbacks.enterBootSettings('logins', { family, returnToOpener: true })) consumeSignInPickerReturn()
               }}
             />
-          </ModalContext.Provider>
-        </Box>
+          </ModalContext.Provider>}
+        </FloatingPopup>
       ) : null}
       {rowPick !== null && rowPick.kind === 'effort' ? (
         <RowPickModal
@@ -2631,30 +2595,16 @@ export function ConcourseScreen({
         coordinatorFocused: region === 'coordinator',
         helpOpen,
       }) ? (
-        <Box
-          position="absolute"
-          top={Math.max(1, geo.mainBand[1] - gitOfferCardRows(gitOffer.folder, geo.interior, gitOffer.folderHeld === true))}
-          left={2}
-          width={geo.interior}
-          flexDirection="column"
-          opaque
-        >
+        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: geo.mainBand[1] + 1 }} width={geo.interior} top={geo.mainBand[1] - gitOfferCardRows(gitOffer.folder, geo.interior, gitOffer.folderHeld === true)}>
           <GitOfferCard
             offer={gitOffer}
             onAnswer={(requestId, allow, obligationId) => callbacks.answerPermission?.(requestId, allow, obligationId)}
           />
-        </Box>
+        </FloatingPopup>
       ) : null}
       {modelDefaultOpen ? (
-        <Box
-          position="absolute"
-          top={Math.max(0, geo.mainBand[0] - 1)}
-          left={Math.max(0, Math.floor((cols - panelWidth(cols, MODEL_PICKER_PANEL)) / 2))}
-          width={Math.min(cols, panelWidth(cols, MODEL_PICKER_PANEL))}
-          flexDirection="column"
-          opaque
-        >
-          <ModalContext.Provider value={{ rows: geo.mainRows, columns: cols, scrollRef: null }}>
+        <FloatingPopup host={{ left: 0, top: Math.max(0, geo.mainBand[0] - 1), columns: cols, rows: Math.min(geo.mainRows + 2, termRows - Math.max(0, geo.mainBand[0] - 1)) }} width={panelWidth(cols, MODEL_PICKER_PANEL)} top={geo.mainBand[0]}>
+          {size => <ModalContext.Provider value={{ rows: size.rows, columns: cols, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => {
                 setModelDefaultOpen(false)
@@ -2666,8 +2616,8 @@ export function ConcourseScreen({
                 if (!callbacks.enterBootSettings('logins', { family, returnToOpener: true })) consumeSignInPickerReturn()
               }}
             />
-          </ModalContext.Provider>
-        </Box>
+          </ModalContext.Provider>}
+        </FloatingPopup>
       ) : null}
     </>
   )
@@ -2696,17 +2646,7 @@ function TrustAskModal({
   useRegisterOverlay('concourse-trust-ask')
   const width = Math.min(70, Math.max(44, cols - 8))
   return (
-    <Box
-      position="absolute"
-      top={Math.max(1, Math.floor(rows / 2) - 5)}
-      left={Math.max(0, Math.floor((cols - width) / 2))}
-      width={Math.min(width, cols)}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={t.warning}
-      paddingX={2}
-      opaque={true}
-    >
+    <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows }} width={width} top={Math.floor(rows / 2) - 5} borderColor={t.warning} paddingX={2}>
       <Box height={1} flexShrink={0}>
         <Text bold color={t.warning} wrap="truncate-end">
           UNTRUSTED FOLDER — trust check
@@ -2745,7 +2685,7 @@ function TrustAskModal({
           esc keeps the current ground · the grant persists in the trust ledger
         </Text>
       </Box>
-    </Box>
+    </FloatingPopup>
   )
 }
 
@@ -2762,17 +2702,7 @@ function CapacityAskModal({
   useRegisterOverlay('concourse-capacity-ask')
   const width = Math.min(64, Math.max(44, cols - 8))
   return (
-    <Box
-      position="absolute"
-      top={Math.max(1, Math.floor(rows / 2) - 5)}
-      left={Math.max(0, Math.floor((cols - width) / 2))}
-      width={Math.min(width, cols)}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={t.info}
-      paddingX={2}
-      opaque={true}
-    >
+    <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows }} width={width} top={Math.floor(rows / 2) - 5} borderColor={t.info} paddingX={2}>
       <Box height={1} flexShrink={0}>
         <Text bold color={t.info} wrap="truncate-end">
           FIRST BOOT — capacity check
@@ -2811,7 +2741,7 @@ function CapacityAskModal({
           esc keeps the default · asked once, never again
         </Text>
       </Box>
-    </Box>
+    </FloatingPopup>
   )
 }
 
@@ -2850,17 +2780,7 @@ function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = f
   const keyCol = Math.max(12, ...sections.flatMap(s => s.keys.map(k => displayWidth(keyHintLabel(k.keys)) + 1)))
   const width = 46 + (keyCol - 12)
   return (
-    <Box
-      position="absolute"
-      top={Math.max(1, Math.floor((rows - height) / 2))}
-      left={Math.max(0, Math.floor((cols - width) / 2))}
-      width={Math.min(width, cols)}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={t.info}
-      paddingX={2}
-      opaque={true}
-    >
+    <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows }} width={width} top={Math.floor((rows - height) / 2)} borderColor={t.info} paddingX={2}>
       <Box height={1} flexShrink={0}>
         <Text bold color={t.info} wrap="truncate-end">
           CONCOURSE — keys
@@ -2895,6 +2815,6 @@ function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = f
           esc close
         </Text>
       </Box>
-    </Box>
+    </FloatingPopup>
   )
 }

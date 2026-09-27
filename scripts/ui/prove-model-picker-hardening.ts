@@ -464,7 +464,7 @@ section('§8 the seams in source')
   check('the use record carries the door on the /model road too', (apply.match(/noteModelUse\(value, pick\.door\)/g) ?? []).length === 2)
   check('the preview card carries the pick to the apply road', wrapper.includes('applySelection(held.value, held.id, held.pick)') && wrapper.includes('setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })'))
   const config = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'Settings', 'Config.tsx'), 'utf8')
-  check('the picker sizes its panel from the slot it is mounted in, and both config doors hand the popup\'s inner width and rows through the modal context', picker.includes('const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })') && picker.includes('const panelWidth = panelWidthFor(slot.columns, MODEL_PICKER_PANEL)') && (config.match(/<ModalContext\.Provider value=\{\{ rows: contentHeight, columns: width, scrollRef: null \}\}>/g) ?? []).length === 2)
+  check('the picker sizes its panel from the slot it is mounted in, and both config doors hand the popup\'s inner width and rows through the modal context', picker.includes('const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })') && picker.includes('const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))') && (config.match(/<ModalContext\.Provider value=\{\{ rows: contentHeight, columns: width, scrollRef: null \}\}>/g) ?? []).length === 2)
 }
 
 rmSync(scratch, { recursive: true, force: true })

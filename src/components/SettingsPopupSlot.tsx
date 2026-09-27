@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Box, elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
@@ -11,6 +11,7 @@ import {
 } from '../utils/cockpit/settingsPopup.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
 import { Settings } from './Settings/Settings.js'
+import { FloatingPopup, POPUP_GUTTER, PopupGutter, popupGeometry, popupWidth } from './PopupGutter.js'
 
 export const SETTINGS_POPUP_CHROME_ROWS = 7
 export const SETTINGS_POPUP_MIN_WIDTH = 12
@@ -43,20 +44,14 @@ export function settingsPopupGeometry(
   hostLeft = 0,
   hostBand?: { top: number; rows: number },
 ): SettingsPopupPlacement {
-  const width = Math.min(request.width, Math.max(SETTINGS_POPUP_MIN_WIDTH, columns))
-  const left = hostLeft + Math.max(0, Math.floor((columns - width) / 2))
-  const ceiling = hostBand === undefined ? terminalRows : Math.min(terminalRows, hostBand.rows)
-  const rows =
-    request.rows === null
-      ? null
-      : Math.max(SETTINGS_POPUP_CHROME_ROWS + 1, Math.min(request.rows, ceiling))
-  const rowBudget = Math.max(1, (rows ?? terminalRows) - SETTINGS_POPUP_CHROME_ROWS)
-  const centred = rows === null ? null : centredTop(rows, terminalRows)
-  const top =
-    centred === null || hostBand === undefined
-      ? centred
-      : Math.max(hostBand.top, Math.min(centred, hostBand.top + hostBand.rows - (rows ?? 0)))
-  return { width, inner: width - 4, rowBudget, left, top, rows }
+  const host = { left: hostLeft, columns, top: hostBand?.top ?? 0, rows: hostBand?.rows ?? terminalRows }
+  const available = popupWidth(columns, columns)
+  const requestedWidth = typeof request.width === 'function' ? request.width(available) : request.width
+  const geometry = popupGeometry(host, { width: requestedWidth, rows: request.rows ?? host.rows })
+  const rows = request.rows === null ? null : geometry.rows
+  const rowBudget = Math.max(0, geometry.rows - SETTINGS_POPUP_CHROME_ROWS)
+  const top = rows === null ? null : popupGeometry(host, geometry, centredTop(rows, terminalRows)).top
+  return { width: geometry.width, inner: Math.max(0, geometry.width - 4), rowBudget, left: geometry.left, top, rows }
 }
 
 export function SettingsPopupSlot({
@@ -72,8 +67,6 @@ export function SettingsPopupSlot({
   const request = settingsPopupRequest()
   const open = settingsPopupVersion()
   const { columns, rows: terminalRows } = useTerminalSize()
-  const slotRef = useRef<DOMElement | null>(null)
-  const [measured, setMeasured] = useState<number | null>(null)
   const [host, setHost] = useState<SettingsPopupHost | null>(null)
   const hosted = overlay && hostRef !== undefined
   useLayoutEffect(() => {
@@ -81,13 +74,6 @@ export function SettingsPopupSlot({
     const element = hostRef?.current
     const next = (element ? settingsPopupHost(element, framed) : null) ?? { left: 0, columns }
     if (host === null || host.left !== next.left || host.columns !== next.columns || host.top !== next.top || host.rows !== next.rows) setHost(next)
-  })
-  useLayoutEffect(() => {
-    if (!overlay || request === null || request.rows !== null) return
-    const element = slotRef.current
-    if (!element) return
-    const { height } = measureElement(element)
-    if (height > 0 && height !== measured) setMeasured(height)
   })
   if (request === null) return null
   const placement = hosted ? host : null
@@ -109,11 +95,16 @@ export function SettingsPopupSlot({
       </Box>
     )
   }
-  const measuredTop = centredTop(measured ?? 0, terminalRows)
-  const top = geometry.top ?? (band === undefined ? measuredTop : Math.max(band.top, Math.min(measuredTop, band.top + band.rows - (measured ?? 0))))
-  return (
-    <Box ref={slotRef} position="absolute" top={top} left={geometry.left} width={geometry.width} flexDirection="column" flexShrink={0}>
+  const hostTop = band?.top ?? 0
+  const hostRows = band?.rows ?? terminalRows
+  if (geometry.rows === null) return (
+    <FloatingPopup host={{ left: placement?.left ?? 0, top: hostTop, columns: placement?.columns ?? columns, rows: hostRows }} width={geometry.width}>
       {shell}
-    </Box>
+    </FloatingPopup>
+  )
+  return (
+    <PopupGutter top={geometry.top ?? hostTop + POPUP_GUTTER} left={geometry.left} width={geometry.width} rows={Math.max(0, hostRows - 2 * POPUP_GUTTER)}>
+      {shell}
+    </PopupGutter>
   )
 }

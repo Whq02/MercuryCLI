@@ -100,10 +100,10 @@ function outsidePopupSame(before: string | undefined, after: string | undefined,
   const a = popupRegion(before, title)
   const b = popupRegion(after, title)
   if (a === null || b === null) return { same: false, detail: a === null ? 'no popup in the frame before the key' : 'no popup in the frame after the key' }
-  const top = Math.min(a.top, b.top)
-  const bottom = Math.max(a.bottom, b.bottom)
-  const left = Math.min(a.left, b.left)
-  const right = Math.max(a.right, b.right)
+  const top = Math.min(a.top, b.top) - 1
+  const bottom = Math.max(a.bottom, b.bottom) + 1
+  const left = Math.max(0, Math.min(a.left, b.left) - 1)
+  const right = Math.max(a.right, b.right) + 1
   const blanked = (frame: string | undefined): string[] =>
     rowsOf(frame).map((row, y) => (y >= top && y <= bottom ? row.slice(0, left) + ' '.repeat(Math.max(0, right - left + 1)) + row.slice(right + 1) : row))
   const xa = blanked(before)

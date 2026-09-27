@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const HOME = pinScratchHome('popup-gutter-frames')
@@ -12,6 +13,20 @@ Object.assign(process.env, {
 for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) process.env[base] = 'http://127.0.0.1:1'
 for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'NODE_ENV']) delete process.env[key]
 const arg = (key: string): string | undefined => process.argv.includes(key) ? process.argv[process.argv.indexOf(key) + 1] : undefined
+const sourceRef = arg('--source-ref')
+if (sourceRef) {
+  const root = join(import.meta.dir, '../..')
+  const changed = new Set(execFileSync('git', ['-C', root, 'diff', '--name-only', '--diff-filter=M', sourceRef, '--', 'src'], { encoding: 'utf8' }).trim().split('\n'))
+  const sources = new Map([...changed].filter(file => /\.tsx?$/.test(file)).map(file => [file, execFileSync('git', ['-C', root, 'show', `${sourceRef}:${file}`], { encoding: 'utf8' })]))
+  Bun.plugin({ name: 'versioned-popup-source', setup(build) {
+    for (const [file, contents] of sources) {
+      const path = join(root, file)
+      const filter = new RegExp(`^${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+      build.onLoad({ filter }, () => ({ contents, loader: file.endsWith('.tsx') ? 'tsx' : 'ts' }))
+    }
+  } })
+  console.log(`Rendering product source from ${sourceRef}; ${sources.size} changed modules restored in the loader`)
+}
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const manifest = JSON.parse(readFileSync(join(import.meta.dir, '../../design-system/live/manifest.json'), 'utf8')) as { entries: Array<{ scenario: string; cols: number; rows: number }> }
@@ -43,6 +58,8 @@ const files = await import('../../src/utils/cockpit/filesMenu.ts')
 const crew = await import('../../src/utils/cockpit/crewView.ts')
 const usageCommand = await import('../../src/commands/usage/usage.tsx')
 const configCommand = await import('../../src/commands/config/config.tsx')
+const statusCommand = await import('../../src/commands/status/mercuryStatus.tsx')
+const jevCommand = await import('../../src/commands/jev/jev.tsx')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
 const submodelsCommand = await import('../../src/commands/submodels/submodels.tsx')
 const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
@@ -120,6 +137,8 @@ const save = (name: string, lines: string[]): void => { if (frameDir) writeFileS
 const surfaces = [
   { name: 'usage', title: 'Mercury · usage', open: async () => { await usageCommand.call('', context) } },
   { name: 'config', title: 'Mercury · config', open: async () => { await configCommand.call('', context) } },
+  { name: 'status', title: 'Mercury · status', open: async () => { await statusCommand.call('', context) } },
+  { name: 'jev', title: 'Mercury · jev', open: async () => { await jevCommand.call('', context) } },
   { name: 'model', title: 'Mercury · model', open: async () => { setModal(await modelCommand.call(() => setModal(null), context, '')) } },
   { name: 'files', title: 'Mercury · files', open: async () => { files.openFilesMenu() } },
   { name: 'crew', title: 'Mercury — crew', open: async () => { crew.openCrewView() } },
@@ -159,6 +178,15 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
     check(`${surface.name} ${size}: the source surface opened`, opened, lines.filter(line => /Mercury|fault/i.test(line)).join(' | '))
     if (surfaces.includes(surface as typeof surfaces[number])) judge(`${surface.name} ${size}`, lines, surface.title, host, columns, rows)
     else check(`${surface.name} ${size}: the claims-modal sheet is not mistaken for a floating frame`, opened && lines.every(line => Array.from(line).length <= columns))
+    if (surface.name === 'jev') {
+      scene.push('\x1b[D')
+      await settle(180)
+      const changed = scene.lines()
+      save(`jev-flipped-${size}`, changed)
+      judge(`jev-flipped ${size}`, changed, surface.title, host, columns, rows)
+      const outside = (frame: string[]): string => frame.map((line, y) => Array.from(line.padEnd(columns)).map((c, x) => x >= host.left && x <= host.right && y >= host.top && y <= host.bottom ? ' ' : c).join('')).join('\n')
+      check(`jev-flipped ${size}: dynamic height never paints outside the view`, outside(lines) === outside(changed))
+    }
     await close(scene)
   }
   const dense = h(Text, null, Array.from({ length: rows }, () => 'T'.repeat(columns)).join('\n'))
@@ -181,8 +209,10 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
   boot.unmount()
   resetOverlayStackForTests()
 }
-const { concoursePopupFrames } = await import('./popupGutterConcourse.ts')
-await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, settle, waitFor, check, judge, save })
+if (!process.argv.includes('--session-only')) {
+  const { concoursePopupFrames } = await import('./popupGutterConcourse.ts')
+  await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, settle, waitFor, check, judge, save })
+}
 rmSync(HOME, { recursive: true, force: true })
-console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes × ${surfaces.length + sheets.length + 2} surfaces`)
+console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes; ${surfaces.length + sheets.length + 2} session/Boot surfaces plus 11 concourse surfaces and dynamic JEV growth`)
 process.exit(failures === 0 ? 0 : 1)

@@ -25,6 +25,10 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
   const capacity = await import('../../src/services/switchboard/capacityCheck.ts')
   let ask = false
   mock.module('../../src/services/switchboard/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))
+  const conversation = await import('../../src/services/concourse/coordinatorConversation.ts')
+  let manager = false
+  const plan = { goal: 'Fixture plan', lanes: [{ title: 'Fixture task', scope: 'read', deliverables: 'report', territory: 'fixture/**' }], seats: 'one', supervision: 'supervising', state: 'proposed' }
+  mock.module('../../src/services/concourse/coordinatorConversation.ts', () => ({ ...conversation, readCoordinatorConversation: async () => manager ? [{ id: 'fixture-plan', role: 'coordinator', text: 'Fixture plan', ts: 1, plan }] : [] }))
   const callbacks = new Proxy({}, { get: () => async () => undefined })
   type Snapshot = import('../../src/components/concourse/contracts.ts').ConcourseSnapshotV1
   const surfaces = [
@@ -37,18 +41,21 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
     { name: 'concourse-trust', title: 'UNTRUSTED FOLDER', door: 'trust' },
     { name: 'concourse-coordinator', title: 'COORDINATOR', door: 'coordinator' },
     { name: 'concourse-seat', title: "Past the machine's reading", door: 'seat' },
+    { name: 'concourse-manager-seat', title: "Past the machine's reading", door: 'manager' },
+    { name: 'concourse-git', title: 'Start a git repository', door: 'git' },
   ]
   for (const size of sizes) {
     const [columns, rows] = size.split('x').map(Number) as [number, number]
     for (const surface of surfaces) {
-      if (columns < 100 && ['coordinator', 'seat'].includes(surface.door)) continue
+      if (columns < 100 && ['coordinator', 'seat', 'manager'].includes(surface.door)) continue
+      manager = surface.door === 'manager'
       _resetConcourseCapsuleForTesting()
       resetChromeModeLatchForTests()
       resetOverlayStackForTests()
       ask = surface.door === 'capacity'
       saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 1, allowed: false, recommendedSeats: 1 } }))
       const snapshot = referenceFixtureSnapshot() as unknown as Snapshot
-      snapshot.needsYou = []
+      snapshot.needsYou = surface.door === 'git' ? [{ ...snapshot.needsYou[0]!, obligationId: 'fixture-git', sessionId: 'folder:/fixture', ref: 'permission:git-init:fixture' }] : []
       snapshot.counts.live = 4
       snapshot.coordinator = { mode: 'rules-only' }
       const row = snapshot.groups.flatMap(g => g.rows)[0]!
@@ -67,12 +74,17 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
       if (surface.door === 'atlas') scene.push('?')
       if (surface.door === 'coordinator') scene.push('\x13')
       if (surface.door === 'seat') { scene.push('a fixture dispatch'); await settle(40); scene.push('\r') }
+      if (surface.door === 'manager') {
+        scene.push('\x1b[Z')
+        await waitFor(() => scene.screen().includes("The manager's plan"), 4000)
+        scene.push('\r')
+      }
       const opened = await waitFor(() => scene.screen().includes(surface.title), 4000)
       await settle(100)
       const lines = scene.lines()
       save(`${surface.name}-${size}`, lines)
       check(`${surface.name} ${size}: the source popup opened`, opened, lines.filter(line => /fault|refused|COORDINATOR/.test(line)).join(' | '))
-      if (surface.door === 'coordinator' && columns >= 120) check(`${surface.name} ${size}: the wide coordinator is an inline pane, not a floating box`, opened)
+      if (['coordinator', 'git'].includes(surface.door) && columns >= 120) check(`${surface.name} ${size}: the wide coordinator is an inline pane, not a floating box`, opened)
       else judge(`${surface.name} ${size}`, lines, surface.title, { left: 0, right: columns - 1, top: 0, bottom: rows - 1 }, columns, rows)
       scene.unmount()
     }

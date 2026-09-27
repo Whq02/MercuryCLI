@@ -6,6 +6,7 @@ import { Box, Text, useInput, wrapText } from '../ink.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { fitMeasuredWindow, paneWindow, panelWidth as panelWidthFor, type PaneWindow } from './mercury-ui/geometry.js'
 import { useModalOrTerminalSize } from '../context/modalContext.js'
+import { PopupFrameContext } from './PopupGutter.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -172,7 +173,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   )
   const { columns: cols, rows: termRows } = useTerminalSize()
   const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })
-  const panelWidth = panelWidthFor(slot.columns, MODEL_PICKER_PANEL)
+  const popup = React.useContext(PopupFrameContext)
+  const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))
   const inner = panelWidth - 4
   const columns = pickerColumns(inner - 4)
   const totalLines = lines.length

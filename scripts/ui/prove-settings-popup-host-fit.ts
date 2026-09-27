@@ -122,6 +122,10 @@ function painted(before: string[], after: string[]): Painted | null {
     right = Math.max(right, last)
   }
   if (top === -1) return null
+  left++
+  right--
+  top++
+  bottom--
   const ragged: number[] = []
   for (let y = top; y <= bottom; y++) {
     const row = Array.from(after[y] ?? '')
@@ -189,7 +193,7 @@ function untouched(before: string[], after: string[], from: number, to: number, 
 
 function judge(label: string, scene: Scene, paint: Painted | null, before: string[], after: string[], requested: number): void {
   const centre = centreOf(scene)
-  const want = Math.min(requested, centre.innerWidth)
+  const want = Math.min(requested, centre.innerWidth - 2)
   check(`${label}: the popup painted`, paint !== null)
   if (paint === null) return
   const width = paint.right - paint.left + 1
@@ -267,9 +271,9 @@ section('§5 the geometry, pure, and the layout wiring')
   const g = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 116, 51, 31)
   check('a 116-column host at column 31: width 110, left 34, inner 106', g.width === 110 && g.left === 34 && g.inner === 106, JSON.stringify(g))
   const wide = slot.settingsPopupGeometry({ width: 150, rows: 29 }, 116, 51, 31)
-  check('a 150-column request in a 116-column host clamps to 116 at column 31, inner 112', wide.width === 116 && wide.left === 31 && wide.inner === 112, JSON.stringify(wide))
+  check('a 150-column request in a 116-column host leaves gutters: 114 at column 32, inner 110', wide.width === 114 && wide.left === 32 && wide.inner === 110, JSON.stringify(wide))
   const narrow = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 100, 51, 25)
-  check('a 100-column host at column 25 clamps to 100 at column 25', narrow.width === 100 && narrow.left === 25, JSON.stringify(narrow))
+  check('a 100-column host at column 25 leaves gutters: 98 at column 26', narrow.width === 98 && narrow.left === 26, JSON.stringify(narrow))
   const whole = slot.settingsPopupGeometry({ width: 110, rows: 44 }, 178, 51)
   check('no host: the terminal is the host, left 34 as before', whole.width === 110 && whole.left === 34 && whole.top === 4, JSON.stringify(whole))
   check('the rows stay the terminal\'s: 44 from row 4 at 51 rows', g.rows === 44 && g.top === 4 && g.rowBudget === 37, JSON.stringify(g))

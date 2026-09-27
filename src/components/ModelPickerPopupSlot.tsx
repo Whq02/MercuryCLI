@@ -1,15 +1,14 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useState } from 'react'
-import { Box, elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
+import { elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { ModalContext } from '../context/modalContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { claimModelPickerPopup, releaseModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
-import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { MODEL_PICKER_PANEL } from '../utils/model/modelPickerGroups.js'
 import { panelWidth } from './mercury-ui/geometry.js'
-import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { modelPickerCentred } from './MercuryModelPicker.js'
+import { PopupGutter, popupGeometry } from './PopupGutter.js'
 
 export const MODEL_PICKER_POPUP_MIN_ROWS = 10
 export const MODEL_PICKER_POPUP_SPARE_ROWS = 7
@@ -28,17 +27,11 @@ export function modelPickerPopupHost(element: DOMElement, framed: boolean): Mode
 }
 
 export function modelPickerPopupGeometry(host: ModelPickerPopupHost, terminalRows: number, centred = true): ModelPickerPopupGeometry {
-  const width = Math.min(host.columns, panelWidth(host.columns, MODEL_PICKER_PANEL))
+  const width = panelWidth(host.columns, MODEL_PICKER_PANEL)
   const budget = Math.max(MODEL_PICKER_POPUP_MIN_ROWS, terminalRows - MODEL_PICKER_POPUP_SPARE_ROWS)
-  const top = Math.max(host.top, Math.floor((terminalRows - budget) / 2))
-  const rows = Math.max(MODEL_PICKER_POPUP_MIN_ROWS, Math.min(budget, host.top + host.rows - top))
-  return {
-    left: host.left + (centred ? Math.max(0, Math.floor((host.columns - width) / 2)) : 0),
-    top,
-    width,
-    rows,
-    columns: host.columns,
-  }
+  const preferredTop = Math.max(host.top + 1, Math.floor((terminalRows - budget) / 2))
+  const rows = Math.max(0, Math.min(budget, host.top + host.rows - 1 - preferredTop))
+  return { ...popupGeometry(host, { width, rows }, preferredTop, centred), columns: host.columns }
 }
 
 export function ModelPickerPopupLease({ children }: { children: React.ReactNode }): React.ReactNode {
@@ -61,7 +54,6 @@ export function ModelPickerPopupSlot({
   children: React.ReactNode
 }): React.ReactNode {
   const { columns, rows: terminalRows } = useTerminalSize()
-  const tokens = useMercuryTokens()
   const [host, setHost] = useState<ModelPickerPopupHost | null>(null)
   useLayoutEffect(() => {
     const element = hostRef.current
@@ -70,21 +62,11 @@ export function ModelPickerPopupSlot({
   })
   if (host === null) return null
   const geometry = modelPickerPopupGeometry(host, terminalRows, modelPickerCentred())
-  const ground = estateGroundBg(tokens)
   return (
-    <Box
-      position="absolute"
-      top={geometry.top}
-      left={geometry.left}
-      width={geometry.width}
-      flexDirection="column"
-      flexShrink={0}
-      opaque={true}
-      {...(ground !== undefined ? { backgroundColor: ground } : {})}
-    >
+    <PopupGutter {...geometry}>
       <ModalContext.Provider value={{ rows: geometry.rows, columns: geometry.columns, scrollRef }}>
         {children}
       </ModalContext.Provider>
-    </Box>
+    </PopupGutter>
   )
 }

@@ -18,6 +18,7 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js'
+import { PopupFrameContext } from '../PopupGutter.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
@@ -122,7 +123,9 @@ export function CommandCenter({
     Math.max(0, cols - 4),
   )
   const insideModal = useIsInsideModal()
-  const { isCompact } = useLayoutChrome()
+  const chrome = useLayoutChrome()
+  const popup = React.useContext(PopupFrameContext)
+  const isCompact = chrome.isCompact && popup === null
   const termRows = useTerminalSize().rows
   const slotRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
   const compactHeaderRows = slotRows > 1 ? 1 : 0

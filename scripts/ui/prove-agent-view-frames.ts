@@ -359,7 +359,7 @@ async function crewHeightRows(view: Scene, size: Size, mark: string): Promise<vo
   const viewLeft = cells(lines[0] ?? '').indexOf('╭')
   const viewBottom = lines.findIndex((line, row) => row > 0 && cells(line)[viewLeft] === '╰')
   const viewRows = window === null ? 0 : viewBottom - window.top
-  const viewBudget = Math.min(budget, viewRows)
+  const viewBudget = Math.min(budget, viewRows - 1)
   console.log(`the crew window mid-list: ${describe(window)} · the view's bottom border row ${viewBottom} · the Boot face's ${budget} rows against the view's ${viewRows} inner rows from the window's top · the composer's input row ${composer}`)
   check(`the crew window's height is the view's budget at ${size.columns}x${size.rows} (${viewBudget}: the lesser of the Boot face's ${budget} and the view's ${viewRows} inner rows from the window's top)`, window !== null && window.height === viewBudget, window === null ? 'no closed window' : `crew ${window.height}`)
   check(`the crew window ends above the view's bottom border (row ${viewBottom}) and the composer's input row (row ${composer})`, window !== null && viewBottom > 0 && window.bottom < viewBottom && composer > window.bottom, window === null ? 'no closed window' : `window bottom ${window.bottom}`)
