@@ -310,7 +310,7 @@ export function setSubModel(
   }))
   return {
     ok: true,
-    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — live on the next side question`,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — ${container === 'advisor' ? 'live on the next note' : 'live on the next side question'}`,
   }
 }
 

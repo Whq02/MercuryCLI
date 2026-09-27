@@ -1,7 +1,7 @@
 import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../bootstrap/state.js'
 import { formatLaneSpend } from '../../utils/spendSpelling.js'
 import { formatTokens } from '../../utils/format.js'
-import { WORKLOAD_CRON } from '../../utils/workloadContext.js'
+import { WORKLOAD_ADVISOR, WORKLOAD_CRON } from '../../utils/workloadContext.js'
 import {
   getAnthropicApiKey,
   getAuthTokenSource,
@@ -81,6 +81,7 @@ export interface ProviderSessionSpend {
   models: number
   pricing?: { estimatedModels: number; unpricedModels: number; unpricedTurns: number }
   scheduled?: ProviderSessionSpend
+  advisor?: ProviderSessionSpend
 }
 
 export interface ProviderUsageView {
@@ -228,6 +229,8 @@ function spendForRoute(route: RouterProviderId | 'unrecognised'): ProviderSessio
   const spend = spendOf(getModelUsage(), getUnpricedTurns(), admit)
   const scheduled = spendOf(scheduledUsage(), scheduledUnpricedTurns(), admit)
   if (scheduled.models > 0) spend.scheduled = scheduled
+  const advisor = spendOf(advisorUsage(), advisorUnpricedTurns(), admit)
+  if (advisor.models > 0) spend.advisor = advisor
   return spend
 }
 
@@ -239,8 +242,28 @@ function scheduledUnpricedTurns(): { [modelName: string]: number } {
   return getWorkloadUnpricedTurns()[WORKLOAD_CRON] ?? {}
 }
 
+function advisorUsage(): { [modelName: string]: ModelUsage } {
+  return getWorkloadUsage()[WORKLOAD_ADVISOR] ?? {}
+}
+
+function advisorUnpricedTurns(): { [modelName: string]: number } {
+  return getWorkloadUnpricedTurns()[WORKLOAD_ADVISOR] ?? {}
+}
+
 export function scheduledSessionSpend(): ProviderSessionSpend {
   return spendOf(scheduledUsage(), scheduledUnpricedTurns(), () => true)
+}
+
+export function advisorSessionSpend(): ProviderSessionSpend {
+  return spendOf(advisorUsage(), advisorUnpricedTurns(), () => true)
+}
+
+export const ADVISOR_WORK_WORD = 'advisor'
+
+export function advisorUsageLine(): string | null {
+  const spend = advisorSessionSpend()
+  if (spend.models === 0) return null
+  return `${ADVISOR_WORK_WORD} ${formatTokens(spend.inputTokens + spend.outputTokens)} spent · ${formatLaneSpend(spend)}`
 }
 
 export const SCHEDULED_WORK_WORD = 'scheduled'

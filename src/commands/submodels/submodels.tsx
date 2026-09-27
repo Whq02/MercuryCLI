@@ -32,8 +32,8 @@ function SubModelsSurface({
   return (
     <CommandCenter
       view="submodels"
-      subtitle="the Console's model"
-      footer="↑↓ browse · ↵ select / sign in · e effort · esc close"
+      subtitle="the Console's and the Advisor's models"
+      footer="↑↓ browse · ↵ select / sign in · e effort · tab container · esc close"
       onClose={close}
       captureInput={false}
       closeKeys="esc"

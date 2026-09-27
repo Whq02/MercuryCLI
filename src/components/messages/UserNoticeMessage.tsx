@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { NoticeBlock } from '../../utils/messages/noticeRows.js'
-import { noticePlate } from '../../utils/messages/noticeRows.js'
+import { isMutedNoticeBlock, noticePlate } from '../../utils/messages/noticeRows.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { NameplateClock, useMessageMeta } from './TranscriptNameplate.js'
 
@@ -24,10 +24,10 @@ export function UserNoticeMessage({
         <Box key={index} flexDirection="column">
           <Text>
             {index === 0 ? <NameplateClock /> : <Text>{CLOCK_COLUMN}</Text>}
-            {block.kind === 'saturn' ? null : <Text color={accent}>● </Text>}
+            {isMutedNoticeBlock(block) ? null : <Text color={accent}>● </Text>}
             <Text dimColor>
               {noticePlate(block, meta?.timestamp)}
-              {index === 0 && block.kind !== 'saturn' && completedAt ? ` · completed ${completedAt}` : ''}
+              {index === 0 && !isMutedNoticeBlock(block) && completedAt ? ` · completed ${completedAt}` : ''}
             </Text>
           </Text>
           {block.lines.map((line, at) => (

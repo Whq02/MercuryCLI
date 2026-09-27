@@ -79,8 +79,8 @@ const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
-type Container = 'console'
-const CONTAINERS: Container[] = ['console']
+type Container = 'console' | 'advisor'
+const CONTAINERS: Container[] = ['console', 'advisor']
 
 const GPT_ROWS = [
   { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'], default_reasoning_level: 'low' },
@@ -222,11 +222,14 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
           JSON.stringify(strip),
         )
       } else {
-        const why = !truth.supportsEffort ? 'no effort control' : 'UNEXPLAINED'
-        check(`${container} · ${model}: no strip — ${why}; the receipt names the model`, why !== 'UNEXPLAINED' && strip.receipt.includes(model), JSON.stringify(strip))
+        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' || truth.flooredBy === 'thinking-off' ? 'the dial is the reasoning dial and this container calls with thinking off' : 'UNEXPLAINED'
+        check(`${container} · ${model}: no strip — ${why}; the receipt names the model`, why !== 'UNEXPLAINED' && strip.receipt.includes(model) && (why === 'no effort control' || (container === 'advisor' && strip.receipt.includes('Advisor calls with thinking off'))), JSON.stringify(strip))
       }
     }
   }
+  check("the advisor container's call context is thinking off (its one-shot note call), the console's the session's (red on the base: one context for every container)", JSON.stringify(slots.subModelEffortContext('advisor')) === JSON.stringify({ thinkingEnabled: false }) && JSON.stringify(slots.subModelEffortContext('console')) === JSON.stringify({}), JSON.stringify([slots.subModelEffortContext('advisor'), slots.subModelEffortContext('console')]))
+  const thinkingDial = roster.find(model => { const truth = effort.resolveEffortTruth(model, undefined, { thinkingEnabled: false }); return truth.supportsEffort && (truth.suppressedBy === 'thinking-off' || truth.flooredBy === 'thinking-off') })
+  check('a model whose effort dial is its reasoning dial answers the advisor with the thinking-off receipt, and the console with its levels', thinkingDial !== undefined && slots.subModelEffortStrip('advisor', thinkingDial).kind === 'none' && slots.subModelEffortStrip('console', thinkingDial).kind === 'levels', JSON.stringify({ thinkingDial, advisor: thinkingDial === undefined ? null : slots.subModelEffortStrip('advisor', thinkingDial) }))
   for (const model of roster) {
     const supports = effort.resolveEffortTruth(model, undefined).supportsEffort
     const console_ = slots.subModelEffortStrip('console', model).kind
