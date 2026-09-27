@@ -354,11 +354,10 @@ async function drive(size: string): Promise<void> {
       { requireAwait: true, awaitText: KEYS, ...(step.pattern === '' ? {} : { awaitPattern: step.pattern }), awaitStableTicks: 3, mark: step.mark, data: step.key },
       ...(step.mark === 'step4-pull' ? [{ requireAwait: true, awaitText: 'pulling', awaitPattern: 'pulling [0-9a-f]{6,}|\\d+%', awaitSettleTicks: 1, mark: 'step4-pull-midway', data: '' }] : []),
     ]),
-    { requireAwait: true, awaitText: `ready · ${MODEL_ID}`, awaitStableTicks: 3, mark: 'step6-ready', data: ESC },
+    { requireAwait: true, awaitText: `ready · ${MODEL_ID}`, awaitPattern: `ready · ${MODEL_ID.replace(/[.]/g, '\\.')} · \\d+k window · reply in`, awaitStableTicks: 3, mark: 'step6-ready', data: ESC },
     { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-esc', data: FOLLOW_UP },
     { requireAwait: true, awaitText: FOLLOW_UP, awaitSettleTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: REPLY_NEEDLE, awaitStableTicks: 3, mark: 'reply', data: '/exit\r' },
-    { afterPrevTicks: 5, data: '' },
   ]
   const c = await capture(world, sends, 600)
   saveFrames(world, c)

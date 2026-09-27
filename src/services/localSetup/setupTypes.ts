@@ -55,6 +55,13 @@ export interface SessionModelSlice {
 export type SessionModelUpdater = <S extends SessionModelSlice>(prev: S) => S
 export type SessionModelSetter = (updater: SessionModelUpdater) => void
 
+export type SessionSwitchReceipt = { state: 'applied'; note?: string } | { state: 'queued' } | { state: 'no-op' } | { state: 'refused'; detail: string }
+
+export interface SessionModelDoor {
+  readonly carrier: 'in-process' | 'daemon'
+  setModel(setting: string | null): Promise<SessionSwitchReceipt>
+}
+
 export interface SetupIo {
   env?: NodeJS.ProcessEnv
   platform?: NodeJS.Platform
@@ -76,6 +83,7 @@ export interface SetupIo {
   parallelSlots?: number
   cacheType?: string
   writeWindow?: (tag: string, window: number) => void
+  focusedConnector?: () => SessionModelDoor
   setAppState?: SessionModelSetter
   persist?: (setting: string) => { sentence: string }
 }
@@ -177,7 +185,9 @@ export interface ProveResult {
   model: string
   wireId: string
   server: LocalServerKind
-  settled: 'applied' | 'queued' | 'no-op' | 'cancelled-pending' | 'unavailable'
+  settled: 'applied' | 'queued' | 'no-op' | 'cancelled-pending' | 'refused' | 'unavailable'
+  settledBy: 'daemon' | 'in-process' | 'none'
+  settledDetail?: string
   saved: string
   ok: boolean
   firstLine: string

@@ -5,8 +5,8 @@ import { ollamaChatBody, ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs }
 import { streamCompatChat, type CompatChatRequest, type CompatStreamEvent, type CompatStreamOptions } from '../providers/openaicompat/compatChatClient.js'
 import { tokensWords } from '../localServer/localServerMemory.js'
 import { settleModelSelection, type SettledSelection } from '../../utils/model/modelTransition.js'
-import { rec, resolveSetupIo, seconds } from './setupIo.js'
-import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelSlice, type SetupIo } from './setupTypes.js'
+import { rec, resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
+import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelDoor, type SessionModelSlice, type SessionSwitchReceipt, type SetupIo } from './setupTypes.js'
 
 export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind }
 
@@ -116,6 +116,34 @@ export function proveTimingWords(t: ProveTimings): string {
   return parts.join(' · ')
 }
 
+export type SessionSwitch = Pick<ProveResult, 'settled' | 'settledBy' | 'settledDetail'>
+
+export async function switchSessionModel(model: string, io: Pick<ResolvedSetupIo, 'focusedConnector' | 'setAppState'>): Promise<SessionSwitch> {
+  let focused: SessionModelDoor | undefined
+  try {
+    focused = io.focusedConnector()
+  } catch (error) {
+    return { settled: 'refused', settledBy: 'none', settledDetail: `no session door: ${error instanceof Error ? error.message : String(error)}` }
+  }
+  if (focused.carrier === 'daemon') {
+    let receipt: SessionSwitchReceipt
+    try {
+      receipt = await focused.setModel(model)
+    } catch (error) {
+      return { settled: 'refused', settledBy: 'daemon', settledDetail: error instanceof Error ? error.message : String(error) }
+    }
+    if (receipt.state === 'refused') return { settled: 'refused', settledBy: 'daemon', settledDetail: receipt.detail }
+    return { settled: receipt.state, settledBy: 'daemon', ...(receipt.state === 'applied' && receipt.note !== undefined ? { settledDetail: receipt.note } : {}) }
+  }
+  if (!io.setAppState) return { settled: 'unavailable', settledBy: 'none', settledDetail: 'the in-process engine has no state setter here' }
+  let landed: SettledSelection = { kind: 'no-op', patch: null, receipt: null }
+  io.setAppState(<S extends SessionModelSlice>(prev: S): S => {
+    landed = settleModelSelection(prev, model, { turnActive: prev.foregroundTurnActive || prev.pendingModelSwitch !== null })
+    return landed.patch ? { ...prev, ...landed.patch } : prev
+  })
+  return { settled: landed.kind, settledBy: 'in-process' }
+}
+
 export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<ProveResult> {
   const io = resolveSetupIo(seam)
   const started = io.now()
@@ -123,19 +151,12 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
   const record = proveRecordFor(tag, seam.root, seam.server)
   if (!record) {
     const model = `${LOCAL_MODEL_PREFIX}${tag}`
-    return { model, wireId: tag, server: seam.server ?? 'ollama', settled: 'unavailable', saved: '', ok: false, firstLine: '', fault: `${tag} is not listed by any local server`, timings: { totalMs: io.now() - started }, words: `${tag} is not listed by any local server` }
+    return { model, wireId: tag, server: seam.server ?? 'ollama', settled: 'unavailable', settledBy: 'none', settledDetail: `${tag} is not listed by any local server`, saved: '', ok: false, firstLine: '', fault: `${tag} is not listed by any local server`, timings: { totalMs: io.now() - started }, words: `${tag} is not listed by any local server` }
   }
   const model = setupModelIdOf(record.id, record.server)
-  let settled: ProveResult['settled'] = 'unavailable'
-  if (io.setAppState) {
-    let landed: SettledSelection = { kind: 'no-op', patch: null, receipt: null }
-    io.setAppState(<S extends SessionModelSlice>(prev: S): S => {
-      landed = settleModelSelection(prev, model, { turnActive: prev.foregroundTurnActive || prev.pendingModelSwitch !== null })
-      return landed.patch ? { ...prev, ...landed.patch } : prev
-    })
-    settled = landed.kind
-  }
-  const saved = io.persist(model).sentence
+  const switched = await switchSessionModel(model, io)
+  const settled = switched.settled
+  const saved = switched.settled === 'refused' ? '' : io.persist(model).sentence
   const request = proveRequestOf(record)
   const timings: ProveTimings = { totalMs: 0 }
   let doneRow: Record<string, unknown> | undefined
@@ -188,6 +209,8 @@ export async function pickAndProve(tag: string, seam: ProveIo = {}): Promise<Pro
     wireId: record.id,
     server: record.server,
     settled,
+    settledBy: switched.settledBy,
+    ...(switched.settledDetail !== undefined ? { settledDetail: switched.settledDetail } : {}),
     saved,
     ok,
     firstLine,

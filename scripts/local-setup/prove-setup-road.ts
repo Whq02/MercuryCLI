@@ -201,6 +201,28 @@ type Machine = {
   onExec?: (file: string, args: string[]) => setup.ExecResult | undefined
 }
 
+const IN_PROCESS_DOOR: setup.SessionModelDoor = {
+  carrier: 'in-process',
+  setModel: async () => {
+    throw new Error('the in-process door is never asked to set a model: the state setter settles it')
+  },
+}
+
+type DaemonDoor = setup.SessionModelDoor & { asked: string[]; answer: setup.SessionSwitchReceipt }
+
+function daemonDoor(answer: setup.SessionSwitchReceipt = { state: 'applied' }): DaemonDoor {
+  const door: DaemonDoor = {
+    carrier: 'daemon',
+    asked: [],
+    answer,
+    setModel: async setting => {
+      door.asked.push(String(setting))
+      return door.answer
+    },
+  }
+  return door
+}
+
 function machineIo(m: Machine, fx: Fixture | undefined, extra: Partial<setup.SetupIo> = {}): setup.SetupIo {
   return {
     env: { PATH: '/nowhere', ...(fx ? { MERCURY_LOCAL_PROBE_TARGETS: `ollama=${fx.root}` } : {}), ...(extra.env ?? {}) },
@@ -223,6 +245,7 @@ function machineIo(m: Machine, fx: Fixture | undefined, extra: Partial<setup.Set
     },
     totalMemoryBytes: 51539607552,
     parallelSlots: 1,
+    focusedConnector: () => IN_PROCESS_DOOR,
     ...extra,
   }
 }
@@ -457,7 +480,68 @@ section('§6 step 6: the model is set through /model\'s road and one bounded nat
   const queued = await setup.pickAndProve(TAG, { ...io, setAppState: updater => Object.assign(busy, updater(busy)) })
   check('a running turn queues the switch, as /model does', queued.settled === 'queued' && busy.pendingModelSwitch?.setting === 'local/qwen3.5:9b' && busy.mainLoopModel === 'claude-fixture', JSON.stringify(busy))
   const headless = await setup.pickAndProve(TAG, { ...io, setAppState: undefined })
-  check('with no store the settle is unavailable and the setting is still saved', headless.settled === 'unavailable' && headless.ok && persisted.length === 3)
+  check('with no store the settle is unavailable and the setting is still saved', headless.settled === 'unavailable' && headless.settledBy === 'none' && headless.ok && persisted.length === 3)
+  check('the in-process legs above went through the state setter, never a door', proved.settledBy === 'in-process' && queued.settledBy === 'in-process')
+  await fx.close()
+}
+
+section('§6b the session door: a daemon-carried session switches through its connector\'s setModel, as /model does — never the screen\'s state')
+{
+  const fx = await fixtureOllama()
+  fx.state.up = true
+  fx.state.listed = [TAG]
+  const untouched: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  let stateSets = 0
+  const persisted: string[] = []
+  const door = daemonDoor()
+  const io: setup.ProveIo = {
+    ...machineIo(bareMachine(), fx, {
+      focusedConnector: () => door,
+      setAppState: updater => {
+        stateSets++
+        Object.assign(untouched, updater(untouched))
+      },
+      persist: setting => (persisted.push(setting), { sentence: ' · saved as your default' }),
+    }),
+    root: fx.root,
+    server: 'ollama',
+  }
+  const applied = await setup.pickAndProve(TAG, io)
+  check('the daemon door was asked to set local/qwen3.5:9b, once', door.asked.join(',') === 'local/qwen3.5:9b', JSON.stringify(door.asked))
+  check('the receipt is the daemon\'s word: applied, by the daemon', applied.settled === 'applied' && applied.settledBy === 'daemon' && applied.settledDetail === undefined, JSON.stringify({ settled: applied.settled, by: applied.settledBy }))
+  check('the screen\'s state was never settled (the session owns the model)', stateSets === 0 && untouched.mainLoopModel === 'claude-fixture' && untouched.pendingModelSwitch === null, JSON.stringify(untouched))
+  check('the choice is persisted after an applied receipt, as /model persists it', persisted.join(',') === 'local/qwen3.5:9b' && applied.saved === ' · saved as your default')
+  check('the turn still ran and answered ready', applied.ok && applied.firstLine === 'ready' && fx.hits.filter(h => h.url === '/api/chat').length === 1)
+  door.answer = { state: 'queued' }
+  const queued = await setup.pickAndProve(TAG, io)
+  check('a busy session answers queued, and the choice is still saved', queued.settled === 'queued' && queued.settledBy === 'daemon' && persisted.length === 2)
+  door.answer = { state: 'applied', note: 'runner had exited — restarted on local/qwen3.5:9b' }
+  const noted = await setup.pickAndProve(TAG, io)
+  check('an applied receipt with a note carries the note as the settle detail', noted.settled === 'applied' && noted.settledDetail === 'runner had exited — restarted on local/qwen3.5:9b')
+  door.answer = { state: 'no-op' }
+  const same = await setup.pickAndProve(TAG, io)
+  check('already on the model answers no-op', same.settled === 'no-op' && same.settledBy === 'daemon')
+  door.answer = { state: 'refused', detail: 'no chat is open' }
+  const refused = await setup.pickAndProve(TAG, io)
+  check('a refusal is the receipt\'s word and nothing is persisted (the /model law)', refused.settled === 'refused' && refused.settledBy === 'daemon' && refused.settledDetail === 'no chat is open' && refused.saved === '' && persisted.length === 4, JSON.stringify({ refused: refused.settled, detail: refused.settledDetail, persisted }))
+  check('a refused switch still proves the model (the reply is the server\'s fact, the switch is the session\'s)', refused.ok && refused.firstLine === 'ready')
+  const throwing: setup.SessionModelDoor = {
+    carrier: 'daemon',
+    setModel: async () => {
+      throw new Error('the daemon is not answering')
+    },
+  }
+  const thrown = await setup.pickAndProve(TAG, { ...io, focusedConnector: () => throwing })
+  check('a door that throws is a refusal in its own words, never a crash', thrown.settled === 'refused' && thrown.settledDetail === 'the daemon is not answering' && thrown.saved === '')
+  const noDoor = await setup.pickAndProve(TAG, {
+    ...io,
+    focusedConnector: () => {
+      throw new Error('no connector here')
+    },
+  })
+  check('a seam that cannot resolve a door refuses too', noDoor.settled === 'refused' && noDoor.settledBy === 'none' && (noDoor.settledDetail ?? '').startsWith('no session door'))
+  const bare = await setup.switchSessionModel('local/qwen3.5:9b', { focusedConnector: () => door })
+  check('switchSessionModel alone: the daemon arm needs no state setter', bare.settled === 'refused' && door.asked.length === 6, JSON.stringify(bare))
   await fx.close()
 }
 
@@ -518,11 +602,13 @@ section('§9 the road end to end: install offered, run through the seam, then st
     }
     return undefined
   }
-  const slice: setup.SessionModelSlice = { mainLoopModel: null, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
-  const io = machineIo(m, fx, { setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }), realpath: p => p })
+  const slice: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const door = daemonDoor()
+  const io = machineIo(m, fx, { focusedConnector: () => door, setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }), realpath: p => p })
   const { events, summary } = await walk(() => 'run', io)
   const shape = stepEvents(events)
   check('the walk: 1 · 2 (none) · 2b (brew install) · 3 (brew services start) · 4 (pull) · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 2b | result 2b ran | step 3 | result 3 ran | step 4 | result 4 ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
+  check('on a daemon-carried session the road switches through the session door, not the screen state', door.asked.join(',') === 'local/qwen3.5:9b' && slice.mainLoopModel === 'claude-fixture', JSON.stringify({ asked: door.asked, slice }))
   const step2b = events.find((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step' && e.plan.label === '2b')!
   check('step 2b shows the documented command verbatim and no sudo on darwin', step2b.plan.willRun === 'brew install ollama' && !step2b.plan.needsSudo && step2b.plan.found.includes('ollama not found'), JSON.stringify(step2b.plan))
   check('the install ran through the exec seam as sh -c', m.execs.some(e => e.file === '/bin/sh' && e.args[1] === 'brew install ollama'))
@@ -536,6 +622,8 @@ section('§9 the road end to end: install offered, run through the seam, then st
   check('the window row says the figures', result5.result.lastLine === '256k · 6.1 GiB weights + 8.0 GiB cache of 43.2 GiB usable (48.0 GiB box)', result5.result.lastLine)
   const result6 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '6')!
   check('the prove row carries the timings', result6.result.lastLine.startsWith('load 5.2 s · ingest 14 tokens in 0.3 s (47 tok/s) · reply 2 tokens in 0.2 s · total '), result6.result.lastLine)
+  const detail6 = result6.result.detail as setup.ProveResult | undefined
+  check('step 6\'s result detail carries the daemon\'s settle word for the dialog\'s row', detail6 !== undefined && 'settled' in detail6 && detail6.settled === 'applied' && detail6.settledBy === 'daemon', JSON.stringify(detail6 === undefined ? undefined : { settled: detail6.settled, settledBy: detail6.settledBy }))
   check('the summary is the ready row', summary.reason === 'finished' && summary.ran.join(',') === '1,2,2b,3,4,5,6' && summary.ready?.words.startsWith('ready · local/qwen3.5:9b · 256k window · reply in ') === true, summary.words)
   check('the order of the server calls: probe, version wait, pull, tags+show, chat — never a load', fx.hits.filter(h => h.url === '/api/pull').length === 1 && fx.hits.filter(h => h.url === '/api/chat').length === 1 && !fx.hits.some(h => h.url === '/api/generate'), JSON.stringify(fx.hits.map(h => h.url)))
   await fx.close()
