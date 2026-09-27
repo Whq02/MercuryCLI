@@ -228,10 +228,15 @@ it, pulls `qwen3.5:9b`, sets the window from this machine's memory and ends
 with the model picked and a reply proven, each step asking before it runs
 ([LOCAL-SETUP.md](LOCAL-SETUP.md)). The lane is verified
 against a live Ollama for discovery, streamed text, streamed reasoning and
-multi-round tool loops; the sub-agent dispatch, search-door and SATURN-fire
-legs remain operator-deferred drill lines. The Hugging Face lane carries an
-explicit deferred-live caveat in its readiness detail until verified against
-a live endpoint.
+multi-round tool loops, and against a live llama.cpp (2026-09-27, Qwen3.5 9B
+served as `qwen3.5:9b`, server build b11146) for the same three legs —
+discovery with the served window read from `/props`, a streamed reply with
+its reasoning block, and a tool loop that also dispatched a crewmate and a
+workflow agent on the model. LM Studio is unverified until its server is run
+through the same three legs; vLLM is unverified — it needs a Linux box with
+an NVIDIA card. The search-door and SATURN-fire legs remain operator-deferred
+drill lines. The Hugging Face lane carries an explicit deferred-live caveat
+in its readiness detail until verified against a live endpoint.
 
 On the local lane no watchdog cuts a request while the server answers. The
 first-byte budget there is a promise the status row speaks, not a deadline:
