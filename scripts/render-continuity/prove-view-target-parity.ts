@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -10,7 +10,6 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 const {
   getActiveAgentForInput,
   getViewedAgent,
-  getViewedEscAction,
   projectViewedAgent,
   NON_VIEWABLE_TASK_TYPES,
   VIEWABLE_TASK_TYPES,
@@ -18,6 +17,8 @@ const {
 const { isManageableTask } = await import(
   '../../src/components/tasks/taskStatusUtils.tsx'
 )
+const { interruptCrewmate } = await import('../../src/components/tasks/crewmateInterrupt.ts')
+const { AGENT_INTERRUPT_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { runPulseArena } = await import('./lib/pulseArena.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
@@ -25,6 +26,30 @@ type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
 const t = checker()
+const FRAMES = ((): string | undefined => {
+  const at = process.argv.indexOf('--frames')
+  return at >= 0 ? process.argv[at + 1] : undefined
+})()
+type Frame = { atMs: number; rows: string[] }
+const keepFrames = (label: string, screens: Frame[]): void => {
+  if (FRAMES === undefined) return
+  mkdirSync(FRAMES, { recursive: true })
+  const out: string[] = []
+  let prev = ''
+  for (const s of screens) {
+    const body = s.rows.map((r, i) => `${String(i + 1).padStart(2)}|${r}`).join('\n')
+    if (body === prev) continue
+    prev = body
+    out.push(`━━ @${s.atMs}`, body)
+  }
+  writeFileSync(join(FRAMES, `${label}.txt`), out.join('\n') + '\n')
+}
+const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: number): void =>
+  t.check(
+    `every send became due (${authored} sends, each witness painted)`,
+    run.sendLog.length === authored && !run.driverOut.includes('UNFIRED-SENDS'),
+    `${run.sendLog.length}/${authored} · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
+  )
 
 t.section('§1 the projection is exhaustive and honest')
 {
@@ -125,7 +150,7 @@ t.section('§1 the projection is exhaustive and honest')
   }
 }
 
-t.section('§2 journey: header + CREW root + mouse return')
+t.section('§2 journey: header + CREW lead row + mouse return')
 {
   const ESC = String.fromCharCode(27)
   const sgrClick = (col: number, row: number): string =>
@@ -161,16 +186,15 @@ t.section('§2 journey: header + CREW root + mouse return')
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `10600:${sgrClick(10, CHILD_ROW)}`,
-      `11300:${sgrClick(10, CHILD_ROW)}`,
-      `14600:${ESC}`,
-      `15300:${ESC}`,
+      `after:poise pro… · running:1000:${sgrClick(10, CHILD_ROW)}`,
+      `after:poise probe · viewing:2500:${sgrClick(10, ROOT_ROW)}`,
     ],
     seconds: 20,
     cols: 120,
     rows: 40,
     keep: true,
   })
+  sendsDue(run, 4)
 
   const s2Offsets = Array.from({ length: 44 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
@@ -181,9 +205,8 @@ t.section('§2 journey: header + CREW root + mouse return')
   if (grab.status !== 0) {
     t.check('screengrab ran', false, grab.stderr)
   } else {
-    const { screens } = JSON.parse(grab.stdout) as {
-      screens: { atMs: number; rows: string[] }[]
-    }
+    const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
+    keepFrames('drill-120x40', screens)
     const frames = screens.filter(f => f.atMs !== -1)
     const has = (f: { rows: string[] }, needle: string | RegExp): boolean =>
       f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
@@ -191,47 +214,40 @@ t.section('§2 journey: header + CREW root + mouse return')
       for (let i = Math.max(0, start); i < frames.length; i++) if (pred(frames[i]!)) return i
       return -1
     }
+    const leadMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*✶ Mercury Lead/.test(r))
+    const childMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*◉ poise pro/.test(r))
+    const childRunning = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const inView = (f: { rows: string[] }): boolean => has(f, /VIEW · poise probe · viewing/)
 
-    const iMain = idxOf(
-      0,
-      f =>
-        f.rows.some(r => /Mercury.*lead/.test(r)) &&
-        f.rows.some(r => r.includes('poise pro')) &&
-        !has(f, 'viewing') &&
-        !has(f, /Main ‹/),
-    )
-    t.check('at main, the root verb is lead (you are here)', iMain >= 0)
+    const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, 'viewing'))
+    t.check('at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view)', iMain >= 0)
     const mf = frames[iMain] ?? { rows: [] as string[] }
-    const rootIdx = mf.rows.findIndex(r => r.includes('Mercury') && /lead/.test(r))
+    const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
     const childIdx = mf.rows.findIndex(r => r.includes('poise pro'))
     t.check(
-      `CREW projects the root at row ${ROOT_ROW} and the child under it`,
+      `CREW lists Mercury Lead first at row ${ROOT_ROW} and the child under it`,
       iMain >= 0 && rootIdx + 1 === ROOT_ROW && childIdx + 1 === CHILD_ROW,
-      `root@${rootIdx + 1} child@${childIdx + 1}`,
+      `lead@${rootIdx + 1} child@${childIdx + 1}`,
     )
 
     const iView = idxOf(
       iMain + 1,
-      f => has(f, /agent › poise probe/) && has(f, /esc back/),
+      f => inView(f) && childMarked(f) && !leadMarked(f) && has(f, 'esc interrupts') && has(f, 'sends to poise probe'),
     )
     t.check(
-      "the drill opens the agent's work card (the roster card — its stream and controls live with the session's runner) with its esc back hint",
+      'one click on the child opens it in the view: the header names it viewing, the › mark moves to its row, esc interrupts it, ↵ addresses it',
       iMain >= 0 && iView > iMain,
       iView >= 0
-        ? frames[iView]!.rows.find(r => r.includes('agent › poise probe'))?.trim().slice(0, 70)
+        ? frames[iView]!.rows.find(r => r.includes('VIEW · poise probe'))?.trim().slice(0, 70)
         : 'no such frame after the main frame',
     )
 
     const iBack = idxOf(
       iView + 1,
-      f =>
-        !has(f, /agent › poise probe/) &&
-        !has(f, /Mercury — tasks/) &&
-        has(f, 'spawn the probe') &&
-        f.rows.some(r => r.includes('poise pro') && r.includes('running')),
+      f => !inView(f) && leadMarked(f) && has(f, 'spawn the probe') && childRunning(f),
     )
     t.check(
-      "the card's esc steps back to the board and the board's esc closes it — main again WITHOUT stopping the child (return ≠ stop)",
+      'one click on Mercury Lead in the rail returns to main WITHOUT stopping the child (return ≠ stop): the › mark back on the lead, the child still running',
       iView >= 0 && iBack > iView,
       iBack >= 0
         ? frames[iBack]!.rows.find(r => r.includes('poise pro'))?.trim().slice(0, 50)
@@ -276,28 +292,49 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want)
   }
 
-  const escTable: [string, never, 'interrupt' | 'main'][] = [
-    ['teammate mid-turn (live controller)', tm({ currentWorkAbortController: new AbortController() }), 'interrupt'],
-    ['teammate running but idle (no controller)', tm({}), 'main'],
-    ['teammate completed (even with a stale controller)', tm({ status: 'completed', currentWorkAbortController: new AbortController() }), 'main'],
-    ['local agent running (delegated never-stop work)', la({}), 'main'],
-    ['local agent completed', la({ status: 'completed' }), 'main'],
+  type Road = 'local' | 'teammate' | 'hosted' | 'idle'
+  const drive = (
+    task: { id?: string } | undefined,
+    facts: { running: boolean } | null | undefined,
+  ): { road: Road; stops: string[]; aborted: unknown } => {
+    const id = (task as { id?: string } | undefined)?.id ?? 'a-hosted'
+    const state = { tasks: task ? { [id]: task } : {} } as never
+    const stops: string[] = []
+    const stopAgent = async (agentId: string, note?: string): Promise<unknown> => {
+      stops.push(`${agentId}:${note ?? ''}`)
+      return { outcome: 'ok' }
+    }
+    const road = interruptCrewmate(id, state, updater => void updater(state), stopAgent, { facts }) as Road
+    const controller = (task as { abortController?: AbortController; currentWorkAbortController?: AbortController } | undefined)
+    const signal = controller?.abortController?.signal ?? controller?.currentWorkAbortController?.signal
+    return { road, stops, aborted: signal?.aborted ? signal.reason : undefined }
+  }
+  const escTable: [string, { id?: string } | undefined, { running: boolean } | null | undefined, Road, unknown][] = [
+    ['local agent running → interrupted with the operator reason', la({ abortController: new AbortController() }), undefined, 'local', AGENT_INTERRUPT_BY_OPERATOR],
+    ['local agent completed → idle (esc goes back to Mercury Lead)', la({ status: 'completed', abortController: new AbortController() }), undefined, 'idle', undefined],
+    ['teammate mid-turn (live controller) → interrupted with the operator reason', tm({ currentWorkAbortController: new AbortController() }), undefined, 'teammate', AGENT_INTERRUPT_BY_OPERATOR],
+    ['teammate running but idle (no controller) → idle', tm({}), undefined, 'idle', undefined],
+    ['teammate completed (even with a stale controller) → idle, its controller untouched', tm({ status: 'completed', currentWorkAbortController: new AbortController() }), undefined, 'idle', undefined],
+    ['hosted crewmate running → the stop door once, with the typed note', undefined, { running: true }, 'hosted', undefined],
+    ['hosted crewmate not running → idle, no stop sent', undefined, { running: false }, 'idle', undefined],
+    ['hosted crewmate with unknown facts → the stop door (the road assumes live)', undefined, null, 'hosted', undefined],
   ]
-  for (const [label, task, want] of escTable) {
-    t.check(`esc grammar: ${label} → ${want}`, getViewedEscAction(task) === want)
+  for (const [label, task, facts, want, reason] of escTable) {
+    const got = drive(task, facts)
+    const hostedStops = want === 'hosted' ? got.stops.length === 1 && got.stops[0] === `a-hosted:${AGENT_INTERRUPT_BY_OPERATOR}` : got.stops.length === 0
+    t.check(
+      `esc grammar: ${label}`,
+      got.road === want && got.aborted === reason && hostedStops,
+      `road=${got.road} aborted=${String(got.aborted)} stops=${JSON.stringify(got.stops)}`,
+    )
   }
 
-  const reg = new Map<string, string>()
-  t.check(
-    'projection carries escAction verbatim (teammate mid-turn)',
-    projectViewedAgent(tm({ currentWorkAbortController: new AbortController() }), reg as never)?.escAction === 'interrupt',
-  )
-  t.check(
-    'projection carries escAction verbatim (local agent)',
-    projectViewedAgent(la({}), reg as never)?.escAction === 'main',
-  )
-
   const src = (p: string): string => readFileSync(join(HERE, '..', '..', p), 'utf8')
+  const prompt = src('src/components/PromptInput/PromptInput.tsx')
+  t.check(
+    "the composer's esc on a viewed crewmate consumes interruptCrewmate and, on idle, exitTeammateView (esc back to Mercury Lead)",
+    /key\.escape[\s\S]{0,900}?interruptCrewmate\(viewed/.test(prompt) && /road === 'idle'\)\s*\{\s*exitTeammateView\(/.test(prompt),
+  )
   t.check(
     'dialog f/m routes local_agent rows through enterTeammateView',
     /local_agent'\s*\)\s*\{[^}]*enterTeammateView/s.test(src('src/components/tasks/BackgroundTasksDialog.tsx')),
@@ -355,6 +392,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
     rows: 40,
     keep: true,
   })
+  sendsDue(run, 4)
 
   const offsets = Array.from({ length: 40 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
@@ -365,9 +403,8 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
   if (grab.status !== 0) {
     t.check('screengrab ran (§4)', false, grab.stderr)
   } else {
-    const { screens } = JSON.parse(grab.stdout) as {
-      screens: { atMs: number; rows: string[] }[]
-    }
+    const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
+    keepFrames('tasks-board-120x40', screens)
     const has = (f: { rows: string[] }, needle: string | RegExp): boolean =>
       f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
     const findFrom = (start: number, pred: (f: { rows: string[] }) => boolean): number => {

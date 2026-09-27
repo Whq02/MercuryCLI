@@ -140,22 +140,25 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     sends: [
       'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
-      `11000:${sgrClick(10, 7)}`,
-      `11700:${sgrClick(10, 7)}`,
-      `14200:${ESC}`,
-      `15000:${ESC}`,
-      '16800:/frobnicate\\r',
-      `19200:${ESC}[D`,
-      `21800:${ESC}`,
-      `23200:x`,
-      `23700:${String.fromCharCode(127)}`,
-      '24600:/cost\\r',
+      `after:poise pro… · running:1000:${sgrClick(10, 7)}`,
+      `after:poise probe · viewing:2000:${sgrClick(10, 6)}`,
+      'after:poise probe · viewing:4600:/frobnicate\\r',
+      `after:/frobnicate:2400:${ESC}[D`,
+      `after:Mercury — surfaces:2600:${ESC}`,
+      `after:Mercury — surfaces:4000:x`,
+      `after:Mercury — surfaces:4500:${String.fromCharCode(127)}`,
+      'after:Mercury — surfaces:5400:/cost\\r',
     ],
     seconds: 40,
     cols: 120,
     rows: 40,
     keep: true,
   })
+  t.check(
+    'every send became due (each witness painted; the send log carries the 9 after the face ↵, which it files as the arena\'s own)',
+    run.sendLog.length === 9 && !run.driverOut.includes('UNFIRED-SENDS'),
+    `${run.sendLog.length}/9 · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
+  )
 
   const offsets: string[] = []
   for (let ms = S(5000); ms <= S(34000); ms += S(250)) offsets.push(String(anchoredOffset(run, ms)))
@@ -202,27 +205,28 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
             `@${f.atMs} rail=${JSON.stringify(f.rows.slice(1, 8).map(r => r.slice(0, 24).trim()).filter(Boolean).join(' | '))}` +
             ` composer=${JSON.stringify(composerOf(f).slice(0, 32))}` +
             `${has(f, 'Mercury — surfaces') ? ' MGR' : ''}` +
-            `${has(f, /agent › poise probe/) ? ' CARD' : ''}`,
+            `${has(f, /VIEW · poise probe · viewing/) ? ' VIEW' : ''}`,
         )
         .join(' ↵ ')
     const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const inView = (f: Fr): boolean => has(f, /VIEW · poise probe · viewing/)
     const iCrew = idxOf(0, crewRow)
     t.check(
       "the hosted agent lists in the CREW lane (the runner's roster over the connector)",
       iCrew >= 0,
       iCrew >= 0 ? undefined : forensics(frames.findIndex(f => f.rows.some(r => r.includes('poise probe')))),
     )
-    const iCard = idxOf(iCrew + 1, f => has(f, /agent › poise probe/))
+    const iView = idxOf(iCrew + 1, f => inView(f) && has(f, 'sends to poise probe'))
     t.check(
-      "the two-click drill opened the agent's work card (the roster card — its transcript lives with the runner)",
-      iCrew >= 0 && iCard > iCrew,
-      iCard > iCrew ? undefined : forensics(iCrew),
+      "one click on its CREW row opens the agent in the view (its transcript lives with the runner; ↵ addresses it)",
+      iCrew >= 0 && iView > iCrew,
+      iView > iCrew ? undefined : forensics(iCrew),
     )
-    const iClosed = idxOf(iCard + 1, f => !has(f, /agent › poise probe/) && !has(f, /Mercury — tasks/) && crewRow(f))
+    const iClosed = idxOf(iView + 1, f => !inView(f) && has(f, /›\s*✶ Mercury Lead/) && crewRow(f))
     t.check(
-      'esc steps back to the board, a second esc closes it, and the agent keeps running (return ≠ stop)',
-      iCard >= 0 && iClosed > iCard,
-      iClosed > iCard ? undefined : forensics(iCard),
+      'Mercury Lead in the rail goes back: the lead owns the view again and the agent keeps running (return ≠ stop)',
+      iView >= 0 && iClosed > iView,
+      iClosed > iView ? undefined : forensics(iView),
     )
     const iNotify = idxOf(iClosed + 1, f => has(f, /Unknown command: \/frobnicate/))
     t.check(
@@ -267,22 +271,23 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     t.check('no /cost in any model call', !userTextIncludes('/cost'))
 
     const { mkdirSync, writeFileSync } = await import('node:fs')
-    const receiptDir = join(HERE, 'receipts', '.last')
-    mkdirSync(receiptDir, { recursive: true })
+    const framesArg = process.argv.indexOf('--frames')
+    const receiptDirs = [join(HERE, 'receipts', '.last'), ...(framesArg >= 0 && process.argv[framesArg + 1] ? [process.argv[framesArg + 1]!] : [])]
     const maskAmbient = (r: string): string =>
       r
         .replace(/\b\d{2}:\d{2}:\d{2}\b/g, 'HH:MM:SS')
         .replace(/pulse-arena-cwd-\w+/g, 'pulse-arena-cwd-XXXXXX')
-    writeFileSync(
-      join(receiptDir, 'intent-routing-journey.txt'),
-      screens
-        .map(
-          s =>
-            `════ screen @${s.atMs}ms ════\n` +
-            s.rows.filter(r => r.trim() !== '').map(maskAmbient).join('\n'),
-        )
-        .join('\n\n'),
-    )
+    const journey = screens
+      .map(
+        s =>
+          `════ screen @${s.atMs}ms ════\n` +
+          s.rows.filter(r => r.trim() !== '').map(maskAmbient).join('\n'),
+      )
+      .join('\n\n')
+    for (const dir of receiptDirs) {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'intent-routing-journey.txt'), journey)
+    }
   }
   run.cleanup()
 }

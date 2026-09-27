@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -14,16 +15,59 @@ type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
 const t = checker()
+const FRAMES = ((): string | undefined => {
+  const at = process.argv.indexOf('--frames')
+  return at >= 0 ? process.argv[at + 1] : undefined
+})()
 
 const ESC = String.fromCharCode(27)
 const sgrClick = (col: number, row: number): string =>
   `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
+const LEAD_ROW = 6
+const FIRST_CHILD_ROW = 7
+const SECOND_CHILD_ROW = 8
 type Frame = { atMs: number; rows: string[] }
 const frameIn = (screens: Frame[], atMs: number): Frame => {
   const f = screens.find(s => s.atMs === atMs)
   if (!f) throw new Error(`no frame @${atMs}`)
   return f
 }
+const has = (f: Frame, needle: string | RegExp): boolean =>
+  f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
+const viewOf = (f: Frame): string | undefined => {
+  for (const r of f.rows) {
+    const m = /VIEW · ([a-z]+ probe) · viewing/.exec(r)
+    if (m) return m[1]
+  }
+  return undefined
+}
+const leadOwnsView = (f: Frame): boolean => f.rows.some(r => /›\s*✶ Mercury Lead/.test(r))
+const composerOf = (f: Frame): string => {
+  const rows = f.rows.filter(r => {
+    const t2 = r.trimStart()
+    return t2.startsWith('❯') || t2.startsWith('│❯')
+  })
+  return (rows[rows.length - 1] ?? '').replace(/[│]/g, '').trim()
+}
+const keepFrames = (label: string, screens: Frame[]): void => {
+  if (FRAMES === undefined) return
+  mkdirSync(FRAMES, { recursive: true })
+  const out: string[] = []
+  let prev = ''
+  for (const s of screens) {
+    const body = s.rows.map((r, i) => `${String(i + 1).padStart(2)}|${r}`).join('\n')
+    if (body === prev) continue
+    prev = body
+    out.push(`━━ @${s.atMs}`, body)
+  }
+  writeFileSync(join(FRAMES, `${label}.txt`), out.join('\n') + '\n')
+}
+const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: number): void =>
+  t.check(
+    `every send became due (${authored} sends, each witness painted)`,
+    run.sendLog.length === authored && !run.driverOut.includes('UNFIRED-SENDS'),
+    `${run.sendLog.length}/${authored} · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
+  )
 
 t.section('§1 disk↔live convergence: mergeDiskPrefix laws')
 {
@@ -49,7 +93,7 @@ t.section('§1 disk↔live convergence: mergeDiskPrefix laws')
   }
 }
 
-t.section("§2 words typed while an agent runs are the session's own turn, never dropped")
+t.section("§2 words typed at main while a crewmate runs are the session's own turn, never dropped")
 {
   const turns: ScriptedTurn[] = [
     {
@@ -77,18 +121,17 @@ t.section("§2 words typed while an agent runs are the session's own turn, never
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:poise pro:800:${sgrClick(10, 7)}`,
-      `after:poise pro:1500:${sgrClick(10, 7)}`,
-      `after:agent › poise probe:1500:${ESC}`,
-      `after:agent › poise probe:2500:${ESC}`,
-      'after:agent › poise probe:4000:steer the count gently',
-      'after:agent › poise probe:5500:\\r',
+      `after:poise pro… · running:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
+      `after:poise probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
+      'after:poise probe · viewing:3500:steer the count gently',
+      'after:poise probe · viewing:5000:\\r',
     ],
     seconds: 24,
     cols: 120,
     rows: 40,
     keep: true,
   })
+  sendsDue(run, 6)
 
   const offsets = Array.from({ length: 50 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
@@ -100,21 +143,28 @@ t.section("§2 words typed while an agent runs are the session's own turn, never
     t.check('screengrab ran', false, grab.stderr)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
+    keepFrames('steer-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
-    const has = (f: Frame, needle: string | RegExp): boolean =>
-      f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
-    const iCard = timed.findIndex(f => has(f, /agent › poise probe/) && has(f, /esc back/))
+    const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'sends to poise probe'))
     t.check(
-      "the drill opens the running agent's work card (its stream and controls live with the session's runner)",
-      iCard >= 0,
-      iCard >= 0 ? `frame @${timed[iCard]!.atMs}` : 'no card frame in the series',
+      "one click on the running crewmate's CREW row opens it in the view (the header names it viewing, ↵ addresses it)",
+      iView >= 0,
+      iView >= 0 ? `frame @${timed[iView]!.atMs}` : 'no view frame in the series',
     )
-    const transcriptRows = (f: Frame): string[] => f.rows.filter(r => /\] ❯ steer the count gently/.test(r))
-    const iSteer = timed.findIndex((f, i) => i > iCard && !has(f, /agent › poise probe/) && transcriptRows(f).length > 0)
+    const iBack = timed.findIndex((f, i) => i > iView && viewOf(f) === undefined && leadOwnsView(f) && childRunning(f))
     t.check(
-      'back at main, the words typed while the agent runs are the session\'s own turn: one transcript row, never a message to the agent',
-      iCard >= 0 && iSteer > iCard && transcriptRows(timed[iSteer]!).length === 1,
-      iSteer >= 0 ? `frame @${timed[iSteer]!.atMs}` : 'no steer row after the card frame',
+      'Mercury Lead in the rail goes back: the lead owns the view again and the crewmate keeps running (return ≠ stop)',
+      iView >= 0 && iBack > iView,
+      iBack >= 0 ? `frame @${timed[iBack]!.atMs}` : 'no main frame with the crewmate running after the view frame',
+    )
+    const sessionRows = (f: Frame): string[] => f.rows.filter(r => /\[\w+\] ❯ steer the count gently/.test(r))
+    const crewmateRows = (f: Frame): string[] => f.rows.filter(r => /\[you → [^\]]+\] ❯ steer the count gently/.test(r))
+    const iSteer = timed.findIndex((f, i) => i > iBack && viewOf(f) === undefined && sessionRows(f).length > 0)
+    t.check(
+      "back at main, the words typed while the crewmate runs are the session's own turn: one transcript row, never a message to the crewmate",
+      iBack >= 0 && iSteer > iBack && sessionRows(timed[iSteer]!).length === 1 && timed.every(f => crewmateRows(f).length === 0),
+      iSteer >= 0 ? `frame @${timed[iSteer]!.atMs}` : 'no steer row after the return frame',
     )
 
     type Msg = { role: string; content: unknown }
@@ -141,20 +191,20 @@ t.section("§2 words typed while an agent runs are the session's own turn, never
     )
     const final = frameIn(screens, -1)
     t.check(
-      'the session answered the words and the agent ran on to its landing',
+      'the session answered the words and the crewmate ran on to its landing',
       final.rows.some(r => r.includes('Taking your steer into account')) && final.rows.some(r => /Agent "poise probe" completed/.test(r)),
       final.rows.filter(r => /steer into account|poise probe" completed/.test(r)).map(r => r.trim().slice(0, 60)).join(' | '),
     )
     t.check(
       'the words still paint exactly once on the transcript at settlement',
-      transcriptRows(final).length === 1,
-      `${transcriptRows(final).length} transcript row(s); every row: ${final.rows.filter(r => r.includes('steer the count gently')).map(r => r.trim().slice(0, 50)).join(' | ')}`,
+      sessionRows(final).length === 1 && crewmateRows(final).length === 0,
+      `${sessionRows(final).length} transcript row(s); every row: ${final.rows.filter(r => r.includes('steer the count gently')).map(r => r.trim().slice(0, 50)).join(' | ')}`,
     )
   }
   run.cleanup()
 }
 
-t.section('§3 one composer, one draft: the draft survives the drill into either card and the way back')
+t.section('§3 one composer, one draft: the draft rides the view swap into either child and the way back')
 {
   const agentInput = (name: string): Record<string, unknown> => ({
     description: name,
@@ -191,21 +241,18 @@ t.section('§3 one composer, one draft: the draft survives the drill into either
     sends: [
       '2000:\\r',
       '6000:spawn both probes\\r',
-      'after:beta pro:1000:draft-main-text',
-      `after:beta pro:3000:${sgrClick(10, 7)}`,
-      `after:beta pro:3700:${sgrClick(10, 7)}`,
-      `after:agent › :1400:${ESC}`,
-      `after:agent › :2400:${ESC}`,
-      `after:agent › :3800:${sgrClick(10, 8)}`,
-      `after:agent › :4500:${sgrClick(10, 8)}`,
-      `after:agent › :6900:${ESC}`,
-      `after:agent › :7900:${ESC}`,
+      'after:beta probe · running:1000:draft-main-text',
+      `after:beta probe · running:3000:${sgrClick(10, FIRST_CHILD_ROW)}`,
+      `after:alpha probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
+      `after:beta probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
+      `after:probe · viewing:4000:${sgrClick(10, SECOND_CHILD_ROW)}`,
     ],
     seconds: 26,
     cols: 120,
     rows: 40,
     keep: true,
   })
+  sendsDue(run, 7)
 
   const offsets: string[] = []
   for (let ms = S(6000); ms <= S(25500); ms += S(250)) offsets.push(String(ms))
@@ -218,34 +265,37 @@ t.section('§3 one composer, one draft: the draft survives the drill into either
     t.check('screengrab ran', false, grab.stderr)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
-    const composerOf = (f: Frame): string => {
-      const rows = f.rows.filter(r => {
-        const t2 = r.trimStart()
-        return t2.startsWith('❯') || t2.startsWith('│❯')
-      })
-      return (rows[rows.length - 1] ?? '').replace(/[│]/g, '').trim()
-    }
-    const cardOf = (f: Frame): string | undefined => {
-      const row = f.rows.find(r => /agent › [a-z]+ probe/.test(r))
-      return row ? /agent › ([a-z]+ probe)/.exec(row)?.[1] : undefined
-    }
+    keepFrames('drafts-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
+    const holdsDraft = (f: Frame): boolean => composerOf(f).includes('draft-main-text')
 
-    const iDraft = timed.findIndex(f => !cardOf(f) && composerOf(f).includes('draft-main-text'))
+    const iDraft = timed.findIndex(f => viewOf(f) === undefined && holdsDraft(f))
     t.check('the draft is typed and visible in a main-view frame', iDraft >= 0)
-    const iFirst = timed.findIndex((f, i) => i > iDraft && cardOf(f) !== undefined)
-    const n1 = iFirst >= 0 ? cardOf(timed[iFirst]!) : undefined
-    t.check("the drill opens a child's work card over the chat", iDraft >= 0 && iFirst > iDraft, `first card: ${n1 ?? 'none'}`)
-    const iBack1 = timed.findIndex((f, i) => i > iFirst && !cardOf(f) && composerOf(f).includes('draft-main-text'))
-    t.check('the way back from the card RESTORES the draft (one composer, one draft)', iFirst >= 0 && iBack1 > iFirst)
-    const iSecond = timed.findIndex((f, i) => i > iBack1 && cardOf(f) !== undefined && cardOf(f) !== n1)
-    const n2 = iSecond >= 0 ? cardOf(timed[iSecond]!) : undefined
-    t.check('the second drill opens the OTHER child\'s card', iBack1 >= 0 && iSecond > iBack1 && n1 !== undefined && n2 !== undefined && n1 !== n2, `first@${n1} second@${n2}`)
-    const iBack2 = timed.findIndex((f, i) => i > iSecond && !cardOf(f) && composerOf(f).includes('draft-main-text'))
-    t.check('the way back from the second card restores the draft again, exactly', iSecond >= 0 && iBack2 > iSecond && composerOf(timed[iBack2]!).replace(/^❯\s*/, '') === 'draft-main-text')
+    const iFirst = timed.findIndex((f, i) => i > iDraft && viewOf(f) !== undefined)
+    const n1 = iFirst >= 0 ? viewOf(timed[iFirst]!) : undefined
     t.check(
-      'INVARIANT: the draft never leaves the composer for the transcript (no drilled card submits it)',
-      timed.every(f => !f.rows.some(r => /\[\w+\] ❯ draft-main-text/.test(r))),
+      "one click on a CREW row opens that child in the view over the same composer, the draft still in it",
+      iDraft >= 0 && iFirst > iDraft && holdsDraft(timed[iFirst]!),
+      `first view: ${n1 ?? 'none'} · composer ${JSON.stringify(iFirst >= 0 ? composerOf(timed[iFirst]!) : '')}`,
+    )
+    const iBack1 = timed.findIndex((f, i) => i > iFirst && viewOf(f) === undefined && leadOwnsView(f) && holdsDraft(f))
+    t.check('Mercury Lead in the rail goes back and the composer still holds the draft (one composer, one draft)', iFirst >= 0 && iBack1 > iFirst)
+    const iSecond = timed.findIndex((f, i) => i > iBack1 && viewOf(f) !== undefined && viewOf(f) !== n1)
+    const n2 = iSecond >= 0 ? viewOf(timed[iSecond]!) : undefined
+    t.check(
+      "the second click opens the OTHER child in the view, the draft still in the composer",
+      iBack1 >= 0 && iSecond > iBack1 && n1 !== undefined && n2 !== undefined && n1 !== n2 && holdsDraft(timed[iSecond]!),
+      `first@${n1} second@${n2}`,
+    )
+    const iBack2 = timed.findIndex((f, i) => i > iSecond && viewOf(f) === undefined && leadOwnsView(f) && holdsDraft(f))
+    t.check(
+      'the way back from the second view keeps the draft exactly',
+      iSecond >= 0 && iBack2 > iSecond && composerOf(timed[iBack2]!).replace(/^❯\s*/, '') === 'draft-main-text',
+      iBack2 >= 0 ? JSON.stringify(composerOf(timed[iBack2]!)) : 'no main frame with the draft after the second view',
+    )
+    t.check(
+      'INVARIANT: the draft never leaves the composer for any transcript (no click submits it, to the lead or to a child)',
+      timed.every(f => !f.rows.some(r => /\] ❯ draft-main-text/.test(r))),
     )
   }
   run.cleanup()
