@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 75 built-in production tools · 190 operations · 75 with a declared capability contract.
+Census version 1 — 73 built-in production tools · 188 operations · 73 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 46 available · 13 conditional · 0 degraded · 16 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 23 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 40 name a focused proof
+- support (at generation time): 45 available · 13 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 23 observation · 21 mutation · 11 execution · 18 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 31 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -53,7 +53,6 @@ Census version 1 — 75 built-in production tools · 190 operations · 75 with a
 | JevEval | observation | web-access | — | cancel | no | — | — | — | scripts/jev/run-all.sh |
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
-| LaunchFleet | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
 | LSP | mutation | code-intelligence | — | block | yes | lsp.rename +receipts | — | mercury://file, mercury://receipt | scripts/lsp/run-all.sh |
 | Monitor | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
@@ -66,7 +65,6 @@ Census version 1 — 75 built-in production tools · 190 operations · 75 with a
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | RecordConvention | mutation | text-mutation | — | block | yes | file +receipts | — | — | NAMED GAP |
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
-| RememberLesson | mutation | memory | — | block | yes | — | — | — | NAMED GAP |
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |

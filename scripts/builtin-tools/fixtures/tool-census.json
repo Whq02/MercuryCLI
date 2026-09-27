@@ -1234,32 +1234,6 @@
       }
     },
     {
-      "name": "LaunchFleet",
-      "category": "coord",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "launch a fleet of teammates"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "resources": [
-          "team"
-        ],
-        "cancellation": "cooperative",
-        "latency": "long-running"
-      }
-    },
-    {
       "name": "ListMcpResources",
       "category": "read",
       "risk": "low",
@@ -1602,31 +1576,6 @@
         "latency": "interactive",
         "gate": "MERCURY_MNEME",
         "proof": "scripts/memory/prove-reflect-grounding.ts"
-      }
-    },
-    {
-      "name": "RememberLesson",
-      "category": "other",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "memory"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "bank a verified transferable lesson",
-          "save an experience card"
-        ],
-        "units": [
-          "memory"
-        ],
-        "class": "mutation",
-        "cancellation": "not-applicable",
-        "latency": "fast",
-        "gate": "MERCURY_EXPERIENCE_CARDS"
       }
     },
     {

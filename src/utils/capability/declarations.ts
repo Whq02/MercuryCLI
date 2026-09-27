@@ -232,14 +232,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_LAUNCH',
     proof: 'scripts/ide/prove-launch-profiles.ts',
   },
-  LaunchFleet: {
-    intents: ['launch a fleet of teammates'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['team'],
-    cancellation: 'cooperative',
-    latency: 'long-running',
-  },
   ListMcpResources: {
     intents: ['list resources exposed by mcp servers'],
     units: ['resource-inspection'],
@@ -318,14 +310,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'observation',
     cancellation: 'not-applicable',
     latency: 'fast',
-  },
-  RememberLesson: {
-    intents: ['bank a verified transferable lesson', 'save an experience card'],
-    units: ['memory'],
-    class: 'mutation',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    gate: 'MERCURY_EXPERIENCE_CARDS',
   },
   ScheduleWakeup: {
     intents: ['schedule my own next wake', 'pace a self-driven loop'],

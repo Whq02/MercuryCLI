@@ -96,7 +96,7 @@ export function CardsView({ onClose }: { onClose: () => void }): React.ReactNode
           <EmptyState
             glyph="○"
             title="no experience cards yet"
-            hint="the agent banks lessons (RememberLesson / /remember); they land here as candidates to promote"
+            hint="lessons banked with /remember or written as cards land here as candidates to promote"
           />
         </Box>
       ) : (

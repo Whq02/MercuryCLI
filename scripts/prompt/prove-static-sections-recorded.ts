@@ -44,7 +44,6 @@ const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefi
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { TASK_CREATE_TOOL_NAME } = await import('../../src/tools/TaskCreateTool/constants.ts')
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/RecordConventionTool/prompt.ts')
-const { REMEMBER_LESSON_TOOL_NAME } = await import('../../src/tools/RememberLessonTool/prompt.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'static-sections-cwd-'))
 const cwd = process.cwd()
@@ -60,10 +59,10 @@ const TONE = '# Tone and style'
 const BULLET = 'Break down and manage work with the'
 const ESTATE_TOOL_WORDS = `with the ${RECORD_CONVENTION_TOOL_NAME} tool`
 const tool = (name: string): { name: string } => ({ name })
-const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME, REMEMBER_LESSON_TOOL_NAME].map(tool)
+const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME].map(tool)
 const taskTools = [TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)
 const grownPool = [...firstPool, ...taskTools]
-const shrunkPool = firstPool.filter(t => t.name !== RECORD_CONVENTION_TOOL_NAME && t.name !== REMEMBER_LESSON_TOOL_NAME)
+const shrunkPool = firstPool.filter(t => t.name !== RECORD_CONVENTION_TOOL_NAME)
 const owner = 'static-sections'
 const messages = [{ type: 'user', uuid: 'u-static-sections', message: { role: 'user', content: 'first' } }]
 const text = (parts: string[]): string => parts.join('\n\n')
@@ -101,11 +100,11 @@ try {
   const resumed = await build(grownPool)
   check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the resumed build is byte-identical to the first although the task tools joined the pool — no work-breakdown bullet appears', resumed === first && !resumed.includes(BULLET), firstDifference(first, resumed))
 
-  section('§3 a new process — the convention and lesson tools left the pool; the estate section still names them as first sent')
+  section('§3 a new process — the convention tool left the pool; the estate section still names it as first sent')
   freshProcess()
   restoreBoundPrefixFromMessages([persisted as never])
   const shrunk = await build(shrunkPool)
-  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the resumed build is byte-identical to the first although the convention and lesson tools left the pool', shrunk === first && shrunk.includes(ESTATE_TOOL_WORDS), firstDifference(first, shrunk))
+  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the resumed build is byte-identical to the first although the convention tool left the pool', shrunk === first && shrunk.includes(ESTATE_TOOL_WORDS), firstDifference(first, shrunk))
 
   section('§4 the controls — the pool\'s truth returns at the lawful boundary and on a first build')
   clearSystemPromptSections()

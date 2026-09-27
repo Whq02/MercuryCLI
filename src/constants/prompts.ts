@@ -44,7 +44,6 @@ import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { DEBUG_TOOL_NAME } from '../tools/DebugTool/prompt.js'
 import { LSP_TOOL_NAME } from '../tools/LSPTool/prompt.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
-import { REMEMBER_LESSON_TOOL_NAME } from '../tools/RememberLessonTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { hasEmbeddedSearchTools } from '../utils/embeddedTools.js'
@@ -261,14 +260,13 @@ ${shared} Measure twice, cut once.`
 
 function instructionEstateSection(toolNames: ReadonlySet<string>): string {
   const hasRecord = toolNames.has(RECORD_CONVENTION_TOOL_NAME)
-  const hasLesson = toolNames.has(REMEMBER_LESSON_TOOL_NAME)
   const items: Array<string | string[]> = [
     'MERCURY.md is the project\'s standing instruction file — the ENTRY Mercury loads every session, together with whatever it explicitly @imports. A thin MERCURY.md pointing at a fuller guide is a healthy shape, not a gap.',
     'Durable project-local working state that is not instructions — handoff notes, plans, working specs — lives in `.mercury/`, created organically on first use, never on a bare boot. Whether that directory is checked in or gitignored is the user\'s call, not yours.',
     `When the user states a durable project instruction, correction, or convention mid-session ("always use bun here", "never touch the vendored dir"), record it in the instruction estate${hasRecord ? ` with the ${RECORD_CONVENTION_TOOL_NAME} tool` : ''} and say you did. No magic word arms this — the statement itself does. One-off task details are never enshrined.`,
     `Merge, never duplicate: when a stated convention refines an existing rule, update that rule${hasRecord ? ` (the tool's \`replaces\` field)` : ''} instead of appending a near-copy.`,
     `The pointer law: when MERCURY.md explicitly imports a guide, a new convention lands in the pointed guide, never stacked into the pointer file${hasRecord ? ` — ${RECORD_CONVENTION_TOOL_NAME} follows the pointer for you` : ''}.`,
-    `Scope follows the user's words: a project-shared truth goes to the shared instruction estate; a private lesson about your own working method goes to your own memory${hasLesson ? ` (${REMEMBER_LESSON_TOOL_NAME})` : ''}. Name the choice when you record.`,
+    "Scope follows the user's words: a project-shared truth goes to the shared instruction estate; a private lesson about your own working method goes to your own memory (its own memory file, with a pointer line in MEMORY.md). Name the choice when you record.",
     'The instruction file is curated context, not a log: say each thing once, fold related rules together, and delete stale lines whenever you touch the file.',
   ]
   return `# The project instruction estate
