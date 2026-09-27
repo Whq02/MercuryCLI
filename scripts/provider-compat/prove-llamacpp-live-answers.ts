@@ -117,7 +117,7 @@ section('2 · the served-window road at send (readServedWindow · ensureServedWi
   const guard = localGuardWindow(record)
   check('the silent-truncation guard now has a figure for llama.cpp (served)', guard?.tokens === SERVED && guard.sourceWords === 'served', JSON.stringify(guard))
   const profile = localLaneProfileFor(record)
-  check('a request inside the window is not refused; one past it is, naming the served window', profile.requestFitRefusal?.({ estTokens: 18_000, toolCount: 12 }) === undefined && (profile.requestFitRefusal?.({ estTokens: 300_000, toolCount: 12 }) ?? '').includes(`${SERVED} tokens — served`))
+  check('a request inside the window is not refused, nor one within a third past it (the server\'s own answer decides there); one past that margin is, naming the served window', profile.requestFitRefusal?.({ requestBytes: 70_000, estTokens: 18_000, toolCount: 12, wireModel: MODEL }) === undefined && profile.requestFitRefusal?.({ requestBytes: 1_200_000, estTokens: 300_000, toolCount: 12, wireModel: MODEL }) === undefined && (profile.requestFitRefusal?.({ requestBytes: 1_600_000, estTokens: 400_000, toolCount: 12, wireModel: MODEL }) ?? '').includes(`${SERVED} tokens — served`))
   check('llama.cpp keeps tool_choice and takes the effort ladder for any model', profile.omitsToolChoice !== true && localModelAcceptsEffort(record))
 }
 

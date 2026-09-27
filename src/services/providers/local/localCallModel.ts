@@ -1,11 +1,21 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { Tool, Tools } from '../../../Tool.js'
+import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../../tools/ToolSearchTool/prompt.js'
+import type { AssistantMessage, Message, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import { toolToAPISchema } from '../../../utils/api.js'
+import { extractDiscoveredToolNames, isDeferredToolsDeltaEnabled, isToolSearchEnabledOptimistic } from '../../../utils/toolSearch.js'
+import { getToolSchemaCache } from '../../../utils/toolSchemaCache.js'
+import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   compatChatCallModel,
+  compatDispatchModelId,
   compatLaneLiveProofState,
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
+import { deferredToolsAnnouncement, planToolPayload } from '../toolEconomy.js'
+import { mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
@@ -33,14 +43,92 @@ export function localGuardWindow(record: LocalModelRecord, hold: HeldLocalWindow
   return { tokens: stated.tokens, sourceWords: localContextSourceWords(stated.source) }
 }
 
-export function localPreComposeEstimate(params: Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'>): number {
+export const LOCAL_WIRE_BYTES_PER_TOKEN = 3.9
+export const LOCAL_FIT_TOLERANCE = 4 / 3
+const LOCAL_UNRENDERED_DESCRIPTION_BYTES = 2048
+
+export interface LocalToolWire {
+  schemas: number
+  schemaBytes: number
+  named: number
+  nameRowBytes: number
+}
+
+export type LocalEstimateParams = Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'> & { toolWire?: LocalToolWire }
+
+function wireBytesOf(apiTools: readonly ApiShapedTool[]): number {
+  return apiTools.length === 0 ? 0 : Buffer.byteLength(JSON.stringify(mapToolsToZai(apiTools)), 'utf8')
+}
+
+function unrenderedApiTool(tool: Tool): ApiShapedTool {
+  const explicit = (tool as { inputJSONSchema?: unknown }).inputJSONSchema
+  let input_schema: unknown = {}
+  try {
+    input_schema = explicit ?? zodToJsonSchema(tool.inputSchema as never)
+  } catch {
+    input_schema = {}
+  }
+  return { name: tool.name, description: ' '.repeat(LOCAL_UNRENDERED_DESCRIPTION_BYTES), input_schema }
+}
+
+export function localToolWireGuess(tools: Tools, messages: readonly Message[]): LocalToolWire {
+  const deferred = new Set(tools.filter(tool => isDeferredTool(tool)).map(tool => tool.name))
+  const deferring = isToolSearchEnabledOptimistic() && tools.some(tool => tool.name === TOOL_SEARCH_TOOL_NAME) && deferred.size > 0
+  const admitted = deferring ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  const roster = deferring ? tools.filter(tool => !deferred.has(tool.name) || admitted.has(tool.name)) : tools.filter(tool => tool.name !== TOOL_SEARCH_TOOL_NAME)
+  const rendered = new Map<string, ApiShapedTool>()
+  for (const built of getToolSchemaCache().values()) rendered.set(built.name, { name: built.name, ...(built.description ? { description: built.description } : {}), input_schema: built.input_schema })
+  const apiTools = roster.map(tool => rendered.get(tool.name) ?? unrenderedApiTool(tool))
+  const named = deferring ? [...deferred].filter(name => !admitted.has(name)).length : 0
+  const nameRow = deferring && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferred) : null
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: nameRow === null ? 0 : Buffer.byteLength(nameRow, 'utf8') }
+}
+
+export async function localToolWireOf(params: CompatCallModelParams): Promise<LocalToolWire> {
+  const { options } = params
+  const model = compatDispatchModelId(options.model)
+  const plan = await planToolPayload({
+    model,
+    tools: params.tools,
+    messages: params.messages,
+    getToolPermissionContext: options.getToolPermissionContext,
+    agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    hasPendingMcpServers: options.hasPendingMcpServers,
+    source: 'estimate',
+  })
+  const schemas = await Promise.all(
+    plan.roster.map(tool =>
+      toolToAPISchema(tool, {
+        getToolPermissionContext: options.getToolPermissionContext,
+        tools: plan.roster,
+        agents: options.agents,
+        allowedAgentTypes: options.allowedAgentTypes,
+        model,
+        conversationKey: plan.conversationKey,
+      }),
+    ),
+  )
+  const apiTools: ApiShapedTool[] = []
+  for (const schema of schemas) {
+    const shaped = schema as { name?: string; description?: string; input_schema?: unknown }
+    if (typeof shaped.name === 'string' && shaped.input_schema !== undefined) {
+      apiTools.push({ name: shaped.name, ...(shaped.description ? { description: shaped.description } : {}), input_schema: shaped.input_schema })
+    }
+  }
+  const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name)).length
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: plan.announcement === null ? 0 : Buffer.byteLength(plan.announcement, 'utf8') }
+}
+
+export function localPreComposeEstimate(params: LocalEstimateParams): number {
   let bytes = 0
   try {
-    bytes += JSON.stringify(params.messages).length + JSON.stringify(params.systemPrompt).length
+    bytes += Buffer.byteLength(JSON.stringify(params.messages), 'utf8') + Buffer.byteLength(JSON.stringify(params.systemPrompt), 'utf8')
   } catch {
     bytes += 0
   }
-  return Math.ceil(bytes / 4) + params.tools.length * 1000
+  const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages)
+  return Math.ceil(bytes / 4) + Math.ceil((wire.schemaBytes + wire.nameRowBytes) / LOCAL_WIRE_BYTES_PER_TOKEN)
 }
 
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
@@ -75,11 +163,12 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
             ),
         }
       : {}),
-    requestFitRefusal: ({ estTokens, toolCount }) => {
+    requestFitRefusal: ({ requestBytes, estTokens: estimated, toolCount }) => {
       const guard = localGuardWindow(record)
       if (guard === undefined) return undefined
-      const OUTPUT_FLOOR = 1024
-      if (estTokens + OUTPUT_FLOOR <= guard.tokens) return undefined
+      const bytes = Number.isFinite(requestBytes) ? requestBytes : estimated * 4
+      const estTokens = Math.ceil(bytes / LOCAL_WIRE_BYTES_PER_TOKEN)
+      if (estTokens <= guard.tokens * LOCAL_FIT_TOLERANCE) return undefined
       return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
     },
     toolCapabilityRefusal: () => {
@@ -131,7 +220,9 @@ export async function* localCallModel(
     const application = localWindowApplication(record)
     if (application === 'request' || application === 'load') {
       const setting = localWindowSettingOf(record)
-      const decision = decideLocalWindow(record, localPreComposeEstimate(params), setting, await ensureLocalWindowTruth(record, setting))
+      const held = heldLocalWindow(record)
+      const estimate = held !== undefined && held.setting === setting ? held.estTokens : localPreComposeEstimate({ ...params, toolWire: await localToolWireOf(params) })
+      const decision = decideLocalWindow(record, estimate, setting, await ensureLocalWindowTruth(record, setting))
       if (application === 'load') {
         await ensureServedWindow(record, { signal: params.signal }, decision.window !== undefined ? { numCtx: decision.window } : undefined)
       } else if (decision.window === undefined) {
