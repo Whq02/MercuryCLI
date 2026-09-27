@@ -238,7 +238,7 @@ if (run.report && run.report.endReason === 'steps-done') {
   check("A: the shell saw a normally stopped job ('Stopped' on its prompt line)", stopped.grid.includes('Stopped'), stopped.grid.split('\n').filter(l => l.trim()).slice(-4).join(' | '))
   check("A: …and never a 'tty input' stop (the process kept its terminal)", !r.shellLines.some(l => /tty input|tty output/.test(l)), r.shellLines.join(' | '))
   rearmed(r, stopped.teeOffset, continued.teeOffset, 'A: after fg')
-  check('A: the cockpit repainted in full after fg (composer + footer chrome back)', continued.grid.includes('Type a prompt') && continued.grid.includes('for shortcuts'), continued.grid.split('\n').filter(l => l.trim()).slice(-6).join(' | '))
+  check('A: the cockpit repainted in full after fg (composer + footer chrome back)', /^\s*│❯ /m.test(continued.grid) && continued.grid.includes('for shortcuts'), continued.grid.split('\n').filter(l => l.trim()).slice(-6).join(' | '))
   const resumed = samplesBetween(r, continued.ms - 1, typed.ms + 1).filter(s => s.stat !== null)
   check('A: the process is running again after fg', resumed.length > 0 && resumed.every(s => !s.stat!.startsWith('T')), resumed.map(s => s.stat).join(','))
   check('A: keys typed after the resume landed in the composer', typed.grid.includes('typed after resume'))
