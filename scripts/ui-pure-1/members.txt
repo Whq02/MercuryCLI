@@ -13,6 +13,7 @@ prove-contract-card-fit.ts
 prove-cwd-ground-beat.ts
 prove-diff-spine.ts
 prove-draft-per-session.ts
+prove-drive-witness-census.ts
 prove-fable-weekly-window.ts
 prove-face-logins.ts
 prove-field-findings-composer.ts
