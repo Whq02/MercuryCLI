@@ -549,6 +549,20 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-proof-machine-census.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "execSync(`git ls-files ${patterns.map(p => `'${p}'`).join(' ')}`, { cwd: ROOT, encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/gate/prove-proof-machine-census.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const r = spawnSync('bash', ['-c', '. \"$1\" || exit 78; suite_env_guard \"$2\"; printf \"%s\\\\n\" \"${MERCURY_LOCAL_PROBE_TARGETS:-}\"', '_', join(R",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/gate/prove-skip-census.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON = '/usr/bin/python3'",
@@ -2686,7 +2700,7 @@
     {
       "file": "scripts/updater/prove-install-path.ts",
       "mechanism": "shell-dash-c",
-      "excerpt": "const once = spawnSync('sh', ['-c', `${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
+      "excerpt": "const once = spawnSync('sh', ['-c', `${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCUR",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
@@ -2700,7 +2714,7 @@
     {
       "file": "scripts/updater/prove-install-path.ts",
       "mechanism": "shell-dash-c",
-      "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
+      "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCUR",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
