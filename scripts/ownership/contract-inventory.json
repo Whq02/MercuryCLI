@@ -701,10 +701,13 @@
    ],
    "src/run-core/turn-machine.ts": [
     "decideEmptyReplyRecovery",
+    "decideReasoningOnlyRecovery",
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",
+    "reasoningOnlyTurnOf",
     "runEventCore",
-    "type:QueryParams"
+    "type:QueryParams",
+    "withReasoningCutMarker"
    ],
    "src/run-core/events.ts": [
     "createEventMint",
