@@ -1,6 +1,37 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.22
+- Added a crew view in the main chat: a crewmate opens from its rail row with its transcript in the centre, m ties the composer to it, and esc on a crewmate that is not running goes back to Mercury Lead
+- Added a CREW box that keeps every crewmate the session has had, with its state (running, landed, stopped, interrupted), greyed when finished, until you clear it with c
+- Changed the composer to keep its words across every view, tie, pop-up and screen: one holder of the text, nothing swaps it
+- Changed a line typed to a crewmate to leave the composer when the key lands and come back on a refusal; every hint names the target the key sends to; a line to an idle crewmate is refused and its esc is not an interrupt
+- Changed esc on the lead's screen to end the turn at once while the crew keeps running; held notices deliver when the next line starts a turn, and the next line starts a turn at once
+- Changed a line starting with ! while a crewmate is targeted to go to the shell, never to the crewmate as words
+- Changed every pop-up in a session (the model picker, the crew view, /usage, /config) to stay inside the chat view: the top bar, the rail and the composer never disappear under it
+- Changed the model picker in a session to float in the window the files menu uses, with a long tail clipped in its own cell, a heading's account clipped at its budget, the filter line showing its tail, a ten-row floor, and the pending glyph leading its clause
+- Changed every provider's usage block to name the account it is on, under its title, on the rail and in /usage
+- Added the Z.AI usage reader: a GLM Coding Plan key shows its five-hour and weekly windows and their resets the way a Kimi sign-in does; a pay-as-you-go key says it has no usage to read
+- Added hold-to-talk dictation: hold space past one second to open a take, release to stop, again and again with the words landing in the composer
+- Fixed a silent command (a /model that only validates) taking the keyboard from the composer, so the next line typed reached nothing
+- Fixed an expired OAuth-minted OpenRouter key hiding a valid stored API key: the expired key is marked with OpenRouter's own words, calls and the credits read fall through to the stored key, and the failed key is named
+- Added Jev through OpenRouter beside the official TypeSafe access: /jevor on and /jevor off, its own key, meter and cap, the /jev card showing which is active; a hundred requests a minute for the main model, sub-agents on by default at a shared fifty a minute with two hundred calls each
+- Changed the quiet update notice to stay for five minutes wherever it appears
+- Fixed a headless session's unanswered permission ask: it settles as a deny with a reason instead of aborting the turn, a parked ask is denied at the unattended limit and the turn keeps going, and a background session's ask is denied at once when no operator client is attached
+- Fixed a workflow run's pause to park that run's agents alone and tell the daemon at once
+- Fixed the jump pill to go when a collapsed stretch of the transcript leaves the view at the bottom
+- Changed an interrupted tool's failure hooks to run under the cut's own time bound, so an esc settles in bounded time
+- Changed the four bespoke tool refusals to say the matched rule's reason
+- Changed a headless session to say at boot which calls need a present operator, and a rule-allowed push to run without the permission channel
+- Changed a forked sub-agent to be told its own scratchpad folder in its own prompt
+- Changed the generated bundled modules to be recognised by name, so a published checkout refuses a hand edit too
+- Fixed the Windows reads: the leftover census spells git's pathspecs, and the estate-walk and parity proofs read native paths under the platform's semantics
+- Removed the project notepad: /note, the TABULA rail card, its journal store and fire hooks, and the MERCURY_TABULA flags; WORKBENCH stays and takes the vacated card slot, and old saved notes are left in place on disk
+- Changed JevEval to take a list of evidence items (named facts or bare paragraphs) with one question set, answered in parallel as one table; a cell under the confidence floor (0.6) reads unsure; a malformed call is refused naming the field; the description asks only what the evidence answers, whenever a closed question decides the next step; and a background sub-agent carries the tool when JEV is on
+- Changed the model chip in the bottom sessions strip to name the crewmate in view with its model and effort, and the session's own model again on return to Mercury Lead
+- Fixed an OpenRouter key refused by the provider always reading as expired: the refusal carries OpenRouter's own message on one line, a refusal with no body names the HTTP status, and the usage surfaces say refused unless the provider said expired
+- Fixed a line typed while the session runner restarted being announced as not taken when it had been carried: the requeued line counts as taken the moment its transcript reaches the cockpit, and no second copy is asked for
+
 ## 1.0.0-beta.21
 - Added /jevor on, which runs Jev through the existing OpenRouter sign-in with its own stated-cost meter and cap; /jev on keeps the official TypeSafe service, and signing in never switches JEV on
 - Added a ContextLeft tool: the model can ask how much of the context window is used and how many tokens are left before a compaction, measured on the wire
