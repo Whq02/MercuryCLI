@@ -113,6 +113,7 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   anthropicWindowViews: () => [],
   anthropicPoolWindowViews: () => [],
   openaiObservedWindowViews: () => [],
+  activeSourceUsage: () => ({ tier: 'fixture · no metering' }),
 }))
 await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
 await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
@@ -144,6 +145,9 @@ const dialog = await import('../../src/components/LocalSetupDialog.tsx').catch((
 const { configProviderRows } = await import('../../src/components/Settings/Config.js')
 const { saturnVerdictSentence } = await import('../../src/components/BootSaturnScreen.js')
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
+const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
+const { LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
+const { ANTHROPIC_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
 
 const wrap = (element: unknown, cols: number, rows: number) => React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: cols, height: rows }, element as never)))
 const keep = (name: string, m: Mounted, cols: number, rows: number): void => {
@@ -202,6 +206,8 @@ if (dialog !== null) {
 if (command !== null) {
   const request = command.localSetupPopupRequest(async function* () {})
   check('the popup request is the shared floating window with a fixed height and the keys hint', request.view === 'localsetup' && request.rows === 33 && typeof request.width === 'function' && request.width(178) === 120 && request.width(80) === 80 && request.hint.startsWith(KEYS))
+  const bare = command.localSetupPopupRequest()
+  check('the picker opens the same request with no road of its own — the body builds the real road', bare.view === 'localsetup' && bare.rows === 33 && typeof command.openLocalSetupPopup === 'function')
   const summary = command.setupSummaryOf({ ran: ['1', '2'], skipped: ['2b'], failed: [], notDone: ['3', '4', '5', '6'], reason: 'stopped', words: 'stopped at step 3 · done: 1, 2 · not done: 3, 4, 5, 6' })
   check('the adapter keeps ran, skipped and not-done apart in label order and lets the dialog word a stop itself', summary.stopped && summary.done.join(',') === '1,2' && summary.skipped?.join(',') === '2b' && summary.notDone.join(',') === '3,4,5,6' && summary.words === undefined)
   const ended = command.setupSummaryOf({ ran: ['1', '2', '2b'], skipped: [], failed: ['3'], notDone: ['4', '5', '6'], reason: 'ended', words: 'step 3 failed · brew services start ollama rc 1' })
@@ -243,6 +249,87 @@ try {
     m.unmount()
   }
   localServer = false
+  const PICKER_OFFER = 'no local server · s sets one up'
+  const ANTHROPIC_ROW = { id: 'claude-fable-5-1', name: 'fable', tag: '', ctx: '1M', group: ANTHROPIC_MODEL_GROUP }
+  const LOCAL_ROW = { id: 'local/qwen3.5:9b', name: 'qwen3.5:9b', tag: '', ctx: '256k', group: LOCAL_MODEL_GROUP }
+  const pickerHeadings = (answering: boolean) => ({
+    [ANTHROPIC_MODEL_GROUP]: { name: 'ANTHROPIC', doors: [] },
+    [LOCAL_MODEL_GROUP]: answering ? { name: 'LOCAL', doors: [{ door: 'Ollama 0.34.4' }] } : { name: 'LOCAL', doors: [], reason: 'no local server answered' },
+  })
+  const pickerRecord = { closed: 0, slot: [] as string[] }
+  function PickerHost({ answering, slotReceipt }: { answering: boolean; slotReceipt: string | null }): React.ReactNode {
+    const [open, setOpen] = React.useState(true)
+    return React.createElement(
+      React.Fragment,
+      {},
+      open
+        ? React.createElement(MercuryModelPicker, {
+            models: answering ? [ANTHROPIC_ROW, LOCAL_ROW] : [ANTHROPIC_ROW],
+            current: 'claude-fable-5-1',
+            ctxPct: 23,
+            efforts: ['low', 'medium', 'high', 'max'],
+            effort: 'high',
+            headings: pickerHeadings(answering),
+            onSlotSwitch: (group: string) => {
+              pickerRecord.slot.push(group)
+              return slotReceipt
+            },
+            onClose: () => {
+              pickerRecord.closed += 1
+              setOpen(false)
+            },
+          } as never)
+        : null,
+      React.createElement(SettingsPopupSlot, { overlay: true }),
+    )
+  }
+  for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
+    const tag = `${cols}x${rows}`
+    pickerRecord.closed = 0
+    pickerRecord.slot.length = 0
+    const offer = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: false, slotReceipt: null }), cols, rows), cols, rows)
+    await waitFor(() => offer.screen().includes('Mercury · model'), 4000)
+    await settle(120)
+    const offerLine = lineWith(offer, PICKER_OFFER)
+    check(`${tag}: the picker's LOCAL section offers the road when no local server answers`, offerLine !== undefined && bodyOf(offerLine).includes(`LOCAL · ${PICKER_OFFER}`), offer.lines().filter(line => line.trim() !== '').slice(-8).join('\n'))
+    check(`${tag}: the offer row sits after the last section, inside the panel`, offer.lines().findIndex(line => line.includes(PICKER_OFFER)) > offer.lines().findIndex(line => line.includes('fable')) && stringWidth(offerLine ?? '') <= cols)
+    keep(`picker-offer-${tag}`, offer, cols, rows)
+    offer.push('/')
+    await settle(80)
+    offer.push('s')
+    await settle(120)
+    check(`${tag}: with the filter focused, s types into the filter and the row hides while a filter is typed`, !offer.screen().includes(PICKER_OFFER) && offer.lines().some(line => /\/ s\b/.test(bodyOf(line))) && popup.settingsPopupRequest() === null && pickerRecord.closed === 0, offer.lines().filter(line => line.includes('/')).join(' | '))
+    offer.push(KEY.esc)
+    await settle(80)
+    check(`${tag}: esc leaves the filter and the offer row returns`, await waitFor(() => offer.screen().includes(PICKER_OFFER) && pickerRecord.closed === 0, 4000))
+    offer.push('s')
+    check(`${tag}: s opens the set-up dialog in the shared popup and closes the picker`, (await waitFor(() => popup.settingsPopupRequest()?.view === 'localsetup' && offer.screen().includes('Mercury · localsetup'), 4000)) && pickerRecord.closed === 1 && pickerRecord.slot.length === 1, `closed ${pickerRecord.closed} · slot asks ${pickerRecord.slot.join(',')} · view ${popup.settingsPopupRequest()?.view ?? 'none'}`)
+    check(`${tag}: the dialog asks step 1 with nothing run`, (await untilAsk(offer, '1 · find a server')) && record.ran.length === 0 && !offer.screen().includes('Mercury · model'))
+    keep(`picker-s-opens-dialog-${tag}`, offer, cols, rows)
+    popup.closeSettingsPopup()
+    offer.unmount()
+    resetRecord()
+
+    pickerRecord.closed = 0
+    pickerRecord.slot.length = 0
+    const switched = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: false, slotReceipt: 'switched to the Console key' }), cols, rows), cols, rows)
+    await waitFor(() => switched.screen().includes(PICKER_OFFER), 4000)
+    switched.push('s')
+    await settle(120)
+    check(`${tag}: a slot switch that consumes s keeps the dialog closed`, pickerRecord.slot.length === 1 && popup.settingsPopupRequest() === null && pickerRecord.closed === 0 && switched.screen().includes('switched to the Console key'))
+    switched.unmount()
+
+    pickerRecord.closed = 0
+    pickerRecord.slot.length = 0
+    const answering = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: true, slotReceipt: null }), cols, rows), cols, rows)
+    await waitFor(() => answering.screen().includes('qwen3.5:9b'), 4000)
+    await settle(80)
+    check(`${tag}: the picker drops the offer when a local server answers`, !answering.screen().includes(PICKER_OFFER) && answering.screen().includes('Ollama 0.34.4'))
+    answering.push('s')
+    await settle(120)
+    check(`${tag}: s without the offer opens nothing`, popup.settingsPopupRequest() === null && pickerRecord.closed === 0)
+    answering.unmount()
+  }
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
     const tag = `${cols}x${rows}`
     if (command === null) break
@@ -325,7 +412,7 @@ try {
   }
 } finally {
   popup.closeSettingsPopup()
-  if (dir) writeFileSync(join(dir, 'index.txt'), ['Source renders of the /localsetup dialog in the shared popup on a fixture road (no PTY, no network, no server): the opening ask, the install offer after nothing was found, the pull mid-way, the window words under step 6, the ready row, and the esc summary; 178x51 and 80x21.', ...frames].join('\n') + '\n')
+  if (dir) writeFileSync(join(dir, 'index.txt'), ['Source renders of the /localsetup dialog in the shared popup on a fixture road (no PTY, no network, no server): the LOCAL offer row of the model picker and the dialog its s key opens, the opening ask, the install offer after nothing was found, the pull mid-way, the window words under step 6, the ready row, and the esc summary; 178x51 and 80x21.', ...frames].join('\n') + '\n')
   rmSync(home, { recursive: true, force: true })
 }
 console.log(`prove-local-setup-dialog: ${frames.length} frames; ${failures ? `${failures} FAILED` : 'ALL PASS'}`)
