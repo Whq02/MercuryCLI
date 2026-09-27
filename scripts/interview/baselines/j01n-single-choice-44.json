@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-27T19:11:46.514Z",
+ "capturedAt": "2026-09-27T19:21:50.901Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-qGZ9uu · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-9yJfum · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "20:11:38 [sam] ❯ design the cache layer",
+    "20:21:43 [sam] ❯ design the cache layer",
     "",
-    "20:11:38 [Mercury] Let me confirm the open",
+    "20:21:43 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-qGZ9uu · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-9yJfum · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "20:11:38 [sam] ❯ design the cache layer",
+    "20:21:43 [sam] ❯ design the cache layer",
     "",
-    "20:11:38 [Mercury] Let me confirm the open",
+    "20:21:43 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5379,
-   "frame-recommit": 17
+   "patches": 5366,
+   "frame-recommit": 15
   },
   "frames": {
-   "total": 31,
-   "window": 31,
-   "p50": 0.6350830000001224,
-   "p95": 6.623540999999932,
-   "p99": 7.823792000000026,
-   "maxMs": 7.823792000000026
+   "total": 30,
+   "window": 30,
+   "p50": 0.5716659999998228,
+   "p95": 4.164292000000387,
+   "p99": 7.855583000000024,
+   "maxMs": 7.855583000000024
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6562.29305267334,
+   "atMs": 6529.149055480957,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7362.29305267334,
+   "atMs": 7329.149055480957,
    "b64": "DQ=="
   }
  ]
