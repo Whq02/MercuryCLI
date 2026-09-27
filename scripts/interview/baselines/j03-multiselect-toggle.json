@@ -3,7 +3,7 @@
  "note": "contract journey 3 — multi-select toggling two options (space), then the free-text Other row",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-27T14:57:37.407Z",
+ "capturedAt": "2026-09-27T15:19:50.856Z",
  "screens": [
   {
    "atMs": 12200,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 15:57:27 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:19:41 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 15:57:27 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 16:19:41 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -30,7 +30,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "←  ☒ Features  ✓ Submit  →",
     "",
     "⦿ Which features should the cache expose?",
@@ -47,7 +47,7 @@
     "  5. Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
-    " flux-arena-cwd-i2ofsE                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-qfCQ1Z                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 15:57:27 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:19:41 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 15:57:27 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 16:19:41 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -75,7 +75,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "←  ☒ Features  ✓ Submit  →",
     "",
     "⦿ Which features should the cache expose?",
@@ -92,7 +92,7 @@
     "  5. Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
-    " flux-arena-cwd-i2ofsE                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-qfCQ1Z                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -107,9 +107,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 15:57:27 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:19:41 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 15:57:27 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 16:19:41 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -120,7 +120,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "←  ☒ Features  ✓ Submit  →",
     "",
     "⦿ Which features should the cache expose?",
@@ -137,7 +137,7 @@
     "  5. Chat about this",
     "",
     "Enter to add your text · ↑/↓ to navigate · ctrl+g to edit in Nano · Esc to cancel",
-    " flux-arena-cwd-i2ofsE                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-qfCQ1Z                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -152,9 +152,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 15:57:27 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 16:19:41 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 15:57:27 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 16:19:41 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -165,7 +165,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     "←  ☒ Features  ✓ Submit  →",
     "",
     "⦿ Which features should the cache expose?",
@@ -182,22 +182,22 @@
     "  5. Chat about this",
     "",
     "Enter to add your text · ↑/↓ to navigate · ctrl+g to edit in Nano · Esc to cancel",
-    " flux-arena-cwd-i2ofsE                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-qfCQ1Z                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 14384,
-   "frame-recommit": 29
+   "patches": 14276,
+   "frame-recommit": 27
   },
   "frames": {
-   "total": 50,
-   "window": 50,
-   "p50": 0.7376250000006621,
-   "p95": 6.108541999999943,
-   "p99": 15.030500000000075,
-   "maxMs": 15.030500000000075
+   "total": 46,
+   "window": 46,
+   "p50": 0.5692500000004657,
+   "p95": 5.883208000000195,
+   "p99": 22.854332999999997,
+   "maxMs": 22.854332999999997
   }
  },
  "requests": [
@@ -232,31 +232,31 @@
  ],
  "sends": [
   {
-   "atMs": 6603.537797927856,
+   "atMs": 6719.986200332642,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7403.537797927856,
+   "atMs": 7519.986200332642,
    "b64": "DQ=="
   },
   {
-   "atMs": 11103.537797927856,
+   "atMs": 11219.986200332642,
    "b64": "IA=="
   },
   {
-   "atMs": 11603.537797927856,
+   "atMs": 11719.986200332642,
    "b64": "G1tC"
   },
   {
-   "atMs": 12003.537797927856,
+   "atMs": 12119.986200332642,
    "b64": "IA=="
   },
   {
-   "atMs": 12503.537797927856,
+   "atMs": 12619.986200332642,
    "b64": "G1tC"
   },
   {
-   "atMs": 12903.537797927856,
+   "atMs": 13019.986200332642,
    "b64": "G1tC"
   }
  ]
