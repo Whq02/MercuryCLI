@@ -55,7 +55,7 @@ import {
 import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ephemeralProgressStore.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
-import { IDLE_LIVE, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
 import { createTextRow, textRowLanded, type CommittedTextRow } from './midTurnText.js'
@@ -476,6 +476,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tailAtMs = -1
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
+  private liveTurnThinkingChars = 0
+  private liveFirstByteAtMs: number | null = null
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
   private runnerGeneration: number | null = null
@@ -599,6 +601,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (tail === null) {
       this.liveTurnChars = 0
       this.liveTurnOutputTokens = null
+      this.liveTurnThinkingChars = 0
+      this.liveFirstByteAtMs = null
       this.setLiveStateWord(null)
       this.setLiveFold(null)
       this.setStreamBlock(null, null)
@@ -608,6 +612,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     this.liveTurnChars = tail.turnChars ?? 0
     this.liveTurnOutputTokens = typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null
+    this.liveTurnThinkingChars = typeof tail.turnThinkingChars === 'number' && Number.isFinite(tail.turnThinkingChars) ? Math.max(0, tail.turnThinkingChars) : 0
+    this.liveFirstByteAtMs = typeof tail.firstByteAtMs === 'number' && Number.isFinite(tail.firstByteAtMs) ? tail.firstByteAtMs : null
     this.setLiveStateWord(
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
@@ -694,6 +700,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   turnOutputTokens(): number | null {
     return this.liveTurnOutputTokens
+  }
+
+  turnFacts(): LiveTurnFactsV1 {
+    return {
+      replyChars: Math.max(0, this.liveTurnChars - this.liveTurnThinkingChars),
+      thinkingChars: this.liveTurnThinkingChars,
+      wireOutputTokens: this.liveTurnOutputTokens,
+      firstByteAtMs: this.liveFirstByteAtMs,
+      wait: this.liveWait,
+    }
   }
 
   private clearLiveStateWord(): void {

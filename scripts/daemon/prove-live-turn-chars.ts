@@ -99,19 +99,21 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
     repl.includes('getFocusedLiveResponseChars') && !repl.includes('const responseLengthRef = useRef(0)'),
   )
   check('the REPL feeds the wire figure to the verb row and the streaming hold row from the same connector', repl.includes('getFocusedLiveOutputTokens') && (repl.match(/outputTokensRef=\{outputTokensRef\}/g) ?? []).length === 2)
+  check('the REPL feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', repl.includes('getFocusedLiveTurnFacts') && (repl.match(/liveTurnFactsRef=\{liveTurnFactsRef\}/g) ?? []).length === 2)
   const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   check(
     'the spinner still keys its display and tok/s off the ref (the fed ref revives both)',
     spinner.includes('responseLengthRef.current') && spinner.includes('smoothedOtpsRef'),
   )
-  check('the spinner paints the wire figure as a fact and the characters-over-four figure with its ~ mark', spinner.includes("${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens"))
+  check('the spinner paints the count from the one words function (liveCounterWords: the wire figure as a fact, characters over four with the ~ mark, the thinking count apart, no count while nothing has arrived) — the old zero-persisting tokens text is gone', spinner.includes(': liveWords.count') && !spinner.includes('tokenDirection'))
   check('the cadence beside it stays a text rate and its label says so', spinner.includes('`~${otps} tok/s`'))
   const hold = read('src/components/Spinner/StreamingHoldRow.tsx')
   const compact = read('src/components/Spinner.tsx')
-  check('the streaming hold row and the compact line read the same figure through the one helper', hold.includes('liveTokenFigure(liveChars, outputTokensRef?.current ?? null)') && compact.includes('liveTokenFigure(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)'))
-  const { liveTokenFigure } = await import('../../src/components/Spinner/SpinnerAnimationRow.tsx')
-  check('the helper: no wire figure yet ⇒ characters over four, marked an estimate', JSON.stringify(liveTokenFigure(1003, null)) === JSON.stringify({ count: 250, estimated: true }))
-  check('the helper: a wire figure ⇒ the figure itself, told as a fact', JSON.stringify(liveTokenFigure(1003, 777)) === JSON.stringify({ count: 777, estimated: false }))
+  check('the streaming hold row and the compact line read the same figure through the one words function (liveCounterWords over the seat facts, the two refs as the fallback)', hold.includes('liveCounterWords(') && hold.includes('turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)') && compact.includes('liveCounterWords(') && compact.includes('turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)'))
+  const { liveCounterFigure } = await import('../../src/components/Spinner/liveCounterWords.ts')
+  check('the figure: no wire figure yet ⇒ characters over four, marked an estimate', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: null })) === JSON.stringify({ total: 250, thinking: 0, reply: 250, estimated: true }))
+  check('the figure: a wire figure at or above the estimate ⇒ the figure itself, told as a fact', JSON.stringify(liveCounterFigure({ replyChars: 1003, thinkingChars: 0, wireOutputTokens: 777 })) === JSON.stringify({ total: 777, thinking: 0, reply: 777, estimated: false }))
+  check('the figure: thinking characters count apart from the reply while the wire has not spoken', JSON.stringify(liveCounterFigure({ replyChars: 400, thinkingChars: 3000, wireOutputTokens: null })) === JSON.stringify({ total: 850, thinking: 750, reply: 100, estimated: true }))
 }
 
 console.log('\nT8 the wire figure — the turn\'s cumulative output tokens once usage has arrived')

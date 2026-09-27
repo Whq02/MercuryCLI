@@ -30,6 +30,22 @@ export interface SeatStatusV1 {
 
 export type LostLineV1 = { text: string; atMs: number }
 
+export interface LiveTurnFactsV1 {
+  replyChars: number
+  thinkingChars: number
+  wireOutputTokens: number | null
+  firstByteAtMs: number | null
+  wait: RequestWaitV1 | null
+}
+
+export const IDLE_TURN_FACTS: LiveTurnFactsV1 = Object.freeze({
+  replyChars: 0,
+  thinkingChars: 0,
+  wireOutputTokens: null,
+  firstByteAtMs: null,
+  wait: null,
+}) as LiveTurnFactsV1
+
 export interface SeatLiveExtensionV1 {
   live(): SessionLiveV1
   subscribeLive(listener: () => void): () => void
@@ -38,6 +54,7 @@ export interface SeatLiveExtensionV1 {
   tailAnchor?(): number
   turnChars?(): number
   turnOutputTokens?(): number | null
+  turnFacts?(): LiveTurnFactsV1
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
   lostLine?(): LostLineV1 | null

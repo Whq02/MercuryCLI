@@ -27,12 +27,13 @@ import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { plural } from '../utils/stringUtils.js'
 import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
-import { packHints } from './mercury-ui/geometry.js'
 import { sampleSpinnerVerb } from '../constants/spinnerVerbs.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { WorkCapsuleContext } from './mercury-ui/WorkCapsule.js'
 import { useNowTick } from './mercury-ui/components.js'
-import { liveTokenFigure, SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
+import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
+import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './Spinner/liveCounterWords.js'
+import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
 import { TeammateSpinnerTree } from './Spinner/TeammateSpinnerTree.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
@@ -58,6 +59,7 @@ export type SpinnerWithVerbProps = {
   spinnerTip?: string | null
   responseLengthRef: React.RefObject<number>
   outputTokensRef?: React.RefObject<number | null>
+  liveTurnFactsRef?: React.RefObject<LiveTurnFactsV1>
   overrideColor?: ThemeKey | null
   overrideShimmerColor?: ThemeKey | null
   overrideMessage?: string | null
@@ -101,6 +103,7 @@ export function SpinnerWithVerb({
   spinnerTip,
   responseLengthRef,
   outputTokensRef,
+  liveTurnFactsRef,
   overrideColor,
   overrideShimmerColor,
   overrideMessage,
@@ -239,9 +242,11 @@ export function SpinnerWithVerb({
 
   if (compact) {
     if (compactWarning) return <Box height={1} width="100%" overflow="hidden"><Text color="warning" wrap="truncate-end">{truncateKeepingTail(message, Math.max(0, columns))}</Text></Box>
-    const phase = effectiveMode === 'thinking' ? 'thinking' : effectiveMode === 'responding' ? 'writing' : effectiveMode === 'tool-use' || effectiveMode === 'tool-input' ? 'working' : 'waiting'
-    const figure = liveTokenFigure(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)
-    const detail = packHints([formatDuration(elapsedMs), `↓ ${figure.estimated ? '~' : ''}${figure.count.toLocaleString('en-US')} tokens`, phase], Math.max(0, columns - 5))
+    const liveWords = liveCounterWords(
+      { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(effectiveMode), sentAtMs: now - elapsedMs },
+      now,
+    )
+    const detail = liveCounterLine(liveWords, Math.max(0, columns - 5))
     const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }
@@ -288,6 +293,7 @@ export function SpinnerWithVerb({
       activeToolCount={activeToolCount}
       responseLengthRef={responseLengthRef}
       outputTokensRef={outputTokensRef}
+      liveTurnFactsRef={liveTurnFactsRef}
       message={message}
       messageColor={messageColor}
       shimmerColor={shimmerColor}

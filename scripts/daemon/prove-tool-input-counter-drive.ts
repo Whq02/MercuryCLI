@@ -226,8 +226,8 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       const tokens = tokensOf(text)
       const rate = /([\d,.]+)\s*tok\/s/.exec(text)?.[1] ?? null
       check(`${geometry} ${label}: tool input is arriving before completion`, emitted >= 8192 && stillStreaming, `chars=${emitted}`)
-      const rounding = cols >= 100 ? 50 : 0
-      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the rounded wire count`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4) + rounding, `tokens=${tokens}, inputChars=${emitted}`)
+      const rounding = 50
+      check(`${geometry} ${label}: the spinner counts more than the opening prose without overtaking the wire count rounded for display (every row spells the count through the one words function: 17,689 reads 17.7k on the compact row too)`, tokens !== null && tokens > Math.floor(opening.length / 4) && tokens <= Math.floor((emitted + opening.length) / 4) + rounding, `tokens=${tokens}, inputChars=${emitted}`)
       if (cols >= 100) {
         check(`${geometry} ${label}: the token rate grows on the same stream`, rate !== null && Number(rate.replaceAll(',', '')) > 0, `rate=${rate}`)
         const recentCounts = wire.filter(row => row.kind === 'input' && row.at <= markAt && row.at >= markAt - vshotBudgetMs(1000)).map(row => Math.floor((row.emitted! + opening.length) / 4))

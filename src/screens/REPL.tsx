@@ -131,7 +131,7 @@ import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
 import { modelDisplayString, renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
 import { createBranchSession } from '../services/branches/branchManifest.js';
-import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
+import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
@@ -263,6 +263,10 @@ const getFocusedLiveResponseChars = (): number => {
 const getFocusedLiveOutputTokens = (): number | null => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? (connector.turnOutputTokens?.() ?? null) : null;
+};
+const getFocusedLiveTurnFacts = (): LiveTurnFactsV1 => {
+  const connector = getFocusedSessionConnector();
+  return hasSeatLive(connector) ? (connector.turnFacts?.() ?? IDLE_TURN_FACTS) : IDLE_TURN_FACTS;
 };
 const getFocusedStatusKey = (): string => {
   const connector = getFocusedSessionConnector();
@@ -2107,6 +2111,14 @@ export function REPL({
     }),
     [],
   );
+  const liveTurnFactsRef = useMemo(
+    () => ({
+      get current(): LiveTurnFactsV1 {
+        return getFocusedLiveTurnFacts();
+      },
+    }),
+    [],
+  );
   const apiMetricsRef = useRef<Array<{ ttftMs: number; firstTokenTime: number; lastTokenTime: number; responseLengthBaseline: number; endResponseLength: number }>>([]);
   const onlySleepToolActive = useMemo(() => {
     if (viewInProgressToolUseIDs.size === 0) return false;
@@ -2130,7 +2142,7 @@ export function REPL({
     !textActive || isBriefOnly || streamingSuppressed
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
-  const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, focusedConnector.status(), null, true) : '';
+  const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, { ...focusedConnector.status(), wait: null }, null, true) : '';
   const workingStatusStrip = <Box flexDirection="column">
     {showSpinner || (isCompact && spinnerSlotReserved) ? (
       <SpinnerWithVerb compact={isCompact} compactWarning={compactStatus !== '' && compactStatus !== 'ready'} mode={viewStreamMode}
@@ -2140,6 +2152,7 @@ export function REPL({
         spinnerTip={spinnerTip}
         responseLengthRef={responseLengthRef}
         outputTokensRef={outputTokensRef}
+        liveTurnFactsRef={liveTurnFactsRef}
         overrideColor={null}
         overrideShimmerColor={null}
         overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
@@ -2152,7 +2165,7 @@ export function REPL({
         leaderIsIdle={!isLoading}
         apiMetricsRef={apiMetricsRef}
       />
-    ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} /> : null}
+    ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
     {!isCompact ? <MercuryTurnRollup
       messages={messages}
       tools={mergedTools}

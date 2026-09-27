@@ -116,6 +116,8 @@ export interface SessionTailV1 {
   text: string | null
   turnChars?: number
   turnOutputTokens?: number
+  turnThinkingChars?: number
+  firstByteAtMs?: number
   messageId?: string
   phase?: TextPhase
   stateWord?: 'compacting' | 'waiting-on-agents'
