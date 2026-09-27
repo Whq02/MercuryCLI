@@ -33,10 +33,7 @@ import {
   type RosterSnapshot,
   getLiveContextUsage,
   getLiveContextUsageVersion,
-  getLivePresence,
-  getPresenceVersion,
   subscribeLiveContextUsage,
-  subscribePresence,
   traceSnapshot,
   type SnapshotState,
 } from '../utils/cockpit/index.js'
@@ -125,8 +122,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         : 0
   const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)
   const agent = agentStateSnapshot()
-  useSyncExternalStore(subscribePresence, getPresenceVersion, getPresenceVersion)
-  const seats = getLivePresence()
 
   const all = tasks ?? []
   const open = all.filter(t => t.status !== 'completed')
@@ -257,37 +252,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           <Text color={tok.warning}>-{removed}</Text>
         </Text>
       )}
-
-      {
-}
-      {seats.length > 0 ? (
-        <Box flexDirection="column">
-          {seats.map((s, i) => (
-            <Text key={s.seat} wrap="truncate-end">
-              <Text color={tok.textMuted}>{i === 0 ? 'seats  ' : '       '}</Text>
-              <Text color={tok.success}>{s.seat}</Text>
-              {s.verb ? (
-                <>
-                  <Text color={tok.textMuted}> · </Text>
-                  <Text color={tok.textPrimary}>{s.verb}</Text>
-                </>
-              ) : null}
-              {s.branch ? (
-                <>
-                  <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
-                  <Text color={tok.textPrimary}>{truncateToWidth(s.branch, 20)}</Text>
-                </>
-              ) : null}
-              {s.lastLine ? (
-                <>
-                  <Text color={tok.textMuted}> · </Text>
-                  <Text color={tok.textMuted}>{truncateToWidth(s.lastLine, 40)}</Text>
-                </>
-              ) : null}
-            </Text>
-          ))}
-        </Box>
-      ) : null}
 
       {
 }

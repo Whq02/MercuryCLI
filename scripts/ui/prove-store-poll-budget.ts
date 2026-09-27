@@ -188,7 +188,7 @@ check('§4 the notification journal and the crew obligations are never read by t
 const homeSweep = [...top].filter(([k]) => k.startsWith('tui: lstat') && k.includes(CFG)).reduce((n, [, v]) => n + v, 0)
 check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`)
 const presenceRenames = [...top].filter(([k]) => k.startsWith('tui: renameSync') && k.includes('/presence/')).reduce((n, [, v]) => n + v, 0)
-check('§6 the presence snapshot is never rewritten at idle', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`)
+check('§6 the retired presence estate writes nothing (no rename under a presence/ dir)', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`)
 
 console.log(`\n${failures === 0 ? '✅ STORE POLL BUDGET: green' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

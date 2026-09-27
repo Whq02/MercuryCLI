@@ -20,6 +20,7 @@ type Grid = { grid: Cell[][] }
 const HOVER_BG = ASH_RAISED.slice(1).toLowerCase()
 const RAIL_COLS = railPlanAt(120, true).lanesW
 const WORKBENCH_ROW = '  second task —'
+const FILES_ROW = 'or click · browse'
 
 type Region = [number, number, number, number]
 type Send = {
@@ -71,8 +72,6 @@ function capture(
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: CONFIG_HOME,
-      MERCURY_OPERATOR: 'op',
-      MERCURY_CHANNEL_ROOM: `hover-${tag}-${process.pid}`,
     },
   })
   cleanupScenario('cockpit-short')
@@ -102,14 +101,14 @@ console.log(' hover E2E — one highlight on sweep, none mid-drag')
 console.log('============================================================')
 
 console.log('\n── baseline: anchor two hover-armed rail rows ──────────────')
-const base = capture('base', [], 90, ['op (you)', WORKBENCH_ROW], 120, 40, {
+const base = capture('base', [], 90, [FILES_ROW, WORKBENCH_ROW], 120, 40, {
   stableTicks: 8,
   region: [0, 0, RAIL_COLS, 40],
 })
 let rowA = -1
 let rowB = -1
 if (base) {
-  rowA = base.lines.findIndex(l => l.includes('op (you)'))
+  rowA = base.lines.findIndex(l => l.slice(0, RAIL_COLS).includes(FILES_ROW))
   rowB = base.lines.findIndex(l => l.slice(0, RAIL_COLS).includes(WORKBENCH_ROW))
   check('both anchor rows present', rowA >= 0 && rowB >= 0, `A=${rowA} B=${rowB}`)
   if (rowA < 0 || rowB < 0) {
@@ -117,6 +116,7 @@ if (base) {
     base.lines.slice(0, 17).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 40)}`))
   }
   check('baseline carries no hover fill', hoverRows(base.grid).length === 0)
+  check('the rail paints no SEAT box (the retired presence estate)', !base.lines.some(l => /SEAT ·|\(you\)/.test(l.slice(0, RAIL_COLS))))
 }
 
 if (rowA >= 0 && rowB >= 0) {
@@ -125,7 +125,7 @@ if (rowA >= 0 && rowB >= 0) {
     MOUSE_ARM_GATE,
     {
       data: motionT,
-      targetText: 'op (you)',
+      targetText: FILES_ROW,
       targetDx: 1,
       awaitText: WORKBENCH_ROW,
       minTick: 8,
@@ -153,7 +153,7 @@ if (rowA >= 0 && rowB >= 0) {
     )
     check(
       'row A carries no stranded highlight',
-      !lit.some(y => (sweep.lines[y] ?? '').includes('op (you)')),
+      !lit.some(y => (sweep.lines[y] ?? '').slice(0, RAIL_COLS).includes(FILES_ROW)),
     )
     if (!contiguous || !wholeCard) {
       console.log('  … rail rows 0-16 (first 40 cols) at capture end:')
@@ -168,7 +168,7 @@ if (rowA >= 0 && rowB >= 0) {
       MOUSE_ARM_GATE,
       {
         data: motionT,
-        targetText: 'op (you)',
+        targetText: FILES_ROW,
         targetDx: 1,
         awaitText: WORKBENCH_ROW,
         minTick: 8,
@@ -177,7 +177,7 @@ if (rowA >= 0 && rowB >= 0) {
         awaitStableRegion: [0, 0, RAIL_COLS, 40],
         requireAwait: true,
       },
-      { data: pressT, targetText: 'op (you)', targetDx: 1, afterPrevTicks: 4 },
+      { data: pressT, targetText: FILES_ROW, targetDx: 1, afterPrevTicks: 4 },
       { data: dragT, targetText: WORKBENCH_ROW, targetDx: 2, afterPrevTicks: 4 },
     ],
     152,
@@ -265,92 +265,6 @@ if (rowA >= 0 && rowB >= 0) {
     if (escd) {
       check('esc: back from the board (its content is gone)', !escd.lines.some(l => l.includes('No workflow runs')))
       check('esc: the draft survived the round trip', escd.lines.some(l => l.includes('glidedraft')))
-    }
-  }
-}
-
-{
-  console.log('\n── D. left lane title: SEAT glance is display-only (no hover ink, no click door) ──')
-  const W = 160
-  const H = 50
-  const LANES_W = railPlanAt(W, true).lanesW
-  const REST_FG = OASIS.slice(1).toLowerCase()
-  const HOVER_FG = lerpHex(OASIS, IVORY, 0.4).slice(1).toLowerCase()
-  const leftBandFills = (grid: Cell[][]): number[] => {
-    const rows: number[] = []
-    grid.forEach((row, y) => {
-      if (row.slice(0, LANES_W).some(c => c.bg?.toLowerCase() === HOVER_BG)) rows.push(y)
-    })
-    return rows
-  }
-  const seatFg = (grid: Cell[][], y: number, x0: number): string[] =>
-    (grid[y] ?? []).slice(x0, x0 + 4).map(c => (c as Cell & { fg?: string }).fg?.toLowerCase() ?? '')
-
-  const base = capture('seat-base', [], 90, 'SEAT', W, H, {
-    stableTicks: 8,
-    region: [0, 0, LANES_W, H],
-  })
-  let sx = -1
-  let sy = -1
-  if (base) {
-    sy = base.lines.findIndex(l => l.includes('SEAT'))
-    sx = sy >= 0 ? base.lines[sy]!.indexOf('SEAT') : -1
-    check('the SEAT lane header is present at 160×50', sy >= 0 && sx >= 0 && sx < LANES_W, `row=${sy} col=${sx}`)
-    check('rest: zero fill cells in the left lanes band', leftBandFills(base.grid).length === 0)
-    check(
-      'rest: the SEAT label wears the info hue',
-      sy >= 0 && seatFg(base.grid, sy, sx).every(f => f === REST_FG),
-      sy >= 0 ? seatFg(base.grid, sy, sx).join(',') : 'missing',
-    )
-  }
-  if (sy >= 0 && sx >= 0) {
-    const hoverSends: Send[] = [
-      MOUSE_ARM_GATE,
-      {
-        data: motionT,
-        targetText: 'SEAT',
-        targetDx: 1,
-        awaitText: 'SEAT',
-        minTick: 8,
-        awaitSettleTicks: 8,
-        awaitStableTicks: 8,
-        awaitStableRegion: [0, 0, LANES_W, H],
-        requireAwait: true,
-      },
-    ]
-    const hovered = capture('seat-hover', hoverSends, 120, undefined, W, H, { stableTicks: 8, region: [0, 0, LANES_W, H] })
-    if (hovered) {
-      const y2 = hovered.lines.findIndex(l => l.includes('SEAT'))
-      const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf('SEAT') : -1
-      check('hover: ZERO fill cells in the left lanes band', leftBandFills(hovered.grid).length === 0, `rows=${leftBandFills(hovered.grid).join(',')}`)
-      check(
-        'hover: the SEAT label stays the REST info hue (display-only — no shimmer without an action)',
-        y2 >= 0 && seatFg(hovered.grid, y2, x2).every(f => f === REST_FG),
-        y2 >= 0 ? seatFg(hovered.grid, y2, x2).join(',') : 'header missing',
-      )
-      check(
-        'hover poison: the infoShimmer hue never paints the SEAT label',
-        y2 >= 0 && !seatFg(hovered.grid, y2, x2).some(f => f === HOVER_FG),
-        y2 >= 0 ? seatFg(hovered.grid, y2, x2).join(',') : 'header missing',
-      )
-    }
-    const openSends: Send[] = [
-      ...hoverSends,
-      { data: pressT, targetText: 'SEAT', targetDx: 1, afterPrevTicks: 6 },
-      { data: releaseT, targetText: 'SEAT', targetDx: 1, afterPrevTicks: 2 },
-    ]
-    const opened = capture('seat-open', openSends, 150, undefined, W, H, { stableTicks: 8, region: [0, 0, LANES_W, H] })
-    if (opened) {
-      const y3 = opened.lines.findIndex(l => l.includes('SEAT'))
-      check(
-        'click: NOTHING opens — the rail still stands with its SEAT header (the click is inert)',
-        y3 >= 0 && leftBandFills(opened.grid).length === 0,
-        `row=${y3} fills=${leftBandFills(opened.grid).join(',')}`,
-      )
-      check(
-        'click poison: the retired board title can never paint',
-        !opened.lines.some(l => l.includes('Mercury — multiplayer')),
-      )
     }
   }
 }

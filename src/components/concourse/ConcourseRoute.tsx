@@ -815,7 +815,7 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const o = await import('../../services/crew/obligations.js')
-            const { getOperatorName } = await import('../../utils/cockpit/presenceLive.js')
+            const { getOperatorName } = await import('../../substrate/identity/operatorDisplayName.js')
             await o.redirectObligation(obligationId, getOperatorName() || 'operator', { by: 'operator', scope: 'switchboard' })
           } catch (e) {
             logForDebugging(`[concourse] claim failed: ${e}`)

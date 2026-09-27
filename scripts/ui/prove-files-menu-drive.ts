@@ -283,7 +283,7 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
     after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
-    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: 'SEAT · 0 peers' }),
+    gated(CLICK, TITLE, { awaitSettleTicks: 4, mark: 'click-open', targetText: 'lanes' }),
     after('', 6, { mark: 'click-closed' }),
     after('/model', 2),
     after('\r', 3),

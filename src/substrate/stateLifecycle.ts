@@ -50,7 +50,6 @@ export interface LifecycleClassDecl {
 
 
 const DAY_MS = 24 * 60 * 60 * 1000
-export const PRESENCE_SEAT_RETENTION_MS = DAY_MS
 export const SEMANTIC_RETENTION_MS = 30 * DAY_MS
 export const SKELETON_RETENTION_MS = 7 * DAY_MS
 
@@ -169,49 +168,6 @@ async function collectLockSidecars(budget: LifecycleBudget): Promise<LifecycleCl
       }
       await removePath(root, join(root, entry.name), 'file', receipt, budget)
     }
-  }
-  receipt.done = true
-  return receipt
-}
-
-async function collectPresenceSeats(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
-  const receipt = emptyReceipt('presence-seats')
-  let root: string
-  try {
-    const { channelsRoot } = await import('../services/mcp/channelsRoot.js')
-    root = channelsRoot()
-  } catch {
-    receipt.done = true
-    return receipt
-  }
-  for (const room of await listDir(root)) {
-    if (overBudget(budget)) return receipt
-    if (!room.isDir) continue
-    const presenceDir = join(root, room.name, 'presence')
-    for (const seat of await listDir(presenceDir)) {
-      if (overBudget(budget)) return receipt
-      if (seat.isDir || !seat.name.endsWith('.json')) continue
-      receipt.visited++
-      const seatPath = join(presenceDir, seat.name)
-      let staleSince = 0
-      try {
-        const rec = safeParseJSON(await readFile(seatPath, 'utf8'), false) as { ts?: number } | null
-        staleSince = typeof rec?.ts === 'number' ? rec.ts : (await stat(seatPath)).mtimeMs
-      } catch {
-        try {
-          staleSince = (await stat(seatPath)).mtimeMs
-        } catch {
-          continue
-        }
-      }
-      if (budget.now() - staleSince <= PRESENCE_SEAT_RETENTION_MS) {
-        receipt.retained++
-        continue
-      }
-      await removePath(root, seatPath, 'file', receipt, budget)
-    }
-    await rmdir(presenceDir).catch(() => {})
-    await rmdir(join(root, room.name)).catch(() => {})
   }
   receipt.done = true
   return receipt
@@ -472,19 +428,6 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     action: 'remove',
     prover: 'scripts/substrate/prove-lifecycle-collector.ts',
     collect: collectLockSidecars,
-  },
-  {
-    id: 'presence-seats',
-    lane: 'mechanical-debris',
-    owner: 'src/utils/cockpit/presenceLive.ts',
-    root: '<channels>/<room>/presence/<seat>.json',
-    kind: 'cache',
-    liveReference: 'record ts within the 24h seat retention (reads stale-drop at 10s)',
-    terminal: 'record ts (or mtime) older than 24h',
-    retention: '24h, then collected; emptied presence/room dirs fold away',
-    action: 'remove',
-    prover: 'scripts/substrate/prove-lifecycle-collector.ts',
-    collect: collectPresenceSeats,
   },
   {
     id: 'shell-snapshots',

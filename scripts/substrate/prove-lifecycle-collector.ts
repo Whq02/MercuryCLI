@@ -17,7 +17,6 @@ const HOME = mkdtempSync(join(tmpdir(), 'lifecycle-collector-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CREW_DIR
-delete process.env.MERCURY_CHANNEL_ROOM
 delete process.env.MERCURY_DAEMON_DIR
 delete process.env.MERCURY_DELIVERY_ARTIFACT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -47,7 +46,6 @@ const pass = (opts?: { budgetMs?: number; maxRemovals?: number }) =>
   lifecycle.runLifecyclePass({ ...opts, now: fakeNow })
 
 const daemonHome = join(HOME, 'daemon')
-const channels = join(HOME, 'channels')
 const snapshots = join(HOME, 'shell-snapshots')
 const tasksRoot = join(HOME, 'tasks')
 const crewRoot = join(HOME, 'crew')
@@ -61,11 +59,6 @@ section('§1 COLLECTOR CLASSES')
   const liveSidecar = join(daemonHome, `daemon.lock.claim-${process.pid}-abcdef02`)
   writeFileSync(deadSidecar, '{}')
   writeFileSync(liveSidecar, '{}')
-
-  const presenceDir = join(channels, 'proj-12345678', 'presence')
-  mkdirSync(presenceDir, { recursive: true })
-  writeFileSync(join(presenceDir, 'ghost.json'), JSON.stringify({ seat: 'ghost', verb: 'active', ts: NOW - 25 * 60 * 60 * 1000 }))
-  writeFileSync(join(presenceDir, 'live.json'), JSON.stringify({ seat: 'live', verb: 'editing', ts: NOW - 5000 }))
 
   mkdirSync(snapshots, { recursive: true })
   const oldSnap = join(snapshots, 'snapshot-zsh-1111-aaaaaa.sh')
@@ -99,8 +92,6 @@ section('§1 COLLECTOR CLASSES')
 
   check('dead-owned sidecar collected (G01 family)', !existsSync(deadSidecar))
   check('live-owned sidecar retained', existsSync(liveSidecar))
-  check('stale presence seat collected (the 14h "active" ghost)', !existsSync(join(presenceDir, 'ghost.json')))
-  check('fresh presence seat retained', existsSync(join(presenceDir, 'live.json')))
   check('ancient shell snapshot collected', !existsSync(oldSnap))
   check('recent shell snapshot retained', existsSync(newSnap))
   check('old task list collected', !existsSync(oldList))
@@ -114,12 +105,14 @@ section('§1 COLLECTOR CLASSES')
 section('§2 BUDGET + CURSOR (G08)')
 {
   await lifecycle._resetLifecycleForProofs()
-  const p2 = join(channels, 'proj-b', 'presence')
-  mkdirSync(p2, { recursive: true })
-  writeFileSync(join(p2, 'g1.json'), JSON.stringify({ seat: 'g1', ts: NOW - 3 * DAY }))
   const snapOld2 = join(snapshots, 'snapshot-bash-0001-cccccc.sh')
   writeFileSync(snapOld2, '# old2')
   backdate(snapOld2, 45 * DAY)
+  const oldList2 = join(tasksRoot, 'old-list-2')
+  mkdirSync(oldList2, { recursive: true })
+  writeFileSync(join(oldList2, '1.json'), '{}')
+  backdate(join(oldList2, '1.json'), 45 * DAY)
+  backdate(oldList2, 45 * DAY)
 
   const first = await pass({ budgetMs: 60_000, maxRemovals: 1 })
   check('capped pass stops mid-cycle (budgetExhausted, not complete)', first.budgetExhausted && !first.cycleComplete)
@@ -132,17 +125,18 @@ section('§2 BUDGET + CURSOR (G08)')
   let guard = 0
   while (!resumed.cycleComplete && guard++ < 10) resumed = await pass({ budgetMs: 60_000, maxRemovals: 1000 })
   check('resumed passes complete the cycle from the cursor', resumed.cycleComplete)
-  check('both seeded items eventually collected across passes', !existsSync(join(p2, 'g1.json')) && !existsSync(snapOld2))
+  check('both seeded items eventually collected across passes', !existsSync(snapOld2) && !existsSync(oldList2))
 }
 
 section('§3 THE SENTINEL LAW (G07)')
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
-  const jailDir = join(channels, 'proj-jail', 'presence')
+  const jailDir = snapshots
   mkdirSync(jailDir, { recursive: true })
-  const jailed = join(jailDir, 'stuck.json')
-  writeFileSync(jailed, JSON.stringify({ seat: 'stuck', ts: NOW - 3 * DAY }))
+  const jailed = join(jailDir, 'snapshot-zsh-3333-dddddd.sh')
+  writeFileSync(jailed, '# stuck')
+  backdate(jailed, 45 * DAY)
   chmodSync(jailDir, 0o555)
 
   let outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
@@ -161,7 +155,7 @@ section('§3 THE SENTINEL LAW (G07)')
     outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
   }
   check('healed, the cycle completes clean', outcome === 'cycle-complete', `outcome=${outcome}`)
-  check('the healed sweep collected the jailed seat', !existsSync(jailed))
+  check('the healed sweep collected the jailed snapshot', !existsSync(jailed))
 }
 
 section('§4 RECURRING RE-ARM (G09)')

@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { TerminalNotification } from '../ink/useTerminalNotification.js'
-import { getOperatorName } from '../utils/cockpit/presenceLive.js'
+import { getOperatorName } from '../substrate/identity/operatorDisplayName.js'
 import { logForDebugging } from '../utils/debug.js'
 import { sendNotification } from '../services/notifier.js'
 import { emitConcourseSignal } from '../services/notificationPolicy.js'

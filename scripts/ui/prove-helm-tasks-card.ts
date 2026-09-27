@@ -197,7 +197,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
   }
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, h(Harness)))
   const frame = (): string => stripAnsi(ink.lastFrameText())
-  await until(`${name}: the cockpit mounts with the composer and the lanes rail`, () => insertRef.current !== null && stdin.isRaw && frame().includes('SEAT'))
+  await until(`${name}: the cockpit mounts with the composer and the lanes rail`, () => insertRef.current !== null && stdin.isRaw && frame().includes('lanes'))
   await until(`${name}: the telemetry bus carries the fixture ledger (${work.mission.length} rows)`, () => telemetry.getTelemetry().version > 0 && telemetry.getTelemetry().tasks.length === work.mission.length, 15_000)
   const seen = frames
   await until(`${name}: the cockpit composed two more frames after the ledger landed (the working strip's clock keeps them coming)`, () => frames >= seen + 2)
@@ -242,7 +242,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const world = await mount('busy-empty', { rows: [shellRow()], mission: [] })
   const frame = world.frame()
   file('busy-empty-ledger-178x51.txt', frame)
-  check('the fixture owns the seat and the files door (the scratch project, the fixture operator)', /sam \(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/))
+  check('the fixture owns the files door (the scratch project) and the rail paints no seat row', !/\(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/))
   runsDoor('busy-empty', frame)
   railCard('busy-empty', frame)
   dumpRail('busy-empty', frame, since)

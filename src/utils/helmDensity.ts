@@ -3,7 +3,7 @@ import type { ActivityState } from './cockpit/cockpitActivity.js'
 
 export const HELM_COMPACT_ROWS = 30
 
-export const HELM_DENSITY_FLOOR = ['seat', 'work', 'tasks', 'runs', 'mission'] as const
+export const HELM_DENSITY_FLOOR = ['work', 'tasks', 'runs', 'mission'] as const
 
 export type DensityEmphasis = 'identity' | 'work' | 'decision' | 'review'
 

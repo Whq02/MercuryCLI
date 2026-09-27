@@ -6,10 +6,7 @@ import { requestDeliberateToolChange } from '../providers/lawfulPrefixChange.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { getBranch } from '../../utils/git.js'
 import { logMCPError } from '../../utils/log.js'
-import { getOperatorName, recordSelfPresence, startPresenceTail } from '../../utils/cockpit/presenceLive.js'
-import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { clearClaudeAIMcpConfigsCache, fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
 import {
   clearServerCache,
@@ -40,7 +37,6 @@ import { excludeCommandsByServer, excludeResourcesByServer, excludeStaleExtensio
 
 const HOOK_LABEL = 'useManageMCPConnections'
 const BATCH_WINDOW_MS = 16
-const PRESENCE_HEARTBEAT_MS = 3000
 
 type Tool = McpConnectOutcome['tools'][number]
 type Command = McpConnectOutcome['commands'][number]
@@ -360,26 +356,7 @@ export function useManageMCPConnections(
   React.useEffect(() => {
     if (!isLocalChannelBusEnabled()) return
     const bus = startLocalChannelBus()
-
-    const seat = getOperatorName()
-    let branch = ''
-    const publish = (): void => {
-      recordSelfPresence({ seat, verb: 'active', branch, lastLine: '' })
-    }
-    publish()
-    void Promise.resolve()
-      .then(() => getBranch())
-      .then(resolved => {
-        branch = resolved ?? ''
-        publish()
-      })
-      .catch(() => {})
-    const stopHeartbeat = subscribeUiClock(PRESENCE_HEARTBEAT_MS, publish)
-    const stopTail = startPresenceTail()
-
     return () => {
-      stopHeartbeat()
-      stopTail()
       bus.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session
