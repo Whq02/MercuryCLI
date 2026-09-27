@@ -138,8 +138,18 @@ if (runLeg('git-offer')) {
     } else {
       check(`${cols}×${rows}: the card overlays at the BOTTOM — above the composer strip`, title > 3 && strip > title, `card=${title} strip=${strip}`)
       const legend = rowOf(lines, '↑↓ choose · ↵ confirm · esc cancel')
+      const cardTop = title - 1
       const cardBottom = legend + 1
-      check(`${cols}×${rows}: the strip's top rule survives beneath the overlay`, lines[cardBottom]?.trim().startsWith('╰') === true && lines[cardBottom + 1]?.trim().startsWith('╭') === true, `rows ${cardBottom}/${cardBottom + 1}: ${JSON.stringify(lines[cardBottom]?.trim().slice(0, 8))} ${JSON.stringify(lines[cardBottom + 1]?.trim().slice(0, 8))}`)
+      const left = lines[cardTop]?.indexOf('╭') ?? -1
+      const right = lines[cardTop]?.indexOf('╮') ?? -1
+      const corners = (row: string | undefined, open: string, close: string): boolean => row !== undefined && row[left] === open && row[right] === close
+      const ring = lines.slice(cardTop - 1, cardBottom + 2)
+      const ringBlank = (band: string[]): boolean => band.length === cardBottom - cardTop + 3 && band[0]!.trim() === '' && band.at(-1)!.trim() === '' && band.every(row => row[left - 1] === ' ' && row[right + 1] === ' ')
+      const poisoned = ring.map((row, at) => at === ring.length - 1 ? `${row.slice(0, left + 4)}▸${row.slice(left + 5)}` : row)
+      check(`${cols}×${rows}: the card's frame corners are all on screen`, left >= 1 && right > left && corners(lines[cardTop], '╭', '╮') && corners(lines[cardBottom], '╰', '╯'), `rows ${cardTop}/${cardBottom}, cols ${left}/${right}: ${JSON.stringify(lines[cardTop]?.trim().slice(0, 4))} ${JSON.stringify(lines[cardBottom]?.trim().slice(0, 4))}`)
+      check(`${cols}×${rows}: one blank gutter cell rings the card`, ringBlank(ring), `rows ${cardTop - 1}/${cardBottom + 1}: ${JSON.stringify(ring[0]?.trim().slice(0, 8))} ${JSON.stringify(ring.at(-1)?.trim().slice(0, 8))}`)
+      check(`${cols}×${rows}: the strip's top rule survives right outside the gutter ring`, lines[cardBottom + 2]?.trim().startsWith('╭') === true, `row ${cardBottom + 2}: ${JSON.stringify(lines[cardBottom + 2]?.trim().slice(0, 8))}`)
+      check(`${cols}×${rows}: control — a live glyph inside the gutter ring is refused`, !ringBlank(poisoned), JSON.stringify(poisoned.at(-1)?.trim().slice(0, 8)))
     }
     check(`${cols}×${rows}: the rail still MENTIONS the ask`, has(lines, 'NEEDS YOU') && has(lines, 'git offer'))
     check(`${cols}×${rows}: the strip's retired y/n context is absent`, !has(lines, 'y allows · n denies'))

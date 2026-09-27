@@ -37,8 +37,11 @@ type Wire = { kind: string; family?: string; phase?: string; at: number }
 type FamilyName = 'openrouter' | 'gemini' | 'huggingface' | 'local'
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const live = (frame: string, name: string): boolean => new RegExp(`│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}\\S`).test(frame)
-const current = (frame: string, name: string): boolean => new RegExp(`${escapeRe(name)} {2,}\\S+ {2,}current`).test(frame)
+const liveRow = (name: string): string => `│ (?:│ | {2})(?:❯ )?${escapeRe(name)} {2,}[^\\s│╭╮╰╯─]`
+const currentRow = (name: string): string => `${escapeRe(name)} {2,}\\S+ {2,}current`
+const live = (frame: string, name: string): boolean => new RegExp(liveRow(name)).test(frame)
+const current = (frame: string, name: string): boolean => new RegExp(currentRow(name)).test(frame)
+const onScreenTogether = (...patterns: string[]): string => `\\A${patterns.map(pattern => `(?=[\\s\\S]*${pattern})`).join('')}`
 
 const orRow = (id: string, name: string) => ({ id, name, context_length: 131_072, created: 1_755_800_000 })
 const gemRow = (id: string, displayName: string) => ({ name: `models/${id}`, displayName, supportedGenerationMethods: ['generateContent'], inputTokenLimit: 1_048_576, outputTokenLimit: 8192 })
@@ -164,6 +167,7 @@ for (const legName of LEGS) {
       const walk = family?.name === 'local'
       const tight = !leg.dark && cols < 100 && rows >= 20
       const noticeWords = family ? `${family.word} — the live list changed; rows updated` : ''
+      const cachedWitness = !family ? '' : tight ? currentRow(family.keepName) : walk ? liveRow(family.oldName) : onScreenTogether(liveRow(family.oldName), currentRow(family.keepName))
       const DOWN = '\x1b[B'
       const sends = leg.dark
         ? [
@@ -181,7 +185,7 @@ for (const legName of LEGS) {
             { requireAwait: true, awaitText: 'alpha answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
             { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
             ...(walk ? [{ requireAwait: true, awaitText: 'Mercury · model', minTick: 1, awaitSettleTicks: 2, data: DOWN.repeat(60) }] : []),
-            { requireAwait: true, awaitText: tight ? family!.keepName : family!.oldName, minTick: 1, awaitSettleTicks: 1, data: '', mark: 'cached' },
+            { requireAwait: true, awaitText: tight ? family!.keepName : family!.oldName, awaitPattern: cachedWitness, minTick: 1, data: '', mark: 'cached' },
             leg.changed
               ? { afterPrevTicks: 60, awaitText: tight ? noticeWords : family!.newName, awaitSettleTicks: 2, data: '', mark: 'refreshed' }
               : { afterPrevTicks: 40, data: '', mark: 'refreshed' },
