@@ -95,19 +95,3 @@ It never reads or writes the server's environment (`OLLAMA_*`), never starts a
 second server beside one that answers, never installs over LM Studio, vLLM or
 llama.cpp, and never runs a command you did not press Enter on. Every command
 it runs is the one the will-run line showed.
-
-## How it is proven
-
-The road is proven first on a fixture Ollama
-(`scripts/local-setup/fixtures/fake-ollama.ts`): a loopback server that
-answers every route the road speaks — `/api/version`, `/api/tags`, `/api/pull`
-streamed, `/api/show` with the 9B's geometry, `/api/ps`, `/api/generate`,
-`/api/chat` with a canned `ready`, and `/v1/chat/completions` — beside a fixture
-`ollama` binary, a fixture installer and a fixture Homebrew, so the install and
-start steps run for real inside a scratch prefix. The end-to-end drive
-(`scripts/local-setup/prove-local-setup-drive.ts`) boots the built product in
-a fresh config home with no server answering and no `ollama` on PATH, types
-`/localsetup`, walks every step with Enter, captures the dialog at 178x51 and
-80x21 at each step, and asserts the ready row, a reply to a typed line after
-set-up, and that nothing outside the scratch home changed. Then the road is
-run live on a fresh home with Ollama not running.
