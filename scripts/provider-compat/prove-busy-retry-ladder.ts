@@ -135,6 +135,7 @@ const stamped = (items: Item[]) => items.filter(item => item.type === 'assistant
 const redLines = (items: Item[]) => items.filter(item => item.type === 'assistant' && item.isApiErrorMessage === true).map(item => item.message?.content.map(block => block.text ?? '').join('') ?? '')
 const answered = (items: Item[], text: string) => items.some(item => item.type === 'assistant' && item.message?.content.some(block => block.text === text))
 const sse = (chunks: unknown[], done = false): Response => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + (done ? 'data: [DONE]\n\n' : ''), { headers: { 'content-type': 'text/event-stream' } })
+const ndjson = (rows: unknown[]): Response => new Response(rows.map(row => `${JSON.stringify(row)}\n`).join(''), { headers: { 'content-type': 'application/x-ndjson' } })
 type Hit = { url: string; atMs: number }
 const hits: Hit[] = []
 let refusalsBeforeAnswer = Infinity
@@ -146,7 +147,7 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
   const method = (init?.method ?? 'GET').toUpperCase()
   if (url.endsWith('/token')) return Response.json({ access_token: access, expires_in: 3600 })
-  const modelRoad = url.includes('/chat/completions') || url.endsWith('/responses') || url.includes(':streamGenerateContent')
+  const modelRoad = url.includes('/chat/completions') || url.endsWith('/api/chat') || url.endsWith('/responses') || url.includes(':streamGenerateContent')
   if (method !== 'POST' || !modelRoad) return Response.json({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] })
   hits.push({ url, atMs: Date.now() })
   if (hits.length <= refusalsBeforeAnswer) return Response.json(body, { status, headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter } })
@@ -159,6 +160,7 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
     ])
   }
   if (url.includes('/chat/completions')) return sse([{ choices: [{ delta: { content: ANSWER }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }], true)
+  if (url.endsWith('/api/chat')) return ndjson([{ model: 'llama-fixture', message: { role: 'assistant', content: ANSWER }, done: false }, { model: 'llama-fixture', message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop', prompt_eval_count: 10, eval_count: 2 }])
   return sse([
     { candidates: [{ content: { role: 'model', parts: [{ text: 'native answer' }] } }] },
     { candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },

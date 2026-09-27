@@ -201,7 +201,20 @@ read from the server before a request is judged against it (Ollama loads the
 model and `/api/ps` states the window; LM Studio's loaded instance, vLLM's
 `max_model_len` and llama.cpp's `/props` state theirs), a window the server
 has not stated yet refuses nothing, and the fit guard refuses only a request
-larger than a window the server or its Modelfile states. The lane is verified
+larger than a window the server or its Modelfile states. The window a local
+model is served with is a setting inside Mercury (`/config` → Local model
+window, per model): `auto` (unset) chooses the smallest of the trained maximum
+and twice the first request rounded up to 16k, never under 32k, at the model's
+first send and holds it for the session on every dispatch — the main thread,
+crewmates and workflow agents alike, so a sub-agent never reloads the runner;
+`server default` leaves the choice to the server (Ollama loads the model and
+`/api/ps` states the figure); `32k` · `64k` · `128k` · `trained max` or a number
+pin it. On Ollama the chosen window rides as `options.num_ctx` on every request
+over the native `/api/chat` stream (with `truncate: false`, so an over-window
+prompt is refused by the server rather than truncated); LM Studio takes it
+when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
+vLLM and llama.cpp fix their window at server start, so the row shows the
+served figure and reads as not applicable. The lane is verified
 against a live Ollama for discovery, streamed text, streamed reasoning and
 multi-round tool loops; the sub-agent dispatch, search-door and SATURN-fire
 legs remain operator-deferred drill lines. The Hugging Face lane carries an

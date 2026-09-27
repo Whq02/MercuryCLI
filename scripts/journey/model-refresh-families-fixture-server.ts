@@ -34,6 +34,11 @@ function chatCompletionsSse(text: string): string {
   return [chunk({ role: 'assistant', content: '' }, null), chunk({ content: text }, null), chunk({}, 'stop'), 'data: [DONE]\n\n'].join('')
 }
 
+function ollamaNdjson(text: string): string {
+  const row = (message: Record<string, unknown>, tail: Record<string, unknown>): string => `${JSON.stringify({ model: 'fixture', created_at: new Date().toISOString(), message: { role: 'assistant', content: '', ...message }, ...tail })}\n`
+  return row({ content: text }, { done: false }) + row({}, { done: true, done_reason: 'stop', prompt_eval_count: 10, eval_count: 2 })
+}
+
 function geminiSse(text: string): string {
   return [
     sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text }] } }] }),
@@ -82,8 +87,8 @@ function turn(family: Family | 'anthropic', res: ServerResponse, body: string): 
   const text = spec?.reply ?? REPLY
   record({ kind: 'turn', family })
   if (catalogue().switchOn !== 'never') turned = true
-  res.writeHead(200, { 'content-type': 'text/event-stream' })
-  res.end(body === 'gemini' ? geminiSse(text) : body === 'anthropic' ? anthropicSse(text) : chatCompletionsSse(text))
+  res.writeHead(200, { 'content-type': body === 'ollama' ? 'application/x-ndjson' : 'text/event-stream' })
+  res.end(body === 'ollama' ? ollamaNdjson(text) : body === 'gemini' ? geminiSse(text) : body === 'anthropic' ? anthropicSse(text) : chatCompletionsSse(text))
 }
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -157,6 +162,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       }
       if (method === 'POST' && path.endsWith('/chat/completions')) {
         turn(family, res, 'chat')
+        return
+      }
+      if (family === 'local' && method === 'POST' && path.endsWith('/api/chat')) {
+        turn(family, res, 'ollama')
         return
       }
       if (family === 'gemini' && method === 'POST' && /:streamGenerateContent$/.test(path)) {

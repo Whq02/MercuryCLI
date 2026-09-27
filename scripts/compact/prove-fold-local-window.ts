@@ -90,7 +90,9 @@ const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/u
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 const { setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
+const windowModule = await import('../../src/services/providers/local/localWindow.ts')
 await refreshLocalDiscovery({ force: true })
+windowModule.writeLocalWindowSetting?.({ id: MODEL }, 'server')
 
 const PERSISTED = `local/${MODEL}`
 let uuidSeq = 0
@@ -138,12 +140,12 @@ async function runFold(isNonInteractiveSession: boolean): Promise<{ error?: stri
   }
 }
 
-section('§1 the seated model serves a 4,096-token window the fold\'s own request cannot fit: the fold refuses in plain words, never a nested API Error')
+section('§1 the seated model serves a 4,096-token window the fold\'s own request cannot fit (the window setting "server": the server\'s own choice governs): the fold refuses in plain words, never a nested API Error')
 {
   check('discovery states the served window (4096 · served)', localRecordFor(PERSISTED)?.contextWindow?.tokens === SERVED && localRecordFor(PERSISTED)?.contextWindow?.source === 'served', JSON.stringify(localRecordFor(PERSISTED)?.contextWindow))
   const before = hits.length
   const run = await runFold(false)
-  const chat = hits.slice(before).filter(h => h.url === '/v1/chat/completions')
+  const chat = hits.slice(before).filter(h => h.url === '/v1/chat/completions' || h.url === '/api/chat')
   check('the fold did not produce a summary (the guard refused the fold\'s own request)', run.result === undefined && run.error !== undefined, JSON.stringify(run.result ?? null).slice(0, 200))
   check('no summary request reached the server (refused before the send)', chat.length === 0, `${chat.length} escaped`)
   const message = run.error ?? ''

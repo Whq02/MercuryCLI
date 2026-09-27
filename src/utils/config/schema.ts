@@ -224,6 +224,8 @@ export type GlobalConfig = {
   hasUsedBackslashReturn?: boolean
   autoCompactEnabled: boolean
   autoCompactWindow?: number
+  localModelWindows?: { [model: string]: 'server' | 'max' | number }
+  localModelBatch?: { [model: string]: number }
   showTurnDuration: boolean
   env: { [key: string]: string }
   hasSeenTasksHint?: boolean
