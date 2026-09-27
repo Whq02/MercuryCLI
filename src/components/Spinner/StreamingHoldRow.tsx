@@ -6,7 +6,8 @@ import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { MID_STREAM_STILL_WAITING_MS } from './useStalledAnimation.js'
-import { liveTokenFigure } from './SpinnerAnimationRow.js'
+import { liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
+import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 
 
 const STREAM_GLYPH_TICK_MS = WORK_TICK_MS / 4
@@ -17,12 +18,14 @@ export function StreamingHoldRow({
   pauseStartTimeRef,
   responseLengthRef,
   outputTokensRef,
+  liveTurnFactsRef,
 }: {
   loadingStartTimeRef: React.MutableRefObject<number>
   totalPausedMsRef: React.MutableRefObject<number>
   pauseStartTimeRef: React.MutableRefObject<number | null>
   responseLengthRef?: React.RefObject<number>
   outputTokensRef?: React.RefObject<number | null>
+  liveTurnFactsRef?: React.RefObject<LiveTurnFactsV1>
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const [, tick] = useAnimationValue(960, t => Math.floor(t / 960))
@@ -38,8 +41,10 @@ export function StreamingHoldRow({
         totalPausedMsRef.current
       : now - loadingStartTimeRef.current - totalPausedMsRef.current
   const liveChars = responseLengthRef?.current ?? 0
-  const liveFigure = liveTokenFigure(liveChars, outputTokensRef?.current ?? null)
-  const liveTokens = liveFigure.count
+  const liveWords = liveCounterWords(
+    { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)), phase: 'writing', sentAtMs: now - Math.max(0, elapsedMs) },
+    now,
+  )
   const movementRef = useRef({ lastChars: -1, lastMovedAt: now })
   if (movementRef.current.lastChars !== liveChars) {
     movementRef.current = { lastChars: liveChars, lastMovedAt: now }
@@ -50,8 +55,8 @@ export function StreamingHoldRow({
       <Text>
         <WorkingGlyph color={tokens.textSecondary} tickMs={STREAM_GLYPH_TICK_MS} />
         <Text color={tokens.textMuted}> {formatDuration(Math.max(0, elapsedMs))}</Text>
-        {liveTokens > 0 ? (
-          <Text color={tokens.textMuted}> · ↓ {liveFigure.estimated ? '~' : ''}{liveTokens.toLocaleString('en-US')} tokens</Text>
+        {liveWords.count !== null ? (
+          <Text color={tokens.textMuted}> · {liveWords.count}</Text>
         ) : null}
         {stillWaiting ? <Text color={tokens.textMuted}> · still waiting</Text> : null}
       </Text>

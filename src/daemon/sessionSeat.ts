@@ -90,6 +90,8 @@ interface SeatState {
   turnChars: number
   turnOutputTokens: number | null
   messageOutputTokens: number
+  turnThinkingChars: number
+  firstByteAtMs: number | null
   stateWord: 'compacting' | 'waiting-on-agents' | null
   waitingOnAgents: number
   fold: FoldStatusV1 | null
@@ -118,7 +120,7 @@ export function seatGenerationOf(short: string): number {
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, turnThinkingChars: 0, firstByteAtMs: null, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -139,6 +141,8 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         text: seat.tail,
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
         ...(seat.turnOutputTokens !== null ? { turnOutputTokens: seat.turnOutputTokens + seat.messageOutputTokens } : {}),
+        ...(seat.turnThinkingChars > 0 ? { turnThinkingChars: seat.turnThinkingChars } : {}),
+        ...(seat.firstByteAtMs !== null ? { firstByteAtMs: seat.firstByteAtMs } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
@@ -219,6 +223,13 @@ function foldMessageOutputTokens(seat: SeatState): void {
   seat.messageOutputTokens = 0
 }
 
+function stampFirstByte(seat: SeatState, next: RequestWaitV1 | null): boolean {
+  const before = seat.firstByteAtMs
+  if (next !== null && next.kind === 'first-byte') seat.firstByteAtMs = null
+  else if (next === null && seat.wait !== null && seat.wait.kind === 'first-byte' && seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
+  return seat.firstByteAtMs !== before
+}
+
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
   let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown; input?: unknown }; delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }; message?: { id?: string }; usage?: { output_tokens?: unknown } } }
   try {
@@ -245,6 +256,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     if (seat.tail !== null) setSeatTail(seat, null, dir)
     const id = ev.message?.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    if (seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
     foldMessageOutputTokens(seat)
     seat.tailPhase = null
     seat.streamBlock = null
@@ -256,6 +268,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     setSeatTail(seat, (seat.tail ?? '') + ev.delta.text, dir)
   } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && typeof ev.delta.thinking === 'string') {
     seat.turnChars += ev.delta.thinking.length
+    seat.turnThinkingChars += ev.delta.thinking.length
     scheduleTailPublish(seat, dir)
   } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta' && typeof ev.delta.partial_json === 'string') {
     seat.turnChars += ev.delta.partial_json.length
@@ -759,7 +772,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
           const raw = (frame.status as { wait?: unknown }).wait
           const next = decodeRequestWait(requestWaitFromWire(raw))
           noteSeatEvent(seat, dir)
-          if (JSON.stringify(seat.wait) !== JSON.stringify(next)) {
+          const stampMoved = stampFirstByte(seat, next)
+          if (stampMoved || JSON.stringify(seat.wait) !== JSON.stringify(next)) {
             seat.wait = next
             publishTailNow(seat, dir)
           }
@@ -834,6 +848,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.turnChars = 0
       seat.turnOutputTokens = null
       seat.messageOutputTokens = 0
+      seat.turnThinkingChars = 0
+      seat.firstByteAtMs = null
       seat.tailMessageId = null
       seat.tailPhase = null
       seat.stateWord = null
@@ -883,6 +899,8 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.turnChars = 0
   seat.turnOutputTokens = null
   seat.messageOutputTokens = 0
+  seat.turnThinkingChars = 0
+  seat.firstByteAtMs = null
   seat.tailMessageId = null
   seat.tailPhase = null
   const hadWord = seat.stateWord !== null || seat.wait !== null

@@ -20,12 +20,8 @@ import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
 import { teammateRole } from '../tasks/taskStatusUtils.js'
-
-export function liveTokenFigure(streamedChars: number, wireOutputTokens: number | null): { count: number; estimated: boolean } {
-  return wireOutputTokens === null
-    ? { count: Math.floor(streamedChars / 4), estimated: true }
-    : { count: wireOutputTokens, estimated: false }
-}
+import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
+import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 
 export const STACK_EXIT_SLACK = 6
 export function spinnerStackDecision(facts: {
@@ -52,6 +48,7 @@ export type SpinnerAnimationRowProps = {
   activeToolCount: number
   responseLengthRef: React.RefObject<number>
   outputTokensRef?: React.RefObject<number | null>
+  liveTurnFactsRef?: React.RefObject<LiveTurnFactsV1>
   message: string
   messageColor: keyof Theme
   shimmerColor: keyof Theme
@@ -82,6 +79,7 @@ export function SpinnerAnimationRow(
     activeToolCount,
     responseLengthRef,
     outputTokensRef,
+    liveTurnFactsRef,
     message: messageProp,
     messageColor,
     shimmerColor,
@@ -155,11 +153,15 @@ export function SpinnerAnimationRow(
     ? ((foregroundedTeammate.progress as { totalTokens?: number } | undefined)
         ?.totalTokens ?? 0)
     : null
-  const liveFigure = liveTokenFigure(currentResponseLength, outputTokensRef?.current ?? null)
+  const liveWords = liveCounterWords(
+    { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(currentResponseLength, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(mode), sentAtMs: now - effectiveElapsedMs },
+    now,
+  )
+  const liveFigure = liveWords.figure
   const displayedTokens =
     teammateOnlyTokens !== null
       ? teammateOnlyTokens
-      : liveFigure.count + teammateTokens
+      : liveFigure.total + teammateTokens
   const tokensEstimated = teammateOnlyTokens === null && liveFigure.estimated
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
@@ -197,18 +199,20 @@ export function SpinnerAnimationRow(
   const foregroundedIdleQuiet =
     foregroundedTeammate !== undefined && !foregroundedActive
 
-  const thinkingText = inThinking ? thinkingLabelFull : null
+  const waitPhaseText = liveWords.reading || liveWords.phase !== liveCounterPhaseOf(mode) ? liveWords.phase : null
+  const thinkingText = inThinking && waitPhaseText === null ? thinkingLabelFull : null
   const wantsThinking = thinkingText !== null
+  const promiseText = liveWords.promise
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
   const tokensAfterMs = 0
   void tokensAfterMs
   const metaGate = verbose || hasRunningTeammates || effectiveElapsedMs > 0
-  const tokenDirection = hasRunningTeammates
-    ? ''
-    : mode === 'requesting'
-      ? '↑ '
-      : '↓ '
-  const tokensText = `${tokenDirection}${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens`
+  const tokensText: string | null =
+    teammateOnlyTokens !== null || hasRunningTeammates
+      ? displayedTokens > 0
+        ? `${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens`
+        : null
+      : liveWords.count
 
   const ctxPctRaw = getLiveContextUsage().usedPct
   const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
@@ -229,12 +233,14 @@ export function SpinnerAnimationRow(
   const fullSegmentTexts: string[] = []
   if (stillWaiting) fullSegmentTexts.push('still waiting…')
   if (wantsThinking && thinkingText !== null) fullSegmentTexts.push(thinkingText)
+  if (waitPhaseText !== null) fullSegmentTexts.push(waitPhaseText)
   if (metaGate && effectiveElapsedMs >= 1000) fullSegmentTexts.push(timerText)
-  if (metaGate) fullSegmentTexts.push(tokensText)
+  if (metaGate && tokensText !== null) fullSegmentTexts.push(tokensText)
   if (metaGate && ctxPct != null) fullSegmentTexts.push(ctxText)
   if (metaGate && wifText !== '') fullSegmentTexts.push(wifText)
   if (metaGate && otpsText !== '') fullSegmentTexts.push(otpsText)
   if (metaGate && ttftText) fullSegmentTexts.push(ttftText)
+  if (promiseText !== null) fullSegmentTexts.push(promiseText)
   const fullMetaCost = fullSegmentTexts.reduce(
     (sum, text) => sum + stringWidth(text) + separatorWidth,
     0,
@@ -275,13 +281,16 @@ export function SpinnerAnimationRow(
       admit({ key: 'thinking', text: THINKING_WORD, kind: 'thinking' })
     }
   }
+  if (waitPhaseText !== null) {
+    admit({ key: 'phase', text: waitPhaseText })
+  }
   if (metaGate && effectiveElapsedMs >= 1000) {
     admit({
       key: 'timer',
       text: timerText,
     })
   }
-  if (metaGate) {
+  if (metaGate && tokensText !== null) {
     admit({
       key: 'tokens',
       text: tokensText,
@@ -306,8 +315,11 @@ export function SpinnerAnimationRow(
   if (metaGate && ttftText) {
     admit({ key: 'ttft', text: ttftText })
   }
+  if (promiseText !== null) {
+    admit({ key: 'promise', text: promiseText })
+  }
 
-  const orderedKeys = ['timer', 'tokens', 'ttft', 'thinking', 'waiting']
+  const orderedKeys = ['phase', 'timer', 'tokens', 'ttft', 'promise', 'thinking', 'waiting']
   const ordered = orderedKeys
     .map(key => admitted.find(segment => segment.key === key))
     .filter((segment): segment is Segment => segment !== undefined)
