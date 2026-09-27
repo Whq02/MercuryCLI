@@ -52,6 +52,7 @@ const INVENTORY: Record<string, string[]> = {
   'authorizeCapability': ['src/services/crew/dispatch.ts', 'src/services/crew/seatBridge.ts'],
   'capabilitiesOf': ['src/commands/crew/index.ts', 'src/services/crew/seatBridge.ts'],
   'upsertObligation': ['src/services/crew/dispatch.ts'],
+  'recordSettledObligation': ['src/daemon/permissionAsks.ts'],
   'resolveObligationByRef': ['src/services/crew/dispatch.ts'],
   'openObligations': ['src/services/crew/obligationsBridge.ts', 'src/hooks/useObligationSignals.ts'],
   'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx', 'src/hooks/useObligationSignals.ts'],
