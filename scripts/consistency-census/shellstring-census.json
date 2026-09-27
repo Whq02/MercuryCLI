@@ -404,7 +404,7 @@
     {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), tee, String(COLS), String(ROWS), '--cells'],",
+      "excerpt": "const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), path, String(COLS), String(ROWS), '--cells',",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
