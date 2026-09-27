@@ -8,14 +8,42 @@ import {
 import { buildLocalExtras } from '../openaicompat/compatWire.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
-import { ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
+import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
+import { chooseLocalBatch, decideLocalWindow, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
+import { ollamaChatUrl, streamOllamaChat } from './ollamaChatTransport.js'
+import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio') return record.thinkingDeclared === true
   return record.server === 'vllm' || record.server === 'llamacpp'
 }
 
+export function localGuardWindow(record: LocalModelRecord, hold: HeldLocalWindow | undefined = heldLocalWindow(record)): { tokens: number; sourceWords: string } | undefined {
+  const application = localWindowApplication(record)
+  const applies = application === 'request' || application === 'load'
+  if (applies && hold !== undefined && hold.window !== undefined) {
+    return {
+      tokens: hold.window,
+      sourceWords: hold.setting === undefined ? 'chosen by Mercury for this session (auto) — /config → Local model window' : 'your setting — /config → Local model window',
+    }
+  }
+  const stated = record.contextWindow
+  if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
+  return { tokens: stated.tokens, sourceWords: localContextSourceWords(stated.source) }
+}
+
+export function localPreComposeEstimate(params: Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'>): number {
+  let bytes = 0
+  try {
+    bytes += JSON.stringify(params.messages).length + JSON.stringify(params.systemPrompt).length
+  } catch {
+    bytes += 0
+  }
+  return Math.ceil(bytes / 4) + params.tools.length * 1000
+}
+
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
+  let thinkingEnabled = false
   return {
     lane: 'local',
     providerLabel: LOCAL_SERVER_NAMES[record.server],
@@ -28,15 +56,31 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
       'the server rejected the request credential — set MERCURY_LOCAL_API_KEY to the key the server was started with (its --api-key), or start it keyless.',
     requestUrl: () => `${record.baseUrl}/chat/completions`,
     wireModelId: () => record.id,
-    buildExtras: args => buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) }),
+    buildExtras: args => {
+      thinkingEnabled = args.thinkingEnabled
+      return buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
+    },
     omitsToolChoice: record.server === 'ollama',
+    ...(record.server === 'ollama'
+      ? {
+          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) => ({
+            events: streamOllamaChat(
+              { ...options, url: ollamaChatUrl(record.baseUrl) },
+              {
+                ...(heldLocalWindow(record)?.window !== undefined ? { numCtx: heldLocalWindow(record)!.window } : {}),
+                numBatch: chooseLocalBatch(localBatchSettingOf(record), heldLocalWindow(record)?.window),
+                ...(record.thinkingDeclared === true ? { think: thinkingEnabled } : {}),
+              },
+            ),
+          }),
+        }
+      : {}),
     requestFitRefusal: ({ estTokens, toolCount }) => {
-      const stated = record.contextWindow
-      if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
-      const window = stated.tokens
+      const guard = localGuardWindow(record)
+      if (guard === undefined) return undefined
       const OUTPUT_FLOOR = 1024
-      if (estTokens + OUTPUT_FLOOR <= window) return undefined
-      return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window, sourceWords: localContextSourceWords(stated.source) })
+      if (estTokens + OUTPUT_FLOOR <= guard.tokens) return undefined
+      return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
     },
     toolCapabilityRefusal: () => {
       if (record.toolsDeclared === false) {
@@ -82,6 +126,22 @@ export async function* localCallModel(
     await refreshLocalDiscovery({ force: true }).catch(() => undefined)
     record = localModelRecord(localWireId(params.options.model))
   }
-  if (record) await ensureServedWindow(record, { signal: params.signal })
+  let confirmAfter = false
+  if (record) {
+    const application = localWindowApplication(record)
+    if (application === 'request' || application === 'load') {
+      const decision = decideLocalWindow(record, localPreComposeEstimate(params), localWindowSettingOf(record))
+      if (application === 'load') {
+        await ensureServedWindow(record, { signal: params.signal }, decision.window !== undefined ? { numCtx: decision.window } : undefined)
+      } else if (decision.window === undefined) {
+        await ensureServedWindow(record, { signal: params.signal })
+      } else {
+        confirmAfter = !(servedWindowIsCurrent(record) && record.contextWindow?.tokens === decision.window)
+      }
+    } else {
+      await ensureServedWindow(record, { signal: params.signal })
+    }
+  }
   yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model), params)
+  if (record && confirmAfter && !params.signal.aborted) await confirmServedWindow(record, { signal: params.signal })
 }

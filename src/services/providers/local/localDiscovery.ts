@@ -454,6 +454,7 @@ export function localServerFor(model: LocalModelRecord): LocalServerRecord | und
 
 export interface ServedWindowLoad {
   numCtx?: number
+  probeOnly?: boolean
 }
 
 function servedFrom(server: LocalServerRecord | undefined, id: string): number | undefined {
@@ -463,11 +464,13 @@ function servedFrom(server: LocalServerRecord | undefined, id: string): number |
 
 async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<number | undefined> {
   const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
-  await probeJson(`${root}/api/generate`, io, {
-    method: 'POST',
-    timeoutMs: loadTimeoutMs,
-    body: { model: id, ...(load?.numCtx !== undefined ? { options: { num_ctx: load.numCtx } } : {}) },
-  })
+  if (load?.probeOnly !== true) {
+    await probeJson(`${root}/api/generate`, io, {
+      method: 'POST',
+      timeoutMs: loadTimeoutMs,
+      body: { model: id, ...(load?.numCtx !== undefined ? { options: { num_ctx: load.numCtx } } : {}) },
+    })
+  }
   return ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
 }
 
@@ -514,18 +517,29 @@ export function servedWindowIsCurrent(record: LocalModelRecord, now: number = Da
   return now - readAt < LOCAL_DISCOVERY_TTL_MS
 }
 
+function noteServedWindow(record: LocalModelRecord, tokens: number, now: number): void {
+  const before = record.contextWindow
+  record.contextWindow = { tokens, source: 'served' }
+  record.loaded = true
+  record.servedReadAtMs = now
+  if (before?.source !== 'served' || before.tokens !== tokens) bumpCatalogueEpoch()
+}
+
 export async function ensureServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<LocalModelRecord> {
   const now = io.now?.() ?? Date.now()
   const current = servedWindowIsCurrent(record, now)
   if (current && (load?.numCtx === undefined || record.contextWindow?.tokens === load.numCtx)) return record
   const tokens = await readServedWindow(record, io, load)
   if (tokens === undefined) return record
-  const before = record.contextWindow
-  record.contextWindow = { tokens, source: 'served' }
-  record.loaded = true
-  record.servedReadAtMs = now
-  if (before?.source !== 'served' || before.tokens !== tokens) bumpCatalogueEpoch()
+  noteServedWindow(record, tokens, now)
   return record
+}
+
+export async function confirmServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}): Promise<number | undefined> {
+  const now = io.now?.() ?? Date.now()
+  const tokens = await readServedWindow(record, io, { probeOnly: true })
+  if (tokens !== undefined) noteServedWindow(record, tokens, now)
+  return tokens
 }
 
 export function __resetLocalDiscoveryForTest(): void {

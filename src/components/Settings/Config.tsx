@@ -92,6 +92,8 @@ import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
+import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
+import { localWindowApplication, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 
 const LABEL_CELLS = 36
 
@@ -220,6 +222,32 @@ export function mainLoopPointerText(
   const modelText =
     effective !== null ? modelDisplayString(effective) : `default (${modelDisplayString(resolved)})`
   return `${providerLabel} · ${modelText} — /model`
+}
+
+export function localModelWindowRow(
+  record: ReturnType<typeof localRecordFor>,
+  route: string,
+  _stamp?: number,
+): { applies: boolean; valueText: string; note: string; setByYou: boolean } {
+  if (route !== 'local' || record === undefined) {
+    const activeLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
+    return {
+      applies: false,
+      valueText: `n/a — applies to local models (${activeLabel} is active)`,
+      note: 'The served context window of a local model — /model picks a local model first; then ←/→ choose server default · 32k · 64k · 128k · trained max, or auto (chosen at first send and held for the session).',
+      setByYou: false,
+    }
+  }
+  const setting = localWindowSettingOf(record)
+  const application = localWindowApplication(record)
+  const applies = application === 'request' || application === 'load'
+  const note =
+    application === 'server-start'
+      ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
+      : application === 'none'
+        ? `${record.id}: an unknown server kind — the setting does not apply.`
+        : `${record.id}: auto = the smallest of the trained maximum and twice the first request (rounded up to 16k, never under 32k), held for the session; a change reloads the model on the next send (the ingested prompt is read again). ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
+  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined }
 }
 
 export interface ConfigProviderRow {
@@ -831,6 +859,25 @@ export function Config({
         {mainLoopPointerText(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel)}
       </Text>
     ),
+  })
+  const localMain = mainRoute === 'local' ? localRecordFor(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel()) : undefined
+  const localWindowRow = localModelWindowRow(localMain, mainRoute ?? 'unrecognised', configStamp)
+  items.push({
+    id: 'localModelWindow',
+    label: 'Local model window',
+    searchText: 'local model window context num_ctx ollama lm studio served window',
+    kind: 'enum',
+    value: <Text color={localWindowRow.applies ? undefined : tokens.textSecondary} wrap="truncate-end">{localWindowRow.valueText}</Text>,
+    setByYou: localWindowRow.setByYou,
+    warning: localWindowRow.note,
+    change: direction => {
+      if (localMain === undefined || !localWindowRow.applies) return
+      const next = nextLocalWindowSetting(localWindowSettingOf(localMain), direction)
+      writeLocalWindowSetting(localMain, next)
+      recordSet('localModelWindow', `set the local model window for ${localMain.id} to ${localWindowSettingWords(next)}`)
+      snapshots.dirty = true
+      bump()
+    },
   })
   for (const row of configProviderRows(providerFamilyPresences())) {
     items.push({
