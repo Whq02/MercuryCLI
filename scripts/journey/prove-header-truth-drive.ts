@@ -74,14 +74,15 @@ function answeredTool(items: Item[]): string | null {
 function askOf(items: Item[]): string | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!
-    if (item.role !== 'user' || hasToolResult(item.content)) continue
-    const text = textOf(item.content)
-    if (text.includes('task-notification')) continue
+    if (item.role !== 'user') continue
+    const text = textOf(item.content).replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '')
     const m = /hdr: ([a-z0-9]+)/.exec(text)
     if (m) return m[1]!
   }
   return null
 }
+const turnAskOf = (items: Item[]): string | null => askOf(items.slice(items.map(i => i.role).lastIndexOf('assistant') + 1))
+const askRoutes = (body: unknown, ask: string | null): boolean => ask !== null && (ask !== 'launch' && ask !== 'launch2' && ask !== 'fore' || offersTool(body, 'Agent'))
 function seatOf(items: Item[]): Seat | null {
   const userText = items
     .filter(i => i.role === 'user' && !hasToolResult(i.content))
@@ -218,12 +219,14 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           res.writeHead(200, { 'content-type': 'application/json' })
           res.end(JSON.stringify(messageFromSse(sseText)))
         }
+        const turnAsk = turnAskOf(items)
         let route: string
         if (seat !== null) route = `seat:${seat}`
+        else if (askRoutes(body, turnAsk)) route = turnAsk!
         else if (lastUserText.includes('task-notification')) route = 'note'
         else if (answered === 'Agent') route = `launched:${ask ?? '?'}`
         else if (answered === 'Bash') route = 'tool-done'
-        else if (ask !== null && (ask !== 'launch' && ask !== 'launch2' && ask !== 'fore' || offersTool(body, 'Agent'))) route = ask
+        else if (askRoutes(body, ask)) route = ask!
         else route = 'side'
         hits.push({ route, seat, atMs: Date.now(), lastUserText })
         if (seat !== null) {
@@ -484,7 +487,8 @@ try {
         after(12, 'after-esc-2+'),
         after(70, 'crew-landed'),
         after(12, 'crew-landed+'),
-        { data: 'hdr: wait\r', awaitText: 'HDR-NOTED', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: '', awaitText: '"hdr-three" completed', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+        { data: 'hdr: wait\r', awaitText: '"hdr-four" completed', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         after(25, 'first-byte'),
         after(2, 'first-byte+'),
         { data: 'hdr: tool\r', awaitText: 'HDR-WAITED', requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'idle-2' },

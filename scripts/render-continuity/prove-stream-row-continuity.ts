@@ -260,10 +260,11 @@ for (const scene of scenes) {
 
   if (scene.markdown) {
     let restyles = 0
+    const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
     for (let i = 1; i < timed.length; i++) {
       for (const tok of TOKENS.slice(0, 6)) {
-        const a = timed[i - 1].rows.find(r => r.includes(`${tok} stream body`))
-        const b = timed[i].rows.find(r => r.includes(`${tok} stream body`))
+        const a = timed[i - 1].rows.find(r => r.includes(`${tok} stream body`))?.slice(paneStart(timed[i - 1]))
+        const b = timed[i].rows.find(r => r.includes(`${tok} stream body`))?.slice(paneStart(timed[i]))
         if (
           a !== undefined &&
           b !== undefined &&
