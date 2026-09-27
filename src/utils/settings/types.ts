@@ -274,6 +274,15 @@ export const SettingsSchema = lazySchema(() => {
         sparsePaths: z.array(z.string()).optional(),
       })
       .optional(),
+    localServer: z
+      .object({
+        maxLoadedModels: z.number().int().min(1).max(64).optional().describe('How many models the local server keeps loaded at once (OLLAMA_MAX_LOADED_MODELS; the server documents 3 per GPU when unset)'),
+        parallelSlots: z.number().int().min(1).max(64).optional().describe('How many requests one loaded model answers at once, each slot holding its own window of cache (OLLAMA_NUM_PARALLEL; the server documents 1 when unset)'),
+        keepAlive: z.string().regex(/^(-?\d+|-?(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+)$/, 'a duration such as 30m, 24h or 3600, -1 to keep loaded, 0 to unload at once').optional().describe('How long an idle model stays loaded (OLLAMA_KEEP_ALIVE; the server documents 5m when unset)'),
+        contextLength: z.number().int().min(512).max(10_485_760).optional().describe('The context length a request gets when it names none (OLLAMA_CONTEXT_LENGTH; the server documents 4096 when unset)'),
+      })
+      .optional()
+      .describe("The local model server's own knobs, written into its launch form (a launch agent plist, a systemd override) and applied by a restart only on your confirmation from /config; the values Mercury would write, beside the running server's own"),
   })
   return base.passthrough()
 })

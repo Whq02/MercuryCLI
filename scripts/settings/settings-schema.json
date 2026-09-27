@@ -955,6 +955,36 @@
         }
       },
       "additionalProperties": false
+    },
+    "localServer": {
+      "description": "The local model server's own knobs, written into its launch form (a launch agent plist, a systemd override) and applied by a restart only on your confirmation from /config; the values Mercury would write, beside the running server's own",
+      "type": "object",
+      "properties": {
+        "maxLoadedModels": {
+          "description": "How many models the local server keeps loaded at once (OLLAMA_MAX_LOADED_MODELS; the server documents 3 per GPU when unset)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "parallelSlots": {
+          "description": "How many requests one loaded model answers at once, each slot holding its own window of cache (OLLAMA_NUM_PARALLEL; the server documents 1 when unset)",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "keepAlive": {
+          "description": "How long an idle model stays loaded (OLLAMA_KEEP_ALIVE; the server documents 5m when unset)",
+          "type": "string",
+          "pattern": "^(-?\\d+|-?(\\d+(\\.\\d+)?(ns|us|\\u00B5s|ms|s|m|h))+)$"
+        },
+        "contextLength": {
+          "description": "The context length a request gets when it names none (OLLAMA_CONTEXT_LENGTH; the server documents 4096 when unset)",
+          "type": "integer",
+          "minimum": 512,
+          "maximum": 10485760
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": {}
