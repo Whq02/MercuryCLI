@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 74 built-in production tools · 189 operations · 74 with a declared capability contract.
+Census version 1 — 75 built-in production tools · 190 operations · 75 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 47 available · 13 conditional · 0 degraded · 14 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 39 name a focused proof
+- support (at generation time): 46 available · 13 conditional · 0 degraded · 16 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 23 observation · 22 mutation · 11 execution · 19 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -24,6 +24,7 @@ Census version 1 — 74 built-in production tools · 189 operations · 74 with a
 | ApolloReview | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | ArtifactsList | observation | resource-inspection | — | block | yes | — | — | mercury://artifact | NAMED GAP |
 | Aseprite | mutation | pixel-art | 5 | block | yes | — | — | — | scripts/aseprite/run-all.sh |
+| AskAdvisor | observation | resource-inspection | — | cancel | yes | — | — | — | scripts/advisor/run-all.sh |
 | AskUserQuestion | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | AstEdit | mutation | structural-mutation, text-mutation | — | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/ast-tools/run-all.sh |
 | AstSearch | observation | source-reading, code-intelligence | — | block | yes | — | — | — | scripts/ast-tools/run-all.sh |

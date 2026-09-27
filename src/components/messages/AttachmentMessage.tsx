@@ -22,6 +22,7 @@ import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 import { UserImageMessage } from './UserImageMessage.js'
 import { UserTextMessage } from './UserTextMessage.js'
+import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 
 function AttachmentLine({
@@ -306,6 +307,7 @@ export function AttachmentMessage({
             isTranscriptMode={isTranscriptMode}
             notice={attachment.commandMode === 'task-notification'}
             noticeSentAt={attachment.commandMode === 'task-notification' ? attachment.sentAt : undefined}
+            {...(isAdvisorOrigin(attachment.origin) ? { origin: attachment.origin } : {})}
           />
           {(attachment.imagePasteIds ?? []).map(id => (
             <UserImageMessage key={id} imageId={id} />

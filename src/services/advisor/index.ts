@@ -77,6 +77,17 @@ export {
   type AgentDigest,
 } from './advisorNote.js'
 export {
+  ADVISOR_COUNTED_MODES,
+  advisorAgentRound,
+  advisorCountsTurn,
+  advisorMainTurnSettled,
+  advisorRound,
+  peekAdvisorNotes,
+  resetAdvisorRoadsForTests,
+  stashAdvisorNote,
+  takeAdvisorNotes,
+} from './advisorRoads.js'
+export {
   ADVISOR_ASK_PROMPT_TAIL,
   ADVISOR_QUESTION_MAX_CHARS,
   askAdvisor,

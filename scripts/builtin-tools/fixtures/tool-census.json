@@ -139,6 +139,35 @@
       }
     },
     {
+      "name": "AskAdvisor",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "cancel",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": "scripts/advisor/run-all.sh",
+      "declared": {
+        "intents": [
+          "ask a second model for advice when stuck",
+          "get another reading of the conversation before committing to a road",
+          "check what you may be missing against a model that has read the whole thread"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "conditions": [
+          "Advisor on in /config with a model pinned in /submodels; the advisor keeps its own memory beside the transcript"
+        ],
+        "proof": "scripts/advisor/run-all.sh"
+      }
+    },
+    {
       "name": "AskUserQuestion",
       "category": "read",
       "risk": "low",

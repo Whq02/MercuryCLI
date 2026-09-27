@@ -4,6 +4,7 @@ import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { JEV_TOOL_NAME } from '../services/jev/jevContract.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { CONTEXT_LEFT_TOOL_NAME } from '../tools/ContextLeftTool/constants.js'
+import { ASK_ADVISOR_TOOL_NAME } from '../tools/AskAdvisorTool/constants.js'
 import {
   EXIT_PLAN_MODE_TOOL_NAME,
   EXIT_PLAN_MODE_V2_TOOL_NAME,
@@ -77,6 +78,7 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   SEND_MESSAGE_TOOL_NAME,
   CONTEXT_LEFT_TOOL_NAME,
   JEV_TOOL_NAME,
+  ASK_ADVISOR_TOOL_NAME,
 ])
 
 export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS: Set<string> = new Set([
@@ -88,4 +90,5 @@ export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS: Set<string> = new Set([
   CRON_CREATE_TOOL_NAME,
   CRON_DELETE_TOOL_NAME,
   CRON_LIST_TOOL_NAME,
+  ASK_ADVISOR_TOOL_NAME,
 ])
