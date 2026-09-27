@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -237,7 +238,24 @@ section(`§2 the notice-area line in the chat (178x51): "${notice.updateNoticeTe
 console.error = originalError
 realClearTimeout(hardLimit)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
-if (failures === 0) rmSync(HOME, { recursive: true, force: true })
+async function releaseScratchHome(): Promise<void> {
+  process.chdir(tmpdir())
+  let fault = ''
+  for (const attempt of [1, 2]) {
+    try {
+      rmSync(HOME, { recursive: true, force: true })
+      return
+    } catch (error) {
+      fault = String(error)
+      if (attempt === 1) await settle(250)
+    }
+  }
+  const swept = process.platform === 'win32' ? null : childProcess.spawnSync('rm', ['-rf', HOME], { encoding: 'utf8' })
+  const complaint = (swept?.stderr ?? '').trim()
+  const outcome = existsSync(HOME) ? `left in place${complaint === '' ? '' : ` (rm: ${complaint})`}` : 'removed by rm -rf'
+  console.log(`scratch home ${HOME}: rmSync failed twice — ${fault} — ${outcome}; the verdict stands`)
+}
+if (failures === 0) await releaseScratchHome()
 else console.log(`scratch home kept: ${HOME}`)
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
