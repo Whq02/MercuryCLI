@@ -92,6 +92,7 @@ import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
+import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { localWindowApplication, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 
@@ -193,7 +194,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   deepseek: { label: 'DeepSeek', absent: 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', manage: '/accounts' },
   'openai-compat': { label: 'Custom endpoint', absent: 'not configured — MERCURY_COMPAT_BASE_URL' },
   huggingface: { label: 'Hugging Face', absent: 'not signed in — /logins connects (or HF_TOKEN)', manage: '/accounts' },
-  local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}` },
+  local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}, ${LOCAL_SETUP_OFFER}` },
 }
 
 

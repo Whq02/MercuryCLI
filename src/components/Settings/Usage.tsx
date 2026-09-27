@@ -48,6 +48,7 @@ import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingfac
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
+import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { ProgressBar } from '../design-system/ProgressBar.js'
@@ -307,7 +308,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   local: {
     title: 'Local models usage',
-    connect: 'start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable)',
+    connect: `start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), ${LOCAL_SETUP_OFFER}`,
     limitsNote: 'local · no metering',
   },
 }
