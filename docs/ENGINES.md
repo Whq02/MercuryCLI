@@ -247,8 +247,16 @@ idle number, and the turn holds while it answers (`no bytes for 15m —
 <model>'s server still answers`; esc interrupts). While the server is still
 loading the model the row says `loading <model> (<size> GB)`, and the
 ingestion clock starts once the server lists it. The hard cap on a local
-request is two hours. Every other lane keeps its first-byte budget, its idle
-number and its whole-request ceiling unchanged.
+request is two hours. Ollama's native `/api/chat` road rides the same law as
+the `/v1` road, and hands its fetch a dispatcher whose HTTP headers and body
+budgets are raised to that cap, so nothing beneath the law cuts first (the
+shared API dispatcher's 600 s headers budget once ended a long ingest with
+`UND_ERR_HEADERS_TIMEOUT` and a re-ingest). On that road a turn whose every
+row was thinking — no reply, no tool call — settles with
+`reasoningOnly: true` on the message, and the debug log carries the stream's
+shape and its first 2,000 characters (`[compat:local] /api/chat stream from
+<model>: …`). Every other lane keeps its first-byte budget, its idle number
+and its whole-request ceiling unchanged.
 
 ## Typed refusals
 
