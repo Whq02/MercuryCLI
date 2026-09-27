@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-27T15:20:23.363Z",
+ "capturedAt": "2026-09-27T15:28:12.609Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-QxOJGr · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Fuibdm · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "16:20:15 [sam] ❯ design the cache layer",
+    "16:28:04 [sam] ❯ design the cache layer",
     "",
-    "16:20:15 [Mercury] Let me confirm the open",
+    "16:28:05 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -58,13 +58,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-QxOJGr · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Fuibdm · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "16:20:15 [sam] ❯ design the cache layer",
+    "16:28:04 [sam] ❯ design the cache layer",
     "",
-    "16:20:15 [Mercury] Let me confirm the open",
+    "16:28:05 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,16 +106,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6221,
+   "patches": 6156,
    "frame-recommit": 17
   },
   "frames": {
-   "total": 31,
-   "window": 31,
-   "p50": 0.6981249999998909,
-   "p95": 3.1564579999999296,
-   "p99": 7.830000000000041,
-   "maxMs": 7.830000000000041
+   "total": 30,
+   "window": 30,
+   "p50": 0.6257920000002741,
+   "p95": 3.9171660000001793,
+   "p99": 8.55216699999994,
+   "maxMs": 8.55216699999994
   }
  },
  "requests": [
@@ -150,11 +150,11 @@
  ],
  "sends": [
   {
-   "atMs": 6608.735084533691,
+   "atMs": 6580.20806312561,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7408.735084533691,
+   "atMs": 7380.20806312561,
    "b64": "DQ=="
   }
  ]
