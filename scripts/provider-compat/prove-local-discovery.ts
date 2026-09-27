@@ -168,9 +168,9 @@ section('2 · Ollama truth')
   const llama = localModelRecord('llama3.2:latest')!
   const qwen = localModelRecord('qwen3:8b')!
   const llava = localModelRecord('llava:latest')!
-  check('a LOADED model states its served context (/api/ps)', qwen.contextWindow?.tokens === 32768 && qwen.contextWindow.source === 'served' && qwen.loaded === true)
-  check('a Modelfile num_ctx states the window when not loaded', llama.contextWindow?.tokens === 16384 && llama.contextWindow.source === 'modelfile' && llama.modelMaxContext === 131072)
-  check('unloaded, no num_ctx ⇒ window ABSENT (never an invented default), modelMaxContext 262144 (the fixture\'s stated max), loaded false', llava.contextWindow === undefined && llava.modelMaxContext === 262144 && llava.loaded === false, JSON.stringify(llava.contextWindow))
+  check('a LOADED model states its served context (/api/ps) and the measured size beside it (the fit trusts that figure over the formula)', qwen.contextWindow?.tokens === 32768 && qwen.contextWindow.source === 'served' && qwen.loaded === true && qwen.servedBytes === 6000000000, JSON.stringify({ window: qwen.contextWindow, bytes: qwen.servedBytes }))
+  check('a Modelfile num_ctx states the window when not loaded, with no measured size', llama.contextWindow?.tokens === 16384 && llama.contextWindow.source === 'modelfile' && llama.modelMaxContext === 131072 && llama.servedBytes === undefined)
+  check('unloaded, no num_ctx ⇒ window ABSENT (never an invented default), modelMaxContext 262144 (the fixture\'s stated max), loaded false', llava.contextWindow === undefined && llava.modelMaxContext === 262144 && llava.loaded === false && llava.servedBytes === undefined, JSON.stringify(llava.contextWindow))
   check('the record\'s own words name the state: not loaded · trained maximum · how Ollama chooses · read at first send', localWindowWords(llava).includes('not loaded') && localWindowWords(llava).includes('trained maximum 262k') && localWindowWords(llava).includes('4k/32k/256k') && localWindowWords(llava).includes('read at first send'), localWindowWords(llava))
   check('capabilities decide tools/thinking/vision', llama.toolsDeclared === true && llama.thinkingDeclared === false && qwen.thinkingDeclared === true && llava.toolsDeclared === false && llava.visionDeclared === true)
   check('details ride along (family · size · quantization)', llama.family === 'llama' && llama.parameterSize === '3.2B' && llama.quantization === 'Q4_K_M')

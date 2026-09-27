@@ -4,6 +4,7 @@ export interface KvGeometry {
   valueLength: number
   attentionLayers: number
   blockCount: number
+  interval?: number
 }
 
 export const KV_CACHE_BYTES_PER_ELEMENT: Record<string, number> = {
@@ -35,6 +36,7 @@ export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefi
   const embedding = numberOf(info[`${arch}.embedding_length`])
   if (blockCount === undefined) return undefined
   const kvRaw = info[`${arch}.attention.head_count_kv`]
+  const interval = numberOf(info[`${arch}.full_attention_interval`])
   let kvHeads: number
   let attentionLayers: number
   if (Array.isArray(kvRaw)) {
@@ -44,13 +46,13 @@ export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefi
   } else {
     const perLayer = numberOf(kvRaw) ?? headCount
     if (perLayer === undefined) return undefined
-    kvHeads = perLayer * blockCount
-    attentionLayers = blockCount
+    attentionLayers = interval !== undefined && interval > 1 ? Math.floor(blockCount / interval) : blockCount
+    kvHeads = perLayer * attentionLayers
   }
   const keyLength = numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
   if (keyLength === undefined) return undefined
   const valueLength = numberOf(info[`${arch}.attention.value_length`]) ?? keyLength
-  return { kvHeads, keyLength, valueLength, attentionLayers, blockCount }
+  return { kvHeads, keyLength, valueLength, attentionLayers, blockCount, ...(interval !== undefined ? { interval } : {}) }
 }
 
 export function kvBytesPerElement(cacheType: string | undefined): number {

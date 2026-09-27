@@ -256,7 +256,7 @@ export function localModelWindowRow(
       ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
       : application === 'none'
         ? `${record.id}: an unknown server kind — the setting does not apply.`
-        : `${record.id}: auto = the biggest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache at the server's cache type and slots) fits the memory usable for models, never above the trained max — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
+        : `${record.id}: auto = the biggest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
   return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined }
 }
 

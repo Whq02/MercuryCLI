@@ -28,14 +28,14 @@ Object.assign(process.env, { HOME, MERCURY_CONFIG_DIR: HOME, MERCURY_AUTH_SCOPE_
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const GIB = 1024 ** 3
-const MODEL_27 = 'qwen3.5:27b'
+const MODEL_27 = 'qwen3.8:27b-mtp-q4_K_M'
 const MODEL_9 = 'qwen3.5:9b'
 const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
 const INFO: Record<string, Record<string, unknown>> = {
-  [MODEL_27]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': kvHeads(64), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 64, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120 },
-  [MODEL_9]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096 },
+  [MODEL_27]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': 4, 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 65, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120, 'qwen35.full_attention_interval': 4, 'qwen35.nextn_predict_layers': 1 },
+  [MODEL_9]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096, 'qwen35.full_attention_interval': 4 },
 }
-const SIZES: Record<string, number> = { [MODEL_27]: 17420432728, [MODEL_9]: 6594474711 }
+const SIZES: Record<string, number> = { [MODEL_27]: 17741872154, [MODEL_9]: 6594474711 }
 const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -158,19 +158,20 @@ check('the fixture records carry geometry and the served window (262144)', qwen2
 
 const publish = (usedTokens: number, window: number): void => publishContextUsage(Math.round((usedTokens / window) * 100), window, 80, undefined, { usedTokens, fillSource: 'usage', windowSource: 'live-current', windowPinned: false })
 
-console.log("\n── the owner's box: the 27B under auto — the rail says max, the deck says the rule")
+console.log("\n── the owner's box: the hybrid 27B (one head_count_kv for 65 blocks, interval 4) under auto — the rail says max, the deck says the rule")
 {
   __pinLocalServerTruthForTest(truthOf(48, 36.9, 'q8_0'))
   w.__resetLocalWindowsForTest()
   focusedModel = `local/${MODEL_27}`
-  w.decideLocalWindow(qwen27, 73_000, undefined)
+  const held = w.decideLocalWindow(qwen27, 73_000, undefined)
+  check('auto on the hybrid 27B is the trained max: 16 of 65 layers keep a cache, 8.5 GiB at 256k, never a 51.1 GiB sum', held.window === 262144 && held.reason === 'max' && qwen27.geometry?.attentionLayers === 16, `${held.window} · ${held.reason} · ${held.words}`)
   publish(120_000, 262144)
   const rail = await paintRail()
   save('rail-ctx-max-178x51', rail)
   check('178x51 rail: the ctx row reads ctx 46% · 262k max (the window label is the rail\'s own /1000 spelling; the reason is the fit owner\'s)', ctxRow(rail) === 'ctx 46% · 262k max' && inBounds(rail, 178, 51), ctxRow(rail))
   const deck = await paintDeck(178, 51)
   save('deck-ctx-rule-178x51', deck)
-  check("178x51 deck: the ctx row carries the full rule in step 5's words", ctxRow(deck).includes('120k/262k · 256k · 16.2 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot') && inBounds(deck, 178, 51), ctxRow(deck))
+  check("178x51 deck: the ctx row carries the full rule in step 5's words with the hybrid sum", ctxRow(deck).includes('120k/262k · 256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot') && inBounds(deck, 178, 51), ctxRow(deck))
   const narrow = await paintDeck(80, 21)
   save('deck-ctx-80x21', narrow)
   check('80x21 deck: the compact strip folds ctx into its first row and stays in bounds (the rule rides the wide row only)', inBounds(narrow, 80, 21) && ctxRow(narrow) === '', ctxRow(narrow))

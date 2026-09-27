@@ -1,6 +1,6 @@
 import { totalmem } from 'node:os'
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
-import { fitLocalWindowOn, localWindowRefusal, type LocalWindowFit } from '../../localServer/localWindowFit.js'
+import { fitLocalWindowOn, localWindowRefusal, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
 import { cachedLocalMachineTruth, defaultMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
 import type { LocalModelRecord } from './localDiscovery.js'
 import { LOCAL_MODEL_PREFIX, localRecordFor } from './localCatalogue.js'
@@ -70,7 +70,7 @@ export interface LocalWindowDecision {
   fit?: LocalWindowFit
 }
 
-export type LocalWindowFitRecord = Pick<LocalModelRecord, 'id' | 'modelMaxContext' | 'weightsBytes' | 'geometry'>
+export type LocalWindowFitRecord = Pick<LocalModelRecord, 'id' | 'modelMaxContext' | 'weightsBytes' | 'geometry' | 'contextWindow' | 'servedBytes'>
 
 export interface FallbackMachine {
   platform: NodeJS.Platform
@@ -81,9 +81,15 @@ export function localWindowTruth(): LocalServerTruth | null {
   return cachedLocalMachineTruth()
 }
 
+export function localWindowMeasuredOf(record: Pick<LocalModelRecord, 'contextWindow' | 'servedBytes'>): LocalWindowMeasured | undefined {
+  if (record.contextWindow?.source !== 'served' || record.servedBytes === undefined || !(record.servedBytes > 0)) return undefined
+  return { bytes: record.servedBytes, window: record.contextWindow.tokens }
+}
+
 export function localWindowFitOf(record: LocalWindowFitRecord, truth: LocalServerTruth | null = localWindowTruth()): LocalWindowFit | undefined {
   if (truth === null || record.geometry === undefined || record.weightsBytes === undefined) return undefined
-  return fitLocalWindowOn(truth, { name: record.id, weightsBytes: record.weightsBytes, geometry: record.geometry, ...(record.modelMaxContext !== undefined ? { trainedMax: record.modelMaxContext } : {}) })
+  const measured = localWindowMeasuredOf(record)
+  return fitLocalWindowOn(truth, { name: record.id, weightsBytes: record.weightsBytes, geometry: record.geometry, ...(record.modelMaxContext !== undefined ? { trainedMax: record.modelMaxContext } : {}), ...(measured !== undefined ? { measured } : {}) })
 }
 
 const fmt = (n: number): string => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}k` : String(n))
@@ -147,7 +153,7 @@ export function heldLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>)
   return held.get(holdKey(record))
 }
 
-export type LocalWindowDecisionRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'weightsBytes' | 'geometry'>
+export type LocalWindowDecisionRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'weightsBytes' | 'geometry' | 'contextWindow' | 'servedBytes'>
 
 export function decideLocalWindow(record: LocalWindowDecisionRecord, estTokens: number, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): HeldLocalWindow {
   const application = localWindowApplication(record)
@@ -179,6 +185,10 @@ export function __resetLocalWindowsForTest(): void {
   held.clear()
 }
 
+export function localWindowDecisionLine(record: Pick<LocalModelRecord, 'id'>, decision: LocalWindowDecision): string {
+  return `[local-window] ${record.id}: ${decision.window !== undefined ? String(decision.window) : 'server default'} · ${decision.reason} — ${decision.words}`
+}
+
 export function localWindowSettingWords(setting: LocalWindowSetting | undefined): string {
   if (setting === undefined) return 'auto'
   if (setting === 'server') return 'server default'
@@ -201,7 +211,7 @@ export function localWindowRefusalWords(record: LocalWindowFitRecord, setting: L
   return window === undefined ? undefined : localWindowRefusal(fit, window)
 }
 
-export type LocalWindowWordsRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow' | 'weightsBytes' | 'geometry'>
+export type LocalWindowWordsRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow' | 'servedBytes' | 'weightsBytes' | 'geometry'>
 
 export function localWindowValueWords(record: LocalWindowWordsRecord, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): string {
   const application = localWindowApplication(record)

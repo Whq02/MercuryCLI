@@ -20,14 +20,14 @@ process.env.FORCE_COLOR = '3'
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 const SERVED_MODEL = 'qwen3.5:9b-q4_K_M'
-const UNLOADED_MODEL = 'qwen3.5:27b'
+const UNLOADED_MODEL = 'qwen3.8:27b-mtp-q4_K_M'
 const GIB = 1024 ** 3
 const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
 const INFO: Record<string, Record<string, unknown>> = {
-  [SERVED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096 },
-  [UNLOADED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': kvHeads(64), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 64, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120 },
+  [SERVED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096, 'qwen35.full_attention_interval': 4 },
+  [UNLOADED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': 4, 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 65, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120, 'qwen35.full_attention_interval': 4, 'qwen35.nextn_predict_layers': 1 },
 }
-const SIZES: Record<string, number> = { [SERVED_MODEL]: 6594474711, [UNLOADED_MODEL]: 17420432728 }
+const SIZES: Record<string, number> = { [SERVED_MODEL]: 6594474711, [UNLOADED_MODEL]: 17741872154 }
 function json(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify(body))
@@ -200,7 +200,7 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
   await board.key('w')
   await board.key('w')
   await board.key('w')
-  check(`${geometry.tag}: the 27B at 64k on 16 GiB refuses and says no rung fits — [64k — 20.2 GiB does not fit 12.0 GiB usable · no rung fits]`, board.line().replace(/\s+/g, ' ').includes('[64k — 20.2 GiB does not fit 12.0 GiB usable · no rung fits]') && w.localWindowSettingOf(unloaded) === 65536, board.line())
+  check(`${geometry.tag}: the hybrid 27B at 64k on 16 GiB (f16, no runner read) refuses with the 16-layer sum and says no rung fits — [64k — 20.5 GiB does not fit 12.0 GiB usable · no rung fits], never 32.8 GiB (65 layers)`, board.line().replace(/\s+/g, ' ').includes('[64k — 20.5 GiB does not fit 12.0 GiB usable · no rung fits]') && w.localWindowSettingOf(unloaded) === 65536, board.line())
   save(`unloaded-row-refused-${geometry.tag}`, board.frame())
   w.writeLocalWindowSetting(unloaded, undefined)
   await board.key('up')
