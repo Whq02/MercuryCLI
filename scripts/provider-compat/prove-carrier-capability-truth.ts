@@ -153,10 +153,10 @@ section('C1 · the window is the row\'s stated context_length — never a borrow
 section('C2 · output: the row\'s max_completion_tokens, never the first-party family table')
 {
   const pro = caps.getModelMaxOutputTokens('openrouter/google/gemini-fixture-pro')
-  check('a stated 32,768 ceiling is the upper limit; the default stays within it', pro.upperLimit === 32_768 && pro.default === 32_000, JSON.stringify(pro))
+  check('a stated 32,768 ceiling is the upper limit AND the default (the stated maximum up to 128k; 32,000 was the old floor under it)', pro.upperLimit === 32_768 && pro.default === 32_768, JSON.stringify(pro))
   const claude = caps.getModelMaxOutputTokens('openrouter/anthropic/claude-opus-5')
   check(
-    'an unstated Claude slug behind the carrier gets the conservative default — not Opus 5\'s 64k/128k',
+    'an unstated Claude slug behind the carrier gets the conservative default — not Opus 5\'s 128k',
     claude.default === 32_000 && claude.upperLimit === 64_000,
     JSON.stringify(claude),
   )
@@ -206,7 +206,7 @@ section('C4 · Gemini: the row\'s limits and thinking statement decide')
   const lite = caps.resolveContextWindow('gemini-fixture-lite')
   check('a row stating no limit keeps the labelled conservative default', lite.effectiveWindow === 200_000 && /Gemini catalogue states no context length/.test(lite.fallbackReason ?? ''), JSON.stringify(lite))
   const out = caps.getModelMaxOutputTokens('gemini-fixture-pro')
-  check('outputTokenLimit is the ceiling (65,536)', out.upperLimit === 65_536 && out.default === 32_000, JSON.stringify(out))
+  check('outputTokenLimit is the ceiling (65,536) and, being under 128k, the default too', out.upperLimit === 65_536 && out.default === 65_536, JSON.stringify(out))
   check('a thinking row offers the documented ladder (low · medium · high — no xhigh/max)', caps.modelSupportsEffort('gemini-fixture-pro') && !caps.modelSupportsXHighEffort('gemini-fixture-pro') && !caps.modelSupportsMaxEffort('gemini-fixture-pro'))
   check('selectable = low,medium,high', effort.selectableEffortLevels('gemini-fixture-pro').join(',') === 'low,medium,high')
   check('a row NOT stating thinking offers no dial', caps.modelSupportsEffort('gemini-fixture-lite') === false)

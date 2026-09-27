@@ -376,6 +376,11 @@ export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
 
 const MAX_OUTPUT_TOKENS_DEFAULT = 32_000
 const MAX_OUTPUT_TOKENS_UPPER_LIMIT = 64_000
+const STATED_OUTPUT_DEFAULT_CEILING = 128_000
+
+function statedOutputTokens(upperLimit: number): { default: number; upperLimit: number } {
+  return { default: Math.min(upperLimit, STATED_OUTPUT_DEFAULT_CEILING), upperLimit }
+}
 
 export function is1mContextDisabled(): boolean {
   return isEnvTruthy(process.env.MERCURY_DISABLE_1M_CONTEXT)
@@ -702,12 +707,11 @@ export function getModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
-  let defaultTokens: number
-  let upperLimit: number
+  let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
   if (gptPinOut !== undefined && gptPinOut >= 4_096) {
-    return { default: Math.min(64_000, gptPinOut), upperLimit: gptPinOut }
+    return statedOutputTokens(gptPinOut)
   }
 
   const outputRoute = declaredRouteOf(model)
@@ -721,61 +725,49 @@ export function getModelMaxOutputTokens(model: string): {
             require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
           ).geminiOutputTokenLimitFor(normalizeForEnginePins(model))
     if (statedOut !== undefined && statedOut >= 1_024) {
-      return { default: Math.min(MAX_OUTPUT_TOKENS_DEFAULT, statedOut), upperLimit: statedOut }
+      return statedOutputTokens(statedOut)
     }
   }
 
   const m = isCarrierShapedId(model) ? '' : getCanonicalName(familyDefaultsModel(model))
 
   if (m.includes('fable-5')) {
-    defaultTokens = 64_000
     upperLimit = 128_000
   } else if (m.includes('sonnet-5') || m.includes('opus-5')) {
-    defaultTokens = 64_000
     upperLimit = 128_000
   } else if (m.includes('opus-4-6')) {
-    defaultTokens = 64_000
     upperLimit = 128_000
   } else if (m.includes('sonnet-4-6')) {
-    defaultTokens = 32_000
     upperLimit = 128_000
   } else if (
     m.includes('opus-4-5') ||
     m.includes('sonnet-4') ||
     m.includes('haiku-4')
   ) {
-    defaultTokens = 32_000
     upperLimit = 64_000
   } else if (m.includes('opus-4-1') || m.includes('opus-4')) {
-    defaultTokens = 32_000
     upperLimit = 32_000
   } else if (m.includes('claude-3-opus')) {
-    defaultTokens = 4_096
     upperLimit = 4_096
   } else if (m.includes('claude-3-sonnet')) {
-    defaultTokens = 8_192
     upperLimit = 8_192
   } else if (m.includes('claude-3-haiku')) {
-    defaultTokens = 4_096
     upperLimit = 4_096
   } else if (m.includes('3-5-sonnet') || m.includes('3-5-haiku')) {
-    defaultTokens = 8_192
     upperLimit = 8_192
   } else if (m.includes('3-7-sonnet')) {
-    defaultTokens = 32_000
     upperLimit = 64_000
-  } else {
-    defaultTokens = MAX_OUTPUT_TOKENS_DEFAULT
-    upperLimit = MAX_OUTPUT_TOKENS_UPPER_LIMIT
   }
 
   const cap = getModelCapability(model)
   if (cap?.max_tokens && cap.max_tokens >= 4_096) {
     upperLimit = cap.max_tokens
-    defaultTokens = Math.min(defaultTokens, upperLimit)
   }
 
-  return { default: defaultTokens, upperLimit }
+  if (upperLimit !== undefined) {
+    return statedOutputTokens(upperLimit)
+  }
+  return { default: MAX_OUTPUT_TOKENS_DEFAULT, upperLimit: MAX_OUTPUT_TOKENS_UPPER_LIMIT }
 }
 
 export function getMaxThinkingTokensForModel(model: string): number {

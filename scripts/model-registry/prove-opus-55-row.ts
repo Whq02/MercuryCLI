@@ -140,7 +140,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check('unpinning every family covers the new flag too', effort.allLaunchEffortUnpinned() && !effort.isLaunchEffortPinned(ID) && (getGlobalConfig() as { launchEffortUnpins?: Record<string, boolean> }).launchEffortUnpins?.opus55 === true)
   saveGlobalConfig(current => ({ ...current, launchEffortUnpins: {} }))
 
-  check('adaptive thinking, temperature refused, 1M native, 128K out', caps.modelSupportsAdaptiveThinking(ID) && caps.modelSupportsThinking(ID) && !caps.modelSupportsTemperature(ID) && caps.modelSupports1M(ID) && caps.getContextWindowForModel(ID) === 1_000_000 && caps.getModelMaxOutputTokens(ID).upperLimit === 128_000 && caps.getModelMaxOutputTokens(ID).default === 64_000)
+  check('adaptive thinking, temperature refused, 1M native, 128K out — and the DEFAULT is the stated 128K (a 64K default left no room for the answer after a full-effort think)', caps.modelSupportsAdaptiveThinking(ID) && caps.modelSupportsThinking(ID) && !caps.modelSupportsTemperature(ID) && caps.modelSupports1M(ID) && caps.getContextWindowForModel(ID) === 1_000_000 && caps.getModelMaxOutputTokens(ID).upperLimit === 128_000 && caps.getModelMaxOutputTokens(ID).default === 128_000, JSON.stringify(caps.getModelMaxOutputTokens(ID)))
   check('the context resolution is the first-party static pin', caps.resolveContextWindow(ID).source === 'static-pin' && caps.resolveContextWindow(ID).effectiveWindow === 1_000_000)
   check('structured outputs on the home route, never behind a carrier', caps.modelSupportsStructuredOutputs(ID) && !caps.modelSupportsStructuredOutputs('openrouter/anthropic/claude-opus-5-5'))
   caps.resetPerMessageEffortRefusals()

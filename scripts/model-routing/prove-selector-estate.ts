@@ -144,9 +144,9 @@ section('4b · the FULL lineup sweeps the same consumers (provider parity)')
     )
     const out = getModelMaxOutputTokens(pin.id)
     check(
-      `${pin.id}: output cap = ${pin.outputMax !== undefined ? 'the recorded pin fact' : 'the conservative default'}`,
+      `${pin.id}: output cap = ${pin.outputMax !== undefined ? 'the recorded pin fact, and the default is that stated maximum up to 128k' : 'the conservative default (nothing stated, nothing invented)'}`,
       pin.outputMax !== undefined
-        ? out.upperLimit === pin.outputMax && out.default === Math.min(64_000, pin.outputMax)
+        ? out.upperLimit === pin.outputMax && out.default === Math.min(128_000, pin.outputMax)
         : out.upperLimit === 64_000 && out.default === 32_000,
       `got ${JSON.stringify(out)}`,
     )

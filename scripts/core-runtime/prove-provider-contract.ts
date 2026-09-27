@@ -317,18 +317,18 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
 
   const outMax: Array<[string, number, number]> = [
-    ['claude-fable-5', 64_000, 128_000],
-    ['claude-opus-4-6', 64_000, 128_000],
-    ['claude-sonnet-4-6', 32_000, 128_000],
-    ['claude-opus-4-5', 32_000, 64_000],
+    ['claude-fable-5', 128_000, 128_000],
+    ['claude-opus-4-6', 128_000, 128_000],
+    ['claude-sonnet-4-6', 128_000, 128_000],
+    ['claude-opus-4-5', 64_000, 64_000],
     ['claude-opus-4-1', 32_000, 32_000],
     ['claude-3-5-sonnet-20241022', 8_192, 8_192],
-    ['claude-sonnet-5', 64_000, 128_000],
+    ['claude-sonnet-5', 128_000, 128_000],
     ['zz-unknown-model', 32_000, 64_000],
   ]
   for (const [m, def, upper] of outMax) {
     const got = ctx.getModelMaxOutputTokens(m)
-    check(`window: output-max ${m} → {${def}, ${upper}}`, got.default === def && got.upperLimit === upper, JSON.stringify(got))
+    check(`window: output-max ${m} → {${def}, ${upper}} (the default is the stated maximum up to 128k; an unstated id keeps 32k/64k)`, got.default === def && got.upperLimit === upper, JSON.stringify(got))
   }
   check(
     'window: max thinking budget = upper limit − 1',
