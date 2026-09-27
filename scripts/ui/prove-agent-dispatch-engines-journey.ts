@@ -117,7 +117,7 @@ console.log('============================================================')
       total: 200,
       argv: ['node', DIST],
       sends: [
-        { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3 },
+        { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3, awaitStableTicks: 3 },
         { data: '/router key\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: KEY, atTick: 999, awaitText: 'Z.AI API key', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: '\r', afterPrevTicks: 4 },
