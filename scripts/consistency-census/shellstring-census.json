@@ -1060,27 +1060,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync('git init -q && git -c user.email=p@p -c user.name=p commit -q --allow-empty -m seed', { cwd: repo })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync('git add . && git -c user.email=p@p -c user.name=p commit -q -m \"add alpha+beta\"', { cwd: repo })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/memory/prove-card-evidence-harvest.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const sha = execSync('git rev-parse --short HEAD', { cwd: repo, encoding: 'utf8' }).trim()",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/mission-runner/corpus/repos/lanternkit.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "'test/paths.test.mjs': \"// Kit-home path discipline (src/paths.js mission seam).\\nimport test from 'node:test'\\nimport assert from 'node:ass",
