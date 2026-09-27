@@ -139,7 +139,9 @@ async function doctorJson(): Promise<{ text: string; status: number | null }> {
   return { text: res.stdout, status: res.status }
 }
 
-async function capture(name: string, cols: number, rows: number, sends: Array<Record<string, unknown>>, total: number): Promise<string[]> {
+type Frame = { label: string; lines: string[] }
+const gridLines = (grid: { c: string }[][]): string[] => grid.map(r => r.map(c => c.c || ' ').join(''))
+async function capture(name: string, cols: number, rows: number, sends: Array<Record<string, unknown>>, total: number): Promise<Frame[]> {
   const driver = resolveCaptureDriver()
   if (driver.kind !== 'posix-pty') {
     console.log(`  [SKIP] capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -152,24 +154,28 @@ async function capture(name: string, cols: number, rows: number, sends: Array<Re
   writeFileSync(vcfgPath, JSON.stringify(vcfg))
   const res = await runChild(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), vcfgPath], { timeoutMs: vshotBudgetMs(300_000) })
   check(`the ${name} capture ran`, res.status === 0, res.stderr.slice(-200))
-  let lines: string[] = []
+  const frames: Frame[] = []
   try {
-    const grid = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][] }
-    lines = grid.grid.map(r => r.map(c => c.c || ' ').join(''))
+    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][]; marks?: { label: string; grid: { c: string }[][] }[] }
+    for (const mark of payload.marks ?? []) frames.push({ label: mark.label, lines: gridLines(mark.grid) })
+    frames.push({ label: 'final', lines: gridLines(payload.grid) })
   } catch {
-    lines = []
+    frames.length = 0
   }
   const captureDir = process.env.MERCURY_HEALTH_CAPTURE_DIR
   if (captureDir) {
     mkdirSync(captureDir, { recursive: true })
-    writeFileSync(join(captureDir, `model-lists-doctor-${name}.txt`), lines.join('\n') + '\n')
+    for (const frame of frames) {
+      const suffix = frame.label === 'final' ? '' : `-${frame.label}`
+      writeFileSync(join(captureDir, `model-lists-doctor-${name}${suffix}.txt`), frame.lines.join('\n') + '\n')
+    }
     try {
       writeFileSync(join(captureDir, `model-lists-doctor-${name}.json`), readFileSync(out))
     } catch {
       console.log('  … the grid could not be copied beside the frame')
     }
   }
-  return lines
+  return frames
 }
 
 const ESC = '\x1b'
@@ -197,7 +203,12 @@ try {
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
     const walk = rowIndex === 0 ? [] : [{ afterPrevTicks: 45, data: '\x1b[B' }, ...downs.slice(1)]
     const readyNeedle = cols >= 100 && termRows >= 26 ? '← back' : '1 session on'
-    const lines = await capture(`row-${size}`, cols, termRows, [
+    const readOn = termRows < 26
+      ? Array.from({ length: 4 }, (_, i) => (i === 0
+        ? { atTick: 999, awaitText: 'Anthropic · Anthropic API key', requireAwait: true, awaitSettleTicks: 2, mark: `down-${i}`, data: '\x1b[B' }
+        : { afterPrevTicks: 3, awaitPattern: '↑↓ select · ⇞⇟ page', mark: `down-${i}`, data: '\x1b[B' }))
+      : []
+    const frames = await capture(`row-${size}`, cols, termRows, [
       { atTick: 999, awaitText: readyNeedle, requireAwait: true, minTick: 5, awaitSettleTicks: 4, data: '/model' },
       { afterPrevTicks: 6, data: '\r' },
       { afterPrevTicks: 30, data: ESC },
@@ -205,14 +216,21 @@ try {
       { afterPrevTicks: 6, data: '\r' },
       ...walk,
       { afterPrevTicks: 3, data: '\r' },
-    ], 190 + rowIndex)
+      ...readOn,
+    ], 190 + rowIndex + readOn.length * 3)
+    const flat = (lines: string[]): string => lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, '')).join(' ').replace(/\s+/g, ' ')
+    const opened = frames[0]?.lines ?? []
     check(`${size}: the picker read the fixture's list once`, hits.filter(h => h.endsWith('/openai/chatgpt/models')).length >= 1, hits.join(', '))
-    check(`${size}: /health painted its certificate`, lines.some(l => l.includes('health certificate')))
-    const rowLine = lines.find(l => l.includes('Model lists')) ?? ''
+    check(`${size}: /health painted its certificate`, opened.some(l => l.includes('health certificate')))
+    const rowLine = opened.find(l => l.includes('Model lists')) ?? ''
     check(`${size}: the Model lists row is on screen and warns`, rowLine.includes('▲') && rowLine.includes('Model lists'), rowLine.trim().slice(0, 120))
-    const text = lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, '')).join(' ').replace(/\s+/g, ' ')
-    check(`${size}: the evidence counts the served and not-served ids and names the family`, text.includes(`served ${OWNER_LIST.length} · not served ${RETIRED.length} (OpenAI)`), lines.filter(l => l.includes('served')).map(l => l.trim()).join(' | ').slice(0, 300))
-    check(`${size}: the retired ids are named beneath the OpenAI line`, text.includes(`OpenAI not served: ${RETIRED.join(' · ')}`), lines.filter(l => l.includes('not served')).map(l => l.trim()).join(' | ').slice(0, 300))
+    check(`${size}: the evidence counts the served and not-served ids and names the family`, flat(opened).includes(`served ${OWNER_LIST.length} · not served ${RETIRED.length} (OpenAI)`), opened.filter(l => l.includes('served')).map(l => l.trim()).join(' | ').slice(0, 300))
+    const onRow = new RegExp(`· ${rowIndex + 1}/\\d+ · esc close`)
+    const stillOnRow = frames.filter(f => f.lines.some(l => onRow.test(l)))
+    const naming = stillOnRow.filter(f => flat(f.lines).includes(`OpenAI not served: ${RETIRED.join(' · ')}`))
+    const trail = frames.map(f => `${f.label}: ${f.lines.filter(l => l.includes('not served') || onRow.test(l)).map(l => l.trim().slice(0, 60)).join(' | ')}`).join(' ;; ')
+    if (readOn.length > 0) check(`${size}: ↓ reads on inside the open row — the position marker holds through ${readOn.length} presses`, stillOnRow.length === frames.length && frames.length === readOn.length + 1, trail.slice(0, 600))
+    check(`${size}: the retired ids are named beneath the OpenAI line`, naming.length > 0, trail.slice(0, 600))
   }
 } catch (error) {
   failures++
