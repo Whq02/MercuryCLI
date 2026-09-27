@@ -1,6 +1,6 @@
 #!/bin/bash
 # gate-class: pty
-# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/ui/visualBaseline.ts
+# gate-watch: scripts/lib/captureDriver.ts scripts/lib/spawnCapture.ts scripts/lib/firstRunSeed.ts scripts/ui/visualBaseline.ts
 # gate-watch: scripts/ui/vshot.py src/bootstrap/state.ts src/components/messages/nullRenderingAttachments.ts
 # gate-watch: src/ink/root/render-scheduler.ts src/ink/session/delivery.ts src/query.ts src/query/deps.ts
 # gate-watch: src/render-engine/cockpit/* src/run-core/project-legacy.ts src/state/AppStateStore.ts

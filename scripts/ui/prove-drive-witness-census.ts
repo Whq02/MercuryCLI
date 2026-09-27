@@ -93,7 +93,11 @@ export function inspect(source: string, file: string): Offender[] {
       if (p.has('cols') && p.has('rows') && ['at', 'atMs', 'atTick'].some(k => p.has(k)) && !nonempty(p.get('afterMark'))) {
         add(n, 'resize', 'anchor the resize/sample to a witnessed mark with afterMark, keeping its authored offset')
       }
-      if ((p.has('stableTicks') || p.has('readySettleTicks') || (p.has('argv') && p.has('out') && p.has('total'))) && !nonempty(p.get('readyText'))) {
+      const sends = p.get('sends')
+      const last = sends && ts.isArrayLiteralExpression(sends) ? sends.elements.at(-1) : undefined
+      const end = last && ts.isObjectLiteralExpression(last) ? properties(last) : undefined
+      const endWitness = end !== undefined && end.has('mark') && stringText(end.get('data') ?? n) === '' && end.get('requireAwait')?.kind === ts.SyntaxKind.TrueKeyword && WITNESSES.some(k => nonempty(end.get(k)))
+      if ((p.has('stableTicks') || p.has('readySettleTicks') || (p.has('argv') && p.has('out') && p.has('total'))) && !nonempty(p.get('readyText')) && !endWitness) {
         add(n, 'sample', 'declare the final scene needle with readyText; stability or a capture ceiling alone cannot certify readiness')
       }
     }
@@ -182,6 +186,8 @@ function selfTest(): number {
     ['marked resize', "const resizes = [{ afterMark: 'ready', afterMs: 8000, cols: 80, rows: 24 }]", []],
     ['stability is not ready', 'const cfg = { stableTicks: 4 }', ['sample']],
     ['needle plus stability', "const cfg = { stableTicks: 4, readyText: 'READY' }", []],
+    ['fixed window with a witnessed end sample', "const cfg = { argv: ['node', BIN], out, total: 40, sends: [{ data: '', mark: 'end', requireAwait: true, awaitText: 'FINAL' }] }", []],
+    ['data bearing send does not witness its result', "const cfg = { argv: ['node', BIN], out, total: 40, sends: [{ data: 'x', mark: 'before', requireAwait: true, awaitText: 'BEFORE' }] }", ['sample']],
     ['timer wait', 'await new Promise(resolve => setTimeout(resolve, 1000))', ['wait']],
     ['watchdog is not wait', "const deadline = setTimeout(() => child.kill('SIGKILL'), budget)", []],
     ['sleep wait', 'await Bun.sleep(1000)', ['wait']],
