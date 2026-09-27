@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-env: MERCURY_RENDER_CWD
-# gate-watch: scripts/ui/** scripts/ui-2/**
+# gate-watch: scripts/ui/** scripts/ui-2/** scripts/lib/capture_refusal.py scripts/lib/spawnCapture.ts
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
 # gate-watch: src/services/run/** src/state/AppState* src/utils/**

@@ -12,6 +12,7 @@
 # gate-watch: src/types/logs* src/utils/**
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
 # gate-watch: scripts/cockpit-interaction/prove-action-graph.ts scripts/engine-durability/harness.ts
+# gate-watch: scripts/gate/prove-suite-class-census.ts scripts/gate/sourceCensus.ts
 # gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/lib/* scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/release/launcherTemplates.mjs scripts/search/lib/bundle-for-node.ts
 # gate-watch: src/commands/config/config.tsx src/commands/context/context.tsx src/commands/export/export.tsx

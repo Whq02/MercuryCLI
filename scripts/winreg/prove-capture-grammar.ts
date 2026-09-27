@@ -9,6 +9,7 @@ const t = checker()
 
 const posix = readFileSync('scripts/ui/vshot.py', 'utf8')
 const win = readFileSync('scripts/winreg/vshot-win.py', 'utf8')
+const refusal = readFileSync('scripts/lib/capture_refusal.py', 'utf8')
 
 const CFG_KEYS = [
   '"cols"', '"rows"', '"total"', '"argv"', '"sends"', '"out"',
@@ -25,7 +26,7 @@ const SEND_KEYS = [
 ]
 const PAYLOAD_KEYS = [
   '"readyAt"', '"endedAtTick"', '"endReason"', '"readyTextDeclared"',
-  '"stages"', '"sendReceipts"', '"marks"',
+  '"stages"', '"sendReceipts"', '"marks"', '"refusals"',
 ]
 
 t.section('every vshot.py grammar token is handled by vshot-win.py')
@@ -44,9 +45,14 @@ t.section('the shared capture laws hold in both engines')
   t.check('wall-clock tick constant (0.2s)', win.includes('TICK_S = 0.2'), 'ticks are seconds/0.2')
   t.check('kitty CSI-u strip', win.includes('_KITTY_SEQ'), 'pyte literalizes kitty sequences otherwise')
   t.check('fork-bomb guard', win.includes('VSHOT_ACTIVE'), 'refuse to nest')
-  t.check('NEVER-READY refusal (exit 3)', win.includes('NEVER-READY') && win.includes('sys.exit(3)'), 'wrong-frame class')
-  t.check('UNDELIVERED-SENDS refusal (exit 4)', win.includes('UNDELIVERED-SENDS') && win.includes('sys.exit(4)'), 'silently-shorter-journey class')
-  t.check('NEVER-STABLE refusal (exit 5)', win.includes('NEVER-STABLE') && win.includes('sys.exit(5)'), 'stale-layout-anchor class')
+  t.check('NEVER-READY refusal (exit 3)', refusal.includes('NEVER-READY') && win.includes('sys.exit(3)'), 'wrong-frame class')
+  t.check('UNDELIVERED-SENDS refusal (exit 4)', refusal.includes('UNDELIVERED-SENDS') && win.includes('sys.exit(4)'), 'silently-shorter-journey class')
+  t.check('NEVER-STABLE refusal (exit 5)', refusal.includes('NEVER-STABLE') && win.includes('sys.exit(5)'), 'stale-layout-anchor class')
+  for (const [name, source] of [['POSIX', posix], ['Windows', win]] as const) {
+    t.check(`${name}: the shared refusal builder runs before the receipt is written`, source.includes('from capture_refusal import capture_refusals, emit_refusals') && source.indexOf('payload["refusals"] = capture_refusals(') >= 0 && source.indexOf('payload["refusals"] = capture_refusals(') < source.indexOf('json.dump(payload'), 'durable before exit')
+    t.check(`${name}: refusal words are emitted before any end-gate exit`, source.includes('emit_refusals(payload["refusals"])') && source.indexOf('emit_refusals(payload["refusals"])') < source.indexOf('sys.exit(3)'), 'same receipt and log words')
+  }
+  t.check('shared refusals reach both output streams', refusal.includes('sys.stderr.write(line)') && refusal.includes('sys.stdout.write(line)'), 'legacy stdout-only loggers retain the reason')
   t.check('LIVE-SEAT-STABILITY refusal (exit 7)', win.includes('LIVE-SEAT-STABILITY') && win.includes('sys.exit(7)'), 'the starved whole-grid gate class')
   t.check('bounded drain epilogue', win.includes('drain_hard_deadline'), 'never end mid-burst')
   t.check(
@@ -70,7 +76,7 @@ t.section('the shared capture laws hold in both engines')
 t.section('every Windows driver parses (a syntax error must never cost a 2× billed run)')
 {
   const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
-  for (const f of ['scripts/ui/vshot.py', 'scripts/winreg/vshot-win.py', 'scripts/winreg/bringup-win.py', 'scripts/winreg/campaign-win.py']) {
+  for (const f of ['scripts/ui/vshot.py', 'scripts/winreg/vshot-win.py', 'scripts/lib/capture_refusal.py', 'scripts/winreg/bringup-win.py', 'scripts/winreg/campaign-win.py']) {
     const r = spawnSync('/usr/bin/python3', ['-c', `import ast; ast.parse(open('${f}').read())`], { encoding: 'utf8' })
     t.check(`${f} parses`, r.status === 0, (r.stderr || 'ok').slice(0, 120))
   }

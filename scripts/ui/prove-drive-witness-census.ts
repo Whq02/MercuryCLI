@@ -116,7 +116,7 @@ export function inspect(source: string, file: string): Offender[] {
       }
       if (ts.isNewExpression(sink) && sink.expression.getText() === 'Error' && stderr && sink.arguments?.some(a => stderr.test(expanded(a)))) carried = true
     })
-    if (!carried) add(n, 'stderr', 'use spawnCaptureSync from scripts/lib/captureDriver.ts, or print stderr on the exit row and retain the refusal receipt')
+    if (!carried) add(n, 'stderr', 'use spawnCaptureSync from scripts/lib/spawnCapture.ts, or print stderr on the exit row and retain the refusal receipt')
   })
   return hits
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/winreg/** scripts/ui/vshot.py scripts/lib/firstRunSeed.ts package.json src/daemon/runPtyHost.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/switchboard/prove-session-unification.ts
+# gate-watch: scripts/lib/captureDriver.ts scripts/lib/capture_refusal.py scripts/switchboard/prove-session-unification.ts
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/capturePreflight.ts scripts/ui/render-tui.ts
 # gate-watch: src/Task.ts src/Tool.ts src/bootstrap/state.ts src/cli/structuredIO.ts src/daemon/*
 # gate-watch: src/hooks/useSkillsChange.ts src/native-ts/file-index/index.ts
