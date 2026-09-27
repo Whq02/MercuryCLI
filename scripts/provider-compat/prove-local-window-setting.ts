@@ -222,8 +222,9 @@ section('6 · the runtime road: the Ollama profile streams /api/chat through the
     options: { model: `local/${OLLAMA_MODEL}`, querySource: 'user', getToolPermissionContext: async () => ({ mode: 'default' }) as never } as never,
   })) yielded.push(item as never)
   const hits = ollamaHits.slice(before)
-  check('exactly one request, on /api/chat, never /v1/chat/completions', hits.length === 1 && hits[0]!.url === '/api/chat', hits.map(h => h.url).join(','))
-  check('it carried the held num_ctx (32k for a 5k first request), num_batch 2048 and think:true for a thinking model', (hits[0]!.body.options as { num_ctx?: number; num_batch?: number })?.num_ctx === 32768 && (hits[0]!.body.options as { num_batch?: number })?.num_batch === 2048 && hits[0]!.body.think === true, j(hits[0]!.body.options))
+  const chats = hits.filter(h => h.method === 'POST')
+  check('exactly one chat request, on /api/chat, never /v1/chat/completions; the only other traffic is the local law\'s cheap reads (/api/ps · /api/tags · /api/version)', chats.length === 1 && chats[0]!.url === '/api/chat' && hits.every(h => h.method === 'POST' || ['/api/ps', '/api/tags', '/api/version'].includes(h.url)), hits.map(h => `${h.method} ${h.url}`).join(','))
+  check('it carried the held num_ctx (32k for a 5k first request), num_batch 2048 and think:true for a thinking model', (chats[0]!.body.options as { num_ctx?: number; num_batch?: number })?.num_ctx === 32768 && (chats[0]!.body.options as { num_batch?: number })?.num_batch === 2048 && chats[0]!.body.think === true, j(chats[0]!.body.options))
   const blocks = yielded.filter(m => m.type === 'assistant').flatMap(m => m.message?.content ?? [])
   check('the settlement carries the thinking block, the text block and the refused-or-settled tool call, no api error', blocks.some(b => b.type === 'thinking' && (b.thinking ?? '').includes('Let me look')) && blocks.some(b => b.type === 'text' && (b.text ?? '').includes('Reading it now')) && !yielded.some(m => m.isApiErrorMessage === true), j(blocks.map(b => b.type)))
 }

@@ -10,7 +10,7 @@ import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.j
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
 import { chooseLocalBatch, decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
-import { ollamaChatUrl, streamOllamaChat } from './ollamaChatTransport.js'
+import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
@@ -63,8 +63,8 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     omitsToolChoice: record.server === 'ollama',
     ...(record.server === 'ollama'
       ? {
-          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) => ({
-            events: streamOllamaChat(
+          streamTransport: (options: Parameters<NonNullable<CompatLaneProfile['streamTransport']>>[0]) =>
+            ollamaChatTransport(
               { ...options, url: ollamaChatUrl(record.baseUrl) },
               {
                 ...(heldLocalWindow(record)?.window !== undefined ? { numCtx: heldLocalWindow(record)!.window } : {}),
@@ -72,7 +72,6 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
                 ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
               },
             ),
-          }),
         }
       : {}),
     requestFitRefusal: ({ estTokens, toolCount }) => {

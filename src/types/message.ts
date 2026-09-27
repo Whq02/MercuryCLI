@@ -94,6 +94,7 @@ export type AssistantMessage = {
   isVirtual?: true
   research?: unknown
   refusedToolCalls?: RefusedToolCall[]
+  reasoningOnly?: boolean
   geminiProviderTurn?: {
     model: string
     parts: unknown[]

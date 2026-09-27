@@ -211,7 +211,7 @@ interface LocalSilenceWatch {
   stop(): void
 }
 
-function startLocalSilenceWatch(args: {
+export function startLocalSilenceWatch(args: {
   timers: StreamTimers
   idleMs: number
   probe(): Promise<boolean>
