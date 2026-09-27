@@ -75,7 +75,7 @@ export function newOllamaStreamShape(): OllamaStreamShape {
 }
 
 export function ollamaWireDumpLine(model: string, shape: OllamaStreamShape, head: string, totalChars: number): string {
-  const kept = head.replace(/\r?\n/g, '⏎')
+  const kept = head.replace(/\r?\n/g, '↵')
   return `[compat:local] /api/chat stream from ${model}: ${shape.rows} rows · thinking ${shape.thinkingChars} chars · content ${shape.contentChars} chars · tool calls ${shape.toolCalls} · done_reason ${shape.doneReason ?? 'none'} · ${shape.reasoningOnly ? 'reasoning-only' : 'reply'} · ended ${shape.ended} · head (first ${kept.length} of ${totalChars} chars): ${kept}`
 }
 
