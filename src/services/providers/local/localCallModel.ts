@@ -10,6 +10,7 @@ import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.j
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
 import { chooseLocalBatch, decideLocalWindow, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
+import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatUrl, streamOllamaChat } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 
@@ -142,6 +143,7 @@ export async function* localCallModel(
       await ensureServedWindow(record, { signal: params.signal })
     }
   }
+  noteLocalTurn(record)
   yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model), params)
   if (record && confirmAfter && !params.signal.aborted) await confirmServedWindow(record, { signal: params.signal })
 }

@@ -234,6 +234,7 @@ import { notePrintPhase, printPhaseReport } from '../utils/printPhases.js'
 import { getPerformance } from '../utils/profilerBase.js'
 import { runSideQuestion } from '../utils/sideQuestion.js'
 import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
+import { armLocalWarm } from '../services/providers/local/localWarm.js'
 import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
   cacheSessionTitle,
@@ -1032,6 +1033,7 @@ export async function runHeadless(
     setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
     setAppState(previous => ({ ...previous, effortValue: effort }))
   }
+  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: [...getAppState().mcp.clients, ...sdkMcp.clients, ...dynamicMcp.clients], messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'strategy', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
