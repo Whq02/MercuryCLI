@@ -175,6 +175,12 @@ export type InputMeta = {
   mcpMeta?: Record<string, unknown>
 }
 
+export type EffortStampV1 = {
+  asked: string
+  applied: string
+  wire: string
+}
+
 export type OutputMeta = {
   hiddenFromTranscript?: boolean
   isVirtual?: boolean
@@ -182,6 +188,7 @@ export type OutputMeta = {
   errorClassification?: string
   errorDetails?: string
   apiError?: string
+  effort?: EffortStampV1
 }
 
 export type RecordKind = RecordPayload['kind']

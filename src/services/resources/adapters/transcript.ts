@@ -6,6 +6,9 @@ import { boundedTextView, type ResourceAdapter, type ResourceChild, type Resourc
 import { parseOwnerKey } from '../../primitives/owner.js'
 import { projectIntelEnabled } from '../../projectIntel/contracts.js'
 import { readAgentTranscript, transcriptEndWords } from '../../../tools/WorkflowTool/agentTranscriptReader.js'
+import { recordToEntry } from '../../../fabric/entryCodec.js'
+import { validateRecord } from '../../../fabric/validate.js'
+import { effortStampLine, isEffortStamp } from '../../../utils/effortStamp.js'
 import { agentStatusWord } from './agent.js'
 
 function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
@@ -38,6 +41,19 @@ function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, SAMPLE)
 }
 
+function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof parsed.schemaVersion !== 'number' || typeof parsed.payload !== 'object' || parsed.payload === null) return parsed
+  const validated = validateRecord(parsed)
+  if (!validated.ok) return null
+  const kind = validated.record.payload.kind
+  if (kind !== 'output' && kind !== 'input') return null
+  try {
+    return recordToEntry(validated.record)
+  } catch {
+    return null
+  }
+}
+
 export function jsonlConciseRows(file: string): string[] {
   const rows: string[] = []
   let raw: string
@@ -52,24 +68,33 @@ export function jsonlConciseRows(file: string): string[] {
       break
     }
     if (!line.trim().startsWith('{')) continue
-    let entry: Record<string, unknown>
+    let parsed: Record<string, unknown>
     try {
-      entry = JSON.parse(line) as Record<string, unknown>
+      parsed = JSON.parse(line) as Record<string, unknown>
     } catch {
       continue
     }
+    const entry = entryOfLine(parsed)
+    if (entry === null) continue
     const type = entry.type
     if (type !== 'user' && type !== 'assistant') continue
     const message = entry.message as Record<string, unknown> | undefined
     const content = message?.content
+    const effortSuffix = type === 'assistant' ? ` · ${effortStampLine(isEffortStamp(entry.effort) ? entry.effort : undefined)}` : ''
+    let effortShown = false
+    const withEffort = (row: string): string => {
+      if (effortShown || effortSuffix === '') return row
+      effortShown = true
+      return `${row}${effortSuffix}`
+    }
     if (typeof content === 'string') {
-      if (content.trim()) rows.push(`${type}: ${oneLine(content)}`)
+      if (content.trim()) rows.push(withEffort(`${type}: ${oneLine(content)}`))
       continue
     }
     if (!Array.isArray(content)) continue
     for (const block of content as Array<Record<string, unknown>>) {
       if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-        rows.push(`${type}: ${oneLine(block.text)}`)
+        rows.push(withEffort(`${type}: ${oneLine(block.text)}`))
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         const input = (block.input ?? {}) as Record<string, unknown>
         const target =
@@ -80,7 +105,7 @@ export function jsonlConciseRows(file: string): string[] {
               : typeof input.command === 'string'
                 ? oneLine(input.command).slice(0, 60)
                 : ''
-        rows.push(`${type}: → ${block.name}${target ? ` ${target}` : ''}`)
+        rows.push(withEffort(`${type}: → ${block.name}${target ? ` ${target}` : ''}`))
       } else if (block.type === 'tool_result') {
         const raw = block.content
         const text =

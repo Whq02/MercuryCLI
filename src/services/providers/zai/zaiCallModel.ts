@@ -43,7 +43,7 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
@@ -64,8 +64,10 @@ import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 import {
   buildZaiChatRequest,
   imageRefusalWords,
+  zaiEffortWireFact,
   type ApiShapedTool,
 } from './zaiCodec.js'
+import { effortStampOf, type EffortStampV1 } from '../../../utils/effortStamp.js'
 import {
   streamZaiChat,
   zaiChatCompletionsUrl,
@@ -237,6 +239,7 @@ export async function* zaiCallModel(
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const vocabulary = glmEffortsFor(modelId)
   const wireEffort =
     effortValue && vocabulary
@@ -258,6 +261,8 @@ export async function* zaiCallModel(
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     thinkingEnabled: glmThinkingLocked(modelId) ? true : thinkingConfig.type !== 'disabled',
   })
+  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, zaiEffortWireFact(request, effortTruth.supportsEffort))
+  const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
 
   recordPromptState({
     system: [{ text: systemText }],
@@ -286,6 +291,7 @@ export async function* zaiCallModel(
       modelId,
       messages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
+      effort: effortOnWire,
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
@@ -314,7 +320,7 @@ export async function* zaiCallModel(
       yield notice
       options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
       if (step.waitMs <= 0) {
-        yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code)
+        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
         return
       }
       await sleep(step.waitMs, signal)
@@ -376,12 +382,12 @@ export async function* zaiCallModel(
     const refusedImage = imageRefusalWords(request, outcome.fault)
     if (refusedImage !== null) {
       noteImageRefusal(modelId, refusedImage)
-      yield apiErrorMessage(
+      yield withEffort(apiErrorMessage(
         `${API_ERROR_MESSAGE_PREFIX}: the model on the ${ZAI_FAULT_PROFILE.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
         typed,
         outcome.fault.code,
         overflowOf(outcome.fault),
-      )
+      ))
       return
     }
     const terminalText = compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed)
@@ -389,7 +395,7 @@ export async function* zaiCallModel(
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${ZAI_FAULT_PROFILE.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : terminalText
-    yield stampProviderWait(
+    yield withEffort(stampProviderWait(
       apiErrorMessage(
         stayedBusy,
         typed,
@@ -398,13 +404,14 @@ export async function* zaiCallModel(
         busy !== undefined ? busyRefusalFact(ZAI_FAULT_PROFILE.providerLabel, busy.ladder, outcome.fault) : null,
       ),
       outcome.fault.retryAfterMs,
-    )
+    ))
     return
   }
 }
 
 async function* streamOneZaiAttempt(ctx: {
   request: ReturnType<typeof buildZaiChatRequest>
+  effort?: EffortStampV1
   apiKey: string
   requestUrl: string
   signal: AbortSignal
@@ -457,6 +464,7 @@ async function* streamOneZaiAttempt(ctx: {
       uuid: randomUUID(),
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
+      ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
     }
   }
 
@@ -715,12 +723,13 @@ async function* streamOneZaiAttempt(ctx: {
   yield streamEvent({ type: 'message_stop' })
 
   if (fault && typedEnd === null) {
-    yield apiErrorMessage(
+    const faultRow = apiErrorMessage(
       streamFaultAfterPartialText('Z.AI', fault.code, fault.message),
       compatFaultToTypedError(fault),
       fault.code,
       overflowOf(fault),
     )
+    yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
   return { kind: 'done' }
 }

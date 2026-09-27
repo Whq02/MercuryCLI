@@ -8,6 +8,7 @@ import type {
   OpenaiWebSearchTool,
 } from './openaiWire.js'
 import type { OpenaiResponsesRequest } from './openaiWire.js'
+import type { EffortWireFact } from '../../../utils/effortStamp.js'
 import type { NativeWebSearchRequest } from '../../search/nativeSearchRequest.js'
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
 
@@ -322,6 +323,12 @@ export interface BuildOpenaiRequestInput {
 export function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
   const allowed = (request.allowedDomains ?? []).map(d => d.trim()).filter(d => d !== '').slice(0, 20)
   return { type: 'web_search', ...(allowed.length > 0 ? { filters: { allowed_domains: allowed } } : {}) }
+}
+
+export function openaiEffortWireFact(request: OpenaiResponsesRequest, supported: boolean): EffortWireFact {
+  const effort = request.reasoning?.effort
+  if (typeof effort === 'string' && effort !== '') return { kind: 'sent', parameter: 'reasoning.effort', value: effort }
+  return supported ? { kind: 'omitted' } : { kind: 'unsupported' }
 }
 
 export function buildOpenaiResponsesRequest(

@@ -81,7 +81,7 @@ import {
 } from './openaiCatalogue.js'
 import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
 import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitState.js'
-import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
@@ -93,10 +93,12 @@ import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
+  openaiEffortWireFact,
   requestCarriesInputImage,
   type BridgeMessage,
   type OpenaiTurnRecord,
 } from './responsesBridge.js'
+import { effortStampOf, type EffortStampV1 } from '../../../utils/effortStamp.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type {
   OpenaiCompletedToolCall,
@@ -499,6 +501,7 @@ export async function* openaiCallModel(
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(projectedMessages), plan)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
@@ -576,6 +579,8 @@ export async function* openaiCallModel(
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })
   let request = buildRequest(profile.wireEffort)
+  const effortOnWire = (): EffortStampV1 => effortStampOf(effortTruth.requested, openaiEffortWireFact(request, effortTruth.supportsEffort))
+  const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire() })
 
   recordPromptState({
     system: [{ text: request.instructions ?? '' }],
@@ -611,6 +616,7 @@ export async function* openaiCallModel(
       attempt,
       settlementNotes,
       ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
+      effort: effortOnWire(),
       contractDigest: contract.digest,
       deferredUnadmitted: plan.isDeferredUnadmitted,
       ...(busy !== undefined ? { busy } : {}),
@@ -680,7 +686,7 @@ export async function* openaiCallModel(
       yield notice
       options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
       if (step.waitMs <= 0) {
-        yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code)
+        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
         return
       }
       await sleep(step.waitMs, signal)
@@ -757,14 +763,14 @@ export async function* openaiCallModel(
           return ''
         }
       })()
-      yield stampProviderWait(
+      yield withEffort(stampProviderWait(
         apiErrorMessage(
           busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`, outcome.fault, typed),
           openaiFaultToTypedError(outcome.fault),
           `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
         ),
         outcome.fault.retryAfterMs,
-      )
+      ))
       return
     }
     const detail = outcome.fault.message
@@ -796,14 +802,14 @@ export async function* openaiCallModel(
       { status: outcome.fault.status, message: outcome.fault.message },
       requestCarriesInputImage(request),
     )
-    yield apiErrorMessage(
+    yield withEffort(apiErrorMessage(
       busyPrefix(text, outcome.fault, typed),
       typed,
       outcome.fault.code,
       overflowOf(outcome.fault),
       refusedMedia,
       busy !== undefined ? busyRefusalFact('OpenAI', busy.ladder, outcome.fault) : null,
-    )
+    ))
     return
   }
 }
@@ -819,6 +825,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   messages: Message[]
   settlementNotes: readonly string[]
   effortAdjusted?: EffortAdjustedV1
+  effort?: EffortStampV1
   contractDigest: string
   deferredUnadmitted?: (name: string) => boolean
   attempt?: number
@@ -866,6 +873,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       uuid: randomUUID(),
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
+      ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
     }
   }
 
@@ -1280,12 +1288,13 @@ export async function* streamOneOpenaiAttempt(ctx: {
   yield streamEvent({ type: 'message_stop' })
 
   if (fault && typedEnd === null) {
-    yield apiErrorMessage(
+    const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(auth.account.label, fault.code, fault.message),
       undefined,
       fault.forensics === undefined ? undefined : streamCutForensicsDetail(fault, fault.forensics),
       overflowOf(fault),
     )
+    yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
   return { kind: 'done' }
 }

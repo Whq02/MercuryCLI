@@ -8,6 +8,7 @@ import {
   deepseekAcceptsEffort,
   DEEPSEEK_EFFORTS,
 } from '../deepseek/deepseekPins.js'
+import { EFFORT_STAMP_THINKING_OFF, type EffortWireFact } from '../../../utils/effortStamp.js'
 
 export function thinkingOffWireEffort(vocabulary: readonly string[]): string | undefined {
   if (vocabulary.length === 0) return undefined
@@ -19,6 +20,28 @@ export interface LaneExtrasArgs {
   effortValue: string | undefined
   thinkingEnabled: boolean
   maxOutputTokensOverride: number | undefined
+}
+
+export function compatEffortWireFact(
+  extra: Record<string, unknown>,
+  args: { thinkingGated: boolean; thinkingEnabled: boolean; supported: boolean },
+): EffortWireFact {
+  const thinkingOff = args.thinkingGated && !args.thinkingEnabled
+  const word = extra.reasoning_effort
+  if (typeof word === 'string' && word !== '') {
+    return { kind: 'sent', parameter: 'reasoning_effort', value: word, ...(thinkingOff ? { applied: EFFORT_STAMP_THINKING_OFF } : {}) }
+  }
+  const reasoning = extra.reasoning
+  const nested = typeof reasoning === 'object' && reasoning !== null ? (reasoning as { effort?: unknown }).effort : undefined
+  if (typeof nested === 'string' && nested !== '') {
+    return { kind: 'sent', parameter: 'reasoning.effort', value: nested, ...(thinkingOff ? { applied: EFFORT_STAMP_THINKING_OFF } : {}) }
+  }
+  const thinking = extra.thinking
+  const thinkingType = typeof thinking === 'object' && thinking !== null ? (thinking as { type?: unknown }).type : undefined
+  if (thinkingType === 'disabled') {
+    return { kind: 'sent', parameter: 'thinking.type', value: 'disabled', applied: EFFORT_STAMP_THINKING_OFF }
+  }
+  return args.supported ? { kind: 'omitted' } : { kind: 'unsupported' }
 }
 
 export function buildMoonshotExtras(args: LaneExtrasArgs): Record<string, unknown> {
