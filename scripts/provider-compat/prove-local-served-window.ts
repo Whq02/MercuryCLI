@@ -153,7 +153,7 @@ section('2 · first send, the model unloaded: load-then-read, the 62k request is
   const ps = hits.find(h => h.url === '/api/ps')
   const chat = hits.find(h => h.url === '/v1/chat/completions')
   check('the send LOADED the model first: POST /api/generate {model} with no prompt and no options', load !== undefined && load.method === 'POST' && load.body.model === MODEL && !('prompt' in load.body) && !('options' in load.body), JSON.stringify(load?.body))
-  check('then read /api/ps, then the chat request — in that order', load !== undefined && ps !== undefined && chat !== undefined && hits.indexOf(load) < hits.indexOf(ps) && hits.indexOf(ps) < hits.indexOf(chat), shape(hits))
+  check('then read /api/ps, then the chat request — in that order', load !== undefined && ps !== undefined && chat !== undefined && hits.includes(load) && hits.includes(ps) && hits.includes(chat) && hits.indexOf(load) < hits.indexOf(ps) && hits.indexOf(ps) < hits.indexOf(chat), shape(hits))
   check('the ≈62k-token request was SENT — no refusal, the reply settled', outcome.error === undefined && outcome.texts.some(t => t.includes('pong')), outcome.error ?? outcome.texts.join('|'))
   const record = localRecordFor(PERSISTED)!
   check('the record now holds the SERVED figure the server stated (262144, served, loaded)', record.contextWindow?.tokens === 262144 && record.contextWindow.source === 'served' && record.loaded === true, JSON.stringify(record.contextWindow))
