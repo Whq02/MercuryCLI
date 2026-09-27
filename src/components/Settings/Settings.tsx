@@ -111,18 +111,20 @@ export function Settings({
       opaque={true}
       {...(ground !== undefined ? { backgroundColor: ground } : {})}
     >
-      <ProductLockup view={view} separator=" · " />
-      <Box height={1}>
+      <Box flexShrink={0}>
+        <ProductLockup view={view} separator=" · " />
+      </Box>
+      <Box height={1} flexShrink={0}>
         <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(line ?? request.line, inner)}</Text>
       </Box>
-      <Box height={1} />
-      <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} flexShrink={0} overflow="hidden" {...(fixed ? { flexGrow: 1, minHeight: 0 } : { maxHeight: geometry.rowBudget })}>
+      <Box height={1} flexShrink={0} />
+      <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} overflow="hidden" {...(fixed ? { flexGrow: 1, flexShrink: 1, minHeight: 0 } : { flexShrink: 0, maxHeight: geometry.rowBudget })}>
         <SettingsPopupFrameContext.Provider value={frame}>
           <Suspense fallback={null}>{request.body(geometry)}</Suspense>
         </SettingsPopupFrameContext.Provider>
       </Box>
-      <Box height={1} />
-      <Box height={1} width={inner + 1} marginRight={-1}>
+      <Box height={1} flexShrink={0} />
+      <Box height={1} flexShrink={0} width={inner + 1} marginRight={-1}>
         <Text color={tok.textMuted}>{cutToWidth(request.hint, inner + 1)}</Text>
       </Box>
     </Box>

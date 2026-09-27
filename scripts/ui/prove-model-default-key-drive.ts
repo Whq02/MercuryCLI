@@ -29,8 +29,11 @@ const DOOR = '▸ n starts a blank session in this project'
 const FOOTER_AS_SHIPPED = '↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face'
 const FOOTER_WITH_KEY = `↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`
 const PICKER_LEFT = 39
-const PICKER_TOP = 3
-const PICKER_BOTTOM = 46
+const PICKER_GUTTER = 1
+const FACE_PICKER_TOP = 3
+const FACE_PICKER_BOTTOM = 46
+const BOARD_PICKER_TOP = FACE_PICKER_TOP + PICKER_GUTTER
+const BOARD_PICKER_BOTTOM = FACE_PICKER_BOTTOM + PICKER_GUTTER
 const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
 
 let failures = 0
@@ -152,9 +155,35 @@ const pickerLeft = (lines: string[]): number => {
   const at = title.lastIndexOf('│', title.indexOf('Mercury · model'))
   return at < 0 ? PICKER_LEFT : at
 }
-const pickerFrames = (lines: string[]): boolean => {
+type PickerBox = { left: number; right: number; top: number; bottom: number; dirty: string[] }
+const cellAt = (lines: string[], x: number, y: number): string => (lines[y] ?? '')[x] ?? ' '
+const pickerBox = (lines: string[], top: number, bottom: number): PickerBox | null => {
   const left = pickerLeft(lines)
-  return (lines[PICKER_TOP] ?? '')[left] === '╭' && (lines[PICKER_TOP + 1] ?? '')[left] === '│' && lines.some((l, at) => at > PICKER_TOP && at <= PICKER_BOTTOM && l[left] === '╰')
+  const right = (lines[top] ?? '').indexOf('╮', left + 1)
+  const foot = lines.findIndex((l, at) => at > top && at <= bottom && l[left] === '╰')
+  if (cellAt(lines, left, top) !== '╭' || cellAt(lines, left, top + 1) !== '│' || right < 0 || foot < 0) return null
+  const dirty: string[] = []
+  for (let y = top - PICKER_GUTTER; y <= foot + PICKER_GUTTER; y++) for (let x = left - PICKER_GUTTER; x <= right + PICKER_GUTTER; x++) {
+    if (y >= top && y <= foot && x >= left && x <= right) continue
+    if (cellAt(lines, x, y) !== ' ') dirty.push(`${x},${y}=${cellAt(lines, x, y)}`)
+  }
+  return { left, right, top, bottom: foot, dirty }
+}
+const pickerFrames = (lines: string[], top = FACE_PICKER_TOP, bottom = FACE_PICKER_BOTTOM): boolean => {
+  const box = pickerBox(lines, top, bottom)
+  return box !== null && box.dirty.length === 0
+}
+const pickerWords = (lines: string[], top = FACE_PICKER_TOP, bottom = FACE_PICKER_BOTTOM): string => {
+  const box = pickerBox(lines, top, bottom)
+  const left = pickerLeft(lines)
+  return box === null ? `left ${left} · row ${top} ${JSON.stringify((lines[top] ?? '').slice(left, left + 4))} / row ${bottom} ${JSON.stringify((lines[bottom] ?? '').slice(left, left + 4))}` : `frame ${box.left}..${box.right} × ${box.top}..${box.bottom} · gutter cells ${box.dirty.slice(0, 6).join(' ')}`
+}
+const poisonedPicker = (lines: string[], top: number, bottom: number, poison: 'the frame on the band border' | 'a live cell in the gutter'): string[] => {
+  const box = pickerBox(lines, top, bottom)
+  if (box === null) return lines
+  const rows = lines.map(l => l.padEnd(box.right + 2))
+  if (poison === 'a live cell in the gutter') return rows.map((l, y) => (y === box.top + 1 ? `${l.slice(0, box.left - 1)}T${l.slice(box.left)}` : l))
+  return rows.map((l, y) => (y >= box.top - 1 && y <= box.bottom - 1 ? `${l.slice(0, box.left - 1)}${rows[y + 1]!.slice(box.left - 1, box.right + 2)}${l.slice(box.right + 2)}` : l))
 }
 const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
 
@@ -197,7 +226,8 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('the door row reads the pair it starts on (Opus 5.5 · ● high)', rowWith(board, DOOR).includes(`${DOOR} · Opus 5.5 · ● high`), trimmedRow(board, DOOR))
   check('the bottom row names m between n and the filter', trimmedRow(board, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(board, 'esc boot face'))
   check('m opens the picker over the concourse (the plain title row)', rowWith(picker, 'Mercury · model') !== '' && rowWith(picker, 'CHOOSE A MODEL') === '', picker.slice(3, 8).join(' | '))
-  check('the picker sits in the main band, centred (top row 3, its left border under its title, its bottom border inside the band)', pickerFrames(picker), `left ${pickerLeft(picker)} · ${(picker[PICKER_TOP] ?? '').slice(pickerLeft(picker), pickerLeft(picker) + 4)} / ${(picker[PICKER_BOTTOM] ?? '').slice(pickerLeft(picker), pickerLeft(picker) + 4)}`)
+  check('the picker sits in the main band inside its blank one-cell gutter (the band border row 3 blank over its span, its top border on row 4, its left border under its title, its bottom border inside the band by row 47)', pickerFrames(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), pickerWords(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM))
+  for (const poison of ['the frame on the band border', 'a live cell in the gutter'] as const) check(`the picker law refuses ${poison}`, pickerFrames(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM) && !pickerFrames(poisonedPicker(picker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM, poison), BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM))
   check('the bottom row keeps the phrase while the picker stands', trimmedRow(picker, 'esc boot face') === FOOTER_WITH_KEY, trimmedRow(picker, 'esc boot face'))
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
@@ -221,7 +251,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const closed = c.marks.get('closed') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
   check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
-  check('m opens the picker over the face, centred (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `left ${pickerLeft(picker)} · ${picker.slice(3, 8).join(' | ')}`)
+  check('m opens the picker over the face, centred inside its blank one-cell gutter (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `${pickerWords(picker)} · ${picker.slice(3, 8).join(' | ')}`)
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   check('esc closes the picker back to the face', trimmedRow(closed, '>_ ready') === CHAT_HINT && !closed.some(l => l.includes('Mercury · model')), trimmedRow(closed, '>_ ready'))
@@ -404,9 +434,9 @@ section('§8 the board with sessions keeps the new-session line as its first row
   check('the first row under the column header is the new-session line with its door words, unselected while a session row holds the cursor', headerAt(board) >= 0 && (board[headerAt(board) + 1] ?? '').includes(`  ${LINE} · Opus 5.5 · ● high`) && !(board[headerAt(board) + 1] ?? '').includes(`▸ ${LINE}`), (board[headerAt(board) + 1] ?? '').trim())
   check('↑ from the first session row reaches the line: it wears the cursor and the bottom row names m for the default', (line[headerAt(line) + 1] ?? '').includes(`▸ ${LINE} · Opus 5.5 · ● high`) && trimmedRow(line, 'esc focused chat').includes(`n new session · ${PHRASE}`), `${(line[headerAt(line) + 1] ?? '').trim()} / ${trimmedRow(line, 'esc focused chat')}`)
   check('the mirror shows no session while the line holds the cursor', line.some(l => l.includes('select a session to mirror its chat')), line.filter(l => l.includes('mirror')).map(l => l.trim()).join(' | '))
-  check('m on the line opens the model-default picker over the board', defaultPicker.some(l => l.includes('Mercury · model')) && pickerFrames(defaultPicker), defaultPicker.slice(3, 8).join(' | '))
+  check('m on the line opens the model-default picker over the board, in the band inside its gutter', defaultPicker.some(l => l.includes('Mercury · model')) && pickerFrames(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(defaultPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${defaultPicker.slice(3, 8).join(' | ')}`)
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
-  check('m on a session row opens a picker over the board', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker), sessionPicker.slice(3, 8).join(' | '))
+  check('m on a session row opens a picker over the board, in the band inside its gutter', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${sessionPicker.slice(3, 8).join(' | ')}`)
   const afterPick = settingsOf(home)
   check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
