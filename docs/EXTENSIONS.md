@@ -66,7 +66,7 @@ model reads and arrives for real only in hook and server environments.
 - ONE catalogue, `mercury-extensions.json`, at a source root — or a single `mercury-extension.json` when the repository IS the extension.
 - unknown top-level keys: a warning at load, an error under `mercury extensions validate`; unknown keys INSIDE `contributes`/`needs` are errors at load.
 - `module` is reserved: this build loads declarative extensions; `module` is reserved.
-- approval is per contributions hash — sha256 over the canonicalised `contributes` + `needs` blocks: a version bump alone carries approval over; a changed command line, server, or need re-asks.
+- approval is per contributions hash — sha256 over the canonicalised `contributes` + `needs` blocks plus a digest of every delivered file under the extension root (skill, command and agent bodies, hook and server scripts), the root `mercury-extension.json` itself excepted: a version bump alone carries approval over; a changed command line, server, need, or any changed delivered byte re-asks.
 - the substitutions: `${MERCURY_EXTENSION_ROOT}`, `${MERCURY_EXTENSION_DATA}`, `${option.KEY}` in command lines, args, env values and prompt bodies; every other `${…}` stays literal. Hooks and servers receive `MERCURY_EXTENSION_ROOT`, `MERCURY_EXTENSION_DATA` and one `MERCURY_EXTENSION_OPTION_<KEY>` per option; a `sensitive` option renders a visible placeholder in prose the model reads.
 
 ### `mercury-extension.json` — field by field

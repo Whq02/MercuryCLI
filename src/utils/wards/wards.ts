@@ -123,9 +123,7 @@ export const GENERATED_HEAD_LINES = 12
 export const GENERATED_HEAD_CHARS = 4096
 
 const BUNDLED_SKILLS = [
-  'aesthetic-direction',
   'app-proof',
-  'drafting-partner',
   'extension-maker',
   'mcp-smithy',
   'pdf-documents',

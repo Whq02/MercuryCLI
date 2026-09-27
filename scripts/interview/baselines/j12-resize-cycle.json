@@ -3,7 +3,7 @@
  "note": "contract journey 12 — 120→80→44→120 with a preview card up; semantic state (focused option) must be inspectable at each width",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-27T00:36:34.463Z",
+ "capturedAt": "2026-09-27T01:50:47.833Z",
  "screens": [
   {
    "atMs": 13000,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 01:36:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 01:36:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench      │                                                                                              │",
@@ -51,20 +51,20 @@
     "",
     "",
     "",
-    " flux-arena-cwd-Y6UGj8                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-iEwhxV                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
    "atMs": 14200,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort high · ctx 0%",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Y6UGj8 · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-iEwhxV · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────────────────────────────────────────",
     "",
-    "01:36:22 [sam] ❯ design the cache layer",
+    "02:50:37 [sam] ❯ design the cache layer",
     "",
-    "01:36:22 [Mercury] Let me confirm the open decisions before proceeding.",
+    "02:50:37 [Mercury] Let me confirm the open decisions before proceeding.",
     "",
     "",
     "",
@@ -107,13 +107,13 @@
    "atMs": 15700,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Y6UGj8 · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-iEwhxV · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "01:36:22 [sam] ❯ design the cache layer",
+    "02:50:37 [sam] ❯ design the cache layer",
     "",
-    "01:36:22 [Mercury] Let me confirm the open",
+    "02:50:37 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -164,9 +164,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 01:36:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 01:36:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench      │                                                                                              │",
@@ -198,7 +198,7 @@
     "",
     "",
     "",
-    " flux-arena-cwd-Y6UGj8                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-iEwhxV                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -213,9 +213,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 01:36:22 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 01:36:22 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "  more: /workbench      │                                                                                              │",
@@ -247,23 +247,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-Y6UGj8                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-iEwhxV                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 23237,
-   "frame-recommit": 23,
-   "tail-publish": 2
+   "patches": 23621,
+   "frame-recommit": 34
   },
   "frames": {
-   "total": 40,
-   "window": 40,
-   "p50": 1.6647499999999127,
-   "p95": 7.489708000000974,
-   "p99": 17.796958000000018,
-   "maxMs": 17.796958000000018
+   "total": 53,
+   "window": 53,
+   "p50": 3.4660000000003492,
+   "p95": 57.12908399999992,
+   "p99": 76.39112499999965,
+   "maxMs": 76.39112499999965
   }
  },
  "requests": [
@@ -279,7 +278,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- aesthetic-direction: Use when designing or restyling a web interface's typography, colour, layout and motion. Not for terminal interfaces, print or brand-guideline documents.\n- app-proof: Use when proving web app journeys with Mercury's Browser tool or checking APIs. Not for unit tests.\n- drafting-partner: Use when co-writing a proposal, specification, report, policy or long memo through an agreed brief, outline and review. Not for code, short messages or file formatting.\n- extension-maker: Use when creating, packaging or debugging a Mercury extension or source catalogue. Not for installing or approving an extension on the operator's behalf.\n- mcp-smithy: Use when building or fixing an MCP server's tools, resources, prompts or transport. Not for configuring an existing third-party server.\n- pdf-documents: Use when reading, transforming, filling, redacting or generating PDFs. Not for editing Word, Excel or PowerPoint source files.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when authoring, packaging or debugging a Mercury skill and its discovery description. Not for session capture via /skillify, agent definitions, hooks or extension packaging.\n- slide-decks: Use when creating, reading or revising PowerPoint decks, layouts or speaker notes. Not for Word, spreadsheets, PDFs or web interfaces.\n- spreadsheets: Use when reading, creating or repairing Excel workbooks, formulas or CSV-to-Excel output. Not for Word, slides, PDFs or databases.\n- word-documents: Use when creating, reading, editing or reviewing Word documents, comments or tracked revisions. Not for plain-text drafting, spreadsheets, slides or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
+      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- app-proof: Use when proving a web journey with Mercury's Browser and Service tools. Not for unit tests.\n- extension-maker: Use when building or repairing a Mercury extension or catalogue. Not for installing or approving one for the operator.\n- mcp-smithy: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.\n- pdf-documents: Use when inspecting, creating or changing PDFs, including forms and redaction. Not for editing an Office source document.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when writing or fixing a Mercury SKILL.md and its discovery rules. Not for /skillify session capture or extension packaging.\n- slide-decks: Use when creating or revising PowerPoint slides, layouts and notes. Not for web interfaces or prose documents.\n- spreadsheets: Use when editing Excel workbooks or turning tabular data into one without losing formulas. Not for databases or other Office files.\n- word-documents: Use when creating or revising a Word file while preserving its document structure. Not for plain-text drafting or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
      },
      {
       "type": "text",
@@ -298,15 +297,15 @@
  ],
  "sends": [
   {
-   "atMs": 6621.750116348267,
+   "atMs": 7367.2919273376465,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7421.750116348267,
+   "atMs": 8167.2919273376465,
    "b64": "DQ=="
   },
   {
-   "atMs": 11121.750116348267,
+   "atMs": 11867.291927337646,
    "b64": "G1tC"
   }
  ]

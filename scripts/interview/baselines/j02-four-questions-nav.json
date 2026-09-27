@@ -3,7 +3,7 @@
  "note": "contract journey 2 — four questions, unanswered navigation into review",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-27T00:33:38.837Z",
+ "capturedAt": "2026-09-27T01:50:46.266Z",
  "screens": [
   {
    "atMs": 12200,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 01:33:29 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 01:33:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -30,24 +30,24 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "←  ☐ Cache  ☐ Eviction  ☐ Metrics  ☐ Keys  ✓ Submit  →",
     "",
-    "⦿ Which storage engine should the cache use?",
+    "⦿ Which eviction policy fits the workload?",
     "",
-    "❯ 1.Redis",
-    "      A shared network cache; adds an infra dependency.",
-    "  2.In-memory",
-    "      Process-local; zero infra but not shared.",
-    "  3.File-based",
-    "      Durable and shared on one host; slowest.",
-    "  4.  Type something.",
+    "❯ 1.LRU",
+    "      Recency-based; the common default.",
+    "  2.LFU",
+    "      Frequency-based; resists scan pollution.",
+    "  3.  Type something.",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
-    "  5. Chat about this",
+    "  4. Chat about this",
     "",
     "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-dZizMf                                                                         esc interrupts · ⇧← back"
+    "",
+    "",
+    " flux-arena-cwd-1AQl0i                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 01:33:29 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 01:33:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -92,7 +92,7 @@
     "",
     "",
     "",
-    " flux-arena-cwd-dZizMf                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-1AQl0i                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -107,9 +107,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 01:33:29 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 01:33:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -137,7 +137,7 @@
     "",
     "",
     "",
-    " flux-arena-cwd-dZizMf                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-1AQl0i                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -152,9 +152,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 01:33:29 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 02:50:37 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 01:33:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 02:50:37 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -182,22 +182,22 @@
     "",
     "",
     "",
-    " flux-arena-cwd-dZizMf                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-1AQl0i                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 16956,
-   "frame-recommit": 22
+   "patches": 16625,
+   "frame-recommit": 36
   },
   "frames": {
-   "total": 39,
-   "window": 39,
-   "p50": 0.7899160000006304,
-   "p95": 9.779084000000239,
-   "p99": 22.106666999999902,
-   "maxMs": 22.106666999999902
+   "total": 56,
+   "window": 56,
+   "p50": 2.918792000000394,
+   "p95": 44.80120800000077,
+   "p99": 99.27800000000002,
+   "maxMs": 99.27800000000002
   }
  },
  "requests": [
@@ -213,7 +213,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- aesthetic-direction: Use when designing or restyling a web interface's typography, colour, layout and motion. Not for terminal interfaces, print or brand-guideline documents.\n- app-proof: Use when proving web app journeys with Mercury's Browser tool or checking APIs. Not for unit tests.\n- drafting-partner: Use when co-writing a proposal, specification, report, policy or long memo through an agreed brief, outline and review. Not for code, short messages or file formatting.\n- extension-maker: Use when creating, packaging or debugging a Mercury extension or source catalogue. Not for installing or approving an extension on the operator's behalf.\n- mcp-smithy: Use when building or fixing an MCP server's tools, resources, prompts or transport. Not for configuring an existing third-party server.\n- pdf-documents: Use when reading, transforming, filling, redacting or generating PDFs. Not for editing Word, Excel or PowerPoint source files.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when authoring, packaging or debugging a Mercury skill and its discovery description. Not for session capture via /skillify, agent definitions, hooks or extension packaging.\n- slide-decks: Use when creating, reading or revising PowerPoint decks, layouts or speaker notes. Not for Word, spreadsheets, PDFs or web interfaces.\n- spreadsheets: Use when reading, creating or repairing Excel workbooks, formulas or CSV-to-Excel output. Not for Word, slides, PDFs or databases.\n- word-documents: Use when creating, reading, editing or reviewing Word documents, comments or tracked revisions. Not for plain-text drafting, spreadsheets, slides or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
+      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- app-proof: Use when proving a web journey with Mercury's Browser and Service tools. Not for unit tests.\n- extension-maker: Use when building or repairing a Mercury extension or catalogue. Not for installing or approving one for the operator.\n- mcp-smithy: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.\n- pdf-documents: Use when inspecting, creating or changing PDFs, including forms and redaction. Not for editing an Office source document.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when writing or fixing a Mercury SKILL.md and its discovery rules. Not for /skillify session capture or extension packaging.\n- slide-decks: Use when creating or revising PowerPoint slides, layouts and notes. Not for web interfaces or prose documents.\n- spreadsheets: Use when editing Excel workbooks or turning tabular data into one without losing formulas. Not for databases or other Office files.\n- word-documents: Use when creating or revising a Word file while preserving its document structure. Not for plain-text drafting or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
      },
      {
       "type": "text",
@@ -232,27 +232,27 @@
  ],
  "sends": [
   {
-   "atMs": 6601.4039516448975,
+   "atMs": 7372.869968414307,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7401.4039516448975,
+   "atMs": 8172.869968414307,
    "b64": "DQ=="
   },
   {
-   "atMs": 11101.403951644897,
+   "atMs": 11872.869968414307,
    "b64": "CQ=="
   },
   {
-   "atMs": 11601.403951644897,
+   "atMs": 12372.869968414307,
    "b64": "CQ=="
   },
   {
-   "atMs": 12101.403951644897,
+   "atMs": 12872.869968414307,
    "b64": "CQ=="
   },
   {
-   "atMs": 12601.403951644897,
+   "atMs": 13372.869968414307,
    "b64": "CQ=="
   }
  ]

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
@@ -46,6 +47,38 @@ const J = (...parts: string[]): string => parts.join('')
 const body = skillSource + readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
 check('neither the doc nor the skill speaks a retired word', !new RegExp(J('plug', 'in'), 'i').test(body) && !new RegExp(J('market', 'place'), 'i').test(body))
 check('the skill states the two operator-act rules', /never add a source/i.test(skillSource) && /never approve/i.test(skillSource))
+
+{
+  const { contributionsHash } = await import('../../src/extensions/manifest.ts')
+  const { MANIFEST_FILE } = await import('../../src/extensions/paths.ts')
+  const contract = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
+  const sentence = contract.split('\n').find(line => line.startsWith('- approval is per contributions hash')) ?? ''
+  check('the approval sentence names the delivered-file digest and the root-manifest exception', /every delivered file/.test(sentence) && sentence.includes(`root \`${MANIFEST_FILE}\` itself excepted`) && /changed delivered byte re-asks/.test(sentence), sentence.slice(0, 200))
+  const root = mkdtempSync(join(tmpdir(), 'contract-hash-'))
+  try {
+    const put = (rel: string, text: string): void => {
+      mkdirSync(dirname(join(root, rel)), { recursive: true })
+      writeFileSync(join(root, rel), text)
+    }
+    const manifest = { contributes: { skills: ['skills'] }, needs: {} }
+    put(MANIFEST_FILE, JSON.stringify({ name: 'fixture', version: '1.0.0', ...manifest }))
+    put('skills/fixture/SKILL.md', '---\ndescription: a fixture skill\n---\nbody\n')
+    const approved = contributionsHash(manifest, root)
+    put(MANIFEST_FILE, JSON.stringify({ name: 'fixture', version: '1.0.1', ...manifest }))
+    check('a version bump alone (root manifest bytes) carries the approval over — the hash is unchanged', contributionsHash(manifest, root) === approved)
+    put('skills/fixture/SKILL.md', '---\ndescription: a fixture skill\n---\nbody, changed\n')
+    const afterBytes = contributionsHash(manifest, root)
+    check('a changed delivered byte re-asks — the hash changes', afterBytes !== approved)
+    put('skills/fixture/SKILL.md', '---\ndescription: a fixture skill\n---\nbody\n')
+    check('restoring the byte restores the hash (the digest is over content, not mtime)', contributionsHash(manifest, root) === approved)
+    put(`skills/fixture/${MANIFEST_FILE}`, '{}')
+    check('only the ROOT manifest is excepted — a same-named file deeper in the tree is delivered content', contributionsHash(manifest, root) !== approved)
+    rmSync(join(root, 'skills', 'fixture', MANIFEST_FILE))
+    check('a changed need re-asks — the canonical blocks are in the hash too', contributionsHash({ ...manifest, needs: { ...manifest.needs, tools: ['Bash'] } } as never, root) !== approved)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
 
 console.log(failures === 0 ? '\n ✅ CONTRACT IN SYNC — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

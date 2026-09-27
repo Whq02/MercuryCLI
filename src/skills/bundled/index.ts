@@ -3,9 +3,7 @@ import { registerKeybindingsSkill } from './keybindings.js'
 import { registerSimplifySkill } from './simplify.js'
 import { registerSkillifySkill } from './skillify.js'
 import { registerUpdateConfigSkill } from './updateConfig.js'
-import { registerAestheticDirectionSkill } from './aesthetic-direction.js'
 import { registerAppProofSkill } from './app-proof.js'
-import { registerDraftingPartnerSkill } from './drafting-partner.js'
 import { registerExtensionMakerSkill } from './extension-maker.js'
 import { registerMcpSmithySkill } from './mcp-smithy.js'
 import { registerPdfDocumentsSkill } from './pdf-documents.js'
@@ -24,9 +22,7 @@ export function initBundledSkills(): void {
   registerSkillifySkill()
   registerSimplifySkill()
 
-  registerAestheticDirectionSkill()
   registerAppProofSkill()
-  registerDraftingPartnerSkill()
   registerExtensionMakerSkill()
   registerMcpSmithySkill()
   registerPdfDocumentsSkill()

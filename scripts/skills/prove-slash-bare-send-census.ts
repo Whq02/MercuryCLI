@@ -1,11 +1,16 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'bare-census-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'bare-census-proj-')))
+const BUILT = realpathSync(mkdtempSync(join(tmpdir(), 'bare-census-built-')))
+process.on('exit', () => {
+  for (const dir of [HOME, PROJ, BUILT]) rmSync(dir, { recursive: true, force: true })
+})
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_BARE
@@ -49,23 +54,42 @@ const { argumentHintOf, bareSendKindOf, bareUsageLine, requiresArgument } = awai
 const { processSlashCommand } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.ts')
+const gen = await import('./gen-bundled.ts')
 type Command = import('../../src/types/command.ts').Command
 
 const SOURCE_ROOT = join(ROOT, 'mercury-skills')
+const BUNDLED_DIR = join(ROOT, 'src', 'skills', 'bundled')
+
+async function buildGeneratedWrappers(names: string[]): Promise<Map<string, Command>> {
+  const srcDir = join(BUILT, 'src')
+  const outDir = join(BUILT, 'out')
+  mkdirSync(srcDir, { recursive: true })
+  const entry = join(srcDir, 'entry.ts')
+  writeFileSync(
+    entry,
+    names.map((name, i) => `import * as w${i} from ${JSON.stringify(join(BUNDLED_DIR, `${name}.ts`))}`).join('\n') +
+      `\nexport { getBundledSkills } from ${JSON.stringify(join(ROOT, 'src', 'skills', 'bundledSkills.ts'))}\n` +
+      `export function registerAll(): void {\n${names.map((_, i) => `  for (const fn of Object.values(w${i})) if (typeof fn === 'function') (fn as () => void)()`).join('\n')}\n}\n`,
+  )
+  const result = await Bun.build({ entrypoints: [entry], outdir: outDir, target: 'bun', format: 'esm', loader: { ...gen.TEXT_LOADERS }, define: { 'process.env.NODE_ENV': JSON.stringify('test') } })
+  if (!result.success) throw new Error(`Bun.build failed: ${result.logs.map(l => String(l)).join('\n')}`)
+  const built = (await import(pathToFileURL(join(outDir, 'entry.js')).href)) as { getBundledSkills: () => Command[]; registerAll: () => void }
+  built.registerAll()
+  return new Map(built.getBundledSkills().map(command => [command.name, command]))
+}
+
+const generatedNames = gen.discoverSkills().names
+const builtGenerated = await buildGeneratedWrappers(generatedNames)
 const generatedFrontmatter = new Map<string, { description?: string; argumentHint?: string }>()
-const asBuilt = (command: Command): Command => {
-  if (command.loadedFrom !== 'bundled') return command
-  const skillMd = join(SOURCE_ROOT, command.name, 'SKILL.md')
-  if (!existsSync(skillMd)) return command
-  const { frontmatter } = parseFrontmatter(readFileSync(skillMd, 'utf8'))
+for (const name of generatedNames) {
+  const { frontmatter } = parseFrontmatter(readFileSync(join(SOURCE_ROOT, name, 'SKILL.md'), 'utf8'))
   const description = typeof frontmatter.description === 'string' && frontmatter.description.trim() !== '' ? frontmatter.description : undefined
   const argumentHint = typeof frontmatter['argument-hint'] === 'string' && frontmatter['argument-hint'].trim() !== '' ? frontmatter['argument-hint'] : undefined
-  generatedFrontmatter.set(command.name, { description, argumentHint })
-  return { ...command, ...(description !== undefined ? { description } : {}), ...(argumentHint !== undefined ? { argumentHint } : {}) } as Command
+  generatedFrontmatter.set(name, { description, argumentHint })
 }
 
 initBundledSkills()
-const bundled = getBundledSkills().map(asBuilt)
+const bundled = getBundledSkills().map(command => builtGenerated.get(command.name) ?? command)
 const disk = (await getCommands(PROJ)).filter(command => command.loadedFrom !== 'bundled' && command.source !== 'builtin' && ['needs-thing', 'takes-nothing', 'optional-only'].includes(command.name))
 const builtins = [...builtinCommands()]
 const seen = new Set<string>()
@@ -80,9 +104,10 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 {
   const kinds = new Set(roster.map(command => command.type))
   check('the roster carries the three kinds and no other', [...kinds].every(kind => kind === 'local' || kind === 'local-jsx' || kind === 'prompt'), [...kinds].join(','))
-  check('the eighteen bundled skills register', bundled.length === 18, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
-  console.log(`  ${generatedFrontmatter.size} generated skills read their description and hint from mercury-skills/<name>/SKILL.md here, as the build inlines them (a .md import is not text under bun): ${[...generatedFrontmatter.keys()].join(' ')}`)
-  check('the eleven generated skills are the ones with a SKILL.md source', generatedFrontmatter.size === 11 && [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}`).join(' '))
+  check('the sixteen bundled skills register', bundled.length === 16, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
+  console.log(`  ${builtGenerated.size} generated wrappers were compiled with the build's text loader, so their description and hint are the ones the build ships: ${[...builtGenerated.keys()].join(' ')}`)
+  check('the nine generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 9 && builtGenerated.size === 9 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
+  check('every built wrapper registers the description and hint its SKILL.md declares (extension-maker alone declares no hint)', [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && builtGenerated.get(name)?.description === fields.description && builtGenerated.get(name)?.argumentHint === fields.argumentHint && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}=${builtGenerated.get(name)?.argumentHint ?? 'none'}`).join(' '))
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (existsSync(dist)) {
     const built = readFileSync(dist, 'utf8')
@@ -116,7 +141,7 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; no hint or [optional] runs bare')
 {
   const byName = new Map(roster.map(command => [command.name, command]))
-  const expectRequired = ['update-config', 'debug', 'aesthetic-direction', 'app-proof', 'drafting-partner', 'mcp-smithy', 'pdf-documents', 'skill-forge', 'slide-decks', 'spreadsheets', 'word-documents', 'needs-thing']
+  const expectRequired = ['update-config', 'debug', 'app-proof', 'mcp-smithy', 'pdf-documents', 'skill-forge', 'slide-decks', 'spreadsheets', 'word-documents', 'needs-thing']
   const expectBare = ['simplify', 'schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'takes-nothing', 'optional-only', 'verify', 'review', 'init', 'insights']
   for (const name of expectRequired) {
     const command = byName.get(name)
@@ -186,7 +211,7 @@ section('§3 THE DISPATCHER — a bare send of every user-invocable prompt comma
     }
   }
   console.log(`\n  ${prompts.length} user-invocable prompt commands: ${usage} answer bare, ${turns} run bare`)
-  check('the dispatcher was exercised over the whole prompt roster', prompts.length >= 20 && usage >= 12 && turns >= 8, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
+  check('the dispatcher was exercised over the whole prompt roster', prompts.length >= 18 && usage >= 10 && turns >= 8, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

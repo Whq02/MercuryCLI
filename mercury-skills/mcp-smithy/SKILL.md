@@ -1,33 +1,14 @@
 ---
 name: mcp-smithy
-description: Use when building or fixing an MCP server's tools, resources, prompts or transport. Not for configuring an existing third-party server.
+description: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.
 argument-hint: "<purpose> [stdio|http] [python]"
 ---
 # MCP smithy
 
-## Define the server
-- Inspect the project's SDK and transport before changing dependencies.
-- For TypeScript v2, use `@modelcontextprotocol/server` with Zod 4; read `references/typescript-v2.md`.
-- For Python v2, import `MCPServer` from `mcp.server`; do not use the removed `FastMCP` import.
-- Give each tool a specific verb, selection description and described input fields.
-- Declare `outputSchema` for structured results; return matching `structuredContent` and readable `content`.
-- Return actionable tool failures as `isError: true`; distinguish them from protocol failures.
-- Set read-only, destructive and idempotent annotations accurately; treat them as hints, not authorisation.
-- Use resources for addressable data, resource templates for URI families and prompts for reusable messages.
+Translate the requested operation into a small tool contract: selection description, inputs, output and failure. Inspect the project's installed SDK and its version's documentation before choosing imports or transport APIs; do not copy a recipe from another SDK generation.
 
-## Connect and prove
-- Use stdio for host-owned processes; reserve stdout for protocol traffic and stderr for logs.
-- Use Streamable HTTP for remote clients; validate Origin/Host and require authentication where appropriate.
-- Keep stateless handlers stateless; retain session state only when the protocol requires it.
-- Resolve `${MERCURY_SKILL_DIR}` from the supplied base directory.
-- Probe initialise/list/call with `node "${MERCURY_SKILL_DIR}/scripts/mcp_probe.mjs" --call greet '{"name":"Ada"}' -- node dist/index.js`; use `--self-test` to test the helper.
-- Test valid input, invalid input and handler failure; use `npx @modelcontextprotocol/inspector <command>` for interactive inspection.
+For a Mercury-owned local process, use stdio and send logs to stderr. For a remote server, use Streamable HTTP with authentication and Origin/Host checks. Tool annotations describe effects; they do not authorise them. Keep credentials outside returned content.
 
-## Register
-- Register stdio with `mercury mcp add <name> -- node dist/index.js`.
-- Register HTTP with `mercury mcp add <name> <url> --transport http --scope project`.
-- Use project scope for shared `.mcp.json`; keep secrets outside committed configuration.
-- Confirm connection and tools in `/mcp`; document transport, requirements and registration.
+Use the SDK client to prove initialise, discovery and a real call. Exercise malformed input and handler failure too. If advertising `outputSchema`, validate `structuredContent` against it; distinguish an `isError` tool result from a broken transport. No custom JSON-RPC prober is needed.
 
-## Sources
-Checked: 2026-09-15. [Specification](https://modelcontextprotocol.io/specification/), [TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), [Python SDK](https://pypi.org/project/mcp/), [Inspector](https://www.npmjs.com/package/@modelcontextprotocol/inspector).
+Only register when asked, in the agreed scope. Mercury accepts `mercury mcp add <name> --scope project -- <command> [args]` for stdio, or `mercury mcp add <name> <url> --transport http --scope project`. After operator approval, verify that Mercury discovers the expected schema and can invoke a harmless operation. Keep that integration result separate from the server's unit tests.
