@@ -288,11 +288,20 @@ section('0 · the owners: the words live beside the other nudges, the decision i
   check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', 'not exported or wrong')
   const transitions = readFileSync(resolve(ROOT, 'src/query/transitions.ts'), 'utf8')
   check('the transition reason is typed in query/transitions.ts', transitions.includes("reason: 'reasoning_only_recovery'; attempt: number"))
-  const source = readFileSync(resolve(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  const bandStart = source.indexOf('const reasoningOnly = chant === null')
-  const bandEnd = source.indexOf('max_output_tokens recovery', bandStart)
-  const band = bandStart === -1 || bandEnd === -1 ? '' : source.slice(bandStart, bandEnd)
-  check('the row reads the ceiling from getModelMaxOutputTokens(model).default, never a literal', band.includes('getModelMaxOutputTokens(iter.currentModel).default') && !/64k|64_000|64000/.test(band), band.slice(0, 120))
+  const ceilings = [LOCAL_MODEL, CLOUD_MODEL].map(model => getModelMaxOutputTokens(model).default)
+  check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, j(ceilings))
+  for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {
+    let calls = 0
+    const r = await run(async function* () {
+      const cut = calls++ === 0
+      const message = createAssistantMessage({ content: cut ? [{ type: 'thinking', thinking: THOUGHT, signature: 'fixture-signature' }] as never : 'reply' }) as unknown as AnyMsg
+      ;(message.message as { stop_reason: string }).stop_reason = cut ? 'max_tokens' : 'end_turn'
+      yield message
+    }, makeCtx(model, 'high', { type: 'disabled' }))
+    const ceiling = getModelMaxOutputTokens(model).default
+    const words = ceiling % 1000 === 0 ? `${ceiling / 1000}k` : String(ceiling)
+    check(`the emitted row reads the catalogue ceiling (${words}) for ${model}, independent of published source comments`, warnings(r, `thinking ran to the output limit (${words}) — continuing`) === 1 && r.calls.length === 2 && r.answers.at(-1) === 'reply', j(r.notices))
+  }
 }
 
 section('A · the local road: a turn of thinking only (no text, no tool call, end_turn) gets ONE continuation and the reply lands as text')

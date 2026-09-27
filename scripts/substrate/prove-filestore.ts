@@ -78,14 +78,47 @@ const counterAt = (p: string) =>
 {
   const path = join(tmp, 's4.json')
   const children = Array.from({ length: 5 }, () =>
-    spawn(BUN, ['run', CHILD, 'increment', path, '20'], { stdio: 'ignore' }),
+    spawn(BUN, ['run', CHILD, 'increment', path, '20'], { stdio: ['ignore', 'ignore', 'pipe'] }),
   )
+  const errors = children.map(() => '')
+  children.forEach((child, index) => child.stderr!.on('data', data => { errors[index] += String(data) }))
   const codes = await Promise.all(
-    children.map(c => new Promise<number>(r => c.on('exit', code => r(code ?? 1)))),
+    children.map(c => new Promise<number>(r => c.on('close', code => r(code ?? 1)))),
   )
+  if (codes.some(c => c !== 0)) console.error(JSON.stringify({ codes, errors }))
   ok(codes.every(c => c === 0), '§4 all 5 increment children exited 0')
   const s = counterAt(path)
   ok((await s.read()).n === 100, '§4 5 procs × 20 locked increments ⇒ exactly 100')
+}
+
+{
+  const path = join(tmp, 's4-paused.json')
+  const creator = spawn(BUN, ['run', CHILD, 'increment-paused', path, '1'], { stdio: ['pipe', 'pipe', 'pipe'] })
+  let creatorError = ''
+  creator.stderr.on('data', data => { creatorError += String(data) })
+  const creatorExit = new Promise<number>(resolve => creator.on('close', code => resolve(code ?? 1)))
+  const opened = await new Promise<boolean>(resolve => {
+    let output = ''
+    creator.stdout.on('data', data => {
+      output += String(data)
+      if (output.includes('SEED-OPEN')) resolve(true)
+    })
+    creator.on('close', () => resolve(false))
+  })
+  ok(opened, '§4b the first creator pauses after exclusive open, before writing the seed')
+  let readable = false
+  try { readable = (await counterAt(path).read()).n === 0 } catch (error) { console.error(String(error)) }
+  ok(readable, '§4b readers see a missing or complete empty store, never the open-but-unwritten seed')
+  const contender = spawn(BUN, ['run', CHILD, 'increment', path, '20'], { stdio: ['ignore', 'ignore', 'pipe'] })
+  let contenderError = ''
+  contender.stderr.on('data', data => { contenderError += String(data) })
+  const contenderCode = await new Promise<number>(resolve => contender.on('close', code => resolve(code ?? 1)))
+  creator.stdin.end('release')
+  const creatorCode = await creatorExit
+  if (creatorCode !== 0 || contenderCode !== 0) console.error(JSON.stringify({ creatorCode, contenderCode, creatorError, contenderError }))
+  ok(creatorCode === 0 && contenderCode === 0, '§4b both creators settle after the forced first-create overlap')
+  const n = (await counterAt(path).read()).n
+  ok(n === 21, `§4b the delayed seed never overwrites the contender's commits: ${n}/21`)
 }
 
 {

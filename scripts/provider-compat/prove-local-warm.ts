@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mock } from 'bun:test'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createFakeOllama, FAKE_OLLAMA_MODEL, serveFakeOllama, type FakeOllama, type FakeOllamaResponse } from '../local-setup/fixtures/fake-ollama.ts'
@@ -45,8 +46,9 @@ const PERSISTED_SECOND = `local/${SECOND}`
 const TRAINED_MAX = 262_144
 const SERVER_KEEP_ALIVE_MS = 5 * 60_000
 
-type Hit = { at: number; method: string; path: string; body: Record<string, unknown> | undefined; raw: string }
+type Hit = { at: number; method: string; path: string; body: Record<string, unknown> | undefined; raw: string; expiryBefore?: string; expiryAfter?: string }
 const hits: Hit[] = []
+const fixtureNow = (): number => 1_800_000_000_000
 const fixtureKnobs = { chatDelayMs: 0, serverKeepAliveMs: SERVER_KEEP_ALIVE_MS }
 let reloads = 0
 const promptCache = new Map<string, string>()
@@ -101,9 +103,9 @@ function wrapFixture(base: FakeOllama): FakeOllama {
     if (keep === 'unload') {
       state.loaded.delete(tag)
       promptCache.delete(tag)
-      return { contextLength: 0, expiresAt: iso(Date.now()) }
+      return { contextLength: 0, expiresAt: iso(fixtureNow()) }
     }
-    const expiresAt = keep === 'never' ? '0001-01-01T00:00:00Z' : iso(Date.now() + (keep ?? fixtureKnobs.serverKeepAliveMs))
+    const expiresAt = keep === 'never' ? '0001-01-01T00:00:00Z' : iso(fixtureNow() + (keep ?? fixtureKnobs.serverKeepAliveMs))
     const entry = { contextLength, expiresAt }
     state.loaded.set(tag, entry)
     return entry
@@ -120,17 +122,17 @@ function wrapFixture(base: FakeOllama): FakeOllama {
     const pieces = ['pong', ' from', ' the fixture'].slice(0, budget)
     let emitted = 0
     if (think && emitted < budget) {
-      yield row({ model: tag, created_at: iso(Date.now()), message: { role: 'assistant', content: '', thinking: 'one' }, done: false })
+      yield row({ model: tag, created_at: iso(fixtureNow()), message: { role: 'assistant', content: '', thinking: 'one' }, done: false })
       emitted += 1
     }
     for (const piece of pieces) {
       if (emitted >= budget) break
-      yield row({ model: tag, created_at: iso(Date.now()), message: { role: 'assistant', content: piece }, done: false })
+      yield row({ model: tag, created_at: iso(fixtureNow()), message: { role: 'assistant', content: piece }, done: false })
       emitted += 1
     }
     yield row({
       model: tag,
-      created_at: iso(Date.now()),
+      created_at: iso(fixtureNow()),
       message: { role: 'assistant', content: '' },
       done_reason: emitted >= budget && budget < 3 ? 'length' : 'stop',
       done: true,
@@ -152,19 +154,21 @@ function wrapFixture(base: FakeOllama): FakeOllama {
       } catch {
         body = undefined
       }
-      hits.push({ at: Date.now(), method, path, body, raw: rawBody })
       const tag = typeof body?.model === 'string' ? body.model : ''
+      const hit: Hit = { at: fixtureNow(), method, path, body, raw: rawBody, expiryBefore: state.loaded.get(tag)?.expiresAt }
+      hits.push(hit)
       if (method === 'POST' && path === '/api/chat' && body !== undefined && state.pulled.has(tag)) {
         load(tag, body)
         if (!Array.isArray(body.messages) || body.messages.length === 0) {
-          return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: tag, created_at: iso(Date.now()), message: { role: 'assistant', content: '' }, done: true, done_reason: 'load' }) }
+          return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: tag, created_at: iso(fixtureNow()), message: { role: 'assistant', content: '' }, done: true, done_reason: 'load' }) }
         }
         return { status: 200, headers: { 'content-type': 'application/x-ndjson' }, body: chatRows(tag, body) }
       }
       if (method === 'POST' && path === '/api/generate' && body !== undefined && state.pulled.has(tag)) {
         const loaded = load(tag, body)
+        hit.expiryAfter = loaded.expiresAt
         if (typeof body.prompt !== 'string' || body.prompt === '') {
-          return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: tag, created_at: iso(Date.now()), response: '', done: true, done_reason: loaded.contextLength === 0 ? 'unload' : 'load' }) }
+          return { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: tag, created_at: iso(fixtureNow()), response: '', done: true, done_reason: loaded.contextLength === 0 ? 'unload' : 'load' }) }
         }
       }
       return base.handle(method, path, rawBody)
@@ -185,6 +189,23 @@ setOriginalCwd(CWD)
 setCwdState(CWD)
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+truthModule.__resetLocalServerTruthForTest()
+const SMALL_MACHINE = {
+  loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown' as const, note: 'fixture' },
+  machine: { platform: 'darwin' as const, totalMemoryBytes: 16 * 1024 ** 3, usableMemoryBytes: 12 * 1024 ** 3, usableSource: 'fixture: 16 GiB, three quarters usable' },
+  readAtMs: Date.now(),
+}
+let machineReads = 0
+mock.module('../../src/services/localServer/localServerTruth.ts', () => ({
+  ...truthModule,
+  refreshLocalMachineTruth: async () => {
+    machineReads++
+    await Promise.resolve()
+    truthModule.__pinLocalServerTruthForTest(SMALL_MACHINE)
+    return SMALL_MACHINE
+  },
+}))
 const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
 const { __resetLocalWindowsForTest, heldLocalWindow } = await import('../../src/services/providers/local/localWindow.ts')
 const { compatLaneLiveProofState } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
@@ -234,7 +255,7 @@ const optionsOf = (h: Hit | undefined): Record<string, unknown> => rec(h?.body?.
 const loadedEntry = (tag: string) => fixture.state.loaded.get(tag)
 const expiresIn = (tag: string): number | undefined => {
   const entry = loadedEntry(tag)
-  return entry === undefined ? undefined : Date.parse(entry.expiresAt) - Date.now()
+  return entry === undefined ? undefined : Date.parse(entry.expiresAt) - fixtureNow()
 }
 let live = true
 
@@ -280,7 +301,7 @@ section('1 · the seams: the module, the runner registration line and the turn s
 }
 
 section('2 · pre-warm on switch: the model becomes a local Ollama model and the server receives the first turn\'s prefix, one token, while nobody is waiting')
-const disarm = warmModule?.armLocalWarm(context as never, { live: () => live, io: { settleMs: 20, tickMs: 120, ceilingMs: 30_000 } })
+const disarm = warmModule?.armLocalWarm(context as never, { live: () => live, io: { now: fixtureNow, settleMs: 20, tickMs: 120, ceilingMs: 30_000 } })
 let warmHit: Hit | undefined
 {
   const before = chats().length
@@ -301,6 +322,7 @@ let warmHit: Hit | undefined
   check('the warm is never counted as a turn: no local live-proof latch, no transcript row (the lane\'s settle latch stays null)', compatLaneLiveProofState('local') === null)
   check('the module reports the warm settled with the server\'s prompt count and no failure', facts !== undefined && facts.warmed.includes(`ollama/${MODEL}`) && facts.failed === 0 && facts.lastWarm !== null && (facts.lastWarm.usage?.inputTokens ?? 0) > 1000, JSON.stringify(facts))
   check('the held window is NOT written by the warm (the turn decides its own; the warm only reads a hold)', record !== undefined && heldLocalWindow(record) === undefined)
+  check('a cold warm reads the fixture machine before choosing: 16 GiB fits 128k, below the trained 256k', machineReads === 1 && optionsOf(warmHit).num_ctx === 131072, `reads ${machineReads}, num_ctx ${String(optionsOf(warmHit).num_ctx)}`)
 }
 
 section('3 · the first real turn after the switch: the body prefix equals the warm\'s byte for byte and the server ingests only the operator\'s message')
@@ -329,15 +351,19 @@ section('3 · the first real turn after the switch: the body prefix equals the w
 
 section('4 · keep the model warm: a touch on the clock, keep_alive 30m with the session\'s own runner options, expires_at moves, never a reload, never keep_alive 0')
 {
+  await warmModule?.tick()
+  await waitFor(() => touches().length > 0, 2_000)
   const before = touches().length
   const psBefore = psReads().length
-  const expiryBefore = expiresIn(MODEL)
   const arrived = await waitFor(() => touches().length >= before + 2, 4_000)
   const touch = touches()[before]
   check('the fixture saw the touch on the clock (two ticks, two touches)', arrived, `touches: ${touches().length - before} (the base has no keep-alive clock)`)
   check('the touch is POST /api/generate {model, keep_alive} with NO prompt', touch !== undefined && touch.body?.model === MODEL && touch.body?.prompt === undefined && touch.body?.keep_alive === '30m', JSON.stringify(touch?.body))
   check('the touch carries the SAME runner options as the chat (num_ctx, num_batch) so the scheduler keeps the runner and its cache', optionsOf(touch).num_ctx === optionsOf(warmHit).num_ctx && optionsOf(touch).num_batch === optionsOf(warmHit).num_batch && reloads === 0, `${JSON.stringify(optionsOf(touch))} reloads ${reloads}`)
-  check('the runner\'s expires_at moved from the server\'s own 5m to 30m out', expiryBefore !== undefined && expiryBefore <= SERVER_KEEP_ALIVE_MS && (expiresIn(MODEL) ?? 0) > 25 * 60_000, `before ${String(expiryBefore)} after ${String(expiresIn(MODEL))}`)
+  const firstTouch = touches()[0]
+  const expiryBefore = firstTouch?.expiryBefore === undefined ? undefined : Date.parse(firstTouch.expiryBefore) - firstTouch.at
+  const expiryAfter = firstTouch?.expiryAfter === undefined ? undefined : Date.parse(firstTouch.expiryAfter) - firstTouch.at
+  check('the runner\'s expires_at moved from the server\'s own 5m to 30m out, witnessed at the first touch on the fixture clock even if an earlier tick beat this assertion', expiryBefore === SERVER_KEEP_ALIVE_MS && expiryAfter === 30 * 60_000 && expiresIn(MODEL) === 30 * 60_000, `before ${String(expiryBefore)} after ${String(expiryAfter)}`)
   check('every tick reads /api/ps before it touches (a touch only ever lands on a resident runner)', psReads().length - psBefore >= touches().length - before)
   check('no touch ever carries keep_alive 0', touches().every(t => t.body?.keep_alive !== 0 && t.body?.keep_alive !== '0'))
   check('no chat rode the clock (a touch is never a turn)', chats().length === 2, shape(chats()))
@@ -351,23 +377,23 @@ section('5 · the touch is polite: a longer server hold, a never-expiring runner
     await sleep(420)
     return touches().length - from
   }
-  fixture.state.loaded.set(MODEL, { ...entry, expiresAt: new Date(Date.now() + 2 * 3_600_000).toISOString() })
+  fixture.state.loaded.set(MODEL, { ...entry, expiresAt: new Date(fixtureNow() + 2 * 3_600_000).toISOString() })
   check('a runner the server already holds for 2h is not touched (never shortens a longer residency)', (await between()) === 0)
   fixture.state.loaded.set(MODEL, { ...entry, expiresAt: '0001-01-01T00:00:00Z' })
   check('a never-expiring runner (keep_alive -1) is not touched', (await between()) === 0)
   fixture.state.loaded.delete(MODEL)
   check('an unloaded model is never loaded by the clock (the next turn loads it, as today)', (await between()) === 0 && !loadedEntry(MODEL))
-  fixture.state.loaded.set(MODEL, { contextLength: 4096, expiresAt: new Date(Date.now() + 60_000).toISOString() })
+  fixture.state.loaded.set(MODEL, { contextLength: 4096, expiresAt: new Date(fixtureNow() + 60_000).toISOString() })
   check("a runner loaded with another window (4096) is not touched — a touch with this session's num_ctx would reload it", (await between()) === 0 && reloads === 0)
-  fixture.state.loaded.set(MODEL, { ...entry, expiresAt: new Date(Date.now() + 60_000).toISOString() })
+  fixture.state.loaded.set(MODEL, { ...entry, expiresAt: new Date(fixtureNow() + 60_000).toISOString() })
   const from = touches().length
   check('back on this session\'s runner with a minute left: the touch resumes', await waitFor(() => touches().length > from, 2_000))
   if (warmModule !== null) {
     const { keepAliveTouchDue } = warmModule
     const knobs = { numCtx: 131072, numBatch: 2048 }
-    const soon = new Date(Date.now() + 4 * 60_000).toISOString()
-    check('pure: due when resident, expiring within 30m and on this window', keepAliveTouchDue({ expires_at: soon, context_length: 131072 }, knobs, Date.now()).due === true)
-    check('pure: not due when absent, past, beyond 30m, or on another window', keepAliveTouchDue(undefined, knobs, Date.now()).due === false && keepAliveTouchDue({ expires_at: '0001-01-01T00:00:00Z' }, knobs, Date.now()).due === false && keepAliveTouchDue({ expires_at: new Date(Date.now() + 31 * 60_000).toISOString() }, knobs, Date.now()).due === false && keepAliveTouchDue({ expires_at: soon, context_length: 4096 }, knobs, Date.now()).due === false)
+    const soon = new Date(fixtureNow() + 4 * 60_000).toISOString()
+    check('pure: due when resident, expiring within 30m and on this window', keepAliveTouchDue({ expires_at: soon, context_length: 131072 }, knobs, fixtureNow()).due === true)
+    check('pure: not due when absent, past, beyond 30m, or on another window', keepAliveTouchDue(undefined, knobs, fixtureNow()).due === false && keepAliveTouchDue({ expires_at: '0001-01-01T00:00:00Z' }, knobs, fixtureNow()).due === false && keepAliveTouchDue({ expires_at: new Date(fixtureNow() + 31 * 60_000).toISOString() }, knobs, fixtureNow()).due === false && keepAliveTouchDue({ expires_at: soon, context_length: 4096 }, knobs, fixtureNow()).due === false)
   }
 }
 
@@ -429,5 +455,8 @@ section('9 · a warm that fails says nothing: the server goes away, the warm fai
 }
 
 live = false
+process.chdir(ROOT)
+rmSync(HOME, { recursive: true, force: true })
+rmSync(CWD, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

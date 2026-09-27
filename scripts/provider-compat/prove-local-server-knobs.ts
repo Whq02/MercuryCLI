@@ -4,9 +4,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
-mkdirSync('/private/tmp/mw', { recursive: true })
-const HOME = mkdtempSync('/private/tmp/mw/local-server-page-knobs.')
+const HOME = mkdtempSync(join(tmpdir(), 'local-server-page-knobs.'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

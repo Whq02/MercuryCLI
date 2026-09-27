@@ -25,7 +25,7 @@ import { resolveLocalApiKey } from './localAccounts.js'
 import { localGuardWindow, localLaneProfileFor, localModelAcceptsEffort, localPreComposeEstimate } from './localCallModel.js'
 import { isLocalModelId, localRecordFor } from './localCatalogue.js'
 import { LOCAL_PROBE_TIMEOUT_MS, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
-import { chooseLocalBatch, chooseLocalWindow, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
+import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
 import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaChatTransport.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
@@ -140,12 +140,13 @@ function rec(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
 
-export function localWarmKnobsFor(record: LocalModelRecord, estTokens: number): LocalWarmKnobs {
+export async function localWarmKnobsFor(record: LocalModelRecord, estTokens: number): Promise<LocalWarmKnobs> {
   const application = localWindowApplication(record)
   const setting = localWindowSettingOf(record)
-  const hold = heldLocalWindow(record)
   const decides = application === 'request' || application === 'load'
-  const window = hold !== undefined && hold.setting === setting ? hold.window : decides ? chooseLocalWindow(record, estTokens, setting).window : undefined
+  const truth = decides ? await ensureLocalWindowTruth(record, setting) : null
+  const hold = heldLocalWindow(record)
+  const window = hold !== undefined && hold.setting === setting ? hold.window : decides ? chooseLocalWindow(record, estTokens, setting, truth).window : undefined
   return { ...(window !== undefined ? { numCtx: window } : {}), numBatch: chooseLocalBatch(localBatchSettingOf(record), window) }
 }
 
@@ -230,7 +231,7 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   }
   const estimateMessages = latestUserContextBody(history) === null ? prependUserContext(history, context.userContext) : history
   const estTokens = localPreComposeEstimate({ messages: estimateMessages, systemPrompt: fullSystemPrompt, tools })
-  const window = localWarmKnobsFor(record, estTokens)
+  const window = await localWarmKnobsFor(record, estTokens)
   const requestTokens = Math.ceil(JSON.stringify(request).length / 4)
   const guard = window.numCtx ?? localGuardWindow(record)?.tokens
   if (guard !== undefined && requestTokens + LOCAL_WARM_OUTPUT_FLOOR > guard) return { skipped: `the prefix (~${requestTokens} tokens) does not fit the window (${guard}); the first turn refuses before sending` }

@@ -260,11 +260,13 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first s
   const markerOf = (lines: string[]): number => lines.findIndex(l => /│\s+↓ \d+ more/.test(l))
   const aboveOf = (lines: string[]): number => lines.findIndex(l => /│\s+↑ \d+ more/.test(l))
   const focusOf = (lines: string[]): string => (lines.find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
-  type Stop = { row: number; lines: number; bottom: number; marker: number; above: number; meter: number; focus: string }
+  const offerOf = (lines: string[]): number => lines.findIndex(l => l.includes('no local server · s sets one up'))
+  type Stop = { row: number; lines: number; bottom: number; marker: number; above: number; meter: number; offer: number; focus: string }
   const walk: Stop[] = []
   const record = (row: number): void => {
     const lines = mounted.frame().split('\n')
-    walk.push({ row, lines: lines.length, bottom: bottomOf(lines), marker: markerOf(lines), above: aboveOf(lines), meter: meterOf(lines), focus: focusOf(lines) })
+    walk.push({ row, lines: lines.length, bottom: bottomOf(lines), marker: markerOf(lines), above: aboveOf(lines), meter: meterOf(lines), offer: offerOf(lines), focus: focusOf(lines) })
+    if (frameDir !== undefined && row <= 0) writeFileSync(join(frameDir, `model-178x40-stop-${row}.txt`), lines.join('\n') + '\n')
   }
   record(-1)
   check('Home moves the cursor to the first stop (the frame repaints)', await mounted.press('\x1b[H'))
@@ -287,7 +289,8 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first s
   check('the first frame has rows below and none above; the last has rows above and none below (the list overflows both ways)', first.marker >= 0 && first.above === -1 && last.above >= 0 && last.marker === -1, `first ${first.marker}/${first.above} · last ${last.marker}/${last.above}`)
   check('the bottom border is one row on the served row, on the first row, on the first available row and on the last', new Set(walk.map(stop => stop.bottom)).size === 1, walk.map(stop => `${stop.row}:${stop.bottom}`).join(' '))
   check(`the box spans the ${BAND_ROWS} rows at every cursor position`, walk.every(stop => stop.lines === BAND_ROWS && stop.bottom === BAND_ROWS - 1), walk.filter(stop => stop.lines !== BAND_ROWS || stop.bottom !== BAND_ROWS - 1).map(stop => `${stop.row}:${stop.lines}/${stop.bottom}`).join(' '))
-  check('wherever the ↓ marker paints it sits on the bottom edge of the rows, right above the meter block', walk.every(stop => stop.meter >= 0 && (stop.marker === -1 || stop.marker === stop.meter - 2)), walk.filter(stop => stop.meter < 0 || (stop.marker !== -1 && stop.marker !== stop.meter - 2)).map(stop => `${stop.row}:${stop.marker}/${stop.meter}`).join(' '))
+  const markerAtBottom = (stop: Stop): boolean => stop.meter >= 0 && (stop.offer === -1 || stop.offer === stop.meter - 2) && (stop.marker === -1 || stop.marker === (stop.offer === -1 ? stop.meter - 2 : stop.offer - 1))
+  check('wherever the ↓ marker paints it ends the scroll rows; the fixed local-setup offer, when present, stands before the meter gap', walk.every(markerAtBottom), walk.filter(stop => !markerAtBottom(stop)).map(stop => `${stop.row}:${stop.marker}/${stop.offer}/${stop.meter}`).join(' '))
   check('the walk started on the served default Opus and ended on a different row', served.focus.startsWith(renderModelName(DEFAULT_OPUS)) && last.focus !== served.focus, `${served.focus} · ${walk.length - 1} stops · last "${last.focus}"`)
   mounted.unmount()
 }
@@ -297,6 +300,7 @@ section('§6 the chrome lines that wrap are paid for: a queued switch, a narrow 
   const LONG_NEXT = 'claude-opus-5-7-extended-thinking-long-context-preview'
   const bands: Array<Band & { label: string }> = [
     { label: 'queued-178x51', columns: 178, rows: 51, pendingNext: SONNET },
+    { label: 'narrow-80x21', columns: 80, rows: 21 },
     { label: 'narrow-50x30', columns: 50, rows: 30 },
     { label: 'long-next-178x51', columns: 178, rows: 51, pendingNext: LONG_NEXT },
     { label: 'compact-queued-50x18', columns: 50, rows: 18, pendingNext: SONNET },
