@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -31,13 +31,21 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 const GIB = 1024 ** 3
 const MODEL_27 = 'qwen3.5:27b'
 const MODEL_9 = 'qwen3.5:9b'
+const HYBRID_27 = 'qwen3.8:27b-mtp-q4_K_M'
 const WEIGHTS_27 = 17420432728
 const WEIGHTS_9 = 6594474711
+const WEIGHTS_H27 = 17741872154
+const RESIDENT_H27_128K = 19_100_000_000
+type Show = { capabilities: string[]; details: Record<string, unknown>; parameters: string; model_info: Record<string, unknown> }
+const fixture = (name: string): Show => JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', name), 'utf8')) as Show
+const SHOW_H27 = fixture('ollama-show-qwen3.8-27b-mtp-q4_K_M.json')
+const SHOW_9 = fixture('ollama-show-qwen3.5-9b.json')
 const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
 const INFO_27 = { 'general.architecture': 'qwen35', 'general.parameter_count': 27781427952, 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': kvHeads(64), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 64, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120, 'qwen35.full_attention_interval': 4 }
-const INFO_9 = { 'general.architecture': 'qwen35', 'general.parameter_count': 9653104368, 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096, 'qwen35.full_attention_interval': 4 }
+const INFO_9 = SHOW_9.model_info
 const details = (size: string, embedding: number) => ({ parent_model: '', format: 'gguf', family: 'qwen35', families: ['qwen35'], parameter_size: size, quantization_level: 'Q4_K_M', context_length: 262144, embedding_length: embedding })
 const CAPS = ['completion', 'vision', 'tools', 'thinking']
+const psModels: Array<Record<string, unknown>> = []
 
 type Hit = { method: string; url: string; body: Record<string, unknown> }
 const hits: Hit[] = []
@@ -57,12 +65,13 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
       const body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
       hits.push({ method: req.method ?? 'GET', url, body })
       if (url === '/api/version') return json(res, 200, { version: '0.34.4' })
-      if (url === '/api/tags') return json(res, 200, { models: [{ name: MODEL_9, model: MODEL_9, size: WEIGHTS_9, digest: '6488', details: details('9.7B', 4096), capabilities: CAPS }, { name: MODEL_27, model: MODEL_27, size: WEIGHTS_27, digest: '7653', details: details('27.8B', 5120), capabilities: CAPS }] })
-      if (url === '/api/ps') return json(res, 200, { models: [] })
+      if (url === '/api/tags') return json(res, 200, { models: [{ name: MODEL_9, model: MODEL_9, size: WEIGHTS_9, digest: '6488', details: details('9.7B', 4096), capabilities: CAPS }, { name: MODEL_27, model: MODEL_27, size: WEIGHTS_27, digest: '7653', details: details('27.8B', 5120), capabilities: CAPS }, { name: HYBRID_27, model: HYBRID_27, size: WEIGHTS_H27, digest: '2213', details: { ...SHOW_H27.details, context_length: 262144, embedding_length: 5120 }, capabilities: SHOW_H27.capabilities }] })
+      if (url === '/api/ps') return json(res, 200, { models: psModels })
       if (url === '/api/show') {
         const model = String(body.model ?? '')
         if (model === MODEL_27) return json(res, 200, { capabilities: CAPS, details: details('27.8B', 5120), parameters: 'top_k 20', model_info: INFO_27 })
-        if (model === MODEL_9) return json(res, 200, { capabilities: CAPS, details: details('9.7B', 4096), parameters: 'top_k 20', model_info: INFO_9 })
+        if (model === MODEL_9) return json(res, 200, { capabilities: SHOW_9.capabilities, details: SHOW_9.details, parameters: SHOW_9.parameters, model_info: INFO_9 })
+        if (model === HYBRID_27) return json(res, 200, { capabilities: SHOW_H27.capabilities, details: SHOW_H27.details, parameters: SHOW_H27.parameters, model_info: SHOW_H27.model_info })
         return json(res, 404, { error: `model '${model}' not found` })
       }
       if (url === '/api/chat' && req.method === 'POST') {
@@ -308,6 +317,84 @@ section("7 · step 5 of /localsetup on the same owner: the ceiling from the trut
   const typed = await setup.chooseWindow(ollama.root, MODEL_9, { ...io, readTruth: async () => SMALL_BOX, cacheType: 'q8_0' })
   check('a cache type given through the seam outranks the truth', typed.window === 262144 && typed.cacheType === 'q8_0', typed.words)
   check('the same rule, the same figures: step 5 and auto agree on the owner\'s box', chosen.window === w.chooseLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined, OWNER_BOX).window && chosen.words === w.chooseLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined, OWNER_BOX).words)
+}
+
+section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_count_kv for 65 blocks with full_attention_interval 4 — 16 layers keep a cache, not 65; a loaded model's measured size outranks the formula`)
+{
+  const { fitLocalWindow, fitLocalWindowOn, localWindowRefusal, localWindowResident, serverMeasuredOf } = owner
+  const gH27 = memory.kvGeometryOf(SHOW_H27.model_info)
+  const g9 = memory.kvGeometryOf(SHOW_9.model_info)
+  check(`${HYBRID_27}'s real /api/show: 4 KV heads × 16 cached layers of 65 (interval 4), 256-wide keys and values`, gH27?.kvHeads === 64 && gH27.attentionLayers === 16 && gH27.blockCount === 65 && gH27.interval === 4 && gH27.keyLength === 256 && gH27.valueLength === 256, j(gH27))
+  check(`${MODEL_9}'s real /api/show states the layers as a list — 8 of 32 keep 4 heads, the interval read beside`, g9?.kvHeads === 32 && g9.attentionLayers === 8 && g9.blockCount === 32 && g9.interval === 4, j(g9))
+  check('the q8_0 cache on the hybrid 27B: 34816 bytes per token (64 heads × 512 × 34/32), 8.5 GiB at 256k, 4.3 GiB at 128k — never 141440 (65 layers)', gH27 !== undefined && memory.kvBytesPerToken(gH27, 'q8_0') === 34816 && memory.gibWords(memory.kvCacheBytes(gH27, 262144, 1, 'q8_0')) === '8.5 GiB' && memory.gibWords(memory.kvCacheBytes(gH27, 131072, 1, 'q8_0')) === '4.3 GiB', gH27 ? String(memory.kvBytesPerToken(gH27, 'q8_0')) : 'no geometry')
+  const dense = memory.kvGeometryOf({ 'general.architecture': 'llama', 'llama.block_count': 32, 'llama.attention.head_count': 32, 'llama.attention.head_count_kv': 8, 'llama.embedding_length': 4096 })
+  check('a geometry with no interval key keeps the dense sum: 8 heads × 32 layers = 256, every block a cache layer, no interval field', dense?.kvHeads === 256 && dense.attentionLayers === 32 && dense.interval === undefined, j(dense))
+  check('an interval of 1 is every layer; a list of per-layer heads outranks the interval', memory.kvGeometryOf({ ...SHOW_H27.model_info, 'qwen35.full_attention_interval': 1 })?.attentionLayers === 65 && memory.kvGeometryOf({ ...SHOW_H27.model_info, 'qwen35.attention.head_count_kv': kvHeads(65) })?.attentionLayers === 16)
+  __resetLocalDiscoveryForTest()
+  await refreshLocalDiscovery({ force: true })
+  const h27 = localRecordFor(`local/${HYBRID_27}`)!
+  check('the discovery record carries the hybrid geometry with its interval and the weights from /api/tags', h27.weightsBytes === WEIGHTS_H27 && h27.geometry?.attentionLayers === 16 && h27.geometry.kvHeads === 64 && h27.geometry.interval === 4 && h27.modelMaxContext === 262144 && h27.contextWindow === undefined && h27.servedBytes === undefined, j({ weights: h27.weightsBytes, geometry: h27.geometry, window: h27.contextWindow }))
+  __pinLocalServerTruthForTest(OWNER_BOX)
+  w.__resetLocalWindowsForTest()
+  const auto = w.decideLocalWindow(h27, 73_000, undefined)
+  check("auto on the owner's box (48 GiB, 36.9 GiB usable, q8_0, 1 slot): 256k, reason max — 16.5 GiB weights + 8.5 GiB cache = 25.0 GiB; never 128k on a 51.1 GiB sum", auto.window === 262144 && auto.reason === 'max' && auto.words === '256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot' && memory.gibWords(auto.fit?.totalBytes ?? 0) === '25.0 GiB', `${auto.window} · ${auto.reason} · ${auto.words}`)
+  check('every rung fits: 32k 17.6 · 64k 18.6 · 128k 20.8 · 256k 25.0 GiB', auto.fit?.ladder.map(r => `${memory.tokensWords(r.window)} ${memory.gibWords(r.totalBytes)} ${r.fits}`).join(' | ') === '32k 17.6 GiB true | 64k 18.6 GiB true | 128k 20.8 GiB true | 256k 25.0 GiB true', j(auto.fit?.ladder))
+  const decisionLine = typeof w.localWindowDecisionLine === 'function' ? w.localWindowDecisionLine(h27, auto) : undefined
+  check(`the send writes the decision to the debug log: [local-window] ${HYBRID_27}: 262144 · max — the rule's words`, decisionLine === `[local-window] ${HYBRID_27}: 262144 · max — 256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot`, String(decisionLine))
+  const byHand = w.chooseLocalWindow(h27, 73_000, 'max', OWNER_BOX)
+  check("the trained max picked by hand is accepted: 256k · the trained max — your setting, no refusal", byHand.window === 262144 && byHand.reason === 'max' && byHand.words === '256k · the trained max — your setting' && w.localWindowRefusalWords(h27, 'max', OWNER_BOX) === undefined && w.localWindowRefusalWords(h27, 262144, OWNER_BOX) === undefined, byHand.words)
+  check("the picker's w row shows [max] with no refusal beside the held auto → 256k max", w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }) === 'window · not loaded · max 256k · auto → 256k max held · server · 32k · 64k · 128k · [max] · number · w cycles', w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }))
+  const nine = w.decideLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined)
+  check(`${MODEL_9} on the same box: 256k max (6.1 GiB weights + 4.3 GiB cache)`, nine.window === 262144 && nine.reason === 'max' && nine.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', nine.words)
+  const mH27 = { name: HYBRID_27, weightsBytes: WEIGHTS_H27, geometry: gH27!, trainedMax: 262144 }
+  const loadedBox = { ...OWNER_BOX, loaded: [{ name: HYBRID_27, sizeBytes: RESIDENT_H27_128K, sizeVramBytes: RESIDENT_H27_128K, contextLength: 131072 }] }
+  const measuredArm = typeof serverMeasuredOf === 'function' && typeof localWindowResident === 'function' && typeof w.localWindowMeasuredOf === 'function'
+  check('the fit owner exports the measured arm (serverMeasuredOf · localWindowResident) and the record its measurement (localWindowMeasuredOf)', measuredArm)
+  const MEASURED_WORDS = '256k · 17.8 GiB measured at 128k + 4.3 GiB more cache = 22.0 GiB of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot'
+  if (measuredArm) {
+    check("the truth's loaded row is the measurement: 19.1 GB at 128k with the runner's one slot", j(serverMeasuredOf(loadedBox, HYBRID_27)) === j({ bytes: RESIDENT_H27_128K, window: 131072, slots: 1 }) && serverMeasuredOf(OWNER_BOX, HYBRID_27) === undefined && serverMeasuredOf(loadedBox, MODEL_9) === undefined)
+    const measured = fitLocalWindowOn(loadedBox, mH27)
+    check('the measured arm: 19.1 GB (17.8 GiB) resident at 128k less its 4.3 GiB cache is 13.5 GiB fixed; 256k adds 8.5 GiB of cache — 22.0 GiB, fits, 256k max', measured.window === 262144 && measured.atMax && measured.totalBytes === RESIDENT_H27_128K - memory.kvCacheBytes(gH27!, 131072, 1, 'q8_0') + memory.kvCacheBytes(gH27!, 262144, 1, 'q8_0') && memory.gibWords(measured.totalBytes) === '22.0 GiB' && memory.gibWords(localWindowResident(measured).bytes) === '13.5 GiB' && localWindowRefusal(measured, 262144) === undefined, `${measured.window} · ${memory.gibWords(measured.totalBytes)}`)
+    check(`the words say what was measured and what the bigger window adds: ${MEASURED_WORDS}`, measured.words === MEASURED_WORDS, measured.words)
+    check("the measured rung is the measurement itself: the 128k rung projects exactly 19.1 GB; the ladder reads 32k 14.6 · 64k 15.7 · 128k 17.8 · 256k 22.0 GiB", measured.ladder[2]?.totalBytes === RESIDENT_H27_128K && measured.ladder.map(r => `${memory.tokensWords(r.window)} ${memory.gibWords(r.totalBytes)}`).join(' | ') === '32k 14.6 GiB | 64k 15.7 GiB | 128k 17.8 GiB | 256k 22.0 GiB', j(measured.ladder))
+    const tight = fitLocalWindowOn({ ...loadedBox, machine: { ...loadedBox.machine, usableMemoryBytes: 21 * GIB } }, mH27)
+    check('on a 21 GiB ceiling the same measurement keeps 128k and says so: 128k · 17.8 GiB measured at 128k of 21.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 256k does not fit (22.0 GiB)', tight.window === 131072 && !tight.atMax && tight.words === '128k · 17.8 GiB measured at 128k of 21.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 256k does not fit (22.0 GiB)' && localWindowRefusal(tight, 262144) === '22.0 GiB does not fit 21.0 GiB usable · 128k fits', tight.words)
+    const down = fitLocalWindow({ ...mH27, machineBytes: 48 * GIB, usableBytes: Math.round(17 * GIB), slots: 1, cacheType: 'q8_0', measured: { bytes: RESIDENT_H27_128K, window: 131072 } })
+    check('a smaller window subtracts: 64k · 17.8 GiB measured at 128k − 2.1 GiB less cache = 15.7 GiB of 17.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 128k does not fit (17.8 GiB)', down.window === 65536 && down.words === '64k · 17.8 GiB measured at 128k − 2.1 GiB less cache = 15.7 GiB of 17.0 GiB usable (48.0 GiB box) · q8_0 · 1 slot · 128k does not fit (17.8 GiB)', down.words)
+    const suspect = fitLocalWindowOn({ ...loadedBox, loaded: [{ name: HYBRID_27, sizeBytes: 1_000_000, contextLength: 131072 }] }, mH27)
+    check('a measurement smaller than its own cache is not trusted: the formula stands and the words are the formula words', suspect.words === auto.words && localWindowResident(suspect).measured === undefined && suspect.measured?.bytes === 1_000_000, suspect.words)
+    const fourSlots = fitLocalWindowOn({ ...loadedBox, runners: [{ command: 'llama-server -np 4 --cache-type-k q8_0', slots: 4, cacheTypeK: 'q8_0' }] }, mH27)
+    check('the slots ride with the measurement: a 4-slot runner measured at 128k holds 17.0 GiB of cache, so the fixed part is 0.8 GiB and 256k with 4 slots (34.8 GiB) fits — 256k max', fourSlots.slots === 4 && fourSlots.measured?.slots === 4 && memory.gibWords(localWindowResident(fourSlots).bytes) === '0.8 GiB' && fourSlots.window === 262144 && memory.gibWords(fourSlots.totalBytes) === '34.8 GiB', `${fourSlots.window} · ${memory.gibWords(fourSlots.totalBytes)} · ${fourSlots.words}`)
+  }
+  psModels.push({ name: HYBRID_27, model: HYBRID_27, size: RESIDENT_H27_128K, size_vram: RESIDENT_H27_128K, context_length: 131072, details: SHOW_H27.details })
+  __resetLocalDiscoveryForTest()
+  await refreshLocalDiscovery({ force: true })
+  const loadedRecord = localRecordFor(`local/${HYBRID_27}`)!
+  check('the discovery record reads the loaded size beside the served window from /api/ps: 19.1 GB at 128k', loadedRecord.contextWindow?.source === 'served' && loadedRecord.contextWindow.tokens === 131072 && loadedRecord.servedBytes === RESIDENT_H27_128K && loadedRecord.loaded === true && (measuredArm ? j(w.localWindowMeasuredOf(loadedRecord)) === j({ bytes: RESIDENT_H27_128K, window: 131072 }) : false), j({ window: loadedRecord.contextWindow, bytes: loadedRecord.servedBytes }))
+  w.__resetLocalWindowsForTest()
+  const decided = w.decideLocalWindow(loadedRecord, 73_000, undefined)
+  check('auto on the loaded record takes the measured arm: 256k max with the measured words', decided.window === 262144 && decided.reason === 'max' && decided.words === MEASURED_WORDS && decided.fit?.measured?.bytes === RESIDENT_H27_128K, `${decided.window} · ${decided.words}`)
+  check("the picker's w row on the loaded record: served 128k, auto → 256k max held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 256k max held] · server · 32k · 64k · 128k · max · number · w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
+  const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
+  const from = hits.length
+  const yielded: Array<{ isApiErrorMessage?: boolean }> = []
+  const params = {
+    messages: [{ type: 'user', message: { role: 'user', content: 'x'.repeat(292_000) }, uuid: '00000000-0000-4000-8000-000000000002', timestamp: new Date().toISOString() }] as never,
+    systemPrompt: [] as never,
+    thinkingConfig: { type: 'disabled' } as never,
+    tools: [] as never,
+    signal: new AbortController().signal,
+    options: { model: `local/${HYBRID_27}`, querySource: 'user', getToolPermissionContext: async () => ({ mode: 'default' }) as never } as never,
+  }
+  for await (const item of localCallModel(params as never)) yielded.push(item as never)
+  const chat = hits.slice(from).find(h => h.url === '/api/chat')
+  check(`the ≈73k first request to ${HYBRID_27} rides /api/chat with num_ctx 262144 — the trained max, not 131072 — and settles`, chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 262144 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
+  check('still nothing but tags/version/ps/show/chat reached the server', hits.every(h => /^\/api\/(tags|version|ps|show|chat)$/.test(h.url)), hits.map(h => h.url).join(','))
+  psModels.length = 0
+  __resetLocalDiscoveryForTest()
+  w.__resetLocalWindowsForTest()
+  __pinLocalServerTruthForTest(null)
+  __resetLocalServerTruthForTest()
 }
 
 finish()

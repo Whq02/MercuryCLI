@@ -37,6 +37,7 @@ export interface LocalModelRecord {
   parameterSize?: string
   quantization?: string
   servedReadAtMs?: number
+  servedBytes?: number
   weightsBytes?: number
   geometry?: KvGeometry
 }
@@ -141,13 +142,19 @@ function parameterSizeWords(params: number): string {
 }
 
 
-function ollamaServedMap(psBody: unknown): Map<string, number> {
-  const served = new Map<string, number>()
+export interface OllamaServed {
+  tokens: number
+  bytes?: number
+}
+
+function ollamaServedMap(psBody: unknown): Map<string, OllamaServed> {
+  const served = new Map<string, OllamaServed>()
   for (const loaded of (Array.isArray(rec(psBody)?.models) ? (rec(psBody)!.models as unknown[]) : [])) {
     const l = rec(loaded)
     const name = str(l?.model) ?? str(l?.name)
     const ctx = num(l?.context_length)
-    if (name && ctx) served.set(name, ctx)
+    const bytes = num(l?.size) ?? num(l?.size_vram)
+    if (name && ctx) served.set(name, { tokens: ctx, ...(bytes !== undefined ? { bytes } : {}) })
   }
   return served
 }
@@ -177,7 +184,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
       const numCtx = params ? num(Number(/(?:^|\n)\s*num_ctx\s+(\d+)/.exec(params)?.[1])) : undefined
       const servedCtx = served.get(id)
       const contextWindow: LocalModelRecord['contextWindow'] = servedCtx
-        ? { tokens: servedCtx, source: 'served' }
+        ? { tokens: servedCtx.tokens, source: 'served' }
         : numCtx
           ? { tokens: numCtx, source: 'modelfile' }
           : undefined
@@ -188,6 +195,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
         server: 'ollama',
         baseUrl,
         ...(contextWindow !== undefined ? { contextWindow } : {}),
+        ...(servedCtx?.bytes !== undefined ? { servedBytes: servedCtx.bytes } : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
         ...(weightsBytes !== undefined ? { weightsBytes } : {}),
         ...(geometry !== undefined ? { geometry } : {}),
@@ -473,12 +481,12 @@ export interface ServedWindowLoad {
   probeOnly?: boolean
 }
 
-function servedFrom(server: LocalServerRecord | undefined, id: string): number | undefined {
+function servedFrom(server: LocalServerRecord | undefined, id: string): OllamaServed | undefined {
   const model = server?.models.find(m => m.id === id)
-  return model?.contextWindow?.source === 'served' ? model.contextWindow.tokens : undefined
+  return model?.contextWindow?.source === 'served' ? { tokens: model.contextWindow.tokens, ...(model.servedBytes !== undefined ? { bytes: model.servedBytes } : {}) } : undefined
 }
 
-async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<number | undefined> {
+async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
   const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
   if (load?.probeOnly !== true) {
     await probeJson(`${root}/api/generate`, io, {
@@ -490,11 +498,11 @@ async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?:
   return ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
 }
 
-async function loadLmStudio(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<number | undefined> {
+async function loadLmStudio(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
   const before = await probeLmStudio(root, io)
   const served = servedFrom(before, id)
   if (load?.numCtx === undefined) return served
-  if (served === load.numCtx) return served
+  if (served?.tokens === load.numCtx) return served
   const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
   const v1 = rec(await probeJson(`${root}/api/v1/models`, io))
   const entry = (Array.isArray(v1?.models) ? (v1!.models as unknown[]).map(rec) : []).find(m => str(m?.key) === id)
@@ -507,7 +515,7 @@ async function loadLmStudio(root: string, id: string, io: LocalDiscoveryIo, load
   return servedFrom(await probeLmStudio(root, io), id)
 }
 
-export async function readServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<number | undefined> {
+export async function readServed(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
   const root = record.baseUrl.replace(/\/v1$/, '')
   try {
     switch (record.server) {
@@ -527,35 +535,41 @@ export async function readServedWindow(record: LocalModelRecord, io: LocalDiscov
   }
 }
 
+export async function readServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<number | undefined> {
+  return (await readServed(record, io, load))?.tokens
+}
+
 export function servedWindowIsCurrent(record: LocalModelRecord, now: number = Date.now()): boolean {
   if (record.contextWindow?.source !== 'served') return false
   const readAt = Math.max(cached?.probedAtMs ?? 0, record.servedReadAtMs ?? 0)
   return now - readAt < LOCAL_DISCOVERY_TTL_MS
 }
 
-function noteServedWindow(record: LocalModelRecord, tokens: number, now: number): void {
+function noteServedWindow(record: LocalModelRecord, served: OllamaServed, now: number): void {
   const before = record.contextWindow
-  record.contextWindow = { tokens, source: 'served' }
+  record.contextWindow = { tokens: served.tokens, source: 'served' }
+  if (served.bytes !== undefined) record.servedBytes = served.bytes
+  else delete record.servedBytes
   record.loaded = true
   record.servedReadAtMs = now
-  if (before?.source !== 'served' || before.tokens !== tokens) bumpCatalogueEpoch()
+  if (before?.source !== 'served' || before.tokens !== served.tokens) bumpCatalogueEpoch()
 }
 
 export async function ensureServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<LocalModelRecord> {
   const now = io.now?.() ?? Date.now()
   const current = servedWindowIsCurrent(record, now)
   if (current && (load?.numCtx === undefined || record.contextWindow?.tokens === load.numCtx)) return record
-  const tokens = await readServedWindow(record, io, load)
-  if (tokens === undefined) return record
-  noteServedWindow(record, tokens, now)
+  const served = await readServed(record, io, load)
+  if (served === undefined) return record
+  noteServedWindow(record, served, now)
   return record
 }
 
 export async function confirmServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}): Promise<number | undefined> {
   const now = io.now?.() ?? Date.now()
-  const tokens = await readServedWindow(record, io, { probeOnly: true })
-  if (tokens !== undefined) noteServedWindow(record, tokens, now)
-  return tokens
+  const served = await readServed(record, io, { probeOnly: true })
+  if (served !== undefined) noteServedWindow(record, served, now)
+  return served?.tokens
 }
 
 export function __resetLocalDiscoveryForTest(): void {

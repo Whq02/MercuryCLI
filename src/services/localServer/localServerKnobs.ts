@@ -2,7 +2,7 @@ import { getInitialSettings, updateSettingsForSource } from '../../utils/setting
 import type { SettingsJson } from '../../utils/settings/types.js'
 import { gibWords, kvCacheBytes, projectLoad, tokensWords, type KvGeometry } from './localServerMemory.js'
 import type { LocalServerTruth } from './localServerTruth.js'
-import { fitLocalWindow, serverCacheTypeOf } from './localWindowFit.js'
+import { fitLocalWindow, serverCacheTypeOf, serverSlotsOf } from './localWindowFit.js'
 
 export type LocalServerKnobId = 'maxLoadedModels' | 'parallelSlots' | 'keepAlive' | 'contextLength'
 
@@ -172,7 +172,7 @@ export interface MemoryFacts {
   usableBytes: number
   usableSource: string
   cacheType?: string
-  models: Array<{ name: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; loadedBytes?: number; loadedWindow?: number }>
+  models: Array<{ name: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; loadedBytes?: number; loadedWindow?: number; loadedSlots?: number }>
 }
 
 export function memoryFactsOf(truth: LocalServerTruth | null): MemoryFacts {
@@ -188,6 +188,7 @@ export function memoryFactsOf(truth: LocalServerTruth | null): MemoryFacts {
       ...(model.trainedContext !== undefined ? { trainedMax: model.trainedContext } : {}),
       ...(loaded?.sizeBytes !== undefined ? { loadedBytes: loaded.sizeBytes } : {}),
       ...(loaded?.contextLength !== undefined ? { loadedWindow: loaded.contextLength } : {}),
+      ...(loaded !== undefined ? { loadedSlots: serverSlotsOf(truth) } : {}),
     })
   }
   return { machineBytes: truth?.machine.totalMemoryBytes ?? 0, usableBytes: truth?.machine.usableMemoryBytes ?? truth?.machine.totalMemoryBytes ?? 0, usableSource: truth?.machine.usableSource ?? 'total memory', ...(cacheType ? { cacheType } : {}), models }
@@ -268,6 +269,9 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
     const projected = projectLoad(model, chosen.window, chosen.slots, facts.cacheType)
     return `${model.name} ${gibWords(projected.totalBytes)}`
   })
-  const biggest = facts.models.map(model => `${model.name} ${tokensWords(fitLocalWindow({ ...model, machineBytes: facts.machineBytes, usableBytes: facts.usableBytes, slots: chosen.slots, ...(facts.cacheType !== undefined ? { cacheType: facts.cacheType } : {}) }).window)}`)
+  const biggest = facts.models.map(model => {
+    const measured = model.loadedBytes !== undefined && model.loadedWindow !== undefined ? { bytes: model.loadedBytes, window: model.loadedWindow, ...(model.loadedSlots !== undefined ? { slots: model.loadedSlots } : {}) } : undefined
+    return `${model.name} ${tokensWords(fitLocalWindow({ ...model, machineBytes: facts.machineBytes, usableBytes: facts.usableBytes, slots: chosen.slots, ...(facts.cacheType !== undefined ? { cacheType: facts.cacheType } : {}), ...(measured !== undefined ? { measured } : {}) }).window)}`
+  })
   return `the window a request gets when it names none; a bigger window costs cache per slot · at ${tokensWords(chosen.window)} with ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'}: ${fits.length ? fits.join(', ') : 'no model geometry read'} (before the runner's buffers) of ${usable} usable${biggest.length ? ` · the biggest window that fits each alone (auto's rule): ${biggest.join(', ')}` : ''} · a model's own window setting outranks this · ←/→ move it`
 }

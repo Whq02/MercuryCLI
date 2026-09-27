@@ -179,7 +179,7 @@ section('2 · first send under the auto default (nothing set): the request rides
   check('the chat request carries options.num_ctx = the chosen window (128k), num_batch 2048 and truncate:false', chat !== undefined && numCtxOf(chat) === AUTO_62K && (chat.body.options as { num_batch?: number }).num_batch === 2048 && chat.body.truncate === false && chat.body.stream === true, JSON.stringify(chat?.body.options))
   check('the ≈62k-token request was SENT — no refusal, the reply settled', outcome.error === undefined && outcome.texts.some(t => t.includes('pong')), outcome.error ?? outcome.texts.join('|'))
   check('then /api/ps confirmed the served figure (after the chat, never before)', chat !== undefined && ps !== undefined && hits.includes(chat) && hits.includes(ps) && hits.indexOf(chat) < hits.indexOf(ps), shape(hits))
-  check('the record holds the SERVED figure the server stated for that load (131072, served, loaded)', record().contextWindow?.tokens === 131072 && record().contextWindow?.source === 'served' && record().loaded === true, JSON.stringify(record().contextWindow))
+  check('the record holds the SERVED figure the server stated for that load (131072, served, loaded) and the measured size /api/ps reported beside it (11.4 GB — the figure the fit trusts over the formula)', record().contextWindow?.tokens === 131072 && record().contextWindow?.source === 'served' && record().loaded === true && record().servedBytes === 11400000000, JSON.stringify({ window: record().contextWindow, bytes: record().servedBytes }))
   check('the window is HELD for the session (auto → 128k)', heldLocalWindow(record())?.window === AUTO_62K && heldLocalWindow(record())?.setting === undefined)
   check('the catalogue epoch bumped (surfaces re-derive the window)', catalogueEpoch() > epochBefore)
   check('the budget now reads the served figure live-current', resolveContextWindow(PERSISTED).effectiveWindow === 131072 && resolveContextWindow(PERSISTED).source === 'live-current', JSON.stringify(resolveContextWindow(PERSISTED)))
@@ -247,7 +247,7 @@ section('8 · staleness under "server": a snapshot older than the TTL is re-read
   resetWorld({ loaded: true, setting: 'server' })
   const past = Date.now() - LOCAL_DISCOVERY_TTL_MS - 60_000
   await refreshLocalDiscovery({ force: true, now: () => past })
-  check('discovery saw the model loaded at 262144 (served)', record().contextWindow?.tokens === 262144 && record().contextWindow?.source === 'served')
+  check('discovery saw the model loaded at 262144 (served) with its measured size', record().contextWindow?.tokens === 262144 && record().contextWindow?.source === 'served' && record().servedBytes === 11400000000)
   state.serverDefault = 131072
   state.loadedCtx = 131072
   const from = state.hits.length

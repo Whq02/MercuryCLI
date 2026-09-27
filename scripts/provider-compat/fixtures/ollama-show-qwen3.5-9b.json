@@ -1,0 +1,121 @@
+{
+  "capabilities": [
+    "completion",
+    "vision",
+    "tools",
+    "thinking"
+  ],
+  "details": {
+    "parent_model": "",
+    "format": "gguf",
+    "family": "qwen35",
+    "families": [
+      "qwen35"
+    ],
+    "parameter_size": "9.7B",
+    "quantization_level": "Q4_K_M"
+  },
+  "parameters": "temperature                    1\ntop_k                          20\ntop_p                          0.95\npresence_penalty               1.5",
+  "model_info": {
+    "general.architecture": "qwen35",
+    "general.file_type": 15,
+    "general.parameter_count": 9653104368,
+    "general.quantization_version": 2,
+    "qwen35.attention.head_count": 16,
+    "qwen35.attention.head_count_kv": [
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4,
+      0,
+      0,
+      0,
+      4
+    ],
+    "qwen35.attention.key_length": 256,
+    "qwen35.attention.layer_norm_rms_epsilon": 1e-06,
+    "qwen35.attention.value_length": 256,
+    "qwen35.block_count": 32,
+    "qwen35.context_length": 262144,
+    "qwen35.embedding_length": 4096,
+    "qwen35.feed_forward_length": 12288,
+    "qwen35.full_attention_interval": 4,
+    "qwen35.image_token_id": 248056,
+    "qwen35.mrope_sections": [
+      11,
+      11,
+      10
+    ],
+    "qwen35.rope.dimension_count": 64,
+    "qwen35.rope.dimension_sections": [
+      11,
+      11,
+      10
+    ],
+    "qwen35.rope.freq_base": 10000000,
+    "qwen35.rope.mrope_interleaved": true,
+    "qwen35.rope.mrope_section": [
+      11,
+      11,
+      10
+    ],
+    "qwen35.ssm.conv_kernel": 4,
+    "qwen35.ssm.group_count": 16,
+    "qwen35.ssm.inner_size": 4096,
+    "qwen35.ssm.state_size": 128,
+    "qwen35.ssm.time_step_rank": 32,
+    "qwen35.ssm.v_head_reordered": true,
+    "qwen35.vision.attention.head_count": 16,
+    "qwen35.vision.block_count": 27,
+    "qwen35.vision.embedding_length": 1152,
+    "qwen35.vision.image_mean": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "qwen35.vision.image_std": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "qwen35.vision.longest_edge": 16777216,
+    "qwen35.vision.num_channels": 3,
+    "qwen35.vision.patch_size": 16,
+    "qwen35.vision.shortest_edge": 65536,
+    "qwen35.vision.spatial_merge_size": 2,
+    "qwen35.vision.temporal_patch_size": 2,
+    "qwen35.vision_end_token_id": 248054,
+    "qwen35.vision_start_token_id": 248053,
+    "tokenizer.ggml.add_eos_token": false,
+    "tokenizer.ggml.add_padding_token": false,
+    "tokenizer.ggml.eos_token_id": 248046,
+    "tokenizer.ggml.model": "gpt2",
+    "tokenizer.ggml.padding_token_id": 248044,
+    "tokenizer.ggml.pre": "qwen35"
+  },
+  "requires": "0.17.1"
+}
