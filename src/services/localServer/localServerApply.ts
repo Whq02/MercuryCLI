@@ -1,6 +1,7 @@
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { LOCAL_SERVER_KNOBS, settingsAsEnv, type LocalServerSettings } from './localServerKnobs.js'
+import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf, settingsAsEnv, type FitVerdict, type LocalServerSettings } from './localServerKnobs.js'
+import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { resolveLocalServerIo, type LaunchFormKind, type LocalServerIo, type LocalServerTruth } from './localServerTruth.js'
 
 export interface LocalServerChange {
@@ -14,17 +15,26 @@ export interface LocalServerRestart {
   words: string
 }
 
+export const APP_NAME = 'Ollama'
+export const APP_QUIT_ARGV = ['osascript', '-e', `tell application "${APP_NAME}" to quit`]
+export const APP_OPEN_ARGV = ['open', '-a', APP_NAME]
+export const APP_CLOSE_WAIT_MS = 20_000
+export const APP_UP_WAIT_MS = 60_000
+export const APP_POLL_MS = 500
+
 export type LocalServerApplyPlan =
   | { kind: 'nothing'; form: LaunchFormKind; changes: LocalServerChange[]; note: string }
-  | { kind: 'restart'; form: LaunchFormKind; path: string; changes: LocalServerChange[]; restart: LocalServerRestart; note: string }
+  | { kind: 'refused'; form: LaunchFormKind; changes: LocalServerChange[]; fit: FitVerdict; note: string }
+  | { kind: 'restart'; form: LaunchFormKind; path: string; root?: string; changes: LocalServerChange[]; restart: LocalServerRestart; note: string }
   | { kind: 'write'; form: LaunchFormKind; path: string; backupPath: string; before: string; after: string; changes: LocalServerChange[]; lines: string[]; restart: LocalServerRestart; note: string }
+  | { kind: 'app'; form: 'app'; root: string; changes: LocalServerChange[]; previous: Record<string, string | undefined>; lines: string[]; steps: string[]; revert: string[]; restart: LocalServerRestart; note: string }
   | { kind: 'by-hand'; form: LaunchFormKind; changes: LocalServerChange[]; lines: string[]; note: string }
 
 export type LocalServerApplyOutcome =
   | { outcome: 'refused'; reason: string }
   | { outcome: 'stale'; reason: string }
-  | { outcome: 'failed'; reason: string; backupPath?: string }
-  | { outcome: 'applied'; backupPath?: string; restarted: boolean; restartWords: string }
+  | { outcome: 'failed'; reason: string; backupPath?: string; revert?: string[] }
+  | { outcome: 'applied'; backupPath?: string; restarted: boolean; restartWords: string; revert?: string[] }
 
 const PLIST_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
 
@@ -167,6 +177,12 @@ export function byHandLines(form: LaunchFormKind, desired: Record<string, string
   return [`${names.map(name => `${name}=${desired[name]!}`).join(' ')} ollama serve`]
 }
 
+export function appRevertLines(previous: Record<string, string | undefined>): string[] {
+  return Object.keys(previous)
+    .sort()
+    .map(name => (previous[name] === undefined ? `launchctl unsetenv ${name}` : `launchctl setenv ${name} ${previous[name]!}`))
+}
+
 export function planLocalServerApply(truth: LocalServerTruth, settings: LocalServerSettings, seam: LocalServerIo = {}): LocalServerApplyPlan {
   const io = resolveLocalServerIo(seam)
   const desired = settingsAsEnv(settings)
@@ -175,8 +191,33 @@ export function planLocalServerApply(truth: LocalServerTruth, settings: LocalSer
   if (Object.keys(desired).length === 0) return { kind: 'nothing', form: form.kind, changes: [], note: 'no knob is set; ←/→ on a knob row chooses a value first' }
   const fileChanges = changesBetween(form.env ?? {}, desired)
   const runningChanges = changesBetween(runningEnv, desired)
+  const fit = fitVerdict(memoryFactsOf(truth), chosenKnobs(truth, settings))
+  if (!fit.fits) return { kind: 'refused', form: form.kind, changes: runningChanges.length ? runningChanges : fileChanges, fit, note: fit.words }
   if (truth.server && truth.server.kind !== 'ollama') {
     return { kind: 'by-hand', form: 'unknown', changes: runningChanges, lines: byHandLines('unknown', desired), note: `${truth.server.label} takes these as start-up flags; Mercury shows the values, the server is started by hand` }
+  }
+  if (form.kind === 'app') {
+    const root = truth.server?.root ?? 'http://127.0.0.1:11434'
+    const restart: LocalServerRestart = { argv: [APP_QUIT_ARGV, APP_OPEN_ARGV], words: `${APP_QUIT_ARGV.join(' ')} · wait for ${root.replace(/^https?:\/\//, '')} to close · ${APP_OPEN_ARGV.join(' ')} · wait for /api/version` }
+    if (fileChanges.length === 0) {
+      if (runningChanges.length === 0 || !truth.process) return { kind: 'nothing', form: 'app', changes: [], note: `launchctl already carries every set value${truth.process ? ' and the running app has them' : ''}` }
+      return { kind: 'restart', form: 'app', path: 'launchctl setenv', root, changes: runningChanges, restart, note: 'launchctl already carries the values; the running app does not — quit and open it again' }
+    }
+    const previous: Record<string, string | undefined> = {}
+    for (const change of fileChanges) previous[change.name] = change.before
+    const lines = fileChanges.map(change => `launchctl setenv ${change.name} ${change.after}`)
+    return {
+      kind: 'app',
+      form: 'app',
+      root,
+      changes: fileChanges,
+      previous,
+      lines,
+      steps: [...lines, APP_QUIT_ARGV.join(' '), `wait for ${root.replace(/^https?:\/\//, '')} to close`, APP_OPEN_ARGV.join(' '), 'wait for /api/version to answer'],
+      revert: appRevertLines(previous),
+      restart,
+      note: 'launchctl setenv holds for this login session (the FAQ road for the app); the loaded models unload when the app restarts',
+    }
   }
   if (form.kind === 'launch-agent' || form.kind === 'homebrew') {
     if (!form.path) return { kind: 'by-hand', form: form.kind, changes: fileChanges, lines: byHandLines(form.kind, desired), note: form.note }
@@ -227,6 +268,8 @@ export interface LocalServerApplyIo {
   copyFile?: (from: string, to: string) => void
   run?: (file: string, args: string[]) => Promise<string | undefined>
   sleep?: (ms: number) => Promise<void>
+  probe?: (url: string) => Promise<boolean>
+  now?: () => number
 }
 
 function defaultWriteText(path: string, text: string): void {
@@ -242,10 +285,51 @@ function defaultReadText(path: string): string | undefined {
   }
 }
 
+async function defaultProbe(url: string): Promise<boolean> {
+  try {
+    const response = await fetchWithProviderDeadline(resolveLocalServerIo({}).fetchImpl, 'local', 900, url, { method: 'GET' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 export const RESTART_ATTEMPTS = 4
 export const RESTART_RETRY_MS = 1_500
 
+async function waitUntil(io: { sleep: (ms: number) => Promise<void>; now: () => number }, condition: () => Promise<boolean>, budgetMs: number): Promise<boolean> {
+  const deadline = io.now() + budgetMs
+  while (true) {
+    if (await condition()) return true
+    if (io.now() >= deadline) return false
+    await io.sleep(APP_POLL_MS)
+  }
+}
+
+type ApplyRuntime = { run: (file: string, args: string[]) => Promise<string | undefined>; sleep: (ms: number) => Promise<void>; probe: (url: string) => Promise<boolean>; now: () => number }
+
+async function restartApp(io: ApplyRuntime, root: string, words: string): Promise<{ restarted: boolean; restartWords: string }> {
+  const version = `${root}/api/version`
+  const quit = await io.run(APP_QUIT_ARGV[0]!, APP_QUIT_ARGV.slice(1))
+  if (quit === undefined) return { restarted: false, restartWords: `the variables are set; quitting ${APP_NAME} failed — quit and open the app by hand` }
+  const closed = await waitUntil(io, async () => !(await io.probe(version)), APP_CLOSE_WAIT_MS)
+  if (!closed) return { restarted: false, restartWords: `the variables are set; ${APP_NAME} did not close within ${APP_CLOSE_WAIT_MS / 1000} s — quit and open the app by hand` }
+  const opened = await io.run(APP_OPEN_ARGV[0]!, APP_OPEN_ARGV.slice(1))
+  if (opened === undefined) return { restarted: false, restartWords: `the variables are set and ${APP_NAME} quit; open -a ${APP_NAME} failed — open the app by hand` }
+  const up = await waitUntil(io, () => io.probe(version), APP_UP_WAIT_MS)
+  return { restarted: up, restartWords: up ? words : `the variables are set and ${APP_NAME} was opened; /api/version has not answered within ${APP_UP_WAIT_MS / 1000} s — it may still be starting` }
+}
+
+async function applyAppPlan(plan: Extract<LocalServerApplyPlan, { kind: 'app' }>, io: ApplyRuntime): Promise<LocalServerApplyOutcome> {
+  for (const change of plan.changes) {
+    const set = await io.run('launchctl', ['setenv', change.name, change.after])
+    if (set === undefined) return { outcome: 'failed', reason: `launchctl setenv ${change.name} failed; nothing restarted`, revert: plan.revert }
+  }
+  return { outcome: 'applied', ...(await restartApp(io, plan.root, plan.restart.words)), revert: plan.revert }
+}
+
 export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmation: { confirmed: boolean }, seam: LocalServerApplyIo = {}): Promise<LocalServerApplyOutcome> {
+  if (plan.kind === 'refused') return { outcome: 'refused', reason: plan.fit.words }
   if (confirmation.confirmed !== true) return { outcome: 'refused', reason: 'not confirmed: nothing was written and nothing restarted' }
   if (plan.kind === 'nothing') return { outcome: 'refused', reason: plan.note }
   if (plan.kind === 'by-hand') return { outcome: 'refused', reason: `Mercury cannot write this launch form: ${plan.note}` }
@@ -255,7 +339,11 @@ export async function applyLocalServerPlan(plan: LocalServerApplyPlan, confirmat
     copyFile: seam.copyFile ?? ((from: string, to: string) => copyFileSync(from, to)),
     run: seam.run ?? resolveLocalServerIo({}).run,
     sleep: seam.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))),
+    probe: seam.probe ?? defaultProbe,
+    now: seam.now ?? Date.now,
   }
+  if (plan.kind === 'app') return applyAppPlan(plan, io)
+  if (plan.kind === 'restart' && plan.form === 'app') return { outcome: 'applied', ...(await restartApp(io, plan.root ?? 'http://127.0.0.1:11434', plan.restart.words)) }
   let backupPath: string | undefined
   if (plan.kind === 'write') {
     const onDisk = io.readText(plan.path)
@@ -292,7 +380,9 @@ export function planWords(plan: LocalServerApplyPlan): string {
   const count = plan.changes.length
   const change = `${count} change${count === 1 ? '' : 's'}`
   if (plan.kind === 'nothing') return plan.note
+  if (plan.kind === 'refused') return `${plan.fit.short} — ${FIT_REMEDY}`
   if (plan.kind === 'restart') return `${change} — a restart applies them · → reviews`
   if (plan.kind === 'by-hand') return `${change} by hand — → shows the lines`
+  if (plan.kind === 'app') return `${change} + the app restarts · → reviews the lines first`
   return `${change} + a restart · → reviews the file before anything is written`
 }

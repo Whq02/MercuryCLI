@@ -487,6 +487,38 @@ naming the family; an unchanged list stays quiet. A family with no credential,
 or with catalogue traffic switched off, sends nothing. The retry action shares
 any refresh already in flight.
 
+A local server has knobs of its own that no request can set: how many models
+it keeps loaded at once, how many requests one loaded model answers at once,
+how long an idle model stays loaded, and the context length a request gets
+when it names none. On Ollama they are `OLLAMA_MAX_LOADED_MODELS`,
+`OLLAMA_NUM_PARALLEL`, `OLLAMA_KEEP_ALIVE` and `OLLAMA_CONTEXT_LENGTH` in the
+server's environment (its FAQ documents 3 per GPU, 1, 5m and 4096 when
+unset). `/config` shows them under the Local account row beside the live
+truth: the server and its version, the loaded models with their windows and
+memory from `/api/ps`, the runner's slot count and context from its command
+line, and the launch form Mercury found — a launch agent plist, the Homebrew
+plist, the Ollama app, a systemd override, Windows, or unknown. Each knob row
+is a Mercury setting (`localServer` in the user settings) with the memory
+arithmetic beside it, read from the model geometry `/api/show` states: a
+slot costs a full window of cache, so one loaded copy with several slots
+serves a swarm where several copies would not fit. The ceiling the
+arithmetic measures against is the usable memory the server itself states —
+the `gpu memory … available` line in its log when Mercury can read it, else
+`iogpu.wired_limit_mb` when set, else about three quarters of unified memory
+on macOS, else the box's total — and the row names which. A choice whose
+projected load (the largest models the count allows, each at the chosen
+window with the chosen slots) does not fit is refused in red with the
+figures on the knob rows and on the Apply row, which then has no door: nothing
+is applied until the choice fits. Nothing reaches the server until the Apply
+row's review is confirmed: for a launch agent or a systemd override the
+review names the file, the exact lines that change, the backup written beside
+the file and the restart command; for the Ollama app it names one `launchctl
+setenv` line per changed knob with the previous value, the quit, the wait for
+the port to close, the `open -a Ollama` and the wait for `/api/version`, and
+the revert lines (the FAQ's road for the app); `↵` applies, `esc` leaves
+everything as it was. On Windows, or where Mercury may not write the file,
+the review shows the values to set by hand.
+
 ## Web search
 
 The web-search estate is one provider-neutral contract and TWO tools under
