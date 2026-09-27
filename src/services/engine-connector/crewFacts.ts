@@ -9,7 +9,7 @@ import { operatorPauseWaitParts, pauseGateChipWords } from '../../run-core/pause
 
 export type CrewAgentKind = 'agent' | 'named'
 
-export type CrewAgentState = 'running' | 'paused' | 'landed' | 'stopped' | 'interrupted' | 'failed'
+export type CrewAgentState = 'running' | 'idle' | 'paused' | 'landed' | 'stopped' | 'interrupted' | 'failed'
 
 export const CREW_INTERRUPTED_BY_OPERATOR_WORDS = 'interrupted by the operator on its screen'
 
@@ -69,8 +69,8 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, context, input: null, output: null }
 }
 
-export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason'>): CrewAgentState {
-  if (workRowRuns(row as WorkRowV1)) return 'running'
+export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason' | 'idle'>): CrewAgentState {
+  if (workRowRuns(row as WorkRowV1)) return row.idle === true ? 'idle' : 'running'
   if (decodeAgentPause(row.paused) !== null) return 'paused'
   switch (row.status) {
     case 'failed':
@@ -191,7 +191,7 @@ export function crewWaitHolders(facts: CrewAgentFacts): string | null {
 }
 
 export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
-  if (!facts.running) return null
+  if (!facts.running || facts.state === 'idle') return null
   return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
 }
 

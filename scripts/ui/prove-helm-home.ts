@@ -125,8 +125,8 @@ check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
   /runsAll\.length === 0 &&/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
   /useNowTick\(\s*mergedTelemetry \|\| runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
-check('CREW: running agent rows rotate too (one liveness grammar; the viewed ◉ and main-chat ★ marks stand still)',
-  /glyphLive=\{c\.status === 'running' && !isViewing && !isMainChat\}/.test(lanes))
+check('CREW: running agent rows rotate too (one liveness grammar; an idle teammate, the viewed ◉ and main-chat ★ marks stand still)',
+  /glyphLive=\{c\.status === 'running' && !idle && !isViewing && !isMainChat\}/.test(lanes))
 
 check('telemetry rail renders the ctx-fill gauge (getLiveContextUsage)',
   /getLiveContextUsage/.test(telemetry) && /ctx /.test(telemetry))
