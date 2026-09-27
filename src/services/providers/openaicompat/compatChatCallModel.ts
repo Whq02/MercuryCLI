@@ -73,7 +73,8 @@ import {
   type CompatUsage,
 } from './compatChatClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
-import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
+import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
+import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
@@ -749,6 +750,10 @@ async function* streamOneCompatAttempt(ctx: {
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },
   }
+  if (profile.lane === 'local') {
+    const law = localStreamLawFor({ wireModel: request.model, cold: streamOptions.firstByte!.cold, promptTokens: streamOptions.firstByte!.promptTokens })
+    if (law !== undefined) streamOptions.local = law
+  }
   const transport = profile.streamTransport?.(streamOptions, ctx.preparedMessages)
   const events = transport?.events ?? streamCompatChat(streamOptions)
   for await (const event of events) {
@@ -806,7 +811,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   const nothingYielded = !messageStarted && minted.length === 0
   if (fault && nothingYielded && !finish) {
-    return { kind: 'fault', fault, retryEligible: true }
+    return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
   }
   const typedEnd =
     fault !== undefined && !finish
@@ -849,6 +854,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
   for (const refusal of refused) {
     const note = toolCallRefusalNote(profile.lane, refusal)
+    logForDebugging(`[compat:${profile.lane}] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
     yield* emitSettledBlock(
       { type: 'text', text: note, citations: null },
       [{ type: 'text_delta', text: note }],

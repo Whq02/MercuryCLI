@@ -9,14 +9,33 @@ import {
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
+  REAL_STREAM_TIMERS,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
   streamIdleFaultWords,
+  streamIdleWarningMsOf,
   type RequestWaitV1,
   type StreamIdleWatchdog,
+  type StreamTimers,
 } from '../streamIdleBudget.js'
+import {
+  LOCAL_CAP_CODE,
+  LOCAL_DEAD_SERVER_CODE,
+  LOCAL_LIVENESS_RECHECK_MS,
+  LOCAL_LOADING_POLL_MS,
+  localCapLine,
+  localDeadServerLine,
+  localPromiseExtensionMs,
+  startLocalLivenessLoop,
+  type LocalLivenessLoop,
+  type LocalStreamLaw,
+} from '../localLiveness.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
+
+function unrefTimer(handle: unknown): void {
+  ;(handle as { unref?: () => void } | null | undefined)?.unref?.()
+}
 
 
 export interface CompatMessage {
@@ -183,6 +202,92 @@ export interface CompatStreamOptions {
   }
   extraHeaders?: Record<string, string>
   onResponseHeaders?: (headers: Headers, status?: number) => void
+  timers?: StreamTimers
+  local?: LocalStreamLaw
+}
+
+interface LocalSilenceWatch {
+  noteActivity(): void
+  stop(): void
+}
+
+function startLocalSilenceWatch(args: {
+  timers: StreamTimers
+  idleMs: number
+  probe(): Promise<boolean>
+  onWarning(silentMs: number, sinceMs: number): void
+  onAlive(silentMs: number, sinceMs: number): void
+  onResume(): void
+  onDead(silentMs: number, unansweredMs: number): void
+}): LocalSilenceWatch {
+  const { timers, idleMs } = args
+  const warnAtMs = streamIdleWarningMsOf(idleMs)
+  let lastActivityAt = timers.now()
+  let warned = false
+  let stopped = false
+  let handle: unknown = null
+  let loop: LocalLivenessLoop | null = null
+  function arm(): void {
+    if (stopped || handle !== null) return
+    const nextAt = lastActivityAt + (!warned && warnAtMs < idleMs ? warnAtMs : idleMs)
+    handle = timers.setTimeout(onLocalSilenceDue, Math.max(0, nextAt - timers.now()))
+  }
+  function onLocalSilenceDue(): void {
+    handle = null
+    if (stopped || loop !== null) return
+    const silent = timers.now() - lastActivityAt
+    if (silent < idleMs) {
+      if (!warned && silent >= warnAtMs) {
+        warned = true
+        args.onWarning(silent, lastActivityAt)
+      }
+      arm()
+      return
+    }
+    const sinceMs = lastActivityAt
+    loop = startLocalLivenessLoop({
+      timers,
+      dueMs: 0,
+      probe: args.probe,
+      onAlive: () => {
+        if (stopped) return null
+        if (lastActivityAt !== sinceMs) {
+          loop = null
+          arm()
+          return null
+        }
+        args.onAlive(timers.now() - lastActivityAt, lastActivityAt)
+        return LOCAL_LIVENESS_RECHECK_MS
+      },
+      onDead: (_elapsed, unansweredMs) => {
+        if (stopped) return
+        stopped = true
+        args.onDead(timers.now() - lastActivityAt, unansweredMs)
+      },
+    })
+  }
+  arm()
+  return {
+    noteActivity() {
+      lastActivityAt = timers.now()
+      if (warned || loop !== null) {
+        warned = false
+        loop?.stop()
+        loop = null
+        args.onResume()
+        arm()
+      }
+    },
+    stop() {
+      stopped = true
+      loop?.stop()
+      loop = null
+      if (handle !== null) {
+        timers.clearTimeout(handle)
+        handle = null
+      }
+    },
+  }
 }
 
 interface ToolCallAccumulator {
@@ -239,13 +344,22 @@ export async function* streamCompatChat(
   options: CompatStreamOptions,
 ): AsyncGenerator<CompatStreamEvent> {
   const { request } = options
+  const timers = options.timers ?? REAL_STREAM_TIMERS
+  const local = options.local
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
-  const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
-  totalTimer.unref?.()
+  const requestStartedAt = timers.now()
+  const cut: { dead: { unansweredMs: number } | null; cap: boolean } = { dead: null, cap: false }
+  const totalTimer = timers.setTimeout(() => {
+    cut.cap = true
+    controller.abort()
+  }, local !== undefined ? local.capMs : TOTAL_TIMEOUT_MS)
+  unrefTimer(totalTimer)
   let idleWatchdog: StreamIdleWatchdog | null = null
+  let silenceWatch: LocalSilenceWatch | null = null
+  let ingestMs: number | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
   let finished = false
@@ -253,27 +367,94 @@ export async function* streamCompatChat(
 
   try {
     let response: Response
-    const firstByteBudget = firstByteBudgetMs({
-      cold: options.firstByte?.cold === true,
-      promptTokens: options.firstByte?.promptTokens ?? 0,
-      idleMs: idleMs,
-    })
+    const firstByteBudget =
+      local !== undefined
+        ? local.promiseMs
+        : firstByteBudgetMs({
+            cold: options.firstByte?.cold === true,
+            promptTokens: options.firstByte?.promptTokens ?? 0,
+            idleMs: idleMs,
+          })
     const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
       kind: 'first-byte',
       cold: options.firstByte?.cold === true,
       promptTokens: options.firstByte?.promptTokens ?? 0,
-      model: options.firstByte?.model ?? 'the model',
+      model: options.firstByte?.model ?? local?.wireModel ?? 'the model',
       budgetMs: firstByteBudget,
-      sinceMs: Date.now(),
+      sinceMs: timers.now(),
       attempt: options.firstByte?.attempt ?? 1,
+      ...(local !== undefined ? { promise: true } : {}),
     }
-    options.firstByte?.onWait?.(wait)
+    const publish = (next: RequestWaitV1 | null): void => options.firstByte?.onWait?.(next)
+    publish(wait)
     let firstByteFired = false
-    const firstByteTimer = setTimeout(() => {
-      firstByteFired = true
-      controller.abort()
-    }, firstByteBudget)
-    firstByteTimer.unref?.()
+    let firstByteTimer: unknown = null
+    let headersLanded = false
+    let ingestStartedAt = timers.now()
+    let promiseLoop: LocalLivenessLoop | null = null
+    let loadingHandle: unknown = null
+    const stopIngestWatch = (): void => {
+      promiseLoop?.stop()
+      promiseLoop = null
+      if (loadingHandle !== null) {
+        timers.clearTimeout(loadingHandle)
+        loadingHandle = null
+      }
+    }
+    if (local === undefined) {
+      firstByteTimer = timers.setTimeout(() => {
+        firstByteFired = true
+        controller.abort()
+      }, firstByteBudget)
+      unrefTimer(firstByteTimer)
+    } else {
+      const law = local
+      let promisedMs = law.promiseMs
+      const startPromiseLoop = (): void => {
+        promiseLoop?.stop()
+        promiseLoop = startLocalLivenessLoop({
+          timers,
+          dueMs: ingestStartedAt + promisedMs - timers.now(),
+          probe: () => law.seam.probe(),
+          onAlive: () => {
+            if (headersLanded) return null
+            const sinceIngest = timers.now() - ingestStartedAt
+            const extension = localPromiseExtensionMs(law.promiseMs)
+            promisedMs = sinceIngest + extension
+            publish({ ...wait, sinceMs: ingestStartedAt, budgetMs: promisedMs, checkedMs: sinceIngest })
+            return extension
+          },
+          onDead: (_elapsed, unansweredMs) => {
+            if (headersLanded) return
+            cut.dead = { unansweredMs }
+            controller.abort()
+          },
+        })
+      }
+      const watchLoading = async (): Promise<void> => {
+        let isLoaded: boolean | null = law.loadedAtSend === false ? false : await law.seam.loaded()
+        if (headersLanded || isLoaded !== false) return
+        stopIngestWatch()
+        const sizeGb = await law.seam.sizeGb()
+        if (headersLanded) return
+        publish({ ...wait, phase: 'loading', ...(sizeGb !== undefined ? { sizeGb } : {}) })
+        while (!headersLanded && isLoaded === false) {
+          await new Promise<void>(resolve => {
+            loadingHandle = timers.setTimeout(resolve, LOCAL_LOADING_POLL_MS)
+          })
+          loadingHandle = null
+          if (headersLanded) return
+          isLoaded = await law.seam.loaded()
+        }
+        if (headersLanded) return
+        ingestStartedAt = timers.now()
+        promisedMs = law.promiseMs
+        publish({ ...wait, sinceMs: ingestStartedAt, budgetMs: promisedMs })
+        startPromiseLoop()
+      }
+      if (law.loadedAtSend !== false) startPromiseLoop()
+      void watchLoading().catch(() => undefined)
+    }
     try {
       const fetchImpl = options.fetchImpl ?? getApiFetch()
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
@@ -292,8 +473,24 @@ export async function* streamCompatChat(
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
-      clearTimeout(firstByteTimer)
+      headersLanded = true
+      if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
+      stopIngestWatch()
       const cancelled = options.signal?.aborted === true
+      if (!cancelled && local !== undefined && cut.dead !== null) {
+        yield {
+          type: 'stream-fault',
+          fault: { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'ingesting'), retryable: false },
+        }
+        return
+      }
+      if (!cancelled && local !== undefined && cut.cap) {
+        yield {
+          type: 'stream-fault',
+          fault: { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'ingesting'), retryable: false },
+        }
+        return
+      }
       if (!cancelled && firstByteFired) {
         yield {
           type: 'stream-fault',
@@ -317,12 +514,15 @@ export async function* streamCompatChat(
       return
     }
 
+    headersLanded = true
+    ingestMs = timers.now() - ingestStartedAt
     try {
       options.onResponseHeaders?.(response.headers, response.status)
     } catch {
     }
-    clearTimeout(firstByteTimer)
-    options.firstByte?.onWait?.(null)
+    if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
+    stopIngestWatch()
+    publish(null)
 
     if (!response.ok) {
       let body: unknown
@@ -344,15 +544,31 @@ export async function* streamCompatChat(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs }) : null
     idleWatchdog = watchdog
+    if (local !== undefined) {
+      const law = local
+      silenceWatch = startLocalSilenceWatch({
+        timers,
+        idleMs,
+        probe: () => law.seam.probe(),
+        onWarning: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: false, askAtMs: idleMs }),
+        onAlive: (silentMs, sinceMs) => publish({ kind: 'silence', model: wait.model, silentMs, sinceMs, answered: true }),
+        onResume: () => publish(null),
+        onDead: (_silentMs, unansweredMs) => {
+          cut.dead = { unansweredMs }
+          controller.abort()
+        },
+      })
+    }
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
-        chunk = await watchdog.guard(reader.read())
-        watchdog.noteActivity()
+        chunk = await (watchdog !== null ? watchdog.guard(reader.read()) : reader.read())
+        watchdog?.noteActivity()
+        silenceWatch?.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
@@ -360,14 +576,18 @@ export async function* streamCompatChat(
           type: 'stream-fault',
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
-            : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-              : {
-                  kind: 'transport-error',
-                  code: 'read-failed',
-                  message: error instanceof Error ? error.message : String(error),
-                  retryable: true,
-                },
+            : local !== undefined && cut.dead !== null
+              ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
+              : local !== undefined && cut.cap
+                ? { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'writing'), retryable: false }
+                : isIdle
+                  ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+                  : {
+                      kind: 'transport-error',
+                      code: 'read-failed',
+                      message: error instanceof Error ? error.message : String(error),
+                      retryable: true,
+                    },
         }
         void reader.cancel().catch(() => {})
         return
@@ -433,6 +653,13 @@ export async function* streamCompatChat(
           if (event.type === 'stream-fault') {
             finished = true
           }
+          if (event.type === 'usage' && local !== undefined && ingestMs !== null) {
+            try {
+              local.noteTurn({ promptTokens: event.usage.inputTokens, cachedTokens: event.usage.cachedInputTokens, ingestMs })
+            } catch {
+              ingestMs = null
+            }
+          }
           yield event
         }
       }
@@ -451,8 +678,9 @@ export async function* streamCompatChat(
       }
     }
   } finally {
-    clearTimeout(totalTimer)
+    timers.clearTimeout(totalTimer)
     idleWatchdog?.stop()
+    silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
   }

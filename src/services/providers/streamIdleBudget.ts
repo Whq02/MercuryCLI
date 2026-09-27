@@ -31,10 +31,23 @@ export function streamIdleTimeoutMsForRoute(route: string | null): number {
     case 'openai-compat':
       return currentPatience().numbers.streamIdleMs
     case 'openai':
+    case 'local':
       return currentPatience().numbers.quietStreamIdleMs
     default:
       return STREAM_IDLE_DEFAULT_MS
   }
+}
+
+export interface StreamTimers {
+  now(): number
+  setTimeout(fn: () => void, ms: number): unknown
+  clearTimeout(handle: unknown): void
+}
+
+export const REAL_STREAM_TIMERS: StreamTimers = {
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
 }
 
 
@@ -81,6 +94,10 @@ export type RequestWaitV1 =
       budgetMs: number
       sinceMs: number
       attempt: number
+      promise?: boolean
+      phase?: 'loading'
+      sizeGb?: number
+      checkedMs?: number
     }
   | {
       kind: 'retry'
@@ -89,6 +106,14 @@ export type RequestWaitV1 =
       reason: string
       delayMs: number
       sinceMs: number
+    }
+  | {
+      kind: 'silence'
+      model: string
+      silentMs: number
+      sinceMs: number
+      answered: boolean
+      askAtMs?: number
     }
 
 const seconds = (ms: number): string => {
@@ -103,7 +128,24 @@ export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
     if (outageCauseWordsOf(wait.reason) !== undefined) return `reconnecting — reconnect ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
     return `retrying — attempt ${wait.attempt} of ${wait.of} after ${wait.reason}${delay}`
   }
+  if (wait.kind === 'silence') {
+    const quiet = `no bytes for ${seconds(wait.silentMs)}`
+    if (compact) return wait.answered ? `${quiet} — the server still answers` : `${quiet} — the server is asked at ${seconds(wait.askAtMs ?? wait.silentMs)}`
+    return wait.answered ? `${quiet} — ${wait.model}'s server still answers` : `${quiet} — ${wait.model}'s server is asked at ${seconds(wait.askAtMs ?? wait.silentMs)}`
+  }
   const again = wait.attempt > 1 ? ` (attempt ${wait.attempt})` : ''
+  if (wait.phase === 'loading') return `loading ${wait.model}${wait.sizeGb !== undefined && !compact ? ` (${wait.sizeGb} GB)` : ''}${again}`
+  if (wait.promise === true) {
+    const prompt = compact ? 'prompt' : `a ${kTokens(wait.promptTokens)} prompt on ${wait.model}`
+    if (wait.checkedMs !== undefined) {
+      const more = seconds(Math.max(1000, wait.budgetMs - wait.checkedMs))
+      const answered = compact ? '' : ` (its server answered at ${seconds(wait.checkedMs)})`
+      return wait.cold ? `still ingesting ${prompt} — about ${more} more${answered}${again}` : `still waiting for the first byte from ${compact ? 'the model' : wait.model} — about ${more} more${answered}${again}`
+    }
+    return wait.cold
+      ? `ingesting ${prompt} — first byte expected in about ${seconds(wait.budgetMs)}${again}`
+      : `waiting for the first byte from ${compact ? 'the model' : wait.model} — expected in about ${seconds(wait.budgetMs)}${again}`
+  }
   if (compact) return `${wait.cold ? 'ingesting prompt' : 'waiting'} — first byte within ${seconds(wait.budgetMs)}${again}`
   return wait.cold
     ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — first byte expected within ${seconds(wait.budgetMs)}${again}`
@@ -125,6 +167,8 @@ export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
     const budgetMs = num(w.budgetMs)
     const sinceMs = num(w.sinceMs)
     if (typeof w.model !== 'string' || promptTokens === null || budgetMs === null || sinceMs === null) return null
+    const sizeGb = num(w.sizeGb)
+    const checkedMs = num(w.checkedMs)
     return {
       kind: 'first-byte',
       cold: w.cold === true,
@@ -133,7 +177,18 @@ export function decodeRequestWait(raw: unknown): RequestWaitV1 | null {
       budgetMs,
       sinceMs,
       attempt: num(w.attempt) ?? 1,
+      ...(w.promise === true ? { promise: true } : {}),
+      ...(w.phase === 'loading' ? { phase: 'loading' as const } : {}),
+      ...(sizeGb !== null ? { sizeGb } : {}),
+      ...(checkedMs !== null ? { checkedMs } : {}),
     }
+  }
+  if (w.kind === 'silence') {
+    const silentMs = num(w.silentMs)
+    const sinceMs = num(w.sinceMs)
+    if (typeof w.model !== 'string' || silentMs === null || sinceMs === null) return null
+    const askAtMs = num(w.askAtMs)
+    return { kind: 'silence', model: w.model.slice(0, 120), silentMs, sinceMs, answered: w.answered === true, ...(askAtMs !== null ? { askAtMs } : {}) }
   }
   if (w.kind === 'retry') {
     const attempt = num(w.attempt)
@@ -150,6 +205,10 @@ const WAIT_WIRE_KEYS: Readonly<Record<string, string>> = {
   budgetMs: 'budget_ms',
   sinceMs: 'since_ms',
   delayMs: 'delay_ms',
+  sizeGb: 'size_gb',
+  checkedMs: 'checked_ms',
+  silentMs: 'silent_ms',
+  askAtMs: 'ask_at_ms',
 }
 const WAIT_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(WAIT_WIRE_KEYS).map(([record, wire]) => [wire, record]),

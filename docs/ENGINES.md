@@ -199,6 +199,31 @@ model's own base URL, omitting what a server kind does not support. The
 Hugging Face and local lanes carry an explicit deferred-live caveat in
 their readiness detail until verified against a live endpoint.
 
+On the local lane no watchdog cuts a request while the server answers. The
+first-byte budget there is a promise the status row speaks, not a deadline:
+it is sized from the model's measured ingestion pace — the uncached prompt
+tokens the wire reports over the time to the first byte, remembered per
+model in `local-ingest-pace.json` under the config home — with a quarter's
+margin; before a measurement, a default by parameter count (300 tokens/s up
+to 10B, 100 up to 35B, 40 above, 100 when the server states no size). When
+the promise runs out, Mercury asks the server a cheap liveness question
+(Ollama `/api/version`, LM Studio `/api/v1/models`, llama.cpp `/health`,
+vLLM `/v1/models`): an answer extends the promise and the row says so
+(`still ingesting … — about 3m 23s more (its server answered at 6m 46s)`);
+two unanswered probes in a row cut the request with the dead-server words
+(`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting — the
+local server is not responding (its window, its load, or a crash); /model
+re-probes`), and that cut is never reissued. After the first byte the idle
+watchdog follows the same law at the patience setting's quiet number (15
+minutes, the OpenAI road's): the row warns at the warning point (`no bytes
+for 7m 30s — <model>'s server is asked at 15m`), the server is asked at the
+idle number, and the turn holds while it answers (`no bytes for 15m —
+<model>'s server still answers`; esc interrupts). While the server is still
+loading the model the row says `loading <model> (<size> GB)`, and the
+ingestion clock starts once the server lists it. The hard cap on a local
+request is two hours. Every other lane keeps its first-byte budget, its idle
+number and its whole-request ceiling unchanged.
+
 ## Typed refusals
 
 On the Anthropic wire, an authentication refusal never enters the backoff
