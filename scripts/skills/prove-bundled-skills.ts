@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -46,6 +46,14 @@ const walkRel = (dir: string): string[] => {
 }
 
 const gen = await import('./gen-bundled.ts')
+const { codeOnlyText, commentRanges } = await import('../lib/codeText.ts')
+const published = (path: string, text: string): string => {
+  const before = text.split('\n')
+  return codeOnlyText(path, text)
+    .split('\n')
+    .filter((line, index) => line.trim() !== '' || (before[index] ?? '').trim() === '')
+    .join('\n')
+}
 const { parseFrontmatter } = await import('../../src/utils/frontmatterParser.js')
 const { initBundledSkills } = await import('../../src/skills/bundled/index.js')
 const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.js')
@@ -225,6 +233,29 @@ section('§5 GENERATOR CONTRACT — a hermetic fixture: embed / mirror / skip, b
   check(!r.contentTs.includes('logo.png') && !r.contentTs.includes('pyc'), 'the binary and the bytecode never reach the Content module')
   check(r.contentTs.startsWith(`${gen.GENERATED_MARKER}\n`) && r.registerTs.startsWith(`${gen.GENERATED_MARKER}\n`), 'both modules open on the generated marker')
   check(r.wiring.importLine === `import { registerProofFixtureSkill } from './${FIX}.js'` && r.wiring.callLine === '  registerProofFixtureSkill()', 'the index wiring lines name the camel-cased register function')
+  check(gen.GENERATED_MARKER.startsWith('export const ') && commentRanges('marker.ts', `${gen.GENERATED_MARKER}\n`).length === 0, 'the marker is a line of code, never a comment: a publish filter that keeps no comment cannot strip it', gen.GENERATED_MARKER)
+  const contentComments = commentRanges(`${FIX}Content.ts`, r.contentTs).length
+  const registerComments = commentRanges(`${FIX}.ts`, r.registerTs).length
+  check(contentComments === 0 && registerComments === 0 && published(`${FIX}Content.ts`, r.contentTs) === r.contentTs && published(`${FIX}.ts`, r.registerTs) === r.registerTs, 'the rendered modules carry no comment range at all, so a comment-stripped checkout keeps the render byte for byte (the embedded helper keeps its own comments inside its string)', `${contentComments} + ${registerComments} comment range(s)`)
+
+  const ORDER = 'proof-order'
+  const orderLayout = { sourceRoot: join(SCRATCH, 'order', 'mercury-skills'), dest: join(SCRATCH, 'order', 'src', 'skills', 'bundled') }
+  const orderSrc = (rel: string): string => join(orderLayout.sourceRoot, ORDER, rel)
+  put(orderSrc('SKILL.md'), '---\ndescription: Use when the proof needs a skill whose references the filesystem may list in any order.\n---\n# Order\n')
+  const ORDER_REFS = ['references/notes.md', 'references/Zed.md', 'references/alpha.md', 'references/index.md', 'scripts/probe.mjs', 'scripts/outline.py', 'scripts/helper.sh']
+  for (const rel of ORDER_REFS) put(orderSrc(rel), `${rel}\n`)
+  const SORTED_REFS = ['references/Zed.md', 'references/alpha.md', 'references/index.md', 'references/notes.md', 'scripts/helper.sh', 'scripts/outline.py', 'scripts/probe.mjs']
+  const listing = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).map(e => e.name)
+  console.log(`  · this filesystem lists ${ORDER}/references as: ${listing(orderSrc('references')).join(' ')} · scripts as: ${listing(orderSrc('scripts')).join(' ')}`)
+  const ordered = gen.renderSkill(ORDER, orderLayout)
+  const importOrder = (text: string): string[] => text.split('\n').filter(line => line.startsWith('import ref_')).map(line => /from '\.\/[^/]+\/(.+)'$/.exec(line)?.[1] ?? line)
+  const entryOrder = (text: string): string[] => text.split('\n').filter(line => /^  "/.test(line)).map(line => /^  "([^"]+)"/.exec(line)?.[1] ?? line)
+  check(ordered.refs.join(' ') === SORTED_REFS.join(' '), 'the references render in the code-point order of their paths, whatever order the filesystem lists them in (Zed before alpha: no locale, no case fold)', ordered.refs.join(' '))
+  check(importOrder(ordered.contentTs).join(' ') === SORTED_REFS.filter(rel => !rel.endsWith('.mjs')).join(' ') && entryOrder(ordered.contentTs).join(' ') === SORTED_REFS.join(' ') && ordered.mirror.map(m => m.rel).join(' ') === ['SKILL.md', ...SORTED_REFS.filter(rel => !rel.endsWith('.mjs'))].join(' '), 'the Content module imports, lists and mirrors them in that order', `${importOrder(ordered.contentTs).join(' ')} · ${entryOrder(ordered.contentTs).join(' ')} · ${ordered.mirror.map(m => m.rel).join(' ')}`)
+  const identical = (a: typeof ordered, b: typeof ordered): boolean => a.contentTs === b.contentTs && a.registerTs === b.registerTs && a.refs.join('\n') === b.refs.join('\n') && a.mirror.length === b.mirror.length && a.mirror.every((m, i) => m.rel === b.mirror[i]!.rel && m.bytes.equals(b.mirror[i]!.bytes))
+  const reversed = gen.renderSkill(ORDER, orderLayout, dir => readdirSync(dir, { withFileTypes: true }).reverse())
+  const rotated = gen.renderSkill(ORDER, orderLayout, dir => { const entries = readdirSync(dir, { withFileTypes: true }); return [...entries.slice(1), ...entries.slice(0, 1)] })
+  check(identical(ordered, reversed) && identical(ordered, rotated), 'a reversed and a rotated directory listing render byte-identical modules and mirror (the render never depends on the listing order)', `reversed ${identical(ordered, reversed) ? 'same' : 'differs'} · rotated ${identical(ordered, rotated) ? 'same' : 'differs'}`)
 
   const fullRc = gen.runCli([], quiet)
   check(fullRc === 0, 'a full run over the fixture tree exits 0', logIf(fullRc === 0))
@@ -357,6 +388,15 @@ section('§6 SOURCE↔MIRROR SYNC + the discovery budget + the browser-first dri
   for (const n of EXPECTED) {
     const drift = gen.checkSkill(n)
     check(drift.length === 0, `${n}: modules + mirror are byte-identical to a fresh render of the source (gen-bundled ran)`, drift.join(' | '))
+  }
+  const publishedDest = join(SCRATCH, 'published', 'src', 'skills', 'bundled')
+  mkdirSync(publishedDest, { recursive: true })
+  for (const n of EXPECTED) {
+    for (const file of [`${n}Content.ts`, `${n}.ts`]) writeFileSync(join(publishedDest, file), published(file, readFileSync(join(BUNDLED_DIR, file), 'utf8')))
+    cpSync(join(BUNDLED_DIR, n), join(publishedDest, n), { recursive: true })
+    const drift = gen.checkSkill(n, { sourceRoot: SOURCE_ROOT, dest: publishedDest })
+    check(drift.length === 0, `${n}: on a published checkout (every comment range stripped, as the publish filter does) the modules still match a fresh render — the check the hosted gate runs`, drift.join(' | '))
+    check(gen.isGeneratedModule(join(publishedDest, `${n}Content.ts`)) && gen.isGeneratedModule(join(publishedDest, `${n}.ts`)), `${n}: a published checkout still recognises both modules as generator output (the prune and the overwrite guard hold there too)`)
   }
   const { retired } = gen.checkBundled()
   check(retired.length === 0, 'no retired generated output lingers under src/skills/bundled/', retired.join(' '))

@@ -1,3 +1,4 @@
+export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 import { SKILL_FILES, SKILL_MD } from './provider-apisContent.js'

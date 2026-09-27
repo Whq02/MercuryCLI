@@ -585,10 +585,26 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the line paints in the crewmate\'s transcript at once, plated [you → atlas] and marked queued', carrying().length === 1 && carrying()[0]!.includes(`[you → ${ATLAS.name}]`) && /\bqueued\b/.test(carrying()[0]!), carrying().length === 0 ? 'no row carries the line — only the receipt shows' : carrying().join(' | ').slice(0, 200))
     const rowIndexOf = (): number => centreOf(scene.lines(), railCols).findIndex(line => line.includes(LINE))
     const plateColumnOf = (): number => (centreOf(scene.lines(), railCols).find(line => line.includes(LINE)) ?? '').indexOf('[you →')
-    const masked = (): string[] => centreOf(scene.lines(), railCols).map(line => line.replace(/\b\d\d:\d\d:\d\d\b|\bqueued  /g, '········'))
+    const LIVE_COUNTER = /\b\d+[dhms](?: \d+[hms])*\b/
+    const maskLiveWords = (line: string): string => {
+      const still = line.replace(/\b\d\d:\d\d:\d\d\b|\bqueued  /g, '········')
+      if (!VIEW_ROW(still)) return still
+      const counter = still.search(LIVE_COUNTER)
+      return counter < 0 ? still : `${still.slice(0, counter)}·`
+    }
+    const masked = (): string[] => centreOf(scene.lines(), railCols).map(maskLiveWords)
     const queuedRow = rowIndexOf()
     const queuedPlateColumn = plateColumnOf()
     const queuedTranscript = masked()
+    const cardRow = centreOf(scene.lines(), railCols).find(VIEW_ROW) ?? ''
+    const counters = cardRow.match(new RegExp(LIVE_COUNTER.source, 'g')) ?? []
+    const replant = (reasoning: string, running: string): string => {
+      let seen = 0
+      return cardRow.replace(new RegExp(LIVE_COUNTER.source, 'g'), () => (seen++ === 0 ? reasoning : running))
+    }
+    const plants = [replant('1m 20s', '6m 57s'), replant('1m 21s', '6m 58s'), replant('59s', '6m 59s'), replant('1m 0s', '7m 0s')]
+    console.log(`the crewmate card row before the landing: "${cardRow.trim().slice(0, 120)}" · its live counters: ${counters.join(', ') || 'none'}`)
+    check('the comparison ignores a tick of the card\'s live counters between the two frames (a slow frame straddles a second boundary): reasoning 1m 20s → 1m 21s, 59s → 1m 0s, the running time behind them', counters.length >= 1 && plants.every(row => maskLiveWords(row) === maskLiveWords(cardRow)), counters.length === 0 ? 'no live counter on the card row' : `masked "${maskLiveWords(plants[1]!).trim().slice(0, 100)}" vs "${maskLiveWords(cardRow).trim().slice(0, 100)}"`)
     landLine(ATLAS.id, LINE)
     publishRoster()
     const landedOnce = await until(() => carrying().length === 1 && !/\bqueued\b/.test(carrying()[0]!), 8000)
@@ -599,7 +615,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the landed twin occupies the queued row\'s own row and plate column — the queued mark stood where the clock stands, the transcript never reflows when it lands', rowIndexOf() === queuedRow && plateColumnOf() === queuedPlateColumn && queuedPlateColumn > 0, `row ${queuedRow} → ${rowIndexOf()} · plate column ${queuedPlateColumn} → ${plateColumnOf()}`)
     const landedTranscript = masked()
     const firstDiff = landedTranscript.findIndex((line, index) => line !== queuedTranscript[index])
-    check('every other transcript row paints exactly where it did before the landing (the clock column aside)', firstDiff < 0, `first differing row ${firstDiff}: "${(queuedTranscript[firstDiff] ?? '').trim().slice(0, 80)}" → "${(landedTranscript[firstDiff] ?? '').trim().slice(0, 80)}"`)
+    check('every other transcript row paints exactly where it did before the landing (the clock column and the card\'s live counters aside)', firstDiff < 0, `first differing row ${firstDiff}: "${(queuedTranscript[firstDiff] ?? '').trim().slice(0, 80)}" → "${(landedTranscript[firstDiff] ?? '').trim().slice(0, 80)}"`)
     const SECOND = 'atlas, then the footer'
     scrollRef.current?.scrollTo(2)
     await sleep(300)

@@ -36,8 +36,10 @@ bash scripts/skills/run-all.sh                   # the bundled-skills suite
 
 This directory is the source of truth. A full run regenerates every skill
 and removes the output of a retired one — its generated `<name>.ts` and
-`<name>Content.ts` (recognised by their marker line, never a hand-written
-module) and the mirror directory beside them; a targeted run regenerates
+`<name>Content.ts` (recognised by their first line, `export const
+GENERATED_BY = 'scripts/skills/gen-bundled.ts'` — a line of code, so a
+comment-stripped checkout keeps it — never a hand-written module) and the
+mirror directory beside them; a targeted run regenerates
 only the names given, pruning a named skill whose source is gone and
 nothing else. `--check` renders in memory and names every stale, missing or
 stray file. Any other option is refused, as is a full run that finds no
