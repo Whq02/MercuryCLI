@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SCRIPT = 'scripts/jev/red-road.ts'
@@ -169,6 +169,10 @@ const parseJson = (line: string): Record<string, unknown> => {
     return {}
   }
 }
+const errWords = (err: string): string => {
+  const named = err.split('\n').filter(line => /\b(E[A-Z]{3,}|[A-Za-z]+Error)\b/.test(line)).slice(0, 3).join(' | ')
+  return named !== '' ? named : err.slice(0, 300)
+}
 
 section('§1 the pure pieces: sections, checks, the source line, the needles, the floor and the severity order')
 check('the question set is the side noul `real` then one choice `class` with product, stale, run, hosted and the escape', road.RED_ROAD_QUESTIONS.length === 2 && road.RED_ROAD_REAL_QUESTION.id === 'real' && road.RED_ROAD_REAL_QUESTION.kind === 'noul' && road.RED_ROAD_QUESTION.id === 'class' && road.RED_ROAD_QUESTION.kind === 'choice' && JSON.stringify(Object.keys(road.RED_ROAD_QUESTION.options ?? {})) === JSON.stringify(['product', 'stale', 'run', 'hosted']) && road.RED_ROAD_QUESTION.allow_none === true && typeof road.RED_ROAD_QUESTION.none_means === 'string')
@@ -223,7 +227,7 @@ router.reset()
 const marker = join(SCRATCH, 'rerun-ran')
 const staleLog = logPath('stale')
 const stale = await run([PROVER, staleLog, '--rc', '1', '--secs', '1', ...BASE_FLAGS, '--receipt', join(SCRATCH, 'stale', 'stale.red-road.log')], { RED_ROAD_MARKER: marker })
-check('the verdict line reads STALE LAW for the prover, exit 2', /^STALE LAW — prove-fixture-stale\.ts STALE LAW → a seat with the log and the package · receipt /.test(stale.line) && stale.rc === 2, `${stale.rc} ${stale.line} ${stale.err.slice(0, 300)}`)
+check('the verdict line reads STALE LAW for the prover, exit 2', /^STALE LAW — prove-fixture-stale\.ts STALE LAW → a seat with the log and the package · receipt /.test(stale.line) && stale.rc === 2, `${stale.rc} ${stale.line} ${errWords(stale.err)}`)
 check('one check line rides above it with the class, the side probability, the four class probabilities and the confidence', /^\s+check: STALE LAW real=0\.94 \(product 0\.04 · stale 0\.90 · run 0\.03 · hosted 0\.01\) conf=0\.90 — the row’s copy is the one exported statusLine/m.test(stale.out), stale.out.slice(0, 400))
 check('the default rerun ran the prover itself in the tree, before the request reached the stand-in', existsSync(marker) && router.received.length === 1 && Number(readFileSync(marker, 'utf8')) <= router.received[0]!.at, `${existsSync(marker)} ${router.received.length}`)
 {
@@ -251,6 +255,23 @@ check('the default rerun ran the prover itself in the tree, before the request r
     return parsed.question?.id === 'class' && parsed.items?.length === 1 && parsed.items[0]!.id === 'c1' && Object.keys(parsed.items[0]!).length === 7
   })(), 'no package')
   check('the rerun’s own output is kept beside the receipt', existsSync(join(SCRATCH, 'stale', 'stale.red-road.prove-fixture-stale.rerun.log')))
+}
+
+section('§3c the rerun home follows TMPDIR: a root this box never had is created on demand and used, the child inherits it, and neither the root nor the home reaches the wire')
+{
+  const pinnedRoot = join(realpathSync(mkdtempSync(join(tmpdir(), 'jev-red-road-tmpdir-'))), 'nested', 'scratch')
+  router.reset()
+  const marker6 = join(SCRATCH, 'rerun-ran-6')
+  const receipt6 = join(SCRATCH, 'stale', 'tmpdir.red-road.log')
+  const rerunLog6 = join(SCRATCH, 'stale', 'tmpdir.red-road.prove-fixture-stale.rerun.log')
+  const under = await run([PROVER, staleLog, '--rc', '1', ...BASE_FLAGS, '--receipt', receipt6, '--', 'sh', '-c', `echo "HOME_DIR=$MERCURY_CONFIG_DIR TMP_DIR=$TMPDIR"; touch "${marker6}"; exit 1`], { TMPDIR: pinnedRoot })
+  const receiptText = existsSync(receipt6) ? readFileSync(receipt6, 'utf8') : ''
+  const home = receiptText.match(/; home ([^)\n]+)\)/)?.[1] ?? ''
+  const rerunText = existsSync(rerunLog6) ? readFileSync(rerunLog6, 'utf8') : ''
+  check('the rerun ran in a fresh home under the pinned TMPDIR, which the road created on demand, and the child saw that TMPDIR', under.rc === 2 && existsSync(marker6) && home.startsWith(`${pinnedRoot}/`) && existsSync(home) && rerunText.includes(`HOME_DIR=${home} TMP_DIR=${pinnedRoot}`), `rc ${under.rc} · home on the receipt: ${home || '(none)'} · pinned root: ${pinnedRoot} · rerun log: ${rerunText.trim().slice(0, 200) || '(none)'} ${errWords(under.err)}`)
+  const raw = bodyAt(0).raw
+  check('neither the pinned root nor the home under it reaches the wire', raw !== '' && !raw.includes(pinnedRoot) && (home === '' || !raw.includes(home)) && !/\/Users\/|\/home\/|\/private\/|\/var\/folders\/|\/tmp\//.test(raw), raw.slice(0, 300))
+  check('the scratch root is TMPDIR when set, else the platform temp dir; the road pins no box path', typeof road.redRoadScratch === 'function' && road.redRoadScratch({ TMPDIR: '/x/y/' }) === '/x/y' && road.redRoadScratch({}) === resolve(tmpdir()) && road.redRoadScratch({ TMPDIR: '  ' }) === resolve(tmpdir()) && !readFileSync(join(ROOT, SCRIPT), 'utf8').includes("'/private/tmp/mw'"), `redRoadScratch is ${typeof road.redRoadScratch}`)
 }
 
 section('§3b the review’s teeth: nothing dropped, nothing green on a red suite, one same-check read per check, no load-expiry rerun, no leaked secret, no orphan, no crash on a control byte')

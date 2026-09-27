@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { JevChoiceAnswer } from '../../src/services/jev/jevContract.js'
 import type { JevEvalInput } from '../../src/tools/JevEvalTool/jevEvalSchema.js'
@@ -23,7 +24,7 @@ export const RED_ROAD_SOURCE_BEFORE = 2
 export const RED_ROAD_SOURCE_AFTER = 6
 export const RED_ROAD_NEEDLE_LIMIT = 6
 export const RED_ROAD_CHECK_LIMIT = 48
-export const RED_ROAD_SCRATCH = '/private/tmp/mw'
+export const RED_ROAD_HOME_PREFIX = 'red-road-home.'
 export const RED_ROAD_PROOF_KEY = 'proof-key-ci-gate-not-a-real-key'
 export const RED_ROAD_DEAD_BASE = 'http://127.0.0.1:1'
 export const RED_ROAD_CLASSES = ['product', 'stale', 'run', 'hosted'] as const
@@ -493,8 +494,14 @@ export function proverCommand(prover: string): string[] {
   return [process.execPath, 'run', prover]
 }
 
-function scratchHome(): string {
-  return mkdtempSync(join(RED_ROAD_SCRATCH, 'red-road-home.'))
+export function redRoadScratch(env: NodeJS.ProcessEnv = process.env): string {
+  const pinned = env.TMPDIR?.trim()
+  return resolve(pinned !== undefined && pinned !== '' ? pinned : tmpdir())
+}
+
+function scratchHome(root: string): string {
+  mkdirSync(root, { recursive: true })
+  return mkdtempSync(join(root, RED_ROAD_HOME_PREFIX))
 }
 
 const SECRET_ENV = /(_API_KEY|_AUTH_TOKEN|_ACCESS_TOKEN|_REFRESH_TOKEN|_TOKEN|_SECRET|_PASSWORD|_PASSPHRASE|_CREDENTIALS?|_COOKIE|_SESSION_KEY)$/i
@@ -509,12 +516,12 @@ export function scrubbedEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env
 }
 
-function rerunEnv(tree: string, home: string): NodeJS.ProcessEnv {
+function rerunEnv(tree: string, home: string, root: string): NodeJS.ProcessEnv {
   const env = scrubbedEnv(process.env)
   env.MERCURY_CONFIG_DIR = home
   env.MERCURY_CREDENTIAL_STORE = 'file'
   env.ANTHROPIC_API_KEY = RED_ROAD_PROOF_KEY
-  env.TMPDIR = RED_ROAD_SCRATCH
+  env.TMPDIR = root
   env.VSHOT_SLOTS = '999'
   env.MERCURY_VSHOT_BUDGET_SCALE = '1'
   env.MERCURY_GATE_PREBUILT = '1'
@@ -533,8 +540,9 @@ function rerunEnv(tree: string, home: string): NodeJS.ProcessEnv {
 export async function rerunProver(command: readonly string[], tree: string, log: string, ceilingSecs: number, loadCeiling: number, loadWaitSecs: number, checks: readonly RedRoadCheck[]): Promise<RedRoadRerun | RedRoadNoRerun> {
   const waited = await waitForLoad(loadCeiling, loadWaitSecs)
   if (waited.expired) return { skipped: `the 1-minute load stayed above ${loadCeiling} for ${waited.waited}s (${waited.load.words}); no solo rerun was admitted, so nothing here was measured alone at low load` }
-  const home = scratchHome()
-  const env = rerunEnv(tree, home)
+  const root = redRoadScratch()
+  const home = scratchHome(root)
+  const env = rerunEnv(tree, home, root)
   const started = Date.now()
   const child = spawn(command[0]!, command.slice(1), { cwd: tree, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true })
   let output = ''
@@ -617,9 +625,13 @@ const ABSOLUTE_PATHS: readonly [RegExp, string][] = [
   [/\/(?:Users|home)\/[^\s/'"`]+/g, '~'],
 ]
 
-export function redactPaths(text: string): string {
+export function redactPaths(text: string, roots: readonly string[] = [redRoadScratch()]): string {
   let out = text
   for (const [pattern, word] of ABSOLUTE_PATHS) out = out.replace(pattern, word)
+  for (const root of roots) {
+    if (root === '' || root === '/') continue
+    out = out.split(root.replace(/\/+$/, '')).join('<scratch>')
+  }
   return out
 }
 
