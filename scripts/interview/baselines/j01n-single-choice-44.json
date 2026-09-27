@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-27T22:09:41.889Z",
+ "capturedAt": "2026-09-27T22:22:55.320Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-15Q6jJ · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-ChoKE7 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:09:34 [sam] ❯ design the cache layer",
+    "23:22:47 [sam] ❯ design the cache layer",
     "",
-    "23:09:34 [Mercury] Let me confirm the open",
+    "23:22:47 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-15Q6jJ · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-ChoKE7 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:09:34 [sam] ❯ design the cache layer",
+    "23:22:47 [sam] ❯ design the cache layer",
     "",
-    "23:09:34 [Mercury] Let me confirm the open",
+    "23:22:47 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5369,
-   "frame-recommit": 15
+   "patches": 5365,
+   "frame-recommit": 16
   },
   "frames": {
-   "total": 29,
-   "window": 29,
-   "p50": 0.5975840000000971,
-   "p95": 5.361791999999696,
-   "p99": 9.406124999999975,
-   "maxMs": 9.406124999999975
+   "total": 30,
+   "window": 30,
+   "p50": 0.7679580000003625,
+   "p95": 4.038875000000189,
+   "p99": 8.506250000000023,
+   "maxMs": 8.506250000000023
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6774.343967437744,
+   "atMs": 6590.368032455444,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7574.343967437744,
+   "atMs": 7390.368032455444,
    "b64": "DQ=="
   }
  ]
