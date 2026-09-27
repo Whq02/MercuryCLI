@@ -307,6 +307,7 @@ export function AttachmentMessage({
             isTranscriptMode={isTranscriptMode}
             notice={attachment.commandMode === 'task-notification'}
             noticeSentAt={attachment.commandMode === 'task-notification' ? attachment.sentAt : undefined}
+            noticeDeliveredAt={attachment.commandMode === 'task-notification' ? attachment.deliveredAt : undefined}
             {...(isAdvisorOrigin(attachment.origin) ? { origin: attachment.origin } : {})}
           />
           {(attachment.imagePasteIds ?? []).map(id => (

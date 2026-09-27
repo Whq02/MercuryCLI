@@ -41,9 +41,20 @@ function textOfContent(content: unknown, joiner: string): string {
   return content.map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : '')).join(joiner)
 }
 
+export function deliveredNoticeRow(row: Message, atMs: number): Message {
+  const deliveredAt = new Date(atMs).toISOString()
+  if (row.type !== 'attachment') return { ...row, timestamp: deliveredAt }
+  return { ...row, attachment: { ...row.attachment, deliveredAt } } as Message
+}
+
+function deliveryClockOf(row: Message): string | undefined {
+  const delivered = row.type === 'attachment' ? (row.attachment as { deliveredAt?: string }).deliveredAt : undefined
+  return delivered ?? (row as { timestamp?: string }).timestamp
+}
+
 export function noticeRowLanded(row: Message, value: string, notBeforeMs?: number): boolean {
   if (notBeforeMs !== undefined) {
-    const at = Date.parse((row as { timestamp?: string }).timestamp ?? '')
+    const at = Date.parse(deliveryClockOf(row) ?? '')
     if (!Number.isNaN(at) && at + LANDING_GRACE_MS < notBeforeMs) return false
   }
   if (row.type === 'attachment') {

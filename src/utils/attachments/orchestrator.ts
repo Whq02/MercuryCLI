@@ -508,7 +508,7 @@ export function createAttachmentMessage(
   attachment: Attachment,
 ): AttachmentMessage {
   return {
-    attachment,
+    attachment: withDeliveryClock(attachment),
     type: 'attachment',
     uuid: randomUUID(),
     timestamp: sentClockOf(attachment) ?? new Date().toISOString(),
@@ -517,6 +517,10 @@ export function createAttachmentMessage(
 
 function sentClockOf(attachment: Attachment): string | null {
   if (attachment.type !== 'queued_command' || attachment.sentAt === undefined) return null
-  if (attachment.commandMode === 'task-notification') return null
   return Number.isFinite(Date.parse(attachment.sentAt)) ? attachment.sentAt : null
+}
+
+function withDeliveryClock(attachment: Attachment): Attachment {
+  if (attachment.type !== 'queued_command' || sentClockOf(attachment) === null) return attachment
+  return { ...attachment, deliveredAt: new Date().toISOString() }
 }

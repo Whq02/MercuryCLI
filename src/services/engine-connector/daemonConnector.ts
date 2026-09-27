@@ -57,7 +57,7 @@ import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
-import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
+import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
 import { createTextRow, textRowLanded, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
@@ -1147,7 +1147,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (queued === (row.queued === true) && heldFor === row.heldFor) return
     const next: Message & { queued?: true; heldFor?: 'compaction' } = queued
       ? { ...row, queued: true }
-      : { ...row, timestamp: new Date().toISOString() }
+      : isNoticeKey(clientMessageId)
+        ? deliveredNoticeRow(row, Date.now())
+        : { ...row, timestamp: new Date().toISOString() }
     if (!queued) delete next.queued
     if (heldFor !== undefined) next.heldFor = heldFor
     else delete next.heldFor

@@ -157,13 +157,15 @@ section("J1 the journal carries the line's identity: uuid, mode and the send clo
   check('J1 the runner-side replay of this very journal names the one undelivered operator line', lr.undeliveredLines(rows as never).map(r => r.uuid).join(',') === lineUuid, j(lr.undeliveredLines(rows as never)))
 }
 
-section('J2 a notification drained into an attachment keeps its completion clock in sentAt and takes the delivery clock as its row time')
+section('J2 a notification drained into an attachment is stamped with its completion clock and carries the delivery clock beside it')
 {
   const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
   const before = Date.now()
   const noticeRow = createAttachmentMessage({ type: 'queued_command', prompt: '<task-notification>done</task-notification>', commandMode: 'task-notification', sentAt: '2026-01-01T00:05:00.000Z' } as never)
   const wordsRow = createAttachmentMessage({ type: 'queued_command', prompt: 'typed words', commandMode: 'prompt', sentAt: '2026-01-01T00:05:00.000Z' } as never)
-  check('J2 the notice row is stamped at delivery (now), its sentAt untouched (red on the base: the row took the enqueue clock)', Date.parse(noticeRow.timestamp) >= before && (noticeRow.attachment as { sentAt?: string }).sentAt === '2026-01-01T00:05:00.000Z', noticeRow.timestamp)
+  const clocks = noticeRow.attachment as { sentAt?: string; deliveredAt?: string }
+  check('J2 the notice row is stamped at its completion (the enqueue clock), its sentAt untouched (red on the base: the row took the delivery clock)', noticeRow.timestamp === '2026-01-01T00:05:00.000Z' && clocks.sentAt === '2026-01-01T00:05:00.000Z', noticeRow.timestamp)
+  check('J2 the delivery clock (now) rides the record beside it', typeof clocks.deliveredAt === 'string' && Date.parse(clocks.deliveredAt) >= before, JSON.stringify(clocks.deliveredAt))
   check("J2 the operator's words keep their send clock as the row time (byte-identical)", wordsRow.timestamp === '2026-01-01T00:05:00.000Z', wordsRow.timestamp)
 }
 

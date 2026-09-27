@@ -361,8 +361,8 @@ section("§2 the neighbours are byte-identical (a guard, green on both trees): t
   check("a held notice keeps its dot and its plate exactly", notice === `${clock(ROW_AT)} ${DOT} notice Stop hook blocking error from command "lint": 3 errors`, notice)
   const monitor = await paintText({ param: { type: 'text', text: '<monitor task="bk1" name="the build watch">\nbuilt\n</monitor>' } }, { type: 'user', timestamp: ROW_AT })
   check('a monitor notice keeps its dot and its watch exactly', monitor === `${clock(ROW_AT)} ${DOT} monitor · the build watch built`, monitor)
-  const completed = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE }, { type: 'user', timestamp: ROW_AT })
-  check('a notice delivered later keeps its completed clock exactly', completed === `${clock(ROW_AT)} ${DOT} notice · completed ${clock(HELD_SINCE)} the saved work is ready`, completed)
+  const delivered = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE, noticeDeliveredAt: ROW_AT }, { type: 'user', timestamp: HELD_SINCE })
+  check('a notice delivered later sits at its own clock and names the delivery exactly', delivered === `${clock(HELD_SINCE)} ${DOT} notice · delivered ${clock(ROW_AT)} the saved work is ready`, delivered)
 }
 for (const [columns, rowCount] of SIZES) {
   const frame = await paintChat([userRow(OPERATOR_LINE, U1, ROW_AT), replyRow(LATE_ROW_AT)], columns, rowCount)

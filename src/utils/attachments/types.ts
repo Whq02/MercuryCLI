@@ -284,6 +284,7 @@ export type Attachment =
       origin?: MessageOrigin
       isMeta?: boolean
       sentAt?: string
+      deliveredAt?: string
     }
   | {
       type: 'diagnostics'

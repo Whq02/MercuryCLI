@@ -39,6 +39,10 @@ section('N2 — the row is the drained row\'s own shape, born queued at its arri
   check('at its arrival clock', row.timestamp === new Date(at).toISOString())
   check('RED on the base: the notice keeps its arrival separately when the delivery clock changes', row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.sentAt === new Date(at).toISOString())
   check('with an identity of its own', typeof row.uuid === 'string' && row.uuid.length > 0 && row.uuid !== (notices.createNoticeRow(NOTE, at) as { uuid: string }).uuid)
+  const takenAt = at + 3 * 60_000
+  const taken = notices.deliveredNoticeRow(row as Message, takenAt) as Message & { attachment?: { sentAt?: string; deliveredAt?: string } }
+  check('RED on the base: a taken notice keeps its arrival clock as its stamp and records the take as its delivery', taken.timestamp === new Date(at).toISOString() && taken.attachment?.deliveredAt === new Date(takenAt).toISOString() && taken.attachment?.sentAt === new Date(at).toISOString(), JSON.stringify(taken))
+  check('the taken row is a fresh object; the queued one is untouched', taken !== (row as unknown) && (row.attachment as { deliveredAt?: string }).deliveredAt === undefined)
 }
 
 section('N3 — the landing test')
@@ -65,6 +69,10 @@ section('N3 — the landing test')
   check('a row that batched the notice behind other words lands it (the task id and the words)', notices.noticeRowLanded(batched, NOTE, at))
   check('a user row older than the send never lands it (no old-history substring)', !notices.noticeRowLanded(older, NOTE, at))
   check('a drained attachment older than the send never lands it either', !notices.noticeRowLanded({ ...(drained as unknown as Record<string, unknown>), timestamp: stamp(-5000) } as unknown as Message, NOTE, at))
+  const stampedAtCompletion = { type: 'attachment', uuid: 'r11', timestamp: stamp(-5 * 60_000), attachment: { type: 'queued_command', prompt: NOTE, commandMode: 'task-notification', sentAt: stamp(-5 * 60_000), deliveredAt: stamp(200) } } as unknown as Message
+  check('RED on the base: a drained attachment stamped at its completion lands the send when its delivery clock is not older (the landing test reads the delivery)', notices.noticeRowLanded(stampedAtCompletion, NOTE, at))
+  const deliveredEarlier = { ...(stampedAtCompletion as unknown as Record<string, unknown>), attachment: { ...((stampedAtCompletion as unknown as { attachment: Record<string, unknown> }).attachment), deliveredAt: stamp(-5000) } } as unknown as Message
+  check('a drained attachment delivered before the send never lands it, whatever its stamp', !notices.noticeRowLanded(deliveredEarlier, NOTE, at))
   check('a meta row never lands it', !notices.noticeRowLanded(meta, NOTE, at))
   check('the same words under another task id never land it', !notices.noticeRowLanded(otherId, NOTE, at))
   check('the task id is read off the frame', notices.noticeTaskId(NOTE) === 't1' && notices.noticeTaskId('no frame') === undefined)

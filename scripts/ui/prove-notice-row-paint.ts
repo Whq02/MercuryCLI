@@ -121,7 +121,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   const held = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true })
   check('RED on the base: a held task completion names the same arrival clock', held.includes(`held since ${clockOf(STAMP)} ● Background command`), held)
   const taken = await paint(body, { type: 'attachment', timestamp: STAMP })
-  check('a taken task completion keeps its delivered clock with no held plate', taken.includes(`${clockOf(STAMP)} ● Background command`) && !taken.includes('held') && !taken.includes('queued'), taken)
+  check('a taken task completion keeps its own clock with no held plate', taken.includes(`${clockOf(STAMP)} ● Background command`) && !taken.includes('held') && !taken.includes('queued'), taken)
   const compacting = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true, heldFor: 'compaction' })
   check('the compaction plate stays unchanged', compacting.includes('held ● Background command') && !compacting.includes('since'), compacting)
 }
@@ -165,7 +165,8 @@ section('§3 the advisor row: the [advisor] plate with the model and the cadence
   check('a drained (wrapped) note paints the same plate and the note alone', drained.includes('[advisor] · claude-opus-4-8') && drained.includes('Verify the pin on the base before you cut.') && !drained.includes('A note from your advisor'), drained.slice(0, 240))
 }
 
-section('the delivery clock names an earlier completion without changing nearby deliveries')
+section('the delivery clock: a notice sits at its completion and names a delivery a minute or more later as a suffix, never in its stamp')
+const sixMinutesLater = new Date(Date.parse(STAMP) + 6 * 60_000).toISOString()
 const sixMinutesEarlier = new Date(Date.parse(STAMP) - 6 * 60_000).toISOString()
 const noticeCases = [
   taskNotice('Background command "the build" completed (exit code 0)'),
@@ -176,21 +177,23 @@ const noticeCases = [
   'runner restarted after a crash: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped',
 ]
 for (const prompt of noticeCases) {
-  const body = (sentAt?: string) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', ...(sentAt === undefined ? {} : { sentAt }) }, addMargin: false, verbose: false })
+  const body = (deliveredAt?: string, sentAt: string = STAMP) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', sentAt, ...(deliveredAt === undefined ? {} : { deliveredAt }) }, addMargin: false, verbose: false })
   const before = await paint(body(), { type: 'attachment', timestamp: STAMP })
-  const delayed = await paint(body(sixMinutesEarlier), { type: 'attachment', timestamp: STAMP })
-  check('RED on the base: the delivered notice names its six-minute-earlier completion', delayed.includes(`· completed ${clockOf(sixMinutesEarlier)}`), delayed)
-  check('the row clock remains the delivery, never the completion', delayed.includes(`${clockOf(STAMP)} ●`) && !delayed.includes('held'), delayed)
-  const nearby = await paint(body(new Date(Date.parse(STAMP) - 2000).toISOString()), { type: 'attachment', timestamp: STAMP })
-  check('a two-second gap paints byte-identically to the ordinary notice', nearby === before, nearby)
-  const boundary = await paint(body(new Date(Date.parse(STAMP) - 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
-  check('the second clock starts at exactly one minute', boundary.includes('· completed'), boundary)
-  for (const sentAt of ['not a clock', new Date(Date.parse(STAMP) + 60_000).toISOString()]) {
-    const invalid = await paint(body(sentAt), { type: 'attachment', timestamp: STAMP })
-    check('an invalid or future arrival never invents a completion clock', invalid === before, invalid)
+  const delayed = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP })
+  check('RED on the base: a notice delivered six minutes after it completed names the delivery as a suffix', delayed.includes(`· delivered ${clockOf(sixMinutesLater)}`), delayed)
+  check('the row clock remains the completion it sits at, never the delivery', delayed.includes(`${clockOf(STAMP)} ●`) && !delayed.includes('held') && !delayed.includes('· completed'), delayed)
+  const nearby = await paint(body(new Date(Date.parse(STAMP) + 2000).toISOString()), { type: 'attachment', timestamp: STAMP })
+  check('a two-second delivery paints byte-identically to the ordinary notice', nearby === before, nearby)
+  const boundary = await paint(body(new Date(Date.parse(STAMP) + 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
+  check('the second clock starts at exactly one minute', boundary.includes('· delivered'), boundary)
+  for (const deliveredAt of ['not a clock', sixMinutesEarlier]) {
+    const invalid = await paint(body(deliveredAt), { type: 'attachment', timestamp: STAMP })
+    check('an invalid delivery clock, or one before the completion, never invents a suffix', invalid === before, invalid)
   }
-  const held = await paint(body(sixMinutesEarlier), { type: 'attachment', timestamp: sixMinutesEarlier, queued: true })
-  check('a waiting notice names its arrival only, never a delivery suffix', held.includes(`held since ${clockOf(sixMinutesEarlier)}`) && !held.includes('· completed'), held)
+  const legacy = await paint(body(undefined, sixMinutesEarlier), { type: 'attachment', timestamp: STAMP })
+  check('an older record without a delivery clock paints its own stamp alone (red on the base: a completed suffix)', legacy === before, legacy)
+  const held = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP, queued: true })
+  check('a waiting notice names its arrival only, never a delivery suffix', held.includes(`held since ${clockOf(STAMP)}`) && !held.includes('· delivered'), held)
 }
 
 console.log(`\nprove-notice-row-paint: ${checks} checks, ${failures} failed`)
