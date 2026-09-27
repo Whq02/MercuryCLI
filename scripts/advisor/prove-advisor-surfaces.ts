@@ -219,7 +219,7 @@ const pickerFrames = new Map<string, string>()
   for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     const panel = await mountPanel(columns, rows, MODEL)
     const rest = flat(panel.frame())
-    check(`${columns} columns: both containers are listed, the console first and marked, the advisor beneath with its blurb (red on the base: the console alone)`, /▸ CONSOLE — side questions · unset/.test(rest) && / ADVISOR — advises the working model, not you · unset · no model pinned/.test(rest) && rest.indexOf('CONSOLE') < rest.indexOf('ADVISOR'), rest.slice(0, 400))
+    check(`${columns} columns: both containers are listed, the console first and marked, the advisor beneath with its blurb (red on the base: the console alone)`, /▸ CONSOLE — side questions · unset/.test(rest) && / ADVISOR — advises the working model, not you · unset · no model pinned/.test(rest) && rest.includes('CONSOLE') && rest.includes('ADVISOR') && rest.indexOf('CONSOLE') < rest.indexOf('ADVISOR'), rest.slice(0, 400))
     check(`${columns} columns: the cursor opens on the named row in the console list (the effort range beneath it)`, /runs @high \(the model default\)/.test(rest), rest.slice(-300))
     pickerFrames.set(`console-${columns}x${rows}`, panel.frame())
     await panel.press('\t')

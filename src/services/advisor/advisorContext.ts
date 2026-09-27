@@ -1,7 +1,6 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
-import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 
@@ -76,6 +75,11 @@ export function parseAdvisorContextLines(agentId: string, text: string): Advisor
     }
     if (!isRow(parsed)) continue
     const { schema: _schema, ...row } = parsed as AdvisorRow & { schema?: number }
+    if (row.kind === 'summary' && typeof row.folded === 'number' && row.folded > 0) {
+      rows.splice(0, row.folded)
+      rows.unshift(row)
+      continue
+    }
     rows.push(row)
   }
   if (rows.length === 0) logForDebugging(`advisor: no rows read back for ${agentId}`)
@@ -123,13 +127,12 @@ export function resetAdvisorContextsForTests(): void {
   contexts.clear()
 }
 
-async function writeWhole(context: AdvisorContext): Promise<void> {
+async function appendFoldMarker(context: AdvisorContext, marker: AdvisorRow): Promise<void> {
   if (context.path === null) return
-  const body = headLine(context.agentId) + context.rows.map(rowLine).join('')
   try {
-    await durableAtomicPublish(context.path, body)
+    await appendFile(context.path, rowLine(marker), 'utf8')
   } catch (error) {
-    logForDebugging(`advisor: could not rewrite ${context.path} — ${error instanceof Error ? error.message : String(error)}`)
+    logForDebugging(`advisor: could not append the fold to ${context.path} — ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -244,7 +247,7 @@ export async function compactAdvisorContext(
     ...(context.cursor !== undefined && !tail.some(row => row.cursor !== undefined) ? { cursor: context.cursor } : {}),
   }
   context.rows = [marker, ...tail]
-  await writeWhole(context)
+  await appendFoldMarker(context, marker)
   return { compacted: fold.length }
 }
 
