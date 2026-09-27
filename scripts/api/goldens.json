@@ -1,11 +1,11 @@
 {
  "MAX_NON_STREAMING_TOKENS/value": 64000,
  "getMaxOutputTokensForModel/families": [
+  128000,
+  128000,
   64000,
-  64000,
-  32000,
   8192,
-  64000
+  128000
  ],
  "getPromptCachingEnabled/probe": true,
  "getCacheControl/shape": {

@@ -166,7 +166,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   check('Luna at its page: $0.20 in · $0.02 cached · $0.25 write · $1.20 out', luna.costs.inputTokens === 0.2 && luna.costs.promptCacheReadTokens === 0.02 && luna.costs.promptCacheWriteTokens === 0.25 && luna.costs.outputTokens === 1.2, JSON.stringify(luna))
 
   const out = capabilities.getModelMaxOutputTokens(ID)
-  check('the output pair reads the pin: 64,000 default · 128,000 ceiling', out.default === 64_000 && out.upperLimit === 128_000, JSON.stringify(out))
+  check('the output pair reads the pin: 128,000 ceiling, and the default is that stated maximum (up to 128k) — no longer a 64,000 floor under it', out.default === 128_000 && out.upperLimit === 128_000, JSON.stringify(out))
   check('uncredentialed, the budget is the pinned window (a dated record, not a live claim)', getContextWindowForModel(ID) === 1_050_000, String(getContextWindowForModel(ID)))
 
   const frontier = providerFrontierFact('openai')
