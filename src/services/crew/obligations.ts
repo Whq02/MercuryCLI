@@ -157,36 +157,87 @@ export async function upsertObligation(
         result: { obligationId: updated.obligationId, revision: updated.revision, reraised: true },
       }
     }
-    const obligationId = `obl-${randomUUID().replace(/-/g, '').slice(0, 12)}`
+    const ordinal = current.lastOrdinal + 1
+    const row = mintRow(args, ordinal, now)
+    return {
+      next: {
+        ...current,
+        lastOrdinal: ordinal,
+        obligations: retainBounded({ ...current.obligations, [row.obligationId]: row }),
+      },
+      result: { obligationId: row.obligationId, revision: 1, reraised: false },
+    }
+  })
+}
+
+function mintRow(args: UpsertObligationArgs, ordinal: number, now: number): ObligationV1 {
+  return {
+    schema: 1,
+    obligationId: `obl-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+    ref: args.ref,
+    sessionId: args.sessionId,
+    ...(args.conversationId !== undefined ? { conversationId: args.conversationId } : {}),
+    ...(args.sourceEventRef !== undefined ? { sourceEventRef: args.sourceEventRef } : {}),
+    question: args.question,
+    ...(args.answerShape !== undefined ? { answerShape: args.answerShape } : {}),
+    principals: args.principals ?? [],
+    owner: args.owner,
+    status: 'open',
+    createdOrdinal: ordinal,
+    revision: 1,
+    createdAtMs: now,
+    updatedAtMs: now,
+    settlementAttempts: [],
+    notifications: {},
+    ...(args.urgency !== undefined ? { urgency: args.urgency } : {}),
+    ...(args.expiresAtMs !== undefined ? { expiresAtMs: args.expiresAtMs } : {}),
+  }
+}
+
+export interface RecordSettledObligationArgs extends UpsertObligationArgs {
+  settlement: { kind: ObligationSettlementKind; by?: string }
+}
+
+export async function recordSettledObligation(
+  args: RecordSettledObligationArgs,
+): Promise<{ obligationId: string; revision: number; minted: boolean }> {
+  const store = obligationStore(args.dir, args.scope)
+  return store.update<{ obligationId: string; revision: number; minted: boolean }>(current => {
+    const now = Date.now()
+    const by = args.settlement.by !== undefined ? { by: args.settlement.by } : {}
+    const attempt: ObligationSettlementAttemptV1 = { kind: args.settlement.kind, ...by, atMs: now, applied: true }
+    const settlement = { kind: args.settlement.kind, ...by }
+    const existing = Object.values(current.obligations).find(o => o.ref === args.ref && o.status === 'open')
+    if (existing) {
+      const updated: ObligationV1 = {
+        ...existing,
+        status: args.settlement.kind,
+        settledAtMs: now,
+        updatedAtMs: now,
+        revision: existing.revision + 1,
+        settlement,
+        settlementAttempts: [...existing.settlementAttempts, attempt].slice(-MAX_SETTLEMENT_ATTEMPTS),
+      }
+      return {
+        next: { ...current, obligations: retainBounded({ ...current.obligations, [existing.obligationId]: updated }) },
+        result: { obligationId: existing.obligationId, revision: updated.revision, minted: false },
+      }
+    }
     const ordinal = current.lastOrdinal + 1
     const row: ObligationV1 = {
-      schema: 1,
-      obligationId,
-      ref: args.ref,
-      sessionId: args.sessionId,
-      ...(args.conversationId !== undefined ? { conversationId: args.conversationId } : {}),
-      ...(args.sourceEventRef !== undefined ? { sourceEventRef: args.sourceEventRef } : {}),
-      question: args.question,
-      ...(args.answerShape !== undefined ? { answerShape: args.answerShape } : {}),
-      principals: args.principals ?? [],
-      owner: args.owner,
-      status: 'open',
-      createdOrdinal: ordinal,
-      revision: 1,
-      createdAtMs: now,
-      updatedAtMs: now,
-      settlementAttempts: [],
-      notifications: {},
-      ...(args.urgency !== undefined ? { urgency: args.urgency } : {}),
-      ...(args.expiresAtMs !== undefined ? { expiresAtMs: args.expiresAtMs } : {}),
+      ...mintRow(args, ordinal, now),
+      status: args.settlement.kind,
+      settledAtMs: now,
+      settlement,
+      settlementAttempts: [attempt],
     }
     return {
       next: {
         ...current,
         lastOrdinal: ordinal,
-        obligations: retainBounded({ ...current.obligations, [obligationId]: row }),
+        obligations: retainBounded({ ...current.obligations, [row.obligationId]: row }),
       },
-      result: { obligationId, revision: 1, reraised: false },
+      result: { obligationId: row.obligationId, revision: 1, minted: true },
     }
   })
 }

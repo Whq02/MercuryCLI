@@ -108,9 +108,26 @@ const framesFor = (id: string): Array<Record<string, unknown>> =>
 const denyTextOf = (frame: Record<string, unknown> | undefined): string =>
   String((frame as { response?: { response?: { message?: string } } } | undefined)?.response?.response?.message ?? '')
 const parked = (id: string): boolean => asks.listPendingPermissionAsks().some(a => a.requestId === id)
+type ReceiptRow = { ref?: string; sessionId?: string; status?: string; revision?: number; createdAtMs?: number; settledAtMs?: number; settlement?: { by?: string }; question?: string }
+const rowWords = (o: ReceiptRow): string => `${o.ref ?? '?'} ${o.status ?? '?'} rev=${String(o.revision)} by=${j(o.settlement?.by ?? '')} created=${String(o.createdAtMs)} settled=${String(o.settledAtMs)}`
+const { crewStoreRoot } = await import('../../src/services/crew/identity.ts')
+const switchboardStorePath = (): string => join(crewStoreRoot(), 'obligations-switchboard.json')
+const committedRows = (): ReceiptRow[] => {
+  try {
+    const file = JSON.parse(readFileSync(switchboardStorePath(), 'utf8')) as { obligations?: Record<string, ReceiptRow> }
+    return Object.values(file.obligations ?? {})
+  } catch {
+    return []
+  }
+}
 
 section('A1 the pure road: no operator client attached — the ask is denied at once through the child\'s control channel and never parks')
 {
+  const commits: string[] = []
+  const unsubscribe = obligations.subscribeObligations(() => {
+    const row = committedRows().find(o => o.ref === 'permission:req-nobody')
+    commits.push(row === undefined ? 'absent' : `${row.status ?? '?'}@rev${String(row.revision)}`)
+  }, { scope: 'switchboard' })
   const t0 = Date.now()
   onAsk('concourse-w1', askFrame('req-nobody', 'Bash'), pureDaemonDir, channel, 0, () => 'absent')
   const settledIn = Date.now() - t0
@@ -127,7 +144,12 @@ section('A1 the pure road: no operator client attached — the ask is denied at 
     return (rows as Array<{ ref?: string; status?: string; settlement?: { by?: string } }>).some(o => o.ref === 'permission:req-nobody' && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
   }, 5_000)
   check('...the receipt: the obligation for the ask is recorded and settled withdrawn by the daemon with the cause (never a silent disappearance)', receipt)
-  check('...no open needs-you row is left for it', !(await obligations.openObligations({ scope: 'switchboard' })).some(o => o.ref === 'permission:req-nobody'))
+  const openRows = (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.ref === 'permission:req-nobody')
+  check('...no open needs-you row is left for it', openRows.length === 0, openRows.map(rowWords).join(' | '))
+  unsubscribe()
+  const receiptRow = (await obligations.listObligations({ scope: 'switchboard' } as never) as ReceiptRow[]).find(o => o.ref === 'permission:req-nobody')
+  check('red on the base: the receipt is born settled — no commit of the needs-you store ever carried the row OPEN (the base mints it open and withdraws it in a second commit)', commits.length > 0 && commits.every(c => !c.startsWith('open')), `commits seen=${j(commits)}`)
+  check('red on the base: ...one commit, one revision: the settled receipt carries revision 1', receiptRow?.revision === 1 && receiptRow.status === 'withdrawn', receiptRow === undefined ? 'no receipt row' : rowWords(receiptRow))
 }
 
 section('A2 the parking law stands with a client attached, and when presence cannot be read')
@@ -306,7 +328,10 @@ const bodyText = (row: Row | undefined): string => {
   const body = part?.body
   return typeof body === 'string' ? body : Array.isArray(body) ? (body as Array<{ text?: string }>).map(b => b.text ?? '').join('') : j(body ?? '')
 }
-const openAsksFor = async (sessionId: string): Promise<number> => (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.sessionId === sessionId && (o.ref ?? '').startsWith('permission:')).length
+const openAskRowsFor = async (sessionId: string): Promise<ReceiptRow[]> => (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.sessionId === sessionId && (o.ref ?? '').startsWith('permission:'))
+const openAsksFor = async (sessionId: string): Promise<number> => (await openAskRowsFor(sessionId)).length
+const receiptRowFor = async (sessionId: string): Promise<ReceiptRow | undefined> =>
+  ((await obligations.listObligations({ scope: 'switchboard' } as never)) as ReceiptRow[]).find(o => o.sessionId === sessionId && (o.ref ?? '').startsWith('permission:'))
 const TYPED_DENIAL = /<tool_use_error>Permission to use AskUserQuestion has been denied: the operator's client was not there to answer \(no operator client is attached to the switchboard\)/
 
 async function expectDeniedAtOnce(label: string, world: SeatWorld, session: Session): Promise<void> {
@@ -321,12 +346,15 @@ async function expectDeniedAtOnce(label: string, world: SeatWorld, session: Sess
   const gapMs = askRow?.occurredAt !== undefined && resultRow?.occurredAt !== undefined ? Date.parse(resultRow.occurredAt) - Date.parse(askRow.occurredAt) : Number.NaN
   check(`${label}: ...landing within a second of the ask (the transcript's own clocks)`, Number.isFinite(gapMs) && gapMs >= 0 && gapMs < 1_000, `${gapMs}ms`)
   check(`${label}: ...the turn carried on: the model's next request was issued and its reply landed`, await until(() => session.rawTranscript().includes('carried on without the answer.'), 15_000), `requests=${world.requests()}`)
-  check(`${label}: ...nothing parked: no open needs-you row for the session`, (await openAsksFor(session.sessionId)) === 0)
+  const openRows = await openAskRowsFor(session.sessionId)
+  check(`${label}: ...nothing parked: no open needs-you row for the session`, openRows.length === 0, `open rows read: ${openRows.map(rowWords).join(' | ')}`)
   const receipt = await until(async () => {
-    const rows2 = (await obligations.listObligations({ scope: 'switchboard' } as never)) as Array<{ sessionId?: string; ref?: string; status?: string; settlement?: { by?: string } }>
-    return rows2.some(o => o.sessionId === session.sessionId && (o.ref ?? '').startsWith('permission:') && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
+    const row = await receiptRowFor(session.sessionId)
+    return row !== undefined && row.status === 'withdrawn' && /denied at once/.test(row.settlement?.by ?? '')
   }, 5_000)
   check(`${label}: ...the receipt row is settled withdrawn by the daemon with the cause`, receipt)
+  const receiptRow = await receiptRowFor(session.sessionId)
+  check(`${label}: red on the base: ...born settled in one commit (revision 1) — the base mints the receipt OPEN and withdraws it in a second commit, an open needs-you row for as long as the second takes`, receiptRow?.revision === 1 && receiptRow.status === 'withdrawn', receiptRow === undefined ? 'no receipt row' : rowWords(receiptRow))
   check(`${label}: ...the daemon log names it`, /denied at once — no operator client is attached to the switchboard — the child was told/.test(world.daemonLog()), world.daemonLog().split('\n').filter(l => /permission ask/.test(l)).slice(-2).join(' | ').slice(0, 300))
 }
 

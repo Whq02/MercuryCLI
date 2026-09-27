@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { armInactivityDeadline, formatLimit, minutesKnobToMs, type InactivityDeadline } from '../utils/deadline.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { upsertObligation } from '../services/crew/obligations.js'
+import { recordSettledObligation, upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
   type SessionAskProjectionV1,
@@ -203,7 +203,6 @@ function denyUnattended(
   short: string,
   rec: { sessionId: string; workspaceId: string; title?: string },
   toolName: string,
-  input: Record<string, unknown>,
   channel: AskControlChannel | undefined,
 ): void {
   const frame = JSON.stringify({
@@ -219,20 +218,16 @@ function denyUnattended(
   console.error(
     `[daemon] permission ask ${requestId} (${toolName} for ${short}) denied at once — ${NO_CLIENT_ATTACHED_CAUSE}${delivered ? ' — the child was told' : ' — no live control channel to tell'}`,
   )
-  const ask: PendingAsk = { workerId: short, sessionId: rec.sessionId, workspaceId: rec.workspaceId, toolName, input }
-  ask.obligationLanded = upsertObligation({
+  void recordSettledObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
     question: `"${rec.title ?? short}" asked to run ${toolName} — denied at once: ${NO_CLIENT_ATTACHED_CAUSE}`,
     owner: 'operator',
     scope: 'switchboard',
+    settlement: { kind: 'withdrawn', by: `daemon: denied at once — ${NO_CLIENT_ATTACHED_CAUSE}` },
+  }).catch(err => {
+    logForDebugging(`[daemon] unattended-ask receipt write failed: ${err}`)
   })
-    .then(res => res.obligationId)
-    .catch(err => {
-      logForDebugging(`[daemon] unattended-ask receipt write failed: ${err}`)
-      return undefined
-    })
-  settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: denied at once — ${NO_CLIENT_ATTACHED_CAUSE}` })
 }
 
 export function onWorkerControlRequest(
@@ -253,7 +248,7 @@ export function onWorkerControlRequest(
   const toolName = String(request.tool_name ?? 'a tool')
   const input = (request.input ?? {}) as Record<string, unknown>
   if (presence(dir) === 'absent') {
-    denyUnattended(requestId, short, rec, toolName, input, channel)
+    denyUnattended(requestId, short, rec, toolName, channel)
     return
   }
   if (pending.size >= MAX_PENDING) {
