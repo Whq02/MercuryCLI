@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -38,8 +38,29 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const rec = (v: unknown): Record<string, unknown> => (typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {})
+const LEAVE_CEILING_MS = 5_000
+
+function untilRecordGone(path: string, ceilingMs: number): Promise<boolean> {
+  return new Promise(settle => {
+    let watcher: FSWatcher | undefined
+    let ceiling: ReturnType<typeof setTimeout> | undefined
+    const finish = (): void => {
+      if (ceiling !== undefined) clearTimeout(ceiling)
+      watcher?.close()
+      settle(!existsSync(path))
+    }
+    try {
+      watcher = watch(dirname(path), () => {
+        if (!existsSync(path)) finish()
+      })
+    } catch {
+      watcher = undefined
+    }
+    ceiling = setTimeout(finish, vshotBudgetMs(ceilingMs))
+    if (!existsSync(path)) finish()
+  })
+}
 
 if (!existsSync(BIN)) {
   console.error(`  ${BIN} missing — bun run build.ts first (or pass --dist <bundle>)`)
@@ -206,7 +227,7 @@ const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c)
 async function capture(world: World, sends: Send[], total: number): Promise<Capture> {
   const out = join(world.root, 'capture.json')
   const cfgPath = join(world.root, 'capture.cfg.json')
-  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, BIN], cwd: world.cwd, cols: world.cols, rows: world.rows, total, sends, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, BIN], cwd: world.cwd, cols: world.cols, rows: world.rows, total, sends, readyText: REPLY_NEEDLE, readySettleTicks: 25, out }))
   const inherited: NodeJS.ProcessEnv = {}
   for (const key of ['VSHOT_SLOTS', 'MERCURY_VSHOT_BUDGET_SCALE', 'MERCURY_VSHOT_EMULATOR', 'PYTHONPATH', 'VSHOT_TEE']) if (process.env[key] !== undefined) inherited[key] = process.env[key]
   const child = spawn(PYTHON, [VSHOT, cfgPath], { env: { ...childEnv(world), VSHOT_SLOTS: '999', ...inherited }, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -372,6 +393,7 @@ async function drive(size: string): Promise<void> {
     }
   }
   stopFixture(world)
+  const left = await untilRecordGone(world.pidfile, LEAVE_CEILING_MS)
   section(`${world.tag} — the road from a fresh home with no server answering to a Qwen reply`)
   check(`${world.tag}: the fixture port was quiet before the boot (discovery finds nothing)`, quietBefore)
   check(`${world.tag}: the drive delivered every send (vshot exit 0)`, c.status === 0, `exit ${c.status}: ${c.undelivered || c.stderr.trim().split('\n').slice(-6).join(' | ')}`)
@@ -398,7 +420,7 @@ async function drive(size: string): Promise<void> {
   check(`${world.tag} reply: after esc closes the dialog a typed line ("${FOLLOW_UP}") gets the fixture's reply on the transcript`, reply.some(l => l.includes(REPLY_NEEDLE)), reply.slice(-10).map(l => l.trim()).filter(l => l !== '').join(' | '))
   const log = readLog(world)
   const pull = log.find(r => r.method === 'POST' && r.path === '/api/pull')
-  check(`${world.tag}: the product started the fixture server itself (its pidfile under the scratch state named a live process until the drive stopped it) and every request came from the product`, serverPid > 0 && serverAlive && log.length > 0, `pid ${serverPid} alive ${serverAlive} · ${log.length} requests`)
+  check(`${world.tag}: the product started the fixture server itself (its pidfile under the scratch state named a live process until the drive stopped it, and the server left on the stop signal, its pidfile gone) and every request came from the product`, serverPid > 0 && serverAlive && left && log.length > 0, `pid ${serverPid} alive ${serverAlive} left ${left} · ${log.length} requests`)
   const afterEsc = c.marks.get('after-esc') ?? []
   check(`${world.tag} after-esc: the dialog is gone and the session strip names qwen3.5:9b as the live model (the pick applied, not queued)`, afterEsc.length > 0 && !afterEsc.some(l => l.includes(KEYS)) && afterEsc.some(l => STRIP_ROW.test(l)), afterEsc.filter(l => /ready ·|● ready|effort/.test(l)).map(l => l.trim().slice(0, 120)).join(' | '))
   const serveLog = join(world.home, 'local-setup', 'ollama-serve.log')
@@ -427,7 +449,6 @@ console.log(`   sizes: ${SIZES.join(' ')}${FRAMES ? ` · frames: ${FRAMES}` : ''
 console.log('============================================================')
 
 await Promise.all(SIZES.map(size => drive(size)))
-await sleep(300)
 
 section('nothing outside the scratch homes changed (the real config home is listed, never read)')
 const outsideAfter = outsideListing()

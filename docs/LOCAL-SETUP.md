@@ -95,3 +95,16 @@ It never reads or writes the server's environment (`OLLAMA_*`), never starts a
 second server beside one that answers, never installs over LM Studio, vLLM or
 llama.cpp, and never runs a command you did not press Enter on. Every command
 it runs is the one the will-run line showed.
+
+## What it leaves behind
+
+The server runs on after Mercury exits, started the way this system runs it:
+the app, the Homebrew service, the systemd service, or a detached `ollama
+serve` whose output goes to `local-setup/ollama-serve.log` under the config
+home. The model lives in Ollama's own store, where `ollama list` shows it.
+Under Mercury's config home the road writes two settings and nothing else: the
+per-model window for `local/qwen3.5:9b` (the one `/config` → Local model window
+and the picker's `w` row read back) and the session's saved model. A second
+`/localsetup` finds the server answering with the model and goes straight to
+the window step; `MERCURY_LOCAL_PROBE_TARGETS` points the road at a server on
+another host or port.
