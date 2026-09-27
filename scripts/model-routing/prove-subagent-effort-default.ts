@@ -144,7 +144,7 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
     return new Response('', { status: 404 })
   }) as unknown as typeof fetch
   localDiscovery.__resetLocalDiscoveryForTest()
-  await localDiscovery.refreshLocalDiscovery({ force: true, fetchImpl: ollamaFetch, env: process.env })
+  await localDiscovery.refreshLocalDiscovery({ force: true, fetchImpl: ollamaFetch, env: { ...process.env, MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://fixture.invalid:11434' } as NodeJS.ProcessEnv })
   check('rig: the Ollama fixture was discovered', localCatalogue.localRecordFor('local/qwen3:8b')?.server === 'ollama' && localCatalogue.localRecordFor('local/llama3.2:latest') !== undefined)
   const localThinking = stamped('local/qwen3:8b')
   check('a local thinking model runs the default word where its server serves it (high, on the Ollama vocabulary)', localThinking.wire === 'high' && (wire.LOCAL_SERVER_EFFORTS.ollama as readonly string[]).includes('high'), JSON.stringify(localThinking))
