@@ -1,9 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
 
-export type Workload = 'cron'
+export type Workload = 'cron' | 'advisor'
 
 export const WORKLOAD_CRON: Workload = 'cron'
+
+export const WORKLOAD_ADVISOR: Workload = 'advisor'
 
 const workloadStorage = new AsyncLocalStorage<string | undefined>()
 

@@ -40,6 +40,7 @@ const CONTAINER_META: Record<
   { label: string; blurb: string }
 > = {
   console: { label: 'CONSOLE', blurb: 'side questions' },
+  advisor: { label: 'ADVISOR', blurb: 'advises the working model, not you' },
 }
 
 function rowId(row: PickerRow): string {

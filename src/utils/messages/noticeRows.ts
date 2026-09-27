@@ -14,6 +14,14 @@ export type SaturnOrigin = {
   heldWhy?: 'window' | 'parked'
 }
 
+export type AdvisorOrigin = {
+  kind: 'advisor'
+  model: string
+  seats: number
+  at: string
+  ask?: true
+}
+
 export type NoticeBlock =
   | { kind: 'monitor'; taskId: string; name: string; lines: string[] }
   | { kind: 'notice'; lines: string[] }
@@ -51,6 +59,12 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
   return o.kind === 'saturn' && (o.fire === 'wake' || o.fire === 'cron') && typeof o.firedAt === 'string'
+}
+
+export function isAdvisorOrigin(origin: unknown): origin is AdvisorOrigin {
+  if (typeof origin !== 'object' || origin === null) return false
+  const o = origin as Record<string, unknown>
+  return o.kind === 'advisor' && typeof o.model === 'string' && typeof o.seats === 'number' && typeof o.at === 'string'
 }
 
 export type SaturnQueueStamp = { origin: SaturnOrigin; workload: Workload }

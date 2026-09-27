@@ -197,10 +197,16 @@ export type GlobalConfig = {
   }
   supervisorEnabled?: boolean
   pingsBell?: boolean
+  advisor?: {
+    enabled?: boolean
+    seats?: number
+  }
   subModels?: {
     console?: string
+    advisor?: string
     effort?: {
       console?: string
+      advisor?: string
     }
   }
   switchboardCapacity?: {
