@@ -205,9 +205,13 @@ larger than a window the server or its Modelfile states. The window a local
 model is served with is a setting inside Mercury (`/config` → Local model
 window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k ·
 256k, never above the trained maximum, whose projected load (the weights plus
-the KV cache at the server's cache type and slots, from the model's own
-geometry) fits the memory usable for models — the server's own gpu-memory
-line when it states one, the same rule `/localsetup`'s step 5 uses — at the
+the KV cache of the layers that keep one — a hybrid such as Qwen 3.5/3.8
+states `full_attention_interval` in its own metadata, so one layer in four
+counts — at the server's cache type and slots, from the model's own
+geometry; once the model is loaded, the size `/api/ps` measures at its
+window outranks that formula) fits the memory usable for models — the
+server's own gpu-memory line when it states one, the same rule
+`/localsetup`'s step 5 uses — at the
 model's first send and holds it for the session on every dispatch — the main
 thread, crewmates and workflow agents alike, so a sub-agent never reloads the
 runner (a model whose geometry the server does not state falls back to twice
