@@ -10,7 +10,7 @@ type SectionValue = string | null
 export type SystemPromptSection = {
   name: string
   compute: () => SectionValue | Promise<SectionValue>
-  computeKey: (() => string) | null
+  computeKey: (() => string | null) | null
   cacheBreaking: boolean
 }
 
@@ -23,7 +23,7 @@ export function systemPromptSection(
 
 export function keyedSystemPromptSection(
   name: string,
-  computeKey: () => string,
+  computeKey: () => string | null,
   compute: () => SectionValue | Promise<SectionValue>,
 ): SystemPromptSection {
   return { name, compute, computeKey, cacheBreaking: false }

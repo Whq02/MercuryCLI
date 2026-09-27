@@ -71,6 +71,28 @@ export const EMPTY_REPLY_RECOVERY_NUDGE =
   '[System: the previous reply came back empty — no text and no tool call reached the user. ' +
   'Give the final answer now, or make the tool call you meant to make.]'
 
+export const REASONING_ONLY_RECOVERY_NUDGE =
+  '[System: your last turn carried thinking only — say your reply, or call the tool you meant.]'
+
+export const REASONING_ONLY_FEWER_WORDS_NUDGE =
+  '[System: your last turn carried thinking only — say your reply, or call the tool you meant; ' +
+  'you ran out of output while thinking — answer in fewer words.]'
+
+export const REASONING_CUT_MARKER = '[output ran out while thinking — no reply was written yet]'
+
+export function reasoningOnlyRecoveryNudge(fewerWords: boolean): string {
+  return fewerWords ? REASONING_ONLY_FEWER_WORDS_NUDGE : REASONING_ONLY_RECOVERY_NUDGE
+}
+
+export function isReasoningOnlyRecoveryNudgeText(text: string): boolean {
+  return text === REASONING_ONLY_RECOVERY_NUDGE || text === REASONING_ONLY_FEWER_WORDS_NUDGE
+}
+
+export function reasoningOnlyNoticeLine(outputLimit: string | null, again: boolean, action: string): string {
+  const head = outputLimit === null ? "the model's turn carried thinking only" : `thinking ran to the output limit (${outputLimit})`
+  return `${head}${again ? ' again' : ''} — ${action}`
+}
+
 export const PROMPT_TOO_LONG_ERROR_MESSAGE = 'Prompt is too long'
 
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'

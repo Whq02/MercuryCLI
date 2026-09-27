@@ -93,6 +93,9 @@ import {
   continuableStreamFaultTextOf,
   endsWithEmptyReplyRecoveryNudge,
   isContinuableStreamFaultMessage,
+  REASONING_CUT_MARKER,
+  reasoningOnlyNoticeLine,
+  reasoningOnlyRecoveryNudge,
   streamFaultFactsOf,
   streamFaultNoticeLine,
   streamFaultRecoveryContent,
@@ -147,6 +150,7 @@ import {
   getRuntimeMainLoopModel,
   renderModelName,
 } from '../utils/model/model.js'
+import { getModelMaxOutputTokens } from '../utils/model/capabilities.js'
 import {
   doesMostRecentAssistantMessageExceed200k,
   tokenCountWithEstimation,
@@ -228,6 +232,7 @@ type TurnState = {
   transition: Continue | undefined
   emptyReplyRecoveryCount?: number
   chantRecoveryCount?: number
+  reasoningOnlyRecoveryCount?: number
   overflowEpisode: OverflowEpisode
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
 }
@@ -379,6 +384,53 @@ export function decideToolCallRefusalRecovery(input: {
 }
 
 const EMPTY_REPLY_RECOVERY_LIMIT = 1
+
+const REASONING_ONLY_RECOVERY_LIMIT = 1
+
+const REASONING_CUT_RECOVERY_LIMIT = 2
+
+export function decideReasoningOnlyRecovery(input: { recoveryCount: number; maxTokens: boolean }): StreamFaultDecision {
+  const limit = input.maxTokens ? REASONING_CUT_RECOVERY_LIMIT : REASONING_ONLY_RECOVERY_LIMIT
+  if (input.recoveryCount < limit) {
+    return { kind: 'continue', attempt: input.recoveryCount + 1 }
+  }
+  return { kind: 'surface' }
+}
+
+type ReasoningOnlyTurn = { reply: AssistantMessage; maxTokens: boolean }
+
+export function reasoningOnlyTurnOf(
+  assistantMessages: readonly AssistantMessage[],
+  refusedToolCalls: number,
+): ReasoningOnlyTurn | null {
+  if (refusedToolCalls > 0) return null
+  const last = assistantMessages.at(-1)
+  if (last?.isApiErrorMessage === true && !isWithheldMaxOutputTokens(last)) return null
+  const replies = assistantMessages.filter(m => m.isApiErrorMessage !== true)
+  const reply = replies.at(-1)
+  if (reply === undefined) return null
+  const blocks = replies.flatMap(m => (Array.isArray(m.message.content) ? m.message.content : []))
+  const isThinking = (block: { type: string }): boolean => block.type === 'thinking' || block.type === 'redacted_thinking'
+  const thought = blocks.some(isThinking)
+  const silent = blocks.every(
+    block => isThinking(block) || (block.type === 'text' && typeof (block as { text?: unknown }).text === 'string' && (block as { text: string }).text.trim() === ''),
+  )
+  const stamped = replies.some(m => (m as { reasoningOnly?: boolean }).reasoningOnly === true)
+  if (!(stamped || (thought && silent))) return null
+  if (blocks.some(block => block.type === 'tool_use') || reply.message.stop_reason === 'tool_use') return null
+  const maxTokens = isWithheldMaxOutputTokens(last) || reply.message.stop_reason === 'max_tokens'
+  return { reply, maxTokens }
+}
+
+function outputLimitWords(ceiling: number): string {
+  return ceiling % 1000 === 0 ? `${ceiling / 1000}k` : String(ceiling)
+}
+
+export function withReasoningCutMarker(reply: AssistantMessage): AssistantMessage {
+  const content = Array.isArray(reply.message.content) ? reply.message.content : []
+  const marker = { type: 'text' as const, text: REASONING_CUT_MARKER, citations: null }
+  return { ...reply, message: { ...reply.message, content: [...content, marker] as AssistantMessage['message']['content'] } }
+}
 
 export function decideEmptyReplyRecovery(input: { recoveryCount: number }): StreamFaultDecision {
   if (input.recoveryCount < EMPTY_REPLY_RECOVERY_LIMIT) {
@@ -1361,7 +1413,66 @@ export async function* runEventCore(
 
       const chant = lastMessage !== undefined && (lastMessage.isApiErrorMessage !== true || isWithheldMaxOutputTokens(lastMessage)) ? detectChant(replyTextOf(assistantMessages)) : null
 
-      if (chant === null && isWithheldMaxOutputTokens(lastMessage)) {
+      const reasoningOnly = chant === null ? reasoningOnlyTurnOf(assistantMessages, refusedToolCalls.length) : null
+      if (reasoningOnly !== null) {
+        const reasoningOnlyRecoveryCount = state.reasoningOnlyRecoveryCount ?? 0
+        const decision = decideReasoningOnlyRecovery({ recoveryCount: reasoningOnlyRecoveryCount, maxTokens: reasoningOnly.maxTokens })
+        const outputLimit = reasoningOnly.maxTokens
+          ? outputLimitWords(maxOutputTokensOverride ?? getModelMaxOutputTokens(iter.currentModel).default)
+          : null
+        if (decision.kind === 'continue') {
+          const fewerWords = reasoningOnly.maxTokens && decision.attempt >= REASONING_CUT_RECOVERY_LIMIT
+          const action = reasoningOnly.maxTokens
+            ? fewerWords
+              ? 'continuing, asking for fewer words'
+              : 'continuing'
+            : 'asked it once to say its reply or call the tool it meant'
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(reasoningOnlyNoticeLine(outputLimit, decision.attempt > 1, action), 'warning'),
+          })
+          const nudge = createUserMessage({
+            content: reasoningOnlyRecoveryNudge(fewerWords),
+            isMeta: true,
+          })
+          const carried = assistantMessages
+            .filter(m => m.isApiErrorMessage !== true)
+            .map(m => (reasoningOnly.maxTokens && m === reasoningOnly.reply ? withReasoningCutMarker(m) : m))
+          const next: TurnState = {
+            messages: [...messagesForQuery, ...carried, nudge],
+            toolUseContext,
+            autoCompactTracking: tracking,
+            maxOutputTokensRecoveryCount,
+            maxOutputTokensOverride,
+            streamFaultRecoveryCount,
+            toolCallRefusalRecoveryCount,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            overflowEpisode,
+            pendingOverflow: undefined,
+            emptyReplyRecoveryCount: state.emptyReplyRecoveryCount,
+            chantRecoveryCount: state.chantRecoveryCount,
+            reasoningOnlyRecoveryCount: reasoningOnlyRecoveryCount + 1,
+            transition: { reason: 'reasoning_only_recovery', attempt: decision.attempt },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        const ending = reasoningOnly.maxTokens
+          ? `the turn ends here after ${reasoningOnlyRecoveryCount} continuations; the next step is yours`
+          : 'the turn ends here'
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(reasoningOnlyNoticeLine(outputLimit, true, ending), 'warning'),
+        })
+        if (isWithheldMaxOutputTokens(lastMessage)) {
+          yield emit({ kind: 'withheld_surfaced', message: lastMessage })
+        }
+      }
+
+      if (chant === null && reasoningOnly === null && isWithheldMaxOutputTokens(lastMessage)) {
         const decision = decideMaxOutputTokensRecovery({
           capEnabled: false,
           envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,

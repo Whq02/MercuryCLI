@@ -35,6 +35,7 @@ import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnost
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
+import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   activateConditionalSkillsForPaths,
@@ -70,7 +71,7 @@ import type { UUID } from 'node:crypto'
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME, FILE_UNEXPECTEDLY_MODIFIED_ERROR } from './constants.js'
-import { getEditToolDescription } from './prompt.js'
+import { getEditToolDescription, localSpanRefusalMessage } from './prompt.js'
 import {
   inputSchema,
   outputSchema,
@@ -631,8 +632,8 @@ export const FileEditTool = buildTool({
   async description(): Promise<string> {
     return 'A tool for editing files'
   },
-  async prompt({ tools }): Promise<string> {
-    return getEditToolDescription(new Set(tools.map(tool => tool.name)))
+  async prompt({ tools, model }): Promise<string> {
+    return getEditToolDescription(new Set(tools.map(tool => tool.name)), model)
   },
   userFacingName,
   getToolUseSummary,
@@ -856,6 +857,20 @@ export const FileEditTool = buildTool({
         }
       }
       return { result: true as const }
+    }
+
+    const turnModel = (context.options as { mainLoopModel?: unknown } | undefined)?.mainLoopModel
+    if (mode === 'exact' && typeof turnModel === 'string' && localRecordFor(turnModel) !== undefined) {
+      const fileBytes = Buffer.byteLength(currentContent, 'utf8')
+      const oldBytes = Buffer.byteLength(oldString, 'utf8')
+      if (fileBytes > 0 && oldBytes * 2 > fileBytes) {
+        return {
+          result: false as const,
+          behavior: 'ask' as const,
+          message: localSpanRefusalMessage(Math.round((100 * oldBytes) / fileBytes)),
+          errorCode: 15,
+        }
+      }
     }
 
     if (expandedPath.toLowerCase().endsWith('.ipynb')) {
