@@ -187,6 +187,7 @@ console.log('── §5 the built bundle boots headless through the seam ──'
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_OPERATOR: 'sam',
       [SEAM]: undefined,
       [PIN]: undefined,

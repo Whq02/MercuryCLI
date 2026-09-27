@@ -159,6 +159,7 @@ section('(4) ISOLATED artifact — the bundled adapter through the artifact\'s o
         timeout: 300_000,
         env: {
           HOME: arenaHome,
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
           PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
           TERM: 'dumb',
         },

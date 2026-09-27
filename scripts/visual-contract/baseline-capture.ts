@@ -88,7 +88,7 @@ function splashCapture(name: string, view: 'lockup' | 'menu' | 'projects', cols:
         JSON.stringify({ argv: ['node', SPLASH], cols, rows, readyText: SPLASH_READY[view], stableTicks: SETTLE_LAW.stillTicks, total: SETTLE_LAW.ceilingTicks, out: gridPath }),
       )
       const r = await runChild(DRIVER.python, [VSHOT, cfgPath], {
-        env: { ...process.env, ...env, MERCURY_HOME: home, MERCURY_CONFIG_DIR: home, VSHOT_SLOTS: vshotSlotsFor(JOBS) },
+        env: { ...process.env, ...env, MERCURY_HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', VSHOT_SLOTS: vshotSlotsFor(JOBS) },
         timeoutMs: settleWallMs(SETTLE_LAW, vshotBudgetScale()),
       })
       const ok = r.status === 0 && existsSync(gridPath)
@@ -112,7 +112,7 @@ function surfaceCapture(surface: string, cols: number, rows: number): Capture {
       if (region) args.push('--still-region', region.join(','))
       const r = await runChild(BUN, args, {
         cwd: REPO,
-        env: { ...process.env, MERCURY_CONFIG_DIR: home, VSHOT_SLOTS: vshotSlotsFor(JOBS) },
+        env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', VSHOT_SLOTS: vshotSlotsFor(JOBS) },
         timeoutMs: settleWallMs(SETTLE_LAW, vshotBudgetScale()) * 2 + 30_000,
       })
       const ok = r.status === 0 && existsSync(gridPath)

@@ -16,6 +16,7 @@ echo "############################################################"
 run_proof "$here/prove-gate-runner.sh" bash "$here/prove-gate-runner.sh" || fail=1
 run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
 run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
+run_proof "$here/prove-proof-machine-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-machine-census.ts" || fail=1
 run_proof "$here/prove-capture-preflight.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capture-preflight.ts" || fail=1
 run_proof "$here/prove-proof-exit-marks.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-exit-marks.ts" || fail=1
 run_proof "$here/prove-ci-shard-ceiling.sh" bash "$here/prove-ci-shard-ceiling.sh" || fail=1

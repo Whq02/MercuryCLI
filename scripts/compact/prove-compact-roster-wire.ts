@@ -265,6 +265,7 @@ function makeArena(fixtureBase: string, nodeBin: string): Arena {
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixtureBase,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),

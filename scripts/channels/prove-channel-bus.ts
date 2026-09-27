@@ -174,6 +174,7 @@ if (!existsSync(distPath)) {
         env: {
           ...cleanEnv,
           HOME: home,
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
           MERCURY_LOCAL_CHANNELS: '1',
           MERCURY_CHANNEL_ROOM: 'proofroom',
           MERCURY_OPERATOR: 'proofbot',

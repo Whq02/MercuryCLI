@@ -35,7 +35,7 @@ writeFileSync(join(home, 'facts-window.json'), JSON.stringify({ enabled: control
 const wirePath = join(home, 'wire.jsonl')
 writeFileSync(wirePath, '')
 const fixture = spawn('node', [join(import.meta.dir, 'cap-offer-fixture-server.ts'), wirePath], {
-  stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: process.env.PATH, HOME: home, TMPDIR: realpathSync(tmpdir()) },
+  stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: process.env.PATH, HOME: home, TMPDIR: realpathSync(tmpdir()), MERCURY_LOCAL_PROBE_TARGETS: 'none' },
 })
 process.on('exit', () => { if (fixture.exitCode === null && fixture.signalCode === null) fixture.kill() })
 const port = await new Promise<number>((resolvePort, reject) => {
@@ -52,7 +52,7 @@ const base = `http://127.0.0.1:${port}`
 const env: NodeJS.ProcessEnv = {
   PATH: process.env.PATH, HOME: home, TMPDIR: '.', TERM: 'xterm-256color', LANG: 'en_US.UTF-8', SHELL: '/bin/zsh',
   VSHOT_SLOTS: process.env.VSHOT_SLOTS,
-  MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
+  MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true',
   ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: base,
   MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
   MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',

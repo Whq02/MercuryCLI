@@ -40,6 +40,7 @@ const mkHome = (tag: string): { home: string; cwd: string; env: Record<string, s
       TERM: 'xterm-256color',
       MERCURY_CONFIG_DIR: configDir,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
     },

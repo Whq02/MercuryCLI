@@ -10,7 +10,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'proof-exits-'))
 const stub = join(scratch, 'bun')
 writeFileSync(stub, '#!/bin/sh\nprintf "FAIL  diagnostic wording is not the result\\n"\nexit "$PROOF_FIXTURE_RC"\n')
 chmodSync(stub, 0o755)
-const env = (code: number) => ({ PATH: `${scratch}:${process.env.PATH}`, HOME: scratch, BUN: stub, MERCURY_CONFIG_DIR: scratch, PROOF_FIXTURE_RC: String(code) })
+const env = (code: number) => ({ PATH: `${scratch}:${process.env.PATH}`, HOME: scratch, BUN: stub, MERCURY_CONFIG_DIR: scratch, MERCURY_LOCAL_PROBE_TARGETS: 'none', PROOF_FIXTURE_RC: String(code) })
 let checks = 0
 const check = (label: string, ok: unknown): void => { assert(ok, label); checks++; console.log(`PASS ${label}`) }
 const marks = (text: string) => [...text.matchAll(/^── (.+?)\s+(\d+)s rc=(\d+)$/gm)].map(match => ({ path: match[1]!, code: Number(match[3]) }))

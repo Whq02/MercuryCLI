@@ -147,12 +147,12 @@ section('§1 the POSIX decision through the seam')
     check('the written line reads as one sentence', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ~/.zshrc — open a new terminal, or run: ${P_LINE}`)
     check('the rest of this run sees the folder first on PATH', (f.io.env.PATH ?? '').startsWith(`${HOME_P}/.local/bin:`))
     const guard = shGuardedLine('$HOME/.local/bin')
-    const once = spawnSync('sh', ['-c', `${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).stdout
-    const twice = spawnSync('sh', ['-c', `${guard}\n${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).stdout
+    const once = spawnSync('sh', ['-c', `${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCURY_LOCAL_PROBE_TARGETS: 'none' } }).stdout
+    const twice = spawnSync('sh', ['-c', `${guard}\n${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCURY_LOCAL_PROBE_TARGETS: 'none' } }).stdout
     check('the guarded line prepends the folder under sh', once === `${HOME_P}/.local/bin:/usr/bin:/bin`, once)
     check('the guard makes a second evaluation a no-op (sourced twice ⇒ once on PATH)', twice === once, twice)
     const zshOnce = has('zsh')
-      ? spawnSync('zsh', ['-c', `${guard}\n${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).stdout
+      ? spawnSync('zsh', ['-c', `${guard}\n${guard}\nprintf '%s' "$PATH"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin', MERCURY_LOCAL_PROBE_TARGETS: 'none' } }).stdout
       : once
     check('the same line behaves under zsh', zshOnce === once, zshOnce)
     f.io.env.PATH = '/usr/bin:/bin'
@@ -399,6 +399,7 @@ if (IS_WIN) {
       CI: '1',
       TERM: 'dumb',
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_SPLASH: 'off',
       ...extra,
     })
@@ -407,7 +408,7 @@ if (IS_WIN) {
       return { code: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '', all: `${r.stdout ?? ''}${r.stderr ?? ''}` }
     }
     const newShellRun = (shell: string, flags: string, home: string, command: string) =>
-      spawnSync(shell, [flags, '-c', command], { encoding: 'utf8', timeout: 60_000, env: { HOME: home, PATH: HERMETIC_PATH, TERM: 'dumb', MERCURY_NODE: nodeBin } })
+      spawnSync(shell, [flags, '-c', command], { encoding: 'utf8', timeout: 60_000, env: { HOME: home, PATH: HERMETIC_PATH, TERM: 'dumb', MERCURY_NODE: nodeBin, MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
     const newShell = (shell: string, flags: string, home: string, command = 'command -v mercury'): string =>
       (newShellRun(shell, flags, home, command).stdout ?? '').trim().split('\n').pop() ?? ''
     const home = (name: string): string => {

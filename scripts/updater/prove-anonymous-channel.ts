@@ -71,6 +71,7 @@ function runCli(
       ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_VERSIONS_DIR: versionsDir,
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ...(opts.pinned === false ? {} : { MERCURY_UPDATE_CHANNEL_REPO: SLUG }),
       MERCURY_UPDATE_API_BASE_URL: opts.base,
       ...ghEnv,

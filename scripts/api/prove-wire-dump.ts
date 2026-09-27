@@ -339,6 +339,7 @@ if (!existsSync(DIST)) {
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(home, '.claude'),
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),

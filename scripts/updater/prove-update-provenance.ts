@@ -63,6 +63,7 @@ const env = (path: string, extra: Record<string, string> = {}): Record<string, s
   GH_SHIM_FIXTURES: fixtures,
   GH_SHIM_LOG: ghLog,
   MERCURY_CREDENTIAL_STORE: 'file',
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
   BROWSER: '/usr/bin/true',
   CI: '1',
   TERM: 'dumb',

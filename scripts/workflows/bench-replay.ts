@@ -75,6 +75,7 @@ export function benchChildEnv(
     env[k] = v
   }
   env.MERCURY_CONFIG_DIR = cfgDir
+  env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   env.BROWSER = '/usr/bin/true'
   Object.assign(env, extra)
   return env

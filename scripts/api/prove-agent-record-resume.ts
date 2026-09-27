@@ -59,6 +59,7 @@ function makeArena(): Arena {
       BROWSER: '/usr/bin/true',
       MERCURY_CONFIG_DIR: join(home, '.claude'),
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),

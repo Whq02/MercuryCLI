@@ -194,6 +194,7 @@ function captureSpec(
           MERCURY_THEME_PIN: spec.theme,
           TERM_PROGRAM: 'kitty',
           MERCURY_CRITTER: DEFAULT_CRITTER_KEY,
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ...colorModeEnv(spec.colorMode),
         },
       })
