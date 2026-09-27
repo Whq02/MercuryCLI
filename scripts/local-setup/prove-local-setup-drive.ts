@@ -60,7 +60,9 @@ if (!existsSync(NODE)) {
 
 process.env.ANTHROPIC_API_KEY = KEY
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-const ROOT = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'local-setup-drive-')))
+const ROOT = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'lsd-')))
+const NARROW = 100
+const STRIP_ROW = /(?:· |● )(?:local\/)?qwen3\.5:9b · (?:effort )?(?:low|medium|high|max|xhigh)\b/
 
 interface Step {
   mark: string
@@ -70,13 +72,13 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { mark: 'step1-find-server', pattern: '', willRun: /127\.0\.0\.1:\d+/, key: '\r' },
-  { mark: 'step2-find-ollama', pattern: 'brew list --formula ollama|which ollama|command -v ollama|Ollama\\.app', willRun: /brew list --formula ollama|which ollama|command -v ollama|Ollama\.app/, key: '\r' },
+  { mark: 'step1-find-server', pattern: '', willRun: /GET http:\/\/127\.0\.0\.1:\d+\/api\//, key: '\r' },
+  { mark: 'step2-find-ollama', pattern: 'which ollama|brew list --formula ollama|Ollama\\.app', willRun: /which ollama|brew list --formula ollama|Ollama\.app/, key: '\r' },
   { mark: 'step2b-install', pattern: 'brew install ollama', willRun: /brew install ollama/, key: '\r' },
-  { mark: 'step3-start', pattern: 'brew services start ollama|ollama serve', willRun: /brew services start ollama|ollama serve/, key: '\r' },
-  { mark: 'step4-pull', pattern: '/api/pull', willRun: /POST .*\/api\/pull \{"model":"qwen3\.5:9b","stream":true\}/, key: '\r' },
-  { mark: 'step5-window', pattern: '/api/show', willRun: /POST .*\/api\/show/, key: '\r' },
-  { mark: 'step6-pick', pattern: '/api/chat|reply with the single word ready|/model local/', willRun: /\/api\/chat|\/model local\/qwen3\.5:9b|reply with the single word ready/, key: '\r' },
+  { mark: 'step3-start', pattern: "ollama'? serve|brew services start ollama", willRun: /ollama'? serve|brew services start ollama/, key: '\r' },
+  { mark: 'step4-pull', pattern: '/api/pull', willRun: /POST http:\/\/127\.0\.0\.1:\d+\/api\/pull \{"model":"qwen3\.5:9b","stream":true\}/, key: '\r' },
+  { mark: 'step5-window', pattern: '/api/show|/api/tags · POST', willRun: /\/api\/show|\/api\/tags · POST/, key: '\r' },
+  { mark: 'step6-pick', pattern: '/model local/qwen3\\.5:9b|/api/chat', willRun: /\/model local\/qwen3\.5:9b|\/api\/chat/, key: '\r' },
 ]
 
 interface World {
@@ -119,11 +121,11 @@ async function makeWorld(size: string): Promise<World> {
   const [cols, rows] = size.split('x').map(Number) as [number, number]
   const tag = `${cols}x${rows}`
   const root = join(ROOT, tag)
-  const home = join(root, 'config-home')
-  const userHome = join(root, 'user-home')
+  const home = join(root, 'home')
+  const userHome = join(root, 'user')
   const cwd = join(root, 'repo')
-  const bin = join(root, 'fixture-bin')
-  const state = join(root, 'fixture-state')
+  const bin = join(root, 'bin')
+  const state = join(root, 'state')
   for (const dir of [home, userHome, cwd, bin, state, join(userHome, 'Library', 'LaunchAgents'), join(userHome, 'Applications'), join(userHome, 'Downloads')]) mkdirSync(dir, { recursive: true })
   seedFirstRun(home, [cwd])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
@@ -245,10 +247,12 @@ function dialogRows(lines: string[]): string[] {
 function judgeStep(world: World, step: Step, frame: string[]): void {
   const rows = dialogRows(frame)
   const keysAt = rows.findIndex(r => r.includes(KEYS))
-  const willRunAt = rows.findIndex(r => step.willRun.test(r))
+  const narrow = world.cols < NARROW
+  const willRun = narrow && step.pattern !== '' ? new RegExp(step.pattern) : step.willRun
+  const willRunAt = rows.findIndex(r => /will run/.test(r) && willRun.test(r))
   const found = rows.slice(0, willRunAt < 0 ? rows.length : willRunAt).filter((r, i) => i > 0 && r !== '' && !r.includes(KEYS))
   check(`${world.tag} ${step.mark}: the keys line "${KEYS}" is on the dialog`, keysAt >= 0, frame.slice(-12).map(l => l.trim()).filter(l => l !== '').join(' | '))
-  check(`${world.tag} ${step.mark}: the will-run line names the exact command or request (${step.willRun.source})`, willRunAt >= 0 && willRunAt < keysAt, rows.join(' | '))
+  check(`${world.tag} ${step.mark}: the will-run line names the ${narrow ? 'command or request (its head; the cell clips the tail at this width)' : 'exact command or request'} (${willRun.source})`, willRunAt >= 0 && willRunAt < keysAt, rows.join(' | '))
   check(`${world.tag} ${step.mark}: a found line stands above the will-run line`, found.length >= 1, rows.join(' | '))
   check(`${world.tag} ${step.mark}: every dialog row fits the width (no row wraps into a neighbour)`, frame.every(l => l.length <= world.cols), String(frame.find(l => l.length > world.cols)?.length))
 }
@@ -282,13 +286,38 @@ function listing(dir: string, depth: number): string {
 }
 
 const REAL_HOME = homedir()
-const outsideBefore = {
-  mercury: listing(join(REAL_HOME, '.mercury'), 1),
-  applications: listing('/Applications', 1),
-  agents: listing(join(REAL_HOME, 'Library', 'LaunchAgents'), 1),
-  downloads: listing(join(REAL_HOME, 'Downloads'), 1),
-  ollama: listing(join(REAL_HOME, '.ollama'), 1),
+function names(dir: string): string {
+  if (!existsSync(dir)) return `${dir}: absent`
+  try {
+    return readdirSync(dir).sort().map(name => join(dir, name)).join('\n')
+  } catch {
+    return `${dir}: unreadable`
+  }
 }
+function roadTouchable(configHome: string): string {
+  const rows = [names(configHome)]
+  for (const name of ['settings.json', 'keybindings.json']) {
+    const path = join(configHome, name)
+    try {
+      const st = statSync(path)
+      rows.push(`${path} ${st.size} ${Math.floor(st.mtimeMs)}`)
+    } catch {
+      rows.push(`${path}: absent`)
+    }
+  }
+  rows.push(listing(join(configHome, 'local-setup'), 1))
+  return rows.join('\n')
+}
+function outsideListing(): Record<string, string> {
+  return {
+    mercury: roadTouchable(join(REAL_HOME, '.mercury')),
+    applications: listing('/Applications', 1),
+    agents: listing(join(REAL_HOME, 'Library', 'LaunchAgents'), 1),
+    downloads: names(join(REAL_HOME, 'Downloads')),
+    ollama: names(join(REAL_HOME, '.ollama')),
+  }
+}
+const outsideBefore = outsideListing()
 
 function readLog(world: World): Array<{ at: number; method: string; path: string; body: unknown }> {
   if (!existsSync(world.log)) return []
@@ -326,13 +355,23 @@ async function drive(size: string): Promise<void> {
       ...(step.mark === 'step4-pull' ? [{ requireAwait: true, awaitText: 'pulling', awaitPattern: 'pulling [0-9a-f]{6,}|\\d+%', awaitSettleTicks: 1, mark: 'step4-pull-midway', data: '' }] : []),
     ]),
     { requireAwait: true, awaitText: `ready · ${MODEL_ID}`, awaitStableTicks: 3, mark: 'step6-ready', data: ESC },
-    { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, data: FOLLOW_UP },
+    { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-esc', data: FOLLOW_UP },
     { requireAwait: true, awaitText: FOLLOW_UP, awaitSettleTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: REPLY_NEEDLE, awaitStableTicks: 3, mark: 'reply', data: '/exit\r' },
     { afterPrevTicks: 5, data: '' },
   ]
-  const c = await capture(world, sends, 900)
+  const c = await capture(world, sends, 600)
   saveFrames(world, c)
+  const serverPid = existsSync(world.pidfile) ? Number(readFileSync(world.pidfile, 'utf8').trim()) : 0
+  let serverAlive = false
+  if (serverPid > 0) {
+    try {
+      process.kill(serverPid, 0)
+      serverAlive = true
+    } catch {
+      serverAlive = false
+    }
+  }
   stopFixture(world)
   section(`${world.tag} — the road from a fresh home with no server answering to a Qwen reply`)
   check(`${world.tag}: the fixture port was quiet before the boot (discovery finds nothing)`, quietBefore)
@@ -360,7 +399,11 @@ async function drive(size: string): Promise<void> {
   check(`${world.tag} reply: after esc closes the dialog a typed line ("${FOLLOW_UP}") gets the fixture's reply on the transcript`, reply.some(l => l.includes(REPLY_NEEDLE)), reply.slice(-10).map(l => l.trim()).filter(l => l !== '').join(' | '))
   const log = readLog(world)
   const pull = log.find(r => r.method === 'POST' && r.path === '/api/pull')
-  check(`${world.tag}: the product started the fixture server itself (its pidfile was written under the scratch state) and the first request came from the product`, existsSync(world.pidfile) && log.length > 0, `pidfile ${existsSync(world.pidfile)} · ${log.length} requests`)
+  check(`${world.tag}: the product started the fixture server itself (its pidfile under the scratch state named a live process until the drive stopped it) and every request came from the product`, serverPid > 0 && serverAlive && log.length > 0, `pid ${serverPid} alive ${serverAlive} · ${log.length} requests`)
+  const afterEsc = c.marks.get('after-esc') ?? []
+  check(`${world.tag} after-esc: the dialog is gone and the session strip names qwen3.5:9b as the live model (the pick applied, not queued)`, afterEsc.length > 0 && !afterEsc.some(l => l.includes(KEYS)) && afterEsc.some(l => STRIP_ROW.test(l)), afterEsc.filter(l => /ready ·|● ready|effort/.test(l)).map(l => l.trim().slice(0, 120)).join(' | '))
+  const serveLog = join(world.home, 'local-setup', 'ollama-serve.log')
+  check(`${world.tag}: the detached \`ollama serve\` logs under the config home (local-setup/ollama-serve.log) and the log names the fixture port`, existsSync(serveLog) && readFileSync(serveLog, 'utf8').includes(`PORT ${world.port}`), existsSync(serveLog) ? readFileSync(serveLog, 'utf8').slice(0, 200) : 'absent')
   check(`${world.tag}: the pull went through the API as POST /api/pull {"model":"qwen3.5:9b","stream":true}`, pull !== undefined && rec(pull.body).model === FAKE_OLLAMA_MODEL && rec(pull.body).stream === true, JSON.stringify(pull?.body))
   check(`${world.tag}: step 5 read the geometry with POST /api/show`, log.some(r => r.method === 'POST' && r.path === '/api/show' && rec(r.body).model === FAKE_OLLAMA_MODEL))
   const chats = log.filter(r => r.method === 'POST' && r.path === '/api/chat')
@@ -387,19 +430,20 @@ console.log('============================================================')
 await Promise.all(SIZES.map(size => drive(size)))
 await sleep(300)
 
-section('nothing outside the scratch homes changed')
-const outsideAfter = {
-  mercury: listing(join(REAL_HOME, '.mercury'), 1),
-  applications: listing('/Applications', 1),
-  agents: listing(join(REAL_HOME, 'Library', 'LaunchAgents'), 1),
-  downloads: listing(join(REAL_HOME, 'Downloads'), 1),
-  ollama: listing(join(REAL_HOME, '.ollama'), 1),
+section('nothing outside the scratch homes changed (the real config home is listed, never read)')
+const outsideAfter = outsideListing()
+const OUTSIDE_WORDS: Record<string, string> = {
+  mercury: '~/.mercury (its entry names, settings.json and keybindings.json by size and mtime, and a local-setup/ folder — the files the road writes; the live session\'s own config, trace and auth files are not compared)',
+  applications: '/Applications (names, sizes, mtimes)',
+  agents: '~/Library/LaunchAgents (names, sizes, mtimes)',
+  downloads: '~/Downloads (names)',
+  ollama: '~/.ollama (names)',
 }
-for (const key of Object.keys(outsideBefore) as Array<keyof typeof outsideBefore>) {
-  const before = outsideBefore[key].split('\n')
-  const after = outsideAfter[key].split('\n')
+for (const key of Object.keys(outsideBefore)) {
+  const before = outsideBefore[key]!.split('\n')
+  const after = outsideAfter[key]!.split('\n')
   const changed = [...before.filter(l => !after.includes(l)), ...after.filter(l => !before.includes(l))]
-  check(`the before/after listing of ${key === 'mercury' ? '~/.mercury' : key === 'applications' ? '/Applications' : key === 'agents' ? '~/Library/LaunchAgents' : key === 'downloads' ? '~/Downloads' : '~/.ollama'} (names, sizes, mtimes) is identical`, changed.length === 0, changed.slice(0, 6).join(' · '))
+  check(`the before/after listing of ${OUTSIDE_WORDS[key]} is identical`, changed.length === 0, changed.slice(0, 6).join(' · '))
 }
 
 if (failures === 0 && !KEEP) rmSync(ROOT, { recursive: true, force: true })

@@ -247,3 +247,4 @@ transcript-rows-drives	350
 computer-drives	1000
 stop-policy-boots	120
 ui-drives	700
+local-setup-drives	400
