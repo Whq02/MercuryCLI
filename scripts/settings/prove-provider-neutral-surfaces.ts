@@ -121,7 +121,7 @@ section('(3) /config — derived account rows + the read-only model pointer')
   check('huggingface row: the /logins route, never the unknown-family fallback',
     edgeRows[0]?.valueText === 'not signed in — /logins connects (or HF_TOKEN)', edgeRows[0]?.valueText ?? '')
   check('local row: the no-sign-in truth, never a sign-in route',
-    edgeRows[1]?.valueText === 'no sign-in — start a local server or MERCURY_LOCAL_BASE_URL', edgeRows[1]?.valueText ?? '')
+    edgeRows[1]?.valueText === 'no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up)', edgeRows[1]?.valueText ?? '')
   const keyLaneRows = configProviderRows([
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'zai', available: true, credentialed: false },

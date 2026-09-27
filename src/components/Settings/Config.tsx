@@ -91,6 +91,7 @@ import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../.
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
+import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
 
 const LABEL_CELLS = 36
 
@@ -190,7 +191,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   deepseek: { label: 'DeepSeek', absent: 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', manage: '/accounts' },
   'openai-compat': { label: 'Custom endpoint', absent: 'not configured — MERCURY_COMPAT_BASE_URL' },
   huggingface: { label: 'Hugging Face', absent: 'not signed in — /logins connects (or HF_TOKEN)', manage: '/accounts' },
-  local: { label: 'Local', absent: 'no sign-in — start a local server or MERCURY_LOCAL_BASE_URL' },
+  local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}` },
 }
 
 

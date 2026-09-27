@@ -195,9 +195,18 @@ sends from: reasoning-effort vocabularies, sampling restrictions
 (the Kimi reasoning models fix their sampling, so that lane never sends
 temperature), output-knob names, and usage-field spellings. The local lane
 serves discovered servers (Ollama, LM Studio, vLLM, llama.cpp) at each
-model's own base URL, omitting what a server kind does not support. The
-Hugging Face and local lanes carry an explicit deferred-live caveat in
-their readiness detail until verified against a live endpoint.
+model's own base URL, omitting what a server kind does not support. Its
+context window is never a number Mercury decides: a model's served window is
+read from the server before a request is judged against it (Ollama loads the
+model and `/api/ps` states the window; LM Studio's loaded instance, vLLM's
+`max_model_len` and llama.cpp's `/props` state theirs), a window the server
+has not stated yet refuses nothing, and the fit guard refuses only a request
+larger than a window the server or its Modelfile states. The lane is verified
+against a live Ollama for discovery, streamed text, streamed reasoning and
+multi-round tool loops; the sub-agent dispatch, search-door and SATURN-fire
+legs remain operator-deferred drill lines. The Hugging Face lane carries an
+explicit deferred-live caveat in its readiness detail until verified against
+a live endpoint.
 
 ## Typed refusals
 
@@ -216,8 +225,11 @@ silently fall through to another provider — each runtime owns honest, typed re
   route (where to sign in or store a key), never a generic error;
 - a tool-bearing request on a model that cannot take tools is refused pre-flight with
   a typed reason instead of a broken turn (the local lane's tool-capability facts);
-- an undiscovered `local/<id>` refuses with the probe route rather than guessing a
-  port;
+- an undiscovered `local/<id>` refuses with the probe route and the pull (`ollama
+  pull <id>` when an Ollama server answers) rather than guessing a port; a
+  request larger than a local model's stated served window refuses before the
+  send, naming the window, its source and the in-app road that raises it, since
+  the server would silently truncate it;
 - sub-model containers surface the owning catalogue's refusal reasons verbatim.
 
 One vocabulary decides what may run where, and what a picker shows is what

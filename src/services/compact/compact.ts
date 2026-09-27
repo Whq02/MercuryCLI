@@ -1,4 +1,4 @@
-import { getMainThreadAgentType, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
+import { canAnswerAsks, getMainThreadAgentType, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { NonNullableUsage } from '../../entrypoints/sdk/coreTypes.js'
@@ -51,6 +51,7 @@ import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRe
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
+import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
@@ -195,6 +196,16 @@ export function compactionRefusedForHistoryText(providerWords: string, opts: { n
 
 export function compactionPausedForHistoryText(providerWords: string, opts: { nonInteractive: boolean }): string {
   return `${compactionRefusedForHistoryText(providerWords, opts)} Automatic compaction is paused for the rest of this run.`
+}
+
+export function foldRemedyIsHeadless(isNonInteractiveSession: boolean | undefined): boolean {
+  return isNonInteractiveSession === true && !canAnswerAsks()
+}
+
+export const FOLD_WINDOW_REFUSAL_KEY = "the fold cannot run on this model's window"
+
+export function foldWindowRefusalText(facts: { window: number; sourceWords: string; estTokens: number; remedy: string }): string {
+  return `${FOLD_WINDOW_REFUSAL_KEY} (${facts.window.toLocaleString('en-US')} tokens, ${facts.sourceWords}): its own request (≈${Math.round(facts.estTokens / 1000)}k tokens) does not fit and the server would silently truncate it. ${facts.remedy}.`
 }
 
 export class CompactionRefusedForHistoryError extends Error {
@@ -758,7 +769,7 @@ async function summarizeViaCacheSharingFork(
       if (malformed !== null) {
         recordFoldRoad(model, 'fork', startedAt, 'refused', malformed.slice(0, 160))
         throw new CompactionRefusedForHistoryError(malformed, {
-          nonInteractive: context.options.isNonInteractiveSession === true,
+          nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
         })
       }
     }
@@ -930,8 +941,12 @@ async function streamingFallbackAttempts(
         const malformed = malformedHistoryRefusalOf(captured)
         if (malformed !== null) {
           throw new CompactionRefusedForHistoryError(malformed, {
-            nonInteractive: context.options.isNonInteractiveSession === true,
+            nonInteractive: foldRemedyIsHeadless(context.options.isNonInteractiveSession),
           })
+        }
+        const fit = localFitRefusalFacts(getAssistantMessageText(captured) ?? '')
+        if (fit !== null) {
+          throw new Error(foldWindowRefusalText({ window: fit.window, sourceWords: fit.sourceWords, estTokens: fit.estTokens, remedy: LOCAL_WINDOW_REMEDY }))
         }
         throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
       }

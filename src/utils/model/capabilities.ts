@@ -603,7 +603,7 @@ export function resolveContextWindow(
   }
 
   if (model.trim().toLowerCase().startsWith('local/')) {
-    const { localRecordFor, localContextSourceWords } =
+    const { localRecordFor, localContextSourceWords, localUnloadedWindowWords } =
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
     const record = localRecordFor(normalizeForEnginePins(model))
     if (record?.contextWindow) {
@@ -628,7 +628,7 @@ export function resolveContextWindow(
       effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
       source: 'fallback',
       fallbackReason: record
-        ? 'the local server states no context length for this model — conservative default'
+        ? `local server context: ${localUnloadedWindowWords(record)} — conservative default until then`
         : 'local model not discovered yet — conservative default until a probe answers',
     })
   }

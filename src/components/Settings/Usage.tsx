@@ -307,7 +307,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   local: {
     title: 'Local models usage',
-    connect: 'start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or set MERCURY_LOCAL_BASE_URL',
+    connect: 'start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable)',
     limitsNote: 'local · no metering',
   },
 }

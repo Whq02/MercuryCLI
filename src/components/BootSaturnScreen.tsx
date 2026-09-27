@@ -36,6 +36,7 @@ import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
+import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAccounts.js';
 
 
 const DETAIL_W = 38;
@@ -384,7 +385,7 @@ export function saturnVerdictSentence(v: ScheduleAccountVerdictV1): string {
     case 'signed-out':
       return "preflight: signed out — /logins connects an account, or it's born held";
     case 'unreachable':
-      return "preflight: no local server answering — start it (or set MERCURY_LOCAL_BASE_URL), or the fire is born held";
+      return `preflight: no local server answering — start it (or set MERCURY_LOCAL_BASE_URL), then ${LOCAL_PULL_RECOMMENDATION}, or the fire is born held`;
     case 'rate-limited':
       return `preflight: rate-limited — a due fire holds until the window ends${v.retryAt !== undefined ? ` (~${new Date(v.retryAt).toISOString()})` : ''}`;
   }

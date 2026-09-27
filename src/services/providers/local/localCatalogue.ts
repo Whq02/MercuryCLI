@@ -44,11 +44,56 @@ export function localContextSourceWords(source: LocalContextSource): string {
       return 'served'
     case 'modelfile':
       return 'num_ctx'
-    case 'server-default':
-      return 'server default — raise OLLAMA_CONTEXT_LENGTH or num_ctx'
     case 'model-max':
       return 'model max; the server sets the loaded size'
   }
+}
+
+export const LOCAL_WINDOW_SETTING_ROAD = '/config → Local model window, or /model → the model\'s row → context window'
+export const LOCAL_WINDOW_REMEDY = `Raise the served window (${LOCAL_WINDOW_SETTING_ROAD}; at the server OLLAMA_CONTEXT_LENGTH or num_ctx)`
+
+const fmtTokens = (n: number): string => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+
+export function localUnloadedWindowWords(record: LocalModelRecord): string {
+  const chooser =
+    record.server === 'ollama'
+      ? 'Ollama serves OLLAMA_CONTEXT_LENGTH, else 4k/32k/256k by memory'
+      : record.server === 'lmstudio'
+        ? 'LM Studio sets the window at load'
+        : 'the server sets the window at start'
+  const trained = record.modelMaxContext !== undefined ? ` · trained maximum ${fmtTokens(record.modelMaxContext)}` : ''
+  return `${record.loaded === false ? 'not loaded' : 'window not stated'}${trained} · ${chooser} · read at first send`
+}
+
+export function localWindowWords(record: LocalModelRecord): string {
+  if (record.contextWindow === undefined) return localUnloadedWindowWords(record)
+  return `${fmtTokens(record.contextWindow.tokens)} ctx · ${localContextSourceWords(record.contextWindow.source)}`
+}
+
+export function localPickerWindowNotice(model: string): string {
+  const record = localRecordFor(model)
+  if (!record) return 'context window unknown · no local server lists this model · not a toggle'
+  return `${localWindowWords(record)} · not a toggle`
+}
+
+export interface LocalFitRefusalFacts {
+  id: string
+  estTokens: number
+  toolCount: number
+  window: number
+  sourceWords: string
+}
+
+export function localFitRefusalSentence(facts: LocalFitRefusalFacts): string {
+  return `the composed request (≈${Math.round(facts.estTokens / 1000)}k tokens, ${facts.toolCount} tool schemas included) cannot fit '${facts.id}'s served context window (${facts.window} tokens — ${facts.sourceWords}) and the server would silently truncate it. ${LOCAL_WINDOW_REMEDY}, restrict the tool catalog (--disallowed-tools / --strict-mcp-config), or pick a larger-window local model.`
+}
+
+const FIT_REFUSAL_RE = /the composed request \(≈(\d+)k tokens, (\d+) tool schemas included\) cannot fit '(.+?)'s served context window \((\d+) tokens — ([^)]+)\) and the server would silently truncate it/
+
+export function localFitRefusalFacts(text: string): LocalFitRefusalFacts | null {
+  const m = FIT_REFUSAL_RE.exec(text)
+  if (!m) return null
+  return { estTokens: Number(m[1]) * 1000, toolCount: Number(m[2]), id: m[3]!, window: Number(m[4]), sourceWords: m[5]! }
 }
 
 export function getLocalModelOptions(): ModelOption[] {
