@@ -47,6 +47,7 @@ import { BootSettingsScreen } from './BootSettingsScreen.js';
 import { KitMenuScreen } from './KitMenuScreen.js';
 import { MercuryModelDefaultPicker } from '../commands/model/mercuryModel.js';
 import { ModalContext } from '../context/modalContext.js';
+import { PopupGutter } from './PopupGutter.js';
 import { modelPickerPopupGeometry } from './ModelPickerPopupSlot.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
@@ -712,14 +713,7 @@ export function BootSplashScreen(): React.ReactNode {
         );
       })}
       {modelDefaultOpen ? (
-        <Box
-          position="absolute"
-          top={pickerPopup.top}
-          left={pickerPopup.left}
-          width={pickerPopup.width}
-          flexDirection="column"
-          opaque
-        >
+        <PopupGutter {...pickerPopup}>
           <ModalContext.Provider value={{ rows: pickerPopup.rows, columns: pickerPopup.columns, scrollRef: null }}>
             <MercuryModelDefaultPicker
               onDone={() => setModelDefaultOpen(false)}
@@ -731,7 +725,7 @@ export function BootSplashScreen(): React.ReactNode {
               }}
             />
           </ModalContext.Provider>
-        </Box>
+        </PopupGutter>
       ) : null}
     </Box>
   );

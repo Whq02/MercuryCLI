@@ -11,6 +11,7 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 import { PermissionRequestTitle } from './PermissionRequestTitle.js'
 import { PermissionQueueContext } from './PermissionQueueContext.js'
+import { PopupFrameContext } from '../PopupGutter.js'
 import type { WorkerBadgeProps } from './WorkerBadge.js'
 
 type Props = {
@@ -33,7 +34,9 @@ export function PermissionDialog({
   workerBadge,
   titleRight,
   children,
-}: Props): React.ReactNode {  const mode = useAppStateMaybeOutsideOfProvider(
+}: Props): React.ReactNode {
+  const popup = React.useContext(PopupFrameContext)
+  const mode = useAppStateMaybeOutsideOfProvider(
     (s: { toolPermissionContext?: { mode?: string } } | undefined) =>
       s?.toolPermissionContext?.mode,
   ) as PermissionMode | undefined
@@ -64,7 +67,8 @@ export function PermissionDialog({
       borderBottom={undefined}
       paddingLeft={1}
       paddingRight={1}
-      marginTop={1}
+      marginTop={popup === null ? 1 : 0}
+      {...(popup !== null ? { width: popup.width, maxHeight: popup.rows, overflow: 'hidden' as const } : {})}
     >
       <Box paddingX={1} flexDirection="column">
         <Box justifyContent="space-between" gap={2}>

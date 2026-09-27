@@ -3,6 +3,7 @@ import { Box, Text, useInput } from '../../ink.js'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { FloatingPopup } from '../PopupGutter.js'
 
 export function RowPickModal({
   cols,
@@ -47,17 +48,7 @@ export function RowPickModal({
   const width = Math.min(64, Math.max(40, cols - 8))
   const shown = options.slice(0, Math.max(3, Math.min(10, rows - 10)))
   return (
-    <Box
-      position="absolute"
-      top={Math.max(1, Math.floor(rows / 2) - Math.floor((shown.length + 6) / 2))}
-      left={Math.max(0, Math.floor((cols - width) / 2))}
-      width={Math.min(width, cols)}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={t.info}
-      paddingX={2}
-      opaque={true}
-    >
+    <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows }} width={width} borderColor={t.info} paddingX={2}>
       <Box height={1} flexShrink={0}>
         <Text bold color={t.info} wrap="truncate-end">
           {titlePrefix} — {title}
@@ -93,6 +84,6 @@ export function RowPickModal({
           ↑↓ choose · {legend}
         </Text>
       </Box>
-    </Box>
+    </FloatingPopup>
   )
 }

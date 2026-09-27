@@ -277,7 +277,7 @@ rich = true
 subscriber = true
 const result = await call('', {} as never)
 const request = popup.settingsPopupRequest()
-check('/usage opens only its 150×29 popup and returns skip', result.type === 'skip' && request?.view === 'usage' && request.width === 150 && request.rows === 29)
+check('/usage opens only its 150×29 popup and returns skip', result.type === 'skip' && request?.view === 'usage' && typeof request.width === 'function' && request.width(178) === 150 && request.width(98) === 98 && request.rows === 29)
 check('the context carries live figures in the design grammar', request?.line === '10 providers · 2 subscriptions signed in · Anthropic session 52% · week 49%')
 check('the hint is exactly the design\'s words', request?.hint === '↑↓ scroll · esc or click outside closes')
 const body = request?.body({ width: 120, inner: 116, rowBudget: 13 }) as React.ReactElement<{ width: number; rowBudget: number; openToken: number }>

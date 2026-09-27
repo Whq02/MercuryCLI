@@ -8,6 +8,7 @@ import { useInteractiveList } from '../mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
 import { paneWindow } from '../mercury-ui/paneWindow.js'
+import { PopupFrameContext } from '../PopupGutter.js'
 
 const ROW_CAP = 40
 const WINDOW_ROWS = 9
@@ -70,7 +71,8 @@ export function GroundPicker({
       },
     ],
   })
-  const width = Math.min(74, Math.max(44, columns - 8))
+  const popup = React.useContext(PopupFrameContext)
+  const width = popup?.width ?? Math.min(74, Math.max(44, columns - 8))
   return (
     <Box
       flexDirection="column"
@@ -95,7 +97,7 @@ export function GroundPicker({
         <Text color={t.textMuted}>remembering the folders Mercury has worked in…</Text>
       ) : (
         (() => {
-          const win = paneWindow(rows.length, list.selectedIndex, WINDOW_ROWS)
+          const win = paneWindow(rows.length, list.selectedIndex, Math.min(WINDOW_ROWS, Math.max(1, (popup?.rows ?? 15) - 6)))
           return (
             <>
               {win.above > 0 ? (

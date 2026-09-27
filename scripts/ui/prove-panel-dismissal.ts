@@ -73,7 +73,7 @@ function jsx(file: string, name: string): (ts.JsxOpeningElement | ts.JsxSelfClos
 for (const file of ['FullscreenLayout.tsx', 'FilesMenuSlot.tsx', 'MercuryModelPicker.tsx', 'Settings/Settings.tsx', 'Feedback.tsx', 'design-system/Dialog.tsx', 'mercury-ui/components.tsx']) {
   const path = `src/components/${file}`
   const refs = calls(path, 'useElevatedSurface').map(call => ts.isVariableDeclaration(call.parent) ? call.parent.name.getText() : '')
-  const attached = jsx(path, 'Box').flatMap(box => box.attributes.properties.filter((prop): prop is ts.JsxAttribute => ts.isJsxAttribute(prop) && prop.name.getText() === 'ref'))
+  const attached = [...jsx(path, 'Box'), ...jsx(path, 'PopupGutter')].flatMap(box => box.attributes.properties.filter((prop): prop is ts.JsxAttribute => ts.isJsxAttribute(prop) && ['ref', 'contentRef'].includes(prop.name.getText())))
   check(`${file} attaches the shared surface seam to its frame`, refs.length > 0 && refs.every(ref => ref !== '' && attached.some(prop => nodes(prop, ts.isIdentifier).some(id => id.text === ref))))
 }
 const ownFrames = [

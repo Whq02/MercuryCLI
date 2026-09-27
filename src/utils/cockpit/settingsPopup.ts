@@ -6,7 +6,7 @@ export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: n
 
 export type SettingsPopupRequest = {
   view: SettingsPopupView
-  width: number
+  width: number | ((hostColumns: number) => number)
   rows: number | null
   line: string
   hint: string

@@ -17,6 +17,7 @@ import { providerDisplayName, type CallModelRoute } from '../../services/provide
 import { NO_EFFORT_CONTROL_LABEL, resolveEffortTruth } from '../../utils/effort.js';
 import type { ConcourseCallbacks } from './contracts.js';
 import { RowPickModal } from './RowPickModal.js';
+import { PopupFrameContext } from '../PopupGutter.js';
 
 
 type PickerRow =
@@ -89,6 +90,7 @@ export function CoordinatorModelPicker({
   allottedWidth?: number;
 }): React.ReactNode {
   const t = useMercuryTokens();
+  const popup = React.useContext(PopupFrameContext);
   const [facts, setFacts] = useState<PickerFacts | null>(null);
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const loadEpochRef = React.useRef(0);
@@ -298,7 +300,8 @@ export function CoordinatorModelPicker({
   return (
     <Box
       flexDirection="column"
-      {...(nested ? {} : { borderStyle: 'round' as const, borderColor: t.info, paddingX: 1, marginTop: 1 })}
+      {...(nested ? {} : { borderStyle: 'round' as const, borderColor: t.info, paddingX: 1, marginTop: popup === null ? 1 : 0 })}
+      {...(popup !== null && !nested ? { width: popup.width, maxHeight: popup.rows, overflow: 'hidden' as const } : {})}
     >
       {nested ? null : (
         <Text bold color={t.info}>

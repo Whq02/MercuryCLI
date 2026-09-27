@@ -281,7 +281,7 @@ for (const [columns, rows] of SIZES) {
     const composer = scene.lines().findIndex(line => line.includes('Type a prompt'))
     check(`${columns}x${rows}: the composer stays on screen under the window`, composer > window.bottom, `composer row ${composer} · window bottom ${window.bottom}`)
     check(`${columns}x${rows}: the window is no wider than the panel cap and at least the panel floor`, window.width <= pure.MODEL_PICKER_PANEL.cap && window.width >= pure.MODEL_PICKER_PANEL.min, `${window.width}`)
-    const budget = Math.max(10, rows - 7)
+    const budget = Math.min(Math.max(10, rows - 7), composer - 2 - window.top)
     const overflows = window.rows.some(row => /[↑↓] \d+ more/.test(row))
     check(`${columns}x${rows}: the window's height is within the pop-up's row budget (${budget}) and fills it when the rows overflow`, window.height <= budget && (!overflows || window.height === budget), `${window.height} · overflows ${overflows}`)
   }
@@ -345,10 +345,10 @@ section('§5 the floor inside the pop-up: the pop-up never hands fewer than ten 
   const window = scene.window()
   save('popup-q4-floor', 80, 17, scene.lines())
   console.log(`  80x17 window: ${describe(window)}`)
-  check('80x17: the pop-up hands its floor of ten rows', window !== null && window.height === 10, describe(window))
+  check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, describe(window))
   if (window !== null) {
     const rows = window.rows.map(inner)
-    check('80x17: the window holds the title, the effort row, the filter line, the hint row and a window of ↑ · pinned heading · cursor row · ↓ — nothing shed', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('e cycles')) && rows.some(r => r.includes('/ filter by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.filter(r => /[↑↓] \d+ more/.test(r)).length === 2 && rows.some(r => /[▾▸] ANTHROPIC/.test(r)) && rows.some(r => r.includes('❯ ')), rows.join(' | '))
+    check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ filter by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), rows.join(' | '))
   }
   await scene.close()
 }

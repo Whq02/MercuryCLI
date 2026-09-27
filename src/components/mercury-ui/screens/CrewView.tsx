@@ -268,7 +268,7 @@ export function CrewView({
     )
   }
 
-  const width = Math.max(56, Math.min((columns || 80) - 6, 120))
+  const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, Math.min((columns || 80) - 6, 120))
   const visible = Math.max(4, (termRows || 24) - 12)
   const win = paneWindow(rows.length, sel, visible)
   const firstNamedIx = rows.findIndex(r => r.kind === 'named')
