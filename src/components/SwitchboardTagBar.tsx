@@ -151,8 +151,10 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
   if (s.interrupting) return 'interrupting — the request is torn down'
   if (live.inFlight) {
     if (s.wait !== null) {
-      const waited = s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
-      const late = s.wait.kind === 'first-byte' && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
+      if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)
+      const ownClock = s.wait.kind === 'first-byte' && s.wait.checkedMs !== undefined
+      const waited = !ownClock && s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
+      const late = s.wait.kind === 'first-byte' && s.wait.promise !== true && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
       return `${requestWaitLine(s.wait, compact)}${waited}${late}`
     }
     if (live.phase === 'waiting') {

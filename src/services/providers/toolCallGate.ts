@@ -104,8 +104,18 @@ export function straightenQuoteArgs(
 function refused(call: IncomingToolCall, code: RefusedToolCall['code'], reason: string): ToolCallVerdict {
   return {
     ok: false,
-    refusal: { id: call.id, name: call.name, argumentsRaw: call.argumentsRaw, code, reason },
+    refusal: { id: call.id, name: call.name, argumentsRaw: call.argumentsRaw, argumentsLength: call.argumentsRaw.length, code, reason },
   }
+}
+
+export const REFUSAL_RAW_DIAGNOSTIC_CHARS = 2_000
+
+export function toolCallRefusalDiagnostic(refusal: RefusedToolCall): string {
+  const name = refusal.name.trim() === '' ? 'unnamed' : refusal.name
+  const length = refusal.argumentsLength ?? refusal.argumentsRaw.length
+  const raw = refusal.argumentsRaw.slice(0, REFUSAL_RAW_DIAGNOSTIC_CHARS)
+  const cut = length > raw.length ? `, the first ${raw.length} shown` : ''
+  return `refused tool call ${name} (${refusal.code}, call ${refusal.id || 'no id'}): ${issueSummary(refusal.reason)} — raw arguments (${length} chars${cut}): ${raw === '' ? '(empty)' : raw}`
 }
 
 export interface ToolCallGateHints {
