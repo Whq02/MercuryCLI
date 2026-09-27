@@ -173,6 +173,8 @@ const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { processBashCommand } = await import('../../src/utils/processUserInput/processBashCommand.tsx')
 const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
 const { composerTargetTaskId } = await import('../../src/state/selectors.ts')
+const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/ink/components/App.tsx')
+const CLOCK_SLEW_MS = 50
 const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
@@ -311,7 +313,11 @@ async function mount(cols: number, rows: number): Promise<Scene> {
   check(`the cockpit painted with the crew lane at ${cols}x${rows}`, painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
   await sleep(400)
   stdin.push(FOCUS_IN)
-  await sleep(200)
+  const focusTaken = await until(() => stdin.readableLength === 0, 2000)
+  const focusedAt = Date.now()
+  check(`the input reader took the focus-in at ${cols}x${rows}`, focusTaken, `${stdin.readableLength} bytes still queued on stdin`)
+  const windowPassed = await until(() => Date.now() - focusedAt > REFOCUS_CLICK_WINDOW_MS + CLOCK_SLEW_MS, (REFOCUS_CLICK_WINDOW_MS + CLOCK_SLEW_MS) * 4)
+  check(`the clock has left the refocus-click window (${REFOCUS_CLICK_WINDOW_MS}ms) before the first click at ${cols}x${rows}`, windowPassed, `${Date.now() - focusedAt}ms since the focus-in`)
   return {
     lines: () => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n'),
     push: data => stdin.push(data),
@@ -359,12 +365,26 @@ async function typeWords(scene: Scene, words: string): Promise<void> {
   await until(() => pending.text().endsWith(words), 4000)
   await sleep(150)
 }
-async function clickRail(scene: Scene, needle: string, railCols: number): Promise<number> {
-  const row = railRow(scene.lines(), needle, railCols)
-  if (row < 0) return row
+const railRowsAround = (lines: string[], railCols: number, row: number, reach = 3): string[] => {
+  const from = row < 0 ? 0 : Math.max(0, row - reach)
+  const to = row < 0 ? Math.min(lines.length, 24) : Math.min(lines.length, row + reach + 1)
+  return lines.slice(from, to).map((line, index) => `${String(from + index).padStart(3)}${from + index === row ? ' ›' : '  '} ${railText(line, railCols)}`)
+}
+type RailClick = { row: number; landed: boolean; rows: string[] }
+async function clickRail(scene: Scene, needle: string, railCols: number, landed: () => boolean): Promise<RailClick> {
+  const lines = scene.lines()
+  const row = railRow(lines, needle, railCols)
+  if (row < 0) {
+    const rows = railRowsAround(lines, railCols, row)
+    console.log(`no rail row carries ${JSON.stringify(needle)} — the rail rows read:\n${rows.join('\n')}`)
+    return { row, landed: false, rows }
+  }
   scene.push(press(8, row) + release(8, row))
-  await sleep(450)
-  return row
+  const opened = await until(landed, 4000)
+  const rows = railRowsAround(opened ? scene.lines() : lines, railCols, row)
+  if (!opened) console.log(`the click on rail row ${row} (${JSON.stringify(needle)}) did not land — the rail rows it read:\n${rows.join('\n')}`)
+  await sleep(150)
+  return { row, landed: opened, rows }
 }
 const waitForCall = (count: () => number, expected: number, ms = 3000): Promise<boolean> => until(() => count() >= expected, ms)
 
@@ -382,8 +402,8 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§1 ${tag('the hosted send road: the composer is taken when ↵ lands, never when the runner answers')}`)
   {
-    const row = await clickRail(scene, String((ATLAS.tokens / 1000).toFixed(1)), railCols)
-    check('one click on the atlas row opens it in the view', row >= 0 && scene.state().viewingAgentTaskId === ATLAS.id, `row ${row} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
+    const click = await clickRail(scene, String((ATLAS.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === ATLAS.id)
+    check('one click on the atlas row opens it in the view', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === ATLAS.id, `row ${click.row} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
     resumeDelayMs = 700
     const FIRST = 'first line to atlas'
@@ -442,12 +462,12 @@ async function run(cols: number, rows: number): Promise<void> {
   {
     teammateView.setMainChat(ATLAS.id, scene.setState as never)
     await sleep(300)
-    const row = await clickRail(scene, String((BIRCH.tokens / 1000).toFixed(1)), railCols)
+    const click = await clickRail(scene, String((BIRCH.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === BIRCH.id)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), 6000)
     await sleep(300)
     const frame = scene.lines()
     save('03-pinned-atlas-viewing-birch', cols, rows, frame)
-    check('birch is viewed while atlas stays pinned', row >= 0 && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
+    check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
     check('the header says birch is viewed', /VIEW · Lane birch · viewing/.test(headerOf(frame, railCols)), headerOf(frame, railCols))
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
     const footer = footerOf(frame).replace(/\s+/g, ' ')
@@ -471,12 +491,11 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§4 ${tag('the pin on atlas with Mercury Lead in the view: the footer promises only what esc does; an empty ↵ sends nothing')}`)
   {
-    await clickRail(scene, LEAD_ROW, railCols)
-    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+    const click = await clickRail(scene, LEAD_ROW, railCols, () => scene.state().viewingAgentTaskId === undefined)
     await sleep(300)
     const frame = scene.lines()
     save('04-pinned-atlas-lead-view', cols, rows, frame)
-    check('the lead\'s chat is the view while atlas stays pinned', scene.state().viewingAgentTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
+    check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
     const footer = footerOf(frame).replace(/\s+/g, ' ')
     check('the footer says ↵ sends to Lane atlas · m on Mercury Lead returns the main chat', /sends to Lane atlas/.test(footer) && /m on Mercury Lead returns the main chat/.test(footer), footer.slice(0, 260))
     check('the footer does NOT say esc interrupts Lane atlas — esc on the lead\'s screen is the lead\'s own interrupt', !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
