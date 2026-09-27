@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 
 const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
@@ -44,11 +45,12 @@ function capture(
     argv: [process.env.NODE ?? 'node', BIN],
     out,
     cwd: REPO,
+    readyText: cfgExtra.readyText,
     ...cfgExtra,
   }
   const cfgPath = join(scratch, `${name}.cfg.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
+  const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {
     cwd: REPO,
     env: {
       ...process.env,
@@ -105,9 +107,10 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 {
   const r = capture('exit', 'dumb', {
     sends: [
-      { atTick: 40, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
-      { afterPrevTicks: 2, data: '\r' },
+      { atTick: 40, requireAwait: true, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
+      { afterPrevTicks: 2, requireAwait: true, awaitText: 'Exit — relaunch', awaitPattern: '[❯›][^\\n]*Exit — relaunch', data: '\r' },
     ],
+    readyText: 'missing required capabilities',
     stableTicks: 4,
     total: 90,
   })
@@ -118,7 +121,7 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 t.section('leg 3 — CONTROL: a capable TERM boots straight to the composer')
 {
   const r = capture('control', 'xterm-256color', {
-    sends: [{ atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' }],
+    sends: [{ atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' }],
     readyText: ['❯', '? for shortcuts'],
     readySettleTicks: 3,
   })
