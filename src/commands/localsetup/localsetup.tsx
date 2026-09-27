@@ -17,7 +17,7 @@ import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/com
 import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 
 export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean }
-export type SetupRoadResult = { label: string; outcome: 'ran' | 'skipped' | 'failed'; rc?: number; lastLine: string }
+export type SetupRoadResult = { label: string; outcome: 'ran' | 'skipped' | 'failed'; rc?: number; lastLine: string; detail?: object | undefined }
 export type SetupRoadReady = { model: string; ok?: boolean; window?: number; timings: { totalMs: number }; words?: string }
 export type SetupRoadSummary = {
   ran: readonly string[]
@@ -42,10 +42,31 @@ export function setupAskOf(plan: SetupRoadPlan): LocalSetupAsk {
   return { step: plan.label, found: plan.found, willRun: plan.willRun, needsSudo: plan.needsSudo === true, ...(plan.title !== undefined ? { title: plan.title } : {}) }
 }
 
+export const SETUP_SETTLED_WORDS: Readonly<Record<string, string>> = {
+  applied: 'session model switched',
+  queued: "model switch queued for the turn's end",
+  'no-op': "already the session's model",
+  'cancelled-pending': 'queued switch cancelled',
+  unavailable: 'session model not switched · no session door',
+  refused: 'model switch refused',
+}
+
+export function setupSettledOf(detail: object | undefined): string | undefined {
+  if (detail === undefined || !('settled' in detail)) return undefined
+  const settled = (detail as { settled: unknown }).settled
+  return typeof settled === 'string' && settled !== '' ? settled : undefined
+}
+
+export function setupSettledWords(settled: string): string {
+  return SETUP_SETTLED_WORDS[settled] ?? `session switch: ${settled}`
+}
+
 export function setupResultWords(result: SetupRoadResult): string {
   const line = result.lastLine.trim()
-  if (result.rc === undefined) return line
-  return line === '' ? `rc ${result.rc}` : `rc ${result.rc} · ${line}`
+  const settled = setupSettledOf(result.detail)
+  const tail = settled === undefined ? '' : ` · ${setupSettledWords(settled)}`
+  if (result.rc === undefined) return `${line}${tail}`
+  return `${line === '' ? `rc ${result.rc}` : `rc ${result.rc} · ${line}`}${tail}`
 }
 
 export function setupWindowWords(window: number | undefined): string {

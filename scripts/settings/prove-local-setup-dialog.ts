@@ -85,7 +85,8 @@ async function* fixtureRoad(consent: Consent): AsyncGenerator<Record<string, unk
         if (row === 1 || row === 2) await hold()
       }
     }
-    yield { type: 'result', result: { step: plan.step, label: plan.label, kind: plan.kind, outcome: 'ran', ...(rc !== undefined ? { rc } : {}), lastLine } }
+    const detail = plan.label === '6' ? { detail: { model: MODEL, settled: 'applied', ok: true, firstLine: 'ready' } } : {}
+    yield { type: 'result', result: { step: plan.step, label: plan.label, kind: plan.kind, outcome: 'ran', ...(rc !== undefined ? { rc } : {}), lastLine, ...detail } }
   }
   const ready = { model: MODEL, wireId: 'qwen3.5:9b', server: 'ollama', settled: 'applied', saved: '', ok: true, firstLine: 'ready', window: 131072, timings: { totalMs: 41_000, loadMs: 9_800, evalTokens: 14 }, words: `ready · ${MODEL} · 128k window · reply in 41 s` }
   yield { type: 'done', summary: { ran, skipped, failed: [], notDone: [], reason: 'finished', model: MODEL, ready, words: `ready · ${MODEL}` } }
@@ -210,6 +211,7 @@ if (command !== null) {
   const worded = command.setupSummaryOf({ ran: ['1'], skipped: [], failed: [], notDone: [], reason: 'finished', ready: { model: MODEL, ok: true, timings: { totalMs: 900 }, words: 'ready · local/qwen3.5:9b · 32k window · reply in 1 s' }, words: '' })
   check("the road's own ready sentence is kept when it states one", worded.ready?.words === 'ready · local/qwen3.5:9b · 32k window · reply in 1 s' && dialog !== null && dialog.localSetupReadyRow(worded.ready!) === 'ready · local/qwen3.5:9b · 32k window · reply in 1 s · esc closes')
   check('a result line carries its rc when the step ran a command', command.setupResultWords({ label: '3', outcome: 'ran', rc: 0, lastLine: 'started' }) === 'rc 0 · started' && command.setupResultWords({ label: '1', outcome: 'ran', lastLine: 'nothing answers' }) === 'nothing answers')
+  check("step 6's row says how the session switch settled, in the receipt's own word", command.setupResultWords({ label: '6', outcome: 'ran', lastLine: 'ready · load 9.8 s', detail: { settled: 'applied' } }) === 'ready · load 9.8 s · session model switched' && command.setupResultWords({ label: '6', outcome: 'ran', lastLine: 'ready', detail: { settled: 'unavailable' } }) === 'ready · session model not switched · no session door' && command.setupResultWords({ label: '6', outcome: 'ran', lastLine: 'ready', detail: { settled: 'queued' } }).includes("queued for the turn's end") && command.setupResultWords({ label: '6', outcome: 'ran', lastLine: 'ready', detail: { settled: 'parked' } }) === 'ready · session switch: parked' && command.setupResultWords({ label: '5', outcome: 'ran', lastLine: '128k', detail: { window: 131072 } }) === '128k')
 }
 
 const offerAbsent = configProviderRows([{ id: 'local', available: true, credentialed: false }] as never)[0]?.valueText ?? ''
@@ -291,6 +293,7 @@ try {
     check(`${tag}: ← returns to its head`, await waitFor(() => bodyOf(lineWith(m, 'will run  ') ?? '') === head, 4000))
     m.push(KEY.enter)
     check(`${tag}: the ready row is the spec sentence`, await waitFor(() => m.screen().includes(READY_ROW), 4000), lineWith(m, 'ready') ?? '')
+    check(`${tag}: step 6's result row names the session switch by the receipt's word`, m.lines().some(line => bodyOf(line).includes('✓ ready · load 9.8 s · 14 tokens in 41 s · session model switched')), lineWith(m, '✓ ready') ?? '')
     keep(`ready-row-${tag}`, m, cols, rows)
     check(`${tag}: every consent went through the road's own callback`, record.consents.map(consent => `${consent.label}:${consent.answer}`).join(' ') === '1:run 2:run 2b:run 3:run 4:run 5:run 6:run')
     m.push(KEY.esc)
