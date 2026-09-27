@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { crewmateQueuedRows, crewmateQueueSize, crewmateQueueVersion, pruneLandedCrewmateLines, subscribeCrewmateQueue } from './crewmateQueue.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
 import type { TaskState } from '../../tasks/types.js'
+import { agentTranscriptFile, resolveAgentTranscriptFile } from '../../tools/WorkflowTool/agentTranscriptReader.js'
 import { asAgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
 import { loadTranscriptFile } from '../../utils/sessionStorage/loading.js'
@@ -21,18 +22,35 @@ export type CrewmateTranscript = { messages: Message[]; state: 'reading' | 'read
 
 const EMPTY: Message[] = []
 
-export function crewmateTranscriptFile(crewmate: Pick<CrewmateInView, 'taskId' | 'local'>, hosted: { sessionId: string; originalCwd: string }): string | null {
+export type CrewmateTranscriptSource = Pick<CrewmateInView, 'taskId' | 'local'> & { facts?: { transcriptAgentId: string | null } | null }
+
+export function crewmateTranscriptAgentId(crewmate: CrewmateTranscriptSource): string | null {
   const local = crewmate.local
-  if (local !== undefined && isLocalAgentTask(local)) {
-    try {
-      return getAgentTranscriptPath(asAgentId(local.agentId))
-    } catch {
-      return null
-    }
+  if (local !== undefined && isLocalAgentTask(local)) return local.agentId
+  const carried = crewmate.facts?.transcriptAgentId ?? null
+  if (local !== undefined && isInProcessTeammateTask(local)) return local.transcriptAgentId ?? carried
+  return carried ?? crewmate.taskId
+}
+
+function ownTranscriptDir(agentId: string): string | null {
+  try {
+    return dirname(getAgentTranscriptPath(asAgentId(agentId)))
+  } catch {
+    return null
   }
-  if (local !== undefined && isInProcessTeammateTask(local)) return null
-  if (hosted.sessionId === '' || hosted.originalCwd === '') return null
-  return join(getProjectDir(hosted.originalCwd), hosted.sessionId, 'subagents', `agent-${crewmate.taskId}.jsonl`)
+}
+
+export function crewmateTranscriptFile(crewmate: CrewmateTranscriptSource, hosted: { sessionId: string; originalCwd: string }): string | null {
+  const agentId = crewmateTranscriptAgentId(crewmate)
+  if (agentId === null) return null
+  const local = crewmate.local
+  const own = local !== undefined && (isLocalAgentTask(local) || isInProcessTeammateTask(local)) ? ownTranscriptDir(agentId) : null
+  const carried = hosted.sessionId === '' || hosted.originalCwd === '' ? null : join(getProjectDir(hosted.originalCwd), hosted.sessionId, 'subagents')
+  const dirs = [own, carried].filter((dir, index, all): dir is string => dir !== null && all.indexOf(dir) === index)
+  const primary = dirs[0]
+  if (primary === undefined) return null
+  if (dirs.length === 1) return agentTranscriptFile(primary, agentId)
+  return resolveAgentTranscriptFile(dirs, agentId) ?? agentTranscriptFile(primary, agentId)
 }
 
 export function liveTailOf(local: TaskState | undefined): readonly Message[] {
@@ -121,9 +139,9 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
     const workspace = connector.workspace()
     return crewmateTranscriptFile(crewmate, { sessionId: connector.sessionId(), originalCwd: workspace.originalCwd || workspace.cwd })
   }, [crewmate])
-  const agentId = local !== undefined && isLocalAgentTask(local) ? local.agentId : taskId
+  const agentId = crewmate === null ? null : crewmateTranscriptAgentId(crewmate)
   useEffect(() => {
-    if (taskId === undefined || file === null || agentId === undefined) return
+    if (taskId === undefined || file === null || agentId === null) return
     let alive = true
     const read = async (): Promise<void> => {
       if (inFlight.current) return

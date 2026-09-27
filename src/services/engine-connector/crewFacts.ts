@@ -39,6 +39,8 @@ export interface CrewAgentFacts {
   endedAt: number | null
   agentType: string | null
   team: string | null
+  effort: string | null
+  transcriptAgentId: string | null
   description: string | null
   error: string | null
   stopReason: string | null
@@ -109,6 +111,8 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
     agentType: row.agentType ?? null,
     team: row.team ?? null,
+    effort: typeof row.effort === 'string' && row.effort !== '' ? row.effort : null,
+    transcriptAgentId: typeof row.transcriptAgentId === 'string' && row.transcriptAgentId !== '' ? row.transcriptAgentId : null,
     description: row.description ?? null,
     error: row.error ?? null,
     stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,

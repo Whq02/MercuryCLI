@@ -68,6 +68,7 @@ export type SpawnTeammateConfig = {
   use_splitpane?: boolean
   plan_mode_required?: boolean
   model?: string
+  effort?: string
   agent_type?: string
   description?: string
   invokingRequestId?: string
@@ -135,6 +136,7 @@ type PreparedSpawn = {
   teamName: string
   color: string
   model: string
+  effort?: string
   runtimeRef: AgentRuntimeRef
   planModeRequired: boolean
   prompt: string
@@ -172,6 +174,7 @@ async function prepareSpawn(
     teamName,
     color,
     model,
+    ...(config.effort !== undefined && config.effort !== '' ? { effort: config.effort } : {}),
     runtimeRef: describeAgentRuntimeRef(model),
     planModeRequired: config.plan_mode_required ?? false,
     prompt: config.prompt,
@@ -257,6 +260,7 @@ function childCommand(
     flags = flags.filter(flag => !flag.startsWith('--model '))
     flags.push(`--model ${quote([prepared.model])}`)
   }
+  if (prepared.effort !== undefined) flags.push(`--effort ${quote([prepared.effort])}`)
   const binary = getTeammateCommand()
   return `cd ${quote([workingDir])} && ${envPrefix} ${quote([binary])} ${flags.join(' ')}`
 }
@@ -644,6 +648,8 @@ async function spawnInProcessStrategy(
       prompt: prepared.prompt,
       description: config.description,
       model: prepared.model,
+      ...(prepared.effort !== undefined ? { effortOverride: prepared.effort } : {}),
+      ...(spawnResult.transcriptAgentId !== undefined ? { transcriptAgentId: spawnResult.transcriptAgentId } : {}),
       ...(resolvedRole.definition ? { agentDefinition: resolvedRole.definition } : {}),
       role: resolvedRole,
       teammateContext: spawnResult.teammateContext,

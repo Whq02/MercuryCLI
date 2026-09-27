@@ -251,6 +251,8 @@ export type WorkRowV1 = {
   pausedBy?: string
   agentType?: string
   team?: string
+  effort?: string
+  transcriptAgentId?: string
   stopReason?: string
   phase?: AgentWaitV1
   paused?: AgentPauseV1

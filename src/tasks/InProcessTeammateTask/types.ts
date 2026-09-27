@@ -21,6 +21,8 @@ export type InProcessTeammateTaskState = TaskStateBase & {
   identity: TeammateIdentity
   prompt: string
   model?: string
+  effort?: string
+  transcriptAgentId?: string
   agentDefinition?: AgentDefinition
   instructionAtSpawn?: { profile?: unknown; digest: string; [key: string]: any }
   abortController?: AbortController

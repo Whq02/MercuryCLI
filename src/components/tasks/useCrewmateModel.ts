@@ -3,8 +3,6 @@ import { useEffect, useState } from 'react'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { asAgentId } from '../../types/ids.js'
-import { getAgentMetadataPath } from '../../utils/sessionStorage/paths.js'
 import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 
@@ -13,10 +11,6 @@ const word = (value: unknown): string | null => typeof value === 'string' && val
 
 function metadataFile(crewmate: CrewmateInView | null): string | null {
   if (crewmate === null) return null
-  const local = crewmate.local
-  if (local !== undefined && isInProcessTeammateTask(local)) {
-    return getAgentMetadataPath(asAgentId(local.identity.agentId))
-  }
   const connector = getFocusedSessionConnector()
   const workspace = connector.workspace()
   return crewmateTranscriptFile(crewmate, { sessionId: connector.sessionId(), originalCwd: workspace.originalCwd || workspace.cwd })?.replace(/\.jsonl$/, '.meta.json') ?? null
@@ -54,6 +48,7 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
   if (crewmate === null) return null
   const local = crewmate.local
   const launchModel = local !== undefined && (isLocalAgentTask(local) || isInProcessTeammateTask(local)) ? word(local.model) : null
+  const launchEffort = local !== undefined && isInProcessTeammateTask(local) ? word(local.effort) : null
   const identity = recorded?.file === file ? recorded.identity : null
-  return { model: identity?.model ?? launchModel ?? crewmate.facts?.model ?? null, effort: identity?.effort ?? null }
+  return { model: identity?.model ?? launchModel ?? crewmate.facts?.model ?? null, effort: identity?.effort ?? launchEffort ?? crewmate.facts?.effort ?? null }
 }

@@ -102,6 +102,8 @@ export type InProcessRunnerConfig = {
   toolUseContext: ToolUseContext
   abortController: AbortController
   model?: string
+  effortOverride?: string
+  transcriptAgentId?: string
   systemPrompt?: string
   systemPromptMode?: 'default' | 'replace' | 'append'
   allowedTools?: string[]
@@ -719,8 +721,16 @@ export async function runInProcessTeammate(
             canShowPermissionPrompts: config.allowPermissionPrompts ?? true,
             ...(forkContextMessages !== undefined ? { forkContextMessages } : {}),
             querySource: 'agent:custom',
-            override: { abortController: turnController },
+            override: {
+              abortController: turnController,
+              ...(config.transcriptAgentId !== undefined ? { agentId: config.transcriptAgentId } : {}),
+            },
             ...(config.model !== undefined ? { model: config.model } : {}),
+            ...(config.effortOverride !== undefined ? { effortOverride: config.effortOverride } : {}),
+            onResolvedIdentity: identity => {
+              if (identity.effort === undefined) return
+              updateTeammateTask(taskId, setAppState, task => (task.effort === identity.effort ? task : { ...task, effort: identity.effort }))
+            },
             preserveToolUseResults: true,
             availableTools: options.tools,
             ...(config.allowedTools !== undefined ? { allowedTools: config.allowedTools } : {}),

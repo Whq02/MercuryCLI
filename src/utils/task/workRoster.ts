@@ -184,6 +184,8 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'teammate', task.identity.agentName),
         agentId: task.identity.agentId,
         team: clip(task.identity.teamName, MAX_NAME),
+        ...(typeof task.effort === 'string' && task.effort !== '' ? { effort: task.effort } : {}),
+        ...(typeof task.transcriptAgentId === 'string' && task.transcriptAgentId !== '' ? { transcriptAgentId: task.transcriptAgentId } : {}),
         ...agentCounters(task),
         ...unreadNoticesOf(task.id, task.identity.agentId),
       })
