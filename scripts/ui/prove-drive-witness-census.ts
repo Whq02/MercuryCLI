@@ -8,6 +8,7 @@ import { calleeName, declarationOf, importTarget, lineOf, stringText, unwrap, vi
 type Kind = 'send' | 'sample' | 'resize' | 'wait' | 'stderr'
 export type Offender = { file: string; line: number; kind: Kind; fix: string; source: string }
 const ROOT = resolve(import.meta.dir, '..', '..')
+const BASELINE = join(import.meta.dir, 'drive-witness.baseline.json')
 const ALLOW: Readonly<Record<string, string>> = {}
 const ENGINE = new RegExp(String.raw`vshot(?:-win)?\.py|${['capture', 'EngineEntry'].join('')}|${['CAPTURE', 'ENGINE_ENTRY'].join('_')}`)
 const ENGINE_FIXTURE = ['vshot', '.py'].join('')
@@ -169,6 +170,24 @@ export function driveCensus(root: string): { files: number; drives: number; suit
   return { files: reachable.size, drives, suites: suites.filter(s => s.cls === 'pty' || s.drivers.length > 0).length, offenders }
 }
 
+export function baselineCounts(value: unknown): Readonly<Record<string, number>> {
+  const files = value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>).files : undefined
+  if (files === null || typeof files !== 'object' || Array.isArray(files)) throw new Error('drive witness baseline must contain a files object')
+  for (const [file, count] of Object.entries(files)) {
+    if (!/^scripts\/(?:[\w.-]+\/)*[\w.-]+\.(?:tsx?|[cm]?js)$/.test(file) || file.split('/').some(part => part === '.' || part === '..') || typeof count !== 'number' || !Number.isSafeInteger(count) || count < 1) {
+      throw new Error(`invalid drive witness baseline row: ${file} = ${JSON.stringify(count)}`)
+    }
+  }
+  return files as Readonly<Record<string, number>>
+}
+
+export function ratchet(offenders: readonly Offender[], pinned: Readonly<Record<string, number>>): { remaining: number; pinned: number; files: number; growing: Array<{ file: string; found: number; pinned: number }> } {
+  const counts = new Map<string, number>()
+  for (const h of offenders) counts.set(h.file, (counts.get(h.file) ?? 0) + 1)
+  const growing = [...counts].filter(([file, found]) => found > (pinned[file] ?? 0)).sort(([a], [b]) => a.localeCompare(b)).map(([file, found]) => ({ file, found, pinned: pinned[file] ?? 0 }))
+  return { remaining: offenders.length, pinned: Object.values(pinned).reduce((sum, count) => sum + count, 0), files: counts.size, growing }
+}
+
 function selfTest(): number {
   const cases: Array<[string, string, Kind[]]> = [
     ['blind deadline', "const sends = [{ atTick: 40, data: 'x' }]", ['send']],
@@ -206,7 +225,33 @@ function selfTest(): number {
     if (!ok) failed++
     console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : `: ${JSON.stringify(got)} != ${JSON.stringify(want)}`}`)
   }
-  console.log(`drive witness self-tests: ${cases.length - failed}/${cases.length}`)
+  let total = cases.length
+  const check = (label: string, ok: boolean): void => {
+    total++
+    if (!ok) failed++
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  }
+  const file = 'scripts/fixture/prove-drive.ts'
+  const other = 'scripts/fixture/prove-other.ts'
+  const blind = inspect("const sends = [{ atTick: 1, data: 'x' }]", file)
+  const swallowed = inspect(`const r = spawnSync('python3', ['${ENGINE_FIXTURE}', cfg]); check('exit', r.status === 0)`, file)
+  const held = ratchet(blind, { [file]: 1 })
+  check('ratchet: a count equal to its file baseline passes and reports the pinned total', held.growing.length === 0 && held.remaining === 1 && held.pinned === 1 && held.files === 1)
+  check('ratchet: a lower count passes', ratchet(blind, { [file]: 2 }).growing.length === 0)
+  check('ratchet: removing every legacy offender passes', ratchet([], { [file]: 1 }).growing.length === 0)
+  check('ratchet: a new blind send in a pinned file fails', ratchet([...blind, ...blind], { [file]: 1 }).growing[0]?.found === 2)
+  check('ratchet: a newly swallowed refusal in a pinned file fails', ratchet([...blind, ...swallowed], { [file]: 1 }).growing[0]?.found === 2)
+  check('ratchet: an unpinned file has a zero allowance', ratchet(blind, {}).growing[0]?.pinned === 0)
+  const shifted = ratchet(blind.map(h => ({ ...h, file: other })), { [file]: 1 })
+  check('ratchet: reducing one file cannot fund a new offender in another', shifted.remaining === shifted.pinned && shifted.growing.length === 1 && shifted.growing[0]?.file === other)
+  check('ratchet: a lowered baseline prevents restoring a removed offender', ratchet([...blind, ...blind], { [file]: 2 }).growing.length === 0 && ratchet([...blind, ...blind], { [file]: 1 }).growing.length === 1)
+  check('baseline: valid per-file counts are accepted', baselineCounts({ files: { [file]: 1 } })[file] === 1)
+  for (const bad of [null, {}, { files: [] }, { files: { [file]: -1 } }, { files: { [file]: 0 } }, { files: { [file]: 1.5 } }, { files: { [file]: '1' } }, { files: { '../outside.ts': 1 } }, { files: { 'scripts/../outside.ts': 1 } }]) {
+    let refused = false
+    try { baselineCounts(bad) } catch { refused = true }
+    check(`baseline: malformed counts refuse (${JSON.stringify(bad)})`, refused)
+  }
+  console.log(`drive witness self-tests: ${total - failed}/${total}`)
   return failed
 }
 
@@ -214,9 +259,17 @@ if (import.meta.main) {
   const failed = selfTest()
   if (process.argv.includes('--self-test')) process.exit(failed ? 1 : 0)
   const result = driveCensus(ROOT)
-  for (const h of result.offenders) console.log(`${h.file}:${h.line} [${h.kind}] ${h.fix}\n    ${h.source}`)
+  const pinned = baselineCounts(JSON.parse(readFileSync(BASELINE, 'utf8')))
+  const status = ratchet(result.offenders, pinned)
+  const growing = new Set(status.growing.map(row => row.file))
+  for (const row of status.growing) console.log(`[FAIL] ${row.file}: ${row.found} offenders exceed ${row.pinned} pinned; add witnesses, not baseline headroom`)
+  for (const h of result.offenders) {
+    if (growing.has(h.file) || process.argv.includes('--report') || process.argv.includes('--json')) console.log(`${h.file}:${h.line} [${h.kind}] ${h.fix}\n    ${h.source}`)
+  }
   for (const [site, reason] of Object.entries(ALLOW)) console.log(`${site} [unconditional first key] ${reason}`)
-  console.log(`drive witness census: ${result.offenders.length} offenders in ${new Set(result.offenders.map(h => h.file)).size} files; ${result.drives} drive sources, ${result.suites} suites, ${result.files} reachable files; ${Object.keys(ALLOW).length} unconditional exceptions`)
-  if (process.argv.includes('--json')) console.log(JSON.stringify(result))
-  process.exit(failed || result.offenders.length ? 1 : 0)
+  console.log(`drive witness census: ${result.offenders.length} offenders in ${status.files} files; ${result.drives} drive sources, ${result.suites} suites, ${result.files} reachable files; ${Object.keys(ALLOW).length} unconditional exceptions`)
+  console.log(`ratchet: ${status.remaining} legacy witness offender(s) remain of ${status.pinned} pinned across ${Object.keys(pinned).length} files`)
+  console.log(`[${status.growing.length ? 'FAIL' : 'PASS'}] no file exceeds its pinned offender count (${status.growing.length} growing files)`)
+  if (process.argv.includes('--json')) console.log(JSON.stringify({ ...result, ratchet: status }))
+  process.exit(failed || status.growing.length ? 1 : 0)
 }
