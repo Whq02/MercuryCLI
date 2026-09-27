@@ -264,7 +264,7 @@
     {
       "file": "scripts/cockpit-interaction/prove-input-fidelity.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
+      "excerpt": "const r = spawnCaptureSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
@@ -292,7 +292,7 @@
     {
       "file": "scripts/cockpit-interaction/prove-profile-card.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "excerpt": "const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
@@ -1475,14 +1475,14 @@
     {
       "file": "scripts/render-migration/prove-engine-cockpit-smoke.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
+      "excerpt": "const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
       "file": "scripts/render-migration/prove-look-parity.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
+      "excerpt": "const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
@@ -2308,7 +2308,14 @@
     {
       "file": "scripts/ui/prove-vshot-ready.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "excerpt": "const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-vshot-ready.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const silentCaller = spawnSync(process.execPath, ['--eval', `import { spawnCaptureSync } from ${JSON.stringify(entry)}; spawnCaptureSync('/u",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
