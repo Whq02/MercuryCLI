@@ -52,6 +52,7 @@ type UtilitySource =
   | 'web_search_tool'
   | 'web_fetch_apply'
   | 'overload_probe'
+  | 'advisor'
 
 export type QuerySource =
   | ReplSource

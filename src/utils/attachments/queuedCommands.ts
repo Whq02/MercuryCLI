@@ -2,6 +2,7 @@
 import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { drainPendingMessages } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { takeAdvisorNotes } from '../../services/advisor/advisorRoads.js'
 import {
   getImagePasteIds,
   isValidImagePaste,
@@ -58,12 +59,20 @@ export function getAgentPendingMessageAttachments(
     toolUseContext.getAppState,
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState,
   )
-  return drained.map(msg => ({
+  const advice: Attachment[] = takeAdvisorNotes(agentId).map(note => ({
     type: 'queued_command' as const,
-    prompt: msg,
-    origin: { kind: 'coordinator' as const },
-    isMeta: true,
+    prompt: note.text,
+    origin: note.origin,
   }))
+  return [
+    ...drained.map(msg => ({
+      type: 'queued_command' as const,
+      prompt: msg,
+      origin: { kind: 'coordinator' as const },
+      isMeta: true,
+    })),
+    ...advice,
+  ]
 }
 
 async function buildImageContentBlocks(

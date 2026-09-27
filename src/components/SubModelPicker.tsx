@@ -22,6 +22,7 @@ import {
   subModelEffortClause,
   subModelEffortStrip,
   subModelEnvVar,
+  SUB_MODEL_CONTAINERS,
   SUB_MODEL_UNSET_HINT,
   type SubModelContainer,
   type SubModelEntry,
@@ -40,6 +41,7 @@ const CONTAINER_META: Record<
   { label: string; blurb: string }
 > = {
   console: { label: 'CONSOLE', blurb: 'side questions' },
+  advisor: { label: 'ADVISOR', blurb: 'advises the working model, not you' },
 }
 
 function rowId(row: PickerRow): string {
@@ -67,6 +69,60 @@ export interface SubModelRoutePick {
   command: string
 }
 
+function containerOriginWords(container: SubModelContainer, resolved: ReturnType<typeof resolveSubModel>): string {
+  return resolved.origin === 'env'
+    ? `pinned by ${resolved.envVar ?? subModelEnvVar(container)} — LOCKED`
+    : resolved.origin === 'saved'
+      ? 'saved pick'
+      : 'no model pinned'
+}
+
+function ContainerHeader({
+  container,
+  active,
+  width,
+  epoch,
+}: {
+  container: SubModelContainer
+  active: boolean
+  width: number
+  epoch: number
+}): React.ReactNode {
+  const t = useMercuryTokens()
+  const accent = useSessionAccent().accent
+  void epoch
+  const meta = CONTAINER_META[container]
+  const resolved = resolveSubModel(container)
+  const originWords = containerOriginWords(container, resolved)
+  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
+  const cacheWords =
+    container === 'console' && resolved.origin !== 'unset'
+      ? resolved.model === mainModel
+        ? ' · shares the main prompt cache'
+        : ' · ≠ main — re-reads uncached'
+      : ''
+  const headerModel = resolved.origin === 'unset' ? 'unset' : renderModelName(resolved.model)
+  const headerEffort = ((): string => {
+    if (resolved.origin === 'unset') return ''
+    return ` · ${subModelEffortClause(container, resolved.model).replace(/^runs /, '')}`
+  })()
+  return (
+    <Box width={width}>
+      <Text wrap="truncate-end">
+        <Text color={active ? accent : t.textMuted}>{active ? `${GLYPH.cursor} ` : '  '}</Text>
+        <Text bold color={active ? accent : t.textMuted}>
+          {meta.label}
+        </Text>
+        <Text color={t.textMuted}> — {meta.blurb} · </Text>
+        <Text color={active ? t.textPrimary : t.textMuted}>{headerModel}</Text>
+        <Text color={resolved.origin === 'env' ? t.warning : t.textMuted}>
+          {`${headerEffort} · ${originWords}${cacheWords}`}
+        </Text>
+      </Text>
+    </Box>
+  )
+}
+
 function ContainerList({
   container,
   active,
@@ -77,6 +133,8 @@ function ContainerList({
   onRoute,
   onClose,
   compact,
+  epoch,
+  onChanged,
 }: {
   container: SubModelContainer
   active: boolean
@@ -87,10 +145,12 @@ function ContainerList({
   onRoute: (pick: SubModelRoutePick, note: string) => void
   onClose: () => void
   compact: boolean
+  epoch: number
+  onChanged: () => void
 }): React.ReactNode {
   const t = useMercuryTokens()
   const accent = useSessionAccent().accent
-  const [epoch, setEpoch] = useState(0)
+  const setEpoch = (_next: (n: number) => number): void => onChanged()
   const registry = React.useMemo(() => composeSubModelRegistry(), [epoch])
   const resolved = resolveSubModel(container)
   const rows = React.useMemo(() => buildRows(registry), [registry])
@@ -221,29 +281,11 @@ function ContainerList({
 
   const meta = CONTAINER_META[container]
   const nameW = compact ? Math.max(14, Math.min(24, width - 14)) : 28
-  const originWords =
-    resolved.origin === 'env'
-      ? `pinned by ${resolved.envVar ?? subModelEnvVar(container)} — LOCKED`
-      : resolved.origin === 'saved'
-        ? 'saved pick'
-        : 'no model pinned'
-  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
-  const cacheWords =
-    container === 'console' && resolved.origin !== 'unset'
-      ? resolved.model === mainModel
-        ? ' · shares the main prompt cache'
-        : ' · ≠ main — re-reads uncached'
-      : ''
-  const headerModel = resolved.origin === 'unset' ? 'unset' : renderModelName(resolved.model)
   const effortRange = (modelId: string): string => {
     const offered = subModelEffortStrip(container, modelId)
     if (offered.kind === 'none') return offered.receipt
     return `effort ${offered.levels.join(' · ')} — ${subModelEffortClause(container, modelId)} · e sets it`
   }
-  const headerEffort = ((): string => {
-    if (resolved.origin === 'unset') return ''
-    return ` · ${subModelEffortClause(container, resolved.model).replace(/^runs /, '')}`
-  })()
 
   const current = (row: PickerRow): boolean =>
     row.kind === 'entry'
@@ -270,18 +312,6 @@ function ContainerList({
 
   return (
     <Box flexDirection="column" width={width}>
-      <Box width={width}>
-        <Text wrap="truncate-end">
-          <Text bold color={active ? accent : t.textMuted}>
-            {meta.label}
-          </Text>
-          <Text color={t.textMuted}> — {meta.blurb} · </Text>
-          <Text color={t.textPrimary}>{headerModel}</Text>
-          <Text color={resolved.origin === 'env' ? t.warning : t.textMuted}>
-            {`${headerEffort} · ${originWords}${cacheWords}`}
-          </Text>
-        </Text>
-      </Box>
       {shedAbove > 0 ? (
         <Box height={1} overflow="hidden">
           <Text color={t.textMuted}>{`  ↑ +${shedAbove} more`}</Text>
@@ -393,10 +423,22 @@ export function SubModelPicker({
 }): React.ReactNode {
   const t = useMercuryTokens()
   const { columns, rows: termRows } = useTerminalSize()
-  const container = initialContainer
+  const [container, setContainer] = useState<SubModelContainer>(initialContainer)
+  const [epoch, setEpoch] = useState(0)
+  useInput(
+    (_input, key, event) => {
+      if (!key.tab) return
+      event.stopImmediatePropagation()
+      const at = SUB_MODEL_CONTAINERS.indexOf(container)
+      const step = key.shift ? -1 : 1
+      const next = SUB_MODEL_CONTAINERS[(at + step + SUB_MODEL_CONTAINERS.length) % SUB_MODEL_CONTAINERS.length]
+      if (next !== undefined) setContainer(next)
+    },
+    { isActive: true },
+  )
 
   const width = Math.max(56, Math.min(100, columns - 6))
-  const listRows = Math.max(4, termRows - 12)
+  const listRows = Math.max(4, termRows - 12 - (SUB_MODEL_CONTAINERS.length - 1))
   const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
 
   return (
@@ -406,7 +448,11 @@ export function SubModelPicker({
       <Box width={width}>
         <Text color={t.textMuted} wrap="truncate-end">{`main: ${mainModel} — context only; /model changes it`}</Text>
       </Box>
+      {SUB_MODEL_CONTAINERS.map(row => (
+        <ContainerHeader key={row} container={row} active={row === container} width={width} epoch={epoch} />
+      ))}
       <ContainerList
+        key={container}
         container={container}
         active
         width={width}
@@ -414,7 +460,9 @@ export function SubModelPicker({
         onRoute={onRoute}
         onClose={onClose}
         compact={false}
-        {...(initialNote !== undefined ? { initialNote } : {})}
+        epoch={epoch}
+        onChanged={() => setEpoch(n => n + 1)}
+        {...(initialNote !== undefined && container === initialContainer ? { initialNote } : {})}
         {...(initialModelId !== undefined ? { initialModelId } : {})}
       />
     </Box>

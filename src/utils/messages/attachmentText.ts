@@ -49,6 +49,7 @@ import {
 } from '../../services/interview/decisionRecord.js'
 import { operatorMessagesBlockText } from '../../services/compact/operatorMessages.js'
 import { createUserMessage } from './factories.js'
+import { isAdvisorOrigin } from './noticeRows.js'
 import {
   wrapCommandText,
   wrapInSystemReminder,
@@ -644,7 +645,7 @@ The team config lists your teammates' names. Check the task list periodically; c
           : undefined)
 
       const metaProp =
-        origin !== undefined || attachment.isMeta
+        (origin !== undefined && !isAdvisorOrigin(origin)) || attachment.isMeta
           ? ({ isMeta: true } as const)
           : {}
 

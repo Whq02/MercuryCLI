@@ -96,6 +96,8 @@ import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
+import { advisorConfigItems } from './Advisor.js'
+import { setAdvisorEnabled, setAdvisorSeats } from '../../services/advisor/advisorSettings.js'
 import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
 const LABEL_CELLS = 36
@@ -913,6 +915,25 @@ export function Config({
           recordSet(`localServer.${id}`, words)
           bump()
         }
+      },
+    }),
+  )
+  items.push(
+    ...advisorConfigItems({
+      tokens,
+      onToggle: (next, words) => {
+        setAdvisorEnabled(next)
+        globalTouchedRef.current.add('advisor')
+        snapshots.dirty = true
+        recordToggle('advisor', words)
+        bump()
+      },
+      onInterval: (next, words) => {
+        setAdvisorSeats(next)
+        globalTouchedRef.current.add('advisor')
+        snapshots.dirty = true
+        recordSet('advisor.seats', words)
+        bump()
       },
     }),
   )

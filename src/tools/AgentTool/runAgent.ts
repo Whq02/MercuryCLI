@@ -1,5 +1,6 @@
 
 import { getProjectRoot } from '../../bootstrap/state.js'
+import { advisorAgentRound } from '../../services/advisor/advisorRoads.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
@@ -1030,6 +1031,8 @@ export async function* runAgent(
       ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
     }
 
+    const advisedRows: Message[] = [...messages]
+    let roundSettled = false
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
       const stream = query(queryParams)
       let atRequestBoundary = true
@@ -1048,12 +1051,20 @@ export async function* runAgent(
               }
             }
           }
+          if (atRequestBoundary && roundSettled) {
+            roundSettled = false
+            void advisorAgentRound(agentId, advisedRows)
+          }
           const next = await stream.next()
           if (next.done) return
           const message = next.value
           const kind = (message as { type?: string }).type
           if (kind === 'assistant' || kind === 'stream_event') atRequestBoundary = false
-          else if (kind === 'user') atRequestBoundary = true
+          else if (kind === 'user') {
+            atRequestBoundary = true
+            roundSettled = true
+          }
+          if (kind === 'assistant' || kind === 'user') advisedRows.push(message as Message)
           yield message
         }
       } finally {

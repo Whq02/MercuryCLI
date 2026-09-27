@@ -133,6 +133,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
+import { advisorMainTurnSettled, advisorNoteQueueCommand } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -1645,10 +1646,15 @@ export async function runHeadless(
       executeTurn(command, batch, message => {
         onMessage(message)
       }, initialNotices),
-    onTurnSettled: () => {
+    onTurnSettled: command => {
       generateSuggestionAfterTurn()
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
+      void advisorMainTurnSettled(String(getSessionId()), command, messages, note => {
+        if (inputClosed) return
+        enqueue(advisorNoteQueueCommand(note, randomUUID()))
+        driver.kick()
+      })
     },
     hasWaitableBackgroundTasks: () =>
       getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate' && !(inputClosed && isLocalShellTask(task))),

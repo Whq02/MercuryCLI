@@ -183,7 +183,7 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
     'openrouter/nvidia/nemotron-3.5-lightning:free',
   ]) {
     process.env.MERCURY_MODEL = main
-    for (const container of ['console'] as const) {
+    for (const container of ['console', 'advisor'] as const) {
       const resolution = resolveSubModel(container)
       check(
         `main ${main}: ${container} resolves UNSET with the hint`,
@@ -704,6 +704,20 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     consoleResolved.origin === 'saved' && consoleResolved.route === 'openrouter',
     JSON.stringify(consoleResolved),
   )
+  const advisorPick = setSubModel('advisor', 'openrouter/fixture-vendor/ox-alpha', carrierReads)
+  check(
+    'an OpenRouter row persists for the Advisor beside the Console, each under its own key',
+    advisorPick.ok && getGlobalConfig().subModels?.advisor === 'openrouter/fixture-vendor/ox-alpha' && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free',
+    JSON.stringify([advisorPick, getGlobalConfig().subModels]),
+  )
+  const advisorResolved = resolveSubModel('advisor')
+  check(
+    "the advisor's pick resolves on its own route, independent of the console's",
+    advisorResolved.origin === 'saved' && advisorResolved.model === 'openrouter/fixture-vendor/ox-alpha' && advisorResolved.route === 'openrouter',
+    JSON.stringify(advisorResolved),
+  )
+  setSubModel('advisor', null, carrierReads)
+  check('clearing the advisor leaves the console pick standing', resolveSubModel('advisor').origin === 'unset' && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free')
   setSubModel('console', null, carrierReads)
   delete process.env.OPENROUTER_API_KEY
   __resetOpenrouterCatalogueForTest()
@@ -732,6 +746,31 @@ section('9 · THE IDENTITY STAMP — the fact line names the resolved slot')
     delete process.env.MERCURY_CONSOLE_MODEL
   }
   setSubModel('console', null, reads)
+}
+
+section('10 · THE ADVISOR CONTAINER — a second container identical in shape to the console, its own pin, its own words')
+{
+  const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/utils/model/subModelSlots.ts')
+  check('two containers, console then advisor (red on the base: the console alone)', JSON.stringify(SUB_MODEL_CONTAINERS) === JSON.stringify(['console', 'advisor']), JSON.stringify(SUB_MODEL_CONTAINERS))
+  check('each container has its own env pin', subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL' && subModelEnvVar('console') === 'MERCURY_CONSOLE_MODEL')
+  const wrote = setSubModel('advisor', 'opus', reads)
+  const pin = resolveSubModel('advisor')
+  check('a pick for the advisor lands under subModels.advisor and resolves as a saved pin', wrote.ok && wrote.receipt.startsWith('Advisor model set to') && pin.origin === 'saved' && getGlobalConfig().subModels?.advisor === canonicalSubModelId('opus') && getGlobalConfig().subModels?.console === undefined, JSON.stringify([wrote, getGlobalConfig().subModels]))
+  if (pin.origin !== 'unset') {
+    const line = subModelIdentityLine('advisor', pin)
+    check('the identity line names the Advisor and its audience, with the resolved id quoted', line.includes('you are the Advisor') && line.includes('never the operator') && line.includes(`model id "${pin.model}"`), line)
+  }
+  const refused = setSubModel('advisor', 'gpt-5.2', reads)
+  check("a signed-out family is refused for the advisor with the row's honest reason, the pick untouched", !refused.ok && getGlobalConfig().subModels?.advisor === canonicalSubModelId('opus'), JSON.stringify(refused))
+  process.env.MERCURY_ADVISOR_MODEL = 'kimi-k3'
+  const envPin = resolveSubModel('advisor')
+  const locked = setSubModel('advisor', 'opus', reads)
+  check('the env pin outranks the saved pick and locks the picker, naming its own var', envPin.origin === 'env' && envPin.model === 'kimi-k3' && envPin.envVar === 'MERCURY_ADVISOR_MODEL' && !locked.ok && locked.reason.includes('MERCURY_ADVISOR_MODEL'), JSON.stringify([envPin, locked]))
+  check("the console is not pinned by the advisor's var", resolveSubModel('console').origin === 'unset')
+  delete process.env.MERCURY_ADVISOR_MODEL
+  check("the advisor's calls run with thinking off; the console's context is the session's", JSON.stringify(subModelEffortContext('advisor')) === JSON.stringify({ thinkingEnabled: false }) && JSON.stringify(subModelEffortContext('console')) === JSON.stringify({}))
+  const cleared = setSubModel('advisor', null, reads)
+  check('null clears the advisor back to UNSET with the advisor receipt', cleared.ok && cleared.receipt.startsWith('Advisor model unset') && resolveSubModel('advisor').origin === 'unset' && getGlobalConfig().subModels === undefined, JSON.stringify([cleared, getGlobalConfig().subModels]))
 }
 
 console.log('')

@@ -165,6 +165,7 @@ function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode
 }
 
 export const SCHEDULED_SPEND_LABEL = 'Scheduled'
+export const ADVISOR_SPEND_LABEL = 'Advisor'
 
 function tokensLine(label: string, spend: ProviderSessionSpend, withCost: boolean): string {
   return `${label}: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
@@ -173,7 +174,10 @@ function tokensLine(label: string, spend: ProviderSessionSpend, withCost: boolea
 function spendLine(spend: ProviderSessionSpend, withCost: boolean): string {
   if (spend.models === 0) return 'This session: 0 tokens.'
   const own = tokensLine('This session', spend, withCost)
-  return spend.scheduled === undefined ? own : `${own}\n${tokensLine(SCHEDULED_SPEND_LABEL, spend.scheduled, withCost)}`
+  const lines = [own]
+  if (spend.scheduled !== undefined) lines.push(tokensLine(SCHEDULED_SPEND_LABEL, spend.scheduled, withCost))
+  if (spend.advisor !== undefined) lines.push(tokensLine(ADVISOR_SPEND_LABEL, spend.advisor, withCost))
+  return lines.join('\n')
 }
 
 export function absentSlotLine(route: string): string {

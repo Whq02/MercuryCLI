@@ -147,6 +147,24 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   check("a queued line of the operator's keeps the caret", frame.includes('❯ a queued line of yours') && !frame.includes('● notice'), frame.slice(0, 160))
 }
 
+section('§3 the advisor row: the [advisor] plate with the model and the cadence, no dot, dim lines, never the caret (red on the base: the operator\'s line)')
+{
+  const { advisorBlockOf, advisorPromptLines, isAdvisorOrigin, isMutedNoticeBlock, ADVISOR_PLATE_NAME } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
+  const { wrapCommandText, ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } = await import(join(ROOT, 'src/utils/messages/text.ts'))
+  const origin = { kind: 'advisor', model: 'claude-opus-4-8', seats: 10, at: STAMP }
+  const note = 'Verify the pin on the base before you cut.\nThe seam is print.ts, not the driver.'
+  check('the guard admits the origin; the block is muted; the plate is the lowercase word', isAdvisorOrigin(origin) && isMutedNoticeBlock(advisorBlockOf(origin as never, note)) && ADVISOR_PLATE_NAME === 'advisor')
+  check('the plate reads [advisor] · <model> · every <seats> turns', noticePlate(advisorBlockOf(origin as never, note)) === '[advisor] · claude-opus-4-8 · every 10 turns', noticePlate(advisorBlockOf(origin as never, note)))
+  const wrapped = wrapCommandText(note, origin as never)
+  check('the mid-turn framing wraps the note in the advisor head and tail, never the operator words', wrapped.startsWith(ADVISOR_NOTE_HEAD) && wrapped.endsWith(ADVISOR_NOTE_TAIL) && !wrapped.includes('The operator sent a new message'), wrapped.slice(0, 120))
+  check('the painted lines drop the framing and keep the note', JSON.stringify(advisorPromptLines(wrapped)) === JSON.stringify(note.split('\n')), JSON.stringify(advisorPromptLines(wrapped)))
+  const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: note }, verbose: false, origin }), { type: 'user', timestamp: STAMP })
+  check('the row paints the clock, then the plate, no accent dot', frame.includes(`${clockOf(STAMP)} [advisor] · claude-opus-4-8 · every 10 turns`) && !frame.includes('●'), frame.slice(0, 200))
+  check("…the note's lines beneath, and no caret or handle", frame.includes('Verify the pin on the base before you cut.') && frame.includes('The seam is print.ts, not the driver.') && !frame.includes('❯') && !frame.includes('[sam]'), frame.slice(0, 240))
+  const drained = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: wrapped }, verbose: false, origin }), { type: 'user', timestamp: STAMP })
+  check('a drained (wrapped) note paints the same plate and the note alone', drained.includes('[advisor] · claude-opus-4-8') && drained.includes('Verify the pin on the base before you cut.') && !drained.includes('A note from your advisor'), drained.slice(0, 240))
+}
+
 section('the delivery clock names an earlier completion without changing nearby deliveries')
 const sixMinutesEarlier = new Date(Date.parse(STAMP) - 6 * 60_000).toISOString()
 const noticeCases = [

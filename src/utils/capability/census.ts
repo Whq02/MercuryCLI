@@ -193,6 +193,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/MemoryTools/MemoryTools.js').CorrectTool,
     () => require('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool,
     () => require('../../tools/JevEvalTool/JevEvalTool.js').JevEvalTool,
+    () => require('../../tools/AskAdvisorTool/AskAdvisorTool.js').AskAdvisorTool,
     /* eslint-enable @typescript-eslint/no-require-imports */
   ]
   const out: Tool[] = []

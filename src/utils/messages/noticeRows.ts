@@ -1,6 +1,7 @@
 import { TASK_NOTIFICATION_TAG } from '../../constants/xml.js'
 import { stripTerminalControls } from '../stringUtils.js'
 import { WORKLOAD_CRON, type Workload } from '../workloadContext.js'
+import { ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } from './text.js'
 
 export type SaturnOrigin = {
   kind: 'saturn'
@@ -14,14 +15,24 @@ export type SaturnOrigin = {
   heldWhy?: 'window' | 'parked'
 }
 
+export type AdvisorOrigin = {
+  kind: 'advisor'
+  model: string
+  seats: number
+  at: string
+  ask?: true
+}
+
 export type NoticeBlock =
   | { kind: 'monitor'; taskId: string; name: string; lines: string[] }
   | { kind: 'notice'; lines: string[] }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
+  | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
 
 export const MONITOR_NOTICE_WORD = 'monitor'
 export const PLAIN_NOTICE_WORD = 'notice'
 export const SATURN_PLATE_NAME = 'Saturn'
+export const ADVISOR_PLATE_NAME = 'advisor'
 export const SATURN_WAKE_WORD = 'self-paced wake'
 export const SATURN_SCHEDULE_WORD = 'schedule'
 export const ROW_SECOND_CLOCK_GAP_MS = 60_000
@@ -51,6 +62,12 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
   return o.kind === 'saturn' && (o.fire === 'wake' || o.fire === 'cron') && typeof o.firedAt === 'string'
+}
+
+export function isAdvisorOrigin(origin: unknown): origin is AdvisorOrigin {
+  if (typeof origin !== 'object' || origin === null) return false
+  const o = origin as Record<string, unknown>
+  return o.kind === 'advisor' && typeof o.model === 'string' && typeof o.seats === 'number' && typeof o.at === 'string'
 }
 
 export type SaturnQueueStamp = { origin: SaturnOrigin; workload: Workload }
@@ -104,6 +121,26 @@ export function saturnPromptLines(text: string): string[] {
 
 export function saturnBlockOf(origin: SaturnOrigin, text: string): NoticeBlock {
   return { kind: 'saturn', origin, lines: saturnPromptLines(text) }
+}
+
+export function isMutedNoticeBlock(block: NoticeBlock): boolean {
+  return block.kind === 'saturn' || block.kind === 'advisor'
+}
+
+export function advisorFirstLine(origin: AdvisorOrigin): string {
+  return `${origin.model} · every ${origin.seats} turn${origin.seats === 1 ? '' : 's'}`
+}
+
+export function advisorPromptLines(text: string): string[] {
+  let body = text
+  if (body.startsWith(ADVISOR_NOTE_HEAD)) body = body.slice(ADVISOR_NOTE_HEAD.length)
+  const tailAt = body.lastIndexOf(ADVISOR_NOTE_TAIL)
+  if (tailAt >= 0 && body.slice(tailAt + ADVISOR_NOTE_TAIL.length).trim() === '') body = body.slice(0, tailAt)
+  return noticeLines(body)
+}
+
+export function advisorBlockOf(origin: AdvisorOrigin, text: string): NoticeBlock {
+  return { kind: 'advisor', origin, lines: advisorPromptLines(text) }
 }
 
 const MONITOR_OPEN = /^<monitor task=("(?:[^"\\]|\\.)*") name=("(?:[^"\\]|\\.)*")>/
@@ -180,5 +217,6 @@ export function isNotificationLaneRow(row: { type?: string; attachment?: { type?
 export function noticePlate(block: NoticeBlock, rowStamp?: string): string {
   if (block.kind === 'notice') return PLAIN_NOTICE_WORD
   if (block.kind === 'saturn') return `[${SATURN_PLATE_NAME}] · ${saturnFirstLine(block.origin, rowStamp)}`
+  if (block.kind === 'advisor') return `[${ADVISOR_PLATE_NAME}] · ${advisorFirstLine(block.origin)}`
   return block.name === '' ? MONITOR_NOTICE_WORD : `${MONITOR_NOTICE_WORD} · ${block.name}`
 }

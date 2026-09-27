@@ -62,6 +62,8 @@ import { AsepriteTool } from './tools/AsepriteTool/AsepriteTool.js'
 import { GrepTool } from './tools/GrepTool/GrepTool.js'
 import { InspectTool } from './tools/InspectTool/InspectTool.js'
 import { JevEvalTool, jevEvalEnabled } from './tools/JevEvalTool/JevEvalTool.js'
+import { AskAdvisorTool } from './tools/AskAdvisorTool/AskAdvisorTool.js'
+import { advisorEnabled } from './services/advisor/advisorSettings.js'
 import { JourneyTool } from './tools/JourneyTool/JourneyTool.js'
 import { LaunchFleetTool } from './tools/LaunchFleetTool/LaunchFleetTool.js'
 import { LaunchTool } from './tools/LaunchTool/LaunchTool.js'
@@ -220,6 +222,7 @@ export function getAllBaseTools(): Tools {
     ...(asepriteToolCatalogEnabled() ? [AsepriteTool] : []),
     ...(isAutopilotEnabled() ? [SetTierTool] : []),
     ...(jevEvalEnabled() ? [JevEvalTool] : []),
+    ...(advisorEnabled() ? [AskAdvisorTool] : []),
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,

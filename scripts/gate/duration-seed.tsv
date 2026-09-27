@@ -220,6 +220,7 @@ tool-economy	20
 computer	90
 desktop	120
 local-setup	30
+advisor	30
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
 attention-drives	245
