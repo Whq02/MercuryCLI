@@ -358,6 +358,10 @@ function connectorTrace(entry: Record<string, unknown>): void {
   }
 }
 
+function foldStillRuns(status: FoldStatusV1 | null): boolean {
+  return status === null || status.exit === undefined
+}
+
 function emitAll(listeners: Listeners, what: string): void {
   fluxMark(`emit:${what}`)
   for (const l of [...listeners]) {
@@ -479,6 +483,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveFoldStatus: FoldStatusV1 | null = null
   private foldExitLatch: FoldStatusV1 | null = null
   private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
+  private foldLingerTimer: ReturnType<typeof setTimeout> | null = null
+  private foldLingerOver = false
   private readonly foldListeners = new Set<() => void>()
   private liveWait: RequestWaitV1 | null = null
   private hardStopping = false
@@ -606,7 +612,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
-    this.setLiveFold(tail.stateWord === 'compacting' && tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
+    this.setLiveFold(tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
     const wait = decodeRequestWait(tail.wait)
     if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
       this.liveWait = wait
@@ -717,9 +723,32 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.latchFold(this.liveFoldStatus)
     } else if (next !== null) {
       this.clearFoldLatch()
+      this.foldLingerOver = false
+      if (next.exit !== undefined) this.armFoldLingerEnd(next)
+      else this.clearFoldLinger()
     }
+    const wasRunning = foldStillRuns(this.liveFoldStatus)
     this.liveFoldStatus = next
     emitAll(this.foldListeners, 'fold')
+    if (wasRunning !== foldStillRuns(next)) this.recomputeLive()
+  }
+
+  private armFoldLingerEnd(status: FoldStatusV1): void {
+    this.clearFoldLinger()
+    const endsInMs = Math.max(0, (status.endedAtMs ?? status.startedAtMs) + FOLD_EXIT_LINGER_MS - Date.now())
+    this.foldLingerTimer = setTimeout(() => {
+      this.foldLingerTimer = null
+      this.foldLingerOver = true
+      emitAll(this.foldListeners, 'fold')
+    }, endsInMs)
+    this.foldLingerTimer.unref?.()
+  }
+
+  private clearFoldLinger(): void {
+    if (this.foldLingerTimer !== null) {
+      clearTimeout(this.foldLingerTimer)
+      this.foldLingerTimer = null
+    }
   }
 
   private latchFold(status: FoldStatusV1): void {
@@ -742,7 +771,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   fold(): FoldStatusV1 | null {
-    return this.liveFoldStatus ?? this.foldExitLatch
+    const record = this.liveFoldStatus ?? this.foldExitLatch
+    return record !== null && record.exit !== undefined && this.foldLingerOver ? null : record
   }
 
   subscribeFold(listener: () => void): () => void {
@@ -970,7 +1000,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const streaming: SessionLiveV1['phase'] | null =
       this.streamBlock === 'thinking' ? 'thinking' : this.streamBlock !== null ? 'responding' : null
     const phase: SessionLiveV1['phase'] =
-      inFlight && this.liveStateWord === 'compacting'
+      inFlight && this.liveStateWord === 'compacting' && foldStillRuns(this.liveFoldStatus)
         ? 'compacting'
         : inFlight && this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'
           ? 'waiting'
