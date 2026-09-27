@@ -1,6 +1,6 @@
 import type * as React from 'react'
 
-export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev'
+export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup'
 
 export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: number }
 

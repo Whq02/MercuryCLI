@@ -32,7 +32,7 @@
     "not connected — /logins moonshot adds Kimi (device-code sign-in, or a Moonshot API key; MOONSHOT_API_KEY works too).",
     "not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY works too).",
     "not connected — set MERCURY_COMPAT_BASE_URL (key optional — /router key compat).",
-    "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable)."
+    "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), or /localsetup sets one up."
   ],
   "signed-in": [
     "API key",
@@ -89,7 +89,7 @@
     "not connected — /logins moonshot adds Kimi (device-code sign-in, or a Moonshot API key; MOONSHOT_API_KEY works too).",
     "not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY works too).",
     "not connected — set MERCURY_COMPAT_BASE_URL (key optional — /router key compat).",
-    "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable).",
+    "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), or /localsetup sets one up.",
     "openai fixture key",
     "resets <when>",
     "resets <when>",
