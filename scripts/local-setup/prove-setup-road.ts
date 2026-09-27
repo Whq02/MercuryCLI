@@ -29,10 +29,15 @@ function section(t: string): void {
 }
 
 const TAG = setup.SETUP_MODEL_TAG
+const BIG = 'qwen3.5:27b'
+const BIG_ID = `local/${BIG}`
+const OWNER_9B = 'qwen3.5:9b-q4_K_M'
 const GIB = 1024 ** 3
 const GB = 1000 ** 3
 const WEIGHTS = 6594474711
+const BIG_WEIGHTS = 17_000_000_000
 const KV_LIST = [0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4]
+const KV_LIST_27B = [...KV_LIST, ...KV_LIST]
 const HYBRID_INFO: Record<string, unknown> = {
   'general.architecture': 'qwen35',
   'general.parameter_count': 9653104368,
@@ -43,6 +48,18 @@ const HYBRID_INFO: Record<string, unknown> = {
   'qwen35.block_count': 32,
   'qwen35.context_length': 262144,
   'qwen35.embedding_length': 4096,
+  'qwen35.full_attention_interval': 4,
+}
+const HYBRID_27B_INFO: Record<string, unknown> = {
+  'general.architecture': 'qwen35',
+  'general.parameter_count': 27_000_000_000,
+  'qwen35.attention.head_count': 24,
+  'qwen35.attention.head_count_kv': KV_LIST_27B,
+  'qwen35.attention.key_length': 256,
+  'qwen35.attention.value_length': 256,
+  'qwen35.block_count': 64,
+  'qwen35.context_length': 262144,
+  'qwen35.embedding_length': 5120,
   'qwen35.full_attention_interval': 4,
 }
 const DENSE_INFO: Record<string, unknown> = {
@@ -61,13 +78,13 @@ type Fixture = {
   server: Server
   root: string
   port: number
-  state: { up: boolean; listed: string[]; info: Record<string, unknown>; pullError?: string }
+  state: { up: boolean; listed: string[]; info: Record<string, unknown>; sizes: Record<string, number>; infos: Record<string, Record<string, unknown>>; pullError?: string }
   hits: Hit[]
   close: () => Promise<void>
 }
 
-function tagRow(name: string): Record<string, unknown> {
-  return { name, model: name, modified_at: '2025-05-01T00:00:00Z', size: WEIGHTS, digest: '6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7', details: { parent_model: '', format: 'gguf', family: 'qwen35', families: ['qwen35'], parameter_size: '9.7B', quantization_level: 'Q4_K_M', context_length: 262144, embedding_length: 4096 }, capabilities: ['completion', 'vision', 'tools', 'thinking'] }
+function tagRow(name: string, size: number = WEIGHTS): Record<string, unknown> {
+  return { name, model: name, modified_at: '2025-05-01T00:00:00Z', size, digest: '6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7', details: { parent_model: '', format: 'gguf', family: 'qwen35', families: ['qwen35'], parameter_size: size === WEIGHTS ? '9.7B' : '27B', quantization_level: 'Q4_K_M', context_length: 262144, embedding_length: 4096 }, capabilities: ['completion', 'vision', 'tools', 'thinking'] }
 }
 
 function ndjson(res: ServerResponse, rows: unknown[], gapMs: number): void {
@@ -85,7 +102,7 @@ function ndjson(res: ServerResponse, rows: unknown[], gapMs: number): void {
 }
 
 function fixtureOllama(): Promise<Fixture> {
-  const state: Fixture['state'] = { up: false, listed: [], info: HYBRID_INFO }
+  const state: Fixture['state'] = { up: false, listed: [], info: HYBRID_INFO, sizes: { [BIG]: BIG_WEIGHTS }, infos: { [BIG]: HYBRID_27B_INFO } }
   const hits: Hit[] = []
   return new Promise(resolve => {
     const server = createServer((req, res) => {
@@ -106,12 +123,12 @@ function fixtureOllama(): Promise<Fixture> {
           res.end(JSON.stringify(payload))
         }
         if (url === '/api/version') return json(200, { version: '0.34.4' })
-        if (url === '/api/tags') return json(200, { models: state.listed.map(tagRow) })
+        if (url === '/api/tags') return json(200, { models: state.listed.map(name => tagRow(name, state.sizes[name])) })
         if (url === '/api/ps') return json(200, { models: [] })
         if (url === '/api/show') {
           const model = String((JSON.parse(body || '{}') as { model?: string }).model ?? '')
           if (!state.listed.includes(model)) return json(404, { error: `model '${model}' not found` })
-          return json(200, { capabilities: ['completion', 'vision', 'tools', 'thinking'], details: tagRow(model).details, model_info: state.info, parameters: 'top_p 0.95\ntemperature 1', template: '{{ .Prompt }}' })
+          return json(200, { capabilities: ['completion', 'vision', 'tools', 'thinking'], details: tagRow(model, state.sizes[model]).details, model_info: state.infos[model] ?? state.info, parameters: 'top_p 0.95\ntemperature 1', template: '{{ .Prompt }}' })
         }
         if (url === '/api/pull' && method === 'POST') {
           const model = String((JSON.parse(body || '{}') as { model?: string }).model ?? '')
@@ -258,9 +275,16 @@ function machineIo(m: Machine, fx: Fixture | undefined, extra: Partial<setup.Set
     parallelSlots: 1,
     readTruth: async () => fixtureTruth(m.platform, totalMemoryBytes),
     focusedConnector: () => IN_PROCESS_DOOR,
+    currentModel: () => 'claude-fixture',
     ...extra,
   }
 }
+
+const pickAt = (label: string, tag: string, otherwise: (plan: setup.SetupStepPlan) => setup.SetupConsent = () => 'run'): setup.SetupConsentFn => plan => (plan.label === label ? { pick: tag } : otherwise(plan))
+const plansOf = (events: setup.SetupEvent[]): setup.SetupStepPlan[] => events.filter((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step').map(e => e.plan)
+const planOf = (events: setup.SetupEvent[], label: string): setup.SetupStepPlan | undefined => plansOf(events).find(p => p.label === label)
+const resultOf = (events: setup.SetupEvent[], label: string): setup.SetupStepResult | undefined => events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === label)?.result
+const rowsWords = (plan: setup.SetupStepPlan | undefined): string => (plan?.rows ?? []).map(r => `${r.tag} · ${r.words}`).join(' | ')
 
 function bareMachine(platform: NodeJS.Platform = 'darwin'): Machine {
   return { platform, onPath: {}, files: new Set(), execs: [] }
@@ -296,10 +320,22 @@ async function walk(consent: setup.SetupConsentFn, io: setup.SetupIo): Promise<{
 
 section('§1 the base line: the module exists and freezes the names the command, the dialog and the drive import')
 {
-  const names = ['detectLocalServers', 'findOllamaInstall', 'planInstall', 'runInstall', 'waitForInstall', 'planStart', 'startServer', 'waitForOllama', 'pullModel', 'modelListed', 'chooseWindow', 'chooseWindowFrom', 'pickAndProve', 'runSetupRoad', 'summaryWords', 'ollamaRootOf', 'probeWords', 'resolveSetupIo', 'shellArgv', 'setupModelIdOf', 'pullProgressLine', 'windowWords', 'readOllamaVersion']
+  const names = ['detectLocalServers', 'findOllamaInstall', 'planInstall', 'runInstall', 'waitForInstall', 'planStart', 'startServer', 'waitForOllama', 'pullModel', 'modelListed', 'chooseWindow', 'chooseWindowFrom', 'pickAndProve', 'runSetupRoad', 'summaryWords', 'ollamaRootOf', 'probeWords', 'resolveSetupIo', 'shellArgv', 'setupModelIdOf', 'pullProgressLine', 'windowWords', 'readOllamaVersion', 'readModelChoice', 'pullCandidateRows', 'markRows', 'chooseKeysLine', 'pickOf', 'currentWireTag', 'listedWords']
   for (const name of names) check(`index.ts exports ${name}`, typeof (setup as Record<string, unknown>)[name] === 'function')
   check('the tested tag and id', TAG === 'qwen3.5:9b' && setup.SETUP_MODEL_ID === 'local/qwen3.5:9b')
   check('the keys line', setup.SETUP_KEYS_LINE === '↵ run · s skip · esc stop')
+  const has = (name: string): boolean => typeof (setup as Record<string, unknown>)[name] === 'function'
+  check('the choice keys: ↑↓ choose · ↵ pick, esc keeps the current model by name, or stops when none is known', has('chooseKeysLine') && setup.SETUP_CHOOSE_KEYS === '↑↓ choose · ↵ pick' && setup.chooseKeysLine('local/qwen3.5:27b') === '↑↓ choose · ↵ pick · esc keeps local/qwen3.5:27b' && setup.chooseKeysLine(undefined) === '↑↓ choose · ↵ pick · esc stop')
+  const candidates: readonly setup.SetupPullCandidate[] = (setup as { SETUP_PULL_CANDIDATES?: readonly setup.SetupPullCandidate[] }).SETUP_PULL_CANDIDATES ?? []
+  check('the pull list is the Qwen 3.5 family as ollama.com/library/qwen3.5/tags lists it: 0.8b 1.0 GB · 2b 2.7 GB · 4b 3.4 GB · 9b 6.6 GB · 27b 17 GB · 35b 24 GB · 122b 81 GB, all trained to 256k', candidates.map(c => `${c.tag} ${c.sizeWords}`).join(' · ') === 'qwen3.5:0.8b 1.0 GB · qwen3.5:2b 2.7 GB · qwen3.5:4b 3.4 GB · qwen3.5:9b 6.6 GB · qwen3.5:27b 17 GB · qwen3.5:35b 24 GB · qwen3.5:122b 81 GB' && candidates.every(c => c.trainedMax === 262144), candidates.map(c => `${c.tag} ${c.sizeWords}`).join(' · ') || 'no pull list on this tree')
+  check('the tested one is the 9B and only it', candidates.filter(c => c.tested === true).map(c => c.tag).join(',') === TAG)
+  const cacheKiB = (tag: string): number => {
+    const geometry = candidates.find(c => c.tag === tag)?.geometry
+    return geometry === undefined ? Number.NaN : memory.kvBytesPerToken(geometry) / 1024
+  }
+  check('each candidate carries the published geometry: cache per token at f16 — 0.8b 12 KiB · 2b 12 KiB · 4b 32 KiB · 9b 32 KiB (the fixture /api/show reading) · 27b 64 KiB · 35b 20 KiB · 122b 24 KiB', candidates.map(c => `${cacheKiB(c.tag)}`).join(',') === '12,12,32,32,64,20,24' && memory.kvBytesPerToken(memory.kvGeometryOf(HYBRID_INFO)!) / 1024 === cacheKiB(TAG) && memory.kvBytesPerToken(memory.kvGeometryOf(HYBRID_27B_INFO)!) / 1024 === cacheKiB(BIG), candidates.map(c => `${c.tag}:${cacheKiB(c.tag)}`).join(','))
+  check('the current model: a local id gives its wire tag, a server-qualified id its bare tag, a hosted id nothing', has('currentWireTag') && setup.currentWireTag('local/qwen3.5:27b') === 'qwen3.5:27b' && setup.currentWireTag('local/ollama/qwen3.5:27b') === 'qwen3.5:27b' && setup.currentWireTag('claude-fixture') === undefined && setup.currentWireTag(null) === undefined)
+  check('a pick answer is read, everything else is no pick', has('pickOf') && setup.pickOf({ pick: BIG }) === BIG && setup.pickOf('run') === undefined && setup.pickOf('skip') === undefined && setup.pickOf('stop') === undefined && setup.pickOf({ pick: ' ' }) === undefined)
   check('the ladder is 32k · 64k · 128k · 256k', setup.SETUP_WINDOW_LADDER.join(',') === '32768,65536,131072,262144')
   check('the docs table cites four roads (brew, dmg, script, exe)', setup.INSTALL_DOCS.map(d => d.via).sort().join(',') === 'brew,dmg,exe,script')
   for (const doc of setup.INSTALL_DOCS) check(`the ${doc.platform}/${doc.via} excerpt names its command's road`, doc.via === 'dmg' ? doc.excerpt.includes('Ollama.dmg') && doc.command.includes('Ollama.dmg') : doc.via === 'exe' ? doc.excerpt.includes('OllamaSetup.exe') && doc.command.includes('OllamaSetup.exe') : doc.via === 'script' ? doc.excerpt.includes('curl -fsSL https://ollama.com/install.sh | sh') && doc.command === 'curl -fsSL https://ollama.com/install.sh | sh' : doc.excerpt.includes('brew install ollama') && doc.command === 'brew install ollama', doc.excerpt)
@@ -563,7 +599,7 @@ section('§6b the session door: a daemon-carried session switches through its co
   await fx.close()
 }
 
-section('§7 the road: a skip at step 4 skips the pull and continues; every consent is asked before anything runs')
+section('§7 the road: a model already on the server is chosen and needs no pull; a chosen pull skipped ends at the window; every consent is asked before anything runs')
 {
   const fx = await fixtureOllama()
   fx.state.listed = [TAG]
@@ -571,20 +607,34 @@ section('§7 the road: a skip at step 4 skips the pull and continues; every cons
   const slice: setup.SessionModelSlice = { mainLoopModel: null, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const asked: string[] = []
   const io = machineIo(m, fx, { setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }) })
-  const { events, summary } = await walk(plan => {
-    asked.push(plan.label)
-    return plan.label === '4' ? 'skip' : 'run'
-  }, io)
+  const { events, summary } = await walk(
+    pickAt('4', TAG, plan => {
+      asked.push(plan.label)
+      return 'run'
+    }),
+    io,
+  )
   const shape = stepEvents(events)
-  check('the walk: 1 (nothing) · 2 (binary found) · 3 (started) · 4 skipped · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 3 | result 3 ran | step 4 | result 4 skipped | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
-  check('every step asked before it ran', asked.join(',') === '1,2,3,4,5,6')
-  check('step 4 said the tag is already listed (s skips)', events.some(e => e.type === 'step' && e.plan.label === '4' && e.plan.found.includes('already listed') && e.plan.willRun === `POST ${fx.root}/api/pull {"model":"qwen3.5:9b","stream":true}`))
+  check('the walk: 1 (nothing) · 2 (binary found) · 3 (started) · 4 (the listed 9B picked, no pull owed) · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 3 | result 3 ran | step 4 | result 4 ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
+  check('every step asked before it ran', asked.join(',') === '1,2,3,5,6')
+  const step4 = planOf(events, '4')
+  check('step 4 lists the 9B as on the server and the other six family sizes as pulls; no pull row for a listed tag', step4 !== undefined && rowsWords(step4).startsWith('qwen3.5:9b · on the server · 6.6 GB · trained 256k') && (step4.rows ?? []).filter(r => r.on === 'pull').map(r => r.tag).join(',') === 'qwen3.5:0.8b,qwen3.5:2b,qwen3.5:4b,qwen3.5:27b,qwen3.5:35b,qwen3.5:122b', rowsWords(step4))
+  check('step 4 runs nothing and its keys are the choice keys with esc keeping the current model', step4?.willRun === '' && step4.keys === '↑↓ choose · ↵ pick · esc keeps claude-fixture' && step4.kind === 'choose' && step4.title === 'Choose the model' && !step4.skippable)
+  check('the choice row is the result row', resultOf(events, '4')?.lastLine === 'qwen3.5:9b · on the server · 6.6 GB · trained 256k · the tested one', resultOf(events, '4')?.lastLine)
   check('no pull was sent', !fx.hits.some(h => h.url === '/api/pull'))
-  check('the summary: done 1, 2, 3, 5, 6 · skipped 4 · ready', summary.ran.join(',') === '1,2,3,5,6' && summary.skipped.join(',') === '4' && summary.notDone.length === 0 && summary.reason === 'finished' && summary.ready?.ok === true && summary.model === 'local/qwen3.5:9b' && summary.words.startsWith('done: 1, 2, 3, 5, 6 · skipped: 4 · ready · local/qwen3.5:9b · 256k window · reply in '), summary.words)
-  const plans = events.filter((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step').map(e => e.plan)
-  check('every step carries the three lines: found, willRun, keys', plans.every(p => p.found.length > 0 && p.willRun.length > 0 && p.keys === setup.SETUP_KEYS_LINE) && plans.length === 6)
+  check('the summary: done 1, 2, 3, 4, 5, 6 · ready', summary.ran.join(',') === '1,2,3,4,5,6' && summary.skipped.length === 0 && summary.notDone.length === 0 && summary.reason === 'finished' && summary.ready?.ok === true && summary.model === 'local/qwen3.5:9b' && summary.words.startsWith('done: 1, 2, 3, 4, 5, 6 · ready · local/qwen3.5:9b · 256k window · reply in '), summary.words)
+  const plans = plansOf(events)
+  check('every running step carries the three lines: found, willRun, keys; the choice carries found, rows, keys', plans.filter(p => p.kind !== 'choose').every(p => p.found.length > 0 && p.willRun.length > 0 && p.keys === setup.SETUP_KEYS_LINE) && plans.length === 6)
   check('step 3 will-run is the detached serve; step 5 names the show and the setting key; step 6 names /model and /api/chat with num_ctx', plans[2]!.willRun.startsWith(`${FIXTURE_BIN} serve (detached, log `) && plans[4]!.willRun.includes(`POST ${fx.root}/api/show {"model":"qwen3.5:9b"}`) && plans[4]!.willRun.includes('localModelWindows["local/qwen3.5:9b"]') && plans[5]!.willRun.startsWith('/model local/qwen3.5:9b · POST ') && plans[5]!.willRun.includes('"num_ctx":262144'), plans.map(p => p.willRun).join('\n'))
   check('the session model was set by step 6', slice.mainLoopModel === 'local/qwen3.5:9b')
+  fx.state.listed = []
+  fx.hits.length = 0
+  const skipped = await walk(pickAt('4', BIG, plan => (plan.label === '4b' ? 'skip' : 'run')), io)
+  const skippedShape = stepEvents(skipped.events).filter(s => !s.startsWith('progress')).join(' | ')
+  check('a pull candidate picked and its pull skipped: 1 · 4 · 4b skipped · 5 fails (the tag is not listed) · ended', skippedShape === 'step 1 | result 1 ran | step 4 | result 4 ran | step 4b | result 4b skipped | step 5 | result 5 failed | done ended', skippedShape)
+  check('step 4b asks with the library size before ↵ and the verbatim pull', planOf(skipped.events, '4b')?.found === `Ollama 0.34.4 at ${fx.root} does not list qwen3.5:27b · about 17 GB to download (ollama.com/library/qwen3.5 lists the tag at 17 GB); the exact size shows with the first row` && planOf(skipped.events, '4b')?.willRun === `POST ${fx.root}/api/pull {"model":"qwen3.5:27b","stream":true}` && planOf(skipped.events, '4b')?.title === 'Pull qwen3.5:27b', planOf(skipped.events, '4b')?.found)
+  check('the skipped pull is said and the window step names the missing tag', resultOf(skipped.events, '4b')?.lastLine === 'skipped: qwen3.5:27b was not pulled' && resultOf(skipped.events, '5')?.lastLine === `qwen3.5:27b is not listed by ${fx.root}/api/tags` && skipped.summary.words.startsWith('step 5 failed · done: 1, 4 · skipped: 4b · not done: 6'), skipped.summary.words)
+  check('nothing was pulled or proven on the skipped road', !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat'))
   await fx.close()
 }
 
@@ -595,7 +645,7 @@ section('§8 the road: stop at step 3 ends with steps 1–2 done, 3–6 not; not
   const io = machineIo(m, fx)
   const { events, summary } = await walk(plan => (plan.label === '3' ? 'stop' : 'run'), io)
   check('the events end at step 3 with done', stepEvents(events).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 3 | done stopped', stepEvents(events).join(' | '))
-  check('the summary names 1–2 done and 3–6 not', summary.reason === 'stopped' && summary.stoppedAt === '3' && summary.ran.join(',') === '1,2' && summary.notDone.join(',') === '3,4,5,6' && summary.words === 'stopped at step 3 · done: 1, 2 · not done: 3, 4, 5, 6', summary.words)
+  check('the summary names 1–2 done and 3–6 not (the pull owed until the choice says otherwise)', summary.reason === 'stopped' && summary.stoppedAt === '3' && summary.ran.join(',') === '1,2' && summary.notDone.join(',') === '3,4,4b,5,6' && summary.words === 'stopped at step 3 · done: 1, 2 · not done: 3, 4, 4b, 5, 6', summary.words)
   check('nothing was started or pulled', m.execs.length === 0 && !fx.state.up && !fx.hits.some(h => h.url === '/api/pull'), JSON.stringify(m.execs))
   await fx.close()
 }
@@ -623,19 +673,22 @@ section('§9 the road end to end: install offered, run through the seam, then st
   const slice: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const door = daemonDoor()
   const io = machineIo(m, fx, { focusedConnector: () => door, setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }), realpath: p => p })
-  const { events, summary } = await walk(() => 'run', io)
+  const { events, summary } = await walk(pickAt('4', TAG), io)
   const shape = stepEvents(events)
-  check('the walk: 1 · 2 (none) · 2b (brew install) · 3 (brew services start) · 4 (pull) · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 2b | result 2b ran | step 3 | result 3 ran | step 4 | result 4 ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
+  check('the walk: 1 · 2 (none) · 2b (brew install) · 3 (brew services start) · 4 (the 9B chosen from the pull list) · 4b (pull) · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 2b | result 2b ran | step 3 | result 3 ran | step 4 | result 4 ran | step 4b | result 4b ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
   check('on a daemon-carried session the road switches through the session door, not the screen state', door.asked.join(',') === 'local/qwen3.5:9b' && slice.mainLoopModel === 'claude-fixture', JSON.stringify({ asked: door.asked, slice }))
   const step2b = events.find((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step' && e.plan.label === '2b')!
   check('step 2b shows the documented command verbatim and no sudo on darwin', step2b.plan.willRun === 'brew install ollama' && !step2b.plan.needsSudo && step2b.plan.found.includes('ollama not found'), JSON.stringify(step2b.plan))
   check('the install ran through the exec seam as sh -c', m.execs.some(e => e.file === '/bin/sh' && e.args[1] === 'brew install ollama'))
-  const progressRows = events.filter((e): e is Extract<setup.SetupEvent, { type: 'progress' }> => e.type === 'progress' && e.label === '4')
-  const resultAt = shape.indexOf('result 4 ran')
-  const firstProgressAt = shape.indexOf('progress 4')
+  const step4 = planOf(events, '4')
+  check('with nothing on the fresh server the choice is the seven pulls, the 9B marked the tested one, none current', step4 !== undefined && (step4.rows ?? []).length === 7 && (step4.rows ?? []).every(r => r.on === 'pull' && r.current !== true) && (step4.rows ?? []).filter(r => r.tested === true).map(r => r.tag).join(',') === TAG && rowsWords(step4).includes('qwen3.5:9b · pull 6.6 GB · fits · 256k · the tested one'), rowsWords(step4))
+  check("the choice's found line says what the server lists (started at step 3, so no version yet), the box the pulls are sized for, and that nothing is pre-chosen", step4?.found === `Ollama at ${fx.root} lists no model · no local model is set up yet (the session is on claude-fixture) · qwen3.5:9b is the tested one · nothing is pre-chosen · pulls sized for this box: 36.9 GiB usable of 48.0 GiB (ollama.com/library/qwen3.5)`, step4?.found)
+  const progressRows = events.filter((e): e is Extract<setup.SetupEvent, { type: 'progress' }> => e.type === 'progress' && e.label === '4b')
+  const resultAt = shape.indexOf('result 4b ran')
+  const firstProgressAt = shape.indexOf('progress 4b')
   check('the pull\'s rows streamed as progress events before its result (7 rows, in place)', progressRows.length === 7 && firstProgressAt >= 0 && firstProgressAt < resultAt && progressRows[3]!.line === 'pulling dec52a44 100% · 6.6 GB of 6.6 GB' && progressRows[6]!.line === 'success', progressRows.map(r => r.line).join(' | '))
-  const result4 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '4')!
-  check('the pull result row says success and the size', result4.result.lastLine === 'qwen3.5:9b: success · 6.6 GB · 7 rows', result4.result.lastLine)
+  const result4 = resultOf(events, '4b')
+  check('the pull result row says success and the size', result4?.lastLine === 'qwen3.5:9b: success · 6.6 GB · 7 rows', result4?.lastLine ?? 'no 4b result')
   const result5 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '5')!
   check("the window row says the figures on the one rule: 256k · 6.1 GiB weights + 8.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot", result5.result.lastLine === '256k · 6.1 GiB weights + 8.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot', result5.result.lastLine)
   const step5 = events.find((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step' && e.plan.label === '5')!
@@ -644,8 +697,8 @@ section('§9 the road end to end: install offered, run through the seam, then st
   check('the prove row carries the timings', result6.result.lastLine.startsWith('load 5.2 s · ingest 14 tokens in 0.3 s (47 tok/s) · reply 2 tokens in 0.2 s · total '), result6.result.lastLine)
   const detail6 = result6.result.detail as setup.ProveResult | undefined
   check('step 6\'s result detail carries the daemon\'s settle word for the dialog\'s row', detail6 !== undefined && 'settled' in detail6 && detail6.settled === 'applied' && detail6.settledBy === 'daemon', JSON.stringify(detail6 === undefined ? undefined : { settled: detail6.settled, settledBy: detail6.settledBy }))
-  check('the summary is the ready row', summary.reason === 'finished' && summary.ran.join(',') === '1,2,2b,3,4,5,6' && summary.ready?.words.startsWith('ready · local/qwen3.5:9b · 256k window · reply in ') === true, summary.words)
-  check('the order of the server calls: probe, version wait, pull, tags+show, chat — never a load', fx.hits.filter(h => h.url === '/api/pull').length === 1 && fx.hits.filter(h => h.url === '/api/chat').length === 1 && !fx.hits.some(h => h.url === '/api/generate'), JSON.stringify(fx.hits.map(h => h.url)))
+  check('the summary is the ready row', summary.reason === 'finished' && summary.ran.join(',') === '1,2,2b,3,4,4b,5,6' && summary.ready?.words.startsWith('ready · local/qwen3.5:9b · 256k window · reply in ') === true, summary.words)
+  check('the order of the server calls: probe, version wait, tags for the choice, pull, tags+show, chat — never a load', fx.hits.filter(h => h.url === '/api/pull').length === 1 && fx.hits.filter(h => h.url === '/api/chat').length === 1 && !fx.hits.some(h => h.url === '/api/generate'), JSON.stringify(fx.hits.map(h => h.url)))
   await fx.close()
 }
 
@@ -670,26 +723,85 @@ section('§10 LM Studio answering ⇒ the road ends at step 6 on that server\'s 
   await lm.close()
 }
 
-section('§11 Ollama already answering: with the tag ⇒ step 5 next; without ⇒ step 4; a failed step ends the road')
+section('§11 Ollama already answering: the choice comes next; a listed pick goes to step 5, an unlisted pick to the pull; a failed step ends the road')
 {
   const fx = await fixtureOllama()
   fx.state.up = true
   fx.state.listed = [TAG]
   const io = machineIo(bareMachine(), fx, { persist: () => ({ sentence: '' }) })
-  const withTag = await walk(plan => (plan.label === '5' ? 'stop' : 'run'), io)
-  check('the tag listed ⇒ 1 then 5', stepEvents(withTag.events).join(' | ') === 'step 1 | result 1 ran | step 5 | done stopped' && withTag.summary.words === 'stopped at step 5 · done: 1 · not done: 5, 6', stepEvents(withTag.events).join(' | '))
+  const withTag = await walk(pickAt('4', TAG, plan => (plan.label === '5' ? 'stop' : 'run')), io)
+  check('the tag listed and picked ⇒ 1, 4, then 5', stepEvents(withTag.events).join(' | ') === 'step 1 | result 1 ran | step 4 | result 4 ran | step 5 | done stopped' && withTag.summary.words === 'stopped at step 5 · done: 1, 4 · not done: 5, 6', `${stepEvents(withTag.events).join(' | ')} · ${withTag.summary.words}`)
+  check("step 1's row lists what the server has, without a preferred tag", resultOf(withTag.events, '1')?.lastLine === `Ollama 0.34.4 at ${fx.root} answers with 1 model: qwen3.5:9b`, resultOf(withTag.events, '1')?.lastLine)
   fx.state.listed = []
-  const withoutTag = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), io)
-  check('no tag ⇒ 1 then 4, the found line says about 6.6 GB', stepEvents(withoutTag.events).join(' | ') === 'step 1 | result 1 ran | step 4 | done stopped' && withoutTag.events.some(e => e.type === 'step' && e.plan.label === '4' && e.plan.found.includes('about 6.6 GB')), stepEvents(withoutTag.events).join(' | '))
+  const withoutTag = await walk(pickAt('4', TAG, plan => (plan.label === '4b' ? 'stop' : 'run')), io)
+  check('no tag ⇒ 1, 4, then 4b whose found line says about 6.6 GB', stepEvents(withoutTag.events).join(' | ') === 'step 1 | result 1 ran | step 4 | result 4 ran | step 4b | done stopped' && planOf(withoutTag.events, '4b')?.found.includes('about 6.6 GB') === true, stepEvents(withoutTag.events).join(' | '))
   fx.state.pullError = 'pull model manifest: file does not exist'
-  const failed = await walk(() => 'run', io)
-  check('a failed pull ends the road with the reason and 5–6 not done', failed.summary.reason === 'ended' && failed.summary.failed.join(',') === '4' && failed.summary.notDone.join(',') === '5,6' && failed.summary.words.startsWith('step 4 failed · done: 1 · not done: 5, 6'), failed.summary.words)
+  const failed = await walk(pickAt('4', TAG), io)
+  check('a failed pull ends the road with the reason and 5–6 not done', failed.summary.reason === 'ended' && failed.summary.failed.join(',') === '4b' && failed.summary.notDone.join(',') === '5,6' && failed.summary.words.startsWith('step 4b failed · done: 1, 4 · not done: 5, 6'), failed.summary.words)
   const off = await walk(() => 'run', { ...io, env: { PATH: '/nowhere', MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
   check('probing off ⇒ step 1 says so and the road ends naming the reason', off.summary.reason === 'ended' && off.summary.words.includes('MERCURY_LOCAL_PROBE_TARGETS'), off.summary.words)
   await fx.close()
 }
 
-section('§12 the seams never reach the machine: the scratch home holds the only writes')
+section('§12 the choice: a server with two models and a session on the 27B — the road sets up the 27B; with nothing set up it asks; esc keeps the model; a consent that never picks sets nothing up')
+{
+  const fx = await fixtureOllama()
+  fx.state.up = true
+  fx.state.listed = [BIG, OWNER_9B]
+  const slice: setup.SessionModelSlice = { mainLoopModel: BIG_ID, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const persisted: string[] = []
+  const written: Array<[string, number]> = []
+  const io = machineIo(bareMachine(), fx, { currentModel: () => BIG_ID, setAppState: updater => Object.assign(slice, updater(slice)), persist: setting => (persisted.push(setting), { sentence: '' }), writeWindow: (tag, window) => written.push([tag, window]) })
+  const { events, summary } = await walk(pickAt('4', BIG), io)
+  const shape = stepEvents(events).filter(s => !s.startsWith('progress')).join(' | ')
+  check('the walk: 1 · 4 (the 27B picked) · 5 · 6 — no pull, nothing installed or started', shape === 'step 1 | result 1 ran | step 4 | result 4 ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape)
+  const step4 = planOf(events, '4')
+  const rows = step4?.rows ?? []
+  check('the list: the two server models first (size and trained window), then the five family sizes it can pull, each with its fit on this box', rowsWords(step4) === 'qwen3.5:27b · on the server · 17.0 GB · trained 256k · current | qwen3.5:9b-q4_K_M · on the server · 6.6 GB · trained 256k | qwen3.5:0.8b · pull 1.0 GB · fits · 256k | qwen3.5:2b · pull 2.7 GB · fits · 256k | qwen3.5:4b · pull 3.4 GB · fits · 256k | qwen3.5:9b · pull 6.6 GB · fits · 256k | qwen3.5:35b · pull 24 GB · fits · 256k | qwen3.5:122b · pull 81 GB · does not fit', rowsWords(step4))
+  check("the session's model is marked current, once, on the server row; the tested 9B is not suggested while a local model is set up", rows.filter(r => r.current === true).map(r => r.tag).join(',') === BIG && rows.every(r => r.tested !== true) && !rowsWords(step4).includes('the tested one'))
+  check('the pull rows carry the fit the window step will compute: 27B on the server is not offered as a pull; the 122B does not fit 36.9 GiB', !rows.some(r => r.on === 'pull' && r.tag === BIG) && rows.find(r => r.tag === 'qwen3.5:122b')?.fit?.fits === false && rows.find(r => r.tag === 'qwen3.5:35b')?.fit?.window === 262144)
+  check('the found line names the session model and that nothing is pre-chosen; esc keeps the 27B', step4?.found === `Ollama 0.34.4 at ${fx.root} lists 2 models · the session is on ${BIG_ID} · nothing is pre-chosen · pulls sized for this box: 36.9 GiB usable of 48.0 GiB (ollama.com/library/qwen3.5)` && step4?.keys === `↑↓ choose · ↵ pick · esc keeps ${BIG_ID}`, `${step4?.found} · ${step4?.keys}`)
+  check('the choice row is the result row', resultOf(events, '4')?.lastLine === 'qwen3.5:27b · on the server · 17.0 GB · trained 256k · current')
+  const step5 = planOf(events, '5')
+  check('step 5 names the 27B: its show and its own setting key', step5?.found.startsWith(`${BIG} at ${fx.root}`) === true && step5?.willRun === `GET ${fx.root}/api/tags · POST ${fx.root}/api/show {"model":"qwen3.5:27b"} → localModelWindows["local/qwen3.5:27b"] in the config home (nothing is written to the server's environment)`, step5?.willRun)
+  check("step 5's fit is the 27B's own geometry: 256k · 15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot, written under the 27B's key", resultOf(events, '5')?.lastLine === '256k · 15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot' && written.length === 1 && written[0]![0] === BIG && written[0]![1] === 262144, `${resultOf(events, '5')?.lastLine} · ${JSON.stringify(written)}`)
+  const chats = fx.hits.filter(h => h.url === '/api/chat')
+  check('step 6 proves the 27B on the native road and the session stays on it (a no-op switch, nothing else persisted)', chats.length === 1 && (JSON.parse(chats[0]!.body) as { model?: string }).model === BIG && planOf(events, '6')?.willRun.startsWith(`/model ${BIG_ID} · POST `) === true && summary.ready?.model === BIG_ID && summary.ready.settled === 'no-op' && slice.mainLoopModel === BIG_ID && persisted.join(',') === BIG_ID, JSON.stringify({ chats: chats.map(c => c.body.slice(0, 60)), settled: summary.ready?.settled, slice, persisted }))
+  check('the 9B was never pulled, sized or proven (the road shows only the chosen 27B; the listing probes are discovery\'s own)', !fx.hits.some(h => h.url === '/api/pull') && !fx.hits.some(h => h.url === '/api/show' && h.body === JSON.stringify({ model: TAG })) && !fx.hits.some(h => h.url === '/api/chat' && !h.body.includes(`"model":"${BIG}"`)), JSON.stringify(fx.hits.map(h => `${h.url} ${h.body.slice(0, 40)}`)))
+  check('the ready row names the 27B', summary.words.startsWith(`done: 1, 4, 5, 6 · ready · ${BIG_ID} · 256k window · reply in `), summary.words)
+
+  fx.hits.length = 0
+  persisted.length = 0
+  written.length = 0
+  const kept = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), io)
+  check('esc at the choice keeps the 27B: stopped at 4, nothing pulled, shown, proven, switched or persisted', kept.summary.reason === 'stopped' && kept.summary.stoppedAt === '4' && kept.summary.kept === BIG_ID && kept.summary.words === `stopped at step 4 · done: 1 · not done: 4, 5, 6 · the model stays ${BIG_ID}` && !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat') && persisted.length === 0 && written.length === 0 && slice.mainLoopModel === BIG_ID, kept.summary.words)
+  const defaulted = await walk(() => 'run', io)
+  check('a consent that only ever says run never sets anything up: the choice has no default', defaulted.summary.reason === 'stopped' && defaulted.summary.stoppedAt === '4' && defaulted.summary.kept === BIG_ID && !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat') && persisted.length === 0, defaulted.summary.words)
+  const skippedChoice = await walk(plan => (plan.label === '4' ? 'skip' : 'run'), io)
+  check('s at the choice is no pick either', skippedChoice.summary.reason === 'stopped' && skippedChoice.summary.stoppedAt === '4' && skippedChoice.summary.kept === BIG_ID)
+
+  fx.state.listed = []
+  fx.hits.length = 0
+  const hosted = machineIo(bareMachine(), fx, { currentModel: () => 'claude-fixture', persist: () => ({ sentence: '' }) })
+  const nothing = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), hosted)
+  const ask = planOf(nothing.events, '4')
+  check('with nothing set up the road asks which model to pull: seven family rows sized for the box, the tested 9B a suggestion row, none current, none pre-chosen', stepEvents(nothing.events).join(' | ') === 'step 1 | result 1 ran | step 4 | done stopped' && (ask?.rows ?? []).length === 7 && (ask?.rows ?? []).every(r => r.on === 'pull' && r.current !== true) && rowsWords(ask) === 'qwen3.5:0.8b · pull 1.0 GB · fits · 256k | qwen3.5:2b · pull 2.7 GB · fits · 256k | qwen3.5:4b · pull 3.4 GB · fits · 256k | qwen3.5:9b · pull 6.6 GB · fits · 256k · the tested one | qwen3.5:27b · pull 17 GB · fits · 256k | qwen3.5:35b · pull 24 GB · fits · 256k | qwen3.5:122b · pull 81 GB · does not fit', rowsWords(ask))
+  check('the found line says no local model is set up and names the tested one; esc keeps the hosted model', ask?.found === `Ollama 0.34.4 at ${fx.root} lists no model · no local model is set up yet (the session is on claude-fixture) · qwen3.5:9b is the tested one · nothing is pre-chosen · pulls sized for this box: 36.9 GiB usable of 48.0 GiB (ollama.com/library/qwen3.5)` && ask?.keys === '↑↓ choose · ↵ pick · esc keeps claude-fixture' && nothing.summary.kept === 'claude-fixture' && nothing.summary.words.endsWith('the model stays claude-fixture'), `${ask?.found} · ${nothing.summary.words}`)
+  const small = machineIo(bareMachine(), fx, { currentModel: () => 'claude-fixture', totalMemoryBytes: 16 * GB, readTruth: async () => fixtureTruth('darwin', 16 * GB) })
+  const onSmall = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), small)
+  check('on a 16 GB box (11.2 GiB usable) the fit words move: the 9B fits at 128k, the 27B does not fit, the 2B still fits at 256k', rowsWords(planOf(onSmall.events, '4')) === 'qwen3.5:0.8b · pull 1.0 GB · fits · 256k | qwen3.5:2b · pull 2.7 GB · fits · 256k | qwen3.5:4b · pull 3.4 GB · fits · 256k | qwen3.5:9b · pull 6.6 GB · fits · 128k · the tested one | qwen3.5:27b · pull 17 GB · does not fit | qwen3.5:35b · pull 24 GB · does not fit | qwen3.5:122b · pull 81 GB · does not fit', rowsWords(planOf(onSmall.events, '4')))
+  for (const row of planOf(onSmall.events, '4')?.rows ?? []) {
+    const candidate = setup.SETUP_PULL_CANDIDATES.find(c => c.tag === row.tag)!
+    const fit = setup.chooseWindowFrom({ tag: row.tag, weightsBytes: candidate.sizeBytes, geometry: candidate.geometry, trainedMax: candidate.trainedMax, machineBytes: 16 * GB, usableBytes: fixtureTruth('darwin', 16 * GB).machine.usableMemoryBytes, slots: 1 })
+    check(`${row.tag}: the row's fit is the window step's own fit (${fit.words})`, row.fit?.window === fit.window && row.fit?.fits === fit.fits, JSON.stringify(row.fit))
+  }
+  const unlisted = machineIo(bareMachine(), fx, { currentModel: () => 'local/qwen3.5:4b' })
+  const away = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), unlisted)
+  check('a session on a local model the server does not list: said so, its pull row marked current, no tested suggestion', planOf(away.events, '4')?.found.includes('the session is on local/qwen3.5:4b, not on this server') === true && rowsWords(planOf(away.events, '4')).includes('qwen3.5:4b · pull 3.4 GB · fits · 256k · current') && !rowsWords(planOf(away.events, '4')).includes('the tested one'), planOf(away.events, '4')?.found)
+  await fx.close()
+}
+
+section('§13 the seams never reach the machine: the scratch home holds the only writes')
 {
   check('the serve log path is under the scratch home', !existsSync('/fixture') && join(proofHome, 'local-setup', 'ollama-serve.log').startsWith(proofHome))
   check('shellArgv: sh -c on posix, cmd /c on windows', setup.shellArgv('darwin', 'x').join(' ') === '/bin/sh -c x' && setup.shellArgv('win32', 'x').join(' ') === 'cmd.exe /d /s /c x')

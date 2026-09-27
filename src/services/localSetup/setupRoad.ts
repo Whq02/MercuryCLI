@@ -1,5 +1,6 @@
 import { localProbeTargets, refreshLocalDiscovery, type LocalServerKind } from '../providers/local/localDiscovery.js'
-import { LOCAL_SERVER_NAMES } from '../providers/local/localCatalogue.js'
+import { LOCAL_MODEL_PREFIX, LOCAL_SERVER_NAMES } from '../providers/local/localCatalogue.js'
+import { chooseKeysLine, pullCandidateOf, readModelChoice } from './setupChoose.js'
 import { detectLocalServers, ollamaRootOf, probeWords } from './setupDetect.js'
 import { findOllamaInstall, planInstall, runInstall, waitForInstall, windowsAppExe } from './setupInstall.js'
 import { resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
@@ -8,9 +9,7 @@ import { modelListed, pullModel } from './setupPull.js'
 import { planStart, readOllamaVersion, startServer } from './setupStart.js'
 import {
   SETUP_KEYS_LINE,
-  SETUP_MODEL_ID,
-  SETUP_MODEL_LIBRARY_SIZE_WORDS,
-  SETUP_MODEL_TAG,
+  SETUP_MODEL_LIBRARY,
   SETUP_PROVE_MAX_TOKENS,
   type DetectedServer,
   type InstallPlan,
@@ -21,6 +20,7 @@ import {
   type SetupConsentFn,
   type SetupEvent,
   type SetupIo,
+  type SetupModelRow,
   type SetupPlatform,
   type SetupStepKind,
   type SetupStepLabel,
@@ -33,7 +33,7 @@ import {
 } from './setupTypes.js'
 import { chooseWindow } from './setupWindow.js'
 
-const ORDER: readonly SetupStepLabel[] = ['1', '2', '2b', '3', '4', '5', '6']
+const ORDER: readonly SetupStepLabel[] = ['1', '2', '2b', '3', '4', '4b', '5', '6']
 
 function numberOf(label: SetupStepLabel): SetupStepNumber {
   return Number(label.replace('b', '')) as SetupStepNumber
@@ -41,11 +41,15 @@ function numberOf(label: SetupStepLabel): SetupStepNumber {
 
 function after(label: SetupStepLabel): SetupStepLabel[] {
   const rest = ORDER.slice(ORDER.indexOf(label))
-  return label === '2' ? rest.filter(l => l !== '2b') : rest
+  return label === '2' ? rest.filter(l => l !== '2b') : label === '4' ? rest.filter(l => l !== '4b') : rest
 }
 
 function list(labels: SetupStepLabel[]): string {
   return labels.length > 0 ? labels.join(', ') : 'none'
+}
+
+export function pickOf(consent: SetupConsent): string | undefined {
+  return typeof consent === 'object' && consent !== null && typeof consent.pick === 'string' && consent.pick.trim() !== '' ? consent.pick.trim() : undefined
 }
 
 export function summaryWords(summary: Omit<SetupSummary, 'words'>): string {
@@ -57,6 +61,7 @@ export function summaryWords(summary: Omit<SetupSummary, 'words'>): string {
   if (summary.notDone.length > 0) parts.push(`not done: ${list(summary.notDone)}`)
   if (summary.ready?.ok) parts.push(summary.ready.words)
   else if (summary.model !== undefined) parts.push(`model ${summary.model}`)
+  else if (summary.kept !== undefined) parts.push(`the model stays ${summary.kept}`)
   return parts.join(' · ')
 }
 
@@ -128,6 +133,7 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
   const skipped: SetupStepLabel[] = []
   const failed: SetupStepLabel[] = []
   let model: string | undefined
+  let kept: string | undefined
   let ready: ProveResult | undefined
   const summarize = (reason: SetupSummary['reason'], stoppedAt?: SetupStepLabel, extra?: string): SetupSummary => {
     const seen = new Set<SetupStepLabel>([...ran, ...skipped, ...failed])
@@ -140,12 +146,13 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
       ...(stoppedAt !== undefined ? { stoppedAt } : {}),
       reason,
       ...(model !== undefined ? { model } : {}),
+      ...(kept !== undefined ? { kept } : {}),
       ...(ready !== undefined ? { ready } : {}),
     }
     const words = summaryWords(base)
     return { ...base, words: extra !== undefined ? `${words} · ${extra}` : words }
   }
-  const plan = (label: SetupStepLabel, kind: SetupStepKind, title: string, found: string, willRun: string, needsSudo = false, skippable = true): SetupStepPlan => ({
+  const plan = (label: SetupStepLabel, kind: SetupStepKind, title: string, found: string, willRun: string, needsSudo = false, skippable = true, keys = SETUP_KEYS_LINE, rows?: SetupModelRow[]): SetupStepPlan => ({
     step: numberOf(label),
     label,
     kind,
@@ -153,8 +160,9 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     found,
     willRun,
     needsSudo,
-    keys: SETUP_KEYS_LINE,
+    keys,
     skippable,
+    ...(rows !== undefined ? { rows } : {}),
   })
   const result = (p: SetupStepPlan, outcome: SetupStepResult['outcome'], lastLine: string, detail?: SetupStepResult['detail'], rc?: number): SetupEvent => {
     ;(outcome === 'ran' ? ran : outcome === 'skipped' ? skipped : failed).push(p.label)
@@ -213,7 +221,6 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
   }
   const root = ollamaRoot
   const ollamaUp = server?.kind === 'ollama'
-  const hasTag = server?.hasTestedModel === true
 
   if (!ollamaUp) {
     let found: OllamaInstallFound | undefined
@@ -284,22 +291,39 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     }
   }
 
-  if (!hasTag) {
-    const listed = await modelListed(root, SETUP_MODEL_TAG, seam)
-    const who = server?.kind === 'ollama' ? server.label : `Ollama at ${root}`
-    const step4 = plan('4', 'pull', 'Pull the tested model', listed ? `${SETUP_MODEL_TAG} is already listed at ${root} (s skips)` : `${who} does not list ${SETUP_MODEL_TAG} · about ${SETUP_MODEL_LIBRARY_SIZE_WORDS} to download (ollama.com/library/qwen3.5 lists the tag at ${SETUP_MODEL_LIBRARY_SIZE_WORDS}); the exact size shows with the first row`, `POST ${root}/api/pull {"model":${JSON.stringify(SETUP_MODEL_TAG)},"stream":true}`)
-    yield { type: 'step', plan: step4 }
-    const c4 = await ask(step4)
-    if (c4 === 'stop') {
-      const summary = stop('4')
+  const who = server?.kind === 'ollama' ? server.label : 'Ollama'
+  const choice = await readModelChoice(root, who, seam)
+  const step4 = plan('4', 'choose', 'Choose the model', choice.words, '', false, false, chooseKeysLine(choice.current), choice.rows)
+  yield { type: 'step', plan: step4 }
+  const c4 = await ask(step4)
+  const tag = pickOf(c4)
+  if (tag === undefined) {
+    kept = choice.current
+    const summary = stop('4')
+    yield { type: 'done', summary }
+    return summary
+  }
+  const row: SetupModelRow = choice.rows.find(r => r.tag === tag) ?? { tag, on: 'pull', words: 'not in the list · the size shows with the first row' }
+  yield result(step4, 'ran', `${row.tag} · ${row.words}`, row)
+  const modelId = `${LOCAL_MODEL_PREFIX}${tag}`
+
+  const listed = row.on === 'server' || (await modelListed(root, tag, seam))
+  if (!listed) {
+    const candidate = pullCandidateOf(tag)
+    const sizeWords = candidate !== undefined ? `about ${candidate.sizeWords} to download (${SETUP_MODEL_LIBRARY} lists the tag at ${candidate.sizeWords}); the exact size shows with the first row` : 'the size shows with the first row'
+    const step4b = plan('4b', 'pull', `Pull ${tag}`, `${who} at ${root} does not list ${tag} · ${sizeWords}`, `POST ${root}/api/pull {"model":${JSON.stringify(tag)},"stream":true}`)
+    yield { type: 'step', plan: step4b }
+    const c4b = await ask(step4b)
+    if (c4b === 'stop') {
+      const summary = stop('4b')
       yield { type: 'done', summary }
       return summary
     }
-    if (c4 === 'skip') {
-      yield result(step4, 'skipped', listed ? `skipped: ${SETUP_MODEL_TAG} is already listed` : `skipped: ${SETUP_MODEL_TAG} was not pulled`)
+    if (c4b === 'skip') {
+      yield result(step4b, 'skipped', `skipped: ${tag} was not pulled`)
     } else {
-      const pulled = yield* streamed<SetupEvent, Awaited<ReturnType<typeof pullModel>>>(emit => pullModel(root, SETUP_MODEL_TAG, p => emit(progress(step4, p.line, p)), seam))
-      yield result(step4, pulled.success ? 'ran' : 'failed', pulled.words, pulled)
+      const pulled = yield* streamed<SetupEvent, Awaited<ReturnType<typeof pullModel>>>(emit => pullModel(root, tag, p => emit(progress(step4b, p.line, p)), seam))
+      yield result(step4b, pulled.success ? 'ran' : 'failed', pulled.words, pulled)
       if (!pulled.success) {
         const summary = summarize('ended', '5')
         yield { type: 'done', summary }
@@ -308,7 +332,7 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     }
   }
 
-  const step5 = plan('5', 'window', "Set the window from this machine's memory", `${SETUP_MODEL_TAG} at ${root} · this box has ${(io.totalMemoryBytes / 1024 ** 3).toFixed(1)} GiB · the largest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache at the server's cache type and slots) fits the memory usable for models (the server's own gpu memory line when it states one), never above the trained maximum — the same rule auto uses at every send`, `GET ${root}/api/tags · POST ${root}/api/show {"model":${JSON.stringify(SETUP_MODEL_TAG)}} → localModelWindows[${JSON.stringify(SETUP_MODEL_ID)}] in the config home (nothing is written to the server's environment)`)
+  const step5 = plan('5', 'window', "Set the window from this machine's memory", `${tag} at ${root} · this box has ${(io.totalMemoryBytes / 1024 ** 3).toFixed(1)} GiB · the largest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache at the server's cache type and slots) fits the memory usable for models (the server's own gpu memory line when it states one), never above the trained maximum — the same rule auto uses at every send`, `GET ${root}/api/tags · POST ${root}/api/show {"model":${JSON.stringify(tag)}} → localModelWindows[${JSON.stringify(modelId)}] in the config home (nothing is written to the server's environment)`)
   yield { type: 'step', plan: step5 }
   const c5 = await ask(step5)
   if (c5 === 'stop') {
@@ -321,7 +345,7 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     yield result(step5, 'skipped', 'skipped: the window setting is left as it is')
   } else {
     try {
-      window = await chooseWindow(root, SETUP_MODEL_TAG, seam)
+      window = await chooseWindow(root, tag, seam)
       yield result(step5, 'ran', window.words, window)
     } catch (error) {
       yield result(step5, 'failed', error instanceof Error ? error.message : String(error))
@@ -331,7 +355,7 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     }
   }
 
-  const step6 = plan('6', 'prove', 'Pick and prove', window !== undefined ? `window ${window.words}` : `${SETUP_MODEL_TAG} at ${root}, the window setting as it is`, await proveWillRunFor(SETUP_MODEL_TAG, root, 'ollama', seam))
+  const step6 = plan('6', 'prove', 'Pick and prove', window !== undefined ? `window ${window.words}` : `${tag} at ${root}, the window setting as it is`, await proveWillRunFor(tag, root, 'ollama', seam))
   yield { type: 'step', plan: step6 }
   const c6 = await ask(step6)
   if (c6 === 'stop') {
@@ -340,9 +364,9 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     return summary
   }
   if (c6 === 'skip') {
-    yield result(step6, 'skipped', `skipped: ${SETUP_MODEL_ID} is not picked`)
+    yield result(step6, 'skipped', `skipped: ${modelId} is not picked`)
   } else {
-    ready = await pickAndProve(SETUP_MODEL_TAG, { ...seam, root, server: 'ollama' })
+    ready = await pickAndProve(tag, { ...seam, root, server: 'ollama' })
     model = ready.model
     yield result(step6, ready.ok ? 'ran' : 'failed', ready.ok ? proveTimingWords(ready.timings) : ready.words, ready)
   }

@@ -6,6 +6,7 @@ import {
   LOCAL_SETUP_POPUP_WIDTH,
   LocalSetupDialog,
   type LocalSetupAsk,
+  type LocalSetupChoiceRow,
   type LocalSetupConsent,
   type LocalSetupEvent,
   type LocalSetupRoad,
@@ -17,7 +18,8 @@ import { useSetAppStateMaybe } from '../../state/AppState.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 
-export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean }
+export type SetupRoadRow = { tag: string; words: string; on?: string; current?: boolean; tested?: boolean }
+export type SetupRoadPlan = { label: string; title?: string; found: string; willRun: string; needsSudo?: boolean; keys?: string; rows?: readonly SetupRoadRow[] }
 export type SetupRoadResult = { label: string; outcome: 'ran' | 'skipped' | 'failed'; rc?: number; lastLine: string; detail?: object | undefined }
 export type SetupRoadReady = { model: string; ok?: boolean; window?: number; timings: { totalMs: number }; words?: string }
 export type SetupRoadSummary = {
@@ -27,6 +29,7 @@ export type SetupRoadSummary = {
   notDone: readonly string[]
   reason: string
   ready?: SetupRoadReady | undefined
+  kept?: string | undefined
   words: string
 }
 export type SetupRoadEvent =
@@ -37,10 +40,22 @@ export type SetupRoadEvent =
 export type SetupRoadConsent = (plan: SetupRoadPlan) => Promise<LocalSetupConsent>
 export type SetupRoadRunner = (consent: SetupRoadConsent) => AsyncIterable<SetupRoadEvent>
 
-const LABEL_ORDER: readonly string[] = ['1', '2', '2b', '3', '4', '5', '6']
+const LABEL_ORDER: readonly string[] = ['1', '2', '2b', '3', '4', '4b', '5', '6']
+
+export function setupRowOf(row: SetupRoadRow): LocalSetupChoiceRow {
+  return { tag: row.tag, words: row.words, ...(row.on !== undefined ? { on: row.on } : {}), ...(row.current === true ? { current: true } : {}), ...(row.tested === true ? { tested: true } : {}) }
+}
 
 export function setupAskOf(plan: SetupRoadPlan): LocalSetupAsk {
-  return { step: plan.label, found: plan.found, willRun: plan.willRun, needsSudo: plan.needsSudo === true, ...(plan.title !== undefined ? { title: plan.title } : {}) }
+  return {
+    step: plan.label,
+    found: plan.found,
+    willRun: plan.willRun,
+    needsSudo: plan.needsSudo === true,
+    ...(plan.title !== undefined ? { title: plan.title } : {}),
+    ...(plan.keys !== undefined ? { keys: plan.keys } : {}),
+    ...(plan.rows !== undefined ? { rows: plan.rows.map(setupRowOf) } : {}),
+  }
 }
 
 export const SETUP_SETTLED_WORDS: Readonly<Record<string, string>> = {
@@ -84,6 +99,7 @@ export function setupSummaryOf(summary: SetupRoadSummary): LocalSetupSummary {
   const ready = summary.ready !== undefined && summary.ready.ok !== false ? summary.ready : undefined
   const readyWords = ready?.words?.trim() ?? ''
   const words = summary.reason === 'stopped' ? '' : summary.words.trim()
+  const kept = summary.kept?.trim() ?? ''
   return {
     stopped: summary.reason === 'stopped',
     done: inLabelOrder(summary.ran),
@@ -92,6 +108,7 @@ export function setupSummaryOf(summary: SetupRoadSummary): LocalSetupSummary {
     ...(ready !== undefined
       ? { ready: { model: ready.model, window: setupWindowWords(ready.window), replySeconds: Math.max(0, Math.round(ready.timings.totalMs / 1000)), ...(readyWords !== '' ? { words: readyWords } : {}) } }
       : {}),
+    ...(kept !== '' ? { kept } : {}),
     ...(words !== '' ? { words } : {}),
   }
 }

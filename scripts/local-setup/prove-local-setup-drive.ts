@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { FAKE_OLLAMA_MODEL, FAKE_OLLAMA_REPLY_PREFIX } from './fixtures/fake-ollama.ts'
@@ -13,7 +13,7 @@ const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
   return at < 0 ? undefined : process.argv[at + 1]
 }
-const BIN = argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs')
+const BIN = resolve(argAfter('--dist') ?? join(REPO, 'dist', 'mercury.mjs'))
 const FRAMES = argAfter('--frames')
 const SIZES = (argAfter('--sizes') ?? '178x51,80x21').split(',').map(s => s.trim()).filter(s => s !== '')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
@@ -97,10 +97,14 @@ const STEPS: Step[] = [
   { mark: 'step2-find-ollama', pattern: 'which ollama|brew list --formula ollama|Ollama\\.app', willRun: /which ollama|brew list --formula ollama|Ollama\.app/, key: '\r' },
   { mark: 'step2b-install', pattern: 'brew install ollama', willRun: /brew install ollama/, key: '\r' },
   { mark: 'step3-start', pattern: "ollama'? serve|brew services start ollama", willRun: /ollama'? serve|brew services start ollama/, key: '\r' },
-  { mark: 'step4-pull', pattern: '/api/pull', willRun: /POST http:\/\/127\.0\.0\.1:\d+\/api\/pull \{"model":"qwen3\.5:9b","stream":true\}/, key: '\r' },
+  { mark: 'step4b-pull', pattern: '/api/pull', willRun: /POST http:\/\/127\.0\.0\.1:\d+\/api\/pull \{"model":"qwen3\.5:9b","stream":true\}/, key: '\r' },
   { mark: 'step5-window', pattern: '/api/show|/api/tags · POST', willRun: /\/api\/show|\/api\/tags · POST/, key: '\r' },
   { mark: 'step6-pick', pattern: '/model local/qwen3\\.5:9b|/api/chat', willRun: /\/model local\/qwen3\.5:9b|\/api\/chat/, key: '\r' },
 ]
+const CHOOSE_KEYS = '↑↓ choose · ↵ pick · esc keeps'
+const CURSOR = '›'
+const PULL_ROW_TAGS = ['qwen3.5:0.8b', 'qwen3.5:2b', 'qwen3.5:4b', 'qwen3.5:9b', 'qwen3.5:27b', 'qwen3.5:35b', 'qwen3.5:122b']
+const DOWN = '\x1b[B'
 
 interface World {
   tag: string
@@ -250,19 +254,38 @@ async function capture(world: World, sends: Send[], total: number): Promise<Capt
   return { status, stderr, lines, marks, undelivered }
 }
 
-function dialogRows(lines: string[]): string[] {
-  const at = lines.findIndex(l => l.includes(KEYS))
+function dialogRows(lines: string[], needle: string = KEYS): string[] {
+  const at = lines.findIndex(l => l.includes(needle))
   if (at < 0) return []
   const line = lines[at]!
-  const keysAt = line.indexOf(KEYS)
+  const keysAt = line.indexOf(needle)
   const left = line.lastIndexOf('│', keysAt)
-  const right = line.indexOf('│', keysAt + KEYS.length)
+  const right = line.indexOf('│', keysAt + needle.length)
   if (left < 0 || right < 0) return lines.map(l => l.trim()).filter(l => l !== '')
   let top = at
   while (top > 0 && !'╭┌'.includes(lines[top]![left] ?? '')) top--
   let bottom = at
   while (bottom < lines.length - 1 && !'╰└'.includes(lines[bottom]![left] ?? '')) bottom++
   return lines.slice(top + 1, bottom).map(l => l.slice(left + 1, right).trim())
+}
+
+function judgeChoice(world: World, frame: string[], cursorOn: string | undefined): void {
+  const rows = dialogRows(frame, CHOOSE_KEYS)
+  const keysAt = rows.findIndex(r => r.startsWith(CHOOSE_KEYS))
+  const modelRows = rows.filter(r => /^[›\s]?\s*qwen3\.5:/.test(r))
+  const tags = modelRows.map(r => r.replace(CURSOR, '').trim().split(/\s+/)[0] ?? '')
+  const mark = cursorOn === undefined ? 'step4-choose' : 'step4-choose-cursor'
+  const narrow = world.rows < 30
+  const suffix = PULL_ROW_TAGS.slice(PULL_ROW_TAGS.length - tags.length).join(',')
+  const above = /↑ (\d+) more/.exec(rows.join('\n'))
+  check(`${world.tag} ${mark}: the choice keys line "${CHOOSE_KEYS} <model>" is on the dialog and no run/skip keys line is`, keysAt >= 0 && !rows.some(r => r === KEYS), rows.join(' | '))
+  check(`${world.tag} ${mark}: the seven Qwen 3.5 pulls are listed in size order above the keys line (a fresh server lists no model)${narrow ? ' — at this height the row window shows the list\'s tail and says how many rows sit above it; ↑↓ reach them' : ''}`, (narrow ? tags.length >= 4 && tags.join(',') === suffix && above !== null : tags.join(',') === PULL_ROW_TAGS.join(',')) && rows.findIndex(r => r.includes('qwen3.5:122b')) < keysAt, tags.join(','))
+  check(`${world.tag} ${mark}: every pull row says its size and its fit on this box`, modelRows.every(r => /pull \d+(\.\d+)? GB · (fits · \d+k|does not fit)/.test(r)), modelRows.join(' | '))
+  check(`${world.tag} ${mark}: the tested 9B is a suggestion row, nothing is marked current`, modelRows.some(r => r.includes('qwen3.5:9b') && r.includes('the tested one')) && !modelRows.some(r => r.includes('· current')), modelRows.join(' | '))
+  const withCursor = modelRows.filter(r => r.startsWith(CURSOR))
+  if (cursorOn === undefined) check(`${world.tag} ${mark}: no row is pre-chosen — no cursor, no tick`, withCursor.length === 0 && !modelRows.some(r => r.includes('✓')), modelRows.join(' | '))
+  else check(`${world.tag} ${mark}: after four ↓ the cursor sits on ${cursorOn} and nowhere else`, withCursor.length === 1 && withCursor[0]!.includes(cursorOn), withCursor.join(' | '))
+  check(`${world.tag} ${mark}: every dialog row fits the width (no row wraps into a neighbour)`, frame.every(l => l.length <= world.cols), String(frame.find(l => l.length > world.cols)?.length))
 }
 
 function judgeStep(world: World, step: Step, frame: string[]): void {
@@ -373,7 +396,16 @@ async function drive(size: string): Promise<void> {
     { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
     ...STEPS.flatMap((step): Send[] => [
       { requireAwait: true, awaitText: KEYS, ...(step.pattern === '' ? {} : { awaitPattern: step.pattern }), awaitStableTicks: 3, mark: step.mark, data: step.key },
-      ...(step.mark === 'step4-pull' ? [{ requireAwait: true, awaitText: 'pulling', awaitPattern: 'pulling [0-9a-f]{6,}|\\d+%', awaitSettleTicks: 1, mark: 'step4-pull-midway', data: '' }] : []),
+      ...(step.mark === 'step3-start'
+        ? [
+            { requireAwait: true, awaitText: CHOOSE_KEYS, awaitPattern: 'qwen3\\.5:122b\\s+pull', awaitStableTicks: 3, mark: 'step4-choose', data: DOWN },
+            { requireAwait: true, awaitText: `${CURSOR} qwen3.5:0.8b`, awaitSettleTicks: 1, data: DOWN },
+            { requireAwait: true, awaitText: `${CURSOR} qwen3.5:2b`, awaitSettleTicks: 1, data: DOWN },
+            { requireAwait: true, awaitText: `${CURSOR} qwen3.5:4b`, awaitSettleTicks: 1, data: DOWN },
+            { requireAwait: true, awaitText: `${CURSOR} qwen3.5:9b`, awaitStableTicks: 2, mark: 'step4-choose-cursor', data: '\r' },
+          ]
+        : []),
+      ...(step.mark === 'step4b-pull' ? [{ requireAwait: true, awaitText: 'pulling', awaitPattern: 'pulling [0-9a-f]{6,}|\\d+%', awaitSettleTicks: 1, mark: 'step4b-pull-midway', data: '' }] : []),
     ]),
     { requireAwait: true, awaitText: `ready · ${MODEL_ID}`, awaitPattern: `ready · ${MODEL_ID.replace(/[.]/g, '\\.')} · \\d+k window · reply in`, awaitStableTicks: 3, mark: 'step6-ready', data: ESC },
     { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-esc', data: FOLLOW_UP },
@@ -410,8 +442,16 @@ async function drive(size: string): Promise<void> {
     }
     judgeStep(world, step, frame)
   }
-  const midway = c.marks.get('step4-pull-midway') ?? []
-  check(`${world.tag} step4-pull-midway: one progress line names the digest and a percentage while the pull runs`, midway.some(l => /pulling [0-9a-f]{6,}.*\d+%|\d+%.*pulling/.test(l)), midway.filter(l => /pull/.test(l)).map(l => l.trim()).join(' | '))
+  for (const [mark, cursorOn] of [['step4-choose', undefined], ['step4-choose-cursor', 'qwen3.5:9b']] as const) {
+    const frame = c.marks.get(mark)
+    if (frame === undefined) {
+      check(`${world.tag} ${mark}: the choice painted`, false, 'no frame captured')
+      continue
+    }
+    judgeChoice(world, frame, cursorOn)
+  }
+  const midway = c.marks.get('step4b-pull-midway') ?? []
+  check(`${world.tag} step4b-pull-midway: one progress line names the digest and a percentage while the pull runs`, midway.some(l => /pulling [0-9a-f]{6,}.*\d+%|\d+%.*pulling/.test(l)), midway.filter(l => /pull/.test(l)).map(l => l.trim()).join(' | '))
   const ready = c.marks.get('step6-ready') ?? []
   const readyRow = ready.find(l => READY_ROW.test(l)) ?? ''
   check(`${world.tag} step6-ready: the last row reads ready · ${MODEL_ID} · <window> window · reply in <n> s · esc closes`, readyRow !== '', ready.filter(l => l.includes('ready')).map(l => l.trim()).join(' | '))
@@ -425,7 +465,7 @@ async function drive(size: string): Promise<void> {
   check(`${world.tag} after-esc: the dialog is gone and the session strip names qwen3.5:9b as the live model (the pick applied, not queued)`, afterEsc.length > 0 && !afterEsc.some(l => l.includes(KEYS)) && afterEsc.some(l => STRIP_ROW.test(l)), afterEsc.filter(l => /ready ·|● ready|effort/.test(l)).map(l => l.trim().slice(0, 120)).join(' | '))
   const serveLog = join(world.home, 'local-setup', 'ollama-serve.log')
   check(`${world.tag}: the detached \`ollama serve\` logs under the config home (local-setup/ollama-serve.log) and the log names the fixture port`, existsSync(serveLog) && readFileSync(serveLog, 'utf8').includes(`PORT ${world.port}`), existsSync(serveLog) ? readFileSync(serveLog, 'utf8').slice(0, 200) : 'absent')
-  check(`${world.tag}: the pull went through the API as POST /api/pull {"model":"qwen3.5:9b","stream":true}`, pull !== undefined && rec(pull.body).model === FAKE_OLLAMA_MODEL && rec(pull.body).stream === true, JSON.stringify(pull?.body))
+  check(`${world.tag}: the pull went through the API as POST /api/pull {"model":"qwen3.5:9b","stream":true} — the row the cursor picked, and only after the choice read /api/tags`, pull !== undefined && rec(pull.body).model === FAKE_OLLAMA_MODEL && rec(pull.body).stream === true && log.some(r => r.method === 'GET' && r.path === '/api/tags' && r.at <= pull.at) && log.filter(r => r.path === '/api/pull').length === 1, JSON.stringify(pull?.body))
   check(`${world.tag}: step 5 read the geometry with POST /api/show`, log.some(r => r.method === 'POST' && r.path === '/api/show' && rec(r.body).model === FAKE_OLLAMA_MODEL))
   const chats = log.filter(r => r.method === 'POST' && r.path === '/api/chat')
   const last = chats.at(-1)
