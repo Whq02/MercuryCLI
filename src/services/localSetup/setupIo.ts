@@ -8,7 +8,8 @@ import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
 import { readLocalMachineTruth, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
-import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
+import { focusedSessionModelFacts, getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import {
   SETUP_EXEC_TIMEOUT_MS,
   SETUP_INSTALL_WAIT_MS,
@@ -45,8 +46,17 @@ export interface ResolvedSetupIo {
   readTruth: () => Promise<LocalServerTruth>
   writeWindow: (tag: string, window: number) => void
   focusedConnector: () => SessionModelDoor
+  currentModel: () => string | null | undefined
   setAppState?: SessionModelSetter
   persist: (setting: string) => { sentence: string }
+}
+
+function defaultCurrentModel(): string | undefined {
+  try {
+    return focusedSessionModelFacts()?.effective ?? getMainLoopModel()
+  } catch {
+    return undefined
+  }
 }
 
 export function lastLineOf(text: string): string {
@@ -173,6 +183,7 @@ export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
     readTruth: io.readTruth ?? (() => readLocalMachineTruth({ env, platform, home, fetchImpl, timeoutMs, totalMemoryBytes }, 'ollama')),
     writeWindow: io.writeWindow ?? ((tag, window) => writeLocalWindowSetting({ id: tag }, window)),
     focusedConnector: io.focusedConnector ?? (() => getFocusedSessionConnector()),
+    currentModel: io.currentModel ?? defaultCurrentModel,
     ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}),
     persist: io.persist ?? (setting => persistModelChoice(setting)),
   }

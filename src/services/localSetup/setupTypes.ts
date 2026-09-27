@@ -2,13 +2,18 @@ import type { LocalServerKind } from '../providers/local/localDiscovery.js'
 import type { ModelTransitionReceipt } from '../../utils/model/modelTransition.js'
 import type { LocalServerTruth } from '../localServer/localServerTruth.js'
 import { LOCAL_WINDOW_LADDER, type LocalWindowFit } from '../localServer/localWindowFit.js'
+import type { KvGeometry } from '../localServer/localServerMemory.js'
 
 export const SETUP_MODEL_TAG = 'qwen3.5:9b'
 export const SETUP_MODEL_ID = 'local/qwen3.5:9b'
-export const SETUP_MODEL_LIBRARY_SIZE_WORDS = '6.6 GB'
+export const SETUP_MODEL_LIBRARY = 'ollama.com/library/qwen3.5'
 export const SETUP_PROVE_PROMPT = 'reply with the single word ready'
 export const SETUP_PROVE_MAX_TOKENS = 64
 export const SETUP_KEYS_LINE = '↵ run · s skip · esc stop'
+export const SETUP_CHOOSE_KEYS = '↑↓ choose · ↵ pick'
+export const SETUP_TESTED_WORDS = 'the tested one'
+export const SETUP_CURRENT_WORDS = 'current'
+export const SETUP_SHOW_BOUND = 32
 export const SETUP_WINDOW_LADDER: readonly number[] = LOCAL_WINDOW_LADDER
 export const SETUP_START_WAIT_MS = 60_000
 export const SETUP_START_POLL_MS = 500
@@ -24,9 +29,38 @@ export type SetupServerKind = LocalServerKind | 'none'
 export type OllamaInstallForm = 'path' | 'app' | 'brew' | 'systemd' | 'windows' | 'none'
 export type InstallVia = 'brew' | 'dmg' | 'script' | 'exe'
 export type SetupStepNumber = 1 | 2 | 3 | 4 | 5 | 6
-export type SetupStepLabel = '1' | '2' | '2b' | '3' | '4' | '5' | '6'
-export type SetupStepKind = 'find-server' | 'find-ollama' | 'install' | 'start' | 'pull' | 'window' | 'prove'
-export type SetupConsent = 'run' | 'skip' | 'stop'
+export type SetupStepLabel = '1' | '2' | '2b' | '3' | '4' | '4b' | '5' | '6'
+export type SetupStepKind = 'find-server' | 'find-ollama' | 'install' | 'start' | 'choose' | 'pull' | 'window' | 'prove'
+export type SetupPick = { pick: string }
+export type SetupConsent = 'run' | 'skip' | 'stop' | SetupPick
+
+export interface SetupPullCandidate {
+  tag: string
+  sizeWords: string
+  sizeBytes: number
+  trainedMax: number
+  geometry: KvGeometry
+  tested?: boolean
+}
+
+export interface SetupModelRow {
+  tag: string
+  on: 'server' | 'pull'
+  words: string
+  current?: boolean
+  tested?: boolean
+  sizeBytes?: number
+  trainedMax?: number
+  fit?: { window: number; fits: boolean }
+}
+
+export interface SetupModelChoice {
+  rows: SetupModelRow[]
+  current?: string
+  currentTag?: string
+  nothingLocal: boolean
+  words: string
+}
 
 export interface ExecResult {
   rc: number
@@ -86,6 +120,7 @@ export interface SetupIo {
   readTruth?: () => Promise<LocalServerTruth>
   writeWindow?: (tag: string, window: number) => void
   focusedConnector?: () => SessionModelDoor
+  currentModel?: () => string | null | undefined
   setAppState?: SessionModelSetter
   persist?: (setting: string) => { sentence: string }
 }
@@ -95,7 +130,6 @@ export interface DetectedServer {
   models: string[]
   root: string
   label: string
-  hasTestedModel: boolean
   probed: Array<{ kind: LocalServerKind; root: string }>
   words: string
 }
@@ -196,6 +230,7 @@ export interface SetupStepPlan {
   needsSudo: boolean
   keys: string
   skippable: boolean
+  rows?: SetupModelRow[]
 }
 
 export interface SetupStepResult {
@@ -205,7 +240,7 @@ export interface SetupStepResult {
   outcome: 'ran' | 'skipped' | 'failed'
   rc?: number
   lastLine: string
-  detail?: DetectedServer | OllamaInstallFound | ExecResult | StartResult | PullResult | WindowChoice | ProveResult
+  detail?: DetectedServer | OllamaInstallFound | ExecResult | StartResult | PullResult | WindowChoice | ProveResult | SetupModelRow
 }
 
 export interface SetupSummary {
@@ -216,6 +251,7 @@ export interface SetupSummary {
   stoppedAt?: SetupStepLabel
   reason: 'stopped' | 'finished' | 'ended'
   model?: string
+  kept?: string
   ready?: ProveResult
   words: string
 }

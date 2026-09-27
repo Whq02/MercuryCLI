@@ -1,7 +1,7 @@
 import { localProbeTargets, refreshLocalDiscovery, type LocalServerKind, type LocalServerRecord } from '../providers/local/localDiscovery.js'
 import { LOCAL_SERVER_NAMES } from '../providers/local/localCatalogue.js'
 import { resolveSetupIo } from './setupIo.js'
-import { SETUP_MODEL_TAG, type DetectedServer, type SetupIo } from './setupTypes.js'
+import type { DetectedServer, SetupIo } from './setupTypes.js'
 
 export function ollamaRootOf(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const targets = localProbeTargets(env)
@@ -35,35 +35,34 @@ function modelsOf(server: LocalServerRecord): string[] {
   return [...loaded, ...rest]
 }
 
-function listsTag(server: LocalServerRecord, tag: string): boolean {
-  return server.models.some(m => m.id === tag)
+const LISTED_IN_WORDS = 4
+
+export function listedWords(models: string[]): string {
+  const count = `${models.length} model${models.length === 1 ? '' : 's'}`
+  if (models.length === 0) return 'no model'
+  const shown = models.slice(0, LISTED_IN_WORDS).join(', ')
+  return models.length > LISTED_IN_WORDS ? `${count}: ${shown}, …` : `${count}: ${shown}`
 }
 
 export async function detectLocalServers(seam: SetupIo = {}): Promise<DetectedServer> {
   const io = resolveSetupIo(seam)
   const probed = localProbeTargets(io.env)
   if (probed.length === 0) {
-    return { kind: 'none', models: [], root: '', label: 'none', hasTestedModel: false, probed, words: 'no server probed: MERCURY_LOCAL_PROBE_TARGETS=none turns probing off' }
+    return { kind: 'none', models: [], root: '', label: 'none', probed, words: 'no server probed: MERCURY_LOCAL_PROBE_TARGETS=none turns probing off' }
   }
   const snapshot = await refreshLocalDiscovery({ force: true, env: io.env, fetchImpl: io.fetchImpl, timeoutMs: io.timeoutMs, now: io.now, ...(io.signal !== undefined ? { signal: io.signal } : {}) })
   const servers = snapshot.servers
   const ollama = servers.find(s => s.kind === 'ollama')
   const others = servers.filter(s => s.kind !== 'ollama' && s.models.length > 0)
-  const pick = ollama && listsTag(ollama, SETUP_MODEL_TAG) ? ollama : (others[0] ?? ollama ?? servers[0])
+  const pick = ollama && ollama.models.length > 0 ? ollama : (others[0] ?? ollama ?? servers[0])
   if (!pick) {
     const roots = probed.map(t => `${LOCAL_SERVER_NAMES[t.kind]} ${t.root}`).join(', ')
-    return { kind: 'none', models: [], root: '', label: 'none', hasTestedModel: false, probed, words: `no local server answered (${roots})` }
+    return { kind: 'none', models: [], root: '', label: 'none', probed, words: `no local server answered (${roots})` }
   }
   const models = modelsOf(pick)
-  const hasTestedModel = pick.kind === 'ollama' && listsTag(pick, SETUP_MODEL_TAG)
-  const count = `${models.length} model${models.length === 1 ? '' : 's'}`
   const words =
     pick.kind === 'ollama'
-      ? hasTestedModel
-        ? `${pick.label} at ${pick.root} lists ${SETUP_MODEL_TAG} (${count})`
-        : models.length === 0
-          ? `${pick.label} at ${pick.root} answers with no model`
-          : `${pick.label} at ${pick.root} answers with ${count}, not ${SETUP_MODEL_TAG}`
-      : `${pick.label} at ${pick.root} answers with ${count}: ${models[0] ?? ''} — it keeps working; nothing is installed or started`
-  return { kind: pick.kind, models, root: pick.root, label: pick.label, hasTestedModel, probed, words }
+      ? `${pick.label} at ${pick.root} answers with ${listedWords(models)}`
+      : `${pick.label} at ${pick.root} answers with ${listedWords(models)} — it keeps working; nothing is installed or started`
+  return { kind: pick.kind, models, root: pick.root, label: pick.label, probed, words }
 }

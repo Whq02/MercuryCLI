@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { LOCAL_SETUP_MODEL, LOCAL_SETUP_TAG } from '../commands/localsetup/words.js'
+import { LOCAL_SETUP_CHOOSE_LINE, LOCAL_SETUP_CHOOSE_TITLE, LOCAL_SETUP_CURSOR, LOCAL_SETUP_PULL_TITLE } from '../commands/localsetup/words.js'
 import { Box, Text, useInput } from '../ink.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { truncateStartToWidth, truncateToWidth } from '../utils/truncate.js'
@@ -21,14 +21,27 @@ export const LOCAL_SETUP_STEP_TITLES: Readonly<Record<string, string>> = {
   '2': 'find Ollama on this machine',
   '2b': 'install Ollama',
   '3': 'start the server',
-  '4': `pull ${LOCAL_SETUP_TAG}`,
+  '4': LOCAL_SETUP_CHOOSE_TITLE,
+  '4b': LOCAL_SETUP_PULL_TITLE,
   '5': "set the window from this machine's memory",
   '6': 'pick and prove',
 }
-const STEP_ORDER: readonly string[] = ['1', '2', '2b', '3', '4', '5', '6']
+const STEP_ORDER: readonly string[] = ['1', '2', '2b', '3', '4', '4b', '5', '6']
+const LETTERED: ReadonlySet<string> = new Set(['2b', '4b'])
 const CELL_INDENT = '  '
+const ROW_INDENT = '    '
+const TAG_COLUMN_MAX = 28
 
-export type LocalSetupConsent = 'run' | 'skip' | 'stop'
+export type LocalSetupPick = { pick: string }
+export type LocalSetupConsent = 'run' | 'skip' | 'stop' | LocalSetupPick
+
+export type LocalSetupChoiceRow = {
+  tag: string
+  words: string
+  on?: string
+  current?: boolean
+  tested?: boolean
+}
 
 export type LocalSetupAsk = {
   step: string
@@ -36,6 +49,8 @@ export type LocalSetupAsk = {
   willRun: string
   title?: string
   needsSudo?: boolean
+  keys?: string
+  rows?: LocalSetupChoiceRow[]
 }
 
 export type LocalSetupReady = {
@@ -51,6 +66,7 @@ export type LocalSetupSummary = {
   skipped?: string[]
   notDone: string[]
   ready?: LocalSetupReady
+  kept?: string
   words?: string
 }
 
@@ -63,6 +79,7 @@ export type LocalSetupEvent =
 export type LocalSetupAction =
   | LocalSetupEvent
   | { kind: 'consent'; answer: LocalSetupConsent }
+  | { kind: 'cursor'; delta: 1 | -1 }
   | { kind: 'ended' }
   | { kind: 'error'; words: string }
 
@@ -76,7 +93,10 @@ export type LocalSetupStepState = {
   found: string
   willRun: string
   needsSudo: boolean
+  keys: string
   phase: LocalSetupStepPhase
+  rows?: LocalSetupChoiceRow[]
+  cursor?: number
   progress?: string
   result?: string
 }
@@ -95,6 +115,7 @@ export type LocalSetupRow = {
   text: string
   tone: 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'info'
   bold?: boolean
+  choice?: number
 }
 
 export function localSetupStepTitle(step: string, title?: string): string {
@@ -110,6 +131,10 @@ export function localSetupReadyRow(ready: LocalSetupReady): string {
   return `${words ? words : `ready · ${ready.model} · ${ready.window} window · reply in ${ready.replySeconds} s`} · esc closes`
 }
 
+export function localSetupKeptRow(kept: string): string {
+  return `the model stays ${kept}`
+}
+
 function stepWords(steps: string[], titles: Readonly<Record<string, string>>): string {
   return steps.length === 0 ? 'nothing' : steps.map(step => `${step} ${localSetupStepTitle(step, titles[step])}`).join(', ')
 }
@@ -119,11 +144,22 @@ export function localSetupSummaryRows(summary: LocalSetupSummary, titles: Readon
   const skipped = summary.skipped ?? []
   return [
     head,
+    ...(summary.kept ? [localSetupKeptRow(summary.kept)] : []),
     ...(summary.words ? [summary.words] : []),
     `done: ${stepWords(summary.done, titles)}`,
     ...(skipped.length > 0 ? [`skipped: ${stepWords(skipped, titles)}`] : []),
     `not done: ${stepWords(summary.notDone, titles)}`,
   ]
+}
+
+export function localSetupChoiceRows(rows: readonly LocalSetupChoiceRow[], cursor: number | undefined, width: number): LocalSetupRow[] {
+  const column = Math.min(TAG_COLUMN_MAX, rows.reduce((widest, row) => Math.max(widest, row.tag.length), 0))
+  return rows.map((row, index) => {
+    const under = cursor === index
+    const mark = under ? LOCAL_SETUP_CURSOR : ' '
+    const text = `${ROW_INDENT}${mark} ${row.tag.padEnd(column)}  ${row.words}`
+    return { text: truncateToWidth(text, width), tone: under ? 'primary' : 'secondary', bold: under, choice: index }
+  })
 }
 
 export function localSetupSummaryWords(summary: LocalSetupSummary, titles: Readonly<Record<string, string>> = {}): string {
@@ -145,8 +181,22 @@ function inferredSummary(state: LocalSetupState, stopped: boolean): LocalSetupSu
     stopped,
     done: state.steps.filter(step => step.phase === 'ran').map(step => step.step),
     skipped: state.steps.filter(step => step.phase === 'skipped').map(step => step.step),
-    notDone: [...state.steps.filter(step => !isDone(step)).map(step => step.step), ...STEP_ORDER.filter(step => !seen.has(step) && step !== '2b')],
+    notDone: [...state.steps.filter(step => !isDone(step)).map(step => step.step), ...STEP_ORDER.filter(step => !seen.has(step) && !LETTERED.has(step))],
   }
+}
+
+export function localSetupPickOf(answer: LocalSetupConsent): string | undefined {
+  return typeof answer === 'object' && answer !== null && typeof answer.pick === 'string' && answer.pick !== '' ? answer.pick : undefined
+}
+
+export function localSetupIsChoice(step: LocalSetupStepState | undefined): step is LocalSetupStepState & { rows: LocalSetupChoiceRow[] } {
+  return step !== undefined && step.rows !== undefined && step.rows.length > 0
+}
+
+export function localSetupMoveCursor(rows: readonly LocalSetupChoiceRow[], cursor: number | undefined, delta: 1 | -1): number | undefined {
+  if (rows.length === 0) return undefined
+  if (cursor === undefined) return delta > 0 ? 0 : rows.length - 1
+  return Math.max(0, Math.min(rows.length - 1, cursor + delta))
 }
 
 export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupAction): LocalSetupState {
@@ -160,9 +210,20 @@ export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupActio
         found: ask.found,
         willRun: ask.willRun,
         needsSudo: ask.needsSudo === true,
+        keys: ask.keys ?? LOCAL_SETUP_KEYS,
         phase: 'asking',
+        ...(ask.rows !== undefined && ask.rows.length > 0 ? { rows: ask.rows } : {}),
       }
       return { ...state, steps: [...state.steps, next] }
+    }
+    case 'cursor': {
+      const index = state.steps.findIndex(step => step.phase === 'asking')
+      const current = index < 0 ? undefined : state.steps[index]
+      if (!localSetupIsChoice(current)) return state
+      const cursor = localSetupMoveCursor(current.rows, current.cursor, action.delta)
+      const steps = state.steps.slice()
+      steps[index] = { ...current, ...(cursor !== undefined ? { cursor } : {}) }
+      return { ...state, steps }
     }
     case 'consent': {
       const stopRequested = state.stopRequested || action.answer === 'stop'
@@ -170,8 +231,9 @@ export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupActio
       if (index < 0) return { ...state, stopRequested }
       const steps = state.steps.slice()
       const current = steps[index] as LocalSetupStepState
+      const pick = localSetupPickOf(action.answer)
       steps[index] =
-        action.answer === 'run'
+        action.answer === 'run' || pick !== undefined
           ? { ...current, phase: 'running' }
           : action.answer === 'skip'
             ? { ...current, phase: 'skipped' }
@@ -184,7 +246,7 @@ export function reduceLocalSetup(state: LocalSetupState, action: LocalSetupActio
       const open = (step: LocalSetupStepState): boolean => step.phase === 'asking' || step.phase === 'running' || (step.phase === 'skipped' && step.result === undefined)
       const index = state.steps.findLastIndex(step => step.step === action.step && open(step))
       const steps = state.steps.slice()
-      if (index < 0) steps.push({ step: action.step, title: localSetupStepTitle(action.step), found: '', willRun: '', needsSudo: false, phase: action.outcome, result: action.words })
+      if (index < 0) steps.push({ step: action.step, title: localSetupStepTitle(action.step), found: '', willRun: '', needsSudo: false, keys: LOCAL_SETUP_KEYS, phase: action.outcome, result: action.words })
       else steps[index] = { ...(steps[index] as LocalSetupStepState), phase: action.outcome, result: action.words }
       return { ...state, steps }
     }
@@ -214,7 +276,7 @@ function outcomeRow(step: LocalSetupStepState): { text: string; tone: LocalSetup
     case 'running':
       return { text: step.progress ?? LOCAL_SETUP_RUNNING, tone: 'info' }
     case 'asking':
-      return { text: LOCAL_SETUP_KEYS, tone: 'warning' }
+      return { text: step.keys, tone: 'warning' }
   }
 }
 
@@ -229,6 +291,7 @@ export function localSetupRows(state: LocalSetupState, width: number, tail = fal
       const command = tail && asking ? truncateStartToWidth(step.willRun, cell) : truncateToWidth(step.willRun, cell)
       rows.push({ text: `${CELL_INDENT}${LOCAL_SETUP_WILL_RUN}  ${command}`, tone: asking ? 'info' : 'muted' })
     }
+    if (asking && localSetupIsChoice(step)) rows.push(...localSetupChoiceRows(step.rows, step.cursor, width))
     const outcome = outcomeRow(step)
     rows.push({ text: truncateToWidth(`${CELL_INDENT}${outcome.text}`, width), tone: outcome.tone, bold: asking })
   }
@@ -252,15 +315,23 @@ export function localSetupWindow(total: number, budget: number, scroll: number |
   return { start, end, above: start, below: total - end }
 }
 
+export function localSetupScrollFor(total: number, budget: number, row: number): number | null {
+  if (budget <= 0 || total <= budget || budget < 3) return null
+  const tailStart = total - (budget - 1)
+  if (row >= tailStart) return null
+  return Math.max(0, row - (budget - 3))
+}
+
 export function localSetupLine(state: LocalSetupState): string {
   if (state.error !== undefined) return `failed · ${state.error}`
   if (state.summary?.ready) return `done · ${state.summary.ready.model} ready · ${state.summary.ready.window} window`
+  if (state.summary?.kept) return `stopped · ${localSetupKeptRow(state.summary.kept)}`
   if (state.summary) return `${state.summary.stopped ? 'stopped' : 'ended'} · ${state.summary.done.length} step${state.summary.done.length === 1 ? '' : 's'} done · ${state.summary.notDone.length} not`
   const asking = localSetupAsking(state)
-  if (asking) return `step ${asking.step} of ${LOCAL_SETUP_STEP_COUNT} · ${asking.title} · nothing runs before ↵`
+  if (asking) return `step ${asking.step} of ${LOCAL_SETUP_STEP_COUNT} · ${asking.title} · ${localSetupIsChoice(asking) ? LOCAL_SETUP_CHOOSE_LINE : 'nothing runs before ↵'}`
   const running = state.steps.find(step => step.phase === 'running')
   if (running) return `step ${running.step} of ${LOCAL_SETUP_STEP_COUNT} · ${running.title} · ${running.progress ?? 'running'}`
-  return state.steps.length === 0 ? LOCAL_SETUP_OPENING_LINE : `local model set-up · ${LOCAL_SETUP_MODEL}`
+  return state.steps.length === 0 ? LOCAL_SETUP_OPENING_LINE : 'local model set-up'
 }
 
 export function LocalSetupDialog({
@@ -285,9 +356,12 @@ export function LocalSetupDialog({
   const [scroll, setScroll] = useState<number | null>(null)
   const answerRef = useRef<((answer: LocalSetupConsent) => void) | null>(null)
   const stopRef = useRef(false)
+  const stateRef = useRef<LocalSetupState>(LOCAL_SETUP_INITIAL)
   const dispatch = useCallback((action: LocalSetupAction): void => {
-    setScroll(null)
-    setState(current => reduceLocalSetup(current, action))
+    if (action.kind !== 'cursor') setScroll(null)
+    const next = reduceLocalSetup(stateRef.current, action)
+    stateRef.current = next
+    setState(next)
   }, [])
   useEffect(() => {
     let live = true
@@ -335,7 +409,10 @@ export function LocalSetupDialog({
   }
   const rows = localSetupRows(state, width, tail)
   const budget = Math.max(1, rowBudget)
-  const window = localSetupWindow(rows.length, budget, scroll)
+  const asking = localSetupAsking(state)
+  const choice = localSetupIsChoice(asking) ? asking : undefined
+  const cursorRow = choice !== undefined && choice.cursor !== undefined ? rows.findIndex(row => row.choice === choice.cursor) : -1
+  const window = localSetupWindow(rows.length, budget, cursorRow >= 0 ? localSetupScrollFor(rows.length, budget, cursorRow) : scroll)
   useInput((input, key, event) => {
     if (key.escape) {
       event.stopImmediatePropagation()
@@ -353,6 +430,10 @@ export function LocalSetupDialog({
     }
     if (key.upArrow || key.downArrow) {
       event.stopImmediatePropagation()
+      if (localSetupIsChoice(localSetupAsking(stateRef.current))) {
+        dispatch({ kind: 'cursor', delta: key.upArrow ? -1 : 1 })
+        return
+      }
       const start = window.start + (key.upArrow ? -1 : 1)
       setScroll(start >= rows.length - (budget - 1) ? null : Math.max(0, start))
       return
@@ -365,12 +446,18 @@ export function LocalSetupDialog({
     if (key.return) {
       event.stopImmediatePropagation()
       if (!pastOpenEvent()) return
+      const open = localSetupAsking(stateRef.current)
+      if (localSetupIsChoice(open)) {
+        const picked = open.cursor !== undefined ? open.rows[open.cursor] : undefined
+        if (picked !== undefined) answer({ pick: picked.tag })
+        return
+      }
       answer('run')
       return
     }
     if (input === 's') {
       event.stopImmediatePropagation()
-      if (!pastOpenEvent()) return
+      if (!pastOpenEvent() || localSetupIsChoice(localSetupAsking(stateRef.current))) return
       answer('skip')
     }
   })
