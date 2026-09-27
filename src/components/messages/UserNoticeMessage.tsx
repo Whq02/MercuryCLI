@@ -10,11 +10,11 @@ const CLOCK_COLUMN = ' '.repeat(9)
 export function UserNoticeMessage({
   addMargin,
   blocks,
-  completedAt,
+  deliveredAt,
 }: {
   addMargin?: boolean
   blocks: NoticeBlock[]
-  completedAt?: string | null
+  deliveredAt?: string | null
 }): React.ReactNode {
   const { accent } = useSessionAccent()
   const meta = useMessageMeta()
@@ -27,7 +27,7 @@ export function UserNoticeMessage({
             {isMutedNoticeBlock(block) ? null : <Text color={accent}>● </Text>}
             <Text dimColor>
               {noticePlate(block, meta?.timestamp)}
-              {index === 0 && !isMutedNoticeBlock(block) && completedAt ? ` · completed ${completedAt}` : ''}
+              {index === 0 && !isMutedNoticeBlock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''}
             </Text>
           </Text>
           {block.lines.map((line, at) => (
