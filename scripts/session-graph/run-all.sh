@@ -10,6 +10,7 @@
 # gate-watch: src/components/prompts-panel/rows.ts src/hooks/useObligationSignals.ts src/ink/stringWidth.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
 # gate-watch: src/services/crew/** src/services/notificationPolicy.ts src/services/resources/adapters/crew.ts
+# gate-watch: src/daemon/permissionAsks.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
