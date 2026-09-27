@@ -375,12 +375,15 @@ section('§5 thinking off: DeepSeek sends nothing (its thinking object spells of
   const qwen = localCatalogue.localRecordFor('local/qwen3:8b')!
   const independent: Array<[string, string | undefined]> = [
     ['kimi-k3', (wire.buildMoonshotExtras(off('kimi-k3', 'high')) as { reasoning_effort?: string }).reasoning_effort],
-    ['local/qwen3:8b', (wire.buildLocalExtras({ ...off('qwen3:8b', 'high', 'local/qwen3:8b'), server: qwen.server, acceptsEffort: localCallModel.localModelAcceptsEffort(qwen) }) as { reasoning_effort?: string }).reasoning_effort],
   ]
   for (const [model, sent] of independent) {
     const truth = effort.resolveEffortTruth(model, 'high')
     check(`${model}: the knob is independent of thinking — sent, and the owner's wire says high`, sent === 'high' && truth.wire === 'high' && truth.suppressedBy === undefined)
   }
+  const localOff = (wire.buildLocalExtras({ ...off('qwen3:8b', 'high', 'local/qwen3:8b'), server: qwen.server, acceptsEffort: localCallModel.localModelAcceptsEffort(qwen) }) as { reasoning_effort?: string }).reasoning_effort
+  check("local/qwen3:8b (thinking declared): the builder sends the thinking-off word 'none' while thinking is off", localOff === 'none', `sent ${String(localOff)}`)
+  const localTruth = effort.resolveEffortTruth('local/qwen3:8b', 'high')
+  check("local/qwen3:8b: the owner says so — wire 'none', flooredBy thinking-off, the label names it (the local view is thinking-gated with the wire's own off word)", localTruth.wire === 'none' && localTruth.flooredBy === 'thinking-off' && localTruth.label === 'none' && localTruth.requested === 'high', JSON.stringify({ wire: localTruth.wire, flooredBy: localTruth.flooredBy, label: localTruth.label }))
   check('glm-5.2 is not thinking-gated (the zai wire sends reasoning_effort beside its thinking flag)', effort.resolveEffortTruth('glm-5.2', 'high').wire === 'high')
   thinking.noteSessionThinkingConfig({ type: 'adaptive' })
   check('thinking back on: DeepSeek resolves its dial again', effort.resolveEffortTruth('deepseek-flash', 'high').wire === 'high')
@@ -486,7 +489,7 @@ section('§10 the shape: one vocabulary owner, the predicates its projections')
   check('the resolution reads the one view and keeps no provider pin of its own', effortSrc.includes('const view = effortVocabularyFor(model)') && !/KIMI_EFFORTS|DEEPSEEK_EFFORTS|GLM_EFFORTS\b/.test(effortSrc))
   const kinds = ['claude-opus-5', 'gpt-5.6-sol', 'glm-5.3', 'kimi-k3', 'deepseek-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small', 'local/qwen3:8b', 'gpt-5.6-bare', 'claude-haiku-4-5-20251001'].map(m => caps.effortVocabularyFor(m).kind)
   check('the view kinds across the estate', kinds.join(',') === 'ladder,provider,provider,provider,provider,provider,provider,provider,offered,none', kinds.join(','))
-  check('the thinking-gated lanes are exactly DeepSeek, Gemini and OpenRouter', ['deepseek-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && v.thinkingGated }) && ['kimi-k3', 'glm-5.2', 'local/qwen3:8b', 'gpt-5.6-sol'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && !v.thinkingGated }))
+  check('the thinking-gated lanes are exactly DeepSeek, Gemini, OpenRouter and a thinking-declared Ollama row (its off word none)', ['deepseek-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small', 'local/qwen3:8b'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && v.thinkingGated }) && (() => { const v = caps.effortVocabularyFor('local/qwen3:8b'); return v.kind === 'provider' && v.thinkingOffWire === 'none' })() && ['kimi-k3', 'glm-5.2', 'gpt-5.6-sol'].every(m => { const v = caps.effortVocabularyFor(m); return v.kind === 'provider' && !v.thinkingGated }))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-effort-wire-truth${failures ? ` (${failures} failure(s))` : ''}`)

@@ -292,12 +292,13 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
     const { localModelAcceptsEffort } =
       require('../../services/providers/local/localCallModel.js') as typeof import('../../services/providers/local/localCallModel.js')
-    const { LOCAL_SERVER_EFFORTS } =
+    const { LOCAL_SERVER_EFFORTS, LOCAL_SERVER_STATES_THINKING, localThinkingOffWireEffort } =
       require('../../services/providers/openaicompat/compatWire.js') as typeof import('../../services/providers/openaicompat/compatWire.js')
     const record = localRecordFor(model)
     const vocabulary = record && localModelAcceptsEffort(record) ? LOCAL_SERVER_EFFORTS[record.server] : []
-    return vocabulary.length > 0
-      ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: false }
+    const thinkingOffWire = record ? localThinkingOffWireEffort(record.server) : undefined
+    return record && vocabulary.length > 0
+      ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: LOCAL_SERVER_STATES_THINKING[record.server], ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}) }
       : { kind: 'none', source: 'local' }
   }
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }

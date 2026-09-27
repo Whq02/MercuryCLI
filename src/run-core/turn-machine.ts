@@ -90,12 +90,12 @@ import { logError } from '../utils/log.js'
 import {
   EMPTY_REPLY_RECOVERY_NUDGE,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
-  STREAM_FAULT_RECOVERY_NUDGE,
   continuableStreamFaultTextOf,
   endsWithEmptyReplyRecoveryNudge,
   isContinuableStreamFaultMessage,
   streamFaultFactsOf,
   streamFaultNoticeLine,
+  streamFaultRecoveryContent,
 } from '../services/api/errors.js'
 import {
   collectRefusedToolCalls,
@@ -1448,11 +1448,11 @@ export async function* runEventCore(
             }),
           })
           const recoveryMessage = createUserMessage({
-            content: STREAM_FAULT_RECOVERY_NUDGE,
+            content: streamFaultRecoveryContent(replyTextOf(assistantMessages)),
             isMeta: true,
           })
           const next: TurnState = {
-            messages: [...messagesForQuery, ...assistantMessages, recoveryMessage],
+            messages: [...messagesForQuery, ...assistantMessages.filter(m => m.isApiErrorMessage !== true), recoveryMessage],
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
