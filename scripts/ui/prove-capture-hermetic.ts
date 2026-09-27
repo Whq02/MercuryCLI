@@ -132,16 +132,16 @@ const withLine = scratchHome('home-with-model-line', { model: OWNER_MODEL })
 const withoutLine = scratchHome('home-without-model-line', {})
 
 console.log(`\nleg 1 — a scratch HOME whose .mercury/settings.json carries "model": "${OWNER_MODEL}", the shell pinning MERCURY_CONFIG_DIR at that very folder`)
-const lineOn = await capture('settings-line', { HOME: withLine, MERCURY_CONFIG_DIR: join(withLine, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
-const lineOff = await capture('settings-clean', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
+const lineOn = await capture('settings-line', { HOME: withLine, MERCURY_CONFIG_DIR: join(withLine, '.mercury'), MERCURY_DAEMON_DIR: join(withLine, '.mercury', 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
+const lineOff = await capture('settings-clean', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_DAEMON_DIR: join(withoutLine, '.mercury', 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
 judgePair('settings', lineOn, lineOff, 'the capture with the model line equals the capture without it')
 
 console.log(`\nleg 2 — a local server on the loopback listing ${OWNER_MODEL.slice('local/'.length)} (a fixture at ${FIXTURE_ORIGIN}; the probe target named in the shell, as a running server is found by default)`)
 fixtureRequests.length = 0
-const serverOn = await capture('server-listed', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: `ollama=${FIXTURE_ORIGIN}` })
+const serverOn = await capture('server-listed', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_DAEMON_DIR: join(withoutLine, '.mercury', 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: `ollama=${FIXTURE_ORIGIN}` })
 const seenByFixture = fixtureRequests.length
 fixtureRequests.length = 0
-const serverOff = await capture('server-none', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
+const serverOff = await capture('server-none', { HOME: withoutLine, MERCURY_CONFIG_DIR: join(withoutLine, '.mercury'), MERCURY_DAEMON_DIR: join(withoutLine, '.mercury', 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: 'none' })
 judgePair('server', serverOn, serverOff, 'the capture beside a listing server equals the capture with the probe off')
 report(seenByFixture === 0, `server: the captured product sent the loopback server ${seenByFixture} request(s) — a capture reaches no server on the machine`)
 

@@ -192,7 +192,7 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   const runDeploy = (text: string): { out: string; status: number | null; after: string } => {
     const launcherPath = join(arena, 'launcher.sh')
     writeFileSync(launcherPath, text)
-    const r = spawnSync('bash', [join(ROOT, 'scripts', 'splash', 'deploy.sh')], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: arena, MERCURY_CONFIG_DIR: deployHome, MERCURY_LAUNCHER: launcherPath }, timeout: 30_000 })
+    const r = spawnSync('bash', [join(ROOT, 'scripts', 'splash', 'deploy.sh')], { encoding: 'utf8', env: { PATH: process.env.PATH, HOME: arena, MERCURY_CONFIG_DIR: deployHome, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LAUNCHER: launcherPath }, timeout: 30_000 })
     return { out: `${r.stdout ?? ''}${r.stderr ?? ''}`, status: r.status, after: readFileSync(launcherPath, 'utf8') }
   }
   const captureLines = 'MERCURY_SA_EXIT=0\n"$MERCURY_NODE_BIN" "$MERCURY_HOME/splash.mjs" </dev/tty || MERCURY_SA_EXIT=$?\n'
@@ -291,6 +291,7 @@ if (!existsSync(BIN)) {
       MERCURY_CONFIG_DIR: HOME,
       MERCURY_HOME: HOME,
       MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_OPERATOR: 'sam',
       TERM: 'xterm-256color',
       MERCURY_CRITTER_IDLE: '0',

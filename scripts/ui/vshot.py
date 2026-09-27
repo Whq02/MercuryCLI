@@ -260,6 +260,7 @@ kitty_filter = _KittyFilter()
 pid, fd = pty.fork()
 if pid == 0:
     os.environ["COLUMNS"], os.environ["LINES"] = str(cols), str(rows)
+    os.environ.setdefault("MERCURY_LOCAL_PROBE_TARGETS", "none")
     if cfg.get("cwd"):
         os.chdir(cfg["cwd"])
     os.execvp(argv[0], argv)

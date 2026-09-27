@@ -445,6 +445,7 @@ if (!existsSync(DIST)) {
           TERM: 'dumb',
           MERCURY_CONFIG_DIR: configDir,
           MERCURY_CREDENTIAL_STORE: 'file',
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_API_KEY: 'fixture-key-000',
         },
         encoding: 'utf8',

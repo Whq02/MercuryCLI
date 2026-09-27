@@ -76,6 +76,7 @@ def main() -> None:
 
     pid, fd = pty.fork()
     if pid == 0:
+        os.environ.setdefault("MERCURY_LOCAL_PROBE_TARGETS", "none")
         os.execvp(cmd[0], cmd)
 
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", a.rows, a.cols, 0, 0))

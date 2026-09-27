@@ -20,6 +20,7 @@ const pathFrontedEnv = (
   return {
     ...base,
     [IS_WIN ? 'Path' : 'PATH']: `${binDir}${IS_WIN ? ';' : ':'}${inheritedPath}`,
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
     ...extra,
   }
 }

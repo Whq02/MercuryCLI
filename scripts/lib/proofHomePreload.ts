@@ -13,9 +13,11 @@ export function entryTakesProofHome(path: string): boolean {
   return path !== vendor && !path.startsWith(vendor + sep)
 }
 
+if (entryTakesProofHome(entry)) process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+
 if (entryTakesProofHome(entry) && configHomeIsReal()) {
   delete process.env.MERCURY_CONFIG_DIR
   resolveProofHome([root])
 }
 
-if (import.meta.main) console.log(process.env.MERCURY_CONFIG_DIR ?? '')
+if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}`)

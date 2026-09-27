@@ -61,6 +61,7 @@ function makeArena(label: string, fixtureUrl: string): Arena {
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_VERIFY_EVIDENCE: '0',
     },
   }

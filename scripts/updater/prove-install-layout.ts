@@ -275,7 +275,7 @@ console.log('── §6b the shim chain is EXACT: each rung once, and the sh shi
     mkRoot(join(r.MCD, 'versions'), 'rung-MERCURY_CONFIG_DIR')
     mkRoot(join(r.MH, 'versions'), 'rung-MERCURY_HOME')
     const run = (env: Record<string, string>): string =>
-      spawnSync('sh', [shim, '--version'], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: home, ...env }, encoding: 'utf8' }).stdout.trim()
+      spawnSync('sh', [shim, '--version'], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', ...env }, encoding: 'utf8' }).stdout.trim()
     const all = { MERCURY_VERSIONS_DIR: r.MVD, MERCURY_CONFIG_DIR: r.MCD, MERCURY_HOME: r.MH }
     check('live: MERCURY_VERSIONS_DIR wins over every lower rung', run(all) === 'rung-MERCURY_VERSIONS_DIR --version')
     check('live: MERCURY_CONFIG_DIR wins over MERCURY_HOME', run({ MERCURY_CONFIG_DIR: r.MCD, MERCURY_HOME: r.MH }) === 'rung-MERCURY_CONFIG_DIR --version')

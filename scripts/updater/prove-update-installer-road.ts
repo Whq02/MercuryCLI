@@ -83,6 +83,7 @@ const env = (path: string, extra: Record<string, string> = {}): Record<string, s
   MERCURY_UPDATE_API_BASE_URL: server.url,
   MERCURY_GH_CMD: JSON.stringify(['/usr/bin/false']),
   MERCURY_CREDENTIAL_STORE: 'file',
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
   BROWSER: '/usr/bin/true',
   CI: '1',
   TERM: 'dumb',

@@ -34,7 +34,7 @@ t.section('§2 — the decision matrix in pinned environments')
         cwd: ROOT,
         encoding: 'utf8',
         timeout: 60_000,
-        env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', ...env },
+        env: { PATH: process.env.PATH ?? '', HOME: process.env.HOME ?? '', MERCURY_LOCAL_PROBE_TARGETS: 'none', ...env },
       },
     )
     return (r.stdout ?? '').trim() + ((r.status ?? 0) === 0 ? '' : ` [exit ${r.status}: ${(r.stderr ?? '').slice(0, 120)}]`)
