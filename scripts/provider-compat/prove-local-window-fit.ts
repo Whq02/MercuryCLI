@@ -2,10 +2,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
-mkdirSync('/private/tmp/mw', { recursive: true })
-const HOME = mkdtempSync('/private/tmp/mw/local-window-fit.')
+const HOME = mkdtempSync(join(tmpdir(), 'local-window-fit.'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_LOCAL_API_KEY

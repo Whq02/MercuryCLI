@@ -234,7 +234,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
     ['runAgent fallback build (doctrine leads)', 'src/tools/AgentTool/runAgent.ts', '[...doctrine, ownPrompt]'],
     ['runAgent honors override only when supplied', 'src/tools/AgentTool/runAgent.ts', 'override?.systemPrompt ??'],
-    ['swarm teammate turn passes NO override prompt', 'src/utils/swarm/inProcessRunner.ts', 'override: { abortController: turnController }'],
+    ['swarm teammate turn passes NO override prompt — the transcript agentId accompanies the controller, never replacing the doctrine', 'src/utils/swarm/inProcessRunner.ts', 'override: {\n              abortController: turnController,\n              ...(config.transcriptAgentId !== undefined ? { agentId: config.transcriptAgentId } : {}),\n            },'],
   ]
   for (const [label, file, needle] of pins) {
     check(`${label} — ${file}`, SRC(file).includes(needle))

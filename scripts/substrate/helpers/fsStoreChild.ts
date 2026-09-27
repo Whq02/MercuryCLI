@@ -1,6 +1,26 @@
-import { defineStore } from '../../../src/substrate/fileStore.ts'
-
 const [mode, path, arg] = process.argv.slice(2) as [string, string, string?]
+
+if (mode === 'increment-paused') {
+  const { mock } = await import('bun:test')
+  const fs = await import('node:fs/promises')
+  const writeFile = fs.writeFile
+  let paused = false
+  mock.module('fs/promises', () => ({ ...fs, writeFile: async (...args: Parameters<typeof writeFile>) => {
+    const [file, data, options] = args
+    if (!paused && typeof options === 'object' && options?.flag === 'wx') {
+      paused = true
+      const handle = await fs.open(file as string, 'wx')
+      process.stdout.write('SEED-OPEN\n')
+      await new Promise<void>(resolve => process.stdin.once('data', () => resolve()))
+      await handle.writeFile(data)
+      await handle.close()
+      return
+    }
+    return writeFile(...args)
+  } }))
+}
+
+const { defineStore } = await import('../../../src/substrate/fileStore.ts')
 
 const counter = defineStore<{ n: number; blob?: string }, []>({
   name: 'prove-counter-child',
@@ -29,7 +49,7 @@ const list = defineStore<{ items: string[] }, []>({
   onReadFailure: 'throw',
 })
 
-if (mode === 'increment') {
+if (mode === 'increment' || mode === 'increment-paused') {
   const n = Number(arg ?? '10')
   for (let i = 0; i < n; i++) {
     await counter().mutate(cur => ({ ...cur, n: cur.n + 1 }))

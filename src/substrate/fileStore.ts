@@ -2,7 +2,7 @@
 import { resolveWatchRoot } from '../utils/watchRoot.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { existsSync, realpathSync, watch as fsWatch, type FSWatcher as NodeFSWatcher } from 'node:fs'
-import { mkdir, readFile, stat, writeFile } from 'fs/promises'
+import { link, mkdir, readFile, stat, unlink, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import type { FSWatcher } from 'chokidar'
 import { logForDebugging } from '../utils/debug.js'
@@ -10,7 +10,7 @@ import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { groupCommitLane } from './groupCommit.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
-import { durableAtomicPublish, durableAtomicPublishSync, type DurablePublishOptions, type DurablePublishReport } from './durablePublish.js'
+import { durableAtomicPublish, durableAtomicPublishSync, durableTempName, type DurablePublishOptions, type DurablePublishReport } from './durablePublish.js'
 import { quarantineDamagedStore } from './storeRecovery.js'
 import {
   nextRevision,
@@ -585,9 +585,21 @@ export function defineStore<T, A extends unknown[] = []>(
   const ensureExists = async (path: string): Promise<void> => {
     await mkdir(dirname(path), { recursive: true })
     try {
-      await writeFile(path, encodeValue(cfg.empty()), { flag: 'wx' })
+      await stat(path)
+      return
     } catch (e) {
-      if (getErrnoCode(e) !== 'EEXIST') throw e
+      if (getErrnoCode(e) !== 'ENOENT') throw e
+    }
+    const seed = durableTempName(path)
+    try {
+      await writeFile(seed, encodeValue(cfg.empty()), { flag: 'wx' })
+      try {
+        await link(seed, path)
+      } catch (e) {
+        if (getErrnoCode(e) !== 'EEXIST') throw e
+      }
+    } finally {
+      await unlink(seed).catch(e => { if (getErrnoCode(e) !== 'ENOENT') throw e })
     }
   }
 
