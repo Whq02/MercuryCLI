@@ -219,7 +219,14 @@ server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`
 fit this machine says so on the row and names the biggest rung that does, and
 is still saved. On Ollama the chosen window rides as `options.num_ctx` on every request
 over the native `/api/chat` stream (with `truncate: false`, so an over-window
-prompt is refused by the server rather than truncated); LM Studio takes it
+prompt is refused by the server rather than truncated), and every request the
+session sends that model — the chat, the pre-warm, the keep-alive touch, the
+served-window load and every crewmate or workflow seat — carries the same
+`num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
+cache for the whole session; a runner the server already holds at a window
+that fits the turn is adopted rather than reloaded (under auto and `server
+default` — a window you set is honoured), and the row names it as the
+server's; LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
 served figure and reads as not applicable. When no local server answers,
@@ -232,9 +239,13 @@ multi-round tool loops, and against a live llama.cpp (2026-09-27, Qwen3.5 9B
 served as `qwen3.5:9b`, server build b11146) for the same three legs —
 discovery with the served window read from `/props`, a streamed reply with
 its reasoning block, and a tool loop that also dispatched a crewmate and a
-workflow agent on the model. LM Studio is unverified until its server is run
-through the same three legs; vLLM is unverified — it needs a Linux box with
-an NVIDIA card. The search-door and SATURN-fire legs remain operator-deferred
+workflow agent on the model; and against a live LM Studio (2026-09-27, Qwen3.5
+9B served as `qwen3.5-9b`) for the same legs — discovery from `/api/v1/models`
+with the loaded instance's window, a streamed reply with its reasoning block,
+a direct tool loop, a crewmate and a workflow agent — where the product
+reloads the instance at its chosen window on the first send (the documented
+load road) unless the window setting is `server default`. vLLM is unverified
+— it needs a Linux box with an NVIDIA card. The search-door and SATURN-fire legs remain operator-deferred
 drill lines. The Hugging Face lane carries an explicit deferred-live caveat
 in its readiness detail until verified against a live endpoint.
 

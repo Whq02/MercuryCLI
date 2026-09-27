@@ -24,8 +24,8 @@ import { mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiC
 import { resolveLocalApiKey } from './localAccounts.js'
 import { localGuardWindow, localLaneProfileFor, localModelAcceptsEffort, localPreComposeEstimate } from './localCallModel.js'
 import { isLocalModelId, localRecordFor } from './localCatalogue.js'
-import { LOCAL_PROBE_TIMEOUT_MS, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
-import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
+import { confirmServedWindow, LOCAL_PROBE_TIMEOUT_MS, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
+import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf } from './localWindow.js'
 import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaChatTransport.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
@@ -151,10 +151,7 @@ export async function localWarmKnobsFor(record: LocalModelRecord, estTokens: num
 }
 
 function heldKnobsFor(record: LocalModelRecord): LocalWarmKnobs | undefined {
-  const hold = heldLocalWindow(record)
-  if (hold !== undefined) {
-    return { ...(hold.window !== undefined ? { numCtx: hold.window } : {}), numBatch: chooseLocalBatch(localBatchSettingOf(record), hold.window) }
-  }
+  if (heldLocalWindow(record) !== undefined) return heldLocalKnobs(record)
   return state.sent.get(keyOf(record))
 }
 
@@ -329,6 +326,7 @@ async function warm(record: LocalModelRecord, model: string): Promise<void> {
     state.recent = { key, at: nowMs() }
     state.lastWarm = { model: record.id, promptTokens, usage, elapsedMs }
     logForDebugging(`[local-warm] warm of ${record.id} settled in ${Math.round(elapsedMs / 1000)}s: prompt_eval_count=${String(usage?.inputTokens)} cached=${String(usage?.cachedInputTokens)}`)
+    await confirmServedWindow(record, { ...(state.io.fetchImpl ? { fetchImpl: state.io.fetchImpl } : {}), signal: controller.signal }).catch(() => undefined)
   } catch (error) {
     if (controller.signal.aborted) return
     state.failed += 1
@@ -376,14 +374,15 @@ async function probe(record: LocalModelRecord, path: string, init?: { method?: '
   return (await response.json()) as unknown
 }
 
-export function keepAliveTouchDue(entry: Record<string, unknown> | undefined, knobs: LocalWarmKnobs, now: number): { due: false; why: string } | { due: true; remainingMs: number } {
+export function keepAliveTouchDue(entry: Record<string, unknown> | undefined, knobs: LocalWarmKnobs, now: number, served?: number): { due: false; why: string } | { due: true; remainingMs: number } {
   if (entry === undefined) return { due: false, why: 'the model is not loaded' }
   const expires = typeof entry.expires_at === 'string' ? Date.parse(entry.expires_at) : Number.NaN
   const remainingMs = expires - now
   if (!Number.isFinite(remainingMs) || remainingMs <= 0) return { due: false, why: 'the runner never expires' }
   if (remainingMs > LOCAL_KEEP_ALIVE_HOLD_MS) return { due: false, why: `the server holds it longer (${Math.round(remainingMs / 60_000)}m)` }
-  if (knobs.numCtx !== undefined && typeof entry.context_length === 'number' && entry.context_length !== knobs.numCtx) {
-    return { due: false, why: `the loaded runner's window (${entry.context_length}) is not this session's (${knobs.numCtx})` }
+  const sessionWindow = knobs.numCtx ?? served
+  if (sessionWindow !== undefined && typeof entry.context_length === 'number' && entry.context_length !== sessionWindow) {
+    return { due: false, why: `the loaded runner's window (${entry.context_length}) is not this session's (${sessionWindow})` }
   }
   return { due: true, remainingMs }
 }
@@ -404,7 +403,7 @@ export async function tick(): Promise<void> {
     const ps = rec(await probe(record, '/api/ps').catch(() => undefined))
     const models = Array.isArray(ps?.models) ? (ps!.models as unknown[]).map(rec) : []
     const entry = models.find(m => m !== undefined && (m.model === record.id || m.name === record.id))
-    const verdict = keepAliveTouchDue(entry, knobs, nowMs())
+    const verdict = keepAliveTouchDue(entry, knobs, nowMs(), record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined)
     if (!verdict.due) return
     const body = { model: record.id, keep_alive: LOCAL_KEEP_ALIVE_HOLD, options: { ...(knobs.numCtx !== undefined ? { num_ctx: knobs.numCtx } : {}), num_batch: knobs.numBatch } }
     const answer = await probe(record, '/api/generate', { method: 'POST', body, timeoutMs: state.io.probeTimeoutMs ?? LOCAL_KEEP_ALIVE_TOUCH_TIMEOUT_MS }).catch(() => undefined)

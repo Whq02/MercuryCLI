@@ -44,6 +44,22 @@ export function chooseLocalBatch(setting: number | undefined, numCtx: number | u
   return numCtx !== undefined ? Math.min(asked, numCtx) : asked
 }
 
+export const LOCAL_OUTPUT_FLOOR = 1024
+
+export interface LocalRunnerKnobs {
+  numCtx?: number
+  numBatch: number
+}
+
+export function heldLocalKnobs(record: Pick<LocalModelRecord, 'id' | 'server'>): LocalRunnerKnobs {
+  const window = heldLocalWindow(record)?.window
+  return { ...(window !== undefined ? { numCtx: window } : {}), numBatch: chooseLocalBatch(localBatchSettingOf(record), window) }
+}
+
+export function localWindowFits(window: number | undefined, estTokens: number): boolean {
+  return window === undefined || estTokens + LOCAL_OUTPUT_FLOOR <= window
+}
+
 export function writeLocalWindowSetting(record: Pick<LocalModelRecord, 'id'>, setting: LocalWindowSetting | undefined): void {
   const key = localWindowSettingKey(record)
   saveGlobalConfig(config => {
@@ -135,6 +151,7 @@ export function localWindowApplication(record: Pick<LocalModelRecord, 'server'>)
 export interface HeldLocalWindow extends LocalWindowDecision {
   setting: LocalWindowSetting | undefined
   estTokens: number
+  adopted?: true
 }
 
 const held = new Map<string, HeldLocalWindow>();
@@ -145,6 +162,25 @@ function holdKey(record: Pick<LocalModelRecord, 'id' | 'server'>): string {
 
 export function heldLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>): HeldLocalWindow | undefined {
   return held.get(holdKey(record))
+}
+
+export function adoptableLocalWindow(hold: Pick<HeldLocalWindow, 'window' | 'setting'>, resident: number | undefined, estTokens: number): resident is number {
+  if (resident === undefined || resident === hold.window) return false
+  if (hold.setting !== undefined && hold.setting !== 'server') return false
+  return localWindowFits(resident, estTokens)
+}
+
+export function adoptLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>, hold: HeldLocalWindow, resident: number): HeldLocalWindow {
+  const adopted: HeldLocalWindow = { ...hold, window: resident, reason: 'srv', words: `${fmt(resident)} · the window the server already holds this model at — adopted, so the runner is not reloaded`, adopted: true }
+  held.set(holdKey(record), adopted)
+  return adopted
+}
+
+export function releaseOutgrownLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>, estTokens: number): boolean {
+  const hold = held.get(holdKey(record))
+  if (hold === undefined || hold.adopted !== true || localWindowFits(hold.window, estTokens)) return false
+  held.delete(holdKey(record))
+  return true
 }
 
 export type LocalWindowDecisionRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'weightsBytes' | 'geometry'>
@@ -190,7 +226,7 @@ export const LOCAL_WINDOW_REASON_WORDS: Readonly<Record<LocalWindowReason, strin
   max: 'the trained max',
   fit: 'the biggest rung that fits',
   set: 'your setting',
-  srv: 'the server default',
+  srv: 'the window the server holds it at',
   req: 'twice the request',
 }
 

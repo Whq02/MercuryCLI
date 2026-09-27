@@ -141,7 +141,9 @@ async function send(road: 'local' | 'router', extra: Record<string, unknown> = {
 }
 const hitsSince = (from: number): Hit[] => state.hits.slice(from)
 const numCtxOf = (hit: Hit | undefined): number | undefined => (hit?.body.options as { num_ctx?: number } | undefined)?.num_ctx
-const shape = (hits: Hit[]): string => hits.map(h => `${h.method} ${h.url}${h.url === '/api/chat' || h.url === '/api/generate' ? ` num_ctx=${String(numCtxOf(h))}` : ''}`).join(' → ')
+const numBatchOf = (hit: Hit | undefined): number | undefined => (hit?.body.options as { num_batch?: number } | undefined)?.num_batch
+const shape = (hits: Hit[]): string => hits.map(h => `${h.method} ${h.url}${h.url === '/api/chat' || h.url === '/api/generate' ? ` num_ctx=${String(numCtxOf(h))} num_batch=${String(numBatchOf(h))}` : ''}`).join(' → ')
+const road = (hits: Hit[]): Hit[] => hits.filter(h => h.url === '/api/ps' || h.url === '/api/generate' || h.url === '/api/chat')
 function resetWorld(opts: { loaded: boolean; serverDefault?: number; statesMax?: boolean; setting?: 'server' | 'max' | number | undefined }): void {
   __resetLocalDiscoveryForTest()
   __resetLocalWindowsForTest()
@@ -178,7 +180,8 @@ section('2 · first send under the auto default (nothing set): the request rides
   check('no pre-load rode the wire (the chat request itself loads the model with its window)', !hits.some(h => h.url === '/api/generate'), shape(hits))
   check('the chat request carries options.num_ctx = the chosen window (128k), num_batch 2048 and truncate:false', chat !== undefined && numCtxOf(chat) === AUTO_62K && (chat.body.options as { num_batch?: number }).num_batch === 2048 && chat.body.truncate === false && chat.body.stream === true, JSON.stringify(chat?.body.options))
   check('the ≈62k-token request was SENT — no refusal, the reply settled', outcome.error === undefined && outcome.texts.some(t => t.includes('pong')), outcome.error ?? outcome.texts.join('|'))
-  check('then /api/ps confirmed the served figure (after the chat, never before)', chat !== undefined && ps !== undefined && hits.includes(chat) && hits.includes(ps) && hits.indexOf(chat) < hits.indexOf(ps), shape(hits))
+  const psAfter = hits.slice(chat === undefined ? 0 : hits.indexOf(chat) + 1).find(h => h.url === '/api/ps')
+  check('the unknown served figure was read before the chat (/api/ps: nothing resident — no load rides, the chat loads with the held num_ctx) and confirmed from /api/ps after it', chat !== undefined && ps !== undefined && hits.indexOf(ps) < hits.indexOf(chat) && psAfter !== undefined, shape(road(hits)))
   check('the record holds the SERVED figure the server stated for that load (131072, served, loaded)', record().contextWindow?.tokens === 131072 && record().contextWindow?.source === 'served' && record().loaded === true, JSON.stringify(record().contextWindow))
   check('the window is HELD for the session (auto → 128k)', heldLocalWindow(record())?.window === AUTO_62K && heldLocalWindow(record())?.setting === undefined)
   check('the catalogue epoch bumped (surfaces re-derive the window)', catalogueEpoch() > epochBefore)
@@ -193,15 +196,15 @@ section('3 · the second send inside the TTL: the same held num_ctx, one chat re
   check('only the chat request rode the wire, carrying the SAME held window (no re-decision for a smaller request)', hits.length === 1 && hits[0]!.url === '/api/chat' && numCtxOf(hits[0]) === AUTO_62K && outcome.error === undefined, shape(hits))
 }
 
-section('4 · the setting "server": the server chooses; Mercury loads with no options, reads /api/ps, then sends without num_ctx')
+section('4 · the setting "server": the server chooses; Mercury reads /api/ps, loads with the session\'s own runner options (never a bare load), reads /api/ps, then sends on the window the server chose')
 {
   resetWorld({ loaded: false, setting: 'server' })
   await refreshLocalDiscovery({ force: true })
   const from = state.hits.length
   const outcome = await send('local')
-  const hits = hitsSince(from)
-  check('the send LOADED the model first: POST /api/generate {model} with no options', hits[0]?.url === '/api/generate' && hits[0].body.model === MODEL && !('options' in hits[0].body), shape(hits))
-  check('then /api/ps, then the chat request WITHOUT num_ctx — in that order', hits[1]?.url === '/api/ps' && hits[2]?.url === '/api/chat' && numCtxOf(hits[2]) === undefined && outcome.error === undefined, shape(hits))
+  const hits = road(hitsSince(from))
+  check('the send read /api/ps (nothing resident) then LOADED the model: POST /api/generate {model, options} carrying num_batch 2048 and no num_ctx — the same set the chat sends, so the scheduler keeps that runner', hits[0]?.url === '/api/ps' && hits[1]?.url === '/api/generate' && hits[1].body.model === MODEL && numCtxOf(hits[1]) === undefined && numBatchOf(hits[1]) === 2048, shape(hits))
+  check("then /api/ps, then the chat request carrying the served window it adopted (262144) beside the same num_batch — in that order", hits[2]?.url === '/api/ps' && hits[3]?.url === '/api/chat' && numCtxOf(hits[3]) === 262144 && numBatchOf(hits[3]) === 2048 && outcome.error === undefined, shape(hits))
   check("the record holds the server's own figure (262144, served)", record().contextWindow?.tokens === 262144 && record().contextWindow?.source === 'served', JSON.stringify(record().contextWindow))
 }
 
@@ -252,8 +255,9 @@ section('8 · staleness under "server": a snapshot older than the TTL is re-read
   state.loadedCtx = 131072
   const from = state.hits.length
   const outcome = await send('local')
-  const hits = hitsSince(from)
-  check('the stale record was re-read at send (load, then ps) before the chat request', hits[0]?.url === '/api/generate' && hits[1]?.url === '/api/ps' && hits[2]?.url === '/api/chat' && outcome.error === undefined, shape(hits))
+  const hits = road(hitsSince(from))
+  check('the stale record was re-read at send (/api/ps: the model is resident at 131072) before the chat request — no load rides for a resident runner', hits[0]?.url === '/api/ps' && hits[1]?.url === '/api/chat' && !hits.some(h => h.url === '/api/generate') && outcome.error === undefined, shape(hits))
+  check('the chat adopted the window the server holds the model at (num_ctx 131072) rather than reloading it', numCtxOf(hits[1]) === 131072 && heldLocalWindow(record())?.window === 131072 && heldLocalWindow(record())?.adopted === true, shape(hits))
   check('the record follows the server: 131072 served (the server was restarted with another default outside Mercury)', record().contextWindow?.tokens === 131072, JSON.stringify(record().contextWindow))
   const fresh = state.hits.length
   await send('local')
@@ -272,8 +276,8 @@ section('9 · the second face under auto: the model unloads (keep-alive expiry, 
   record().servedReadAtMs = past
   const from = state.hits.length
   const outcome = await send('local', {}, 8_000)
-  const hits = hitsSince(from)
-  check('the chat request carried the held num_ctx and loaded the model (no pre-load); the stale record was confirmed from ps after it', hits[0]?.url === '/api/chat' && numCtxOf(hits[0]) === AUTO_62K && hits[1]?.url === '/api/ps' && !hits.some(h => h.url === '/api/generate') && outcome.error === undefined, shape(hits))
+  const hits = road(hitsSince(from))
+  check('the stale record was read first (/api/ps: the runner is gone), the chat request carried the held num_ctx and loaded the model (no pre-load), and ps after it confirmed the served figure', hits[0]?.url === '/api/ps' && hits[1]?.url === '/api/chat' && numCtxOf(hits[1]) === AUTO_62K && hits[2]?.url === '/api/ps' && !hits.some(h => h.url === '/api/generate') && outcome.error === undefined, shape(hits))
   check('the record states served 131072 and loaded again', record().contextWindow?.tokens === 131072 && record().loaded === true)
   const fresh = state.hits.length
   await send('local', {}, 8_000)

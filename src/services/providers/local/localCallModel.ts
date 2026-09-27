@@ -8,8 +8,8 @@ import {
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
-import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
-import { chooseLocalBatch, decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
+import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, residentServedWindow, type LocalDiscoveryIo, type LocalModelRecord } from './localDiscovery.js'
+import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, LOCAL_OUTPUT_FLOOR, localWindowApplication, localWindowSettingOf, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
@@ -68,8 +68,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
             ollamaChatTransport(
               { ...options, url: ollamaChatUrl(record.baseUrl) },
               {
-                ...(heldLocalWindow(record)?.window !== undefined ? { numCtx: heldLocalWindow(record)!.window } : {}),
-                numBatch: chooseLocalBatch(localBatchSettingOf(record), heldLocalWindow(record)?.window),
+                ...heldLocalKnobs(record),
                 ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
               },
             ),
@@ -78,8 +77,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     requestFitRefusal: ({ estTokens, toolCount }) => {
       const guard = localGuardWindow(record)
       if (guard === undefined) return undefined
-      const OUTPUT_FLOOR = 1024
-      if (estTokens + OUTPUT_FLOOR <= guard.tokens) return undefined
+      if (estTokens + LOCAL_OUTPUT_FLOOR <= guard.tokens) return undefined
       return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window: guard.tokens, sourceWords: guard.sourceWords })
     },
     toolCapabilityRefusal: () => {
@@ -129,21 +127,30 @@ export async function* localCallModel(
   let confirmAfter = false
   if (record) {
     const application = localWindowApplication(record)
+    const io: LocalDiscoveryIo = { signal: params.signal }
     if (application === 'request' || application === 'load') {
       const setting = localWindowSettingOf(record)
-      const decision = decideLocalWindow(record, localPreComposeEstimate(params), setting, await ensureLocalWindowTruth(record, setting))
+      const estTokens = localPreComposeEstimate(params)
+      releaseOutgrownLocalWindow(record, estTokens)
+      const decision = decideLocalWindow(record, estTokens, setting, await ensureLocalWindowTruth(record, setting))
       if (application === 'load') {
-        await ensureServedWindow(record, { signal: params.signal }, decision.window !== undefined ? { numCtx: decision.window } : undefined)
-      } else if (decision.window === undefined) {
-        await ensureServedWindow(record, { signal: params.signal })
+        await ensureServedWindow(record, io, decision.window !== undefined ? { numCtx: decision.window } : undefined)
       } else {
-        confirmAfter = !(servedWindowIsCurrent(record) && record.contextWindow?.tokens === decision.window)
+        confirmAfter = await settleOllamaWindow(record, decision, estTokens, io)
       }
     } else {
-      await ensureServedWindow(record, { signal: params.signal })
+      await ensureServedWindow(record, io)
     }
   }
   noteLocalTurn(record)
   yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model), params)
   if (record && confirmAfter && !params.signal.aborted) await confirmServedWindow(record, { signal: params.signal })
+}
+
+export async function settleOllamaWindow(record: LocalModelRecord, decided: HeldLocalWindow, estTokens: number, io: LocalDiscoveryIo): Promise<boolean> {
+  let hold = decided
+  await ensureServedWindow(record, io, hold.window === undefined ? heldLocalKnobs(record) : { probeOnly: true })
+  const resident = residentServedWindow(record)
+  if (adoptableLocalWindow(hold, resident, estTokens)) hold = adoptLocalWindow(record, hold, resident)
+  return hold.window === undefined || resident !== hold.window
 }
