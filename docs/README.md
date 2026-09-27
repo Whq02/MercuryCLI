@@ -91,6 +91,10 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 
 - [ENGINES.md](ENGINES.md): the provider families, the routing law, the
   main loop, the native in-process endpoints, and web search on every model.
+- [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup`, the local model set-up
+  inside Mercury when no local server answers — find or install Ollama,
+  start it, pull `qwen3.5:9b`, set the window from this machine's memory,
+  pick the model and prove a reply, every step asking before it runs.
 
 ### Trust, health and the runtime
 

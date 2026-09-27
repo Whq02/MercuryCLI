@@ -1,0 +1,72 @@
+#!/bin/sh
+here="$(cd "$(dirname "$0")" && pwd)"
+script="${FAKE_OLLAMA_SCRIPT:-$here/fake-ollama.ts}"
+bun="${FAKE_OLLAMA_BUN:-bun}"
+host="${OLLAMA_HOST:-127.0.0.1:11434}"
+case "$host" in
+  http://*|https://*) root="${host%/}" ;;
+  *) root="http://${host%/}" ;;
+esac
+api() {
+  if [ "$#" -gt 2 ]; then
+    curl -s -f -X "$1" "$root$2" -H 'content-type: application/json' -d "$3"
+  else
+    curl -s -f -X "$1" "$root$2"
+  fi
+}
+unreachable() {
+  echo "Error: could not connect to ollama server, run 'ollama serve' to start it" >&2
+  exit 1
+}
+case "${1:-}" in
+  --version|-v|version)
+    echo "ollama version is 0.34.4"
+    ;;
+  serve|start)
+    exec "$bun" run "$script"
+    ;;
+  list|ls)
+    body="$(api GET /api/tags)" || unreachable
+    printf 'NAME\tID\tSIZE\tMODIFIED\n'
+    printf '%s' "$body" | "$bun" -e 'const d = JSON.parse(await Bun.stdin.text()); for (const m of d.models) console.log(`${m.name}\t${m.digest.slice(0, 12)}\t${(m.size / 1e9).toFixed(1)} GB\t${m.modified_at}`)'
+    ;;
+  ps)
+    body="$(api GET /api/ps)" || unreachable
+    printf 'NAME\tID\tSIZE\tPROCESSOR\tCONTEXT\tUNTIL\n'
+    printf '%s' "$body" | "$bun" -e 'const d = JSON.parse(await Bun.stdin.text()); for (const m of d.models) console.log(`${m.name}\t${m.digest.slice(0, 12)}\t${(m.size / 1e9).toFixed(1)} GB\t100% GPU\t${m.context_length}\t${m.expires_at}`)'
+    ;;
+  pull)
+    [ -n "${2:-}" ] || { echo "Error: requires at least 1 arg(s), only received 0" >&2; exit 1; }
+    api POST /api/pull "{\"model\":\"$2\",\"stream\":true}" | "$bun" -e 'for await (const line of console) { try { const r = JSON.parse(line); if (r.error) { console.error(`Error: ${r.error}`); process.exit(1) } console.log(r.completed !== undefined ? `${r.status} ${Math.round((100 * r.completed) / r.total)}%` : r.status) } catch { } }' || unreachable
+    ;;
+  show)
+    [ -n "${2:-}" ] || { echo "Error: requires at least 1 arg(s), only received 0" >&2; exit 1; }
+    api POST /api/show "{\"model\":\"$2\"}" || { echo "Error: model '$2' not found" >&2; exit 1; }
+    echo
+    ;;
+  help|--help|-h|"")
+    cat <<'USAGE'
+Large language model runner (fixture)
+
+Usage:
+  ollama [flags]
+  ollama [command]
+
+Available Commands:
+  serve       Start ollama
+  pull        Pull a model from a registry
+  list        List models
+  ps          List running models
+  show        Show information for a model
+  help        Help about any command
+
+Flags:
+  -h, --help      help for ollama
+  -v, --version   Show version information
+USAGE
+    ;;
+  *)
+    echo "Error: unknown command \"$1\" for \"ollama\"" >&2
+    exit 1
+    ;;
+esac

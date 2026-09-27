@@ -214,7 +214,11 @@ over the native `/api/chat` stream (with `truncate: false`, so an over-window
 prompt is refused by the server rather than truncated); LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);
 vLLM and llama.cpp fix their window at server start, so the row shows the
-served figure and reads as not applicable. The lane is verified
+served figure and reads as not applicable. When no local server answers,
+`/localsetup` sets one up inside Mercury — it finds or installs Ollama, starts
+it, pulls `qwen3.5:9b`, sets the window from this machine's memory and ends
+with the model picked and a reply proven, each step asking before it runs
+([LOCAL-SETUP.md](LOCAL-SETUP.md)). The lane is verified
 against a live Ollama for discovery, streamed text, streamed reasoning and
 multi-round tool loops; the sub-agent dispatch, search-door and SATURN-fire
 legs remain operator-deferred drill lines. The Hugging Face lane carries an
