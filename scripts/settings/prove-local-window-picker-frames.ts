@@ -16,10 +16,18 @@ for (const name of Object.keys(process.env)) {
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-window-picker-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.FORCE_COLOR = '3'
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 const SERVED_MODEL = 'qwen3.5:9b-q4_K_M'
 const UNLOADED_MODEL = 'qwen3.5:27b'
+const GIB = 1024 ** 3
+const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
+const INFO: Record<string, Record<string, unknown>> = {
+  [SERVED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096 },
+  [UNLOADED_MODEL]: { 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 24, 'qwen35.attention.head_count_kv': kvHeads(64), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 64, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 5120 },
+}
+const SIZES: Record<string, number> = { [SERVED_MODEL]: 6594474711, [UNLOADED_MODEL]: 17420432728 }
 function json(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(JSON.stringify(body))
@@ -32,10 +40,13 @@ const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
     })
     req.on('end', () => {
       const url = req.url ?? ''
-      if (url === '/api/tags') return json(res, 200, { models: [SERVED_MODEL, UNLOADED_MODEL].map(name => ({ name, model: name, details: { family: 'qwen35' } })) })
+      if (url === '/api/tags') return json(res, 200, { models: [SERVED_MODEL, UNLOADED_MODEL].map(name => ({ name, model: name, size: SIZES[name], details: { family: 'qwen35' } })) })
       if (url === '/api/version') return json(res, 200, { version: '0.34.4' })
       if (url === '/api/ps') return json(res, 200, { models: [{ name: SERVED_MODEL, model: SERVED_MODEL, context_length: 262144 }] })
-      if (url === '/api/show') return json(res, 200, { parameters: '', model_info: { 'general.architecture': 'qwen35', 'qwen35.context_length': 262144 }, capabilities: ['completion', 'tools', 'thinking'], details: { family: 'qwen35' }, requested: raw })
+      if (url === '/api/show') {
+        const model = String((raw ? (JSON.parse(raw) as { model?: string }) : {}).model ?? '')
+        return json(res, 200, { parameters: '', model_info: INFO[model] ?? { 'general.architecture': 'qwen35', 'qwen35.context_length': 262144 }, capabilities: ['completion', 'tools', 'thinking'], details: { family: 'qwen35' }, requested: raw })
+      }
       json(res, 404, { error: 'not found' })
     })
   })
@@ -66,12 +77,15 @@ await stub('../../src/utils/settings/settings.js', () => ({ getInitialSettings: 
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.js')
 const { localRecordFor, LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
 const w = await import('../../src/services/providers/local/localWindow.js')
+const { __pinLocalServerTruthForTest } = await import('../../src/services/localServer/localServerTruth.js')
 const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
 const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 await refreshLocalDiscovery({ force: true })
 const served = localRecordFor(`local/${SERVED_MODEL}`)!
 const unloaded = localRecordFor(`local/${UNLOADED_MODEL}`)!
+__pinLocalServerTruthForTest({ loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'fixture' }, machine: { platform: 'darwin', totalMemoryBytes: 16 * GIB, usableMemoryBytes: 12 * GIB, usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }, readAtMs: Date.now() })
+const REFUSED_MAX = '[max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]'
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -111,7 +125,15 @@ async function mount(columns: number, rows: number, current: string) {
   await settle()
   return {
     frame: () => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
-    line: () => stripAnsi(instance.lastFrame()).split('\n').map(l => l.replace(/^│ ?/, '').replace(/ ?│$/, '').trim()).find(l => l.startsWith('window')) ?? '',
+    raw: () => instance.lastFrame(),
+    line: () => {
+      const rows = stripAnsi(instance.lastFrame()).split('\n').map(l => l.replace(/^│ ?/, '').replace(/ ?│$/, '').trim())
+      const at = rows.findIndex(l => l.startsWith('window'))
+      if (at < 0) return ''
+      let out = rows[at]!
+      for (let i = at + 1; i < rows.length && !/w cycles$|▍$|not a toggle$/.test(out); i++) out += ` ${rows[i]}`
+      return out
+    },
     closed: () => closed,
     async key(name: string, sequence = name) {
       const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
@@ -137,42 +159,50 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
 
   const board = await mount(geometry.columns, geometry.rows, `local/${SERVED_MODEL}`)
   const fits = (frame: string): boolean => frame.split('\n').every(line => stringWidth(line) <= geometry.columns) && frame.split('\n').length <= geometry.rows
-  check(`${geometry.tag}: the served row paints its window line unasked — auto resolved to 128k and held, the served figure the server's word`, board.line() === (wide ? 'window · served 256k · [auto → 128k held] · server · 32k · 64k · 128k · max · number · w cycles' : 'window [auto → 128k held] · server · 32k · 64k · 128k · max · w cycles') && fits(board.frame()), board.line())
+  check(`${geometry.tag}: the served row paints its window line unasked — auto resolved to the fit rung (128k on this 16 GiB box, f16, 1 slot) and held, the served figure the server's word`, board.line() === (wide ? 'window · served 256k · [auto → 128k fit held] · server · 32k · 64k · 128k · max · number · w cycles' : 'window [auto → 128k fit held] · server · 32k · 64k · 128k · max · w cycles') && fits(board.frame()), board.line())
   save(`served-row-choice-${geometry.tag}`, board.frame())
   const steps: Array<{ expect: string; setting: unknown }> = [
     { expect: '[server]', setting: 'server' },
     { expect: '[32k]', setting: 32768 },
     { expect: '[64k]', setting: 65536 },
     { expect: '[128k]', setting: 131072 },
-    { expect: '[max]', setting: 'max' },
+    { expect: REFUSED_MAX, setting: 'max' },
   ]
   let walked = true
   for (const step of steps) {
     const consumed = await board.key('w')
-    walked &&= consumed && board.line().includes(step.expect) && w.localWindowSettingOf(served) === step.setting
+    const line = board.line().replace(/\s+/g, ' ')
+    walked &&= consumed && line.includes(step.expect) && w.localWindowSettingOf(served) === step.setting
     if (!walked) {
       check(`${geometry.tag}: w walks the ladder — ${step.expect}`, false, `${board.line()} · setting ${String(w.localWindowSettingOf(served))}`)
       break
     }
   }
-  if (walked) check(`${geometry.tag}: w walks the ladder server → 32k → 64k → 128k → max, each persisted as the setting`, true)
-  save(`served-row-max-${geometry.tag}`, board.frame())
+  if (walked) check(`${geometry.tag}: w walks the ladder server → 32k → 64k → 128k → max, each persisted as the setting; max refuses politely — ${REFUSED_MAX}`, true)
+  check(`${geometry.tag}: the refusal is painted in the failure ink (an SGR opens right before the bracket)`, /\x1b\[[0-9;]*m\[max — /.test(board.raw()), board.raw().slice(Math.max(0, board.raw().indexOf('[max') - 30), board.raw().indexOf('[max') + 8))
+  save(`served-row-refused-${geometry.tag}`, board.frame())
   await board.key('w')
   check(`${geometry.tag}: after max, w opens the number prompt (type the tokens · ↵ sets · esc cancels)`, board.line().startsWith('window · type the tokens') && w.localWindowSettingOf(served) === 'max', board.line())
   save(`served-row-typing-${geometry.tag}`, board.frame())
   await board.key('escape', '\x1b')
-  check(`${geometry.tag}: esc cancels the prompt without closing the picker and leaves max`, board.closed() === 0 && board.line().includes('[max]') && w.localWindowSettingOf(served) === 'max', board.line())
+  check(`${geometry.tag}: esc cancels the prompt without closing the picker and leaves max (still refused)`, board.closed() === 0 && board.line().includes('[max —') && w.localWindowSettingOf(served) === 'max', board.line())
   await board.key('w')
   for (const ch of ['4', '8', 'k']) await board.key(ch)
   check(`${geometry.tag}: the typed tokens echo on the prompt`, board.line().endsWith('48k▍'), board.line())
   await board.key('return', '\r')
-  check(`${geometry.tag}: ↵ sets 48k as the number rung and persists 49152`, board.line().includes('[48k]') && w.localWindowSettingOf(served) === 49152, board.line())
+  check(`${geometry.tag}: ↵ sets 48k as the number rung and persists 49152; 48k fits so no refusal`, board.line().includes('[48k]') && w.localWindowSettingOf(served) === 49152, board.line())
   save(`served-row-number-${geometry.tag}`, board.frame())
   await board.key('w')
   check(`${geometry.tag}: from a number, w returns to auto (the setting cleared)`, board.line().includes('[auto') && w.localWindowSettingOf(served) === undefined, board.line())
   await board.key('down')
-  check(`${geometry.tag}: the unloaded row says so — not loaded, the trained max, auto with nothing held yet`, board.line() === (wide ? 'window · not loaded · max 256k · [auto] · server · 32k · 64k · 128k · max · number · w cycles' : 'window · not loaded [auto] · server · 32k · 64k · 128k · max · w cycles'), board.line())
+  check(`${geometry.tag}: the unloaded row says so — not loaded, the trained max, auto predicting the fit rung (the 27B on 16 GiB: nothing fits, the 32k floor) with nothing held yet`, board.line() === (wide ? 'window · not loaded · max 256k · [auto → 32k fit] · server · 32k · 64k · 128k · max · number · w cycles' : 'window · not loaded [auto → 32k fit] · server · 32k · 64k · 128k · max · w cycles'), board.line())
   save(`unloaded-row-choice-${geometry.tag}`, board.frame())
+  await board.key('w')
+  await board.key('w')
+  await board.key('w')
+  check(`${geometry.tag}: the 27B at 64k on 16 GiB refuses and says no rung fits — [64k — 20.2 GiB does not fit 12.0 GiB usable · no rung fits]`, board.line().replace(/\s+/g, ' ').includes('[64k — 20.2 GiB does not fit 12.0 GiB usable · no rung fits]') && w.localWindowSettingOf(unloaded) === 65536, board.line())
+  save(`unloaded-row-refused-${geometry.tag}`, board.frame())
+  w.writeLocalWindowSetting(unloaded, undefined)
   await board.key('up')
   await board.key('up')
   check(`${geometry.tag}: a non-local row paints no window line and w is not consumed there`, board.line() === '' && !(await board.key('w')), board.line())

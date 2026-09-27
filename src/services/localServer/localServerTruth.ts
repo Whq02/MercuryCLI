@@ -586,12 +586,20 @@ export function localServerProbingOff(env: NodeJS.ProcessEnv = process.env): boo
   return localProbeTargets(env).length === 0
 }
 
+function probingOffTruth(io: Io): LocalServerTruth {
+  return { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'probing is off (MERCURY_LOCAL_PROBE_TARGETS=none): nothing read' }, machine: { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory (probing off)' }, readAtMs: io.now() }
+}
+
+export async function readLocalMachineTruth(seam: LocalServerIo = {}, kind?: LocalServerKind): Promise<LocalServerTruth> {
+  const io = resolveLocalServerIo(seam)
+  if (localProbeTargets(io.env).length === 0) return probingOffTruth(io)
+  return { loaded: [], listed: [], ...(await readMachineSide(io, kind)), readAtMs: io.now() }
+}
+
 export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<LocalServerTruth> {
   const io = resolveLocalServerIo(seam)
   const targets = localProbeTargets(io.env)
-  if (targets.length === 0) {
-    return { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'probing is off (MERCURY_LOCAL_PROBE_TARGETS=none): nothing read' }, machine: { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory (probing off)' }, readAtMs: io.now() }
-  }
+  if (targets.length === 0) return probingOffTruth(io)
   let facts: Pick<LocalServerTruth, 'server' | 'loaded' | 'listed'> | undefined
   for (const target of targets) {
     try {
@@ -601,7 +609,17 @@ export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<Lo
     }
     if (facts) break
   }
-  const kind = facts?.server?.kind
+  const side = await readMachineSide(io, facts?.server?.kind)
+  return {
+    ...(facts?.server ? { server: facts.server } : {}),
+    loaded: facts?.loaded ?? [],
+    listed: facts?.listed ?? [],
+    ...side,
+    readAtMs: io.now(),
+  }
+}
+
+async function readMachineSide(io: Io, kind: LocalServerKind | undefined): Promise<Pick<LocalServerTruth, 'process' | 'runners' | 'launchForm' | 'machine'>> {
   let processTruth: { process?: ServerProcessTruth; runners: RunnerTruth[] } = { runners: [] }
   try {
     processTruth = await readProcessTruth(io, kind)
@@ -621,15 +639,17 @@ export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<Lo
     machine = { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory' }
   }
   return {
-    ...(facts?.server ? { server: facts.server } : {}),
-    loaded: facts?.loaded ?? [],
-    listed: facts?.listed ?? [],
     ...(processTruth.process ? { process: processTruth.process } : {}),
     runners: processTruth.runners,
     launchForm,
     machine,
-    readAtMs: io.now(),
   }
+}
+
+export function defaultMachineTruth(platform: NodeJS.Platform, totalMemoryBytes: number): MachineTruth {
+  const base = { platform, totalMemoryBytes }
+  if (platform === 'darwin') return { ...base, usableMemoryBytes: Math.round(totalMemoryBytes * METAL_DEFAULT_WORKING_SET), usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }
+  return { ...base, usableMemoryBytes: totalMemoryBytes, usableSource: 'total memory (no GPU reading)' }
 }
 
 export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Promise<MachineTruth> {
@@ -645,9 +665,8 @@ export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Pro
   if (io.platform === 'darwin') {
     const limit = Number((await io.run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim())
     if (Number.isFinite(limit) && limit > 0) return { ...base, usableMemoryBytes: Math.round(limit * 1024 * 1024), usableSource: 'iogpu.wired_limit_mb' }
-    return { ...base, usableMemoryBytes: Math.round(total * METAL_DEFAULT_WORKING_SET), usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }
   }
-  return { ...base, usableMemoryBytes: total, usableSource: 'total memory (no GPU reading)' }
+  return defaultMachineTruth(io.platform, total)
 }
 
 export const LOCAL_SERVER_TRUTH_TTL_MS = 15_000
@@ -701,8 +720,38 @@ export function refreshLocalServerTruth(opts?: LocalServerIo & { force?: boolean
   return inFlight
 }
 
+let machineCached: LocalServerTruth | null = null
+let machineInFlight: Promise<LocalServerTruth> | null = null
+
+export function cachedLocalMachineTruth(): LocalServerTruth | null {
+  return pinned ?? cached ?? machineCached
+}
+
+export function refreshLocalMachineTruth(kind?: LocalServerKind, opts?: LocalServerIo & { force?: boolean }): Promise<LocalServerTruth> {
+  const now = opts?.now ?? Date.now
+  if (pinned) return Promise.resolve(pinned)
+  if (!opts?.force && cached && now() - cached.readAtMs < LOCAL_SERVER_TRUTH_TTL_MS) return Promise.resolve(cached)
+  if (!opts?.force && machineCached && now() - machineCached.readAtMs < LOCAL_SERVER_TRUTH_TTL_MS) return Promise.resolve(machineCached)
+  if (machineInFlight) return machineInFlight
+  const { force: _force, ...io } = opts ?? {}
+  machineInFlight = (async (): Promise<LocalServerTruth> => {
+    try {
+      const truth = await readLocalMachineTruth(io, kind)
+      machineCached = truth
+      stamp++
+      for (const listener of listeners) listener()
+      return truth
+    } finally {
+      machineInFlight = null
+    }
+  })()
+  return machineInFlight
+}
+
 export function __resetLocalServerTruthForTest(): void {
   cached = null
   inFlight = null
   pinned = null
+  machineCached = null
+  machineInFlight = null
 }

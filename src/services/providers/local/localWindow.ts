@@ -1,6 +1,9 @@
+import { totalmem } from 'node:os'
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
+import { fitLocalWindowOn, localWindowRefusal, type LocalWindowFit } from '../../localServer/localWindowFit.js'
+import { cachedLocalMachineTruth, defaultMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
 import type { LocalModelRecord } from './localDiscovery.js'
-import { LOCAL_MODEL_PREFIX } from './localCatalogue.js'
+import { LOCAL_MODEL_PREFIX, localRecordFor } from './localCatalogue.js'
 
 export type LocalWindowSetting = 'server' | 'max' | number
 
@@ -51,18 +54,66 @@ export function writeLocalWindowSetting(record: Pick<LocalModelRecord, 'id'>, se
   })
 }
 
-export function autoLocalWindow(estTokens: number, modelMax?: number): number {
+export function doubledRequestWindow(estTokens: number, modelMax?: number): number {
   const doubled = Math.max(0, Math.ceil(estTokens)) * 2
   const rounded = Math.ceil(doubled / LOCAL_WINDOW_STEP) * LOCAL_WINDOW_STEP
   const floored = Math.max(LOCAL_WINDOW_FLOOR, rounded)
   return modelMax !== undefined && modelMax > 0 ? Math.min(modelMax, floored) : floored
 }
 
-export function chooseLocalWindow(record: Pick<LocalModelRecord, 'modelMaxContext'>, estTokens: number, setting: LocalWindowSetting | undefined): number | undefined {
-  if (setting === 'server') return undefined
-  if (setting === 'max') return record.modelMaxContext
-  if (typeof setting === 'number') return record.modelMaxContext !== undefined ? Math.min(setting, record.modelMaxContext) : setting
-  return autoLocalWindow(estTokens, record.modelMaxContext)
+export type LocalWindowReason = 'max' | 'fit' | 'set' | 'srv' | 'req'
+
+export interface LocalWindowDecision {
+  window: number | undefined
+  reason: LocalWindowReason
+  words: string
+  fit?: LocalWindowFit
+}
+
+export type LocalWindowFitRecord = Pick<LocalModelRecord, 'id' | 'modelMaxContext' | 'weightsBytes' | 'geometry'>
+
+export interface FallbackMachine {
+  platform: NodeJS.Platform
+  totalMemoryBytes: number
+}
+
+export function localWindowTruth(): LocalServerTruth | null {
+  return cachedLocalMachineTruth()
+}
+
+export function localWindowFitOf(record: LocalWindowFitRecord, truth: LocalServerTruth | null = localWindowTruth()): LocalWindowFit | undefined {
+  if (truth === null || record.geometry === undefined || record.weightsBytes === undefined) return undefined
+  return fitLocalWindowOn(truth, { name: record.id, weightsBytes: record.weightsBytes, geometry: record.geometry, ...(record.modelMaxContext !== undefined ? { trainedMax: record.modelMaxContext } : {}) })
+}
+
+const fmt = (n: number): string => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}k` : String(n))
+const DOUBLING_RULE = 'twice the first request, rounded up to 16k, never under 32k, capped at the trained max'
+
+function doubledDecision(record: LocalWindowFitRecord, estTokens: number, why: string): LocalWindowDecision {
+  const window = doubledRequestWindow(estTokens, record.modelMaxContext)
+  return { window, reason: 'req', words: `${fmt(window)} · ${DOUBLING_RULE} (≈${Math.round(estTokens / 1000)}k asked) — ${why}` }
+}
+
+export function chooseLocalWindow(record: LocalWindowFitRecord, estTokens: number, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth(), machine: FallbackMachine = { platform: process.platform, totalMemoryBytes: totalmem() }): LocalWindowDecision {
+  const max = record.modelMaxContext
+  if (setting === 'server') return { window: undefined, reason: 'srv', words: 'server default — the server chooses the window' }
+  if (setting === 'max') {
+    const fit = localWindowFitOf(record, truth)
+    const refusal = fit !== undefined && max !== undefined ? localWindowRefusal(fit, max) : undefined
+    return { window: max, reason: 'max', words: max !== undefined ? `${fmt(max)} · the trained max — your setting${refusal !== undefined ? ` — ${refusal}` : ''}` : 'trained max not stated — the server chooses the window', ...(fit !== undefined ? { fit } : {}) }
+  }
+  if (typeof setting === 'number') {
+    const window = max !== undefined ? Math.min(setting, max) : setting
+    const fit = localWindowFitOf(record, truth)
+    const refusal = fit !== undefined ? localWindowRefusal(fit, window) : undefined
+    return { window, reason: 'set', words: `${fmt(window)} · your setting${refusal !== undefined ? ` — ${refusal}` : ''}`, ...(fit !== undefined ? { fit } : {}) }
+  }
+  const fit = localWindowFitOf(record, truth)
+  if (fit !== undefined) return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, fit }
+  if (record.geometry === undefined || record.weightsBytes === undefined) return doubledDecision(record, estTokens, `no KV geometry read for ${record.id}`)
+  const guess = fitLocalWindowOn({ loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: '' }, machine: defaultMachineTruth(machine.platform, machine.totalMemoryBytes), readAtMs: 0 }, { name: record.id, weightsBytes: record.weightsBytes, geometry: record.geometry, ...(max !== undefined ? { trainedMax: max } : {}) })
+  if (max !== undefined && guess.atMax && guess.fits) return { window: max, reason: 'max', words: `${guess.words} — no memory truth read, the fraction rule`, fit: guess }
+  return doubledDecision(record, estTokens, `no memory truth read and ${max !== undefined ? fmt(max) : 'the trained max'} does not fit by the fraction rule (${guess.usableSource ?? 'the fraction rule'})`)
 }
 
 export type LocalWindowApplication = 'request' | 'load' | 'server-start' | 'none'
@@ -81,8 +132,7 @@ export function localWindowApplication(record: Pick<LocalModelRecord, 'server'>)
   }
 }
 
-export interface HeldLocalWindow {
-  window: number | undefined
+export interface HeldLocalWindow extends LocalWindowDecision {
   setting: LocalWindowSetting | undefined
   estTokens: number
 }
@@ -97,25 +147,37 @@ export function heldLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server'>)
   return held.get(holdKey(record))
 }
 
-export function decideLocalWindow(record: Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext'>, estTokens: number, setting: LocalWindowSetting | undefined = localWindowSettingOf(record)): HeldLocalWindow {
+export type LocalWindowDecisionRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'weightsBytes' | 'geometry'>
+
+export function decideLocalWindow(record: LocalWindowDecisionRecord, estTokens: number, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): HeldLocalWindow {
   const application = localWindowApplication(record)
   if (application === 'server-start' || application === 'none') {
-    const none: HeldLocalWindow = { window: undefined, setting, estTokens }
+    const none: HeldLocalWindow = { window: undefined, reason: 'srv', words: application === 'server-start' ? 'set at server start' : 'not applicable to this server', setting, estTokens }
     held.set(holdKey(record), none)
     return none
   }
   const before = held.get(holdKey(record))
   if (before !== undefined && before.setting === setting) return before
-  const decided: HeldLocalWindow = { window: chooseLocalWindow(record, estTokens, setting), setting, estTokens }
+  const decided: HeldLocalWindow = { ...chooseLocalWindow(record, estTokens, setting, truth), setting, estTokens }
   held.set(holdKey(record), decided)
   return decided
+}
+
+export async function ensureLocalWindowTruth(record: LocalWindowDecisionRecord, setting: LocalWindowSetting | undefined = localWindowSettingOf(record)): Promise<LocalServerTruth | null> {
+  const before = heldLocalWindow(record)
+  if (before !== undefined && before.setting === setting) return localWindowTruth()
+  if (setting === 'server' || setting === 'max') return localWindowTruth()
+  if (record.geometry === undefined || record.weightsBytes === undefined) return localWindowTruth()
+  try {
+    return await refreshLocalMachineTruth(record.server)
+  } catch {
+    return localWindowTruth()
+  }
 }
 
 export function __resetLocalWindowsForTest(): void {
   held.clear()
 }
-
-const fmt = (n: number): string => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}k` : String(n))
 
 export function localWindowSettingWords(setting: LocalWindowSetting | undefined): string {
   if (setting === undefined) return 'auto'
@@ -124,7 +186,24 @@ export function localWindowSettingWords(setting: LocalWindowSetting | undefined)
   return fmt(setting)
 }
 
-export function localWindowValueWords(record: Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow'>, setting: LocalWindowSetting | undefined = localWindowSettingOf(record)): string {
+export const LOCAL_WINDOW_REASON_WORDS: Readonly<Record<LocalWindowReason, string>> = {
+  max: 'the trained max',
+  fit: 'the biggest rung that fits',
+  set: 'your setting',
+  srv: 'the server default',
+  req: 'twice the request',
+}
+
+export function localWindowRefusalWords(record: LocalWindowFitRecord, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth()): string | undefined {
+  const fit = localWindowFitOf(record, truth)
+  if (fit === undefined) return undefined
+  const window = setting === 'max' ? record.modelMaxContext : typeof setting === 'number' ? (record.modelMaxContext !== undefined ? Math.min(setting, record.modelMaxContext) : setting) : undefined
+  return window === undefined ? undefined : localWindowRefusal(fit, window)
+}
+
+export type LocalWindowWordsRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow' | 'weightsBytes' | 'geometry'>
+
+export function localWindowValueWords(record: LocalWindowWordsRecord, setting: LocalWindowSetting | undefined = localWindowSettingOf(record), truth: LocalServerTruth | null = localWindowTruth()): string {
   const application = localWindowApplication(record)
   const served = record.contextWindow?.source === 'served' ? ` · served ${fmt(record.contextWindow.tokens)}` : ''
   if (application === 'server-start') {
@@ -132,9 +211,32 @@ export function localWindowValueWords(record: Pick<LocalModelRecord, 'id' | 'ser
   }
   if (application === 'none') return 'not applicable to this server'
   const hold = heldLocalWindow(record)
-  const chosen = hold !== undefined && hold.setting === setting && hold.window !== undefined ? ` → ${fmt(hold.window)} held this session` : ''
+  const refusal = localWindowRefusalWords(record, setting, truth)
+  const refused = refusal !== undefined ? ` — ${refusal}` : ''
+  const fit = setting === undefined && (hold === undefined || hold.setting !== undefined) ? localWindowFitOf(record, truth) : undefined
+  const chosen =
+    hold !== undefined && hold.setting === setting && hold.window !== undefined
+      ? ` → ${fmt(hold.window)} held this session (${LOCAL_WINDOW_REASON_WORDS[hold.reason]})`
+      : fit !== undefined
+        ? ` → ${fmt(fit.window)} (${fit.atMax ? LOCAL_WINDOW_REASON_WORDS.max : LOCAL_WINDOW_REASON_WORDS.fit})`
+        : ''
   const road = application === 'request' ? 'num_ctx on every request' : 'applied at load'
-  return `${localWindowSettingWords(setting)}${chosen}${served} · ${road}`
+  return `${localWindowSettingWords(setting)}${refused}${chosen}${served} · ${road}`
+}
+
+export function localWindowReasonTag(model: string, window: number): LocalWindowReason | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined || !(window > 0)) return undefined
+  const hold = heldLocalWindow(record)
+  if (hold?.window !== undefined) return hold.window === window ? hold.reason : undefined
+  return record.contextWindow?.source === 'served' && record.contextWindow.tokens === window ? 'srv' : undefined
+}
+
+export function localWindowRuleWords(model: string, window: number): string | undefined {
+  const record = localRecordFor(model)
+  if (record === undefined || !(window > 0)) return undefined
+  const hold = heldLocalWindow(record)
+  return hold?.window !== undefined && hold.window === window ? hold.words : undefined
 }
 
 export function nextLocalWindowSetting(current: LocalWindowSetting | undefined, direction: 1 | -1): LocalWindowSetting | undefined {
@@ -151,9 +253,10 @@ export function localWindowRungOf(setting: LocalWindowSetting | undefined): Loca
   return setting
 }
 
-export function localWindowChoiceLine(record: Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow'>, opts: { wide: boolean; typing?: string; setting?: LocalWindowSetting | undefined }): string {
+export function localWindowChoiceLine(record: LocalWindowWordsRecord, opts: { wide: boolean; typing?: string; setting?: LocalWindowSetting | undefined; truth?: LocalServerTruth | null }): string {
   if (opts.typing !== undefined) return `window · type the tokens (49152 or 48k) · ↵ sets · esc cancels · ${opts.typing}▍`
   const setting = opts.setting !== undefined ? opts.setting : localWindowSettingOf(record)
+  const truth = opts.truth !== undefined ? opts.truth : localWindowTruth()
   const rung = localWindowRungOf(setting)
   const hold = heldLocalWindow(record)
   const application = localWindowApplication(record)
@@ -164,12 +267,26 @@ export function localWindowChoiceLine(record: Pick<LocalModelRecord, 'id' | 'ser
         ? `${localWindowSettingWords(record.contextWindow.tokens)} ${record.contextWindow.source === 'modelfile' ? 'num_ctx' : 'model max'}`
         : 'not loaded'
   const trained = opts.wide && record.contextWindow === undefined && record.modelMaxContext !== undefined ? ` · max ${fmt(record.modelMaxContext)}` : ''
-  const auto = rung === undefined && hold !== undefined && hold.setting === undefined && hold.window !== undefined ? `auto → ${fmt(hold.window)} held` : 'auto'
+  const fit = hold === undefined || hold.setting !== undefined ? localWindowFitOf(record, truth) : undefined
+  const auto =
+    hold !== undefined && hold.setting === undefined && hold.window !== undefined
+      ? `auto → ${fmt(hold.window)} ${hold.reason} held`
+      : fit !== undefined
+        ? `auto → ${fmt(fit.window)} ${fit.atMax ? 'max' : 'fit'}`
+        : 'auto'
   const number = rung === 'number' && typeof setting === 'number' ? fmt(setting) : 'number'
+  const refusal = localWindowRefusalWords(record, setting, truth)
   const rungs: Array<[LocalWindowRung, string]> = [[undefined, auto], ['server', 'server'], [32_768, '32k'], [65_536, '64k'], [131_072, '128k'], ['max', 'max'], ['number', number]]
   const shown = opts.wide || rung === 'number' ? rungs : rungs.filter(([key]) => key !== 'number')
-  const ladder = shown.map(([key, label]) => (key === rung ? `[${label}]` : label)).join(' · ')
+  const ladder = shown.map(([key, label]) => (key === rung ? `[${label}${refusal !== undefined ? ` — ${refusal}` : ''}]` : label)).join(' · ')
   if (application === 'server-start' || application === 'none') return `window · ${state} · set at server start · not a toggle`
   if (!opts.wide) return record.contextWindow === undefined ? `window · not loaded ${ladder} · w cycles` : `window ${ladder} · w cycles`
   return `window · ${state}${trained} · ${ladder} · w cycles`
+}
+
+export function localWindowRefusalSpan(line: string): { start: number; end: number } | undefined {
+  const head = /\[[^\]]* — [^\]]*(?:\]|$)/.exec(line)
+  if (head !== null) return { start: head.index, end: head.index + head[0].length }
+  const tail = /^[^[]*?fits\]/.exec(line)
+  return tail === null ? undefined : { start: 0, end: tail[0].length }
 }

@@ -94,7 +94,7 @@ import type { ModelChoice } from '../MercuryModelPicker.js'
 import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
-import { localWindowApplication, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
+import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
@@ -232,26 +232,30 @@ export function localModelWindowRow(
   record: ReturnType<typeof localRecordFor>,
   route: string,
   _stamp?: number,
-): { applies: boolean; valueText: string; note: string; setByYou: boolean } {
+): { applies: boolean; valueText: string; note: string; setByYou: boolean; overFit: boolean } {
   if (route !== 'local' || record === undefined) {
     const activeLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
     return {
       applies: false,
       valueText: `n/a — applies to local models (${activeLabel} is active)`,
-      note: 'The served context window of a local model — /model picks a local model first; then ←/→ choose server default · 32k · 64k · 128k · trained max, or auto (chosen at first send and held for the session).',
+      note: 'The served context window of a local model — /model picks a local model first; then ←/→ choose server default · 32k · 64k · 128k · trained max, or auto (the biggest window that fits this machine, chosen at first send and held for the session).',
       setByYou: false,
+      overFit: false,
     }
   }
   const setting = localWindowSettingOf(record)
   const application = localWindowApplication(record)
   const applies = application === 'request' || application === 'load'
+  const refusal = applies ? localWindowRefusalWords(record, setting) : undefined
+  const held = applies ? heldLocalWindow(record) : undefined
+  const rule = held !== undefined && held.setting === setting && held.window !== undefined ? ` Held this session: ${held.words}.` : ''
   const note =
     application === 'server-start'
       ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
       : application === 'none'
         ? `${record.id}: an unknown server kind — the setting does not apply.`
-        : `${record.id}: auto = the smallest of the trained maximum and twice the first request (rounded up to 16k, never under 32k), held for the session; a change reloads the model on the next send (the ingested prompt is read again). ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
-  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined }
+        : `${record.id}: auto = the biggest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache at the server's cache type and slots) fits the memory usable for models, never above the trained max — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
+  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined }
 }
 
 export interface ConfigProviderRow {
@@ -873,7 +877,7 @@ export function Config({
     label: 'Local model window',
     searchText: 'local model window context num_ctx ollama lm studio served window',
     kind: 'enum',
-    value: <Text color={localWindowRow.applies ? undefined : tokens.textSecondary} wrap="truncate-end">{localWindowRow.valueText}</Text>,
+    value: <Text color={localWindowRow.overFit ? tokens.failureText : localWindowRow.applies ? undefined : tokens.textSecondary} wrap="truncate-end">{localWindowRow.valueText}</Text>,
     setByYou: localWindowRow.setByYou,
     warning: localWindowRow.note,
     change: direction => {

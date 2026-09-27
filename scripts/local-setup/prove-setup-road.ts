@@ -13,6 +13,8 @@ delete process.env.MERCURY_MODEL
 const { proofHome } = await import('../lib/hermetic.ts')
 const setup = await import('../../src/services/localSetup/index.ts')
 const memory = await import('../../src/services/localServer/localServerMemory.ts')
+const memory_truth = await import('../../src/services/localServer/localServerTruth.ts')
+type LocalServerTruth = import('../../src/services/localServer/localServerTruth.ts').LocalServerTruth
 const { localWindowSettingOf } = await import('../../src/services/providers/local/localWindow.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -223,7 +225,16 @@ function daemonDoor(answer: setup.SessionSwitchReceipt = { state: 'applied' }): 
   return door
 }
 
+const OWNER_USABLE = Math.round(36.9 * GIB)
+const OWNER_LOG_SOURCE = "the server's own gpu memory line in /fixture/home/.ollama/logs/server.log (Metal)"
+
+function fixtureTruth(platform: NodeJS.Platform, totalMemoryBytes: number): LocalServerTruth {
+  const machine = totalMemoryBytes === 51539607552 ? { platform, totalMemoryBytes, usableMemoryBytes: OWNER_USABLE, usableSource: OWNER_LOG_SOURCE } : memory_truth.defaultMachineTruth(platform, totalMemoryBytes)
+  return { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'fixture' }, machine, readAtMs: 0 }
+}
+
 function machineIo(m: Machine, fx: Fixture | undefined, extra: Partial<setup.SetupIo> = {}): setup.SetupIo {
+  const totalMemoryBytes = extra.totalMemoryBytes ?? 51539607552
   return {
     env: { PATH: '/nowhere', ...(fx ? { MERCURY_LOCAL_PROBE_TARGETS: `ollama=${fx.root}` } : {}), ...(extra.env ?? {}) },
     platform: m.platform,
@@ -243,8 +254,9 @@ function machineIo(m: Machine, fx: Fixture | undefined, extra: Partial<setup.Set
       if (answer) return answer
       return { rc: 1, stdout: '', stderr: `fixture: ${file} ${args.join(' ')} not answered`, lastLine: 'not answered' }
     },
-    totalMemoryBytes: 51539607552,
+    totalMemoryBytes,
     parallelSlots: 1,
+    readTruth: async () => fixtureTruth(m.platform, totalMemoryBytes),
     focusedConnector: () => IN_PROCESS_DOOR,
     ...extra,
   }
@@ -405,42 +417,48 @@ section('§4 step 4: the pull streams three progress rows then success; s-skip w
   await fx.close()
 }
 
-section('§5 step 5: the window from this machine\'s memory — projectLoad over the ladder, the memory module\'s fit rule')
+section('§5 step 5: the window from this machine\'s memory — the one fit owner (localWindowFit) over the ladder, the ceiling from the truth reader')
 {
   const geometry = memory.kvGeometryOf(HYBRID_INFO)!
   check('the 9B geometry as /api/show states it: 8 attention layers × 4 KV heads, 32 KiB per token at f16', geometry.kvHeads === 32 && geometry.attentionLayers === 8 && memory.kvBytesPerToken(geometry) === 32768, JSON.stringify(geometry))
   const dense = memory.kvGeometryOf(DENSE_INFO)!
   check('a dense reading of the same numbers: every layer holds KV, 256 KiB per token', dense.kvHeads === 256 && memory.kvBytesPerToken(dense) === 262144, JSON.stringify(dense))
-  const pick = (machineBytes: number, g: typeof geometry): setup.WindowChoice => setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry: g, trainedMax: 262144, machineBytes, slots: 1 })
+  const usableOf = (machineBytes: number): number => fixtureTruth('darwin', machineBytes).machine.usableMemoryBytes
+  const pick = (machineBytes: number, g: typeof geometry): setup.WindowChoice => setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry: g, trainedMax: 262144, machineBytes, usableBytes: usableOf(machineBytes), usableSource: fixtureTruth('darwin', machineBytes).machine.usableSource, slots: 1 })
   const hybrid = { box8: pick(8 * GB, geometry), box12: pick(12 * GB, geometry), box16: pick(16 * GB, geometry), box48: pick(51539607552, geometry), box96: pick(96 * GB, geometry) }
-  check('hybrid 9B on an 8 GB box: nothing fits, 32k is the floor and says so', hybrid.box8.window === 32768 && !hybrid.box8.fits && hybrid.box8.words.includes('does not fit'), hybrid.box8.words)
-  check('hybrid 9B on a 12 GB box: 64k', hybrid.box12.window === 65536 && hybrid.box12.fits, hybrid.box12.words)
-  check('hybrid 9B on a 16 GB box: 128k', hybrid.box16.window === 131072 && hybrid.box16.fits, hybrid.box16.words)
-  check('hybrid 9B on this 48 GiB box: 256k (14.1 GiB of 43.2 GiB usable)', hybrid.box48.window === 262144 && hybrid.box48.fits && hybrid.box48.words === '256k · 6.1 GiB weights + 8.0 GiB cache of 43.2 GiB usable (48.0 GiB box)', hybrid.box48.words)
+  check('hybrid 9B on an 8 GB box (5.6 GiB usable by the Metal rule): nothing fits, 32k is the floor and says so', hybrid.box8.window === 32768 && !hybrid.box8.fits && hybrid.box8.words === '32k · 6.1 GiB weights + 1.0 GiB cache — 7.1 GiB does not fit in 5.6 GiB usable (7.5 GiB box) · f16 · 1 slot', hybrid.box8.words)
+  check('hybrid 9B on a 12 GB box (8.4 GiB usable): 64k, and the words say 128k does not fit', hybrid.box12.window === 65536 && hybrid.box12.fits && hybrid.box12.words === '64k · 6.1 GiB weights + 2.0 GiB cache of 8.4 GiB usable (11.2 GiB box) · f16 · 1 slot · 128k does not fit (10.1 GiB)', hybrid.box12.words)
+  check('hybrid 9B on a 16 GB box (11.2 GiB usable): 128k', hybrid.box16.window === 131072 && hybrid.box16.fits && hybrid.box16.words.startsWith('128k · 6.1 GiB weights + 4.0 GiB cache of 11.2 GiB usable (14.9 GiB box) · f16 · 1 slot · 256k does not fit'), hybrid.box16.words)
+  check("hybrid 9B on this 48 GiB box: 256k (14.1 GiB of 36.9 GiB usable — the server's own gpu memory line, not a fraction)", hybrid.box48.window === 262144 && hybrid.box48.fits && hybrid.box48.words === '256k · 6.1 GiB weights + 8.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot' && hybrid.box48.usableSource === OWNER_LOG_SOURCE, hybrid.box48.words)
   check('hybrid 9B on a 96 GB box: 256k', hybrid.box96.window === 262144 && hybrid.box96.fits, hybrid.box96.words)
   const denseLadder = { box16: pick(16 * GB, dense), box52: pick(52 * GB, dense), box96: pick(96 * GB, dense) }
-  check('dense 9B on a 16 GB box: 32k (the floor; 14.1 GiB does not fit 13.4 GiB usable)', denseLadder.box16.window === 32768 && !denseLadder.box16.fits, denseLadder.box16.words)
-  check('dense 9B on a 52 GB box: 128k', denseLadder.box52.window === 131072 && denseLadder.box52.fits && denseLadder.box52.words.startsWith('128k · 6.1 GiB weights + 32.0 GiB cache of 43.6 GiB usable'), denseLadder.box52.words)
-  check('dense 9B on a 96 GB box: 256k', denseLadder.box96.window === 262144 && denseLadder.box96.fits, denseLadder.box96.words)
+  check('dense 9B on a 16 GB box: 32k (the floor; 14.1 GiB does not fit 11.2 GiB usable)', denseLadder.box16.window === 32768 && !denseLadder.box16.fits && denseLadder.box16.words.includes('14.1 GiB does not fit in 11.2 GiB usable'), denseLadder.box16.words)
+  check('dense 9B on a 52 GB box (36.3 GiB usable): 64k — 128k would be 38.1 GiB', denseLadder.box52.window === 65536 && denseLadder.box52.fits && denseLadder.box52.words === '64k · 6.1 GiB weights + 16.0 GiB cache of 36.3 GiB usable (48.4 GiB box) · f16 · 1 slot · 128k does not fit (38.1 GiB)', denseLadder.box52.words)
+  check('dense 9B on a 96 GB box (67.1 GiB usable): 128k — 256k would be 70.1 GiB', denseLadder.box96.window === 131072 && denseLadder.box96.fits && denseLadder.box96.words.endsWith('· 256k does not fit (70.1 GiB)'), denseLadder.box96.words)
   for (const [name, choice] of Object.entries({ ...hybrid, ...denseLadder })) {
     const next = choice.ladder.find(r => r.window > choice.window)
-    const chosenFits = memory.fitWords(choice.totalBytes, choice.machineBytes).startsWith('fits')
-    const nextFits = next === undefined ? false : memory.fitWords(next.totalBytes, choice.machineBytes).startsWith('fits')
-    check(`${name}: the chosen rung is the memory module's own "fits" and the next rung is not (${choice.words})`, (choice.fits ? chosenFits : !chosenFits) && !nextFits)
+    const chosenFits = choice.totalBytes <= choice.usableBytes
+    const nextFits = next === undefined ? false : next.totalBytes <= choice.usableBytes
+    const projected = memory.projectLoad({ name: TAG, weightsBytes: WEIGHTS, geometry: choice.geometry }, choice.window, 1, 'f16').totalBytes
+    check(`${name}: the chosen rung fits the ceiling and the next rung does not, by the memory module's own projectLoad (${choice.words})`, (choice.fits ? chosenFits : !chosenFits) && !nextFits && projected === choice.totalBytes)
   }
-  const capped = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 40960, machineBytes: 96 * GB, slots: 1 })
+  const capped = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 40960, machineBytes: 96 * GB, usableBytes: usableOf(96 * GB), slots: 1 })
   check('never above the trained maximum: a 40k-trained model gets 32k', capped.window === 32768 && capped.ladder.length === 1, JSON.stringify(capped.ladder))
-  const slots4 = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 262144, machineBytes: 16 * GB, slots: 4 })
-  check('slots multiply the cache: 4 slots on 16 GB ⇒ 32k', slots4.window === 32768 && slots4.fits && slots4.words.includes('4 slots'), slots4.words)
+  const slots4 = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 262144, machineBytes: 16 * GB, usableBytes: usableOf(16 * GB), slots: 4 })
+  check('slots multiply the cache: 4 slots on 16 GB ⇒ 32k', slots4.window === 32768 && slots4.fits && slots4.words.includes('· f16 · 4 slots'), slots4.words)
+  const q8 = setup.chooseWindowFrom({ tag: TAG, weightsBytes: WEIGHTS, geometry, trainedMax: 262144, machineBytes: 51539607552, usableBytes: OWNER_USABLE, slots: 1, cacheType: 'q8_0' })
+  check("the owner's own cache type: q8_0 halves the cache — 256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot", q8.window === 262144 && q8.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', q8.words)
   const fx = await fixtureOllama()
   fx.state.up = true
   fx.state.listed = [TAG]
   const written: Array<[string, number]> = []
   const io = machineIo(bareMachine(), fx, { writeWindow: (tag, window) => written.push([tag, window]) })
   const chosen = await setup.chooseWindow(fx.root, TAG, io)
-  check('chooseWindow reads /api/tags and /api/show and writes through the window seam', chosen.window === 262144 && chosen.trainedMax === 262144 && chosen.weightsBytes === WEIGHTS && written.length === 1 && written[0]![0] === TAG && written[0]![1] === 262144 && fx.hits.some(h => h.url === '/api/show' && h.body === JSON.stringify({ model: TAG })), JSON.stringify({ chosen: chosen.words, written }))
-  const real = await setup.chooseWindow(fx.root, TAG, { ...io, writeWindow: undefined, totalMemoryBytes: 16 * GB })
+  check("chooseWindow reads /api/tags and /api/show, the ceiling through the truth seam, and writes through the window seam", chosen.window === 262144 && chosen.trainedMax === 262144 && chosen.weightsBytes === WEIGHTS && chosen.usableSource === OWNER_LOG_SOURCE && written.length === 1 && written[0]![0] === TAG && written[0]![1] === 262144 && fx.hits.some(h => h.url === '/api/show' && h.body === JSON.stringify({ model: TAG })), JSON.stringify({ chosen: chosen.words, written }))
+  const real = await setup.chooseWindow(fx.root, TAG, { ...io, writeWindow: undefined, totalMemoryBytes: 16 * GB, readTruth: async () => fixtureTruth('darwin', 16 * GB) })
   check('with the default writer the per-model window setting reads back through localWindow.ts', real.window === 131072 && localWindowSettingOf({ id: TAG }) === 131072, String(localWindowSettingOf({ id: TAG })))
+  const runner = await setup.chooseWindow(fx.root, TAG, { ...io, parallelSlots: undefined, readTruth: async () => ({ ...fixtureTruth('darwin', 51539607552), runners: [{ command: 'llama-server -np 4 --cache-type-k q8_0', slots: 4, cacheTypeK: 'q8_0' }] }) })
+  check("with no slots asked through the seam the runner's -np and -ctk decide: 4 slots at q8_0 ⇒ 256k, 17.0 GiB cache", runner.window === 262144 && runner.slots === 4 && runner.cacheType === 'q8_0' && runner.words === '256k · 6.1 GiB weights + 17.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 4 slots', runner.words)
   const homeFiles = readdirSync(proofHome)
   const configFile = homeFiles.find(f => f.endsWith('.json') && readFileSync(join(proofHome, f), 'utf8').includes('"local/qwen3.5:9b"'))
   check('the setting lives in the scratch config home, under the local/ key', configFile !== undefined, homeFiles.join(', '))
@@ -619,7 +637,9 @@ section('§9 the road end to end: install offered, run through the seam, then st
   const result4 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '4')!
   check('the pull result row says success and the size', result4.result.lastLine === 'qwen3.5:9b: success · 6.6 GB · 7 rows', result4.result.lastLine)
   const result5 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '5')!
-  check('the window row says the figures', result5.result.lastLine === '256k · 6.1 GiB weights + 8.0 GiB cache of 43.2 GiB usable (48.0 GiB box)', result5.result.lastLine)
+  check("the window row says the figures on the one rule: 256k · 6.1 GiB weights + 8.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot", result5.result.lastLine === '256k · 6.1 GiB weights + 8.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot', result5.result.lastLine)
+  const step5 = events.find((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step' && e.plan.label === '5')!
+  check("step 5's plan names the one rule: the usable ceiling (the server's own gpu memory line), the cache type and slots, the same rule auto uses", step5.plan.found.includes("fits the memory usable for models (the server's own gpu memory line when it states one)") && step5.plan.found.includes('the same rule auto uses at every send') && !step5.plan.found.includes('0.9'), step5.plan.found)
   const result6 = events.find((e): e is Extract<setup.SetupEvent, { type: 'result' }> => e.type === 'result' && e.result.label === '6')!
   check('the prove row carries the timings', result6.result.lastLine.startsWith('load 5.2 s · ingest 14 tokens in 0.3 s (47 tok/s) · reply 2 tokens in 0.2 s · total '), result6.result.lastLine)
   const detail6 = result6.result.detail as setup.ProveResult | undefined

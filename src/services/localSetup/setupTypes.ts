@@ -1,5 +1,7 @@
 import type { LocalServerKind } from '../providers/local/localDiscovery.js'
 import type { ModelTransitionReceipt } from '../../utils/model/modelTransition.js'
+import type { LocalServerTruth } from '../localServer/localServerTruth.js'
+import { LOCAL_WINDOW_LADDER, type LocalWindowFit } from '../localServer/localWindowFit.js'
 
 export const SETUP_MODEL_TAG = 'qwen3.5:9b'
 export const SETUP_MODEL_ID = 'local/qwen3.5:9b'
@@ -7,8 +9,7 @@ export const SETUP_MODEL_LIBRARY_SIZE_WORDS = '6.6 GB'
 export const SETUP_PROVE_PROMPT = 'reply with the single word ready'
 export const SETUP_PROVE_MAX_TOKENS = 64
 export const SETUP_KEYS_LINE = '↵ run · s skip · esc stop'
-export const SETUP_WINDOW_LADDER: readonly number[] = [32_768, 65_536, 131_072, 262_144]
-export const SETUP_USABLE_FRACTION = 0.9
+export const SETUP_WINDOW_LADDER: readonly number[] = LOCAL_WINDOW_LADDER
 export const SETUP_START_WAIT_MS = 60_000
 export const SETUP_START_POLL_MS = 500
 export const SETUP_INSTALL_WAIT_MS = 600_000
@@ -82,6 +83,7 @@ export interface SetupIo {
   totalMemoryBytes?: number
   parallelSlots?: number
   cacheType?: string
+  readTruth?: () => Promise<LocalServerTruth>
   writeWindow?: (tag: string, window: number) => void
   focusedConnector?: () => SessionModelDoor
   setAppState?: SessionModelSetter
@@ -156,20 +158,7 @@ export interface PullResult {
   words: string
 }
 
-export interface WindowChoice {
-  tag: string
-  window: number
-  fits: boolean
-  weightsBytes: number
-  cacheBytes: number
-  totalBytes: number
-  usableBytes: number
-  machineBytes: number
-  trainedMax?: number
-  slots: number
-  ladder: Array<{ window: number; totalBytes: number; fits: boolean }>
-  words: string
-}
+export type WindowChoice = LocalWindowFit & { tag: string }
 
 export interface ProveTimings {
   totalMs: number

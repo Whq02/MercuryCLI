@@ -290,6 +290,10 @@ section('5 · the four knobs as settings: names, grammar, ladders, words, persis
   check('the slots words: 8.5 GiB per slot at 256k, 1.1 GiB at 32k on the 27B, one slot for a single session, 2–4 at 32k for a swarm', slots.includes('qwen3.5:27b: 8.5 GiB per slot at 256k, 1.1 GiB at 32k') && slots.includes('one slot for a single session; 2–4 slots with a 32k window for a swarm') && slots.includes('4 slots at 32k load qwen3.5:27b as 20.5 GiB of 36.9 GiB usable'), slots)
   const ctx = knobDetailWords('contextLength', facts, { window: 32768, slots: 1, maxLoaded: 1 })
   check('the context words project every model at the chosen window', ctx.includes('at 32k with 1 slot: qwen3.5:27b 17.3 GiB, qwen3.5:9b-q4_K_M 6.7 GiB') && ctx.includes('of 36.9 GiB usable'), ctx)
+  check("the context words name the one fit owner's answer per model — the biggest window that fits each alone, auto's rule: 256k and 256k on this box at q8_0", ctx.includes("the biggest window that fits each alone (auto's rule): qwen3.5:27b 256k, qwen3.5:9b-q4_K_M 256k"), ctx)
+  const fourSlots = knobDetailWords('contextLength', facts, { window: 32768, slots: 4, maxLoaded: 1 })
+  check('with four slots the same owner answers 128k for the 27B and 256k for the 9B', fourSlots.includes("(auto's rule): qwen3.5:27b 128k, qwen3.5:9b-q4_K_M 256k"), fourSlots)
+  check('the memory facts carry each model\'s trained max for the owner', facts.models.every(model => model.trainedMax === 262144))
   const { chosenKnobs, fitVerdict } = modules.knobs
   const chosen = chosenKnobs(truth, { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 })
   check('the chosen knobs: the settings first, the runner and the running env when unset', chosen.window === 262144 && chosen.slots === 4 && chosen.maxLoaded === 2 && chosenKnobs(truth, {}).window === 32768 && chosenKnobs(truth, {}).slots === 4 && chosenKnobs(truth, {}).maxLoaded === 1, JSON.stringify([chosen, chosenKnobs(truth, {})]))

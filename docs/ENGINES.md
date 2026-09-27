@@ -203,13 +203,21 @@ model and `/api/ps` states the window; LM Studio's loaded instance, vLLM's
 has not stated yet refuses nothing, and the fit guard refuses only a request
 larger than a window the server or its Modelfile states. The window a local
 model is served with is a setting inside Mercury (`/config` → Local model
-window, per model): `auto` (unset) chooses the smallest of the trained maximum
-and twice the first request rounded up to 16k, never under 32k, at the model's
-first send and holds it for the session on every dispatch — the main thread,
-crewmates and workflow agents alike, so a sub-agent never reloads the runner;
-`server default` leaves the choice to the server (Ollama loads the model and
-`/api/ps` states the figure); `32k` · `64k` · `128k` · `trained max` or a number
-pin it. On Ollama the chosen window rides as `options.num_ctx` on every request
+window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k ·
+256k, never above the trained maximum, whose projected load (the weights plus
+the KV cache at the server's cache type and slots, from the model's own
+geometry) fits the memory usable for models — the server's own gpu-memory
+line when it states one, the same rule `/localsetup`'s step 5 uses — at the
+model's first send and holds it for the session on every dispatch — the main
+thread, crewmates and workflow agents alike, so a sub-agent never reloads the
+runner (a model whose geometry the server does not state falls back to twice
+the first request rounded up to 16k, never under 32k, and the words say so);
+the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`) and the
+deck's ctx row carries the figures; `server default` leaves the choice to the
+server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`
+· `128k` · `trained max` or a number pin it — a pinned rung whose load does not
+fit this machine says so on the row and names the biggest rung that does, and
+is still saved. On Ollama the chosen window rides as `options.num_ctx` on every request
 over the native `/api/chat` stream (with `truncate: false`, so an over-window
 prompt is refused by the server rather than truncated); LM Studio takes it
 when the model is loaded (`POST /api/v1/models/load {model, context_length}`);

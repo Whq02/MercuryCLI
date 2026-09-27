@@ -2,6 +2,7 @@ import { getInitialSettings, updateSettingsForSource } from '../../utils/setting
 import type { SettingsJson } from '../../utils/settings/types.js'
 import { gibWords, kvCacheBytes, projectLoad, tokensWords, type KvGeometry } from './localServerMemory.js'
 import type { LocalServerTruth } from './localServerTruth.js'
+import { fitLocalWindow, serverCacheTypeOf } from './localWindowFit.js'
 
 export type LocalServerKnobId = 'maxLoadedModels' | 'parallelSlots' | 'keepAlive' | 'contextLength'
 
@@ -171,11 +172,11 @@ export interface MemoryFacts {
   usableBytes: number
   usableSource: string
   cacheType?: string
-  models: Array<{ name: string; weightsBytes: number; geometry: KvGeometry; loadedBytes?: number; loadedWindow?: number }>
+  models: Array<{ name: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; loadedBytes?: number; loadedWindow?: number }>
 }
 
 export function memoryFactsOf(truth: LocalServerTruth | null): MemoryFacts {
-  const cacheType = truth?.runners[0]?.cacheTypeK ?? truth?.process?.env['OLLAMA_KV_CACHE_TYPE']
+  const cacheType = serverCacheTypeOf(truth)
   const models: MemoryFacts['models'] = []
   for (const model of truth?.listed ?? []) {
     if (!model.geometry || model.sizeBytes === undefined) continue
@@ -184,6 +185,7 @@ export function memoryFactsOf(truth: LocalServerTruth | null): MemoryFacts {
       name: model.name,
       weightsBytes: model.sizeBytes,
       geometry: model.geometry,
+      ...(model.trainedContext !== undefined ? { trainedMax: model.trainedContext } : {}),
       ...(loaded?.sizeBytes !== undefined ? { loadedBytes: loaded.sizeBytes } : {}),
       ...(loaded?.contextLength !== undefined ? { loadedWindow: loaded.contextLength } : {}),
     })
@@ -266,5 +268,6 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
     const projected = projectLoad(model, chosen.window, chosen.slots, facts.cacheType)
     return `${model.name} ${gibWords(projected.totalBytes)}`
   })
-  return `the window a request gets when it names none; a bigger window costs cache per slot · at ${tokensWords(chosen.window)} with ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'}: ${fits.length ? fits.join(', ') : 'no model geometry read'} (before the runner's buffers) of ${usable} usable · a model's own window setting outranks this · ←/→ move it`
+  const biggest = facts.models.map(model => `${model.name} ${tokensWords(fitLocalWindow({ ...model, machineBytes: facts.machineBytes, usableBytes: facts.usableBytes, slots: chosen.slots, ...(facts.cacheType !== undefined ? { cacheType: facts.cacheType } : {}) }).window)}`)
+  return `the window a request gets when it names none; a bigger window costs cache per slot · at ${tokensWords(chosen.window)} with ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'}: ${fits.length ? fits.join(', ') : 'no model geometry read'} (before the runner's buffers) of ${usable} usable${biggest.length ? ` · the biggest window that fits each alone (auto's rule): ${biggest.join(', ')}` : ''} · a model's own window setting outranks this · ←/→ move it`
 }
