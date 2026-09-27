@@ -403,7 +403,7 @@ async function run(cols: number, rows: number): Promise<void> {
   section(`§1 ${tag('the hosted send road: the composer is taken when ↵ lands, never when the runner answers')}`)
   {
     const click = await clickRail(scene, String((ATLAS.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === ATLAS.id)
-    check('one click on the atlas row opens it in the view', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === ATLAS.id, `row ${click.row} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
+    check('one click on the atlas row opens it in the view', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === ATLAS.id, `row ${click.row} · viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('ATLAS-ROW')), 6000)
     resumeDelayMs = 700
     const FIRST = 'first line to atlas'
@@ -467,7 +467,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(300)
     const frame = scene.lines()
     save('03-pinned-atlas-viewing-birch', cols, rows, frame)
-    check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
+    check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     check('the header says birch is viewed', /VIEW · Lane birch · viewing/.test(headerOf(frame, railCols)), headerOf(frame, railCols))
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
     const footer = footerOf(frame).replace(/\s+/g, ' ')
@@ -495,7 +495,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(300)
     const frame = scene.lines()
     save('04-pinned-atlas-lead-view', cols, rows, frame)
-    check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ⏎ ')}`)
+    check('the lead\'s chat is the view while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === undefined && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
     const footer = footerOf(frame).replace(/\s+/g, ' ')
     check('the footer says ↵ sends to Lane atlas · m on Mercury Lead returns the main chat', /sends to Lane atlas/.test(footer) && /m on Mercury Lead returns the main chat/.test(footer), footer.slice(0, 260))
     check('the footer does NOT say esc interrupts Lane atlas — esc on the lead\'s screen is the lead\'s own interrupt', !/esc interrupts? Lane atlas/.test(footer), footer.slice(0, 260))
