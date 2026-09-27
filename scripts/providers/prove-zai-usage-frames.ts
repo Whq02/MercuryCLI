@@ -37,6 +37,69 @@ function meterRuns(runs: string[]): string[] {
 
 const quote = (rows: string[]) => (rows.length === 0 ? '(no block)' : rows.map(row => `「${row}」`).join(' '))
 
+type Size = { columns: number; rows: number }
+type PopupFrame = { left: number; right: number; top: number; bottom: number; rows: string[] }
+type PopupAsk = { width: number | ((hostColumns: number) => number); rows: number | null }
+const POPUP_TITLE = 'Mercury · usage'
+const cellsOf = (frame: string): string[][] => frame.split('\n').map(line => Array.from(line))
+const cellAt = (cells: string[][], x: number, y: number): string => cells[y]?.[x] ?? ' '
+
+function popupFrameOf(frame: string, title = POPUP_TITLE): PopupFrame | null {
+  const cells = cellsOf(frame)
+  const y = cells.findIndex(line => line.join('').includes(title))
+  if (y < 0) return null
+  const titleAt = Array.from(cells[y]!.join('').slice(0, cells[y]!.join('').indexOf(title))).length
+  const left = cells[y]!.lastIndexOf('│', titleAt)
+  if (left < 0) return null
+  let top = y
+  while (top >= 0 && !'╭┌'.includes(cellAt(cells, left, top))) top--
+  if (top < 0) return null
+  const right = cells[top]!.findIndex((cell, x) => x > left && '╮┐'.includes(cell))
+  let bottom = top + 1
+  while (bottom < cells.length && !'╰└'.includes(cellAt(cells, left, bottom))) bottom++
+  if (right < 0 || bottom >= cells.length) return null
+  const rows = cells.slice(top, bottom + 1).map(line => Array.from({ length: right - left + 1 }, (_, x) => line[left + x] ?? ' ').join(''))
+  return { left, right, top, bottom, rows }
+}
+
+function popupFrameLaw(frame: string, at: Size, ask: PopupAsk, gutter: number, fit: (requested: number, columns: number) => number): string[] {
+  const box = popupFrameOf(frame)
+  if (box === null) return [`no rounded frame carries the title ${POPUP_TITLE}`]
+  const cells = cellsOf(frame)
+  const faults: string[] = []
+  const { left, right, top, bottom } = box
+  const width = right - left + 1
+  const height = bottom - top + 1
+  const askedWidth = typeof ask.width === 'function' ? ask.width(fit(at.columns, at.columns)) : ask.width
+  const wantWidth = fit(askedWidth, at.columns)
+  const wantHeight = ask.rows === null ? height : Math.min(ask.rows, at.rows - 2 * gutter)
+  if (box.rows[0] !== `╭${'─'.repeat(width - 2)}╮` || box.rows.at(-1) !== `╰${'─'.repeat(width - 2)}╯`) faults.push(`the corners are not rounded and whole: ${box.rows[0]} / ${box.rows.at(-1)}`)
+  const cut = box.rows.slice(1, -1).map((row, index) => (row.startsWith('│') && row.endsWith('│') ? -1 : top + 1 + index)).filter(row => row >= 0)
+  if (cut.length > 0) faults.push(`rows without both border cells: ${cut.join(',')}`)
+  if (left < gutter || right > at.columns - 1 - gutter || top < gutter || bottom > at.rows - 1 - gutter) faults.push(`the frame ${left}..${right} × ${top}..${bottom} leaves no ${gutter}-cell gutter inside ${at.columns}x${at.rows}`)
+  if (width !== wantWidth) faults.push(`${width} wide, the request sized to the host is ${wantWidth}`)
+  if (height !== wantHeight) faults.push(`${height} rows, the request clamped to the host is ${wantHeight}`)
+  if (left !== Math.max(gutter, Math.floor((at.columns - width) / 2))) faults.push(`left ${left}, centred would be ${Math.max(gutter, Math.floor((at.columns - width) / 2))}`)
+  const dirty: string[] = []
+  for (let y = top - gutter; y <= bottom + gutter; y++) for (let x = left - gutter; x <= right + gutter; x++) {
+    if (y >= top && y <= bottom && x >= left && x <= right) continue
+    if (cellAt(cells, x, y) !== ' ') dirty.push(`${x},${y}=${JSON.stringify(cellAt(cells, x, y))}`)
+  }
+  if (dirty.length > 0) faults.push(`live cells in the gutter: ${dirty.slice(0, 6).join(' ')}`)
+  return faults
+}
+
+function poisoned(frame: string, box: PopupFrame, poison: 'square corners' | 'a live cell in the gutter' | 'the frame on the host edge' | 'a cut row'): string {
+  const cells = cellsOf(frame)
+  const put = (x: number, y: number, glyph: string) => { while ((cells[y] ?? (cells[y] = [])).length <= x) cells[y]!.push(' '); cells[y]![x] = glyph }
+  if (poison === 'square corners') {
+    put(box.left, box.top, '┌'); put(box.right, box.top, '┐'); put(box.left, box.bottom, '└'); put(box.right, box.bottom, '┘')
+  } else if (poison === 'a live cell in the gutter') put(box.left - 1, box.top + 1, 'T')
+  else if (poison === 'a cut row') put(box.right, box.top + 2, ' ')
+  else for (let y = box.top; y <= box.bottom; y++) cells[y] = cells[y]!.slice(box.left)
+  return cells.map(line => line.join('')).join('\n')
+}
+
 const { check, finish } = tally()
 const world = await usagePlanWorld()
 try {
@@ -44,8 +107,13 @@ try {
   const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
   const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
   const { SettingsPopupSlot } = await import(world.path('src/components/SettingsPopupSlot.tsx'))
+  const { POPUP_GUTTER, popupWidth } = await import(world.path('src/components/PopupGutter.tsx'))
   const popup = await import(world.path('src/utils/cockpit/settingsPopup.ts'))
   const { call } = await import(world.path('src/commands/usage/usage.tsx'))
+  const frameLaw = (frame: string, at: Size): string[] => {
+    const ask = popup.settingsPopupRequest()
+    return ask === null ? ['no /usage request is open'] : popupFrameLaw(frame, at, ask, POPUP_GUTTER, popupWidth)
+  }
   const card = (columns: number, rows: number) => React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: columns }, React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows - 7 }))
   const glm = owner.usageForProvider('zai')
   const kimi = owner.usageForProvider('moonshot')
@@ -88,7 +156,16 @@ try {
   const kimiPopupRuns = blockRuns(popupRuns, 'Moonshot usage')
   world.save('usage-popup', popupFrame, WIDE)
   console.log(`popup Z.AI section: ${quote(zaiRuns)}`)
-  check('178x51 popup: the real 150x29 popup paints inside the frame', popup.settingsPopupRequest()?.width === 150 && world.inBounds(popupFrame, WIDE) && !popupFrame.includes('RENDER ERROR'), popupFrame)
+  const wideBox = popupFrameOf(popupFrame)
+  const wideFaults = frameLaw(popupFrame, WIDE)
+  console.log(`178x51 popup frame: ${wideBox === null ? '(none)' : `${wideBox.right - wideBox.left + 1}x${wideBox.bottom - wideBox.top + 1} at column ${wideBox.left} row ${wideBox.top}`} · faults ${JSON.stringify(wideFaults)}`)
+  check('178x51 popup: the /usage pop-up paints inside the frame the design draws — a rounded frame sized to the host (its 150-column ask fits 178), never wider than the host minus the one-cell gutter, centred, every gutter cell blank', wideFaults.length === 0 && world.inBounds(popupFrame, WIDE) && !popupFrame.includes('RENDER ERROR'), wideFaults.length > 0 ? wideFaults.join(' · ') : popupFrame)
+  check("178x51 popup: the Z.AI section's rows ride inside the frame, the title and both windows among them", wideBox !== null && ['Z.AI usage', 'Window (5h) · 17%', 'Current week (7d) · 3%'].every(words => wideBox.rows.some(row => row.includes(words))), wideBox === null ? '(no frame)' : quote(wideBox.rows.filter(row => /Z\.AI|Window \(5h\)|Current week/.test(row))))
+  for (const poison of ['square corners', 'a live cell in the gutter', 'the frame on the host edge', 'a cut row'] as const) {
+    const faults = wideBox === null ? [] : frameLaw(poisoned(popupFrame, wideBox, poison), WIDE)
+    console.log(`poison ${poison}: ${faults.join(' · ') || '(no fault)'}`)
+    check(`178x51 popup: the frame law refuses ${poison}`, wideBox !== null && faults.length > 0, JSON.stringify(faults))
+  }
   const zaiBars = meterRuns(rawBlockRuns(popupRuns, 'Z.AI usage'))
   check("178x51 popup: the Z.AI section paints two 42-cell bars titled like Kimi's — 'Window (5h)' and 'Current week (7d)'", zaiBars.length === 2 && zaiBars.every(bar => stringWidth(bar) === 42) && zaiRuns.some(run => run.startsWith('Window (5h)')) && zaiRuns.some(run => run.startsWith('Current week (7d)')), `bars ${JSON.stringify(zaiBars)} · ${quote(zaiRuns)}`)
   check('178x51 popup: the bar fills are the stated 17% (7.14 of 42 cells) and 3% (1.26 cells), and say so', zaiBars[0]?.trim() === '███████▏' && zaiBars[1]?.trim() === '█▎' && zaiRuns.some(run => run.includes('17%')) && zaiRuns.some(run => run.includes('3%')), JSON.stringify(zaiBars))
@@ -104,10 +181,15 @@ try {
   const narrowBoard = await world.mount(React.createElement(SettingsPopupSlot, { overlay: true }), NARROW)
   const narrowFrame = narrowBoard.frame()
   world.save('usage-popup', narrowFrame, NARROW)
+  const narrowBox = popupFrameOf(narrowFrame)
+  const narrowFaults = frameLaw(narrowFrame, NARROW)
+  console.log(`80x21 popup frame: ${narrowBox === null ? '(none)' : `${narrowBox.right - narrowBox.left + 1}x${narrowBox.bottom - narrowBox.top + 1} at column ${narrowBox.left} row ${narrowBox.top}`} · faults ${JSON.stringify(narrowFaults)}`)
   check('80x21 popup: the stacked popup paints inside 80x21 without render errors, one provider per band', world.inBounds(narrowFrame, NARROW) && !narrowFrame.includes('RENDER ERROR') && narrowFrame.includes('Moonshot usage'), narrowFrame)
+  check('80x21 popup: the stacked popup keeps the design — sized to the host (78 of 80, 19 of 21 rows), rounded, a blank gutter cell all round', narrowFaults.length === 0, narrowFaults.join(' · '))
+  check('80x21 popup: the frame law refuses the frame on the host edge (the old 80-wide box at column 0)', narrowBox !== null && frameLaw(poisoned(narrowFrame, narrowBox, 'the frame on the host edge'), NARROW).length > 0)
   check("80x21 popup: the second band is Z.AI, named on the popup's more row until scrolled to", /↓ \d+ more · Z\.AI/.test(narrowFrame), narrowFrame)
   let presses = 0
-  const rows = () => narrowBoard.frame().split('\n').map(line => line.replace(/^│ ?| ?│$/g, '').trim())
+  const rows = () => (popupFrameOf(narrowBoard.frame())?.rows ?? []).map(row => row.slice(1, -1).trim())
   while (presses < 24 && !(rows().includes('Z.AI usage') && rows().some(line => /^█+[▏▎▍▌▋▊▉]?$/u.test(line) && rows().indexOf(line) > rows().indexOf('Z.AI usage')))) {
     await narrowBoard.key('down')
     presses++
