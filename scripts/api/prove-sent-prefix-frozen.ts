@@ -1162,10 +1162,10 @@ process.stdin.on('end', () => process.exit(0))
         if (moved.length > 0 || a.length !== b.length) console.log(`      marks moved ${i}→${i + 1}: ${moved.slice(0, 6).join(' ')}${a.length !== b.length ? ` (${a.length} → ${b.length} tools)` : ''}`)
         check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' '))
       }
-      const swarmMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^(Agent|TeamCreate|LaunchFleet)[+-]$/.test(m)).join(' ')
-      check("§7 the swarm tools (TeamCreate, LaunchFleet) rode the FIRST request deferred — the field's tools", first.some(t => t.name === 'TeamCreate' && t.defer_loading === true) && first.some(t => t.name === 'LaunchFleet' && t.defer_loading === true), swarmMarks(reqs[0]!))
+      const swarmMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^(Agent|TeamCreate)[+-]$/.test(m)).join(' ')
+      check("§7 the swarm tool (TeamCreate) rode the FIRST request deferred — the field's tool", first.some(t => t.name === 'TeamCreate' && t.defer_loading === true), swarmMarks(reqs[0]!))
       check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
-      check('§7 after the toggle the swarm tools are still listed AND still marked deferred (the mark travels with the definition)', toolsOf(reqs[6]!).some(t => t.name === 'TeamCreate' && t.defer_loading === true) && toolsOf(reqs[6]!).some(t => t.name === 'LaunchFleet' && t.defer_loading === true), swarmMarks(reqs[6]!))
+      check('§7 after the toggle the swarm tool is still listed AND still marked deferred (the mark travels with the definition)', toolsOf(reqs[6]!).some(t => t.name === 'TeamCreate' && t.defer_loading === true), swarmMarks(reqs[6]!))
       const summariser = reqs[8]!
       check("§7 the fold took the cache-sharing fork road (the field's road on Fable 5.1)", debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
       check("§7 the summariser's tools array is the conversation's, byte for byte (the fork rides the parent's frozen roster)", j(withoutCacheControl((summariser.body as Body).tools)) === j(withoutCacheControl((reqs[7]!.body as Body).tools)) && marksOf(summariser) === marksOf(reqs[7]!), `${toolsOf(summariser).length} vs ${toolsOf(reqs[7]!).length} tools; summariser ${swarmMarks(summariser)} vs conversation ${swarmMarks(reqs[7]!)}`)

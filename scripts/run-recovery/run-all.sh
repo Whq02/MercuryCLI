@@ -9,7 +9,7 @@
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
 # gate-watch: src/state/AppStateStore.ts src/tools/RecordConventionTool/prompt.ts
-# gate-watch: src/tools/RememberLessonTool/prompt.ts src/tools/TaskCreateTool/constants.ts src/types/ids.ts
+# gate-watch: src/tools/TaskCreateTool/constants.ts src/types/ids.ts
 # gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/messages/factories.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

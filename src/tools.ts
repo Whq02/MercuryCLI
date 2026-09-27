@@ -65,7 +65,6 @@ import { JevEvalTool, jevEvalEnabled } from './tools/JevEvalTool/JevEvalTool.js'
 import { AskAdvisorTool } from './tools/AskAdvisorTool/AskAdvisorTool.js'
 import { advisorEnabled } from './services/advisor/advisorSettings.js'
 import { JourneyTool } from './tools/JourneyTool/JourneyTool.js'
-import { LaunchFleetTool } from './tools/LaunchFleetTool/LaunchFleetTool.js'
 import { LaunchTool } from './tools/LaunchTool/LaunchTool.js'
 import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { LSPTool } from './tools/LSPTool/LSPTool.js'
@@ -81,7 +80,6 @@ import { memoryVerbsEnabled } from './memdir/memoryVerbs.js'
 import { PowerShellTool } from './tools/PowerShellTool/PowerShellTool.js'
 import { PushNotificationTool } from './tools/PushNotificationTool/PushNotificationTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
-import { RememberLessonTool } from './tools/RememberLessonTool/RememberLessonTool.js'
 import { RecordConventionTool } from './tools/RecordConventionTool/RecordConventionTool.js'
 import { CronCreateTool } from './tools/ScheduleCronTool/CronCreateTool.js'
 import { CronDeleteTool } from './tools/ScheduleCronTool/CronDeleteTool.js'
@@ -164,7 +162,6 @@ function checkpointRewindEnabled(): boolean {
 const WORKFLOW_TOOL = cycleTolerant(() => WorkflowTool)
 const SLEEP_TOOL = cycleTolerant(() => SleepTool)
 const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
-const REMEMBER_LESSON_TOOL = cycleTolerant(() => RememberLessonTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
 const SEND_USER_FILE_TOOL = cycleTolerant(() => SendUserFileTool)
 const PUSH_NOTIFICATION_TOOL = cycleTolerant(() => PushNotificationTool)
@@ -176,7 +173,6 @@ export function getAllBaseTools(): Tools {
   const teamCreate = cycleTolerant(() => TeamCreateTool)
   const teamDelete = cycleTolerant(() => TeamDeleteTool)
   const teamBrief = cycleTolerant(() => TeamBriefTool)
-  const launchFleet = cycleTolerant(() => LaunchFleetTool)
   const artifactsList = cycleTolerant(() => ArtifactsListTool)
   const sendMessage = cycleTolerant(() => SendMessageTool)
   const powerShell = cycleTolerant(() => PowerShellTool)
@@ -227,7 +223,7 @@ export function getAllBaseTools(): Tools {
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
     ...(isAgentSwarmsEnabled() && teamCreate && teamDelete && teamBrief
-      ? [teamCreate, teamDelete, teamBrief, ...(launchFleet ? [launchFleet] : []), ...(artifactsList ? [artifactsList] : [])]
+      ? [teamCreate, teamDelete, teamBrief, ...(artifactsList ? [artifactsList] : [])]
       : []),
     WORKFLOW_TOOL,
     SLEEP_TOOL,
@@ -238,7 +234,6 @@ export function getAllBaseTools(): Tools {
     BriefTool,
     ContextLeftTool,
     ...(contractToolHosted() ? [ContractTool] : []),
-    REMEMBER_LESSON_TOOL,
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
     SEND_USER_FILE_TOOL,

@@ -22,8 +22,8 @@ sec('MED-1 slug collision: a content disambiguator distinguishes same-title less
   const a2 = deriveSlug('Same Title', 'class-x\nlesson body A')
   check('distinct lessons (same title) ⇒ distinct slugs', a !== b, `${a} vs ${b}`)
   check('identical lesson ⇒ stable slug (intended supersede)', a === a2)
-  const tool = src('tools/RememberLessonTool/RememberLessonTool.ts')
-  check('RememberLessonTool passes problemClass+lesson as the disambiguator', /deriveSlug\(\s*input\.title \|\| input\.problemClass,\s*`\$\{input\.problemClass\}\\n\$\{input\.lesson\}`/.test(tool))
+  const remember = src('commands/remember/remember.ts')
+  check('/remember passes problemClass+body as the disambiguator', /deriveSlug\(firstLine, `\$\{problemClass\}\\n\$\{body\}`\)/.test(remember))
 }
 
 sec('MED-2 stale recall: the scan drops both superseded AND stale')

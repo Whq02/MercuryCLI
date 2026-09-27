@@ -21,7 +21,7 @@ enableConfigs()
 const { getSystemPrompt } = await import('${repo}/src/constants/prompts.js')
 const withTools = process.argv[process.argv.length - 1] === 'with-tools'
 const tools = withTools
-  ? [{ name: 'RecordConvention' }, { name: 'RememberLesson' }, { name: 'Bash' }]
+  ? [{ name: 'RecordConvention' }, { name: 'Bash' }]
   : [{ name: 'Bash' }]
 const sections = await getSystemPrompt(tools, 'claude-fable-5')
 console.log(JSON.stringify({ prompt: sections.join('\\n\\n') }))
@@ -95,7 +95,10 @@ check(
   prompt.includes('curated context, not a log: say each thing once, fold related rules together, and delete stale lines'),
   'the curation doctrine',
 )
-check(prompt.includes('(RememberLesson)'), 'the private-memory spelling rides when present')
+check(
+  prompt.includes('goes to your own memory (its own memory file, with a pointer line in MEMORY.md)'),
+  'the private-memory sentence names plain memory writing: the memory file plus the MEMORY.md pointer, no tool spelling',
+)
 
 console.log('assembled prompt — narration: one rule, once; the old sentences gone')
 const once = (needle: string): boolean => prompt.split(needle).length === 2
@@ -143,6 +146,10 @@ check(
   'capture sentence intact, no tool spelling',
 )
 check(!bare.includes('RecordConvention'), 'no phantom tool name on a bare roster')
+check(
+  bare.includes('goes to your own memory (its own memory file, with a pointer line in MEMORY.md)'),
+  'the private-memory sentence reads the same on a bare roster',
+)
 check(
   bare.includes('a new convention lands in the pointed guide, never stacked into the pointer file.'),
   'pointer law intact without the follow-note',

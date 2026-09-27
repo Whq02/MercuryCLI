@@ -2,15 +2,6 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { execSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import {
-  harvestCardEvidence,
-  harvestCommitEvidence,
-  harvestTraceEvidence,
-} from '../../src/memdir/evidenceHarvest.ts'
 import { buildExperienceCard } from '../../src/memdir/experienceCards.ts'
 
 let failures = 0
@@ -23,48 +14,10 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' card evidence harvest — proof')
+console.log(' card evidence block — proof')
 console.log('============================================================')
 
-const repo = mkdtempSync(join(tmpdir(), 'mercury-harvest-'))
-execSync('git init -q && git -c user.email=p@p -c user.name=p commit -q --allow-empty -m seed', { cwd: repo })
-writeFileSync(join(repo, 'alpha.ts'), 'export const a = 1\n')
-writeFileSync(join(repo, 'beta.ts'), 'export const b = 2\n')
-execSync('git add . && git -c user.email=p@p -c user.name=p commit -q -m "add alpha+beta"', { cwd: repo })
-const sha = execSync('git rev-parse --short HEAD', { cwd: repo, encoding: 'utf8' }).trim()
-
-section('1. commit evidence — real sha resolves, fake sha harvests nothing')
-{
-  const line = await harvestCommitEvidence([`${sha}`, 'src/some/file.ts'], repo)
-  check('real sha → structural summary line', line !== null && line.includes(`commit ${sha}`) && /add alpha\+beta/.test(line ?? ''))
-  check('summary carries files-changed stat', /2 files? changed/.test(line ?? ''), line ?? 'null')
-  check('summary names touched paths', /alpha\.ts/.test(line ?? ''))
-  const fake = await harvestCommitEvidence(['deadbeefcafe'], repo)
-  check('fabricated sha → honest null (harvests nothing)', fake === null)
-  const none = await harvestCommitEvidence(['docs/notes.md', 'not-a-sha'], repo)
-  check('no sha-shaped ref → null', none === null)
-}
-
-section('2. trace evidence — argless aggregate, windowed, absent-file null')
-{
-  const tracePath = join(repo, 'trace.jsonl')
-  const now = Date.parse('2026-07-03T12:00:00.000Z')
-  const rec = (tool: string, ok: boolean, hoursAgo: number) =>
-    JSON.stringify({ ts: new Date(now - hoursAgo * 3600_000).toISOString(), tool, surface: 'builtin', risk: 'low', ok })
-  writeFileSync(
-    tracePath,
-    [rec('Bash', true, 1), rec('Bash', false, 1), rec('Edit', true, 2), rec('Read', true, 0.5), rec('Bash', true, 24)].join('\n') + '\n',
-  )
-  const line = await harvestTraceEvidence({ tracePath, nowMs: now })
-  check('aggregate line built', line !== null && line.startsWith('trace tail (host-wide'))
-  check('counts by tool with fail counts', /Bash ×2 \(1 fail\)/.test(line ?? ''), line ?? 'null')
-  check('stale record (24h) windowed OUT', !/Bash ×3/.test(line ?? ''))
-  check('no arg/content material in the line (argless by design)', !/alpha|beta|\.ts/.test(line ?? ''))
-  const absent = await harvestTraceEvidence({ tracePath: join(repo, 'missing.jsonl'), nowMs: now })
-  check('absent sidecar → honest null', absent === null)
-  const combo = await harvestCardEvidence({ sourceRefs: [sha], cwd: repo, tracePath, nowMs: now })
-  check('harvestCardEvidence combines both sources', combo.length === 2)
-}
+const sha = '0123abc'
 
 section('3. builder — block rendering, clamps, secret refusal')
 {
@@ -131,15 +84,6 @@ section('3b. dedup identity EXCLUDES the harvested block (counts differ run-to-r
   check('lesson-embedded lookalike SURVIVES (not stripped mid-body)', /model-written-alpha/.test(e1))
   check('two lessons differing only in the embedded lookalike ⇒ DISTINCT identity (no false dup)', e1 !== e2)
   check('the trailing harness block is still stripped from the embedded case', !/bash ×3/.test(e1))
-}
-
-section('4. tool wiring (structural) — one knob, green-gate-scoped')
-{
-  const tool = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'RememberLessonTool', 'RememberLessonTool.ts'), 'utf-8')
-  check(
-    'harvest call gated on cardTraceGroundEnabled() AND greenGatePassed',
-    /if \(cardTraceGroundEnabled\(\) && input\.greenGatePassed === true\) \{[\s\S]{0,220}harvestCardEvidence/.test(tool),
-  )
 }
 
 console.log('\n' + '='.repeat(60))

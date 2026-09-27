@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 let failures = 0
@@ -108,6 +108,48 @@ check(
   'no production tool without a declared capability contract (beyond the ratchet)',
   newUndeclared.length === 0,
   `undeclared: ${newUndeclared.join(', ')}`,
+)
+
+const RETIRED_TOOLS = ['RememberLesson', 'LaunchFleet']
+const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts/builtin-tools/fixtures', 'scripts/project-services/fixtures']
+const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
+function walk(dir: string, out: string[]): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') continue
+      walk(path, out)
+    } else if (TEXT_FILE.test(entry.name)) {
+      out.push(path)
+    }
+  }
+  return out
+}
+const survivors: string[] = []
+for (const root of RETIRED_SCAN_ROOTS) {
+  const dir = join(repoRoot, root)
+  if (!existsSync(dir)) continue
+  for (const file of walk(dir, [])) {
+    const rel = file.slice(repoRoot.length + 1)
+    const text = readFileSync(file, 'utf8')
+    const hits = RETIRED_TOOLS.filter(name => rel.includes(name) || text.includes(name))
+    if (hits.length > 0) survivors.push(`${rel} (${hits.join(', ')})`)
+  }
+}
+check(
+  'neither retired tool name survives in src/, docs/ or the roster fixtures: RememberLesson (plain memory writing and RecordConvention cover it) and LaunchFleet (TaskCreate once per subtask covers it)',
+  survivors.length === 0,
+  `${survivors.length} file(s): ${survivors.join('; ')}`,
+)
+check(
+  'the live census rows name neither retired tool',
+  !census.rows.some(r => RETIRED_TOOLS.includes(r.name)),
+  census.rows.filter(r => RETIRED_TOOLS.includes(r.name)).map(r => r.name).join(', '),
+)
+check(
+  'the census counts 73 tools: the 75 less RememberLesson and LaunchFleet',
+  census.summary.tools === 73,
+  `live census: ${census.summary.tools} tools`,
 )
 
 console.log(failures === 0 ? 'builtin-tools census: ALL GREEN' : `builtin-tools census: ${failures} FAILURE(S)`)

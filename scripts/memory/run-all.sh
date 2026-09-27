@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: src/commands/remember/index* src/commands/remember/remember*
 # gate-watch: src/memdir/**
-# gate-watch: src/tools/RememberLessonTool/RememberLessonTool*
 # gate-watch: src/utils/evolution/evolutionLedger* src/utils/evolution/ledgerScan*
 # gate-watch: src/utils/frontmatterParser* src/utils/sanitization*
 # gate-watch: src/utils/cockpit/traceSnapshot*

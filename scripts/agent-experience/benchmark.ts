@@ -346,6 +346,7 @@ export function normalisePaths(text: string, paths: { project: string; home: str
   for (const p of variants(paths.project)) out = out.split(p).join('<project>').split(keyOf(p)).join('<project-key>')
   for (const p of variants(paths.home)) out = out.split(join(p, '.mercury')).join('<config-home>').split(p).join('<home>')
   for (const p of variants(paths.out)) out = out.split(p).join('<out>')
+  out = out.replace(/(Scratchpad directory: )\S+/g, '$1<scratchpad>')
   return out
 }
 

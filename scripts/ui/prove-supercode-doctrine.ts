@@ -43,7 +43,7 @@ check('the lead runs at max; sub-agents keep the configured default (never multi
 check('the verify pass stays', full.includes('Verify before you declare') && full.includes('loop until the checks come back clean'))
 check('the no-new-risk line stays', full.includes('No new risk license') && full.includes('still need the usual confirmation'))
 check('the phase loop stays', full.includes('Stay in the loop between phases'))
-check('the three delegation surfaces are named (Workflow, Agent, LaunchFleet)', full.includes('Workflow tool') && full.includes('Agent-tool subagent') && full.includes('LaunchFleet'))
+check('the three delegation surfaces are named (Workflow, Agent, TeamCreate)', full.includes('Workflow tool') && full.includes('Agent-tool subagent') && full.includes('the TeamCreate tool'))
 check('GONE: delegation "for anything multi-part" and "orchestrate by default"', !/multi-part/i.test(full) && !/Orchestrate by default/i.test(full) && !/Solo only conversational/i.test(full))
 check('the standing opt-in line stays', full.includes('standing until it is turned off'))
 check('fewer rules: no numbered list of imperatives', !/^\d+\. \*\*/m.test(full))
