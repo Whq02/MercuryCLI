@@ -44,7 +44,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { afterPrevTicks: 5, data: 'queued while streaming\r' },
     { requireAwait: true, awaitText: 'queued while streaming', targetText: 'queued while streaming', data: '', mark: 'queued' },
     ...(variant === 'resize' ? [{ afterPrevTicks: 4, data: '', mark: 'streaming-small' }] : []),
-    { afterPrevTicks: 4, data: '\u001b' },
+    { atTick: 999, awaitText: 'compact-stream-024', minTick: 5, awaitSettleTicks: 1, requireAwait: true, data: '\u001b' },
     { atTick: 999, awaitText: 'Interrupted', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'interrupted' },
     { atTick: 999, awaitText: 'Queued words delivered.', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: 'keep-this-draft' },
     ...(full ? [
