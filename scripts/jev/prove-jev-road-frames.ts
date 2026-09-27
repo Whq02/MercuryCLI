@@ -39,6 +39,7 @@ const { NoSessionConnector } = await import('../../src/services/engine-connector
 const secrets = await import('../../src/utils/router/providerSecrets.ts')
 const { configPopupRequest } = await import('../../src/commands/config/config.js')
 const { CONFIG_ROW_MARK } = await import('../../src/components/Settings/Config.js')
+const jevCard = (await import('../../src/components/Settings/Jev.js')) as Record<string, unknown> & typeof import('../../src/components/Settings/Jev.js')
 const { BootSettingsScreen } = await import('../../src/components/BootSettingsScreen.js')
 const providerUsage = await import('../../src/services/providers/providerUsage.js')
 mock.module('../../src/services/providers/providerUsage.js', () => ({ ...providerUsage, refreshProviderUsage: async () => undefined }))
@@ -62,11 +63,33 @@ const keep = (name: string, m: Mounted, cols: number, rows: number): void => {
   if (dir) writeFileSync(join(dir, `${name}.txt`), lines.join('\n') + '\n')
 }
 const wrap = (element: unknown, cols: number, rows: number) => React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: cols, height: rows }, element as never)))
+const missingControls = (m: Mounted): string[] => {
+  const lines = m.lines()
+  return jevCard.JEV_ROWS.filter(id => !lines.some(line => line.includes(`  ${jevCard.JEV_ROW_LABELS[id]} `) || line.includes(`${jevCard.JEV_ROW_MARK} ${jevCard.JEV_ROW_LABELS[id]} `)))
+}
+const framed = (name: string, m: Mounted, cols: number, rows: number): string => `${name} at ${cols}x${rows}:\n${m.lines().join('\n')}`
+const controls = (name: string, m: Mounted, cols: number, rows: number): void => {
+  const missing = missingControls(m)
+  check(`${name}: every control row is on the card`, missing.length === 0, `missing ${missing.join(', ')} — ${framed(name, m, cols, rows)}`)
+}
 const select = async (m: Mounted, needle: string): Promise<void> => {
   for (let i = 0; i < 70 && !m.screen().includes(needle); i++) { m.push(KEY.down); await settle(45) }
 }
 slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => 'proof-session', usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false, jev: reader.jevFactsOf(ledger.jevLedgerSnapshot(), status.jevStatus()) }) }))
 try {
+  {
+    const plan = jevCard.jevCardPlan as ((demand: { rowBudget: number; controlRows: number; statusRows: number; noteRows: number; receiptRows: number | null; promptRows: number | null }) => { compact: boolean; status: boolean; note: boolean; receipt: boolean; prompt: boolean; input: boolean }) | undefined
+    const at = (rowBudget: number, controlRows: number, extra: Partial<{ statusRows: number; noteRows: number; receiptRows: number | null; promptRows: number | null }> = {}) => plan!({ rowBudget, controlRows, statusRows: 1, noteRows: 1, receiptRows: null, promptRows: null, ...extra })
+    check('the card plans whole rows: the eight controls and their spend lines first, then the note (or the receipt, or the entry row), then the status line — never a control', typeof plan === 'function' && (() => {
+      const tight = at(12, 11)
+      const full = at(12, 12)
+      const roomy = at(13, 11)
+      const receipt = at(12, 11, { receiptRows: 1 })
+      const entry = at(12, 11, { promptRows: 1 })
+      const wide = at(42, 12, { noteRows: 3, receiptRows: 2 })
+      return tight.compact && tight.note && !tight.status && !full.note && !full.status && roomy.note && roomy.status && receipt.receipt && !receipt.note && !receipt.status && entry.input && !entry.prompt && !entry.status && !wide.compact && wide.status && wide.note && wide.receipt
+    })(), `jevCardPlan is ${typeof plan}`)
+  }
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
     for (const road of ['official', 'openrouter'] as const) {
       for (const enabled of [false, true]) for (const present of [false, true]) {
@@ -80,6 +103,7 @@ try {
         await waitFor(() => m.screen().includes('Mercury · jev'), 4000)
         await settle(60)
         keep(`jev-${road}-${enabled ? 'on' : 'off'}-${present ? 'key' : 'no-key'}-${cols}x${rows}`, m, cols, rows)
+        controls(`jev-${road}-${enabled ? 'on' : 'off'}-${present ? 'key' : 'no-key'}`, m, cols, rows)
         check(`${road}: card names the selected road`, flat(m).includes('Road') && flat(m).includes(road === 'official' ? 'official' : 'OpenRouter'), flat(m))
         if (enabled && !present) check(`${road}: missing key names its own repair door`, flat(m).includes(road === 'official' ? '/jev' : '/logins') && flat(m).includes('no key'))
         popup.closeSettingsPopup()
@@ -99,7 +123,8 @@ try {
           await waitFor(() => last.screen().includes('Mercury · jev'), 4000)
           await settle(80)
           keep(`jev-last-${failed ? 'refusal' : 'answer'}-${cols}x${rows}`, last, cols, rows)
-          check('the last-call line leaves every control visible', flat(last).includes('Sub-agents') && flat(last).includes('Request ceiling'))
+          check('the last-call line leaves every control visible', flat(last).includes('Sub-agents') && flat(last).includes('Request ceiling'), `missing ${missingControls(last).join(', ') || 'nothing by label'} — ${framed(`jev-last-${failed ? 'refusal' : 'answer'}`, last, cols, rows)}`)
+          controls(`jev-last-${failed ? 'refusal' : 'answer'}`, last, cols, rows)
           check('known OpenRouter key credits are labelled as observed, not a live balance', flat(last).includes('$12.50 under key cap') && flat(last).includes('(read '))
           check('last call reports actual id and cost or failure words', failed ? flat(last).includes('HTTP 403') && flat(last).includes('fixture access refused') && flat(last).includes('gen-dec-frame-refusal') : flat(last).includes('typesafe/jev-1.13-20260917') && flat(last).includes('stated $0.000019992') && flat(last).includes('gen-dec-frame-answer'))
           popup.closeSettingsPopup()

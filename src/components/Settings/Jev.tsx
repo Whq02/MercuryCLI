@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { Box, Text, useInput } from '../../ink.js'
+import { Box, Text, useInput, wrapText } from '../../ink.js'
 import {
   jevMaxCallUsd,
   jevRoadWords,
@@ -45,7 +45,55 @@ export const JEV_SPEND_LABEL = "Mercury's count — the provider publishes no ba
 export const JEV_ALLOWANCE_RUNGS: readonly number[] = [1, 2, 5, 10, 20, 50, 100, 200]
 export const JEV_CEILING_RUNGS: readonly number[] = [10, 20, 50, 100, 200, 500]
 export const JEV_ROW_MARK = GLYPH.chevronRight
+export const JEV_COMPACT_BELOW = 20
 const LABEL_CELLS = 18
+
+export interface JevCardDemand {
+  rowBudget: number
+  controlRows: number
+  statusRows: number
+  noteRows: number
+  receiptRows: number | null
+  promptRows: number | null
+}
+
+export interface JevCardPlan {
+  compact: boolean
+  status: boolean
+  note: boolean
+  receipt: boolean
+  prompt: boolean
+  input: boolean
+}
+
+export function jevTextRows(text: string, width: number): number {
+  return width <= 0 ? 1 : wrapText(text, width, 'wrap').split('\n').length
+}
+
+export function jevCardPlan(demand: JevCardDemand): JevCardPlan {
+  const budget = Math.max(1, demand.rowBudget)
+  const compact = budget < JEV_COMPACT_BELOW
+  const statusBlock = compact ? 1 : demand.statusRows + 1
+  const noteRows = compact ? 1 : demand.noteRows
+  const receiptRows = demand.receiptRows === null ? null : compact ? 1 : demand.receiptRows
+  const promptRows = demand.promptRows === null ? null : compact ? 1 : demand.promptRows
+  let left = budget - demand.controlRows - (compact ? 0 : 2)
+  const take = (rows: number): boolean => {
+    if (rows > left) return false
+    left -= rows
+    return true
+  }
+  if (promptRows !== null) {
+    const input = take(1)
+    const prompt = input && take(promptRows)
+    return { compact, status: take(statusBlock), note: false, receipt: false, prompt, input }
+  }
+  const receipt = receiptRows !== null && take(receiptRows)
+  let note = receiptRows === null && take(noteRows)
+  const status = take(statusBlock)
+  if (receiptRows !== null && !note) note = take(noteRows)
+  return { compact, status, note, receipt, prompt: false, input: false }
+}
 
 export function jevSpendLabel(road: JevRoad): string {
   return road === 'openrouter' ? "OpenRouter states each call's cost; unstated costs use the token rate" : JEV_SPEND_LABEL
@@ -365,14 +413,33 @@ export function Jev({
     { isActive: entry === null },
   )
 
-  const compact = rowBudget < 20
   const statusColor = facts.status.kind === 'ready' ? tokens.success : facts.status.kind === 'off' ? tokens.textSecondary : tokens.warning
   const band = width + 2
   const doors = jevRowValues(facts.settings).doors
+  const statusLine = jevStatusLine(facts.status)
+  const lastWords = facts.session.state === 'reported' ? jevLastAnswerWords(facts.session.facts) : null
+  const creditsLine = facts.settings.road === 'openrouter' ? `credits: ${jevCreditsWords(facts.settings.road)}` : null
+  const noteLine = `  ${jevRowNote(JEV_ROWS[selected] ?? 'switch')}`
+  const receiptLine = receipt === null ? null : `  ${receipt.words}`
+  const promptLine = entry === null ? null : entryPrompt(entry.kind, facts)
+  const plan = jevCardPlan({
+    rowBudget,
+    controlRows: JEV_ROWS.length + 1 + (lastWords === null ? 0 : jevTextRows(lastWords, width)) + (creditsLine === null ? 0 : jevTextRows(creditsLine, width)),
+    statusRows: jevTextRows(statusLine, width),
+    noteRows: jevTextRows(noteLine, width),
+    receiptRows: receiptLine === null ? null : jevTextRows(receiptLine, width),
+    promptRows: promptLine === null ? null : jevTextRows(promptLine, width),
+  })
+  const compact = plan.compact
+  const whole = (text: string, color: string, bold = false): React.ReactNode => (
+    <Box flexShrink={0}>
+      <Text color={color} bold={bold} wrap={compact ? 'truncate-end' : 'wrap'}>{text}</Text>
+    </Box>
+  )
   return (
     <Box flexDirection="column" width={width} flexShrink={0} maxHeight={Math.max(1, rowBudget)} overflow="hidden">
-      <Text color={statusColor} bold={true} wrap={compact ? 'truncate-end' : 'wrap'}>{jevStatusLine(facts.status)}</Text>
-      {!compact ? <Box height={1} /> : null}
+      {plan.status ? whole(statusLine, statusColor, true) : null}
+      {plan.status && !compact ? <Box height={1} /> : null}
       {JEV_ROWS.map((id, index) => {
         const isSelected = index === selected
         const words = jevRowWords(id, facts)
@@ -405,8 +472,8 @@ export function Jev({
             {id === 'spend' ? (
               <Box flexDirection="column" flexShrink={0}>
                 <Text color={tokens.textMuted} wrap="truncate-end">{' '.repeat(LABEL_CELLS)}{jevSpendLabel(facts.settings.road)}</Text>
-                {facts.session.state === 'reported' && jevLastAnswerWords(facts.session.facts) !== null ? <Text color={tokens.textSecondary} wrap="wrap">{jevLastAnswerWords(facts.session.facts)}</Text> : null}
-                {facts.settings.road === 'openrouter' ? <Text color={tokens.textMuted} wrap="wrap">credits: {jevCreditsWords(facts.settings.road)}</Text> : null}
+                {lastWords !== null ? <Text color={tokens.textSecondary} wrap="wrap">{lastWords}</Text> : null}
+                {creditsLine !== null ? <Text color={tokens.textMuted} wrap="wrap">{creditsLine}</Text> : null}
               </Box>
             ) : null}
           </Box>
@@ -415,8 +482,8 @@ export function Jev({
       {!compact ? <><Text color={tokens.textMuted} wrap="truncate-end">{'  '}{doors}</Text><Box height={1} /></> : null}
       {entry !== null ? (
         <Box flexDirection="column" flexShrink={0}>
-          <Text color={tokens.textSecondary}>{entryPrompt(entry.kind, facts)}</Text>
-          <Box>
+          {plan.prompt && promptLine !== null ? whole(promptLine, tokens.textSecondary) : null}
+          <Box flexShrink={0} height={1}>
             <Text color={tokens.textMuted}>{JEV_ROW_LABELS[entry.kind]}: </Text>
             <TextInput
               value={entry.value}
@@ -431,12 +498,9 @@ export function Jev({
             />
           </Box>
         </Box>
-      ) : (
-        <Text color={tokens.textSecondary} wrap={compact ? 'truncate-end' : 'wrap'}>{'  '}{jevRowNote(JEV_ROWS[selected] ?? 'switch')}</Text>
-      )}
-      {receipt !== null ? (
-        <Text color={receipt.refused ? tokens.warning : tokens.success} wrap="wrap">{'  '}{receipt.words}</Text>
       ) : null}
+      {plan.note ? whole(noteLine, tokens.textSecondary) : null}
+      {plan.receipt && receipt !== null && receiptLine !== null ? whole(receiptLine, receipt.refused ? tokens.warning : tokens.success) : null}
     </Box>
   )
 }
