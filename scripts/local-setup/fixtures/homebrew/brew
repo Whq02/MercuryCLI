@@ -1,0 +1,92 @@
+#!/bin/sh
+here="$(cd "$(dirname "$0")/.." && pwd)"
+bin="${FAKE_OLLAMA_BIN:-}"
+state="${FAKE_OLLAMA_STATE:-${TMPDIR:-/tmp}/fake-ollama-state}"
+prefix="${FAKE_OLLAMA_PREFIX:-$state/homebrew}"
+bun="${FAKE_OLLAMA_BUN:-bun}"
+script="${FAKE_OLLAMA_SCRIPT:-$here/fake-ollama.ts}"
+pidfile="${FAKE_OLLAMA_PIDFILE:-$state/server.pid}"
+installed() {
+  [ -n "$bin" ] && [ -x "$bin/ollama" ]
+}
+running() {
+  [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null
+}
+case "$*" in
+  "--version")
+    echo "Homebrew 5.0.0 (fixture)"
+    ;;
+  "--prefix")
+    echo "$prefix"
+    ;;
+  "--prefix ollama")
+    installed || { echo "Error: No available formula with the name \"ollama\"." >&2; exit 1; }
+    echo "$prefix/opt/ollama"
+    ;;
+  "list --formula ollama"|"list ollama"|"ls --formula ollama"|"list --versions ollama")
+    installed || { echo "Error: No such keg: $prefix/Cellar/ollama" >&2; exit 1; }
+    echo "ollama"
+    ;;
+  "list --formula"|"list"|"ls")
+    installed && echo "ollama"
+    exit 0
+    ;;
+  "install ollama"|"install --formula ollama")
+    [ -n "$bin" ] || { echo "Error: FAKE_OLLAMA_BIN is not set; the fixture has nowhere to install ollama" >&2; exit 1; }
+    echo "==> Fetching ollama"
+    echo "==> Pouring ollama--0.34.4.fixture.bottle.tar.gz"
+    FAKE_OLLAMA_BIN="$bin" "$here/install-ollama.sh" >/dev/null
+    echo "==> Caveats"
+    echo "To start ollama now and restart at login:"
+    echo "  brew services start ollama"
+    echo "Or, if you don't want/need a background service you can just run:"
+    echo "  ollama serve"
+    echo "==> Summary"
+    echo "$bin/ollama: 1 file, 4KB"
+    ;;
+  "services start ollama"|"services run ollama")
+    installed || { echo "Error: Formula \`ollama\` is not installed." >&2; exit 1; }
+    if running; then
+      echo "Service \`ollama\` already started, use \`brew services restart ollama\` to restart."
+      exit 0
+    fi
+    mkdir -p "$state"
+    FAKE_OLLAMA_PIDFILE="$pidfile" nohup "$bun" run "$script" >"$state/server.log" 2>&1 </dev/null &
+    echo "==> Successfully started \`ollama\` (label: homebrew.mxcl.ollama)"
+    ;;
+  "services stop ollama")
+    running || { echo "Warning: Service \`ollama\` is not started." >&2; exit 0; }
+    kill "$(cat "$pidfile")" 2>/dev/null
+    rm -f "$pidfile"
+    echo "Stopping \`ollama\`... (might take a while)"
+    echo "==> Successfully stopped \`ollama\` (label: homebrew.mxcl.ollama)"
+    ;;
+  "services restart ollama")
+    running && kill "$(cat "$pidfile")" 2>/dev/null
+    rm -f "$pidfile"
+    mkdir -p "$state"
+    FAKE_OLLAMA_PIDFILE="$pidfile" nohup "$bun" run "$script" >"$state/server.log" 2>&1 </dev/null &
+    echo "==> Successfully started \`ollama\` (label: homebrew.mxcl.ollama)"
+    ;;
+  "services list"|"services")
+    printf 'Name   Status  User File\n'
+    if installed; then
+      if running; then printf 'ollama started %s ~/Library/LaunchAgents/homebrew.mxcl.ollama.plist\n' "$(id -un)"; else printf 'ollama none\n'; fi
+    fi
+    ;;
+  "services info ollama")
+    installed || { echo "Error: Formula \`ollama\` is not installed." >&2; exit 1; }
+    echo "ollama (homebrew.mxcl.ollama)"
+    if running; then echo "Running: true"; echo "Loaded: true"; else echo "Running: false"; echo "Loaded: false"; fi
+    ;;
+  "uninstall ollama"|"remove ollama")
+    installed || { echo "Error: No such keg: $prefix/Cellar/ollama" >&2; exit 1; }
+    running && kill "$(cat "$pidfile")" 2>/dev/null
+    rm -f "$pidfile" "$bin/ollama"
+    echo "Uninstalling $prefix/Cellar/ollama/0.34.4... (1 file, 4KB)"
+    ;;
+  *)
+    echo "Error: Unknown command: $*" >&2
+    exit 1
+    ;;
+esac
