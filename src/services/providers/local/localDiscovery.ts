@@ -136,6 +136,9 @@ function num(v: unknown): number | undefined {
 function strList(v: unknown): string[] | undefined {
   return Array.isArray(v) && v.every(x => typeof x === 'string') ? (v as string[]) : undefined
 }
+function parameterSizeWords(params: number): string {
+  return params >= 1e9 ? `${(params / 1e9).toFixed(1)}B` : `${Math.round(params / 1e6)}M`
+}
 
 
 function ollamaServedMap(psBody: unknown): Map<string, number> {
@@ -316,9 +319,9 @@ export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise
   const vision = typeof rec(props?.modalities)?.vision === 'boolean' ? (rec(props?.modalities)!.vision as boolean) : undefined
   const build = str(props?.build_info)
   const models: LocalModelRecord[] = []
-  const routerList = openaiModelList(routerBody)
-  if (routerList && routerList.length > 0) {
-    for (const m of routerList) {
+  const routerRows = (openaiModelList(routerBody) ?? []).filter(m => rec(m.status) !== undefined)
+  if (routerRows.length > 0) {
+    for (const m of routerRows) {
       const id = str(m.id)
       if (!id) continue
       const status = str(rec(m.status)?.value)
@@ -337,17 +340,22 @@ export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise
       const id = str(m.id)
       if (!id) continue
       const meta = rec(m.meta)
+      const served = servedCtx ?? num(meta?.n_ctx)
       const trained = num(meta?.n_ctx_train)
+      const weightsBytes = num(meta?.size)
+      const params = num(meta?.n_params)
       models.push({
         id,
         server: 'llamacpp',
         baseUrl,
-        ...(servedCtx
-          ? { contextWindow: { tokens: servedCtx, source: 'served' } }
+        ...(served
+          ? { contextWindow: { tokens: served, source: 'served' } }
           : trained
             ? { contextWindow: { tokens: trained, source: 'model-max' } }
             : {}),
         ...(trained !== undefined ? { modelMaxContext: trained } : {}),
+        ...(weightsBytes !== undefined ? { weightsBytes } : {}),
+        ...(params !== undefined ? { parameterSize: parameterSizeWords(params) } : {}),
         loaded: meta !== undefined,
         ...(vision !== undefined ? { visionDeclared: vision } : {}),
       })
