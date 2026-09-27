@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-27T07:40:04.285Z",
+ "capturedAt": "2026-09-27T13:52:53.223Z",
  "screens": [
   {
    "atMs": 12500,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "                        │ 08:39:54 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 14:52:43 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 08:39:54 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 14:52:43 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │                                                                                              │",
     "TELEMETRY               │                                                                                              │",
     "  · spend $0.00         │                                                                                              │",
@@ -47,7 +47,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-PDk0lh                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-uDW9Mg                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,15 +62,15 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "  · /health — health ce…│ 08:39:54 [sam] ❯ design the cache layer                                                      │",
+    "  · /health — health ce…│ 14:52:43 [sam] ❯ design the cache layer                                                      │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│ 08:39:54 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /mission — set a mi…│ 14:52:43 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "FILES · flux-arena-cwd-…│ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  ↵ or click · browse   │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 08:39:58 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · spend $0.00         │ 14:52:47 [Mercury] Understood — proceeding with the decisions.                               │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -107,15 +107,15 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "NEXT                    │                                                                                              │",
     "  · /workflows — agent …│                                                                                              │",
-    "  · /health — health ce…│ 08:39:54 [sam] ❯ design the cache layer                                                      │",
+    "  · /health — health ce…│ 14:52:43 [sam] ❯ design the cache layer                                                      │",
     "  · /cards — memory     │                                                                                              │",
-    "  · /mission — set a mi…│ 08:39:54 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · /mission — set a mi…│ 14:52:43 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "FILES · flux-arena-cwd-…│ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  ↵ or click · browse   │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "                        │ │     then wait for the operator.                                                            │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 08:39:58 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · spend $0.00         │ 14:52:47 [Mercury] Understood — proceeding with the decisions.                               │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -143,16 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 17489,
-   "frame-recommit": 32
+   "patches": 17471,
+   "frame-recommit": 31
   },
   "frames": {
-   "total": 48,
-   "window": 48,
-   "p50": 0.6625409999996918,
-   "p95": 9.05579200000011,
-   "p99": 17.442540999999892,
-   "maxMs": 17.442540999999892
+   "total": 47,
+   "window": 47,
+   "p50": 0.6232920000002196,
+   "p95": 4.679167000000234,
+   "p99": 14.200000000000045,
+   "maxMs": 14.200000000000045
   }
  },
  "requests": [
@@ -205,15 +205,15 @@
  ],
  "sends": [
   {
-   "atMs": 6564.631223678589,
+   "atMs": 6565.891981124878,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7364.631223678589,
+   "atMs": 7365.891981124878,
    "b64": "DQ=="
   },
   {
-   "atMs": 11564.631223678589,
+   "atMs": 11565.891981124878,
    "b64": "Gw=="
   }
  ]
