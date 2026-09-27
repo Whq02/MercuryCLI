@@ -8,6 +8,7 @@
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: src/services/localServer/** src/utils/settings/types.ts scripts/settings/settings-schema.json
 # gate-watch: scripts/lib/fixtureApi.ts scripts/local-setup/fixtures/fake-ollama.ts
+# gate-watch: scripts/tool-economy/fixtureMcpEstate.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
