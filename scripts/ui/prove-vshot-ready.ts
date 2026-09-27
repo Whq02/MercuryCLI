@@ -33,7 +33,7 @@ interface Cap {
     endedAtTick?: number
     endReason?: string
     readyTextDeclared?: string[]
-    refusals?: Array<{ code: string; message: string; ceilingTicks: number; seen: string }>
+    refusals?: Array<{ code: string; message: string; summary: string; ceilingTicks: number; seen: string }>
   }
 }
 function capture(cfg: Record<string, unknown>, scale = '1'): Cap {
@@ -232,6 +232,7 @@ console.log('════ vshot observed-ready laws ════')
   check('13. REFUSAL: ready failure retains the undelivered-send diagnosis too', c.status === 3 && refusals.some(r => r.code === 'NEVER-READY') && refusals.some(r => r.code === 'UNDELIVERED-SENDS'), JSON.stringify({ status: c.status, refusals }))
   check('13. REFUSAL: the receipt says never settled, the ceiling, and the screen it saw', refusals.length === 2 && refusals.every(r => r.ceilingTicks === 6 && r.seen.includes('BOOT') && /never settled.*ceiling/.test(r.message)), JSON.stringify(refusals))
   check('13. REFUSAL: stdout and stderr carry every refusal verbatim', refusals.length === 2 && refusals.every(r => c.stderr.includes(r.message) && c.gridText.includes(r.message)), c.stderr)
+  check('13. REFUSAL: a legacy tail-only exit row keeps all refusal codes, ceiling and observed screen', [c.stderr.slice(-200), c.gridText.slice(-200)].every(tail => ['NEVER-READY', 'UNDELIVERED-SENDS', 'never settled', 'ceiling', 'saw='].every(word => tail.includes(word))) && refusals.every(r => r.summary.length <= 190 && c.stderr.trimEnd().endsWith(r.summary)), c.stderr.slice(-200))
   const healthy = capture({ total: 20, readyText: 'READY-SENTINEL' })
   check('13. REFUSAL: a settled capture records no refusal and does not pollute its frame echo', healthy.status === 0 && Array.isArray(healthy.payload.refusals) && healthy.payload.refusals.length === 0 && !healthy.gridText.includes('[vshot]'), healthy.stderr)
   const cfgPath = join(work, 'discarded-return.json')

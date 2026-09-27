@@ -34,12 +34,24 @@ def capture_refusals(driver, ready_texts, ready_at, total, ended_at_tick,
     if require_stable and stable_need and end_reason != "stable":
         add("NEVER-STABLE", "the grid never held byte-identical for %d consecutive ticks"
             % stable_need)
+    if rows:
+        prefix = "[%s] %s: never settled; ceiling=%d ticks; saw=" % (
+            driver, "+".join(row["code"] for row in rows), total)
+        sample = visible[:40]
+        while sample and len(prefix) + len(repr(sample)) > 190:
+            sample = sample[:-1]
+        for row in rows:
+            row["summary"] = prefix + repr(sample)
     return rows
 
 
 def emit_refusals(rows):
     for row in rows:
         line = row["message"] + "\n"
+        sys.stderr.write(line)
+        sys.stdout.write(line)
+    if rows:
+        line = rows[0]["summary"] + "\n"
         sys.stderr.write(line)
         sys.stdout.write(line)
     sys.stdout.flush()
