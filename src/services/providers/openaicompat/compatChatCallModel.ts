@@ -44,7 +44,9 @@ import {
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
-import { resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { effortStampOf, type EffortStampV1, type EffortWireFact } from '../../../utils/effortStamp.js'
+import { compatEffortWireFact } from './compatWire.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { classifyCredentialWall, credentialWallLine } from '../credentialWall.js'
@@ -60,7 +62,7 @@ import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
-import { modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
+import { effortVocabularyFor, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import {
   streamCompatChat,
@@ -111,6 +113,7 @@ export interface CompatLaneProfile {
     events: AsyncGenerator<CompatStreamEvent>
     settle?(messages: readonly AssistantMessage[]): void
   }
+  effortOnWire?(extra: Record<string, unknown>): EffortWireFact
   leadingNotes?: readonly string[]
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
@@ -370,6 +373,7 @@ export async function* compatChatCallModel(
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
+  const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
   const wireModel = profile.wireModelId(modelId)
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
@@ -405,6 +409,16 @@ export async function* compatChatCallModel(
       maxOutputTokensOverride: options.maxOutputTokensOverride,
     }),
   }
+  const effortView = effortVocabularyFor(modelId)
+  const effortFact =
+    profile.effortOnWire?.(request.extra ?? {}) ??
+    compatEffortWireFact(request.extra ?? {}, {
+      thinkingGated: effortView.kind === 'provider' && effortView.thinkingGated,
+      thinkingEnabled,
+      supported: effortTruth.supportsEffort,
+    })
+  const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortFact)
+  const withEffort = (message: AssistantMessage): AssistantMessage => ({ ...message, effort: effortOnWire })
 
   if (profile.requestFitRefusal) {
     const requestBytes = JSON.stringify(request).length
@@ -450,6 +464,7 @@ export async function* compatChatCallModel(
       messages,
       preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
+      effort: effortOnWire,
       ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
@@ -496,7 +511,7 @@ export async function* compatChatCallModel(
       yield notice
       options.onWait?.({ kind: 'retry', attempt: step.reconnect, of: step.of, reason: retryReasonWords(undefined, notice.error.message), delayMs: step.waitMs, sinceMs: now })
       if (step.waitMs <= 0) {
-        yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code)
+        yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${new ReconnectBudgetSpentError(ladder, now, undefined).message}`, typed, outcome.fault.code))
         return
       }
       await sleep(step.waitMs, signal)
@@ -555,7 +570,7 @@ export async function* compatChatCallModel(
       logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}`)
       const line = credentialWallLine(profile.lane, wall)
       if (wall === 'key-limit') recordLaneBillingRefusal(profile.lane, { detail: wireSaid, remedy: line })
-      yield apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${line}`, wall === 'key-limit' ? 'billing_error' : 'authentication_failed')
+      yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${line}`, wall === 'key-limit' ? 'billing_error' : 'authentication_failed'))
       return
     }
     if (typed === 'billing_error') {
@@ -567,12 +582,12 @@ export async function* compatChatCallModel(
     const refusedImage = imageRefusalWords(request, outcome.fault)
     if (refusedImage !== null) {
       noteImageRefusal(modelId, refusedImage)
-      yield apiErrorMessage(
+      yield withEffort(apiErrorMessage(
         `${API_ERROR_MESSAGE_PREFIX}: the model on the ${profile.providerLabel} route refused the image: ${refusedImage} — the next request carries it as [image]; the Computer tool refuses on this model until /model picks one that receives images`,
         typed,
         outcome.fault.code,
         overflowOf(profile.lane, outcome.fault),
-      )
+      ))
       return
     }
     const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined)
@@ -580,7 +595,7 @@ export async function* compatChatCallModel(
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : terminalText
-    yield stampProviderWait(
+    yield withEffort(stampProviderWait(
       apiErrorMessage(
         stayedBusy,
         typed,
@@ -589,7 +604,7 @@ export async function* compatChatCallModel(
         busy !== undefined ? busyRefusalFact(profile.providerLabel, busy.ladder, outcome.fault) : null,
       ),
       outcome.fault.retryAfterMs,
-    )
+    ))
     return
   }
 }
@@ -606,6 +621,7 @@ async function* streamOneCompatAttempt(ctx: {
   messages: Message[]
   preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
+  effort?: EffortStampV1
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
@@ -651,6 +667,7 @@ async function* streamOneCompatAttempt(ctx: {
       uuid: randomUUID(),
       timestamp: new Date().toISOString(),
       ...(busyRecovery !== undefined ? { busyRecovery } : {}),
+      ...(ctx.effort !== undefined ? { effort: ctx.effort } : {}),
     }
   }
 
@@ -931,12 +948,13 @@ async function* streamOneCompatAttempt(ctx: {
   yield streamEvent({ type: 'message_stop' })
 
   if (fault && typedEnd === null) {
-    yield apiErrorMessage(
+    const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
       compatFaultToTypedError(fault),
       fault.code,
       overflowOf(profile.lane, fault),
     )
+    yield ctx.effort !== undefined ? { ...faultRow, effort: ctx.effort } : faultRow
   }
   return { kind: 'done', ...(served !== undefined ? { served } : {}) }
 }

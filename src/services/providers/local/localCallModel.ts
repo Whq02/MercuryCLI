@@ -6,6 +6,7 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
+import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
@@ -45,6 +46,11 @@ export function localPreComposeEstimate(params: Pick<LocalCallParams, 'messages'
 
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
   let thinkingEnabled = false
+  const ollamaEffortOnWire = (): EffortWireFact => {
+    if (record.thinkingDeclared !== true) return { kind: 'unsupported' }
+    const off = localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled })
+    return { kind: 'sent', parameter: 'think', value: !off, applied: off ? EFFORT_STAMP_THINKING_OFF : EFFORT_STAMP_THINKING_ON }
+  }
   return {
     lane: 'local',
     providerLabel: LOCAL_SERVER_NAMES[record.server],
@@ -73,6 +79,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
                 ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
               },
             ),
+          effortOnWire: ollamaEffortOnWire,
         }
       : {}),
     requestFitRefusal: ({ estTokens, toolCount }) => {

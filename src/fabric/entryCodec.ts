@@ -282,7 +282,7 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
   const t = entry.type
 
   if (t === 'assistant') {
-    const { picked, rest } = take(entry, ['type', 'message'])
+    const { picked, rest } = take(entry, ['type', 'message', 'effort'])
     const msg = (picked.message ?? {}) as Raw
     const m = take(msg, ['content', 'model', 'id', 'usage', 'stop_reason', 'stop_sequence'])
     const content = Array.isArray(m.picked.content) ? (m.picked.content as Raw[]).map(mapBlock) : []
@@ -302,6 +302,7 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
     if (apiRest) meta.apiRest = apiRest
     if (!('stop_reason' in m.picked)) meta.noStopReason = true
     if (!('usage' in m.picked)) meta.noUsage = true
+    if ('effort' in picked && picked.effort !== undefined) meta.effort = picked.effort
     if (Object.keys(meta).length > 0) payload.meta = meta
     return envelope(entry, ctx, { role: 'assistant', model: payload.model }, payload, nonEmpty(rest))
   }
@@ -418,7 +419,9 @@ export function recordToEntry(rec: MercuryRecord): Raw {
       if ('stop_sequence' in oc) message.stop_sequence = oc.stop_sequence
     }
     if (meta.apiRest) Object.assign(message, meta.apiRest as Raw)
-    return { ...(rec.annotations ?? {}), type: 'assistant', message }
+    const out: Raw = { ...(rec.annotations ?? {}), type: 'assistant', message }
+    if (meta.effort !== undefined) out.effort = meta.effort
+    return out
   }
 
   if (p.kind === 'input') {

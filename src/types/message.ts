@@ -5,6 +5,7 @@ import type { OverflowSignal } from '../services/api/overflowSignal.js'
 import type { MediaRefusal } from '../services/api/mediaRefusal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { EffortAdjustedV1 } from '../utils/effort.js'
+import type { EffortStampV1 } from '../fabric/record.js'
 import type { AdvisorOrigin, SaturnOrigin } from '../utils/messages/noticeRows.js'
 import type { UUID } from 'crypto'
 import type {
@@ -121,6 +122,7 @@ export type AssistantMessage = {
   busyRecovery?: BusyRecoveryV1
   busyRefusal?: BusyRefusalV1
   effortAdjusted?: EffortAdjustedV1
+  effort?: EffortStampV1
 }
 
 

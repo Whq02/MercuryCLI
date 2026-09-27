@@ -101,7 +101,8 @@ import {
 import {
   getModelMaxOutputTokens,
 } from '../../../utils/context.js'
-import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
+import { isTurnOwningQuerySource, resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
+import { effortStampOf, type EffortStampV1 } from '../../../utils/effortStamp.js'
 import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -206,6 +207,7 @@ import {
 } from '../streamIdleBudget.js'
 import { nonstreamingFallbackCeilingMs, patienceSeconds } from '../patience.js'
 import {
+  anthropicEffortWireFact,
   configureEffortParams,
   getAPIMetadata,
   getExtraBodyParams,
@@ -476,8 +478,11 @@ async function* queryModel(
 
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
+  const effortTruth = resolveEffortTruth(options.model, options.effortValue, { agentId: options.agentId })
+  let effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, effortTruth.supportsEffort ? { kind: 'omitted' } : { kind: 'unsupported' })
   const captureModelRequest = (params: BetaMessageStreamParams): void => {
     modelRefusalRequest.current = captureModelRefusalRequest(params.model)
+    effortOnWire = effortStampOf(effortTruth.requested, anthropicEffortWireFact(params as Parameters<typeof anthropicEffortWireFact>[0], effortTruth.supportsEffort))
     captureAPIRequest(params, options.querySource)
   }
 
@@ -874,6 +879,7 @@ async function* queryModel(
     type: 'assistant',
     uuid: randomUUID(),
     timestamp: new Date().toISOString(),
+    effort: effortOnWire,
   })
 
   function* yieldAbortedPartialText(): Generator<AssistantMessage> {
@@ -1333,25 +1339,31 @@ async function* queryModel(
               { requestId: clientRequestId ?? null, raw: part.delta },
             )
             if (refusalMessage) {
-              yield refusalMessage
+              yield { ...refusalMessage, effort: effortOnWire }
             }
 
             if (stopReason === 'max_tokens') {
-              yield createAssistantAPIErrorMessage({
-                content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${
-                  maxOutputTokens
-                } output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
-                apiError: 'max_output_tokens',
-                error: 'max_output_tokens',
-              })
+              yield {
+                ...createAssistantAPIErrorMessage({
+                  content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response exceeded the ${
+                    maxOutputTokens
+                  } output token maximum. To configure this behavior, set the MERCURY_MAX_OUTPUT_TOKENS environment variable.`,
+                  apiError: 'max_output_tokens',
+                  error: 'max_output_tokens',
+                }),
+                effort: effortOnWire,
+              }
             }
 
             if (stopReason === 'model_context_window_exceeded') {
-              yield createAssistantAPIErrorMessage({
-                content: `${API_ERROR_MESSAGE_PREFIX}: The model has reached its context window limit.`,
-                apiError: 'max_output_tokens',
-                error: 'max_output_tokens',
-              })
+              yield {
+                ...createAssistantAPIErrorMessage({
+                  content: `${API_ERROR_MESSAGE_PREFIX}: The model has reached its context window limit.`,
+                  apiError: 'max_output_tokens',
+                  error: 'max_output_tokens',
+                }),
+                effort: effortOnWire,
+              }
             }
             break
           }

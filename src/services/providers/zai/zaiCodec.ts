@@ -1,5 +1,6 @@
 import { providerRefusedImage } from '../../api/mediaRefusal.js'
 import type { MessageParam } from '../../../types/wire.js'
+import type { EffortWireFact } from '../../../utils/effortStamp.js'
 import type {
   ZaiChatRequest,
   ZaiCompletedToolCall,
@@ -168,6 +169,12 @@ export interface BuildZaiRequestInput {
   reasoningEffort?: string
   thinkingEnabled?: boolean
   requestId?: string
+}
+
+export function zaiEffortWireFact(request: ZaiChatRequest, supported: boolean): EffortWireFact {
+  const effort = request.reasoning_effort
+  if (typeof effort === 'string' && effort !== '') return { kind: 'sent', parameter: 'reasoning_effort', value: effort }
+  return supported ? { kind: 'omitted' } : { kind: 'unsupported' }
 }
 
 export function buildZaiChatRequest(i: BuildZaiRequestInput): ZaiChatRequest {

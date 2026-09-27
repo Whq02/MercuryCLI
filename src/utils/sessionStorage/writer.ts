@@ -51,6 +51,7 @@ import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { getWorkload } from '../workloadContext.js'
+import { effortNotOnWire } from '../effortStamp.js'
 import {
   cleanMessagesForLogging,
   getFirstMeaningfulUserMessageTextContent,
@@ -883,6 +884,7 @@ class Project {
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
           workload: message.type === 'assistant' ? getWorkload() : undefined,
           agentId,
+          ...(message.type === 'assistant' ? { effort: effortNotOnWire() } : {}),
           ...message,
           entrypoint: getEntrypoint(),
           cwd: getCwd(),
