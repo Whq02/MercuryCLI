@@ -123,11 +123,27 @@ export function buildHuggingfaceExtras(args: LaneExtrasArgs): Record<string, unk
 export type LocalServerKind = 'ollama' | 'lmstudio' | 'vllm' | 'llamacpp' | 'openai-compatible'
 
 export const LOCAL_SERVER_EFFORTS: Readonly<Record<LocalServerKind, readonly string[]>> = {
-  ollama: ['low', 'medium', 'high', 'max'],
+  ollama: ['none', 'low', 'medium', 'high', 'max'],
   vllm: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   llamacpp: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
   lmstudio: [],
   'openai-compatible': [],
+}
+
+export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind, boolean>> = {
+  ollama: true,
+  lmstudio: true,
+  vllm: false,
+  llamacpp: false,
+  'openai-compatible': false,
+}
+
+export function localThinkingOff(args: { server: LocalServerKind; acceptsEffort: boolean; thinkingEnabled: boolean }): boolean {
+  return !args.thinkingEnabled && args.acceptsEffort && LOCAL_SERVER_STATES_THINKING[args.server]
+}
+
+export function localThinkingOffWireEffort(server: LocalServerKind): string | undefined {
+  return LOCAL_SERVER_STATES_THINKING[server] ? thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server]) : undefined
 }
 
 export function buildLocalExtras(
@@ -135,11 +151,15 @@ export function buildLocalExtras(
 ): Record<string, unknown> {
   const vocabulary = LOCAL_SERVER_EFFORTS[args.server]
   const wireEffort =
-    args.acceptsEffort && args.effortValue !== undefined && vocabulary.length > 0
-      ? vocabulary.includes(args.effortValue)
-        ? args.effortValue
-        : nearestSupportedWireEffort(args.effortValue, vocabulary)
-      : undefined
+    !args.acceptsEffort || vocabulary.length === 0
+      ? undefined
+      : localThinkingOff(args)
+        ? localThinkingOffWireEffort(args.server)
+        : args.effortValue !== undefined
+          ? vocabulary.includes(args.effortValue)
+            ? args.effortValue
+            : nearestSupportedWireEffort(args.effortValue, vocabulary)
+          : undefined
   return {
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),

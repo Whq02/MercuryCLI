@@ -4,6 +4,7 @@ import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/mess
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, getOauthAccountInfo, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
@@ -47,6 +48,24 @@ export const STREAM_FAULT_RECOVERY_NUDGE =
   'Pick up exactly where your output stopped rather than restarting. Do not apologise ' +
   'and do not restate anything you already produced. Finish the outstanding work and ' +
   'end with a complete final message.'
+
+export const STREAM_FAULT_RECOVERY_TAIL_CHARS = 160
+
+export function streamFaultRecoveryTailLine(replyText: string): string | null {
+  const settled = replyText.trimEnd()
+  if (settled === '') return null
+  const tail = settled.length > STREAM_FAULT_RECOVERY_TAIL_CHARS ? `…${settled.slice(-STREAM_FAULT_RECOVERY_TAIL_CHARS)}` : settled
+  return `Your reply so far is the assistant message directly above this one; the stream was cut right after its last words: “${tail}”. Continue from exactly that point.`
+}
+
+export function streamFaultRecoveryContent(replyText: string): string | ContentBlockParam[] {
+  const tailLine = streamFaultRecoveryTailLine(replyText)
+  if (tailLine === null) return STREAM_FAULT_RECOVERY_NUDGE
+  return [
+    { type: 'text', text: STREAM_FAULT_RECOVERY_NUDGE },
+    { type: 'text', text: tailLine },
+  ]
+}
 
 export const EMPTY_REPLY_RECOVERY_NUDGE =
   '[System: the previous reply came back empty — no text and no tool call reached the user. ' +
