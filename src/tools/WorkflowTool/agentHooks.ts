@@ -30,8 +30,9 @@ import {
   type RecoveryReservation,
 } from '../../services/api/recoveryBudget.js'
 import { runAgent } from '../AgentTool/runAgent.js'
+import { resolveWorkerTools } from '../AgentTool/agentToolUtils.js'
 import { readAgentMetadata } from '../../utils/sessionStorage.js'
-import { isBuiltInAgent } from '../AgentTool/loadAgentsDir.js'
+import { isBuiltInAgent, type AgentDefinition } from '../AgentTool/loadAgentsDir.js'
 import { assembleToolPool } from '../../tools.js'
 import { resolveWorkflowRoutedModel, validateWorkflowTier } from './workflowRouting.js'
 import { resolveEngineDispatch } from '../../utils/swarm/engineDispatch.js'
@@ -365,6 +366,19 @@ export type SubagentStreamEvent =
 
 export type SpawnSubagentStream = (args: SpawnSubagentArgs) => AsyncIterable<SubagentStreamEvent>
 
+function workflowWorkerTools(
+  agentDef: unknown,
+  appState: ReturnType<HookContextView['getAppState']>,
+): ToolPool {
+  const def = agentDef as AgentDefinition
+  const mode = def.permissionMode ?? 'implement'
+  const pool = assembleToolPool(
+    { ...appState.toolPermissionContext, mode } as Parameters<typeof assembleToolPool>[0],
+    appState.mcp.tools as ToolPool,
+  )
+  return resolveWorkerTools(def, mode, pool, true)
+}
+
 async function* adapterSpawnStream(
   args: SpawnSubagentArgs,
 ): AsyncGenerator<SubagentStreamEvent, void> {
@@ -372,15 +386,11 @@ async function* adapterSpawnStream(
   const authority = evaluateLaunchAuthority('subagents')
   if (!authority.allowed) throw new Error(authority.reason)
   const view = args.toolUseContext as unknown as HookContextView
-  const appState = view.getAppState()
-  const def = args.agentDefinition as { agentType?: string; permissionMode?: string }
+  const def = args.agentDefinition as { agentType?: string }
 
   const pool =
     (args.availableTools as ToolPool | undefined) ??
-    assembleToolPool(
-      { ...appState.toolPermissionContext, mode: def.permissionMode ?? 'implement' } as Parameters<typeof assembleToolPool>[0],
-      appState.mcp.tools as ToolPool,
-    )
+    workflowWorkerTools(args.agentDefinition, view.getAppState())
 
   const seedMessages =
     (args.continuationMessages as RunAgentOpts['promptMessages'] | undefined) ??
@@ -530,12 +540,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   }
 
   function spliceStructuredTool(structuredTool: unknown, agentDef: unknown): unknown {
-    const def = agentDef as { permissionMode?: string }
-    const appState = contextView.getAppState()
-    const basePool = assembleToolPool(
-      { ...appState.toolPermissionContext, mode: def?.permissionMode ?? 'implement' } as Parameters<typeof assembleToolPool>[0],
-      appState.mcp.tools as ToolPool,
-    ) as unknown as Array<{ name?: string }>
+    const basePool = workflowWorkerTools(agentDef, contextView.getAppState()) as unknown as Array<{ name?: string }>
     return [...basePool.filter(t => t?.name !== STRUCTURED_OUTPUT_TOOL_NAME), structuredTool]
   }
 
