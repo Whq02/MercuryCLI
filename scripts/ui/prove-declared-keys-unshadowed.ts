@@ -278,7 +278,7 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
     },
     'src/components/Settings/Jev.tsx': {
       gate: ['{ isActive: entry === null }'],
-      legend: ['{entry !== null ? (', '{entryPrompt(entry.kind, facts)}', '↵ saves, esc cancels.', '↵ saves to the auth-scoped secret store; esc cancels.'],
+      legend: ['{entry !== null ? (', 'entry === null ? null : entryPrompt(entry.kind, facts)', 'whole(promptLine, tokens.textSecondary)', '↵ saves, esc cancels.', '↵ saves to the auth-scoped secret store; esc cancels.'],
       reason: 'k/j are the unadvertised vi aliases of the ↑↓ the popup hint lists; the whole row handler stands down while an entry field is open (the field takes every printable and owns esc through onOwnsEscape), and the row note that lists ↵ · space · ←/→ · ⌫ yields to the entry prompt (↵ saves, esc cancels)',
     },
   }
