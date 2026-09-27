@@ -45,7 +45,7 @@ writeFileSync(
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 90, minTick: 5, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'please list that directory\r' },
-      { atTick: 160, minTick: 5, awaitText: 'definitely-missing', awaitSettleTicks: 2, data: `${MID}\r` },
+      { atTick: 160, minTick: 5, awaitText: 'esc interrupt', awaitSettleTicks: 2, data: `${MID}\r` },
     ],
     total: 200,
     cols: 140,

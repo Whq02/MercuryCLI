@@ -4,18 +4,19 @@ import { getCwd } from '../utils/cwd.js'
 import type { queryModelWithStreaming } from '../services/providers/anthropic/index.js'
 
 const SLOW_TEXT_ACTIVE_MS = 8_000
+const HAMMER_ROUND_MS = 50
 
 const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
   new Promise(resolve => {
-    const t = setTimeout(resolve, ms)
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(t)
-        resolve()
-      },
-      { once: true },
-    )
+    const onAbort = (): void => {
+      clearTimeout(t)
+      resolve()
+    }
+    const t = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal.addEventListener('abort', onAbort, { once: true })
   })
 
 export function scriptedCallModel(
@@ -45,6 +46,7 @@ let hammerCalls = 0
 
 const scriptedHammerBreaker = async function* scriptedHammerBreaker(params) {
   yield { type: 'stream_event', event: { type: 'ping' } } as never
+  await sleep(HAMMER_ROUND_MS, params.signal)
   if (params.signal.aborted) return
   const message = createAssistantMessage({
     content: [
