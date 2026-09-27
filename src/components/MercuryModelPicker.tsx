@@ -53,13 +53,16 @@ import {
   nextStop,
   pickerColumns,
   pickerReachTotal,
+  providerNameOfGroup,
   rowKey,
   type CatalogueDoorFacet,
   type FoldState,
   type PickerLine,
   type ProviderHeading,
 } from '../utils/model/modelPickerGroups.js'
-import { isLocalModelId, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
+import { isLocalModelId, LOCAL_MODEL_GROUP, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
+import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
+import { openLocalSetupPopup } from '../commands/localsetup/localsetup.js'
 import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
 import {
   parseGptModelId,
@@ -237,6 +240,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const [, setWindowStamp] = useState(0)
   const focusedLocal = focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id) ? localRecordFor(focusedModel.id) : undefined
   const focusedLocalCycles = focusedLocal !== undefined && (localWindowApplication(focusedLocal) === 'request' || localWindowApplication(focusedLocal) === 'load')
+  const localOffer = !filtering && headings?.[LOCAL_MODEL_GROUP]?.reason !== undefined && !groups.some(group => group.group === LOCAL_MODEL_GROUP)
   const focusedNative1m = ((): boolean => {
     const p = focusedModel?.id
     if (!p || focusedSupports1m || focusedGptWindow) return false
@@ -467,6 +471,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         setCtxNotice(receipt)
       }
     }
+    if (input === 's' && !key.ctrl && !key.meta && localOffer && !event.didStopImmediatePropagation()) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      onClose?.()
+      openLocalSetupPopup()
+    }
   })
   const linePaint = (idx: number): number => {
     const line = lines[idx]
@@ -502,7 +512,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const chromePaint =
     2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
-    noticeLines.length
+    noticeLines.length + (localOffer ? 1 : 0)
   const effortPaint = hasEffort ? (compact ? 1 : painted(effortStripText(efforts!, effort))) : 0
   const shedEffort = compact && effortPaint > 0 && availRows - chromePaint - effortPaint < 4
   const room = availRows - chromePaint - (shedEffort ? 0 : effortPaint)
@@ -627,6 +637,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       {lines.map((line, idx) => (idx < win.start || idx >= win.end ? null : renderLine(line, idx)))}
       {slack > 0 ? <Box height={slack} flexShrink={0} /> : null}
       {markersOn && win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
+      {localOffer ? <Text wrap="truncate-end"><Text color={FAINT}>{FOLD_OPEN_LEAD}</Text><Text bold color={tokens.info}>{headings?.[LOCAL_MODEL_GROUP]?.name ?? providerNameOfGroup(LOCAL_MODEL_GROUP)}</Text><Text color={FAINT}>{` · ${LOCAL_SETUP_PICKER_OFFER}`}</Text></Text> : null}
       {compact ? null : <Box height={1} />}
       {shedMeters ? null : <Box>
         <Text wrap="truncate-end"><Text color={FAINT}>context </Text>{ctxPct === null ? <Text color={FAINT}>—</Text> : <><Text color={gaugeColor(ctxPct)}>{bar(ctxPct, 12)}</Text><Text color={SAND}> {ctxPct}%</Text></>}{((): React.ReactNode => {

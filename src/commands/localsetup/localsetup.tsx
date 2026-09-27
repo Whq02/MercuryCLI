@@ -12,7 +12,8 @@ import {
   type LocalSetupSummary,
 } from '../../components/LocalSetupDialog.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
-import { runSetupRoad } from '../../services/localSetup/index.js'
+import { runSetupRoad, type SessionModelSetter } from '../../services/localSetup/index.js'
+import { useSetAppStateMaybe } from '../../state/AppState.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 
@@ -115,24 +116,36 @@ export function dialogRoadFrom(run: SetupRoadRunner): LocalSetupRoad {
     })()
 }
 
-export function LocalSetupPopupBody({ geometry, road }: { geometry: SettingsPopupGeometry; road: LocalSetupRoad }): React.ReactNode {
-  const frame = useSettingsPopupFrame()
-  return <LocalSetupDialog road={road} width={geometry.inner} rowBudget={geometry.rowBudget} onLine={frame.setLine} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
+export type LocalSetupRoadIo = { setAppState?: SessionModelSetter | undefined }
+
+export function localSetupRoadOf(io: LocalSetupRoadIo): LocalSetupRoad {
+  const setAppState = io.setAppState
+  return dialogRoadFrom(consent => runSetupRoad(consent, setAppState === undefined ? {} : { setAppState }))
 }
 
-export function localSetupPopupRequest(road: LocalSetupRoad): SettingsPopupRequest {
+export function LocalSetupPopupBody({ geometry, road, io }: { geometry: SettingsPopupGeometry; road?: LocalSetupRoad; io?: LocalSetupRoadIo }): React.ReactNode {
+  const frame = useSettingsPopupFrame()
+  const screenSetter = useSetAppStateMaybe()
+  const built = React.useMemo(() => road ?? localSetupRoadOf({ setAppState: io?.setAppState ?? screenSetter ?? undefined }), [road, io, screenSetter])
+  return <LocalSetupDialog road={built} width={geometry.inner} rowBudget={geometry.rowBudget} onLine={frame.setLine} onOwnsEscape={frame.setOwnsEscape} onClose={frame.close} />
+}
+
+export function localSetupPopupRequest(road?: LocalSetupRoad, io: LocalSetupRoadIo = {}): SettingsPopupRequest {
   return {
     view: 'localsetup',
     width: hostColumns => Math.min(LOCAL_SETUP_POPUP_WIDTH, hostColumns),
     rows: LOCAL_SETUP_POPUP_ROWS,
     line: LOCAL_SETUP_OPENING_LINE,
     hint: LOCAL_SETUP_POPUP_HINT,
-    body: geometry => <LocalSetupPopupBody geometry={geometry} road={road} />,
+    body: geometry => <LocalSetupPopupBody geometry={geometry} io={io} {...(road !== undefined ? { road } : {})} />,
   }
 }
 
+export function openLocalSetupPopup(io: LocalSetupRoadIo = {}): void {
+  openSettingsPopup(localSetupPopupRequest(undefined, io))
+}
+
 export const call = async (_args: string, context: LocalJSXCommandContext): Promise<LocalCommandResult> => {
-  const setAppState = context.setAppState
-  openSettingsPopup(localSetupPopupRequest(dialogRoadFrom(consent => runSetupRoad(consent, setAppState === undefined ? {} : { setAppState }))))
+  openLocalSetupPopup({ setAppState: context.setAppState })
   return { type: 'skip' }
 }
