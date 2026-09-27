@@ -78,8 +78,9 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
     /this\.liveState\.phase === 'idle'\s*\?\s*'thinking'/.test(src),
   )
   check(
-    "…the compacting window keeps the fold's own word (never the thinking dress)",
-    /this\.liveStateWord === 'compacting'\s*\?\s*'compacting'/.test(src),
+    "…the compacting window keeps the fold's own word (never the thinking dress) — only while the fold's record says it still runs: the word ranks below the record's exit, so a landed fold never dresses the next turn",
+    /this\.liveStateWord === 'compacting' && foldStillRuns\(this\.liveFoldStatus\)\s*\?\s*'compacting'/.test(src) &&
+      /function foldStillRuns\(status: FoldStatusV1 \| null\): boolean \{\s*return status === null \|\| status\.exit === undefined/.test(src),
   )
   check(
     "…and no code path stamps 'responding' from the busy bit",

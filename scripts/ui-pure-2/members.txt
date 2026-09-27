@@ -28,6 +28,7 @@ prove-instruction-key-survival.ts
 prove-key-hint-labels.ts
 prove-lanes-shed.ts
 prove-launchripple-deletion.ts
+prove-live-counter.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
 prove-markdown-marker-gate.ts

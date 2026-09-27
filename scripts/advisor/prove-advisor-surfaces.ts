@@ -171,7 +171,7 @@ const popupFrames = new Map<string, string>()
   check('with no advisor spend the slot paints no Advisor line (the words fixture of prove-usage-popup stands)', !bare.includes('Advisor:'), bare.slice(0, 200))
 }
 
-section('§3 /submodels, rendered from source: both containers listed, tab moves between them, a pick lands under the advisor key')
+section('§3 /submodels, rendered from source: both containers listed, tab moves between them, a pick lands under the advisor key (each mount waits for its first painted frame: a terminal the sniff misses holds the first paint through the boot coalesce and the DECRQM probe, longer than a fixed settle)')
 const SYNC_BEGIN = `${ESC}[?2026h`
 const SYNC_END = `${ESC}[?2026l`
 const lastFrame = (output: string): string => {
@@ -201,10 +201,13 @@ const pickerFrames = new Map<string, string>()
     const stdout = Object.assign(new PassThrough(), { columns, rows })
     let output = ''
     stdout.on('data', (chunk: Buffer | string) => { output += chunk.toString() })
+    let painted = (): void => {}
+    const firstFrame = new Promise<void>(resolve => { painted = resolve })
     const instance = await render(
       React.createElement(SubModelPicker, { onClose: () => {}, onRoute: () => {}, initialContainer: 'console', ...(initialModelId !== undefined ? { initialModelId } : {}) }),
-      { stdout: stdout as never, stdin: stdin as never, patchConsole: false },
+      { stdout: stdout as never, stdin: stdin as never, patchConsole: false, onFrame: () => painted() },
     )
+    await firstFrame
     await settle(150)
     return {
       press: async (bytes: string): Promise<void> => { stdin.write(bytes); await settle(150) },

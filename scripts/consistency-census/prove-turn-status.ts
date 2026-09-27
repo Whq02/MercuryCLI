@@ -15,7 +15,15 @@ const row = readFileSync(join(ROOT, 'src/components/Spinner/SpinnerAnimationRow.
 check('§A no thinkingStatus state machine in Spinner.tsx', !/useState<'thinking'/.test(spinner) && !spinner.includes('setThinkingStatus'))
 check('§A no thinkingStatus prop reaches the row', !/thinkingStatus[:=]/.test(row.split('unison W3')[0] ?? row) && !row.includes('thinkingStatus={'))
 check('§A no display timeouts for the thinking label anywhere', !spinner.includes('showDurationTimer') && !row.includes('showDurationTimer'))
-check('§A the live thinking label keys off the stream mode alone', row.includes("const inThinking = mode === 'thinking'") && row.includes('const thinkingText = inThinking ? thinkingLabelFull : null'))
+const liveWords = readFileSync(join(ROOT, 'src/components/Spinner/liveCounterWords.ts'), 'utf8')
+check(
+  "§A the live thinking label keys off the stream mode and the seat's live facts alone (liveCounterWords owns the phase word: reading the prompt, loading, retrying replace the label only while the facts say so — a pure function, never a timer or a state machine)",
+  row.includes("const inThinking = mode === 'thinking'") &&
+    row.includes("import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'") &&
+    row.includes('const waitPhaseText = liveWords.reading || liveWords.phase !== liveCounterPhaseOf(mode) ? liveWords.phase : null') &&
+    row.includes('const thinkingText = inThinking && waitPhaseText === null ? thinkingLabelFull : null') &&
+    !/setTimeout|setInterval|useState|useRef|useEffect/.test(liveWords),
+)
 
 check('§B the retired per-phase clock is gone from the row', !row.includes('phaseElapsedMs'))
 check('§B the whole-turn timer is the single default time basis', row.includes('effectiveElapsedMs') && row.includes('timerText'))
