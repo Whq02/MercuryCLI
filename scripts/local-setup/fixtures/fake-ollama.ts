@@ -12,6 +12,7 @@ export const FAKE_OLLAMA_TRAINED_CONTEXT = 262_144
 export const FAKE_OLLAMA_DEFAULT_CONTEXT = 4096
 export const FAKE_OLLAMA_REPLY = 'ready'
 export const FAKE_OLLAMA_REPLY_PREFIX = 'ready — the fixture qwen3.5:9b heard: '
+const HARNESS_BLOCK = /^<(?:system-reminder|local-command-[a-z]+|command-[a-z]+)>/
 export const FAKE_OLLAMA_PROMPT_PACE_TOKENS_PER_S = 300
 export const FAKE_OLLAMA_EVAL_PACE_TOKENS_PER_S = 40
 
@@ -252,12 +253,18 @@ export function createFakeOllama(options: FakeOllamaOptions = {}): FakeOllama {
 
   const lastUserText = (body: Record<string, unknown> | undefined): string => {
     const messages = Array.isArray(body?.messages) ? (body!.messages as unknown[]) : []
+    let tagged = ''
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = rec(messages[i])
       if (m?.role !== 'user') continue
-      if (typeof m.content === 'string') return m.content
-      if (Array.isArray(m.content)) return m.content.map(part => (typeof rec(part)?.text === 'string' ? String(rec(part)!.text) : '')).join('')
+      const text = typeof m.content === 'string' ? m.content : Array.isArray(m.content) ? m.content.map(part => (typeof rec(part)?.text === 'string' ? String(rec(part)!.text) : '')).join('') : ''
+      if (HARNESS_BLOCK.test(text.trimStart())) {
+        if (tagged === '') tagged = text
+        continue
+      }
+      return text
     }
+    if (tagged !== '') return tagged
     return typeof body?.prompt === 'string' ? body.prompt : ''
   }
 

@@ -31,6 +31,8 @@ export type {
   SessionModelSlice,
   SessionModelSetter,
   SessionModelUpdater,
+  SessionModelDoor,
+  SessionSwitchReceipt,
   SetupIo,
   DetectedServer,
   OllamaInstallFound,
@@ -53,5 +55,5 @@ export { findOllamaInstall, planInstall, runInstall, waitForInstall, INSTALL_DOC
 export { planStart, startServer, waitForOllama, readOllamaVersion } from './setupStart.js'
 export { modelListed, pullModel, pullProgressLine } from './setupPull.js'
 export { chooseWindow, chooseWindowFrom, windowWords } from './setupWindow.js'
-export { pickAndProve, proveKnobsOf, proveRecordFor, proveRequestOf, proveTimingWords, proveWillRun, setupModelIdOf, type ProveIo } from './setupProve.js'
+export { pickAndProve, proveKnobsOf, proveRecordFor, proveRequestOf, proveTimingWords, proveWillRun, setupModelIdOf, switchSessionModel, type ProveIo, type SessionSwitch } from './setupProve.js'
 export { runSetupRoad, summaryWords } from './setupRoad.js'

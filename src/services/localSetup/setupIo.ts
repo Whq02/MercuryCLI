@@ -7,6 +7,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
+import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import {
   SETUP_EXEC_TIMEOUT_MS,
   SETUP_INSTALL_WAIT_MS,
@@ -15,6 +16,7 @@ import {
   SETUP_START_WAIT_MS,
   type ExecOptions,
   type ExecResult,
+  type SessionModelDoor,
   type SessionModelSetter,
   type SetupIo,
 } from './setupTypes.js'
@@ -40,6 +42,7 @@ export interface ResolvedSetupIo {
   parallelSlots: number
   cacheType?: string
   writeWindow: (tag: string, window: number) => void
+  focusedConnector: () => SessionModelDoor
   setAppState?: SessionModelSetter
   persist: (setting: string) => { sentence: string }
 }
@@ -161,6 +164,7 @@ export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
     parallelSlots: io.parallelSlots ?? defaultParallelSlots(),
     ...(io.cacheType !== undefined ? { cacheType: io.cacheType } : {}),
     writeWindow: io.writeWindow ?? ((tag, window) => writeLocalWindowSetting({ id: tag }, window)),
+    focusedConnector: io.focusedConnector ?? (() => getFocusedSessionConnector()),
     ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}),
     persist: io.persist ?? (setting => persistModelChoice(setting)),
   }
