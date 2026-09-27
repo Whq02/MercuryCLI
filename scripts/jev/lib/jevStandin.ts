@@ -134,6 +134,41 @@ export function fixtureAnswerer(table: Readonly<Record<string, Readonly<Record<s
   }
 }
 
+export interface StandinChoice {
+  choice: string
+  probabilities: Readonly<Record<string, number>>
+  confidence: number
+  nouls?: Readonly<Record<string, number>>
+}
+
+export const RED_ROAD_CHOICE_FIXTURES: Readonly<Record<string, StandinChoice>> = Object.freeze({
+  'red-road-stale': { choice: 'stale', probabilities: { product: 0.04, stale: 0.9, run: 0.03, hosted: 0.01, none: 0.02 }, confidence: 0.9, nouls: { real: 0.94 } },
+  'red-road-product': { choice: 'product', probabilities: { product: 0.8, stale: 0.1, run: 0.05, hosted: 0.03, none: 0.02 }, confidence: 0.8, nouls: { real: 0.88 } },
+  'red-road-split': { choice: 'stale', probabilities: { product: 0.42, stale: 0.5, run: 0.04, hosted: 0.02, none: 0.02 }, confidence: 0.3, nouls: { real: 0.91 } },
+  'red-road-killed': { choice: 'run', probabilities: { product: 0.03, stale: 0.02, run: 0.85, hosted: 0.05, none: 0.05 }, confidence: 0.85, nouls: { real: 0.08 } },
+  'red-road-hosted': { choice: 'hosted', probabilities: { product: 0.02, stale: 0.02, run: 0.05, hosted: 0.9, none: 0.01 }, confidence: 0.9, nouls: { real: 0.12 } },
+  'red-road-unsure': { choice: 'run', probabilities: { product: 0.3, stale: 0.2, run: 0.35, hosted: 0.05, none: 0.1 }, confidence: 0.4, nouls: { real: 0.5 } },
+  'red-road-none': { choice: 'none', probabilities: { product: 0.1, stale: 0.1, run: 0.1, hosted: 0.05, none: 0.65 }, confidence: 0.7, nouls: { real: 0.45 } },
+})
+
+export function fixtureChoiceAnswerer(table: Readonly<Record<string, StandinChoice>>): StandinAnswerer {
+  return (body, rawBody) => {
+    const id = fixtureIdsIn(rawBody).find(found => found in table)
+    if (id === undefined) return undefined
+    const fixture = table[id]!
+    const answer = defaultResponseFor(body, rawBody, fixture.nouls ?? {}) as { answers: Record<string, unknown> }
+    const questions = isRecord(body) && isRecord(body.questions) ? body.questions : {}
+    for (const [qid, question] of Object.entries(questions)) {
+      const q = (isRecord(question) ? question : {}) as Question
+      if (q.type !== 'choice' || !isRecord(q.criteria)) continue
+      const probabilities: Record<string, number> = {}
+      for (const label of Object.keys(q.criteria)) probabilities[label] = fixture.probabilities[label] ?? 0
+      answer.answers[qid] = { type: 'choice', choice: fixture.choice, probabilities, confidence: fixture.confidence }
+    }
+    return answer
+  }
+}
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
