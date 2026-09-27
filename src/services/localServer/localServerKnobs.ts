@@ -168,6 +168,8 @@ export function knobValueWords(reading: KnobReading, envReadable: boolean): stri
 
 export interface MemoryFacts {
   machineBytes: number
+  usableBytes: number
+  usableSource: string
   cacheType?: string
   models: Array<{ name: string; weightsBytes: number; geometry: KvGeometry; loadedBytes?: number; loadedWindow?: number }>
 }
@@ -186,11 +188,59 @@ export function memoryFactsOf(truth: LocalServerTruth | null): MemoryFacts {
       ...(loaded?.contextLength !== undefined ? { loadedWindow: loaded.contextLength } : {}),
     })
   }
-  return { machineBytes: truth?.machine.totalMemoryBytes ?? 0, ...(cacheType ? { cacheType } : {}), models }
+  return { machineBytes: truth?.machine.totalMemoryBytes ?? 0, usableBytes: truth?.machine.usableMemoryBytes ?? truth?.machine.totalMemoryBytes ?? 0, usableSource: truth?.machine.usableSource ?? 'total memory', ...(cacheType ? { cacheType } : {}), models }
 }
 
-export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chosen: { window: number; slots: number; maxLoaded: number }): string {
-  const machine = gibWords(facts.machineBytes)
+export interface ChosenKnobs {
+  window: number
+  slots: number
+  maxLoaded: number
+}
+
+function envNumber(truth: LocalServerTruth | null, name: string): number | undefined {
+  const n = Number(truth?.process?.env[name])
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
+export function chosenKnobs(truth: LocalServerTruth | null, settings: LocalServerSettings): ChosenKnobs {
+  const runner = truth?.runners[0]
+  return {
+    window: settings.contextLength ?? runner?.context ?? envNumber(truth, 'OLLAMA_CONTEXT_LENGTH') ?? truth?.loaded[0]?.contextLength ?? 4096,
+    slots: settings.parallelSlots ?? runner?.slots ?? envNumber(truth, 'OLLAMA_NUM_PARALLEL') ?? 1,
+    maxLoaded: settings.maxLoadedModels ?? envNumber(truth, 'OLLAMA_MAX_LOADED_MODELS') ?? 1,
+  }
+}
+
+export interface FitVerdict {
+  fits: boolean
+  projectedBytes: number
+  usableBytes: number
+  models: Array<{ name: string; bytes: number }>
+  short: string
+  words: string
+}
+
+export const FIT_REMEDY = 'lower the window or the count'
+
+export function fitVerdict(facts: MemoryFacts, chosen: ChosenKnobs): FitVerdict {
+  const count = Math.max(1, chosen.maxLoaded)
+  const models = [...facts.models]
+    .sort((a, b) => b.weightsBytes - a.weightsBytes)
+    .slice(0, count)
+    .map(model => ({ name: model.name, bytes: projectLoad(model, chosen.window, chosen.slots, facts.cacheType).totalBytes }))
+  const projectedBytes = models.reduce((sum, model) => sum + model.bytes, 0)
+  const usableBytes = facts.usableBytes
+  const fits = usableBytes <= 0 || models.length === 0 || projectedBytes <= usableBytes
+  const named = models.length === 0 ? '' : models.length === 1 ? ` with ${models[0]!.name} loaded` : ` with ${models.map(model => model.name).join(' and ')} loaded`
+  const figures = `${gibWords(projectedBytes).replace(' GiB', '')} of ${gibWords(usableBytes)} usable`
+  const short = models.length === 0 ? 'nothing to project' : fits ? `fits · ${figures}` : `does not fit · ${figures}`
+  const words = models.length === 0 ? 'no model geometry read — nothing to project' : fits ? `${short}${named}` : `${short}${named} — ${FIT_REMEDY}`
+  return { fits, projectedBytes, usableBytes, models, short, words }
+}
+
+export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chosen: ChosenKnobs): string {
+  const machine = `${gibWords(facts.machineBytes)}, ${gibWords(facts.usableBytes)} usable for models (${facts.usableSource})`
+  const usable = gibWords(facts.usableBytes)
   const largest = [...facts.models].sort((a, b) => b.weightsBytes - a.weightsBytes)[0]
   if (id === 'maxLoadedModels') {
     const loads = facts.models.map(model => {
@@ -200,14 +250,14 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
       return { name: model.name, bytes, words: `${model.name} ${gibWords(bytes)} at ${tokensWords(window)}${model.loadedBytes !== undefined ? '' : ' (projected)'}` }
     })
     const total = loads.reduce((sum, load) => sum + load.bytes, 0)
-    const together = loads.length > 1 ? ` · all ${loads.length} together ${gibWords(total)} — ${total <= facts.machineBytes * 0.9 ? `fit in ${machine}` : `do not fit in ${machine}`}` : ''
+    const together = loads.length > 1 ? ` · all ${loads.length} together ${gibWords(total)} — ${total <= facts.usableBytes ? `fit in ${usable}` : `do not fit in ${usable}`}` : ''
     return `how many models stay loaded before one is evicted; the box has ${machine}: ${loads.length ? loads.map(load => load.words).join(', ') : 'no model sizes read'}${together} · one loaded copy serves many sessions: seven sub-agents on one model need one copy and seven slots, not seven copies · ←/→ move it`
   }
   if (id === 'parallelSlots') {
     if (!largest) return `how many requests one loaded model answers at once; each slot holds its own window of cache · one slot for a single session; 2–4 slots with a 32k window for a swarm · ←/→ move it`
     const at = (window: number): string => gibWords(kvCacheBytes(largest.geometry, window, 1, facts.cacheType))
     const fleet = projectLoad(largest, 32768, chosen.slots, facts.cacheType)
-    return `how many requests one loaded model answers at once; each slot holds a full window of cache (${largest.name}: ${at(chosen.window)} per slot at ${tokensWords(chosen.window)}, ${at(32768)} at 32k) · one slot for a single session; 2–4 slots with a 32k window for a swarm — ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'} at 32k load ${largest.name} as ${gibWords(fleet.totalBytes)} of ${machine} · ←/→ move it`
+    return `how many requests one loaded model answers at once; each slot holds a full window of cache (${largest.name}: ${at(chosen.window)} per slot at ${tokensWords(chosen.window)}, ${at(32768)} at 32k) · one slot for a single session; 2–4 slots with a 32k window for a swarm — ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'} at 32k load ${largest.name} as ${gibWords(fleet.totalBytes)} of ${usable} usable · ←/→ move it`
   }
   if (id === 'keepAlive') {
     return `how long an idle model stays loaded before it unloads; a reload ingests the session's prompt again from scratch · -1 keeps it loaded, 0 unloads after every reply, a request's own keep_alive outranks it · ←/→ move it`
@@ -216,5 +266,5 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
     const projected = projectLoad(model, chosen.window, chosen.slots, facts.cacheType)
     return `${model.name} ${gibWords(projected.totalBytes)}`
   })
-  return `the window a request gets when it names none; a bigger window costs cache per slot · at ${tokensWords(chosen.window)} with ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'}: ${fits.length ? fits.join(', ') : 'no model geometry read'} (before the runner's buffers) of ${machine} · a model's own window setting outranks this · ←/→ move it`
+  return `the window a request gets when it names none; a bigger window costs cache per slot · at ${tokensWords(chosen.window)} with ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'}: ${fits.length ? fits.join(', ') : 'no model geometry read'} (before the runner's buffers) of ${usable} usable · a model's own window setting outranks this · ←/→ move it`
 }

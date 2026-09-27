@@ -141,11 +141,16 @@ const PLIST = [
   '\t</array>',
   '\t<key>RunAtLoad</key>',
   '\t<true/>',
+  '\t<key>StandardOutPath</key>',
+  `\t<string>${join(HOME, 'Library', 'Logs', 'ollama.log')}</string>`,
   '</dict>',
   '</plist>',
   '',
 ].join('\n')
 writeFileSync(PLIST_PATH, PLIST)
+mkdirSync(join(HOME, 'Library', 'Logs'), { recursive: true })
+const LOG_PATH = join(HOME, 'Library', 'Logs', 'ollama.log')
+writeFileSync(LOG_PATH, ['time=T level=INFO source=sched.go:618 msg="system memory" total="48.0 GiB" free="25.6 GiB" free_swap="0 B"', 'time=T level=INFO source=sched.go:625 msg="gpu memory" id=0 library=Metal available="36.9 GiB" free="37.4 GiB" minimum="512.0 MiB" overhead="0 B"', ''].join('\n'))
 
 const SERVE_CMD = '/opt/homebrew/opt/ollama/bin/ollama serve'
 const RUNNER_CMD = '/opt/homebrew/Cellar/ollama/0.34.4/libexec/lib/ollama/llama-server --model /Volumes/SSD/ollama/blobs/sha256-dec5 --port 49934 --host 127.0.0.1 --no-webui --offline -c 32768 -np 4 --log-verbosity 4 --cache-type-k q8_0 --cache-type-v q8_0 --flash-attn on -b 2048'
@@ -157,7 +162,10 @@ const fixtureRun = async (file: string, args: string[]): Promise<string | undefi
   if (file === 'ps' && args[0] === '-axo') return PS_TABLE
   if (file === 'ps' && args[0] === '-Eo') return args[3] === '16812' ? ENV_LINE : `${SERVE_CMD}\n`
   if (file === 'launchctl' && args[0] === 'print') return args[1] === 'gui/501/com.example.ollama-ssd' ? 'gui/501/com.example.ollama-ssd = {\n\tactive count = 1\n\tstate = running\n\tpid = 16812\n}\n' : undefined
+  if (file === 'launchctl' && args[0] === 'getenv') return args[1] === 'OLLAMA_MAX_LOADED_MODELS' ? '1\n' : '\n'
   if (file === 'launchctl') return ''
+  if (file === 'sysctl') return '0\n'
+  if (file === 'osascript' || file === 'open') return ''
   return undefined
 }
 const baseIo = (env: Record<string, string> = {}): Io => ({
@@ -180,6 +188,7 @@ const truth = await readLocalServerTruth(baseIo())
   check('the server process and its OLLAMA_* environment (7 names, the client and PATH left out)', truth.process?.pid === 16812 && truth.process.envReadable && Object.keys(truth.process.env).length === 7 && truth.process.env['OLLAMA_KEEP_ALIVE'] === '30m' && truth.process.env['OLLAMA_MODELS'] === '/Volumes/SSD/ollama' && !('PATH' in truth.process.env), JSON.stringify(truth.process))
   check('the launch form: the launch agent plist, its label, its env, writable, confirmed by launchctl', truth.launchForm.kind === 'launch-agent' && truth.launchForm.path === PLIST_PATH && truth.launchForm.label === 'com.example.ollama-ssd' && truth.launchForm.env?.['OLLAMA_MAX_LOADED_MODELS'] === '1' && truth.launchForm.writable === true && truth.launchForm.confirmed === true, JSON.stringify(truth.launchForm))
   check('the machine: 48 GiB, darwin, the injected clock', truth.machine.totalMemoryBytes === 48 * GIB && truth.machine.platform === 'darwin' && truth.readAtMs === 1_800_000_000_000)
+  check("the usable ceiling is the server's own gpu memory line from the plist's StandardOutPath log: 36.9 GiB (Metal)", gibWords(truth.machine.usableMemoryBytes) === '36.9 GiB' && truth.machine.usableSource === `the server's own gpu memory line in ${LOG_PATH} (Metal)` && truth.launchForm.logPath === LOG_PATH, `${truth.machine.usableMemoryBytes} · ${truth.machine.usableSource}`)
   check('the reads were GET version/tags/ps and POST show only — never a generation, a load or a delete', hits.every(hit => /^GET \/api\/(version|tags|ps)$|^POST \/api\/show$/.test(hit)), hits.join(', '))
 }
 
@@ -194,8 +203,12 @@ section('2 · absence is absent, never a throw')
   check('no ollama serve in the process list: process and runners absent, the plist still found (unconfirmed)', noProcess.process === undefined && noProcess.runners.length === 0 && noProcess.launchForm.kind === 'launch-agent' && noProcess.launchForm.confirmed === undefined, JSON.stringify(noProcess.launchForm))
   const throwing = await readLocalServerTruth({ ...baseIo(), fetchImpl: (() => { throw new Error('boom') }) as unknown as typeof fetch, run: async () => { throw new Error('boom') }, readText: () => { throw new Error('boom') }, listDir: () => { throw new Error('boom') } })
   check('a fetch, a process read and a file read that all throw still yield a truth', throwing.server === undefined && throwing.runners.length === 0 && throwing.launchForm.kind === 'unknown')
-  const app = await readLocalServerTruth({ ...baseIo(), run: async (file, args) => (file === 'ps' && args[0] === '-axo' ? '  777     1 /Applications/Ollama.app/Contents/Resources/ollama serve\n' : file === 'ps' ? '/Applications/Ollama.app/Contents/Resources/ollama serve OLLAMA_HOST=127.0.0.1:11434\n' : undefined) })
-  check('the Ollama app: the form is app, with the launchctl setenv words', app.launchForm.kind === 'app' && app.launchForm.note.includes('launchctl setenv') && app.process?.env['OLLAMA_HOST'] === '127.0.0.1:11434', JSON.stringify(app.launchForm))
+  const appRun = async (file: string, args: string[]): Promise<string | undefined> => (file === 'ps' && args[0] === '-axo' ? '  777     1 /Applications/Ollama.app/Contents/Resources/ollama serve\n' : file === 'ps' ? '/Applications/Ollama.app/Contents/Resources/ollama serve OLLAMA_HOST=127.0.0.1:11434 OLLAMA_MAX_LOADED_MODELS=1\n' : fixtureRun(file, args))
+  const app = await readLocalServerTruth({ ...baseIo(), run: appRun })
+  check('the Ollama app: the form is app, its env from launchctl getenv (the set one only), the app log path, the FAQ words', app.launchForm.kind === 'app' && app.launchForm.note.includes('launchctl setenv') && JSON.stringify(app.launchForm.env) === JSON.stringify({ OLLAMA_MAX_LOADED_MODELS: '1' }) && app.launchForm.logPath === join(HOME, '.ollama', 'logs', 'server.log') && app.process?.env['OLLAMA_HOST'] === '127.0.0.1:11434', JSON.stringify(app.launchForm))
+  check('no readable log and iogpu.wired_limit_mb 0: the ceiling is the Metal default, three quarters of 48 GiB, and says so', gibWords(app.machine.usableMemoryBytes) === '36.0 GiB' && app.machine.usableSource.startsWith('about three quarters of unified memory'), app.machine.usableSource)
+  const limited = await readLocalServerTruth({ ...baseIo(), run: async (file, args) => (file === 'sysctl' ? '40960\n' : appRun(file, args)) })
+  check('iogpu.wired_limit_mb set: the ceiling is that many MiB, named', gibWords(limited.machine.usableMemoryBytes) === '40.0 GiB' && limited.machine.usableSource === 'iogpu.wired_limit_mb', limited.machine.usableSource)
   const brewHome = mkdtempSync('/private/tmp/mw/local-server-page-brew.')
   mkdirSync(join(brewHome, 'Library', 'LaunchAgents'), { recursive: true })
   const brewPlist = join(brewHome, 'Library', 'LaunchAgents', HOMEBREW_OLLAMA_PLIST)
@@ -212,8 +225,11 @@ section('2 · absence is absent, never a throw')
     run: async (file, args) => (file === 'ps' && args[0] === '-axo' ? `16812     1 /usr/local/bin/ollama serve\n42323 16812 /usr/local/lib/ollama/runners/cuda_v12/ollama_llama_server --model x --ctx-size 8192 --parallel 2\n` : undefined),
   })
   check('Linux systemd: the override with its Environment= lines, root needed, the env from /proc, the runner from --ctx-size/--parallel', linux.launchForm.kind === 'systemd' && linux.launchForm.path === SYSTEMD_OLLAMA_OVERRIDE && linux.launchForm.env?.['OLLAMA_MAX_LOADED_MODELS'] === '2' && linux.launchForm.writable === false && linux.process?.env['OLLAMA_HOST'] === '0.0.0.0' && linux.runners[0]?.context === 8192 && linux.runners[0].slots === 2, JSON.stringify([linux.launchForm, linux.process, linux.runners]))
+  check('Linux: the ceiling is total memory, named as no GPU reading', linux.machine.usableMemoryBytes === 48 * GIB && linux.machine.usableSource === 'total memory (no GPU reading)')
   const windows = await readLocalServerTruth({ ...baseIo(), platform: 'win32' })
   check('Windows: the form names the user environment variables; no process read', windows.launchForm.kind === 'windows' && windows.process === undefined)
+  const { parseServerLogMemory, parseMemoryWords } = modules.truth
+  check('the log parser: the last gpu memory line wins; MiB and GiB words parse; junk is absent', parseServerLogMemory('msg="gpu memory" library=Metal available="30.0 GiB"\nmsg="gpu memory" library=Metal available="36.9 GiB"\nmsg="system memory" total="48.0 GiB"\n').availableBytes === Math.round(36.9 * GIB) && parseMemoryWords('512.0 MiB') === 512 * 1024 * 1024 && parseMemoryWords('lots') === undefined)
   const other = await readLocalServerTruth({ ...baseIo(), env: { ...process.env, MERCURY_LOCAL_PROBE_TARGETS: `llamacpp=${ollama.root}` } })
   check('a non-Ollama kind that does not answer its own routes is absent', other.server === undefined)
 }
@@ -267,13 +283,25 @@ section('5 · the four knobs as settings: names, grammar, ladders, words, persis
   const words = readings.map(r => knobValueWords(r, true))
   check('the value words: a set knob beside the running value; a running-only knob; an unset knob with the runner fact and the documented default', words[0] === '2 · running 1 · apply to take effect' && words[2] === '30 min idle · running' && words[1] === 'unset · server default 1 · 4 slots on the runner' && words[3] === '256k · running · 32k on the runner', JSON.stringify(words))
   const facts = memoryFactsOf(truth)
-  check('memory facts: q8_0 from the runner, two models with geometry, the loaded sizes beside', facts.cacheType === 'q8_0' && facts.models.length === 2 && facts.models[0]?.loadedBytes === LOADED_27B && facts.machineBytes === 48 * GIB)
+  check('memory facts: q8_0 from the runner, two models with geometry, the loaded sizes beside, the usable ceiling and its source', facts.cacheType === 'q8_0' && facts.models.length === 2 && facts.models[0]?.loadedBytes === LOADED_27B && facts.machineBytes === 48 * GIB && gibWords(facts.usableBytes) === '36.9 GiB' && facts.usableSource.startsWith("the server's own gpu memory line"))
   const detail = knobDetailWords('maxLoadedModels', facts, { window: 262144, slots: 1, maxLoaded: 2 })
-  check('the loaded-models words carry the box, both loads at their windows and the sum (36.1 GiB fit in 48.0 GiB)', detail.includes('the box has 48.0 GiB') && detail.includes('qwen3.5:27b 24.7 GiB at 256k') && detail.includes('qwen3.5:9b-q4_K_M 11.4 GiB at 256k') && detail.includes('all 2 together 36.1 GiB — fit in 48.0 GiB') && detail.includes('seven slots, not seven copies'), detail)
+  check('the loaded-models words carry the box and its usable ceiling, both loads at their windows and the sum (36.1 GiB fit in 36.9 GiB)', detail.includes('the box has 48.0 GiB, 36.9 GiB usable for models (the server\'s own gpu memory line') && detail.includes('qwen3.5:27b 24.7 GiB at 256k') && detail.includes('qwen3.5:9b-q4_K_M 11.4 GiB at 256k') && detail.includes('all 2 together 36.1 GiB — fit in 36.9 GiB') && detail.includes('seven slots, not seven copies'), detail)
   const slots = knobDetailWords('parallelSlots', facts, { window: 262144, slots: 4, maxLoaded: 1 })
-  check('the slots words: 8.5 GiB per slot at 256k, 1.1 GiB at 32k on the 27B, one slot for a single session, 2–4 at 32k for a swarm', slots.includes('qwen3.5:27b: 8.5 GiB per slot at 256k, 1.1 GiB at 32k') && slots.includes('one slot for a single session; 2–4 slots with a 32k window for a swarm') && slots.includes('4 slots at 32k load qwen3.5:27b as 20.5 GiB of 48.0 GiB'), slots)
+  check('the slots words: 8.5 GiB per slot at 256k, 1.1 GiB at 32k on the 27B, one slot for a single session, 2–4 at 32k for a swarm', slots.includes('qwen3.5:27b: 8.5 GiB per slot at 256k, 1.1 GiB at 32k') && slots.includes('one slot for a single session; 2–4 slots with a 32k window for a swarm') && slots.includes('4 slots at 32k load qwen3.5:27b as 20.5 GiB of 36.9 GiB usable'), slots)
   const ctx = knobDetailWords('contextLength', facts, { window: 32768, slots: 1, maxLoaded: 1 })
-  check('the context words project every model at the chosen window', ctx.includes('at 32k with 1 slot: qwen3.5:27b 17.3 GiB, qwen3.5:9b-q4_K_M 6.7 GiB'), ctx)
+  check('the context words project every model at the chosen window', ctx.includes('at 32k with 1 slot: qwen3.5:27b 17.3 GiB, qwen3.5:9b-q4_K_M 6.7 GiB') && ctx.includes('of 36.9 GiB usable'), ctx)
+  const { chosenKnobs, fitVerdict } = modules.knobs
+  const chosen = chosenKnobs(truth, { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 })
+  check('the chosen knobs: the settings first, the runner and the running env when unset', chosen.window === 262144 && chosen.slots === 4 && chosen.maxLoaded === 2 && chosenKnobs(truth, {}).window === 32768 && chosenKnobs(truth, {}).slots === 4 && chosenKnobs(truth, {}).maxLoaded === 1, JSON.stringify([chosen, chosenKnobs(truth, {})]))
+  const over = fitVerdict(facts, chosen)
+  check('two loaded models with four 256k slots each: 50.2 + 23.1 = 73.4 GiB against 36.9 GiB usable — does not fit, the figures and the models named', !over.fits && over.words === 'does not fit · 73.4 of 36.9 GiB usable with qwen3.5:27b and qwen3.5:9b-q4_K_M loaded — lower the window or the count' && over.short === 'does not fit · 73.4 of 36.9 GiB usable' && gibWords(over.models[0]!.bytes) === '50.2 GiB', over.words)
+  const one = fitVerdict(facts, { window: 262144, slots: 1, maxLoaded: 1 })
+  check('one 256k slot on the largest model: 24.7 of 36.9 GiB — fits', one.fits && one.words === 'fits · 24.7 of 36.9 GiB usable with qwen3.5:27b loaded', one.words)
+  const swarm = fitVerdict(facts, { window: 32768, slots: 7, maxLoaded: 1 })
+  check('seven 32k slots on one copy of the 27B: 23.7 GiB — fits', swarm.fits && swarm.words.startsWith('fits · 23.7 of 36.9 GiB usable'), swarm.words)
+  const twoSlots = fitVerdict(facts, { window: 262144, slots: 2, maxLoaded: 1 })
+  check('two 256k slots on the 27B: 33.2 GiB — fits; three: 41.7 GiB — does not', twoSlots.fits && gibWords(twoSlots.projectedBytes) === '33.2 GiB' && !fitVerdict(facts, { window: 262144, slots: 3, maxLoaded: 1 }).fits)
+  check('no geometry: nothing to project, never a refusal', fitVerdict({ ...facts, models: [] }, chosen).fits && fitVerdict({ ...facts, models: [] }, chosen).words === 'no model geometry read — nothing to project')
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
   const ok = SettingsSchema().safeParse({ localServer: { maxLoadedModels: 4, parallelSlots: 2, keepAlive: '24h', contextLength: 65536 } })
   const bad = SettingsSchema().safeParse({ localServer: { keepAlive: 'soon' } })
@@ -324,7 +352,7 @@ section('6 · the apply road: exact bytes to a scratch copy, nothing without the
   const unwritable = planLocalServerApply({ ...truth, launchForm: { ...truth.launchForm, writable: false } }, settings, baseIo())
   check('an unwritable plist becomes by-hand with the exact key/string pairs', unwritable.kind === 'by-hand' && unwritable.lines.join(' ') === '<key>OLLAMA_MAX_LOADED_MODELS</key> <string>2</string> <key>OLLAMA_NUM_PARALLEL</key> <string>4</string>', JSON.stringify(unwritable))
   const appPlan = planLocalServerApply({ ...truth, launchForm: { kind: 'app', note: 'app' } }, { ...settings, keepAlive: '24h' }, baseIo())
-  check('the Ollama app: by hand, launchctl setenv per variable then reopen the app', appPlan.kind === 'by-hand' && appPlan.lines.join(' | ') === 'launchctl setenv OLLAMA_KEEP_ALIVE 24h | launchctl setenv OLLAMA_MAX_LOADED_MODELS 2 | launchctl setenv OLLAMA_NUM_PARALLEL 4 | then quit the Ollama app and open it again', JSON.stringify(appPlan))
+  check('the Ollama app: an app plan with one launchctl setenv line per knob, every previous value unset', appPlan.kind === 'app' && appPlan.lines.join(' | ') === 'launchctl setenv OLLAMA_MAX_LOADED_MODELS 2 | launchctl setenv OLLAMA_NUM_PARALLEL 4 | launchctl setenv OLLAMA_KEEP_ALIVE 24h' && appPlan.revert.join(' | ') === 'launchctl unsetenv OLLAMA_KEEP_ALIVE | launchctl unsetenv OLLAMA_MAX_LOADED_MODELS | launchctl unsetenv OLLAMA_NUM_PARALLEL', JSON.stringify(appPlan))
   const winPlan = planLocalServerApply({ ...truth, machine: { platform: 'win32', totalMemoryBytes: 0 }, launchForm: { kind: 'windows', note: 'w' } }, settings, baseIo())
   check('Windows: by hand, setx per variable then restart from the tray', winPlan.kind === 'by-hand' && winPlan.lines[0] === 'setx OLLAMA_MAX_LOADED_MODELS "2"' && winPlan.lines.at(-1)?.includes('tray') === true)
   const otherPlan = planLocalServerApply({ ...truth, server: { kind: 'llamacpp', root: 'http://127.0.0.1:8080', label: 'llama.cpp b1' } }, settings, baseIo())
@@ -340,7 +368,50 @@ section('6 · the apply road: exact bytes to a scratch copy, nothing without the
   check('every path the plans touched lies under the scratch home, never the real launch agents folder', plan.path.startsWith(HOME) && plan.backupPath.startsWith(HOME) && (realHome === '' || !plan.path.startsWith(join(realHome, 'Library'))))
 }
 
-section('7 · the bounded cache: one snapshot, a TTL, subscribers')
+section("8 · the Ollama app road: launchctl setenv per knob, quit, wait for the port to close, open, wait for /api/version — nothing without the confirmation")
+{
+  const { APP_QUIT_ARGV, APP_OPEN_ARGV, appRevertLines } = modules.apply
+  const appTruth: Truth = { ...truth, launchForm: { kind: 'app', env: { OLLAMA_MAX_LOADED_MODELS: '1' }, writable: true, note: 'app' } }
+  const appPlan = planLocalServerApply(appTruth, { maxLoadedModels: 2, parallelSlots: 4 }, baseIo())
+  check('the plan is the app kind with the exact launchctl setenv lines and the previous values recorded (the revert road)', appPlan.kind === 'app' && JSON.stringify(appPlan.lines) === JSON.stringify(['launchctl setenv OLLAMA_MAX_LOADED_MODELS 2', 'launchctl setenv OLLAMA_NUM_PARALLEL 4']) && JSON.stringify(appPlan.previous) === JSON.stringify({ OLLAMA_MAX_LOADED_MODELS: '1', OLLAMA_NUM_PARALLEL: undefined }) && JSON.stringify(appPlan.revert) === JSON.stringify(['launchctl setenv OLLAMA_MAX_LOADED_MODELS 1', 'launchctl unsetenv OLLAMA_NUM_PARALLEL']), JSON.stringify(appPlan))
+  if (appPlan.kind !== 'app') finish()
+  check('the steps shown: the two lines, the quit, the wait for the port to close, the open, the wait for /api/version', JSON.stringify(appPlan.steps) === JSON.stringify(['launchctl setenv OLLAMA_MAX_LOADED_MODELS 2', 'launchctl setenv OLLAMA_NUM_PARALLEL 4', 'osascript -e tell application "Ollama" to quit', `wait for ${ollama.root.replace(/^https?:\/\//, '')} to close`, 'open -a Ollama', 'wait for /api/version to answer']) && appPlan.restart.argv.length === 2 && appPlan.restart.argv[0] === APP_QUIT_ARGV && appPlan.restart.argv[1] === APP_OPEN_ARGV, JSON.stringify(appPlan.steps))
+  check('planWords names the app restart and the review door', planWords(appPlan) === '2 changes + the app restarts · → reviews the lines first')
+  runs.length = 0
+  const probes: string[] = []
+  const refusedApp = await applyLocalServerPlan(appPlan, { confirmed: false }, { run: fixtureRun, probe: async url => { probes.push(url); return true }, sleep: async () => {} })
+  check('without the confirmation nothing is set, nothing quit, nothing opened, nothing probed', refusedApp.outcome === 'refused' && runs.length === 0 && probes.length === 0, JSON.stringify(refusedApp))
+  let answers = [true, true, false, false, false, true]
+  let clock = 0
+  const appliedApp = await applyLocalServerPlan(appPlan, { confirmed: true }, { run: fixtureRun, probe: async url => { probes.push(url); return answers.shift() ?? true }, sleep: async ms => { clock += ms }, now: () => clock })
+  check('with the confirmation: setenv ×2, then the quit, the port polled until closed, the open, the port polled until up — in that order', runs.join(' | ') === 'launchctl setenv OLLAMA_MAX_LOADED_MODELS 2 | launchctl setenv OLLAMA_NUM_PARALLEL 4 | osascript -e tell application "Ollama" to quit | open -a Ollama' && probes.length === 6 && probes.every(url => url === `${ollama.root}/api/version`), JSON.stringify([runs, probes]))
+  check('the outcome: applied, restarted, the revert road carried', appliedApp.outcome === 'applied' && appliedApp.restarted && appliedApp.restartWords === appPlan.restart.words && JSON.stringify(appliedApp.revert) === JSON.stringify(appPlan.revert), JSON.stringify(appliedApp))
+  runs.length = 0
+  answers = []
+  clock = 0
+  const neverClosed = await applyLocalServerPlan(appPlan, { confirmed: true }, { run: fixtureRun, probe: async () => true, sleep: async ms => { clock += ms }, now: () => clock })
+  check('an app that never closes: the variables stay set, the wait gives up within its budget, the words say quit and open by hand, the open never runs', neverClosed.outcome === 'applied' && !neverClosed.restarted && neverClosed.restartWords.includes('did not close within 20 s') && !runs.some(r => r.startsWith('open')) && clock <= 21_000, JSON.stringify([neverClosed, runs, clock]))
+  const setenvFails = await applyLocalServerPlan(appPlan, { confirmed: true }, { run: async (file, args) => (file === 'launchctl' && args[0] === 'setenv' && args[1] === 'OLLAMA_NUM_PARALLEL' ? undefined : fixtureRun(file, args)), probe: async () => true, sleep: async () => {} })
+  check('a failing setenv stops before any restart and names the knob', setenvFails.outcome === 'failed' && setenvFails.reason.startsWith('launchctl setenv OLLAMA_NUM_PARALLEL failed'))
+  const appSatisfied = planLocalServerApply({ ...appTruth, launchForm: { ...appTruth.launchForm, env: { OLLAMA_MAX_LOADED_MODELS: '2', OLLAMA_NUM_PARALLEL: '4' } }, process: { ...appTruth.process!, env: { ...appTruth.process!.env, OLLAMA_MAX_LOADED_MODELS: '1' } } }, { maxLoadedModels: 2, parallelSlots: 4 }, baseIo())
+  check('launchctl already carrying the values while the running app lacks them: a restart-only plan for the app', appSatisfied.kind === 'restart' && appSatisfied.form === 'app' && appSatisfied.root === ollama.root, JSON.stringify(appSatisfied))
+  check('appRevertLines: unset before → unsetenv; a value before → setenv back', JSON.stringify(appRevertLines({ B: undefined, A: '3' })) === JSON.stringify(['launchctl setenv A 3', 'launchctl unsetenv B']))
+}
+
+section('9 · an over-memory choice refuses the apply with the figures; a fitting choice passes')
+{
+  const tooMuch = planLocalServerApply(truth, { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 }, baseIo())
+  check('the plan is refused with the figures and the models named', tooMuch.kind === 'refused' && tooMuch.fit.words === 'does not fit · 73.4 of 36.9 GiB usable with qwen3.5:27b and qwen3.5:9b-q4_K_M loaded — lower the window or the count' && planWords(tooMuch) === 'does not fit · 73.4 of 36.9 GiB usable — lower the window or the count', JSON.stringify(tooMuch))
+  runs.length = 0
+  const forced = await applyLocalServerPlan(tooMuch, { confirmed: true }, { run: fixtureRun })
+  check('even a confirmed apply of a refused plan writes nothing, runs nothing, and repeats the figures', forced.outcome === 'refused' && forced.reason.startsWith('does not fit · 73.4 of 36.9 GiB usable') && runs.length === 0 && readFileSync(PLIST_PATH, 'utf8').includes('<string>4</string>'), JSON.stringify(forced))
+  const fitting = planLocalServerApply(truth, { maxLoadedModels: 1, parallelSlots: 1, contextLength: 262144 }, baseIo())
+  check('one model, one 256k slot: 24.7 of 36.9 GiB fits and the plan writes', fitting.kind === 'write' && fitting.changes.map(c => `${c.name}=${c.after}`).join(',') === 'OLLAMA_NUM_PARALLEL=1', JSON.stringify(fitting.kind === 'write' ? fitting.changes : fitting))
+  const appOver = planLocalServerApply({ ...truth, launchForm: { kind: 'app', env: {}, writable: true, note: 'app' } }, { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 }, baseIo())
+  check('the app form refuses the same choice the same way', appOver.kind === 'refused')
+}
+
+section('10 · the bounded cache: one snapshot, a TTL, subscribers')
 {
   __resetLocalServerTruthForTest()
   let ticks = 0

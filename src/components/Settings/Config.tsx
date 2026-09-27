@@ -91,6 +91,8 @@ import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../.
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
+import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
+import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
 const LABEL_CELLS = 36
 
@@ -136,6 +138,7 @@ type SubMenu =
   | 'agent-model'
   | 'external-includes'
   | 'language'
+  | typeof LOCAL_SERVER_APPLY_MENU
 
 const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
 const TEAMMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Teammate', choice: 'a choice, not a model — a teammate runs the session default model' }
@@ -327,6 +330,7 @@ export function Config({
         syntaxHighlightingDisabled: user.syntaxHighlightingDisabled,
         permissions: user.permissions,
         patience: user.patience,
+        localServer: localServerSettingsOf(user),
       },
       appVerbose: appState.verbose === true,
       dirty: false,
@@ -473,6 +477,7 @@ export function Config({
     return () => { active = false }
   }, [version, configStamp])
   const jevStamp = useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
+  const localServer = useLocalServerConfig(version)
   const seatWarning = seatFacts === null ? null : seatCostWarning(seatFacts)
   items.push({
     id: 'seats',
@@ -844,6 +849,20 @@ export function Config({
       ),
     })
   }
+  items.push(
+    ...localServerConfigItems({
+      state: localServer,
+      nowMs: Date.now(),
+      tokens,
+      onSet: (id, value, words) => {
+        if (writeSource('userSettings', { localServer: { [id]: value } } as never)) {
+          snapshots.dirty = true
+          recordSet(`localServer.${id}`, words)
+          bump()
+        }
+      },
+    }),
+  )
 
   {
     items.push({
@@ -1085,7 +1104,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting, seatFacts, jevStamp])
+  }, [query, version, appState, themeSetting, seatFacts, jevStamp, localServer.stamp])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
   useLayoutEffect(() => {
@@ -1160,6 +1179,7 @@ export function Config({
       patience: snapshots.user.patience,
       permissions: { defaultMode: snapshots.user.permissions?.defaultMode } as never,
     })
+    writeSource('userSettings', localServerRevertPartial(snapshots.user.localServer))
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
     const restoredProfile = snapshots.local.instructionProfile
     setSessionInstructionProfile(
@@ -1384,6 +1404,19 @@ export function Config({
         externalIncludes={externalIncludes}
         onDone={() => {
           setSubMenu(null)
+        }}
+      />
+    )
+  }
+  if (subMenu === LOCAL_SERVER_APPLY_MENU && localServer.plan !== null) {
+    return (
+      <LocalServerApplyDialog
+        plan={localServer.plan}
+        width={width}
+        rows={contentHeight}
+        onDone={() => setSubMenu(null)}
+        onApplied={outcome => {
+          if (outcome.outcome === 'applied') recordSet('localServer.apply', `applied the local server knobs (${outcome.restarted ? 'server restarted' : 'restart pending'})`)
         }}
       />
     )

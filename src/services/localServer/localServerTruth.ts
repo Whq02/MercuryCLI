@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { accessSync, constants, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { accessSync, closeSync, constants, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs'
 import { homedir, totalmem, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
@@ -29,6 +29,7 @@ export interface LocalServerIo {
   uid?: number
   totalMemoryBytes?: number
   readText?: (path: string) => string | undefined
+  readTail?: (path: string, bytes: number) => string | undefined
   listDir?: (path: string) => string[]
   pathExists?: (path: string) => boolean
   writable?: (path: string) => boolean
@@ -81,7 +82,15 @@ export interface LaunchFormTruth {
   env?: Record<string, string>
   writable?: boolean
   confirmed?: boolean
+  logPath?: string
   note: string
+}
+
+export interface MachineTruth {
+  platform: NodeJS.Platform
+  totalMemoryBytes: number
+  usableMemoryBytes: number
+  usableSource: string
 }
 
 export interface LocalServerTruth {
@@ -91,9 +100,15 @@ export interface LocalServerTruth {
   process?: ServerProcessTruth
   runners: RunnerTruth[]
   launchForm: LaunchFormTruth
-  machine: { platform: NodeJS.Platform; totalMemoryBytes: number }
+  machine: MachineTruth
   readAtMs: number
 }
+
+export const APP_KNOB_NAMES = ['OLLAMA_MAX_LOADED_MODELS', 'OLLAMA_NUM_PARALLEL', 'OLLAMA_KEEP_ALIVE', 'OLLAMA_CONTEXT_LENGTH'] as const
+export const APP_SERVER_LOG = '.ollama/logs/server.log'
+export const HOMEBREW_SERVER_LOG = '/opt/homebrew/var/log/ollama.log'
+export const LOG_TAIL_BYTES = 65536
+export const METAL_DEFAULT_WORKING_SET = 0.75
 
 const OLLAMA_ENV_NAME = /^OLLAMA_[A-Z0-9_]+$/
 const ENV_TOKEN = /(OLLAMA_[A-Z0-9_]+)=(.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)/g
@@ -127,6 +142,21 @@ function defaultReadText(path: string): string | undefined {
     return readFileSync(path, 'utf8')
   } catch {
     return undefined
+  }
+}
+function defaultReadTail(path: string, bytes: number): string | undefined {
+  let fd: number | undefined
+  try {
+    const size = statSync(path).size
+    fd = openSync(path, 'r')
+    const length = Math.min(size, bytes)
+    const buffer = Buffer.alloc(length)
+    readSync(fd, buffer, 0, length, Math.max(0, size - length))
+    return buffer.toString('utf8')
+  } catch {
+    return undefined
+  } finally {
+    if (fd !== undefined) closeSync(fd)
   }
 }
 function defaultListDir(path: string): string[] {
@@ -164,6 +194,7 @@ export function resolveLocalServerIo(io: LocalServerIo): Required<Omit<LocalServ
     uid: io.uid ?? defaultUid(),
     totalMemoryBytes: io.totalMemoryBytes ?? totalmem(),
     readText: io.readText ?? defaultReadText,
+    readTail: io.readTail ?? defaultReadTail,
     listDir: io.listDir ?? defaultListDir,
     pathExists: io.pathExists ?? (path => existsSync(path)),
     writable: io.writable ?? defaultWritable,
@@ -356,12 +387,15 @@ export interface PlistFacts {
   label?: string
   programArguments: string[]
   env: Record<string, string>
+  stdoutPath?: string
 }
 
 export function parsePlist(text: string): PlistFacts {
   const facts: PlistFacts = { programArguments: [], env: {} }
   const label = /<key>Label<\/key>\s*<string>([^<]*)<\/string>/.exec(text)
   if (label?.[1]) facts.label = label[1].trim()
+  const stdout = /<key>StandardOutPath<\/key>\s*<string>([^<]*)<\/string>/.exec(text)
+  if (stdout?.[1]) facts.stdoutPath = stdout[1].trim()
   const args = /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(text)
   if (args?.[1]) facts.programArguments = [...args[1].matchAll(/<string>([^<]*)<\/string>/g)].map(m => (m[1] ?? '').trim())
   const env = /<key>EnvironmentVariables<\/key>\s*<dict>([\s\S]*?)<\/dict>/.exec(text)
@@ -369,6 +403,32 @@ export function parsePlist(text: string): PlistFacts {
     for (const pair of env[1].matchAll(/<key>([^<]+)<\/key>\s*<string>([^<]*)<\/string>/g)) facts.env[(pair[1] ?? '').trim()] = pair[2] ?? ''
   }
   return facts
+}
+
+const MEMORY_UNITS: Record<string, number> = { B: 1, KiB: 1024, MiB: 1024 ** 2, GiB: 1024 ** 3, TiB: 1024 ** 4 }
+
+export function parseMemoryWords(text: string | undefined): number | undefined {
+  const match = /^\s*(\d+(?:\.\d+)?)\s*(B|KiB|MiB|GiB|TiB)\s*$/.exec(text ?? '')
+  if (!match) return undefined
+  return Math.round(Number(match[1]) * (MEMORY_UNITS[match[2] ?? 'B'] ?? 1))
+}
+
+export function parseServerLogMemory(text: string): { availableBytes?: number; totalBytes?: number; library?: string } {
+  const out: { availableBytes?: number; totalBytes?: number; library?: string } = {}
+  for (const line of text.split('\n')) {
+    if (line.includes('msg="gpu memory"')) {
+      const available = parseMemoryWords(/\bavailable="([^"]+)"/.exec(line)?.[1])
+      const library = /\blibrary=(\S+)/.exec(line)?.[1]
+      if (available !== undefined) {
+        out.availableBytes = available
+        if (library) out.library = library
+      }
+    } else if (line.includes('msg="system memory"')) {
+      const total = parseMemoryWords(/\btotal="([^"]+)"/.exec(line)?.[1])
+      if (total !== undefined) out.totalBytes = total
+    }
+  }
+  return out
 }
 
 export function parseSystemdOverride(text: string): Record<string, string> {
@@ -392,14 +452,23 @@ function plistMentionsOllama(facts: PlistFacts, text: string): boolean {
   return /ollama serve/i.test(text)
 }
 
+export const APP_FORM_NOTE = 'the Ollama app: each variable is set with launchctl setenv, then the app is quit and opened again (its FAQ road)'
+
+async function readAppForm(io: Io): Promise<LaunchFormTruth> {
+  const env: Record<string, string> = {}
+  for (const name of APP_KNOB_NAMES) {
+    const value = (await io.run('launchctl', ['getenv', name]))?.trim()
+    if (value) env[name] = value
+  }
+  return { kind: 'app', env, writable: true, logPath: join(io.home, APP_SERVER_LOG), note: APP_FORM_NOTE }
+}
+
 async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverProcess: ServerProcessTruth | undefined): Promise<LaunchFormTruth> {
   if (kind !== undefined && kind !== 'ollama') {
     return { kind: 'unknown', note: 'the knobs are start-up flags on this server; set them where it is started' }
   }
   if (io.platform === 'darwin') {
-    if (serverProcess && /\.app\//.test(serverProcess.command)) {
-      return { kind: 'app', note: 'the Ollama app owns its server: set each variable with launchctl setenv, then quit and reopen the app' }
-    }
+    if (serverProcess && /\.app\//.test(serverProcess.command)) return readAppForm(io)
     const agents = join(io.home, 'Library', 'LaunchAgents')
     const names = io.listDir(agents).filter(name => name.endsWith('.plist'))
     const homebrew = names.find(name => name === HOMEBREW_OLLAMA_PLIST)
@@ -416,6 +485,7 @@ async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverP
         const printed = await io.run('launchctl', ['print', `gui/${io.uid}/${facts.label}`])
         if (printed !== undefined) confirmed = new RegExp(`\\bpid = ${serverProcess.pid}\\b`).test(printed)
       }
+      const logPath = facts.stdoutPath ?? (isHomebrew ? HOMEBREW_SERVER_LOG : undefined)
       return {
         kind: isHomebrew ? 'homebrew' : 'launch-agent',
         path,
@@ -423,14 +493,13 @@ async function readLaunchForm(io: Io, kind: LocalServerKind | undefined, serverP
         env: facts.env,
         writable: io.writable(path),
         ...(confirmed !== undefined ? { confirmed } : {}),
+        ...(logPath ? { logPath } : {}),
         note: isHomebrew
           ? 'Homebrew service: the environment is written into its plist and the agent is restarted; brew services restart or an upgrade rewrites this file'
           : 'launch agent: the environment is written into its EnvironmentVariables and the agent is restarted',
       }
     }
-    if (io.pathExists('/Applications/Ollama.app') || io.pathExists(join(io.home, 'Applications', 'Ollama.app'))) {
-      return { kind: 'app', note: 'the Ollama app owns its server: set each variable with launchctl setenv, then quit and reopen the app' }
-    }
+    if (io.pathExists('/Applications/Ollama.app') || io.pathExists(join(io.home, 'Applications', 'Ollama.app'))) return readAppForm(io)
     return { kind: 'unknown', note: 'no launch agent or app found: set the variables where ollama serve is started' }
   }
   if (io.platform === 'linux') {
@@ -520,7 +589,7 @@ export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<Lo
   const io = resolveLocalServerIo(seam)
   const targets = localProbeTargets(io.env)
   if (targets.length === 0) {
-    return { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'probing is off (MERCURY_LOCAL_PROBE_TARGETS=none): nothing read' }, machine: { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes }, readAtMs: io.now() }
+    return { loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'probing is off (MERCURY_LOCAL_PROBE_TARGETS=none): nothing read' }, machine: { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory (probing off)' }, readAtMs: io.now() }
   }
   let facts: Pick<LocalServerTruth, 'server' | 'loaded' | 'listed'> | undefined
   for (const target of targets) {
@@ -544,6 +613,12 @@ export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<Lo
   } catch {
     launchForm = { kind: 'unknown', note: 'the launch form could not be read' }
   }
+  let machine: MachineTruth = { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory' }
+  try {
+    machine = await readMachineTruth(io, launchForm)
+  } catch {
+    machine = { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes, usableMemoryBytes: io.totalMemoryBytes, usableSource: 'total memory' }
+  }
   return {
     ...(facts?.server ? { server: facts.server } : {}),
     loaded: facts?.loaded ?? [],
@@ -551,9 +626,27 @@ export async function readLocalServerTruth(seam: LocalServerIo = {}): Promise<Lo
     ...(processTruth.process ? { process: processTruth.process } : {}),
     runners: processTruth.runners,
     launchForm,
-    machine: { platform: io.platform, totalMemoryBytes: io.totalMemoryBytes },
+    machine,
     readAtMs: io.now(),
   }
+}
+
+export async function readMachineTruth(io: Io, launchForm: LaunchFormTruth): Promise<MachineTruth> {
+  const total = io.totalMemoryBytes
+  const base = { platform: io.platform, totalMemoryBytes: total }
+  if (launchForm.logPath) {
+    const tail = io.readTail(launchForm.logPath, LOG_TAIL_BYTES)
+    if (tail !== undefined) {
+      const logged = parseServerLogMemory(tail)
+      if (logged.availableBytes !== undefined) return { ...base, usableMemoryBytes: logged.availableBytes, usableSource: `the server's own gpu memory line in ${launchForm.logPath}${logged.library ? ` (${logged.library})` : ''}` }
+    }
+  }
+  if (io.platform === 'darwin') {
+    const limit = Number((await io.run('sysctl', ['-n', 'iogpu.wired_limit_mb']))?.trim())
+    if (Number.isFinite(limit) && limit > 0) return { ...base, usableMemoryBytes: Math.round(limit * 1024 * 1024), usableSource: 'iogpu.wired_limit_mb' }
+    return { ...base, usableMemoryBytes: Math.round(total * METAL_DEFAULT_WORKING_SET), usableSource: 'about three quarters of unified memory, the Metal default working set (no server log read)' }
+  }
+  return { ...base, usableMemoryBytes: total, usableSource: 'total memory (no GPU reading)' }
 }
 
 export const LOCAL_SERVER_TRUTH_TTL_MS = 15_000
