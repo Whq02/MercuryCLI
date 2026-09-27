@@ -165,7 +165,7 @@ console.log('\nC8 the fold\'s record rides the word — the seat relays the stag
   onSeatLine(SHORT, statusFrame({ compacting: moved }), roster as never, dir)
   check('a moved record republishes (the stage flipped)', JSON.stringify((tail() as { fold?: unknown } | null)?.fold) === JSON.stringify(moved))
   onSeatLine(SHORT, statusFrame({ compacting: { ...moved, exit: 'landed', endedAtMs: 1_700_000_009_000 } }), roster as never, dir)
-  check('the exit rides the same word', (tail() as { fold?: { exit?: string } } | null)?.fold?.exit === 'landed' && word() === 'compacting')
+  check('the exit rides the record and rests the word (the fold is over; only the row reads the exit)', (tail() as { fold?: { exit?: string } } | null)?.fold?.exit === 'landed' && word() === undefined)
   onSeatLine(SHORT, JSON.stringify({ type: 'result', subtype: 'success' }), roster as never, dir)
   check('the result frame retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
   onSeatLine(SHORT, statusFrame({ compacting: { schema: 7, stage: 'warming' } }), roster as never, dir)

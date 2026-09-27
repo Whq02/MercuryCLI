@@ -143,7 +143,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
-        ...(seat.stateWord === 'compacting' && seat.fold !== null ? { fold: seat.fold } : {}),
+        ...(seat.fold !== null ? { fold: seat.fold } : {}),
         ...(seat.wait !== null ? { wait: seat.wait } : {}),
         ...(seat.lastEventAtMs !== null ? { lastEventAtMs: seat.lastEventAtMs } : {}),
         ...(seat.streamBlock !== null ? { streamBlock: seat.streamBlock } : {}),
@@ -772,14 +772,15 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
         const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waiting_on_agents?: unknown; compacting?: unknown }) : null
         const waiting = statusObject?.waiting_on_agents
         const foldStamped = statusObject !== null && 'compacting' in statusObject
+        const fold = foldStamped ? decodeFoldStatus(foldStatusFromWire(statusObject.compacting)) : null
+        const foldLive = foldStamped && (fold === null || fold.exit === undefined)
         const next =
-          frame.status === 'compacting' || foldStamped
+          frame.status === 'compacting' || foldLive
             ? ('compacting' as const)
             : typeof waiting === 'number' && Number.isFinite(waiting) && waiting > 0
               ? ('waiting-on-agents' as const)
               : null
         const count = next === 'waiting-on-agents' ? Math.floor(waiting as number) : 0
-        const fold = foldStamped ? decodeFoldStatus(foldStatusFromWire(statusObject.compacting)) : null
         noteSeatEvent(seat, dir)
         const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
         if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
