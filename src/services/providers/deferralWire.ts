@@ -80,8 +80,10 @@ export function gatewayProbeAllowedByFlag(): boolean {
   return flagEnv('MERCURY_TOOL_DEFER_PROBE') === '1'
 }
 
+const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallModelRoute>(['openai', 'local'])
+
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
   if (form === 'block') return true
   const result = classifyModelRoute(model)
-  return result.kind === 'route' && result.route === 'openai'
+  return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }
