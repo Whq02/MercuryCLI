@@ -65,6 +65,22 @@ const LABEL_W = 18
 const labelCell = (label: string): string => padTo(truncateToWidth(label, LABEL_W), LABEL_W + 1)
 const CHROME_RESERVE = 8
 const ENTER_BUFFER_MS = 150
+const CONTEXT_ROWS_ABOVE = 2
+
+const rowSpanInEstate = (row: DOMElement | null): { top: number; bottom: number } | null => {
+  const height = row?.layoutNode?.getComputedHeight()
+  if (!row || height === undefined) return null
+  let el: DOMElement | undefined = row
+  let top = 0
+  for (let hops = 0; el && !el.parentNode?.scroll && hops < 100; hops++) {
+    const t = el.layoutNode?.getComputedTop()
+    if (t === undefined) return null
+    top += t
+    el = el.parentNode
+  }
+  if (!el?.parentNode?.scroll) return null
+  return { top, bottom: top + Math.ceil(height) }
+}
 
 const flatChecks = (sections: HealthSection[]): HealthCheck[] =>
   sections.flatMap(s => s.checks)
@@ -320,9 +336,25 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
   const pageRowsRef = React.useRef(8)
   useLayoutEffect(() => {
     if (selRowRef.current && scrollRef.current) {
-      scrollRef.current.scrollToElement(selRowRef.current, -2)
+      scrollRef.current.scrollToElement(selRowRef.current, -CONTEXT_ROWS_ABOVE)
     }
   }, [sel, openId, cert])
+  const openRowScrollStep = (direction: -1 | 1): boolean => {
+    const box = scrollRef.current
+    const open = openId !== null && openId === checksRef.current[selRef.current]?.id
+    const span = open ? rowSpanInEstate(selRowRef.current) : null
+    if (!box || !span) return false
+    const scrollTop = box.getScrollTop()
+    const viewport = box.getViewportHeight()
+    const maxScroll = Math.max(0, box.getScrollHeight() - viewport)
+    const wants =
+      direction > 0
+        ? span.bottom > scrollTop + viewport && scrollTop < maxScroll
+        : span.top - CONTEXT_ROWS_ABOVE < scrollTop && scrollTop > 0
+    if (!wants) return false
+    box.scrollTo(scrollTop + direction)
+    return true
+  }
 
   useInput(
     (input, key) => {
@@ -362,11 +394,13 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
         return
       }
       if (key.upArrow) {
+        if (openRowScrollStep(-1)) return
         selRef.current = Math.max(0, selRef.current - 1)
         setSel(selRef.current)
         return
       }
       if (key.downArrow) {
+        if (openRowScrollStep(1)) return
         selRef.current = Math.min(Math.max(0, checksRef.current.length - 1), selRef.current + 1)
         setSel(selRef.current)
         return
