@@ -57,6 +57,7 @@ import { claimTask, listTasks, onTasksUpdated, updateTask } from '../tasks.js'
 import { runWithTeammateContext, type TeammateContext } from '../teammateContext.js'
 import {
   createIdleNotification,
+  createShutdownApprovedMessage,
   formatTeammateMessages,
   getLastPeerDmSummary,
   getMailboxStore,
@@ -78,7 +79,7 @@ import {
 } from './leaderPermissionBridge.js'
 import { createPermissionRequest, sendPermissionRequestViaMailbox } from './permissionSync.js'
 import { getRoleSystemPrompt, type ResolvedTeammateRole } from './roleResolver.js'
-import { removeMemberByAgentId } from './teamHelpers.js'
+import { readTeamFileAsync, removeMemberByAgentId, setMemberActive } from './teamHelpers.js'
 import { formatCharterForContext, formatRolePacketForContext } from './teamCharter.js'
 import { buildTeammateAddendum } from './teammatePromptAddendum.js'
 
@@ -102,6 +103,8 @@ export type InProcessRunnerConfig = {
   toolUseContext: ToolUseContext
   abortController: AbortController
   model?: string
+  effortOverride?: string
+  transcriptAgentId?: string
   systemPrompt?: string
   systemPromptMode?: 'default' | 'replace' | 'append'
   allowedTools?: string[]
@@ -536,6 +539,39 @@ async function sendIdleNotificationToLead(
   )
 }
 
+function noteMemberActive(identity: InProcessRunnerConfig['identity'], active: boolean): void {
+  setMemberActive(identity.teamName, identity.agentName, active).catch((error: unknown) => {
+    logForDebugging(`teammate ${identity.agentName}: active flag write failed: ${errorMessage(error)}`)
+  })
+}
+
+async function approveIdleShutdown(
+  identity: InProcessRunnerConfig['identity'],
+  request: ShutdownRequestMessage,
+): Promise<void> {
+  const roster = await readTeamFileAsync(identity.teamName).catch(() => null)
+  const member = roster?.members.find(candidate => candidate.agentId === identity.agentId) as
+    | { tmuxPaneId?: string; backendType?: string }
+    | undefined
+  const approved = createShutdownApprovedMessage({
+    requestId: request.requestId,
+    from: identity.agentName,
+    paneId: member?.tmuxPaneId || undefined,
+    backendType: member?.backendType || undefined,
+  })
+  const delivered = await writeToMailbox(
+    TEAM_LEAD_NAME,
+    {
+      from: identity.agentName,
+      text: JSON.stringify(approved),
+      timestamp: new Date().toISOString(),
+      ...(identity.color !== undefined ? { color: identity.color } : {}),
+    },
+    identity.teamName,
+  )
+  if (!delivered) logForDebugging(`teammate ${identity.agentName}: the shutdown approval could not be written to the lead's mailbox`)
+}
+
 
 export async function runInProcessTeammate(
   config: InProcessRunnerConfig,
@@ -704,6 +740,7 @@ export async function runInProcessTeammate(
             status: 'running',
             isIdle: false,
           }))
+          noteMemberActive(identity, true)
           const permissionFn = buildTeammatePermissionFn(identity, turnController, elapsedMs => {
             updateTeammateTask(taskId, setAppState, task => ({
               ...task,
@@ -719,8 +756,16 @@ export async function runInProcessTeammate(
             canShowPermissionPrompts: config.allowPermissionPrompts ?? true,
             ...(forkContextMessages !== undefined ? { forkContextMessages } : {}),
             querySource: 'agent:custom',
-            override: { abortController: turnController },
+            override: {
+              abortController: turnController,
+              ...(config.transcriptAgentId !== undefined ? { agentId: config.transcriptAgentId } : {}),
+            },
             ...(config.model !== undefined ? { model: config.model } : {}),
+            ...(config.effortOverride !== undefined ? { effortOverride: config.effortOverride } : {}),
+            onResolvedIdentity: identity => {
+              if (identity.effort === undefined) return
+              updateTeammateTask(taskId, setAppState, task => (task.effort === identity.effort ? task : { ...task, effort: identity.effort }))
+            },
             preserveToolUseResults: true,
             availableTools: options.tools,
             ...(config.allowedTools !== undefined ? { allowedTools: config.allowedTools } : {}),
@@ -808,6 +853,7 @@ export async function runInProcessTeammate(
           },
         }
       })
+      noteMemberActive(identity, false)
 
       if (wasAlreadyIdle) {
         logForDebugging(`teammate ${identity.agentName}: already idle — no idle notification`)
@@ -851,9 +897,11 @@ export async function runInProcessTeammate(
         const wrapped = wrapAsTeammateMessage(sender, next.text)
         updateTeammateTask(taskId, setAppState, task => ({
           ...task,
+          shutdownRequested: true,
           messages: appendCappedMessage(task.messages, createUserMessage({ content: wrapped })),
         }))
-        currentPrompt = wrapped
+        await approveIdleShutdown(identity, next.request)
+        exitRequested = true
       } else if (next.from === 'user') {
         currentPrompt = next.text
       } else {

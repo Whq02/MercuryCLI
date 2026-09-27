@@ -77,3 +77,4 @@ prove-crew-composer-click-after-focus.ts
 prove-crew-look-frames.ts
 prove-crew-ledger.ts
 prove-silent-command-surface.ts
+prove-teammate-transcript.ts

@@ -43,6 +43,7 @@ export type InProcessSpawnOutput = {
   success: boolean
   agentId: string
   taskId?: string
+  transcriptAgentId?: string
   abortController?: AbortController
   teammateContext?: TeammateContext
   error?: string
@@ -55,6 +56,7 @@ export async function spawnInProcessTeammate(
   const agentId = formatAgentId(config.name, config.teamName)
   try {
     const taskId = generateTaskId('in_process_teammate')
+    const transcriptAgentId = generateTaskId('local_agent')
     const abortController = new AbortController()
     const parentSessionId = String(getSessionId())
 
@@ -97,6 +99,7 @@ export async function spawnInProcessTeammate(
       identity,
       prompt: config.prompt,
       ...(config.model !== undefined ? { model: config.model } : {}),
+      transcriptAgentId,
       ...(config.instructionAtSpawn !== undefined
         ? { instructionAtSpawn: config.instructionAtSpawn }
         : {}),
@@ -114,7 +117,7 @@ export async function spawnInProcessTeammate(
       messages: [],
     }
     registerTask(task, context.setAppState)
-    return { success: true, agentId, taskId, abortController, teammateContext }
+    return { success: true, agentId, taskId, transcriptAgentId, abortController, teammateContext }
   } catch (error) {
     logError(error)
     return {

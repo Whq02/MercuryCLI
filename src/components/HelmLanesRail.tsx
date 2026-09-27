@@ -813,17 +813,18 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const base = statusTone(c.status, tok)
     const finished = c.facts !== undefined ? crewSettled(c.facts) : c.status !== 'running' && c.status !== 'pending'
     const greyed = finished && c.facts?.state !== 'failed'
-    const tokensVerb = c.status === 'running' && c.facts !== undefined ? crewTokensLabel(c.facts) : null
+    const idle = c.facts?.state === 'idle'
+    const tokensVerb = c.status === 'running' && !idle && c.facts !== undefined ? crewTokensLabel(c.facts) : null
     const verbLabel = tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label)
-    const g = isMainChat ? GLYPH.star : isViewing ? GLYPH.circledBullet : c.status === 'running' ? GLYPH.busy : GLYPH.idle
-    const gColor = isMainChat ? tok.warning : isViewing ? accent : c.status === 'running' ? tok.success : tok.textMuted
+    const g = isMainChat ? GLYPH.star : isViewing ? GLYPH.circledBullet : c.status === 'running' && !idle ? GLYPH.busy : GLYPH.idle
+    const gColor = isMainChat ? tok.warning : isViewing ? accent : c.status === 'running' && !idle ? tok.success : tok.textMuted
     return (
       <RailRow
         key={`crew:${c.id}`}
         width={rowW}
         glyph={g}
         glyphColor={gColor}
-        glyphLive={c.status === 'running' && !isViewing && !isMainChat}
+        glyphLive={c.status === 'running' && !idle && !isViewing && !isMainChat}
         name={c.label}
         nameColor={greyed ? tok.textMuted : tok.textPrimary}
         nameBold={isViewing || isMainChat}

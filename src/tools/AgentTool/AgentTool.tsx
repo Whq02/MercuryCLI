@@ -564,6 +564,7 @@ export const AgentTool = buildTool({
           team_name: teamName,
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(teammateModel ? { model: teammateModel } : {}),
+          ...(input.effort !== undefined ? { effort: input.effort } : {}),
           plan_mode_required:
             input.mode !== undefined && decodePermissionModeSpelling(input.mode) === 'strategy',
           description: input.description,
