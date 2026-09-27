@@ -149,6 +149,7 @@ src/services/instructions/discovery.ts :: rulesDirListingCaches :: ttl-bounded
 src/services/instructions/engine.ts :: cacheInvalidationListeners :: static-for-process
 src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearInstructionFileCaches
 src/services/localServer/localServerTruth.ts :: cached :: ttl-bounded
+src/services/localServer/localServerTruth.ts :: machineCached :: ttl-bounded
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
