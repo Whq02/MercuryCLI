@@ -1,6 +1,6 @@
 import figures from 'figures'
 import * as React from 'react'
-import { useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { Box, Text, useInput, wrapText } from '../ink.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
@@ -63,7 +63,8 @@ import {
 import { isLocalModelId, LOCAL_MODEL_GROUP, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
 import { openLocalSetupPopup } from '../commands/localsetup/localsetup.js'
-import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
+import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowRefusalSpan, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
+import { localServerTruthStamp, refreshLocalMachineTruth, subscribeLocalServerTruth } from '../services/localServer/localServerTruth.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -240,6 +241,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const [, setWindowStamp] = useState(0)
   const focusedLocal = focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id) ? localRecordFor(focusedModel.id) : undefined
   const focusedLocalCycles = focusedLocal !== undefined && (localWindowApplication(focusedLocal) === 'request' || localWindowApplication(focusedLocal) === 'load')
+  useSyncExternalStore(subscribeLocalServerTruth, localServerTruthStamp, localServerTruthStamp)
+  const focusedLocalKey = focusedLocal !== undefined ? `${focusedLocal.server}/${focusedLocal.id}` : null
+  useEffect(() => {
+    if (focusedLocal === undefined || !focusedLocalCycles || focusedLocal.geometry === undefined) return
+    void refreshLocalMachineTruth(focusedLocal.server).catch(() => undefined)
+  }, [focusedLocalKey])
   const localOffer = !filtering && headings?.[LOCAL_MODEL_GROUP]?.reason !== undefined && !groups.some(group => group.group === LOCAL_MODEL_GROUP)
   const focusedNative1m = ((): boolean => {
     const p = focusedModel?.id
@@ -660,9 +667,14 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           </Text>
         )
       ) : null}
-      {noticeLines.map((line, k) => (
-        <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">{line}</Text>
-      ))}
+      {noticeLines.map((line, k) => {
+        const refusal = localWindowLine !== null && ctxNotice === null && reasonLines === null ? localWindowRefusalSpan(line) : undefined
+        return (
+          <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">
+            {refusal === undefined ? line : <>{line.slice(0, refusal.start)}<Text color={tokens.failureText}>{line.slice(refusal.start, refusal.end)}</Text>{line.slice(refusal.end)}</>}
+          </Text>
+        )
+      })}
       <MenuFilterLine focused={filterFocus} text={truncateStartToWidth(filter, inner - 2)} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
     </Box>

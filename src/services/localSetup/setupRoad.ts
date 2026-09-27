@@ -308,7 +308,7 @@ export async function* runSetupRoad(consent: SetupConsentFn, seam: SetupIo = {})
     }
   }
 
-  const step5 = plan('5', 'window', "Set the window from this machine's memory", `${SETUP_MODEL_TAG} at ${root} · this box has ${(io.totalMemoryBytes / 1024 ** 3).toFixed(1)} GiB · the largest of 32k · 64k · 128k · 256k whose projected load fits 0.9 of it, never above the trained maximum`, `GET ${root}/api/tags · POST ${root}/api/show {"model":${JSON.stringify(SETUP_MODEL_TAG)}} → localModelWindows[${JSON.stringify(SETUP_MODEL_ID)}] in the config home (nothing is written to the server's environment)`)
+  const step5 = plan('5', 'window', "Set the window from this machine's memory", `${SETUP_MODEL_TAG} at ${root} · this box has ${(io.totalMemoryBytes / 1024 ** 3).toFixed(1)} GiB · the largest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache at the server's cache type and slots) fits the memory usable for models (the server's own gpu memory line when it states one), never above the trained maximum — the same rule auto uses at every send`, `GET ${root}/api/tags · POST ${root}/api/show {"model":${JSON.stringify(SETUP_MODEL_TAG)}} → localModelWindows[${JSON.stringify(SETUP_MODEL_ID)}] in the config home (nothing is written to the server's environment)`)
   yield { type: 'step', plan: step5 }
   const c5 = await ask(step5)
   if (c5 === 'stop') {

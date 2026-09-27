@@ -6,6 +6,7 @@ import { getApiFetch } from '../../utils/proxy.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
+import { readLocalMachineTruth, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import {
@@ -39,8 +40,9 @@ export interface ResolvedSetupIo {
   realpath: (path: string) => string | undefined
   exec: (file: string, args: string[], opts?: ExecOptions) => Promise<ExecResult>
   totalMemoryBytes: number
-  parallelSlots: number
+  parallelSlots?: number
   cacheType?: string
+  readTruth: () => Promise<LocalServerTruth>
   writeWindow: (tag: string, window: number) => void
   focusedConnector: () => SessionModelDoor
   setAppState?: SessionModelSetter
@@ -131,11 +133,11 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
   })
 }
 
-function defaultParallelSlots(): number {
+function defaultParallelSlots(): number | undefined {
   try {
-    return readLocalServerSettings().parallelSlots ?? 1
+    return readLocalServerSettings().parallelSlots
   } catch {
-    return 1
+    return undefined
   }
 }
 
@@ -143,16 +145,21 @@ export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
   const env = io.env ?? process.env
   const platform = io.platform ?? process.platform
   const exists = io.exists ?? ((path: string) => existsSync(path))
+  const home = io.home ?? homedir()
+  const fetchImpl = io.fetchImpl ?? getApiFetch()
+  const timeoutMs = io.timeoutMs ?? SETUP_READ_TIMEOUT_MS
+  const totalMemoryBytes = io.totalMemoryBytes ?? totalmem()
+  const parallelSlots = io.parallelSlots ?? defaultParallelSlots()
   return {
     env,
     platform,
-    home: io.home ?? homedir(),
+    home,
     configHome: io.configHome ?? getMercuryHome(),
     now: io.now ?? Date.now,
     sleep: io.sleep ?? defaultSleep,
     ...(io.signal !== undefined ? { signal: io.signal } : {}),
-    fetchImpl: io.fetchImpl ?? getApiFetch(),
-    timeoutMs: io.timeoutMs ?? SETUP_READ_TIMEOUT_MS,
+    fetchImpl,
+    timeoutMs,
     startWaitMs: io.startWaitMs ?? SETUP_START_WAIT_MS,
     installWaitMs: io.installWaitMs ?? SETUP_INSTALL_WAIT_MS,
     pullIdleMs: io.pullIdleMs ?? SETUP_PULL_IDLE_MS,
@@ -160,9 +167,10 @@ export function resolveSetupIo(io: SetupIo = {}): ResolvedSetupIo {
     exists,
     realpath: io.realpath ?? defaultRealpath,
     exec: io.exec ?? defaultExec,
-    totalMemoryBytes: io.totalMemoryBytes ?? totalmem(),
-    parallelSlots: io.parallelSlots ?? defaultParallelSlots(),
+    totalMemoryBytes,
+    ...(parallelSlots !== undefined ? { parallelSlots } : {}),
     ...(io.cacheType !== undefined ? { cacheType: io.cacheType } : {}),
+    readTruth: io.readTruth ?? (() => readLocalMachineTruth({ env, platform, home, fetchImpl, timeoutMs, totalMemoryBytes }, 'ollama')),
     writeWindow: io.writeWindow ?? ((tag, window) => writeLocalWindowSetting({ id: tag }, window)),
     focusedConnector: io.focusedConnector ?? (() => getFocusedSessionConnector()),
     ...(io.setAppState !== undefined ? { setAppState: io.setAppState } : {}),

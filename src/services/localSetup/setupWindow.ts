@@ -1,43 +1,16 @@
-import { gibWords, kvGeometryOf, projectLoad, tokensWords, type KvGeometry } from '../localServer/localServerMemory.js'
+import { kvGeometryOf, type KvGeometry } from '../localServer/localServerMemory.js'
 import { parseOllamaTags } from '../localServer/localServerTruth.js'
+import { fitLocalWindow, fitLocalWindowOn, localWindowFitWords, type LocalWindowFit } from '../localServer/localWindowFit.js'
 import { num, readJson, rec, resolveSetupIo, str } from './setupIo.js'
-import { SETUP_USABLE_FRACTION, SETUP_WINDOW_LADDER, type SetupIo, type WindowChoice } from './setupTypes.js'
+import type { SetupIo, WindowChoice } from './setupTypes.js'
 
-export function windowWords(choice: Omit<WindowChoice, 'words'>): string {
-  const slots = choice.slots > 1 ? `, ${choice.slots} slots` : ''
-  const box = `${gibWords(choice.machineBytes)} box${slots}`
-  const parts = `${gibWords(choice.weightsBytes)} weights + ${gibWords(choice.cacheBytes)} cache`
-  if (choice.fits) return `${tokensWords(choice.window)} · ${parts} of ${gibWords(choice.usableBytes)} usable (${box})`
-  return `${tokensWords(choice.window)} · ${parts} — ${gibWords(choice.totalBytes)} does not fit in ${gibWords(choice.usableBytes)} usable (${box})`
+export function windowWords(choice: Omit<LocalWindowFit, 'words'>): string {
+  return localWindowFitWords(choice)
 }
 
-export function chooseWindowFrom(args: { tag: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; machineBytes: number; slots: number; cacheType?: string }): WindowChoice {
-  const usableBytes = Math.floor(args.machineBytes * SETUP_USABLE_FRACTION)
-  const slots = Math.max(1, Math.floor(args.slots))
-  const rungs = SETUP_WINDOW_LADDER.filter(w => args.trainedMax === undefined || w <= args.trainedMax)
-  if (rungs.length === 0 && args.trainedMax !== undefined) rungs.push(args.trainedMax)
-  const model = { name: args.tag, weightsBytes: args.weightsBytes, geometry: args.geometry }
-  const ladder = rungs.map(window => {
-    const projected = projectLoad(model, window, slots, args.cacheType)
-    return { window, totalBytes: projected.totalBytes, fits: projected.totalBytes <= usableBytes }
-  })
-  const fitting = ladder.filter(r => r.fits)
-  const chosen = fitting.length > 0 ? fitting[fitting.length - 1]! : ladder[0]!
-  const projected = projectLoad(model, chosen.window, slots, args.cacheType)
-  const choice: Omit<WindowChoice, 'words'> = {
-    tag: args.tag,
-    window: chosen.window,
-    fits: chosen.fits,
-    weightsBytes: args.weightsBytes,
-    cacheBytes: projected.cacheBytes,
-    totalBytes: projected.totalBytes,
-    usableBytes,
-    machineBytes: args.machineBytes,
-    ...(args.trainedMax !== undefined ? { trainedMax: args.trainedMax } : {}),
-    slots,
-    ladder,
-  }
-  return { ...choice, words: windowWords(choice) }
+export function chooseWindowFrom(args: { tag: string; weightsBytes: number; geometry: KvGeometry; trainedMax?: number; machineBytes: number; usableBytes: number; usableSource?: string; slots: number; cacheType?: string }): WindowChoice {
+  const { tag, ...input } = args
+  return { ...fitLocalWindow({ name: tag, ...input }), tag }
 }
 
 export async function chooseWindow(root: string, tag: string, seam: SetupIo = {}): Promise<WindowChoice> {
@@ -52,15 +25,9 @@ export async function chooseWindow(root: string, tag: string, seam: SetupIo = {}
   if (!geometry) throw new Error(`the KV geometry of ${tag} could not be read from model_info`)
   const arch = str(info['general.architecture'])
   const trainedMax = (arch ? num(info[`${arch}.context_length`]) : undefined) ?? listed.trainedContext
-  const choice = chooseWindowFrom({
-    tag,
-    weightsBytes: listed.sizeBytes,
-    geometry,
-    ...(trainedMax !== undefined ? { trainedMax } : {}),
-    machineBytes: io.totalMemoryBytes,
-    slots: io.parallelSlots,
-    ...(io.cacheType !== undefined ? { cacheType: io.cacheType } : {}),
-  })
+  const truth = await io.readTruth()
+  const fit = fitLocalWindowOn(truth, { name: tag, weightsBytes: listed.sizeBytes, geometry, ...(trainedMax !== undefined ? { trainedMax } : {}) }, io.parallelSlots, io.cacheType)
+  const choice: WindowChoice = { ...fit, tag }
   io.writeWindow(tag, choice.window)
   return choice
 }

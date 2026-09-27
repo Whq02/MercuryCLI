@@ -9,7 +9,7 @@ import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.j
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
-import { chooseLocalBatch, decideLocalWindow, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
+import { chooseLocalBatch, decideLocalWindow, ensureLocalWindowTruth, heldLocalWindow, localBatchSettingOf, localWindowApplication, localWindowSettingOf, type HeldLocalWindow } from './localWindow.js'
 import { ollamaChatUrl, streamOllamaChat } from './ollamaChatTransport.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 
@@ -130,7 +130,8 @@ export async function* localCallModel(
   if (record) {
     const application = localWindowApplication(record)
     if (application === 'request' || application === 'load') {
-      const decision = decideLocalWindow(record, localPreComposeEstimate(params), localWindowSettingOf(record))
+      const setting = localWindowSettingOf(record)
+      const decision = decideLocalWindow(record, localPreComposeEstimate(params), setting, await ensureLocalWindowTruth(record, setting))
       if (application === 'load') {
         await ensureServedWindow(record, { signal: params.signal }, decision.window !== undefined ? { numCtx: decision.window } : undefined)
       } else if (decision.window === undefined) {

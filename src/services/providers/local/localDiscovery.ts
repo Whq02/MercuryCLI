@@ -4,6 +4,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getApiFetch } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import type { LocalServerKind } from '../openaicompat/compatWire.js'
+import { kvGeometryOf, type KvGeometry } from '../../localServer/localServerMemory.js'
 import { resolveLocalApiKey } from './localAccounts.js'
 
 export type { LocalServerKind }
@@ -36,6 +37,8 @@ export interface LocalModelRecord {
   parameterSize?: string
   quantization?: string
   servedReadAtMs?: number
+  weightsBytes?: number
+  geometry?: KvGeometry
 }
 
 export interface LocalServerRecord {
@@ -175,12 +178,16 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
         : numCtx
           ? { tokens: numCtx, source: 'modelfile' }
           : undefined
+      const weightsBytes = num(m.size)
+      const geometry = info ? kvGeometryOf(info) : undefined
       return {
         id,
         server: 'ollama',
         baseUrl,
         ...(contextWindow !== undefined ? { contextWindow } : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
+        ...(weightsBytes !== undefined ? { weightsBytes } : {}),
+        ...(geometry !== undefined ? { geometry } : {}),
         ...(capabilities
           ? {
               toolsDeclared: capabilities.includes('tools'),
@@ -232,6 +239,7 @@ export async function probeLmStudio(root: string, io: LocalDiscoveryIo): Promise
             ? { contextWindow: { tokens: modelMax, source: 'model-max' } }
             : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
+        ...(num(m.size_bytes) !== undefined ? { weightsBytes: num(m.size_bytes)! } : {}),
         ...(typeof caps?.trained_for_tool_use === 'boolean' ? { toolsDeclared: caps.trained_for_tool_use } : {}),
         ...(typeof caps?.vision === 'boolean' ? { visionDeclared: caps.vision } : {}),
         ...(rec(m.reasoning) ? { thinkingDeclared: true } : {}),

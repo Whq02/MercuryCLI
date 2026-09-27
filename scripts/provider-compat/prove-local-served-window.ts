@@ -107,7 +107,7 @@ const { routedCallModel } = await import('../../src/services/providers/callModel
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const windowModule = await import('../../src/services/providers/local/localWindow.ts')
-const { autoLocalWindow, writeLocalWindowSetting, __resetLocalWindowsForTest, heldLocalWindow } = windowModule
+const { doubledRequestWindow: autoLocalWindow, writeLocalWindowSetting, __resetLocalWindowsForTest, heldLocalWindow } = windowModule
 
 const PERSISTED = `local/${MODEL}`
 
@@ -164,7 +164,7 @@ section('1 · discovery with nothing loaded: the window is ABSENT, the trained m
   const budget = resolveContextWindow(PERSISTED)
   check('the budget is the LABELLED fallback until first send (never 4096)', budget.effectiveWindow === 200_000 && budget.source === 'fallback' && (budget.fallbackReason ?? '').includes('not loaded'), JSON.stringify(budget))
   check('no load was sent by discovery (a probe never loads a model)', !state.hits.some(h => h.url === '/api/generate' || h.url === '/api/chat'), shape(state.hits))
-  check('the auto window for the ≈62k request is 128k (twice the estimate, rounded up to 16k, under the trained max)', AUTO_62K === 131072, `${EST_62K} → ${AUTO_62K}`)
+  check('this fixture states no KV geometry, so auto falls back: the window for the ≈62k request is 128k (twice the estimate, rounded up to 16k, under the trained max)', record().geometry === undefined && AUTO_62K === 131072, `${EST_62K} → ${AUTO_62K}`)
 }
 
 section('2 · first send under the auto default (nothing set): the request rides /api/chat with the chosen num_ctx, is SENT, and /api/ps confirms the served figure')

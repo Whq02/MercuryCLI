@@ -112,20 +112,21 @@ await refreshLocalDiscovery({ force: true })
 const qwen = localRecordFor(`local/${OLLAMA_MODEL}`)!
 const gemma = localRecordFor(`local/${LM_MODEL}`)!
 
-section('1 · the auto arithmetic: the smallest of the trained maximum and twice the request rounded up to 16k, never under 32k')
+section('1 · the fallback arithmetic (no KV geometry read for this fixture model): the smallest of the trained maximum and twice the request rounded up to 16k, never under 32k')
 {
-  check('a 62k request ⇒ 128k', w.autoLocalWindow(62_000, 262144) === 131072, String(w.autoLocalWindow(62_000, 262144)))
-  check('a 20k request ⇒ 48k', w.autoLocalWindow(20_000, 262144) === 49152, String(w.autoLocalWindow(20_000, 262144)))
-  check('a trained max of 32k ⇒ 32k', w.autoLocalWindow(62_000, 32768) === 32768)
-  check('a tiny request ⇒ the 32k floor', w.autoLocalWindow(1_000, 262144) === 32768)
-  check('no trained max stated ⇒ the 2× rule alone (62k ⇒ 128k)', w.autoLocalWindow(62_000) === 131072)
-  check('exactly 8k ⇒ 32k (16k rounded up, floored)', w.autoLocalWindow(8_000, 262144) === 32768)
+  check('a 62k request ⇒ 128k', w.doubledRequestWindow(62_000, 262144) === 131072, String(w.doubledRequestWindow(62_000, 262144)))
+  check('a 20k request ⇒ 48k', w.doubledRequestWindow(20_000, 262144) === 49152, String(w.doubledRequestWindow(20_000, 262144)))
+  check('a trained max of 32k ⇒ 32k', w.doubledRequestWindow(62_000, 32768) === 32768)
+  check('a tiny request ⇒ the 32k floor', w.doubledRequestWindow(1_000, 262144) === 32768)
+  check('no trained max stated ⇒ the 2× rule alone (62k ⇒ 128k)', w.doubledRequestWindow(62_000) === 131072)
+  check('exactly 8k ⇒ 32k (16k rounded up, floored)', w.doubledRequestWindow(8_000, 262144) === 32768)
+  check('the fixture states no geometry, so auto falls back to it and the words say so', qwen.geometry === undefined && w.chooseLocalWindow(qwen, 62_000, undefined).reason === 'req' && w.chooseLocalWindow(qwen, 62_000, undefined).words.includes('no KV geometry read'), w.chooseLocalWindow(qwen, 62_000, undefined).words)
 }
 
 section('2 · the setting grammar and the ladder')
 {
   check("'server' and 'max' parse; '64k' is 65536; a bare number stands; junk and tiny values are undefined", w.parseLocalWindowSetting('server') === 'server' && w.parseLocalWindowSetting('max') === 'max' && w.parseLocalWindowSetting('64k') === 65536 && w.parseLocalWindowSetting(200000) === 200000 && w.parseLocalWindowSetting('nonsense') === undefined && w.parseLocalWindowSetting(512) === undefined)
-  check("chooseLocalWindow: 'server' ⇒ none; 'max' ⇒ the trained max; a number clamps to the trained max; unset ⇒ auto", w.chooseLocalWindow(qwen, 62_000, 'server') === undefined && w.chooseLocalWindow(qwen, 62_000, 'max') === 262144 && w.chooseLocalWindow(qwen, 62_000, 200_000) === 200_000 && w.chooseLocalWindow(qwen, 62_000, 400_000) === 262144 && w.chooseLocalWindow(qwen, 62_000, undefined) === 131072)
+  check("chooseLocalWindow: 'server' ⇒ none; 'max' ⇒ the trained max; a number clamps to the trained max; unset ⇒ auto (the fallback here)", w.chooseLocalWindow(qwen, 62_000, 'server').window === undefined && w.chooseLocalWindow(qwen, 62_000, 'max').window === 262144 && w.chooseLocalWindow(qwen, 62_000, 200_000).window === 200_000 && w.chooseLocalWindow(qwen, 62_000, 400_000).window === 262144 && w.chooseLocalWindow(qwen, 62_000, undefined).window === 131072)
   const ladder: Array<unknown> = [undefined]
   for (let i = 0; i < 6; i++) ladder.push(w.nextLocalWindowSetting(ladder.at(-1) as never, 1))
   check('←/→ walk auto → server default → 32k → 64k → 128k → trained max → auto', j(ladder) === j([undefined, 'server', 32768, 65536, 131072, 'max', undefined]), j(ladder))
@@ -141,7 +142,7 @@ section('3 · the hold: one chosen window per model per process; a changed setti
   w.__resetLocalWindowsForTest()
   const first = w.decideLocalWindow(qwen, 62_000, undefined)
   const second = w.decideLocalWindow(qwen, 17_000, undefined)
-  check('the first dispatch decides (auto 128k); a smaller second dispatch on the same model reuses it', first.window === 131072 && second === first)
+  check('the first dispatch decides (auto 128k here — the fallback, reason req); a smaller second dispatch on the same model reuses it', first.window === 131072 && first.reason === 'req' && second === first)
   const changed = w.decideLocalWindow(qwen, 17_000, 65536)
   check('a changed setting re-decides (64k)', changed.window === 65536 && changed !== first)
   const vllm = { id: 'Qwen/Qwen3-32B', server: 'vllm' as const, modelMaxContext: 40960, baseUrl: 'x', contextWindow: { tokens: 40960, source: 'served' as const } }

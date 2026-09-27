@@ -23,6 +23,7 @@ import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctx
 import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
 import { scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { providerIdentityLine } from '../services/providers/providerIdentityLine.js'
+import { localWindowReasonTag } from '../services/providers/local/localWindow.js'
 import { openrouterSlots } from '../services/providers/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -466,6 +467,7 @@ function HelmTelemetryRailImpl({
     const turns = ctxForecastEnabled()
       ? estimateTurnsToCompact(ctx.usedPct, ctx.compactAtPct)
       : null
+    const ctxReason = localWindowReasonTag(sessionModel, ctx.window)
     usageNodes.push(
       ((): React.ReactNode => {
         const i = sel({ kind: 'command', command: '/deck', label: 'ctx' })
@@ -482,7 +484,7 @@ function HelmTelemetryRailImpl({
           {
 }
           {turns == null ? (
-            <Text color={tok.textMuted}>{` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}`}</Text>
+            <Text color={tok.textMuted}>{` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}${ctxReason !== undefined ? ` ${ctxReason}` : ''}`}</Text>
           ) : null}
           {turns != null ? (
             <Text color={turns <= 2 ? gaugeColor(95) : tok.textMuted}>{` · ≈${turns} turns`}</Text>

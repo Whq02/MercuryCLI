@@ -41,6 +41,7 @@ import {
   type SnapshotState,
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
+import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
 import { usageAgeTail } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
@@ -124,6 +125,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         ? Math.round((ctx.window * ctx.usedPct) / 100 / 1000)
         : 0
   const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)
+  const ctxRule = localWindowRuleWords(rawModel, ctx.window)
   const agent = agentStateSnapshot()
   useSyncExternalStore(subscribePresence, getPresenceVersion, getPresenceVersion)
   const seats = getLivePresence()
@@ -433,6 +435,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               <Text color={tok.textMuted}>{` · ${ctxWinLabel} window`}</Text>
             </Text>
           )}
+          {ctxRule !== undefined ? <Text color={tok.textMuted}>{` · ${ctxRule}`}</Text> : null}
           {}
         </Text>
       ) : null}
