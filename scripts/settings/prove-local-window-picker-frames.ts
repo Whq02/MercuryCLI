@@ -2,7 +2,9 @@
 import React from 'react'
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import stripAnsi from 'strip-ansi'
@@ -12,7 +14,39 @@ import stringWidth from 'string-width'
 for (const name of Object.keys(process.env)) {
   if (/^(ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_)/.test(name)) delete process.env[name]
 }
-process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-window-picker-'))
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+delete process.env.MERCURY_LOCAL_BASE_URL
+
+const SERVED_MODEL = 'qwen3.5:9b-q4_K_M'
+const UNLOADED_MODEL = 'qwen3.5:27b'
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' })
+  res.end(JSON.stringify(body))
+}
+const ollama = await new Promise<{ server: Server; root: string }>(resolve => {
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    let raw = ''
+    req.on('data', chunk => {
+      raw += String(chunk)
+    })
+    req.on('end', () => {
+      const url = req.url ?? ''
+      if (url === '/api/tags') return json(res, 200, { models: [SERVED_MODEL, UNLOADED_MODEL].map(name => ({ name, model: name, details: { family: 'qwen35' } })) })
+      if (url === '/api/version') return json(res, 200, { version: '0.34.4' })
+      if (url === '/api/ps') return json(res, 200, { models: [{ name: SERVED_MODEL, model: SERVED_MODEL, context_length: 262144 }] })
+      if (url === '/api/show') return json(res, 200, { parameters: '', model_info: { 'general.architecture': 'qwen35', 'qwen35.context_length': 262144 }, capabilities: ['completion', 'tools', 'thinking'], details: { family: 'qwen35' }, requested: raw })
+      json(res, 404, { error: 'not found' })
+    })
+  })
+  server.listen(0, '127.0.0.1', () => {
+    const address = server.address()
+    const port = typeof address === 'object' && address !== null ? address.port : 0
+    resolve({ server, root: `http://127.0.0.1:${port}` })
+  })
+})
+process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
+
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {
@@ -29,10 +63,15 @@ await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () 
 await stub('../../src/services/providers/providerUsage.js', () => ({ activeSourceUsage: () => ({ tier: 'local · no metering' }) }))
 await stub('../../src/utils/settings/settings.js', () => ({ getInitialSettings: () => ({ modelPickerCentred: false }) }))
 
+const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.js')
+const { localRecordFor, LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
+const w = await import('../../src/services/providers/local/localWindow.js')
 const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
-const { LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
-const { Box, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
+const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
+await refreshLocalDiscovery({ force: true })
+const served = localRecordFor(`local/${SERVED_MODEL}`)!
+const unloaded = localRecordFor(`local/${UNLOADED_MODEL}`)!
 
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
@@ -46,32 +85,24 @@ const settle = async () => {
   }
 }
 
-const ANTHROPIC = 'Anthropic'
 const MODELS = [
-  { id: 'claude-fable-5-1', name: 'fable', tag: '', ctx: '1M', group: ANTHROPIC },
-  { id: 'local/qwen3.5:9b-q4_K_M', name: 'qwen3.5:9b-q4_K_M', tag: '', ctx: '256k', group: LOCAL_MODEL_GROUP },
-  { id: 'local/qwen3.5:27b', name: 'qwen3.5:27b', tag: '', ctx: '', group: LOCAL_MODEL_GROUP },
+  { id: 'claude-fable-5-1', name: 'fable', tag: '', ctx: '1M', group: 'Anthropic' },
+  { id: `local/${SERVED_MODEL}`, name: SERVED_MODEL, tag: '', ctx: '256k', group: LOCAL_MODEL_GROUP },
+  { id: `local/${UNLOADED_MODEL}`, name: UNLOADED_MODEL, tag: '', ctx: '', group: LOCAL_MODEL_GROUP },
 ]
-const WIDE = {
-  served: 'window · served 256k · [auto → 128k held] · server · 32k · 64k · 128k · max · number · w cycles',
-  unloaded: 'window · not loaded · max 256k · [auto] · server · 32k · 64k · 128k · max · number · w cycles',
-}
-const NARROW = {
-  served: 'window [auto → 128k held] · server · 32k · 64k · 128k · max · w cycles',
-  unloaded: 'window · not loaded [auto] · server · 32k · 64k · 128k · max · w cycles',
-}
 
-async function mount(columns: number, rows: number, notice: string, current: string) {
+async function mount(columns: number, rows: number, current: string) {
   const emitter = new EventEmitter()
   const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
   stream.resume()
   const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
   const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
+  let closed = 0
   const node = React.createElement(
     StdinContext.Provider,
     { value: context },
-    React.createElement(Box, { flexDirection: 'column' }, React.createElement(MercuryModelPicker, { models: MODELS, current, ctxPct: 23, efforts: ['low', 'medium', 'high', 'max'], effort: 'high', notice } as never)),
+    React.createElement(Box, { flexDirection: 'column' }, React.createElement(MercuryModelPicker, { models: MODELS, current, ctxPct: 23, efforts: ['low', 'medium', 'high', 'max'], effort: 'high', onClose: () => { closed++ } } as never)),
   )
   let painted = (): void => {}
   const firstFrame = new Promise<void>(resolve => { painted = resolve })
@@ -80,27 +111,74 @@ async function mount(columns: number, rows: number, notice: string, current: str
   await settle()
   return {
     frame: () => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
+    line: () => stripAnsi(instance.lastFrame()).split('\n').map(l => l.replace(/^│ ?/, '').replace(/ ?│$/, '').trim()).find(l => l.startsWith('window')) ?? '',
+    closed: () => closed,
+    async key(name: string, sequence = name) {
+      const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
+      emitter.emit('input', event)
+      await settle()
+      return event.didStopImmediatePropagation()
+    },
     close: () => instance.unmount(),
   }
 }
 
 if (frameDir) mkdirSync(frameDir, { recursive: true })
-for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80, rows: 21, tag: '80x21' }]) {
-  const words = geometry.columns >= 100 ? WIDE : NARROW
-  for (const leg of [
-    { name: 'served-row-choice', current: 'local/qwen3.5:9b-q4_K_M', notice: words.served, expectRow: 'qwen3.5:9b', expectCtx: '256k' },
-    { name: 'unloaded-row-choice', current: 'local/qwen3.5:27b', notice: words.unloaded, expectRow: 'qwen3.5:27b', expectCtx: '' },
-  ]) {
-    const board = await mount(geometry.columns, geometry.rows, leg.notice, leg.current)
-    const frame = board.frame()
-    const lines = frame.split('\n')
-    check(`${geometry.tag} ${leg.name}: every line fits the width`, lines.every(line => stringWidth(line) <= geometry.columns), String(Math.max(...lines.map(line => stringWidth(line)))))
-    check(`${geometry.tag} ${leg.name}: the frame fits the height`, lines.length <= geometry.rows, String(lines.length))
-    check(`${geometry.tag} ${leg.name}: the local row is on screen`, frame.includes(leg.expectRow))
-    check(`${geometry.tag} ${leg.name}: the choice line paints whole (auto · the ladder · w cycles), never truncated`, frame.includes(leg.notice), lines.find(line => line.includes('window')) ?? '')
-    if (frameDir) writeFileSync(join(frameDir, `${leg.name}-${geometry.tag}.txt`), frame + '\n')
-    board.close()
-  }
+const save = (name: string, frame: string): void => {
+  if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), frame + '\n')
 }
-console.log(failures === 0 ? 'local window picker frames: all green' : `local window picker frames: ${failures} failure(s)`)
+
+for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80, rows: 21, tag: '80x21' }]) {
+  const wide = geometry.columns >= 100
+  w.__resetLocalWindowsForTest()
+  w.writeLocalWindowSetting(served, undefined)
+  w.writeLocalWindowSetting(unloaded, undefined)
+  w.decideLocalWindow(served, 62_000, undefined)
+
+  const board = await mount(geometry.columns, geometry.rows, `local/${SERVED_MODEL}`)
+  const fits = (frame: string): boolean => frame.split('\n').every(line => stringWidth(line) <= geometry.columns) && frame.split('\n').length <= geometry.rows
+  check(`${geometry.tag}: the served row paints its window line unasked — auto resolved to 128k and held, the served figure the server's word`, board.line() === (wide ? 'window · served 256k · [auto → 128k held] · server · 32k · 64k · 128k · max · number · w cycles' : 'window [auto → 128k held] · server · 32k · 64k · 128k · max · w cycles') && fits(board.frame()), board.line())
+  save(`served-row-choice-${geometry.tag}`, board.frame())
+  const steps: Array<{ expect: string; setting: unknown }> = [
+    { expect: '[server]', setting: 'server' },
+    { expect: '[32k]', setting: 32768 },
+    { expect: '[64k]', setting: 65536 },
+    { expect: '[128k]', setting: 131072 },
+    { expect: '[max]', setting: 'max' },
+  ]
+  let walked = true
+  for (const step of steps) {
+    const consumed = await board.key('w')
+    walked &&= consumed && board.line().includes(step.expect) && w.localWindowSettingOf(served) === step.setting
+    if (!walked) {
+      check(`${geometry.tag}: w walks the ladder — ${step.expect}`, false, `${board.line()} · setting ${String(w.localWindowSettingOf(served))}`)
+      break
+    }
+  }
+  if (walked) check(`${geometry.tag}: w walks the ladder server → 32k → 64k → 128k → max, each persisted as the setting`, true)
+  save(`served-row-max-${geometry.tag}`, board.frame())
+  await board.key('w')
+  check(`${geometry.tag}: after max, w opens the number prompt (type the tokens · ↵ sets · esc cancels)`, board.line().startsWith('window · type the tokens') && w.localWindowSettingOf(served) === 'max', board.line())
+  save(`served-row-typing-${geometry.tag}`, board.frame())
+  await board.key('escape', '\x1b')
+  check(`${geometry.tag}: esc cancels the prompt without closing the picker and leaves max`, board.closed() === 0 && board.line().includes('[max]') && w.localWindowSettingOf(served) === 'max', board.line())
+  await board.key('w')
+  for (const ch of ['4', '8', 'k']) await board.key(ch)
+  check(`${geometry.tag}: the typed tokens echo on the prompt`, board.line().endsWith('48k▍'), board.line())
+  await board.key('return', '\r')
+  check(`${geometry.tag}: ↵ sets 48k as the number rung and persists 49152`, board.line().includes('[48k]') && w.localWindowSettingOf(served) === 49152, board.line())
+  save(`served-row-number-${geometry.tag}`, board.frame())
+  await board.key('w')
+  check(`${geometry.tag}: from a number, w returns to auto (the setting cleared)`, board.line().includes('[auto') && w.localWindowSettingOf(served) === undefined, board.line())
+  await board.key('down')
+  check(`${geometry.tag}: the unloaded row says so — not loaded, the trained max, auto with nothing held yet`, board.line() === (wide ? 'window · not loaded · max 256k · [auto] · server · 32k · 64k · 128k · max · number · w cycles' : 'window · not loaded [auto] · server · 32k · 64k · 128k · max · w cycles'), board.line())
+  save(`unloaded-row-choice-${geometry.tag}`, board.frame())
+  await board.key('up')
+  await board.key('up')
+  check(`${geometry.tag}: a non-local row paints no window line and w is not consumed there`, board.line() === '' && !(await board.key('w')), board.line())
+  board.close()
+}
+
+ollama.server.close()
+console.log(failures === 0 ? 'local window picker: all green' : `local window picker: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)
