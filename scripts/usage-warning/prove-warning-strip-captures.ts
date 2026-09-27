@@ -211,6 +211,7 @@ for (const cols of [178, 120]) {
         ...FACE_THEN_COMPOSER,
         { data: '', atTick: 999, awaitText: 'of the Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '\x1b[B', atTick: 999, awaitText: 'Current week (all models)', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
       readyText: ['? for shortcuts'],
