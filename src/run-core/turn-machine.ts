@@ -54,6 +54,7 @@ import {
   overflowLadderArmed,
   overflowRecoveryNotice,
   overflowRefusalText,
+  foldRemedyIsHeadless,
   splitCarriedOperatorTail,
   sizePruneRequest,
   sizePruneNotice,
@@ -1052,7 +1053,7 @@ export async function* runEventCore(
         kind: 'notice',
         message: createAssistantAPIErrorMessage({
           content: overflowRefusalText(forcedFold, 'fold-failed', {
-            nonInteractive: toolUseContext.options.isNonInteractiveSession === true,
+            nonInteractive: foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession),
             ...(compactionRefusal !== undefined ? { detail: compactionRefusal } : {}),
           }),
           error: 'invalid_request',
@@ -1200,7 +1201,7 @@ export async function* runEventCore(
             kind: 'notice',
             message: createAssistantAPIErrorMessage({
               content: overflowRefusalText(signal, why, {
-                nonInteractive: toolUseContext.options.isNonInteractiveSession === true,
+                nonInteractive: foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession),
                 ...(decision.kind === 'refuse' && decision.detail !== undefined ? { detail: decision.detail } : {}),
               }),
               error: 'invalid_request',
@@ -1345,7 +1346,7 @@ export async function* runEventCore(
           kind: 'notice',
           message: createAssistantAPIErrorMessage({
             content: overflowRefusalText(overflow, decision.why, {
-              nonInteractive: toolUseContext.options.isNonInteractiveSession === true,
+              nonInteractive: foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession),
               ...(decision.detail !== undefined ? { detail: decision.detail } : {}),
             }),
             error: 'invalid_request',

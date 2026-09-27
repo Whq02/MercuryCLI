@@ -4,7 +4,7 @@ import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
 import type { Message } from '../../types/message.js'
 import { isTurnOwningQuerySource } from '../../utils/effort.js'
-import { PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
+import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../api/errors.js'
 import {
   type OverflowSignal,
   overflowGapTokens,
@@ -12,6 +12,7 @@ import {
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { isAutoCompactEnabled, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
 export const OVERFLOW_RECOVERY_FLAG = 'MERCURY_OVERFLOW_RECOVERY'
@@ -124,6 +125,14 @@ export function splitCarriedOperatorTail(messages: readonly Message[]): {
 
 export { overflowMeasuredClause, overflowWhoClause } from '../api/overflowSignal.js'
 
+export { foldRemedyIsHeadless } from './compact.js'
+
+function plainDetail(detail: string | undefined): string {
+  if (detail === undefined) return ''
+  const prefix = `${API_ERROR_MESSAGE_PREFIX}: `
+  return (detail.startsWith(prefix) ? detail.slice(prefix.length) : detail).trim()
+}
+
 export function measureOverflow(signal: OverflowSignal, messages: readonly Message[], model: string): OverflowSignal {
   if (signal.measuredTokens !== undefined && signal.measuredWindow !== undefined) return signal
   return {
@@ -169,8 +178,11 @@ export function overflowRefusalText(
         return `automatic compaction is off, so the emergency fold did not run.${byHand}`
       case 'breaker':
         return 'compaction has failed repeatedly and is paused for this session.'
-      case 'fold-failed':
-        return `the fold failed${opts.detail !== undefined && opts.detail !== '' ? ` (${opts.detail})` : ''}.${byHand}`
+      case 'fold-failed': {
+        const detail = plainDetail(opts.detail)
+        if (detail.startsWith(FOLD_WINDOW_REFUSAL_KEY)) return `${detail}${byHand}`
+        return `the fold failed${detail !== '' ? ` (${detail})` : ''}.${byHand}`
+      }
       case 'fold-did-not-land':
         return `the fold did not bring the conversation under the window.${byHand}`
       case 'single-message':

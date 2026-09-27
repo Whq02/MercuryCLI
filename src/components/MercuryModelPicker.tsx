@@ -59,6 +59,7 @@ import {
   type PickerLine,
   type ProviderHeading,
 } from '../utils/model/modelPickerGroups.js'
+import { isLocalModelId, localPickerWindowNotice } from '../services/providers/local/localCatalogue.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -385,6 +386,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
       setCtxNotice('1M ctx · native to this model · not a toggle')
+    }
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id)) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(localPickerWindowNotice(focusedModel.id))
     }
     else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel)) {
       if (!pastOpenEvent()) return

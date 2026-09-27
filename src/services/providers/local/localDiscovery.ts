@@ -16,10 +16,10 @@ export const DEFAULT_LOCAL_PROBE_TARGETS: readonly { kind: LocalServerKind; root
 ]
 
 export const LOCAL_PROBE_TIMEOUT_MS = 900
-export const OLLAMA_DEFAULT_CONTEXT = 4096
+export const LOCAL_LOAD_TIMEOUT_MS = 180_000
 const OLLAMA_SHOW_BOUND = 32
 
-export type LocalContextSource = 'served' | 'modelfile' | 'server-default' | 'model-max'
+export type LocalContextSource = 'served' | 'modelfile' | 'model-max'
 
 export interface LocalModelRecord {
   id: string
@@ -35,6 +35,7 @@ export interface LocalModelRecord {
   family?: string
   parameterSize?: string
   quantization?: string
+  servedReadAtMs?: number
 }
 
 export interface LocalServerRecord {
@@ -57,6 +58,8 @@ export interface LocalDiscoveryIo {
   fetchImpl?: typeof fetch
   now?: () => number
   timeoutMs?: number
+  loadTimeoutMs?: number
+  signal?: AbortSignal
 }
 
 const KINDS: readonly LocalServerKind[] = ['ollama', 'lmstudio', 'vllm', 'llamacpp', 'openai-compatible']
@@ -94,10 +97,10 @@ export function localProbeTargets(
 async function probeJson(
   url: string,
   io: LocalDiscoveryIo,
-  init?: { method?: 'GET' | 'POST'; body?: unknown },
+  init?: { method?: 'GET' | 'POST'; body?: unknown; timeoutMs?: number },
 ): Promise<unknown | undefined> {
   const fetchImpl = io.fetchImpl ?? getApiFetch()
-  const timeoutMs = io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
+  const timeoutMs = init?.timeoutMs ?? io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
   const key = resolveLocalApiKey(io.env ?? process.env)
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
@@ -109,6 +112,7 @@ async function probeJson(
         ...(key ? { authorization: `Bearer ${key.key}` } : {}),
       },
       ...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+      ...(io.signal !== undefined ? { signal: io.signal } : {}),
     } as RequestInit)
     if (!response.ok) return undefined
     return (await response.json()) as unknown
@@ -131,6 +135,17 @@ function strList(v: unknown): string[] | undefined {
 }
 
 
+function ollamaServedMap(psBody: unknown): Map<string, number> {
+  const served = new Map<string, number>()
+  for (const loaded of (Array.isArray(rec(psBody)?.models) ? (rec(psBody)!.models as unknown[]) : [])) {
+    const l = rec(loaded)
+    const name = str(l?.model) ?? str(l?.name)
+    const ctx = num(l?.context_length)
+    if (name && ctx) served.set(name, ctx)
+  }
+  return served
+}
+
 export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
   const tags = rec(await probeJson(`${root}/api/tags`, io))
   if (!tags || !Array.isArray(tags.models)) return undefined
@@ -139,13 +154,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
     probeJson(`${root}/api/ps`, io),
   ])
   const version = str(rec(versionBody)?.version)
-  const served = new Map<string, number>()
-  for (const loaded of (Array.isArray(rec(psBody)?.models) ? (rec(psBody)!.models as unknown[]) : [])) {
-    const l = rec(loaded)
-    const name = str(l?.model) ?? str(l?.name)
-    const ctx = num(l?.context_length)
-    if (name && ctx) served.set(name, ctx)
-  }
+  const served = ollamaServedMap(psBody)
   const listed = (tags.models as unknown[]).map(rec).filter((m): m is Record<string, unknown> => m !== undefined)
   const baseUrl = `${root}/v1`
   const models = await Promise.all(
@@ -165,12 +174,12 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
         ? { tokens: servedCtx, source: 'served' }
         : numCtx
           ? { tokens: numCtx, source: 'modelfile' }
-          : { tokens: OLLAMA_DEFAULT_CONTEXT, source: 'server-default' }
+          : undefined
       return {
         id,
         server: 'ollama',
         baseUrl,
-        contextWindow,
+        ...(contextWindow !== undefined ? { contextWindow } : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
         ...(capabilities
           ? {
@@ -441,6 +450,82 @@ export function localModelRecord(wireId: string): LocalModelRecord | undefined {
 
 export function localServerFor(model: LocalModelRecord): LocalServerRecord | undefined {
   return cached?.servers.find(s => s.baseUrl === model.baseUrl && s.kind === model.server)
+}
+
+export interface ServedWindowLoad {
+  numCtx?: number
+}
+
+function servedFrom(server: LocalServerRecord | undefined, id: string): number | undefined {
+  const model = server?.models.find(m => m.id === id)
+  return model?.contextWindow?.source === 'served' ? model.contextWindow.tokens : undefined
+}
+
+async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<number | undefined> {
+  const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
+  await probeJson(`${root}/api/generate`, io, {
+    method: 'POST',
+    timeoutMs: loadTimeoutMs,
+    body: { model: id, ...(load?.numCtx !== undefined ? { options: { num_ctx: load.numCtx } } : {}) },
+  })
+  return ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
+}
+
+async function loadLmStudio(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<number | undefined> {
+  const before = await probeLmStudio(root, io)
+  const served = servedFrom(before, id)
+  if (load?.numCtx === undefined) return served
+  if (served === load.numCtx) return served
+  const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
+  const v1 = rec(await probeJson(`${root}/api/v1/models`, io))
+  const entry = (Array.isArray(v1?.models) ? (v1!.models as unknown[]).map(rec) : []).find(m => str(m?.key) === id)
+  const instances = Array.isArray(entry?.loaded_instances) ? (entry!.loaded_instances as unknown[]).map(rec) : []
+  for (const instance of instances) {
+    const instanceId = str(instance?.id)
+    if (instanceId) await probeJson(`${root}/api/v1/models/unload`, io, { method: 'POST', body: { instance_id: instanceId } })
+  }
+  await probeJson(`${root}/api/v1/models/load`, io, { method: 'POST', timeoutMs: loadTimeoutMs, body: { model: id, context_length: load.numCtx } })
+  return servedFrom(await probeLmStudio(root, io), id)
+}
+
+export async function readServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<number | undefined> {
+  const root = record.baseUrl.replace(/\/v1$/, '')
+  try {
+    switch (record.server) {
+      case 'ollama':
+        return await loadOllama(root, record.id, io, load)
+      case 'lmstudio':
+        return await loadLmStudio(root, record.id, io, load)
+      case 'vllm':
+        return servedFrom(await probeVllm(root, io), record.id)
+      case 'llamacpp':
+        return servedFrom(await probeLlamaCpp(root, io), record.id)
+      case 'openai-compatible':
+        return undefined
+    }
+  } catch {
+    return undefined
+  }
+}
+
+export function servedWindowIsCurrent(record: LocalModelRecord, now: number = Date.now()): boolean {
+  if (record.contextWindow?.source !== 'served') return false
+  const readAt = Math.max(cached?.probedAtMs ?? 0, record.servedReadAtMs ?? 0)
+  return now - readAt < LOCAL_DISCOVERY_TTL_MS
+}
+
+export async function ensureServedWindow(record: LocalModelRecord, io: LocalDiscoveryIo = {}, load?: ServedWindowLoad): Promise<LocalModelRecord> {
+  const now = io.now?.() ?? Date.now()
+  const current = servedWindowIsCurrent(record, now)
+  if (current && (load?.numCtx === undefined || record.contextWindow?.tokens === load.numCtx)) return record
+  const tokens = await readServedWindow(record, io, load)
+  if (tokens === undefined) return record
+  const before = record.contextWindow
+  record.contextWindow = { tokens, source: 'served' }
+  record.loaded = true
+  record.servedReadAtMs = now
+  if (before?.source !== 'served' || before.tokens !== tokens) bumpCatalogueEpoch()
+  return record
 }
 
 export function __resetLocalDiscoveryForTest(): void {

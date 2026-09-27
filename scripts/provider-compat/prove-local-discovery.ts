@@ -62,7 +62,7 @@ const OLLAMA_PS = { models: [{ name: 'qwen3:8b', model: 'qwen3:8b', size: 600000
 const OLLAMA_SHOW: Record<string, unknown> = {
   'llama3.2:latest': { modelfile: '# Modelfile\nFROM /blobs/sha256:abc\nPARAMETER num_ctx 16384', parameters: 'num_ctx                        16384\nstop                           "<|eot_id|>"', details: OLLAMA_TAGS.models[0]!.details, model_info: { 'general.architecture': 'llama', 'llama.context_length': 131072, 'llama.block_count': 28 }, capabilities: ['completion', 'tools'] },
   'qwen3:8b': { modelfile: '', parameters: 'stop "<|im_end|>"', details: OLLAMA_TAGS.models[1]!.details, model_info: { 'general.architecture': 'qwen3', 'qwen3.context_length': 40960 }, capabilities: ['completion', 'tools', 'thinking'] },
-  'llava:latest': { modelfile: '', parameters: '', details: OLLAMA_TAGS.models[2]!.details, model_info: { 'general.architecture': 'llama', 'llama.context_length': 4096 }, capabilities: ['completion', 'vision'] },
+  'llava:latest': { modelfile: '', parameters: '', details: OLLAMA_TAGS.models[2]!.details, model_info: { 'general.architecture': 'llama', 'llama.context_length': 262144 }, capabilities: ['completion', 'vision'] },
 }
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const ollamaChatRequests: { body: Record<string, unknown>; headers: IncomingMessage['headers'] }[] = []
@@ -136,8 +136,10 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 const discovery = await import('../../src/services/providers/local/localDiscovery.ts')
-const { refreshLocalDiscovery, getCachedLocalDiscovery, localModelRecord, localProbeTargets, cachedLocalModels, __resetLocalDiscoveryForTest, OLLAMA_DEFAULT_CONTEXT } = discovery
-const { getLocalModelOptions, localRecordFor, localWireId, LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.ts')
+const { refreshLocalDiscovery, getCachedLocalDiscovery, localModelRecord, localProbeTargets, cachedLocalModels, __resetLocalDiscoveryForTest } = discovery
+const catalogue = await import('../../src/services/providers/local/localCatalogue.ts')
+const { getLocalModelOptions, localRecordFor, localWireId, LOCAL_MODEL_GROUP } = catalogue
+const localWindowWords: (record: import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord) => string = catalogue.localWindowWords ?? (() => '(localWindowWords is not exported on this tree)')
 const { localLaneProfileFor, localModelAcceptsEffort } = await import('../../src/services/providers/local/localCallModel.ts')
 const { resolveLocalAccount } = await import('../../src/services/providers/local/localAccounts.ts')
 const { resolveContextWindow, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort } = await import('../../src/utils/model/capabilities.ts')
@@ -168,7 +170,8 @@ section('2 · Ollama truth')
   const llava = localModelRecord('llava:latest')!
   check('a LOADED model states its served context (/api/ps)', qwen.contextWindow?.tokens === 32768 && qwen.contextWindow.source === 'served' && qwen.loaded === true)
   check('a Modelfile num_ctx states the window when not loaded', llama.contextWindow?.tokens === 16384 && llama.contextWindow.source === 'modelfile' && llama.modelMaxContext === 131072)
-  check('no override ⇒ the documented 4096 server default, labelled', llava.contextWindow?.tokens === OLLAMA_DEFAULT_CONTEXT && llava.contextWindow.source === 'server-default')
+  check('unloaded, no num_ctx ⇒ window ABSENT (never an invented default), modelMaxContext 262144 (the fixture\'s stated max), loaded false', llava.contextWindow === undefined && llava.modelMaxContext === 262144 && llava.loaded === false, JSON.stringify(llava.contextWindow))
+  check('the record\'s own words name the state: not loaded · trained maximum · how Ollama chooses · read at first send', localWindowWords(llava).includes('not loaded') && localWindowWords(llava).includes('trained maximum 262k') && localWindowWords(llava).includes('4k/32k/256k') && localWindowWords(llava).includes('read at first send'), localWindowWords(llava))
   check('capabilities decide tools/thinking/vision', llama.toolsDeclared === true && llama.thinkingDeclared === false && qwen.thinkingDeclared === true && llava.toolsDeclared === false && llava.visionDeclared === true)
   check('details ride along (family · size · quantization)', llama.family === 'llama' && llama.parameterSize === '3.2B' && llama.quantization === 'Q4_K_M')
 }
@@ -216,7 +219,7 @@ section('5 · the picker rows')
   check('model rows carry no description (the neutral grammar)', rows.every(r => r.description === ''), JSON.stringify(rows.map(r => [r.value, r.description])))
   check('the served window rides the typed statedContextWindow', qwenRow.statedContextWindow === 32768, String(qwenRow.statedContextWindow))
   const llavaRow = rows.find(r => r.value === 'local/llava:latest')!
-  check('the server-default window rides the typed statedContextWindow', llavaRow.statedContextWindow === 4096, String(llavaRow.statedContextWindow))
+  check('an unstated window paints NO column (never a borrowed number)', llavaRow.statedContextWindow === undefined, String(llavaRow.statedContextWindow))
   const llama31Row = rows.find(r => r.value === 'local/meta-llama-3.1-8b-instruct')!
   check('a model-max window rides the typed statedContextWindow', llama31Row.statedContextWindow === 131072, String(llama31Row.statedContextWindow))
   check('every row is selectable (the dispatch refuses typed)', rows.every(r => r.unavailable === undefined))
@@ -227,7 +230,7 @@ section('6 · the capability edge')
   const served = resolveContextWindow('local/qwen3:8b')
   check('a served window budgets live-current without a fallback note', served.effectiveWindow === 32768 && served.source === 'live-current' && served.fallbackReason === undefined)
   const dflt = resolveContextWindow('local/llava:latest')
-  check('the server-default window budgets 4096 and names its provenance', dflt.effectiveWindow === 4096 && (dflt.fallbackReason ?? '').includes('server default'))
+  check('an unstated window budgets the LABELLED conservative default and names the state (not loaded · trained maximum · read at first send)', dflt.effectiveWindow === 200_000 && dflt.source === 'fallback' && (dflt.fallbackReason ?? '').includes('not loaded') && (dflt.fallbackReason ?? '').includes('trained maximum 262k') && (dflt.fallbackReason ?? '').includes('read at first send'), JSON.stringify(dflt))
   const modelMax = resolveContextWindow('local/meta-llama-3.1-8b-instruct')
   check('a model-max window is labelled as the server-set size', modelMax.effectiveWindow === 131072 && (modelMax.fallbackReason ?? '').includes('model max'))
   const unknown = resolveContextWindow('local/nobody:latest')
@@ -363,21 +366,26 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
-  const llava = localRecordFor('local/llava:latest')!
-  const profile = localLaneProfileFor(llava)
-  const refusal = profile.requestFitRefusal?.({ requestBytes: 80_000, estTokens: 20_000, toolCount: 55, wireModel: 'llava:latest' })
-  check('an over-window request refuses typed with the numbers', (refusal ?? '').includes('20k tokens') && (refusal ?? '').includes('4096'), String(refusal))
+  const qwen = localRecordFor('local/qwen3:8b')!
+  const profile = localLaneProfileFor(qwen)
+  const refusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
+  check('an over-window request refuses typed with the numbers', (refusal ?? '').includes('60k tokens') && (refusal ?? '').includes('32768'), String(refusal))
   check('the sentence names the silent-truncation reason and the remedy ladder', (refusal ?? '').includes('silently truncate') && (refusal ?? '').includes('OLLAMA_CONTEXT_LENGTH') && (refusal ?? '').includes('--strict-mcp-config'), String(refusal))
+  check('the remedy names the in-app road FIRST (/config → Local model window · /model → the row) and the server env after it', (refusal ?? '').includes('/config → Local model window') && (refusal ?? '').indexOf('/config → Local model window') < (refusal ?? '').indexOf('OLLAMA_CONTEXT_LENGTH'), String(refusal))
   check('no borrowed doors (the ladder is windows/catalogs/models, never /logins)', !(refusal ?? '').includes('/logins'), String(refusal))
-  check('a fitting request passes silent', profile.requestFitRefusal?.({ requestBytes: 2_000, estTokens: 500, toolCount: 2, wireModel: 'llava:latest' }) === undefined)
-  check('the window source rides the sentence (server default words)', (refusal ?? '').includes('server default'), String(refusal))
-  const windowless = { ...llava }
-  delete (windowless as { contextWindow?: unknown }).contextWindow
-  check('an unstated window never refuses', localLaneProfileFor(windowless).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'x' }) === undefined)
+  check('a fitting request passes silent', profile.requestFitRefusal?.({ requestBytes: 2_000, estTokens: 500, toolCount: 2, wireModel: 'qwen3:8b' }) === undefined)
+  check('the window source rides the sentence (served)', (refusal ?? '').includes('tokens — served)'), String(refusal))
+  const llama = localRecordFor('local/llama3.2:latest')!
+  const numCtxRefusal = localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 80_000, estTokens: 20_000, toolCount: 55, wireModel: 'llama3.2:latest' })
+  check('a Modelfile num_ctx is a STATED window: it refuses with its number and source', (numCtxRefusal ?? '').includes('16384') && (numCtxRefusal ?? '').includes('num_ctx'), String(numCtxRefusal))
+  const llava = localRecordFor('local/llava:latest')!
+  check('an unstated window (unloaded, no num_ctx) never refuses', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
+  const trainedOnly = { ...llava, contextWindow: { tokens: 131072, source: 'model-max' as const } }
+  check('a trained maximum the server merely lists (model-max) never refuses — only served/modelfile do', localLaneProfileFor(trainedOnly).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined)
 
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const chatCountBefore = ollamaChatRequests.length
-  const fat = 'x'.repeat(30_000)
+  const fat = 'x'.repeat(160_000)
   const yielded: Array<{ type?: string; isApiErrorMessage?: boolean; message?: { content?: unknown } }> = []
   for await (const item of compatChatCallModel(profile, {
     messages: [{ type: 'user', message: { role: 'user', content: fat }, uuid: '00000000-0000-4000-8000-000000000001', timestamp: new Date().toISOString() }] as never,
@@ -386,7 +394,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
     tools: [] as never,
     signal: new AbortController().signal,
     options: {
-      model: 'local/llava:latest',
+      model: 'local/qwen3:8b',
       querySource: 'user',
       getToolPermissionContext: async () => ({ mode: 'default' }) as never,
     } as never,

@@ -6,9 +6,9 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras } from '../openaicompat/compatWire.js'
-import { resolveLocalApiKey } from './localAccounts.js'
-import { LOCAL_SERVER_NAMES, localContextSourceWords, localRecordFor, localWireId } from './localCatalogue.js'
-import { localModelRecord, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
+import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
+import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
+import { ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio') return record.thinkingDeclared === true
@@ -31,12 +31,12 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     buildExtras: args => buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) }),
     omitsToolChoice: record.server === 'ollama',
     requestFitRefusal: ({ estTokens, toolCount }) => {
-      const window = record.contextWindow?.tokens
-      if (window === undefined) return undefined
+      const stated = record.contextWindow
+      if (stated === undefined || (stated.source !== 'served' && stated.source !== 'modelfile')) return undefined
+      const window = stated.tokens
       const OUTPUT_FLOOR = 1024
       if (estTokens + OUTPUT_FLOOR <= window) return undefined
-      const sourceWords = localContextSourceWords(record.contextWindow!.source)
-      return `the composed request (≈${Math.round(estTokens / 1000)}k tokens, ${toolCount} tool schemas included) cannot fit '${record.id}'s served context window (${window} tokens — ${sourceWords}) and the server would silently truncate it. Raise the served window (OLLAMA_CONTEXT_LENGTH or num_ctx), restrict the tool catalog (--disallowed-tools / --strict-mcp-config), or pick a larger-window local model.`
+      return localFitRefusalSentence({ id: record.id, estTokens, toolCount, window, sourceWords: localContextSourceWords(stated.source) })
     },
     toolCapabilityRefusal: () => {
       if (record.toolsDeclared === false) {
@@ -47,17 +47,27 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
   }
 }
 
-const undiscoveredProfile: CompatLaneProfile = {
-  lane: 'local',
-  providerLabel: 'Local models',
-  resolveCredential: () => undefined,
-  credentialHint:
-    'no local server lists this model — start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or point MERCURY_LOCAL_BASE_URL at your server; /model re-probes on open.',
-  requestUrl: () => {
-    throw new Error('undiscovered local model — resolveCredential refuses before this point')
-  },
-  wireModelId: modelId => localWireId(modelId),
-  buildExtras: () => ({}),
+export function undiscoveredLocalHint(modelId: string): string {
+  const wire = localWireId(modelId)
+  const ollama = getCachedLocalDiscovery()?.servers.find(server => server.kind === 'ollama')
+  if (ollama) {
+    return `no local server lists this model — ${ollama.label} answers but has not pulled '${wire}': ollama pull ${wire} (or ${LOCAL_PULL_RECOMMENDATION}); /model lists what is pulled and re-probes on open.`
+  }
+  return `no local server lists this model — start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or point MERCURY_LOCAL_BASE_URL at your server, then ${LOCAL_PULL_RECOMMENDATION}; /model re-probes on open.`
+}
+
+function undiscoveredProfile(modelId: string): CompatLaneProfile {
+  return {
+    lane: 'local',
+    providerLabel: 'Local models',
+    resolveCredential: () => undefined,
+    credentialHint: undiscoveredLocalHint(modelId),
+    requestUrl: () => {
+      throw new Error('undiscovered local model — resolveCredential refuses before this point')
+    },
+    wireModelId: id => localWireId(id),
+    buildExtras: () => ({}),
+  }
 }
 
 export function localLiveProofState(): { at: number; model: string } | null {
@@ -72,5 +82,6 @@ export async function* localCallModel(
     await refreshLocalDiscovery({ force: true }).catch(() => undefined)
     record = localModelRecord(localWireId(params.options.model))
   }
-  yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile, params)
+  if (record) await ensureServedWindow(record, { signal: params.signal })
+  yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model), params)
 }
