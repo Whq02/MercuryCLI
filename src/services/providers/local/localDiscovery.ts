@@ -253,7 +253,7 @@ export async function probeLmStudio(root: string, io: LocalDiscoveryIo): Promise
         ...(num(m.size_bytes) !== undefined ? { weightsBytes: num(m.size_bytes)! } : {}),
         ...(typeof caps?.trained_for_tool_use === 'boolean' ? { toolsDeclared: caps.trained_for_tool_use } : {}),
         ...(typeof caps?.vision === 'boolean' ? { visionDeclared: caps.vision } : {}),
-        ...(rec(m.reasoning) ? { thinkingDeclared: true } : {}),
+        ...(rec(m.reasoning) ?? rec(caps?.reasoning) ? { thinkingDeclared: true } : {}),
         loaded: instances.length > 0,
         ...(str(m.architecture) ? { family: str(m.architecture)! } : {}),
         ...(str(m.params_string) ? { parameterSize: str(m.params_string)! } : {}),
@@ -478,6 +478,7 @@ export function localServerFor(model: LocalModelRecord): LocalServerRecord | und
 
 export interface ServedWindowLoad {
   numCtx?: number
+  numBatch?: number
   probeOnly?: boolean
 }
 
@@ -486,15 +487,18 @@ function servedFrom(server: LocalServerRecord | undefined, id: string): OllamaSe
   return model?.contextWindow?.source === 'served' ? { tokens: model.contextWindow.tokens, ...(model.servedBytes !== undefined ? { bytes: model.servedBytes } : {}) } : undefined
 }
 
-async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
-  const loadTimeoutMs = io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS
-  if (load?.probeOnly !== true) {
-    await probeJson(`${root}/api/generate`, io, {
-      method: 'POST',
-      timeoutMs: loadTimeoutMs,
-      body: { model: id, ...(load?.numCtx !== undefined ? { options: { num_ctx: load.numCtx } } : {}) },
-    })
+export function ollamaLoadBody(id: string, load?: Pick<ServedWindowLoad, 'numCtx' | 'numBatch'>): Record<string, unknown> {
+  const options: Record<string, number> = {
+    ...(load?.numCtx !== undefined ? { num_ctx: load.numCtx } : {}),
+    ...(load?.numBatch !== undefined ? { num_batch: load.numBatch } : {}),
   }
+  return { model: id, ...(Object.keys(options).length > 0 ? { options } : {}) }
+}
+
+async function loadOllama(root: string, id: string, io: LocalDiscoveryIo, load?: ServedWindowLoad): Promise<OllamaServed | undefined> {
+  const resident = ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
+  if (resident !== undefined || load?.probeOnly === true) return resident
+  await probeJson(`${root}/api/generate`, io, { method: 'POST', timeoutMs: io.loadTimeoutMs ?? LOCAL_LOAD_TIMEOUT_MS, body: ollamaLoadBody(id, load) })
   return ollamaServedMap(await probeJson(`${root}/api/ps`, io)).get(id)
 }
 
@@ -560,7 +564,10 @@ export async function ensureServedWindow(record: LocalModelRecord, io: LocalDisc
   const current = servedWindowIsCurrent(record, now)
   if (current && (load?.numCtx === undefined || record.contextWindow?.tokens === load.numCtx)) return record
   const served = await readServed(record, io, load)
-  if (served === undefined) return record
+  if (served === undefined) {
+    if (record.server === 'ollama' && load?.probeOnly === true) record.loaded = false
+    return record
+  }
   noteServedWindow(record, served, now)
   return record
 }
@@ -569,7 +576,12 @@ export async function confirmServedWindow(record: LocalModelRecord, io: LocalDis
   const now = io.now?.() ?? Date.now()
   const served = await readServed(record, io, { probeOnly: true })
   if (served !== undefined) noteServedWindow(record, served, now)
+  else if (record.server === 'ollama') record.loaded = false
   return served?.tokens
+}
+
+export function residentServedWindow(record: LocalModelRecord): number | undefined {
+  return record.loaded === true && record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined
 }
 
 export function __resetLocalDiscoveryForTest(): void {
