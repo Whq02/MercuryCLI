@@ -216,6 +216,8 @@ reg(
     'src/screens/ResumeConversation.tsx',
     'src/components/Settings/Config.tsx',
     'src/components/Settings/Jev.tsx',
+    'src/components/Settings/LocalServer.tsx',
+    'src/components/LocalSetupDialog.tsx',
     'src/components/tasks/AsyncAgentDetailDialog.tsx',
     'src/components/tasks/BackgroundTasksDialog.tsx',
     'src/components/tasks/DreamDetailDialog.tsx',

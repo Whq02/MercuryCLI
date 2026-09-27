@@ -248,16 +248,16 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   let helperId = ''
   let firstPwd = ''
   let resumedPwd = ''
+  let helperRanUnderWorker: boolean | null = null
+  const workerRosters: string[][] = []
   const workerFixture = await startScriptedFixture(req => {
     const last = req.results[req.results.length - 1]
     if (req.opening.trim().startsWith(WORKER_PROMPT)) {
-      if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
-      if (req.step === 1) {
-        seen.workerLaunch = last
-        helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
-        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+      if (req.step === 0) {
+        workerRosters.push(req.toolNames)
+        return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
       }
-      if (req.step === 2) seen.workerWaited = last
+      if (req.step === 1) seen.workerLaunch = last
       return [{ type: 'text', text: 'worker done' }]
     }
     if (req.opening.trim() === HELPER_PROMPT) {
@@ -276,10 +276,11 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
         return [{ type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } }]
       case 1:
         seen.workerWorkflow = last
-        return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(firstFlag), description: 'wait for the helper' } }]
+        helperRanUnderWorker = existsSync(firstFlag)
+        return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, isolation: 'worktree' } }]
       case 2:
-        seen.workerFirst = last
-        if (firstPwd === '') firstPwd = firstLine(last)
+        seen.helperLaunch = last
+        helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
         return [{ type: 'tool_use', name: 'SendMessage', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
       case 3:
         seen.workerContinued = last
@@ -296,18 +297,25 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
     await workerFixture.close()
   }
   show('the workflow launch', seen.workerWorkflow, workerTurn)
-  show('the isolated worker launches a helper without a named directory', seen.workerLaunch, workerTurn)
-  show('the first helper run', seen.workerFirst, workerTurn)
+  show('the isolated worker asks for a helper without a named directory', seen.workerLaunch, workerTurn)
+  show('the main thread launches the helper into its own worktree', seen.helperLaunch, workerTurn)
   show('the continuation by message', seen.workerContinued, workerTurn)
   show('the continuation file', seen.workerAfter, workerTurn)
+  console.log(`\nthe worker's roster on the wire: ${JSON.stringify(workerRosters[0] ?? [])}`)
   const sidecar = sidecarFor(workerHome, HELPER_DESCRIPTION)
-  tally.section('a workflow-launched helper keeps its original worktree on continuation')
+  const workerRoster = workerRosters[0] ?? []
+  tally.section("a workflow worker carries a background crewmate's tool box, and that box has no Agent tool")
   tally.check('the workflow launched without error (staging)', seen.workerWorkflow !== undefined && !seen.workerWorkflow.isError, seen.workerWorkflow?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
-  tally.check('the worker launched the helper and its receipt named the id (staging)', seen.workerLaunch !== undefined && !seen.workerLaunch.isError && helperId !== '', seen.workerLaunch?.text.slice(0, 300))
-  tally.check('the first helper shell ran in the worker worktree (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
-  tally.check('the helper sidecar records the original directory', sidecar !== null && sidecar.cwd === firstPwd, JSON.stringify(sidecar))
-  tally.check('the message resumed the helper without error', seen.workerContinued !== undefined && !seen.workerContinued.isError, seen.workerContinued?.text.slice(0, 300))
-  tally.check('the resumed shell stays in the worker worktree', resumedPwd !== '' && resumedPwd === firstPwd, `pwd=${resumedPwd} wanted=${firstPwd}`)
+  tally.check("the worker's roster on the wire carries no Agent and no Workflow, and does carry the crewmate box (Bash, SendMessage, Read)", workerRosters.length > 0 && !workerRoster.includes('Agent') && !workerRoster.includes('Workflow') && ['Bash', 'SendMessage', 'Read'].every(name => workerRoster.includes(name)), JSON.stringify(workerRoster))
+  tally.check("the worker's ask for a helper is refused by name, never spawned", seen.workerLaunch !== undefined && seen.workerLaunch.isError && /No such tool available: Agent/.test(seen.workerLaunch.text), seen.workerLaunch?.text.slice(0, 300))
+  tally.check('no helper ran under the worker: the first flag was absent when the workflow returned', helperRanUnderWorker === false, `flag present=${String(helperRanUnderWorker)}`)
+  tally.section('a helper launched by the main thread into its own worktree keeps that worktree on continuation')
+  tally.check('the main thread launched the helper and its receipt named the id (staging)', seen.helperLaunch !== undefined && !seen.helperLaunch.isError && helperId !== '', seen.helperLaunch?.text.slice(0, 300))
+  tally.check('the first helper shell ran in a worktree of the checkout, not the checkout (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
+  tally.check('the helper left an authored file, so its worktree is kept and the receipt says so', /Worktree kept: /.test(seen.helperLaunch?.text ?? ''), seen.helperLaunch?.text.slice(0, 300))
+  tally.check('the helper sidecar records the kept worktree', sidecar !== null && sidecar.worktreePath === firstPwd, JSON.stringify(sidecar))
+  tally.check('the message resumed the helper without error and without a gone-worktree note', seen.workerContinued !== undefined && !seen.workerContinued.isError && !/worktree is gone/.test(seen.workerContinued.text), seen.workerContinued?.text.slice(0, 300))
+  tally.check('the resumed shell stays in the kept worktree', resumedPwd !== '' && resumedPwd === firstPwd, `pwd=${resumedPwd} wanted=${firstPwd}`)
   tally.check('the continuation file lands in the worktree and is read there', firstPwd !== '' && existsSync(join(firstPwd, 'continued.flag')) && firstLine(seen.workerAfter) === firstPwd, seen.workerAfter?.text.slice(0, 200))
   tally.check('the continuation does not write in the session checkout', !existsSync(join(wfRepo, 'continued.flag')))
 }

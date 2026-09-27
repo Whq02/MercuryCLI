@@ -6,6 +6,7 @@ import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { localProbeTargets, type LocalServerKind } from '../providers/local/localDiscovery.js'
 import { getApiFetch } from '../../utils/proxy.js'
 import { getUserAgent } from '../../utils/http.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { kvGeometryOf, type KvGeometry } from './localServerMemory.js'
 
 export type { LocalServerKind }
@@ -129,7 +130,7 @@ function list(v: unknown): Record<string, unknown>[] {
 function defaultRun(file: string, args: string[]): Promise<string | undefined> {
   return new Promise(resolve => {
     try {
-      execFile(file, args, { timeout: LOCAL_SERVER_EXEC_TIMEOUT_MS, maxBuffer: 1 << 22, windowsHide: true }, (error, stdout) => {
+      execFile(file, args, { timeout: LOCAL_SERVER_EXEC_TIMEOUT_MS, maxBuffer: 1 << 22, windowsHide: true, env: { ...subprocessEnv() } }, (error, stdout) => {
         resolve(error ? undefined : String(stdout))
       })
     } catch {
@@ -574,7 +575,7 @@ async function readOther(io: Io, kind: LocalServerKind, root: string): Promise<P
     if (!props) return undefined
     const build = str(props.build_info)
     const ctx = num(rec(props.default_generation_settings)?.n_ctx)
-    const name = str(props.model_path)?.split('/').pop()
+    const name = str(props.model_path)?.split(/[\\/]/).pop()
     const loaded = name ? [{ name, ...(ctx !== undefined ? { contextLength: ctx } : {}) }] : []
     return { server: { kind, root, ...(build ? { version: build } : {}), label: build ? `llama.cpp ${build}` : 'llama.cpp' }, loaded, listed: loaded.map(m => ({ name: m.name })) }
   }

@@ -9,7 +9,7 @@ export async function readOllamaVersion(root: string, seam: SetupIo = {}): Promi
 }
 
 function serveLogPath(io: ResolvedSetupIo): string {
-  return join(io.configHome, ...SETUP_SERVE_LOG.split('/'))
+  return join(io.configHome, SETUP_SERVE_LOG)
 }
 
 function quoted(path: string): string {
