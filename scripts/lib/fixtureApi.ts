@@ -56,6 +56,7 @@ type ScriptedTurnBody =
       headerDelayMs?: number
       firstChunkDelayMs?: number
       usage?: FixtureUsage
+      model?: string
     }
 
 export interface CapturedRequest {
@@ -728,7 +729,7 @@ export async function startFixtureApi(
           emit?: { blockIndex: number; blockType: 'thinking' | 'text'; index: number; text: string }
         }
         const chunks: PlannedChunk[] = [
-          { payload: messageStart(`msg_fixture_${msgSeq}`, turn.usage) },
+          { payload: messageStart(`msg_fixture_${msgSeq}`, turn.usage, undefined, turn.model) },
         ]
         turn.blocks.forEach((block, bi) => {
           chunks.push({
