@@ -369,15 +369,16 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   const qwen = localRecordFor('local/qwen3:8b')!
   const profile = localLaneProfileFor(qwen)
   const refusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
-  check('an over-window request refuses typed with the numbers', (refusal ?? '').includes('60k tokens') && (refusal ?? '').includes('32768'), String(refusal))
+  check('an over-window request refuses typed with the numbers, counted at the wire\'s 3.9 bytes per token (240,000 bytes ≈ 62k)', (refusal ?? '').includes('62k tokens') && (refusal ?? '').includes('32768'), String(refusal))
   check('the sentence names the silent-truncation reason and the remedy ladder', (refusal ?? '').includes('silently truncate') && (refusal ?? '').includes('OLLAMA_CONTEXT_LENGTH') && (refusal ?? '').includes('--strict-mcp-config'), String(refusal))
   check('the remedy names the in-app road FIRST (/config → Local model window · /model → the row) and the server env after it', (refusal ?? '').includes('/config → Local model window') && (refusal ?? '').indexOf('/config → Local model window') < (refusal ?? '').indexOf('OLLAMA_CONTEXT_LENGTH'), String(refusal))
   check('no borrowed doors (the ladder is windows/catalogs/models, never /logins)', !(refusal ?? '').includes('/logins'), String(refusal))
   check('a fitting request passes silent', profile.requestFitRefusal?.({ requestBytes: 2_000, estTokens: 500, toolCount: 2, wireModel: 'qwen3:8b' }) === undefined)
   check('the window source rides the sentence (served)', (refusal ?? '').includes('tokens — served)'), String(refusal))
   const llama = localRecordFor('local/llama3.2:latest')!
-  const numCtxRefusal = localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 80_000, estTokens: 20_000, toolCount: 55, wireModel: 'llama3.2:latest' })
-  check('a Modelfile num_ctx is a STATED window: it refuses with its number and source', (numCtxRefusal ?? '').includes('16384') && (numCtxRefusal ?? '').includes('num_ctx'), String(numCtxRefusal))
+  const numCtxRefusal = localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' })
+  check('a Modelfile num_ctx is a STATED window: a request past it by more than a third (120,000 bytes ≈ 31k on 16384) refuses with its number and source', (numCtxRefusal ?? '').includes('16384') && (numCtxRefusal ?? '').includes('num_ctx'), String(numCtxRefusal))
+  check('within a third of the stated window (80,000 bytes ≈ 21k on 16384) the request is SENT — the estimate could be that far off, and the server\'s own answer is the truth', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 80_000, estTokens: 20_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
   const llava = localRecordFor('local/llava:latest')!
   check('an unstated window (unloaded, no num_ctx) never refuses', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
   const trainedOnly = { ...llava, contextWindow: { tokens: 131072, source: 'model-max' as const } }
@@ -385,7 +386,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
 
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const chatCountBefore = ollamaChatRequests.length
-  const fat = 'x'.repeat(160_000)
+  const fat = 'x'.repeat(200_000)
   const yielded: Array<{ type?: string; isApiErrorMessage?: boolean; message?: { content?: unknown } }> = []
   for await (const item of compatChatCallModel(profile, {
     messages: [{ type: 'user', message: { role: 'user', content: fat }, uuid: '00000000-0000-4000-8000-000000000001', timestamp: new Date().toISOString() }] as never,

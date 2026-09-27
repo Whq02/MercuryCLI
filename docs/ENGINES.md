@@ -201,7 +201,11 @@ read from the server before a request is judged against it (Ollama loads the
 model and `/api/ps` states the window; LM Studio's loaded instance, vLLM's
 `max_model_len` and llama.cpp's `/props` state theirs), a window the server
 has not stated yet refuses nothing, and the fit guard refuses only a request
-larger than a window the server or its Modelfile states. The window a local
+more than a third larger than a window the server, its Modelfile or the
+session's own hold states (counted at the wire's measured 3.9 bytes per
+token, the tools weighed as the request carries them — the never-deferred
+schemas in full, the rest by name; anything closer is sent, and the server's
+own refusal is the truth). The window a local
 model is served with is a setting inside Mercury (`/config` → Local model
 window, per model): `auto` (unset) chooses the biggest of 32k · 64k · 128k ·
 256k, never above the trained maximum, whose projected load (the weights plus
@@ -214,8 +218,10 @@ server's own gpu-memory line when it states one, the same rule
 `/localsetup`'s step 5 uses — at the
 model's first send and holds it for the session on every dispatch — the main
 thread, crewmates and workflow agents alike, so a sub-agent never reloads the
-runner (a model whose geometry the server does not state falls back to twice
-the first request rounded up to 16k, never under 32k, and the words say so);
+runner (when the machine's memory cannot be read — the server states no
+geometry, or the read fails — the window comes out bigger, not smaller: the
+trained maximum when the model states one, else the served window, else twice
+the first request rounded up to 16k and never under 64k, and the words say so);
 the rail's ctx row names the reason (`max` · `fit` · `set` · `srv`) and the
 deck's ctx row carries the figures; `server default` leaves the choice to the
 server (Ollama loads the model and `/api/ps` states the figure); `32k` · `64k`

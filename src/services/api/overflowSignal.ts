@@ -73,6 +73,7 @@ function matchOverflowSentence(message: string): ShapeMatch | null {
   if (/context[ _]length[ _]exceeded/i.test(message)) return { shape: 'context-length-exceeded' }
 
   if (/exceeds? the available context size/i.test(message)) return { shape: 'context-size' }
+  if (/prompt is longer than the context length/i.test(message)) return { shape: 'context-size' }
   if (/context length of only (\d[\d,]*) tokens/i.test(message)) {
     return { shape: 'context-size', limitTokens: num(/context length of only (\d[\d,]*) tokens/i.exec(message)?.[1]) }
   }

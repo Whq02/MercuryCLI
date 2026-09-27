@@ -210,23 +210,24 @@ section('3 · auto = the fit rung; the hold is one window per model per process,
   w.__resetLocalWindowsForTest()
 }
 
-section('4 · the fallbacks, said in the words: no geometry ⇒ twice the request; no memory truth ⇒ the trained max when it fits by the fraction rule, else twice the request')
+section('4 · the fallbacks, said in the words: with no geometry or no memory truth the machine was not read, so the window comes out bigger, not smaller — the trained max when stated, else the served window, else twice the request and never under 64k')
 {
   __pinLocalServerTruthForTest(null)
   __resetLocalServerTruthForTest()
   w.__resetLocalWindowsForTest()
   const bare = { id: 'mystery:latest', server: 'ollama' as const, modelMaxContext: 262144 }
   const noGeometry = w.chooseLocalWindow(bare, 73_000, undefined, OWNER_BOX)
-  check('no geometry: 147456 (twice ≈73k rounded up to 16k), reason req, the words name the rule and the missing geometry', noGeometry.window === 147456 && noGeometry.reason === 'req' && noGeometry.words === '144k · twice the first request, rounded up to 16k, never under 32k, capped at the trained max (≈73k asked) — no KV geometry read for mystery:latest', noGeometry.words)
-  check('the doubling arithmetic: 62k ⇒ 128k · 20k ⇒ 48k · 1k ⇒ the 32k floor · a 32k-trained model ⇒ 32k · no max ⇒ the rule alone', w.doubledRequestWindow(62_000, 262144) === 131072 && w.doubledRequestWindow(20_000, 262144) === 49152 && w.doubledRequestWindow(1_000, 262144) === 32768 && w.doubledRequestWindow(62_000, 32768) === 32768 && w.doubledRequestWindow(62_000) === 131072)
-  const bigBox = { platform: 'darwin' as const, totalMemoryBytes: 48 * GIB }
-  const smallBox = { platform: 'darwin' as const, totalMemoryBytes: 16 * GIB }
-  const noTruthFits = w.chooseLocalWindow(qwen27, 73_000, undefined, null, bigBox)
-  check('no memory truth, the 27B on a 48 GiB box: the trained max fits by the fraction rule (16.2 + 16.0 GiB f16 of 36.0 GiB) ⇒ 256k, reason max, the words say no truth was read', noTruthFits.window === 262144 && noTruthFits.reason === 'max' && noTruthFits.words === '256k · 16.2 GiB weights + 16.0 GiB cache of 36.0 GiB usable (48.0 GiB box) · f16 · 1 slot — no memory truth read, the fraction rule', noTruthFits.words)
-  const noTruthDoubles = w.chooseLocalWindow(qwen27, 73_000, undefined, null, smallBox)
-  check('no memory truth, the 27B on a 16 GiB box: the max does not fit by the fraction rule ⇒ twice the request (144k), reason req, said', noTruthDoubles.window === 147456 && noTruthDoubles.reason === 'req' && noTruthDoubles.words.startsWith('144k · twice the first request') && noTruthDoubles.words.includes('no memory truth read and 256k does not fit by the fraction rule'), noTruthDoubles.words)
+  check('no geometry, the trained max stated: 262144, reason max, the words name the missing geometry and the unread machine', noGeometry.window === 262144 && noGeometry.reason === 'max' && noGeometry.words === "256k · the trained max — no KV geometry read for mystery:latest; the machine's memory was not read, so the window comes out bigger, not smaller", noGeometry.words)
+  check('the doubling arithmetic: 62k ⇒ 128k · 20k ⇒ the 64k floor · 1k ⇒ the 64k floor · a 32k-trained model ⇒ 32k · no max ⇒ the rule alone', w.doubledRequestWindow(62_000, 262144) === 131072 && w.doubledRequestWindow(20_000, 262144) === 65536 && w.doubledRequestWindow(1_000, 262144) === 65536 && w.doubledRequestWindow(62_000, 32768) === 32768 && w.doubledRequestWindow(62_000) === 131072)
+  const noTruth = w.chooseLocalWindow(qwen27, 73_000, undefined, null)
+  check('no memory truth, the 27B with its geometry: the trained max (256k, reason max) — never a fraction-rule guess, never twice the request — the words say no truth was read', noTruth.window === 262144 && noTruth.reason === 'max' && noTruth.words === "256k · the trained max — no memory truth read; the machine's memory was not read, so the window comes out bigger, not smaller", noTruth.words)
+  const unstated = { id: 'mystery:latest', server: 'ollama' as const, modelMaxContext: undefined }
+  const served = w.chooseLocalWindow({ ...unstated, contextWindow: { tokens: 131072, source: 'served' as const } }, 15_000, undefined, null)
+  check('no trained max, a served 128k: the served window, reason srv', served.window === 131072 && served.reason === 'srv' && served.words.startsWith('128k · the served window'), served.words)
+  const neither = w.chooseLocalWindow(unstated, 73_000, undefined, null)
+  check('no trained max and no served window: twice the request (144k), reason req, the words say why', neither.window === 147456 && neither.reason === 'req' && neither.words.startsWith('144k · twice the first request, rounded up to 16k, never under 64k (≈73k asked)') && neither.words.includes('no trained max stated and no served window'), neither.words)
   check('the Linux fraction rule is total memory; the darwin rule is three quarters', defaultMachineTruth('linux', 16 * GIB).usableMemoryBytes === 16 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableMemoryBytes === 12 * GIB && defaultMachineTruth('darwin', 16 * GIB).usableSource.startsWith('about three quarters'))
-  check('with no truth cached the sync decision falls back the same way (the process default machine)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'req')
+  check('with no truth cached the sync decision falls back the same way (the trained max)', w.localWindowTruth() === null && w.decideLocalWindow(bare, 73_000, undefined).reason === 'max')
   w.__resetLocalWindowsForTest()
 }
 

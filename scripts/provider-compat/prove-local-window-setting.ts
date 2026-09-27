@@ -112,21 +112,23 @@ await refreshLocalDiscovery({ force: true })
 const qwen = localRecordFor(`local/${OLLAMA_MODEL}`)!
 const gemma = localRecordFor(`local/${LM_MODEL}`)!
 
-section('1 · the fallback arithmetic (no KV geometry read for this fixture model): the smallest of the trained maximum and twice the request rounded up to 16k, never under 32k')
+section('1 · the fallback arithmetic (no KV geometry read for this fixture model, no memory truth): the trained maximum when the model states one; the doubling rule (twice the request rounded up to 16k, never under 64k) only when it states none')
 {
   check('a 62k request ⇒ 128k', w.doubledRequestWindow(62_000, 262144) === 131072, String(w.doubledRequestWindow(62_000, 262144)))
-  check('a 20k request ⇒ 48k', w.doubledRequestWindow(20_000, 262144) === 49152, String(w.doubledRequestWindow(20_000, 262144)))
+  check('a 20k request ⇒ the 64k floor (48k rounded up is under it)', w.doubledRequestWindow(20_000, 262144) === 65536, String(w.doubledRequestWindow(20_000, 262144)))
   check('a trained max of 32k ⇒ 32k', w.doubledRequestWindow(62_000, 32768) === 32768)
-  check('a tiny request ⇒ the 32k floor', w.doubledRequestWindow(1_000, 262144) === 32768)
+  check('a tiny request ⇒ the 64k floor — bigger, not smaller, when the machine was not read', w.doubledRequestWindow(1_000, 262144) === 65536)
   check('no trained max stated ⇒ the 2× rule alone (62k ⇒ 128k)', w.doubledRequestWindow(62_000) === 131072)
-  check('exactly 8k ⇒ 32k (16k rounded up, floored)', w.doubledRequestWindow(8_000, 262144) === 32768)
-  check('the fixture states no geometry, so auto falls back to it and the words say so', qwen.geometry === undefined && w.chooseLocalWindow(qwen, 62_000, undefined).reason === 'req' && w.chooseLocalWindow(qwen, 62_000, undefined).words.includes('no KV geometry read'), w.chooseLocalWindow(qwen, 62_000, undefined).words)
+  check('exactly 8k ⇒ 64k (16k rounded up, floored)', w.doubledRequestWindow(8_000, 262144) === 65536)
+  check('the fixture states no geometry and the trained max, so auto is the trained max (256k, reason max) and the words say the machine was not read', qwen.geometry === undefined && w.chooseLocalWindow(qwen, 62_000, undefined).window === 262144 && w.chooseLocalWindow(qwen, 62_000, undefined).reason === 'max' && w.chooseLocalWindow(qwen, 62_000, undefined).words.includes('no KV geometry read') && w.chooseLocalWindow(qwen, 62_000, undefined).words.includes('bigger, not smaller'), w.chooseLocalWindow(qwen, 62_000, undefined).words)
+  const bare = { id: qwen.id, server: qwen.server, modelMaxContext: undefined }
+  check('a model that states no trained max and has no served window falls to the doubling rule (62k ⇒ 128k, reason req)', w.chooseLocalWindow(bare, 62_000, undefined, null).window === 131072 && w.chooseLocalWindow(bare, 62_000, undefined, null).reason === 'req', w.chooseLocalWindow(bare, 62_000, undefined, null).words)
 }
 
 section('2 · the setting grammar and the ladder')
 {
   check("'server' and 'max' parse; '64k' is 65536; a bare number stands; junk and tiny values are undefined", w.parseLocalWindowSetting('server') === 'server' && w.parseLocalWindowSetting('max') === 'max' && w.parseLocalWindowSetting('64k') === 65536 && w.parseLocalWindowSetting(200000) === 200000 && w.parseLocalWindowSetting('nonsense') === undefined && w.parseLocalWindowSetting(512) === undefined)
-  check("chooseLocalWindow: 'server' ⇒ none; 'max' ⇒ the trained max; a number clamps to the trained max; unset ⇒ auto (the fallback here)", w.chooseLocalWindow(qwen, 62_000, 'server').window === undefined && w.chooseLocalWindow(qwen, 62_000, 'max').window === 262144 && w.chooseLocalWindow(qwen, 62_000, 200_000).window === 200_000 && w.chooseLocalWindow(qwen, 62_000, 400_000).window === 262144 && w.chooseLocalWindow(qwen, 62_000, undefined).window === 131072)
+  check("chooseLocalWindow: 'server' ⇒ none; 'max' ⇒ the trained max; a number clamps to the trained max; unset ⇒ auto (the trained max here: no geometry, no truth)", w.chooseLocalWindow(qwen, 62_000, 'server').window === undefined && w.chooseLocalWindow(qwen, 62_000, 'max').window === 262144 && w.chooseLocalWindow(qwen, 62_000, 200_000).window === 200_000 && w.chooseLocalWindow(qwen, 62_000, 400_000).window === 262144 && w.chooseLocalWindow(qwen, 62_000, undefined).window === 262144)
   const ladder: Array<unknown> = [undefined]
   for (let i = 0; i < 6; i++) ladder.push(w.nextLocalWindowSetting(ladder.at(-1) as never, 1))
   check('←/→ walk auto → server default → 32k → 64k → 128k → trained max → auto', j(ladder) === j([undefined, 'server', 32768, 65536, 131072, 'max', undefined]), j(ladder))
@@ -142,7 +144,7 @@ section('3 · the hold: one chosen window per model per process; a changed setti
   w.__resetLocalWindowsForTest()
   const first = w.decideLocalWindow(qwen, 62_000, undefined)
   const second = w.decideLocalWindow(qwen, 17_000, undefined)
-  check('the first dispatch decides (auto 128k here — the fallback, reason req); a smaller second dispatch on the same model reuses it', first.window === 131072 && first.reason === 'req' && second === first)
+  check('the first dispatch decides (auto 256k here — the trained max on an unread machine, reason max); a smaller second dispatch on the same model reuses it', first.window === 262144 && first.reason === 'max' && second === first)
   const changed = w.decideLocalWindow(qwen, 17_000, 65536)
   check('a changed setting re-decides (64k)', changed.window === 65536 && changed !== first)
   const vllm = { id: 'Qwen/Qwen3-32B', server: 'vllm' as const, modelMaxContext: 40960, baseUrl: 'x', contextWindow: { tokens: 40960, source: 'served' as const } }
@@ -150,7 +152,7 @@ section('3 · the hold: one chosen window per model per process; a changed setti
   w.__resetLocalWindowsForTest()
   const guardAuto = w.decideLocalWindow(qwen, 62_000, undefined)
   const guard = localGuardWindow(qwen, guardAuto)
-  check('the guard reads the chosen window as the served figure until ps confirms, naming auto', guard?.tokens === 131072 && (guard?.sourceWords ?? '').includes('auto'), j(guard))
+  check('the guard reads the chosen window as the served figure until ps confirms, naming auto', guard?.tokens === 262144 && (guard?.sourceWords ?? '').includes('auto'), j(guard))
   const set = localGuardWindow(qwen, w.decideLocalWindow(qwen, 62_000, 8192))
   check('a user setting is the guard\'s window, named as the setting', set?.tokens === 8192 && (set?.sourceWords ?? '').includes('your setting'), j(set))
   const profile = localLaneProfileFor(qwen)
@@ -224,7 +226,7 @@ section('6 · the runtime road: the Ollama profile streams /api/chat through the
   const hits = ollamaHits.slice(before)
   const chats = hits.filter(h => h.method === 'POST')
   check('exactly one chat request, on /api/chat, never /v1/chat/completions; the only other traffic is the local law\'s cheap reads (/api/ps · /api/tags · /api/version)', chats.length === 1 && chats[0]!.url === '/api/chat' && hits.every(h => h.method === 'POST' || ['/api/ps', '/api/tags', '/api/version'].includes(h.url)), hits.map(h => `${h.method} ${h.url}`).join(','))
-  check('it carried the held num_ctx (32k for a 5k first request), num_batch 2048 and think:true for a thinking model', (chats[0]!.body.options as { num_ctx?: number; num_batch?: number })?.num_ctx === 32768 && (chats[0]!.body.options as { num_batch?: number })?.num_batch === 2048 && chats[0]!.body.think === true, j(chats[0]!.body.options))
+  check('it carried the held num_ctx (256k: the trained max, the machine unread, whatever the first request\'s size), num_batch 2048 and think:true for a thinking model', (chats[0]!.body.options as { num_ctx?: number; num_batch?: number })?.num_ctx === 262144 && (chats[0]!.body.options as { num_batch?: number })?.num_batch === 2048 && chats[0]!.body.think === true, j(chats[0]!.body.options))
   const blocks = yielded.filter(m => m.type === 'assistant').flatMap(m => m.message?.content ?? [])
   check('the settlement carries the thinking block, the text block and the refused-or-settled tool call, no api error', blocks.some(b => b.type === 'thinking' && (b.thinking ?? '').includes('Let me look')) && blocks.some(b => b.type === 'text' && (b.text ?? '').includes('Reading it now')) && !yielded.some(m => m.isApiErrorMessage === true), j(blocks.map(b => b.type)))
 }

@@ -1,13 +1,12 @@
-import { totalmem } from 'node:os'
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { fitLocalWindowOn, localWindowRefusal, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
-import { cachedLocalMachineTruth, defaultMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
+import { cachedLocalMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
 import type { LocalModelRecord } from './localDiscovery.js'
 import { LOCAL_MODEL_PREFIX, localRecordFor } from './localCatalogue.js'
 
 export type LocalWindowSetting = 'server' | 'max' | number
 
-export const LOCAL_WINDOW_FLOOR = 32_768
+export const LOCAL_WINDOW_FLOOR = 65_536
 export const LOCAL_WINDOW_STEP = 16_384
 export const LOCAL_WINDOW_CHOICES: readonly LocalWindowSetting[] = ['server', 32_768, 65_536, 131_072, 'max']
 
@@ -72,11 +71,6 @@ export interface LocalWindowDecision {
 
 export type LocalWindowFitRecord = Pick<LocalModelRecord, 'id' | 'modelMaxContext' | 'weightsBytes' | 'geometry' | 'contextWindow' | 'servedBytes'>
 
-export interface FallbackMachine {
-  platform: NodeJS.Platform
-  totalMemoryBytes: number
-}
-
 export function localWindowTruth(): LocalServerTruth | null {
   return cachedLocalMachineTruth()
 }
@@ -93,14 +87,26 @@ export function localWindowFitOf(record: LocalWindowFitRecord, truth: LocalServe
 }
 
 const fmt = (n: number): string => (n >= 1024 && n % 1024 === 0 ? `${n / 1024}k` : String(n))
-const DOUBLING_RULE = 'twice the first request, rounded up to 16k, never under 32k, capped at the trained max'
+const DOUBLING_RULE = 'twice the first request, rounded up to 16k, never under 64k'
+const UNREAD_MACHINE = "the machine's memory was not read, so the window comes out bigger, not smaller"
 
 function doubledDecision(record: LocalWindowFitRecord, estTokens: number, why: string): LocalWindowDecision {
   const window = doubledRequestWindow(estTokens, record.modelMaxContext)
   return { window, reason: 'req', words: `${fmt(window)} · ${DOUBLING_RULE} (≈${Math.round(estTokens / 1000)}k asked) — ${why}` }
 }
 
-export function chooseLocalWindow(record: LocalWindowFitRecord, estTokens: number, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth(), machine: FallbackMachine = { platform: process.platform, totalMemoryBytes: totalmem() }): LocalWindowDecision {
+export type LocalWindowUnreadRecord = LocalWindowFitRecord & Partial<Pick<LocalModelRecord, 'contextWindow'>>
+
+export function unreadMachineDecision(record: LocalWindowUnreadRecord, estTokens: number, why: string): LocalWindowDecision {
+  const max = record.modelMaxContext
+  if (max !== undefined && max > 0) return { window: max, reason: 'max', words: `${fmt(max)} · the trained max — ${why}; ${UNREAD_MACHINE}` }
+  const served = record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined
+  const doubled = doubledRequestWindow(estTokens)
+  if (served !== undefined && served >= doubled) return { window: served, reason: 'srv', words: `${fmt(served)} · the served window — ${why}; no trained max stated; ${UNREAD_MACHINE}` }
+  return doubledDecision(record, estTokens, `${why}; no trained max stated${served !== undefined ? ` and the served ${fmt(served)} is under the request` : ' and no served window'}; ${UNREAD_MACHINE}`)
+}
+
+export function chooseLocalWindow(record: LocalWindowUnreadRecord, estTokens: number, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth()): LocalWindowDecision {
   const max = record.modelMaxContext
   if (setting === 'server') return { window: undefined, reason: 'srv', words: 'server default — the server chooses the window' }
   if (setting === 'max') {
@@ -116,10 +122,8 @@ export function chooseLocalWindow(record: LocalWindowFitRecord, estTokens: numbe
   }
   const fit = localWindowFitOf(record, truth)
   if (fit !== undefined) return { window: fit.window, reason: fit.atMax ? 'max' : 'fit', words: fit.words, fit }
-  if (record.geometry === undefined || record.weightsBytes === undefined) return doubledDecision(record, estTokens, `no KV geometry read for ${record.id}`)
-  const guess = fitLocalWindowOn({ loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: '' }, machine: defaultMachineTruth(machine.platform, machine.totalMemoryBytes), readAtMs: 0 }, { name: record.id, weightsBytes: record.weightsBytes, geometry: record.geometry, ...(max !== undefined ? { trainedMax: max } : {}) })
-  if (max !== undefined && guess.atMax && guess.fits) return { window: max, reason: 'max', words: `${guess.words} — no memory truth read, the fraction rule`, fit: guess }
-  return doubledDecision(record, estTokens, `no memory truth read and ${max !== undefined ? fmt(max) : 'the trained max'} does not fit by the fraction rule (${guess.usableSource ?? 'the fraction rule'})`)
+  if (record.geometry === undefined || record.weightsBytes === undefined) return unreadMachineDecision(record, estTokens, `no KV geometry read for ${record.id}`)
+  return unreadMachineDecision(record, estTokens, 'no memory truth read')
 }
 
 export type LocalWindowApplication = 'request' | 'load' | 'server-start' | 'none'
