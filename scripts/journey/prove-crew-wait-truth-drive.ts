@@ -237,8 +237,10 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
     server.once('error', reject)
     server.listen(port, '127.0.0.1', () => resolve())
   })
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('fixture has no port')
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${address.port}`,
     hits,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
@@ -343,7 +345,7 @@ console.log(' the wait tells its truth — a Fable seat and a GPT seat, real bun
 console.log('============================================================')
 const KEEP = process.env.CREW_WAIT_KEEP === '1'
 const { home, cwd } = seedWorld()
-const fixture = await startFixture(Number(process.env.CREW_WAIT_PORT ?? 25199), cwd)
+const fixture = await startFixture(Number(process.env.CREW_WAIT_PORT ?? 0), cwd)
 const FRAMES = 40
 const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
