@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'hz-fid-'))
@@ -30,27 +31,28 @@ if (!existsSync(BIN)) {
     argv: ['node', BIN],
     out,
     cwd: process.cwd(),
-    resizes: [{ cols: 100, rows: 40, atTick: 200 }],
+    resizes: [{ cols: 100, rows: 40, afterMark: 'pre-resize', afterMs: 0 }],
     sends: [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'alpha ' },
-      { afterPrevTicks: 2, data: 'b' },
-      { afterPrevTicks: 1, data: 'r' },
-      { afterPrevTicks: 1, data: 'a' },
-      { afterPrevTicks: 1, data: 'v' },
-      { afterPrevTicks: 1, data: 'o' },
-      { atTick: 999, awaitText: 'alpha bravo', minTick: 5, awaitSettleTicks: 2, data: '\u0018', mark: 'pre-overlay' },
-      { afterPrevTicks: 2, data: 'p' },
-      { atTick: 999, awaitText: 'palette', minTick: 5, awaitSettleTicks: 2, data: '\u001b', mark: 'overlay-open' },
-      { afterPrevTicks: 3, data: ' charlie' },
-      { atTick: 220, awaitText: 'alpha bravo charlie', minTick: 210, awaitSettleTicks: 2, data: ' delta' },
+      { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'alpha ' },
+      { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ alpha ', data: 'b' },
+      { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha b', data: 'r' },
+      { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha br', data: 'a' },
+      { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha bra', data: 'v' },
+      { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha brav', data: 'o' },
+      { atTick: 999, requireAwait: true, awaitText: 'alpha bravo', minTick: 5, awaitSettleTicks: 2, data: '\u0018', mark: 'pre-overlay' },
+      { afterPrevTicks: 2, requireAwait: true, awaitText: 'alpha bravo', awaitSettleTicks: 2, data: 'p' },
+      { atTick: 999, requireAwait: true, awaitText: 'palette', minTick: 5, awaitSettleTicks: 2, data: '\u001b', mark: 'overlay-open' },
+      { afterPrevTicks: 3, requireAwait: true, awaitText: '❯ alpha bravo', awaitPattern: '\\A(?![\\s\\S]*palette)', data: ' charlie' },
+      { atTick: 200, requireAwait: true, awaitText: '❯ alpha bravo charlie', data: '', mark: 'pre-resize' },
+      { atTick: 220, requireAwait: true, awaitText: 'alpha bravo charlie', awaitPattern: '\\A[^\\n]{100}\\n', minTick: 210, awaitSettleTicks: 2, data: ' delta' },
     ],
     readyText: EXPECT,
     readySettleTicks: 4,
   }
   const cfgPath = join(scratch, 'fid-cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {
+  const r = spawnCaptureSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {
     env: {
       ...process.env,
       TERM: 'xterm-256color',

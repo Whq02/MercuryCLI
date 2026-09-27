@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import json, os, re, sys, select, pty, fcntl, termios, struct, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+from capture_refusal import capture_refusals, emit_refusals
 
 EMULATOR_MISSING_EXIT = 78
 
@@ -461,36 +463,16 @@ else:
         payload["sendReceipts"] = send_receipts
     if marks:
         payload["marks"] = marks
+    payload["refusals"] = capture_refusals(
+        "vshot", ready_texts, ready_at, total, ended_at_tick, end_reason,
+        sends, sent, stable_need, cfg.get("requireStable"), grid_text(),
+        ready_seen_pre_sends)
     json.dump(payload, open(out, "w"))
-    print("\n".join("".join(screen.buffer[y][x].data for x in range(cols)) for y in range(rows)))
+    print(grid_text())
+    emit_refusals(payload["refusals"])
     if ready_texts and ready_at is None:
-        trap = ""
-        if ready_seen_pre_sends:
-            trap = (
-                " NOTE (the end-gate trap): the ready needles WERE on screen "
-                "before a send fired and never after — readyText is the "
-                "POST-SENDS end gate (its scan arms once every send has "
-                "fired), so anchor it on the journey's FINAL world, or drop "
-                "it and gate the last send on its own awaitText.")
-        sys.stderr.write(
-            "[vshot] NEVER-READY: readyText %r never appeared within %d ticks "
-            "(ended: %s). This capture is a wrong-frame observation, not a settle.%s\n"
-            % (ready_texts, total, end_reason, trap))
         sys.exit(3)
     if sent < len(sends):
-        undelivered = sends[sent:]
-        sys.stderr.write(
-            "[vshot] UNDELIVERED-SENDS: %d of %d sends never became due "
-            "(first stuck: %r%s). The journey did not happen as written.\n"
-            % (len(undelivered), len(sends),
-               (undelivered[0].get("awaitText") or undelivered[0].get("awaitRaw")
-                or undelivered[0].get("targetText") or undelivered[0].get("data", ""))[:60],
-               " mark=%r" % undelivered[0]["mark"] if undelivered[0].get("mark") else ""))
         sys.exit(4)
     if cfg.get("requireStable") and stable_need and end_reason != "stable":
-        sys.stderr.write(
-            "[vshot] NEVER-STABLE: the grid never held byte-identical for %d "
-            "consecutive ticks within %d (ended: %s). Layout-anchored "
-            "coordinates from this capture would be stale.\n"
-            % (stable_need, total, end_reason))
         sys.exit(5)

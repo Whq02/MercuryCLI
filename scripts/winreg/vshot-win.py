@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import json, os, re, sys, struct, time
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+from capture_refusal import capture_refusals, emit_refusals
 
 if sys.platform == "win32":
     import ctypes
@@ -442,30 +444,15 @@ if send_receipts:
     payload["sendReceipts"] = send_receipts
 if marks:
     payload["marks"] = marks
+payload["refusals"] = capture_refusals(
+    "vshot-win", ready_texts, ready_at, total, ended_at_tick, end_reason,
+    sends, sent, stable_need, cfg.get("requireStable"), grid_text())
 json.dump(payload, open(out, "w"))
 print(grid_text())
+emit_refusals(payload["refusals"])
 if ready_texts and ready_at is None:
-    sys.stderr.write(
-        "[vshot-win] NEVER-READY: readyText %r never appeared within %d ticks "
-        "(ended: %s). This capture is a wrong-frame observation, not a settle.\n"
-        % (ready_texts, total, end_reason)
-    )
     sys.exit(3)
 if sent < len(sends):
-    undelivered = sends[sent:]
-    sys.stderr.write(
-        "[vshot-win] UNDELIVERED-SENDS: %d of %d sends never became due "
-        "(first stuck: %r%s). The journey did not happen as written.\n"
-        % (len(undelivered), len(sends),
-           (undelivered[0].get("awaitText") or undelivered[0].get("awaitRaw")
-            or undelivered[0].get("targetText") or undelivered[0].get("data", ""))[:60],
-           " mark=%r" % undelivered[0]["mark"] if undelivered[0].get("mark") else "")
-    )
     sys.exit(4)
 if cfg.get("requireStable") and stable_need and end_reason != "stable":
-    sys.stderr.write(
-        "[vshot-win] NEVER-STABLE: the grid never held byte-identical for %d "
-        "consecutive ticks within %d (ended: %s). Layout-anchored "
-        "coordinates from this capture would be stale.\n"
-        % (stable_need, total, end_reason))
     sys.exit(5)

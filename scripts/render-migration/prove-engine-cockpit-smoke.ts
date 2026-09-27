@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -58,9 +59,12 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
       rows: 40,
       total: 200,
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 60, minTick: 5, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'first smoke prompt\r' },
-        { atTick: 130, minTick: 20, awaitText: 'stream settled', awaitSettleTicks: 4, data: 'second smoke prompt\r' },
+        { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 60, minTick: 5, requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'first smoke prompt' },
+        { requireAwait: true, awaitText: '❯ first smoke prompt', data: '\r' },
+        { atTick: 130, minTick: 20, requireAwait: true, awaitText: 'stream settled', awaitSettleTicks: 4, data: 'second smoke prompt' },
+        { requireAwait: true, awaitText: '❯ second smoke prompt', data: '\r' },
+        { requireAwait: true, awaitText: 'Scripted stream settled', awaitPattern: '(?:Scripted stream settled[\\s\\S]*){2}', data: '', mark: 'both-settled' },
       ],
       out: gridPath,
     }),
@@ -86,7 +90,7 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
     env.MERCURY_RENDER_ENGINE = '1'
     env.MERCURY_ENGINE_ASSERT = '1'
   }
-  const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
+  const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) return { ok: false, detail: (res.stderr ?? '').slice(-400), final: [], raw: Buffer.alloc(0), endReason: 'vshot-failed', endedAtTick: -1, lastOutputTick: -1 }
   const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; endReason?: string; endedAtTick?: number; lastOutputTick?: number }
   const final = payload.grid.map(r => r.map(c => c.c).join(''))

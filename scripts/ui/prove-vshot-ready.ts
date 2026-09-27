@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync, captureExitDetail } from '../lib/spawnCapture.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
@@ -32,6 +33,7 @@ interface Cap {
     endedAtTick?: number
     endReason?: string
     readyTextDeclared?: string[]
+    refusals?: Array<{ code: string; message: string; summary: string; ceilingTicks: number; seen: string }>
   }
 }
 function capture(cfg: Record<string, unknown>, scale = '1'): Cap {
@@ -39,7 +41,7 @@ function capture(cfg: Record<string, unknown>, scale = '1'): Cap {
   const outPath = cfgPath.replace('.json', '-out.json')
   writeFileSync(cfgPath, JSON.stringify({ cols: 60, rows: 8, argv: CHILD, out: outPath, ...cfg }))
   const t0 = Date.now()
-  const r = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
+  const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(60_000),
     env: { ...process.env, MERCURY_VSHOT_BUDGET_SCALE: scale },
@@ -222,6 +224,24 @@ console.log('════ vshot observed-ready laws ════')
   const initial = '\x1b[2J\x1b[H╭────────╮\x1b[3;1HPOPUP-READY'
   const c = capture({ total: 20, readyText: 'POPUP-READY', sends: [send], argv: ['python3', '-u', '-c', `import time;print(${JSON.stringify(initial)},end='',flush=True);time.sleep(0.8);print('\\x1b[7;1H│❯ message atlas │',end='',flush=True);time.sleep(60)`] })
   check('12. FRAME: the sample waits until popup, first row and composer coexist', c.status === 0 && c.payload.sendReceipts?.length === 1 && c.payload.sendReceipts[0]!.atTick >= 6, `status=${c.status} receipts=${JSON.stringify(c.payload.sendReceipts)}`)
+}
+
+{
+  const c = capture({ total: 6, readyText: 'FINAL-NEVER-THERE', sends: [{ data: '', requireAwait: true, awaitText: 'SEND-NEVER-THERE', mark: 'missing' }] })
+  const refusals = c.payload.refusals ?? []
+  check('13. REFUSAL: ready failure retains the undelivered-send diagnosis too', c.status === 3 && refusals.some(r => r.code === 'NEVER-READY') && refusals.some(r => r.code === 'UNDELIVERED-SENDS'), JSON.stringify({ status: c.status, refusals }))
+  check('13. REFUSAL: the receipt says never settled, the ceiling, and the screen it saw', refusals.length === 2 && refusals.every(r => r.ceilingTicks === 6 && r.seen.includes('BOOT') && /never settled.*ceiling/.test(r.message)), JSON.stringify(refusals))
+  check('13. REFUSAL: stdout and stderr carry every refusal verbatim', refusals.length === 2 && refusals.every(r => c.stderr.includes(r.message) && c.gridText.includes(r.message)), c.stderr)
+  check('13. REFUSAL: a legacy tail-only exit row keeps all refusal codes, ceiling and observed screen', [c.stderr.slice(-200), c.gridText.slice(-200)].every(tail => ['NEVER-READY', 'UNDELIVERED-SENDS', 'never settled', 'ceiling', 'saw='].every(word => tail.includes(word))) && refusals.every(r => r.summary.length <= 190 && c.stderr.trimEnd().endsWith(r.summary)), c.stderr.slice(-200))
+  const healthy = capture({ total: 20, readyText: 'READY-SENTINEL' })
+  check('13. REFUSAL: a settled capture records no refusal and does not pollute its frame echo', healthy.status === 0 && Array.isArray(healthy.payload.refusals) && healthy.payload.refusals.length === 0 && !healthy.gridText.includes('[vshot]'), healthy.stderr)
+  const cfgPath = join(work, 'discarded-return.json')
+  writeFileSync(cfgPath, JSON.stringify({ cols: 60, rows: 8, total: 3, argv: CHILD, out: join(work, 'discarded-return-out.json'), readyText: 'NEVER' }))
+  const entry = join(ROOT, 'scripts/lib/spawnCapture.ts')
+  const silentCaller = spawnSync(process.execPath, ['--eval', `import { spawnCaptureSync } from ${JSON.stringify(entry)}; spawnCaptureSync('/usr/bin/python3', ${JSON.stringify([VSHOT, cfgPath])}, { encoding: 'utf8', timeout: 10000 });`], { encoding: 'utf8', timeout: 15_000, env: { ...process.env, MERCURY_VSHOT_BUDGET_SCALE: '1' } })
+  check('13. REFUSAL: even a caller discarding the returned result prints the exit row and refusal', silentCaller.status === 0 && /capture exit=3.*ceiling=10000ms/.test(silentCaller.stderr) && /NEVER-READY: never settled/.test(silentCaller.stderr) && /saw=/.test(silentCaller.stderr), silentCaller.stderr)
+  const timedOut = captureExitDetail({ status: null, signal: 'SIGTERM', error: Object.assign(new Error('capture expired'), { code: 'ETIMEDOUT' }), stderr: '' }, 1234)
+  check('13. REFUSAL: a killed capture without stderr still names status, signal, timeout and ceiling', ['exit=null', 'SIGTERM', 'ETIMEDOUT', '1234ms'].every(word => timedOut.includes(word)), timedOut)
 }
 
 rmSync(work, { recursive: true, force: true })

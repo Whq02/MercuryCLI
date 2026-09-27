@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -97,8 +98,8 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
         { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 999, requireAwait: true, awaitText: '✶ VIEW', minTick: 5, awaitSettleTicks: 1, data: '' },
         { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'idle' },
-        { afterPrevTicks: 1, data: 'parity drive prompt' },
-        { afterPrevTicks: 2, data: '\r' },
+        { afterPrevTicks: 1, requireAwait: true, awaitText: '← back', data: 'parity drive prompt' },
+        { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ parity drive prompt', data: '\r' },
         { atTick: 999, requireAwait: true, awaitText: 'Scripted stream settled', minTick: 20, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'settled' },
       ],
       out: gridPath,
@@ -124,7 +125,7 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
     env.MERCURY_RENDER_ENGINE = '1'
     env.MERCURY_ENGINE_ASSERT = '1'
   }
-  const res = spawnSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
+  const res = spawnCaptureSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
   if (res.status !== 0) {
     return { marks: {}, final: { cols, rows, grid: [] }, ok: false, detail: (res.stderr ?? '').slice(-400) }
   }
