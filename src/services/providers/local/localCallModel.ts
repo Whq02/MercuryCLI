@@ -5,7 +5,7 @@ import {
   type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
-import { buildLocalExtras } from '../openaicompat/compatWire.js'
+import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
 import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, localModelRecord, refreshLocalDiscovery, servedWindowIsCurrent, type LocalModelRecord } from './localDiscovery.js'
@@ -69,7 +69,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
               {
                 ...(heldLocalWindow(record)?.window !== undefined ? { numCtx: heldLocalWindow(record)!.window } : {}),
                 numBatch: chooseLocalBatch(localBatchSettingOf(record), heldLocalWindow(record)?.window),
-                ...(record.thinkingDeclared === true ? { think: thinkingEnabled } : {}),
+                ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
               },
             ),
           }),
