@@ -808,6 +808,7 @@
   "instructionExcludes",
   "instructionProfile",
   "language",
+  "localServer",
   "loopGuardStopEnabled",
   "memoryUpkeepEnabled",
   "model",
