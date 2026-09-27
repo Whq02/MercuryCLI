@@ -202,6 +202,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_TURN_RECEIPT: '0',
         MERCURY_OASIS_BG: '0',
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
         ...opts.extraEnv,
       },
     },
