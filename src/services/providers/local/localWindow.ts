@@ -143,3 +143,33 @@ export function nextLocalWindowSetting(current: LocalWindowSetting | undefined, 
   const base = at < 0 ? 0 : at
   return ladder[(base + direction + ladder.length) % ladder.length]
 }
+
+export type LocalWindowRung = LocalWindowSetting | 'number' | undefined
+
+export function localWindowRungOf(setting: LocalWindowSetting | undefined): LocalWindowRung {
+  if (typeof setting === 'number' && !LOCAL_WINDOW_CHOICES.includes(setting)) return 'number'
+  return setting
+}
+
+export function localWindowChoiceLine(record: Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow'>, opts: { wide: boolean; typing?: string; setting?: LocalWindowSetting | undefined }): string {
+  if (opts.typing !== undefined) return `window · type the tokens (49152 or 48k) · ↵ sets · esc cancels · ${opts.typing}▍`
+  const setting = opts.setting !== undefined ? opts.setting : localWindowSettingOf(record)
+  const rung = localWindowRungOf(setting)
+  const hold = heldLocalWindow(record)
+  const application = localWindowApplication(record)
+  const state =
+    record.contextWindow?.source === 'served'
+      ? `served ${fmt(record.contextWindow.tokens)}`
+      : record.contextWindow !== undefined
+        ? `${localWindowSettingWords(record.contextWindow.tokens)} ${record.contextWindow.source === 'modelfile' ? 'num_ctx' : 'model max'}`
+        : 'not loaded'
+  const trained = opts.wide && record.contextWindow === undefined && record.modelMaxContext !== undefined ? ` · max ${fmt(record.modelMaxContext)}` : ''
+  const auto = rung === undefined && hold !== undefined && hold.setting === undefined && hold.window !== undefined ? `auto → ${fmt(hold.window)} held` : 'auto'
+  const number = rung === 'number' && typeof setting === 'number' ? fmt(setting) : 'number'
+  const rungs: Array<[LocalWindowRung, string]> = [[undefined, auto], ['server', 'server'], [32_768, '32k'], [65_536, '64k'], [131_072, '128k'], ['max', 'max'], ['number', number]]
+  const shown = opts.wide || rung === 'number' ? rungs : rungs.filter(([key]) => key !== 'number')
+  const ladder = shown.map(([key, label]) => (key === rung ? `[${label}]` : label)).join(' · ')
+  if (application === 'server-start' || application === 'none') return `window · ${state} · set at server start · not a toggle`
+  if (!opts.wide) return record.contextWindow === undefined ? `window · not loaded ${ladder} · w cycles` : `window ${ladder} · w cycles`
+  return `window · ${state}${trained} · ${ladder} · w cycles`
+}

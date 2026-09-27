@@ -59,7 +59,8 @@ import {
   type PickerLine,
   type ProviderHeading,
 } from '../utils/model/modelPickerGroups.js'
-import { isLocalModelId, localPickerWindowNotice } from '../services/providers/local/localCatalogue.js'
+import { isLocalModelId, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
+import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -232,6 +233,10 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   })()
   const focusedGptToggle = focusedGptWindow?.ceiling !== undefined
   const [ctxNotice, setCtxNotice] = useState<string | null>(null)
+  const [windowTyping, setWindowTyping] = useState<string | null>(null)
+  const [, setWindowStamp] = useState(0)
+  const focusedLocal = focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id) ? localRecordFor(focusedModel.id) : undefined
+  const focusedLocalCycles = focusedLocal !== undefined && (localWindowApplication(focusedLocal) === 'request' || localWindowApplication(focusedLocal) === 'load')
   const focusedNative1m = ((): boolean => {
     const p = focusedModel?.id
     if (!p || focusedSupports1m || focusedGptWindow) return false
@@ -244,6 +249,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const selectRow = (n: number): void => {
     setI(n)
     setCtxNotice(null)
+    setWindowTyping(null)
     const line = lines[n]
     if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
@@ -254,6 +260,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (at < 0) at = Math.max(0, next.findIndex(line => isCursorStop(line)))
     setI(at)
     setCtxNotice(null)
+    setWindowTyping(null)
     const line = next[at]
     if (line?.kind === 'row') setContext1m(ctxStateOf(line.row.id))
   }
@@ -299,6 +306,28 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true })
+    if (windowTyping !== null) {
+      event.stopImmediatePropagation()
+      if (rowAxis === 'cancel') {
+        setWindowTyping(null)
+        return
+      }
+      if (rowAxis === 'activate') {
+        const parsed = parseLocalWindowSetting(windowTyping)
+        if (parsed !== undefined && focusedLocal !== undefined) {
+          writeLocalWindowSetting(focusedLocal, parsed)
+          setWindowStamp(s => s + 1)
+        }
+        setWindowTyping(null)
+        return
+      }
+      if (key.backspace || key.delete) {
+        setWindowTyping(t => (t ?? '').slice(0, -1))
+        return
+      }
+      if (/^[0-9kK]$/.test(input) && !key.ctrl && !key.meta) setWindowTyping(t => `${t ?? ''}${input.toLowerCase()}`)
+      return
+    }
     if (rowAxis === 'cancel') {
       if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
       event.stopImmediatePropagation()
@@ -387,6 +416,19 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       event.stopImmediatePropagation()
       setCtxNotice('1M ctx · native to this model · not a toggle')
     }
+    else if (input === 'w' && !key.ctrl && !key.meta && focusedLocal !== undefined && focusedLocalCycles) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(null)
+      const current = localWindowSettingOf(focusedLocal)
+      if (current === 'max') {
+        setWindowTyping('')
+        return
+      }
+      const next = typeof current === 'number' && !LOCAL_WINDOW_CHOICES.includes(current) ? undefined : nextLocalWindowSetting(current, 1)
+      writeLocalWindowSetting(focusedLocal, next)
+      setWindowStamp(s => s + 1)
+    }
     else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id)) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
@@ -449,15 +491,14 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         { text: ' · applies when the turn settles', color: FAINT },
       ]
     : null
+  const localWindowLine = focusedLocal !== undefined ? localWindowChoiceLine(focusedLocal, { wide: inner >= 90, ...(windowTyping !== null ? { typing: windowTyping } : {}) }) : null
   const noticeLines: string[] = compact
     ? []
     : ctxNotice
       ? wrapPlain(ctxNotice, inner)
       : reasonLines !== null
         ? reasonLines
-        : notice
-          ? [notice]
-          : []
+        : [...(localWindowLine !== null ? wrapPlain(localWindowLine, inner) : []), ...(notice ? [notice] : [])]
   const chromePaint =
     2 + 1 + (compact ? 0 : 2) + (shedMeters ? 0 : 1) + 2 +
     (pendingLine !== null ? painted(pendingLine.map(part => part.text).join('')) : 0) +
