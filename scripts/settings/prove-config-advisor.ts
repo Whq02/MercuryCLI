@@ -5,7 +5,6 @@ import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } fr
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
-mkdirSync('/private/tmp/mw', { recursive: true })
 const HOME = pinScratchHome('mercury-config-advisor')
 process.env.HOME = HOME
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
