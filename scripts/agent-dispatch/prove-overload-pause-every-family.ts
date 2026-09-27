@@ -82,7 +82,7 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
   const method = (init?.method ?? 'GET').toUpperCase()
   if (url.endsWith('/token')) return Response.json({ access_token: access, expires_in: 3600 })
-  const modelRoad = url.includes('/chat/completions') || url.endsWith('/responses') || url.includes(':streamGenerateContent')
+  const modelRoad = url.includes('/chat/completions') || url.endsWith('/responses') || url.includes(':streamGenerateContent') || url.endsWith('/api/chat')
   if (method !== 'POST' || !modelRoad) return Response.json({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] })
   requests++
   return Response.json(body, { status, headers: retryAfter === undefined ? {} : { 'retry-after': retryAfter } })
