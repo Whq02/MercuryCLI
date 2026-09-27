@@ -53,8 +53,6 @@ const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
   env: {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-    MERCURY_OPERATOR: 'op',
-    MERCURY_CHANNEL_ROOM: `scroll-rail-${process.pid}`,
   },
 })
 check('PTY capture ran', res.status === 0, res.stderr?.slice(0, 200) ?? '')
@@ -82,25 +80,25 @@ if (res.status === 0) {
     rowOf(bannerRow) >= 0 || rowOf('Mercury') >= 0,
   )
 
-  const seatRow = rowOf('SEAT')
-  const selfRow = lines.findIndex(l => /● .+ \(you\)/.test(l))
-  check('SEAT header pinned at the top (inside its panel border)', seatRow === 2, `row ${seatRow}`)
-  check('seat body directly under the header (never dragged)', selfRow === seatRow + 1, `row ${selfRow}`)
-  if (selfRow !== seatRow + 1) {
+  const recentRow = rowOf('RECENT')
+  const bodyRow = lines.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
+  check('RECENT header pinned at the top (inside its panel border)', recentRow === 2, `row ${recentRow}`)
+  check('the recent body directly under the header (never dragged)', bodyRow === recentRow + 1, `row ${bodyRow}`)
+  if (bodyRow !== recentRow + 1) {
     console.log('  … rail rows 0-14 (first 44 cols):')
     lines.slice(0, 15).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 44)}`))
   }
-  check('RECENT section present', rowOf('RECENT') > 0)
+  check('no SEAT box in the rail (the retired presence estate)', rowOf('SEAT ·') === -1 && !lines.some(l => /\(you\)/.test(l)))
   check('NEXT section present', rowOf('NEXT') > 0)
 
   check('right rail present (USAGE panel)', rowOf('USAGE') >= 0 && rowOf('USAGE') <= 2, `row ${rowOf('USAGE')}`)
 
   check('PageDown back to the bottom clears the pill', bottomRowOf('back to the bottom') === -1 && !bottom.some(l => / \d+ new message/.test(l)))
   check('the bottom is back (the last reply on screen)', bottomRowOf('Reply 18:') > 0)
-  const bottomSeatRow = bottomRowOf('SEAT')
-  const bottomSelfRow = bottom.findIndex(l => /● .+ \(you\)/.test(l))
-  check('SEAT header still pinned after the return scroll', bottomSeatRow === 2, `row ${bottomSeatRow}`)
-  check('seat body still under its header after the return scroll', bottomSelfRow === bottomSeatRow + 1, `row ${bottomSelfRow}`)
+  const bottomRecentRow = bottomRowOf('RECENT')
+  const bottomBodyRow = bottom.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
+  check('RECENT header still pinned after the return scroll', bottomRecentRow === 2, `row ${bottomRecentRow}`)
+  check('the recent body still under its header after the return scroll', bottomBodyRow === bottomRecentRow + 1, `row ${bottomBodyRow}`)
   check('right rail still top-pinned after the return scroll', bottomRowOf('USAGE') >= 0 && bottomRowOf('USAGE') <= 2, `row ${bottomRowOf('USAGE')}`)
 }
 

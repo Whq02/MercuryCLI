@@ -1323,7 +1323,7 @@ export async function buildConcourseSnapshot(
     clock: clockOf(nowMs),
     context: {
       projectLabel,
-      operatorHandle: (await import('../../utils/cockpit/presenceLive.js')).getOperatorName(),
+      operatorHandle: (await import('../../substrate/identity/operatorDisplayName.js')).getOperatorName(),
       ...(railEffort ? { effortLabel: railEffort } : {}),
     },
     breadcrumb: { active: 'concourse' },

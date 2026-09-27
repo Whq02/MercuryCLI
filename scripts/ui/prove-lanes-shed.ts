@@ -35,7 +35,7 @@ t(
 )
 t(
   'core sections are shed-immune',
-  /HELM_DENSITY_FLOOR = \['seat', 'work', 'tasks', 'runs', 'mission'\]/.test(density) &&
+  /HELM_DENSITY_FLOOR = \['work', 'tasks', 'runs', 'mission'\]/.test(density) &&
     /new Set<string>\(\[\.\.\.HELM_DENSITY_FLOOR/.test(rail),
 )
 t(

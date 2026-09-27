@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
+const readIf = (p: string) => (existsSync(join(REPO, p)) ? read(p) : '')
 
 let failures = 0
 function check(label: string, cond: boolean): void {
@@ -72,10 +73,21 @@ check('M1: usage shed under a vital-PAINTING deck OR the cockpit (width-aware: a
   /deckOwnsVitals = deckPresent && cols >= LAYOUT_BREAKPOINTS\.cockpitMin/.test(frame) &&
   /!usageOwnedElsewhere \? usageNode/.test(frame))
 
-check('SEAT uses getPresenceVersion as the sync snapshot (NOT getLivePresence)',
-  /useSyncExternalStore\(subscribePresence, getPresenceVersion, getPresenceVersion\)/.test(lanes))
-check('SEAT does NOT pass getLivePresence as a useSyncExternalStore arg (no infinite render)',
-  !/useSyncExternalStore\([^)]*getLivePresence/.test(lanes))
+check('the rail paints no SEAT section (no seat key, label, self row or peer cap)',
+  !/section\('seat'/.test(lanes) && !/'SEAT'/.test(lanes) && !/\(you\)/.test(lanes) && !/PEER_ROWS/.test(lanes) && !/peerWord/.test(lanes))
+check('the rail imports nothing from presence (no presence store, seat type or operator name)',
+  !/presenceLive/.test(lanes) && !/getLivePresence|subscribePresence|getPresenceVersion|PresenceSeat|getOperatorName/.test(lanes))
+check('the presence estate is gone (no module, no cockpit re-export, no DeckPane seats row, no MCP heartbeat)',
+  !existsSync(join(REPO, 'src/utils/cockpit/presenceLive.ts')) &&
+    !/presenceLive/.test(read('src/utils/cockpit/index.ts')) &&
+    !/getLivePresence|subscribePresence|seats\.length/.test(read('src/components/DeckPane.tsx')) &&
+    !/recordSelfPresence|startPresenceTail|PRESENCE_HEARTBEAT_MS/.test(read('src/services/mcp/useManageMCPConnections.ts')) &&
+    !/collectPresenceSeats|presence-seats/.test(read('src/substrate/stateLifecycle.ts')))
+check("the operator's display name lives in its own identity module and the flag registry names it",
+  /export function getOperatorName\(\): string/.test(readIf('src/substrate/identity/operatorDisplayName.ts')) &&
+    /consumer: 'src\/substrate\/identity\/operatorDisplayName\.ts'/.test(read('src/substrate/flagRegistry.ts')) &&
+    !/presenceLive/.test(read('src/substrate/flagRegistry.ts')))
+check("'seat' left the density floor", !/'seat'/.test(read('src/utils/helmDensity.ts')))
 check('CREW sources from app-store tasks, not a fleetGauge() call',
   /useAppState\(s => s\.tasks\)/.test(lanes) && !/fleetGauge\(/.test(lanes))
 check('CREW rows keep .id (the drill-in key)', /id: t\.id/.test(lanes))
@@ -95,13 +107,12 @@ check('a hosted CREW row opens the agent in the view (the teammate road), never 
   /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/tasks \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
-check('S2: SEAT peers are capped (slice PEER_ROWS)', /slice\(0, PEER_ROWS\)/.test(lanes))
 check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
 check('RUNS is the one rail door to the /tasks board (header opens /tasks)',
   /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/tasks' \}\)/.test(lanes))
-check('a ledger alone never forces the busy layout (the solo gate reads peers, crew, the viewed or pinned crewmate, runs and daemon crew only)',
-  /const solo =\n\s+peers\.length === 0 &&\n\s+crewAll\.length === 0 &&\n\s+keptIds\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes))
+check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate, runs and daemon crew only — no peers term)',
+  /const solo =\n\s+crewAll\.length === 0 &&\n\s+keptIds\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 

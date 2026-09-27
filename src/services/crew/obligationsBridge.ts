@@ -1,7 +1,7 @@
 
 import { registerAttentionGatherer } from '../../services/attention/store.js'
 import type { AttentionFact } from '../../services/attention/contracts.js'
-import { getOperatorName } from '../../utils/cockpit/presenceLive.js'
+import { getOperatorName } from '../../substrate/identity/operatorDisplayName.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { openObligations, subscribeObligations, type ObligationV1 } from './obligations.js'
 

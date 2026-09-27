@@ -39,7 +39,6 @@ console.log('── mo5 census ratchet + artifact survival')
     ['src/services/interview/decisionRecord.ts', "durablePublish.js'", /renameSync\(tmp, path\)/],
     ['src/utils/scratchLeases.ts', "durablePublish.js'", /renameSync\(tmp, target\)/],
     ['src/utils/observability/invocationTrace.ts', "durablePublish.js'", /await rename\(tmp, path\)/],
-    ['src/utils/cockpit/presenceLive.ts', 'durableTempName', /Math\.random\(\)\.toString\(36\)\.slice\(2\)\}\.tmp/],
     ['src/services/changeTransaction/changeSetCommit.ts', 'renameWithWin32Retry', /await rename\(staged\[i\]!\.tmp/],
     ['src/utils/debug.ts', 'renameWithWin32Retry', /await rename\(path, rotated\)/],
     ['src/daemon/ownedDaemon.ts', 'renameWithWin32RetrySync', /renameSync\(logPath/],

@@ -38,13 +38,6 @@ import { isCrewSession } from '../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js'
 import { getSessionIdFromLog, loadAllProjectsMessageLogs } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
-import {
-  getLivePresence,
-  getOperatorName,
-  getPresenceVersion,
-  subscribePresence,
-  type PresenceSeat,
-} from '../utils/cockpit/presenceLive.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { usageAgeTail } from '../services/providers/usageFreshness.js'
@@ -387,7 +380,6 @@ function SectionHeader({ label, width }: { label: string; width: number }): Reac
 }
 
 const CREW_ROWS = 6
-const PEER_ROWS = 4
 const RUNS_ROWS = 4
 
 export const HelmLanesRail = React.memo(HelmLanesRailImpl)
@@ -396,9 +388,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   fluxMark('render:rail-lanes')
   const tok = useMercuryTokens()
   const activity = useCockpitActivity()
-  const presenceVersion = useSyncExternalStore(subscribePresence, getPresenceVersion, getPresenceVersion)
   const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
-  const peers: PresenceSeat[] = getLivePresence()
   const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
   const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
   const focused = getHelmFocus() === 'lanes'
@@ -481,7 +471,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     availRows,
     tok,
     activity,
-    presenceVersion,
     ctxUsageVersion,
     lanesVersion,
     missionVersion,
@@ -610,7 +599,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const filesFolder = basename(useFocusedWorkspaceCwd())
 
   const solo =
-    peers.length === 0 &&
     crewAll.length === 0 &&
     keptIds.length === 0 &&
     runsAll.length === 0 &&
@@ -678,17 +666,11 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     }
   }, [])
 
-  const selfName = getOperatorName()
-  const peersShown = peers.slice(0, PEER_ROWS)
-  const peersMore = peers.length - peersShown.length
-
   const SECTION_CHROME = boxed ? 3 : 2
   const shedCeiling = availRows ?? Infinity
   const density = densityPlan(activity, availRows ?? Infinity)
   const hintCap = hintBudget(density)
-  const seatGlanceRows = 1 + peersShown.length + (peersMore > 0 ? 1 : 0)
   const intents: Record<string, number> = {
-    seat: 0,
     crew: solo ? 0 : Math.max(1, 1 + crewShown.length + (crewMore > 0 ? 1 : 0)),
     work: work ? work.rows.length : 0,
     runs: solo ? 0 : runsShown.length + (runsMore > 0 ? 1 : 0),
@@ -715,9 +697,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 +
-      (['seat', 'crew', 'work', 'runs', 'recent', 'mission', 'workbench', 'next', 'files'] as const)
+      (['crew', 'work', 'runs', 'recent', 'mission', 'workbench', 'next', 'files'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
-      (seatGlanceRows + SECTION_CHROME) +
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
       (wakeGlance ? 1 + SECTION_CHROME : 0)
     for (const k of density.shedOrder) {
@@ -734,43 +715,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     return rowsModel.length - 1
   }
   const isOn = (i: number): boolean => focused && cur === i
-
-
-  const seatNodes: React.ReactNode[] = []
-  seatNodes.push(
-    <RailRow
-      key="seat:self"
-      width={rowW}
-      glyph={GLYPH.done}
-      glyphColor={tok.success}
-      name={`${selfName} (you)`}
-      nameColor={tok.textPrimary}
-      verb="active"
-      verbColor={tok.textSecondary}
-    />,
-  )
-  for (const p of peersShown) {
-    seatNodes.push(
-      <RailRow
-        key={`seat:${p.seat}`}
-        width={rowW}
-        glyph={GLYPH.done}
-        glyphColor={tok.success}
-        name={p.seat}
-        nameColor={tok.textPrimary}
-        verb={p.verb || undefined}
-        verbColor={tok.textPrimary}
-      />,
-    )
-  }
-  if (peersMore > 0)
-    seatNodes.push(
-      <MoreRow
-        key="seat:more"
-        n={peersMore}
-        width={rowW}
-      />,
-    )
 
   const viewingChild = viewingAgentTaskId != null
   const crewShed = shedSet.has('crew')
@@ -1063,8 +1007,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     )
   }
 
-  const totalPeers = peers.length
-  const peerWord = totalPeers === 1 ? 'peer' : 'peers'
   const crewWord = crewEntries.length === 1 ? 'agent' : 'agents'
 
   const rowsSig = rowsModel.map(helmRowSig).join('|')
@@ -1073,15 +1015,17 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig])
 
+  let painted = 0
   const section = (
     key: string,
     glyph: string,
     label: string,
     count: string | undefined,
     body: React.ReactNode,
-    opts?: { first?: boolean; open?: string },
+    opts?: { open?: string },
   ): React.ReactNode => {
     const open = opts?.open
+    const first = painted++ === 0
     return boxed ? (
       <RailPanel
         key={key}
@@ -1095,7 +1039,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       </RailPanel>
     ) : (
       <Box key={key} flexDirection="column" flexShrink={0}>
-        <Box marginTop={opts?.first ? 0 : 1}>
+        <Box marginTop={first ? 0 : 1}>
           <SectionHeader label={count ? `${label} · ${count}` : label} width={rowW} />
         </Box>
         {body}
@@ -1124,11 +1068,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           )}
         </Text>
       </Box>
-
-      {}
-      {section('seat', GLYPH.ownHybrid, 'SEAT', `${totalPeers} ${peerWord}`, seatNodes, {
-        first: true,
-      })}
 
       {solo ? (
         <>

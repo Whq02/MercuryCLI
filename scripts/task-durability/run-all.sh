@@ -7,7 +7,7 @@
 # gate-watch: scripts/reliability/helpers/durablePublishKillChild.ts src/daemon/ownedDaemon.ts
 # gate-watch: src/keybindings/writeBindings.ts src/memdir/mnemeConsolidate.ts
 # gate-watch: src/services/interview/decisionRecord.ts src/services/vulcan/addonInstaller.ts
-# gate-watch: src/tools/LSPTool/mercuryOps.ts src/utils/* src/utils/cockpit/presenceLive.ts
+# gate-watch: src/tools/LSPTool/mercuryOps.ts src/utils/*
 # gate-watch: src/utils/observability/invocationTrace.ts src/utils/router/postures.ts
 # gate-watch: src/utils/sessionStorage/resumeSnapshot.ts src/utils/verification/verificationState.ts
 set -u

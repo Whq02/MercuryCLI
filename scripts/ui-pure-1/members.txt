@@ -41,7 +41,6 @@ prove-one-shot-render-settles.ts
 prove-pane-window.ts
 prove-panel-dismissal-layers.ts
 prove-picker-id-line-guard.ts
-prove-presence-live.ts
 prove-rail-hysteresis.ts
 prove-resize-laws.ts
 prove-resume-mid-turn-guard.ts

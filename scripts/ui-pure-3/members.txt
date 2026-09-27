@@ -46,6 +46,7 @@ prove-no-new-hex.ts
 prove-overlay-stack.ts
 prove-pointer-shape.ts
 prove-project-scope.ts
+prove-rail-first-box.ts
 prove-render-oracle.ts
 prove-resume-full-history.ts
 prove-run-capsule.ts

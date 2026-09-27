@@ -219,7 +219,7 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
   const sheetRule = session.findIndex(line => /^▔+$/.test(line.trim()) && line.trim().length >= COLS - 2)
   check('no full-width sheet rule crosses the terminal', sheetRule < 0, `rule at row ${sheetRule}`)
   check('the composer stays on screen under the picker', session.some(l => l.includes(COMPOSER)), 'the composer placeholder is not on screen')
-  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('SEAT') || l.includes('lanes')), session.slice(0, 4).join(' | '))
+  check('the lanes rail stays on screen beside the picker', session.some(l => l.includes('lanes')), session.slice(0, 4).join(' | '))
   if (faceWindow !== null && sessionWindow !== null) {
     check(`the window's left edge equals the Boot face's (${faceWindow.left})`, sessionWindow.left === faceWindow.left, `session ${sessionWindow.left}`)
     check(`the window's top row equals the Boot face's (${faceWindow.top})`, sessionWindow.top === faceWindow.top, `session ${sessionWindow.top}`)

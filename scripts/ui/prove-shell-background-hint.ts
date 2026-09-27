@@ -665,8 +665,8 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
   }
   const world = await mountTree(COLS, ROWS, h(Harness))
   await until(`${name}: the chrome mounts with the composer armed`, () => insertRef.current !== null && world.stdin.isRaw && world.frame().length > 0)
-  if (helmHome === '1') await until(`${name}: the lanes rail paints (the cockpit)`, () => world.frame().includes('SEAT'))
-  else await until(`${name}: no lanes rail paints (the wide non-cockpit view)`, () => world.frame().length > 0 && !world.frame().includes('SEAT'))
+  if (helmHome === '1') await until(`${name}: the lanes rail paints (the cockpit)`, () => world.frame().includes('lanes'))
+  else await until(`${name}: no lanes rail paints (the wide non-cockpit view)`, () => world.frame().length > 0 && !world.frame().includes('lanes'))
   await until(`${name}: the fold paints the running shell as the collapsed row`, () => world.frame().includes(RUNNING_ROW) && world.frame().includes(COMMAND_LINE))
   await until(`${name}: the hint paints under the row`, () => hintLines(world.lines()).length === 1)
   await until(`${name}: the footer names the chord beside esc interrupt`, () => world.frame().includes(FOOTER_HINT))
