@@ -9,6 +9,8 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  unwatchFile,
+  watchFile,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,7 +35,7 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetScale } = await import('../lib/captureDriver.ts')
+const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } = await import('../lib/captureDriver.ts')
 const PACE = vshotBudgetScale()
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -189,6 +191,31 @@ function liveRecords(home: string): ReturnType<typeof readSessionWorkers> {
   return Object.fromEntries(Object.entries(readSessionWorkers(join(home, 'daemon'))).filter(([, r]) => r.endedAt === undefined))
 }
 
+async function waitForBirthRecords(home: string): Promise<ReturnType<typeof readSessionWorkers>> {
+  const path = join(home, 'daemon', 'concourse-workers.json')
+  const started = Date.now()
+  const ceiling = vshotBudgetMs(60_000)
+  const records = await new Promise<ReturnType<typeof readSessionWorkers>>(resolve => {
+    let settled = false
+    const finish = (rows: ReturnType<typeof readSessionWorkers>): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(deadline)
+      unwatchFile(path, observe)
+      resolve(rows)
+    }
+    const observe = (): void => {
+      const rows = liveRecords(home)
+      if (Object.keys(rows).length > 0) finish(rows)
+    }
+    const deadline = setTimeout(() => finish(liveRecords(home)), ceiling)
+    watchFile(path, { interval: 50 }, observe)
+    observe()
+  })
+  console.log(`  [BIRTH] daemon record witness after ${Date.now() - started}ms (ceiling ${ceiling}ms): ${JSON.stringify(Object.keys(records))}`)
+  return records
+}
+
 function transcriptsOf(home: string): string[] {
   const dir = join(home, 'projects')
   if (!existsSync(dir)) return []
@@ -235,13 +262,15 @@ for (const [cols, rows] of [
     cols,
     rows,
     sends: [...enterNewChat],
+    ready: BASE_AB ? undefined : 'ready · Sonnet 5',
     stableTicks: 8,
-    total: 200,
-    assert: r => {
+    total: 300,
+    assert: async r => {
       printFrame(`u1 ${cols}x${rows}`, r.lines)
       check(`u1 ${cols}x${rows}: the boot landed with the composer live`, r.payload.sendReceipts !== undefined, r.tail.slice(-200))
       const born = BASE_AB ? 0 : 1
-      check(`u1 ${cols}x${rows}: ↵ on New Session BIRTHED exactly one session (one live worker record — born = registered)`, Object.keys(liveRecords(r.home)).length === born, JSON.stringify(Object.keys(liveRecords(r.home))))
+      const registered = BASE_AB ? liveRecords(r.home) : await waitForBirthRecords(r.home)
+      check(`u1 ${cols}x${rows}: ↵ on New Session BIRTHED exactly one session (one live worker record — born = registered)`, Object.keys(registered).length === born, JSON.stringify(Object.keys(registered)))
       check(`u1 ${cols}x${rows}: the born session is blank — no transcript exists yet (no words were sent)`, transcriptsOf(r.home).length === 0, transcriptsOf(r.home).join(','))
       const daemonLog = join(r.home, 'daemon')
       check(`u1 ${cols}x${rows}: the daemon pre-warmed in the scratch home (its dir exists)`, existsSync(daemonLog), daemonLog)
