@@ -182,12 +182,12 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
     const out = join(scratch, 'sweep.json')
     const WIDTHS = [100, 97, 96, 100, 150, 149, 144, 150, 120]
     const cfg = {
-      cols: 120, rows: 40, total: 320,
+      cols: 120, rows: 40, total: 600,
       argv: ['node', BIN], out, cwd: process.cwd(),
-      resizes: WIDTHS.map((cols, i) => ({ atTick: 80 + i * 16, cols, rows: 40 })),
+      resizes: WIDTHS.map((cols, i) => ({ afterMark: 'drafted', afterMs: 4000 + i * 3200, cols, rows: 40 })),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'draft survives' },
+        { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 60, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: 'draft survives', mark: 'drafted' },
       ],
       readyText: 'draft survives', readySettleTicks: 3,
     }
@@ -222,7 +222,11 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       finalLines = payload.grid.map(row => row.map(c => c.c).join(''))
     } catch {
     }
-    t.check('the sweep survived every SIGWINCH', r.status === 0, `exit=${r.status}`)
+    t.check(
+      'the sweep survived every SIGWINCH',
+      r.status === 0,
+      r.status === 0 ? `exit=${r.status}` : `exit=${r.status} ${(r.stderr ?? '').trim().slice(-320)}`,
+    )
     t.check(
       'and captured a frame at every geometry it passed through',
       stages.length === WIDTHS.length,
