@@ -26,6 +26,7 @@ export type Continue =
   | { reason: 'stream_fault_recovery'; attempt: number }
   | { reason: 'tool_call_refusal_recovery'; attempt: number }
   | { reason: 'empty_reply_retry'; attempt: number }
+  | { reason: 'reasoning_only_recovery'; attempt: number }
   | { reason: 'chant_recovery'; attempt: number }
   | { reason: 'checkpoint_settle_guard' }
   | { reason: 'overflow_recovery'; rung: 'prune' | 'fold'; source: 'provider' | 'estimate' }

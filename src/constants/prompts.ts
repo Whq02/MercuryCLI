@@ -15,6 +15,7 @@ import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
 import { mercuryEngineIdentityLine } from '../prompt/engineIdentity.js'
 import { getModelKnowledgeCutoff } from '../utils/model/capabilities.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
@@ -277,16 +278,21 @@ ${prependBullets(items).join('\n')}`
 
 const BATCHING_INSTRUCTION = 'Default to batching: when the next step needs several independent reads, searches or checks, issue them in one response so they can run concurrently. Call dependent tools sequentially; wait for each prerequisite before starting the next call.'
 
-function usingToolsSection(toolNames: ReadonlySet<string>, replMode: boolean): string | '' {
+function localWorkingDirectoryLine(cwd: string): string {
+  return `Files you create go in the working directory: ${cwd}. The memory folder named below is not it.`
+}
+
+function usingToolsSection(toolNames: ReadonlySet<string>, replMode: boolean, localCwd?: string): string | '' {
   const taskToolName = toolNames.has(TASK_CREATE_TOOL_NAME) ? TASK_CREATE_TOOL_NAME : null
   const workBreakdown = taskToolName
     ? `Break down and manage work with the ${taskToolName} tool — useful for planning and for letting the user track progress. Mark each item complete as soon as it is done; do not batch completions.`
     : null
+  const opening = localCwd === undefined ? '' : `${localWorkingDirectoryLine(localCwd)}\n\n`
   if (replMode) {
-    if (!workBreakdown) return ''
+    if (!workBreakdown) return opening === '' ? '' : `# Using your tools\n\n${opening.trimEnd()}`
     return `# Using your tools
 
-${prependBullets([workBreakdown]).join('\n')}`
+${opening}${prependBullets([workBreakdown]).join('\n')}`
   }
   const embedded = hasEmbeddedSearchTools()
   const perTool: string[] = [
@@ -309,7 +315,7 @@ ${prependBullets([workBreakdown]).join('\n')}`
   if (workBreakdown) items.push(workBreakdown)
   return `# Using your tools
 
-${prependBullets(items).join('\n')}`
+${opening}${prependBullets(items).join('\n')}`
 }
 
 function toneSection(): string {
@@ -446,9 +452,14 @@ export async function getSystemPrompt(
   const replMode = toolNames.has('REPL')
 
 
+  const localLane = declaredRouteOf(model) === 'local'
   const [instructionEstate, usingTools] = await resolveSystemPromptSections([
     systemPromptSection('instruction_estate', () => instructionEstateSection(toolNames)),
-    systemPromptSection('using_tools', () => usingToolsSection(toolNames, replMode) || null),
+    keyedSystemPromptSection(
+      'using_tools',
+      () => (localLane ? model : null),
+      () => usingToolsSection(toolNames, replMode, localLane ? getOriginalCwd() : undefined) || null,
+    ),
   ])
 
   const staticSections: Array<string | null> = [
