@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/commands/** mercury-skills/** src/skills/bundled/** src/skills/bundledSkills*
-# gate-watch: src/utils/permissions/filesystem* scripts/skills/** scripts/gate/generated-assets.tsv scripts/lib/generated-assets-map.mjs
+# gate-watch: src/utils/permissions/filesystem* scripts/skills/** scripts/gate/generated-assets.tsv scripts/lib/generated-assets-map.mjs scripts/lib/codeText.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/commands.ts src/extensions/load/contributions.ts
 # gate-watch: src/hooks/useSkillsChange.ts src/services/engine-connector/rosterTerms.ts
 # gate-watch: src/services/instructions/sourceText.ts src/services/kitMenu/kitCatalogue.ts
