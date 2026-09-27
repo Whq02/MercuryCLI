@@ -1,23 +1,14 @@
 ---
 name: spreadsheets
-description: Use when reading, creating or repairing Excel workbooks, formulas or CSV-to-Excel output. Not for Word, slides, PDFs or databases.
+description: Use when editing Excel workbooks or turning tabular data into one without losing formulas. Not for databases or other Office files.
 argument-hint: "<file.xlsx or new> [operation]"
 ---
 # Spreadsheets
 
-- Resolve `${MERCURY_SKILL_DIR}` from the supplied base directory.
-- Inspect sheets, dimensions, headers and formulas with `python3 "${MERCURY_SKILL_DIR}/scripts/sheet_summary.py" workbook.xlsx`; use `--self-test` to test the helper.
-- Load editable formulas with openpyxl's `load_workbook("workbook.xlsx", data_only=False)`; use a separate `data_only=True` load for cached values.
-- Treat missing or stale caches as unknown, not computed results; openpyxl does not calculate formulas.
-- Check preservation requirements for macros, links, rich text and unsupported workbook features before saving.
-- Keep numbers/dates typed; write untrusted imported text as text, not formulas.
-- Write formulas with `=`, English function names and comma separators; quote sheet names in references.
-- Apply number formats, header styles, freeze panes, widths and filters; avoid merged data cells.
-- Use validation, conditional formatting and editable charts where needed.
-- Use pandas for tabular analysis/export; apply formatting explicitly afterwards.
-- Recalculate with Excel or LibreOffice; save separately, reopen cached values and inspect formula errors.
-- Check sheet names, headers, counts and representative formulas against independent calculations.
-- Use `read_only=True` or `write_only=True` for large sequential workloads.
+Inventory sheets, formulas and preservation requirements before selecting the installed toolchain. With openpyxl, edit a `data_only=False` load; use a separate `data_only=True` load to inspect cached results. It does not calculate formulas. Empty or stale caches are unknown results, not zeroes.
 
-## Sources
-Checked: 2026-09-15. [openpyxl](https://openpyxl.readthedocs.io/en/stable/), [pandas](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html), [LibreOffice](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html).
+If macros must survive, use `keep_vba=True` and retain the macro-enabled format. That flag does not preserve every Excel feature: check links, charts and other required parts before saving. Keep imported numbers and dates typed, and untrusted strings literal rather than allowing formula execution.
+
+Make the requested cell changes without replacing unrelated sheets or styles. Use formulas for derived values, with English function names, comma separators and correctly quoted sheet references.
+
+Save a new workbook and recalculate it with Excel or LibreOffice when available. Reopen caches, check error cells and independently cross-check representative totals with Mercury `Eval` or the project's test runner. Compare sheet names, ranges and formulas too. If no calculation engine ran, explicitly report that computed results remain unverified.

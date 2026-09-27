@@ -1,21 +1,14 @@
 ---
 name: pdf-documents
-description: Use when reading, transforming, filling, redacting or generating PDFs. Not for editing Word, Excel or PowerPoint source files.
+description: Use when inspecting, creating or changing PDFs, including forms and redaction. Not for editing an Office source document.
 argument-hint: "<file.pdf or new> [operation]"
 ---
 # PDF documents
 
-- Resolve `${MERCURY_SKILL_DIR}` from the supplied base directory.
-- Inspect page count, metadata, encryption and text hints with `python3 "${MERCURY_SKILL_DIR}/scripts/pdf_pages.py" file.pdf`; use `--self-test` to test the helper.
-- Obtain required passwords; treat text detection as heuristic and OCR image-only pages.
-- Use pypdf for `extract_text()`, `get_fields()` and `PdfWriter` page operations.
-- Use pdfplumber for positioned words, cropped regions and table extraction.
-- Import `pymupdf` for rendering and redaction; apply redactions, never cover sensitive text with boxes.
-- Merge with `append`, split with `add_page`, rotate with `rotate`, stamp with `merge_page`.
-- Clone forms with `PdfWriter(clone_from=reader)`; fill using `writer.update_page_form_field_values(writer.pages[0], values, auto_regenerate=False)`.
-- Generate structured layouts with ReportLab flowables; use browser PDF export for HTML and LibreOffice for office files.
-- Save separately; reopen, check page count, encryption and metadata.
-- Compare extracted text with rendered pages; inspect glyphs, clipping and table breaks.
+Open the requested pages with Mercury `Read`; separate visible content from extractable text. Use OCR for scans. Check which PDF libraries and renderers are installed before writing a transformation; a byte-regex scan is not a PDF parser.
 
-## Sources
-Checked: 2026-09-15. [pypdf](https://pypdf.readthedocs.io/en/stable/user/forms.html), [pdfplumber](https://github.com/jsvine/pdfplumber), [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/page.html), [ReportLab](https://pypi.org/pypi/reportlab/json), [LibreOffice](https://help.libreoffice.org/latest/en-US/text/shared/guide/start_parameters.html).
+Choose the operation, not a universal converter: pypdf for page assembly and AcroForms, pdfplumber for positioned extraction, PyMuPDF for rendering or applied redactions, ReportLab for new layouts. For forms, preserve the document's field tree and verify the filled values and their rendered appearances. Obtain authorised access to encrypted inputs.
+
+Write a separate output. Redaction must remove the underlying content, not paint over it; check extracted text, metadata and embedded material as well as the page image. Do not claim secure removal from a visual check alone.
+
+Reopen the output and inspect changed pages with `Read`. Compare page order, form values and required text; look for clipping and missing glyphs. Name any missing dependency or unverified visual result instead of calling conversion success proof.
