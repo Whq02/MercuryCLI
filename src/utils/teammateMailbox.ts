@@ -165,7 +165,8 @@ export async function wasMailboxDeliveryHandled(delivery: MailboxDelivery, messa
   const { isSessionCleared } = await import('./sessionStorage/clearedSessions.js')
   if (isSessionCleared(delivery.sessionId)) return true
   const carriesId = (message: Message): boolean => message.uuid === delivery.id ||
-    (message.type === 'user' && message.batchUuids?.includes(delivery.id) === true)
+    (message.type === 'user' && message.batchUuids?.includes(delivery.id) === true) ||
+    (message.type === 'attachment' && message.attachment.type === 'queued_command' && message.attachment.source_uuid === delivery.id)
   if (messages.some(carriesId)) return true
   const { loadSessionFile } = await import('./sessionStorage/loading.js')
   const stored = await loadSessionFile(delivery.sessionId as UUID)

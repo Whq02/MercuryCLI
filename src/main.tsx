@@ -2291,6 +2291,7 @@ async function printLaunch(args: {
         workload: typedString(opts.workload),
         setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
+        subscribeAppState: store.subscribe,
         sessionStartHooksPromise,
       },
     )

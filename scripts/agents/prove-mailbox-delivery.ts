@@ -117,7 +117,7 @@ try {
   const painter = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'UserTeammateMessage.tsx'), 'utf8')
   check('the painter unescapes the summary attribute and the transcript body for display', painter.includes('{unescapeXmlAttr(message.summary)}') && painter.includes('<Ansi>{unescapeXml(message.content)}</Ansi>'))
   const poll = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
-  check('a run of refused acknowledgements is reported once through the error log, and a success resets the count', poll.includes('if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {') && poll.includes('consecutive acknowledgements refused') && poll.includes('await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)\n            refusedAcknowledgements = 0'))
+  check('a run of refused acknowledgements is reported once through the error log, and a success resets the count', poll.includes('if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {') && poll.includes('consecutive acknowledgements refused') && poll.includes('await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)\n          refusedAcknowledgements = 0'))
   await mailbox.getMailboxStore(recipient, team).write([{ from: 'peer', text: 'keep content', timestamp: 't', delivery: { id: '../not-an-id', sessionId: '../../not-a-session' } }])
   const repaired = await mailbox.prepareMailboxDelivery(recipient, team, randomUUID())
   check('malformed delivery metadata is replaced without losing the message', repaired?.messages[0]?.text === 'keep content' && repaired.id !== '../not-an-id')
