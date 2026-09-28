@@ -60,6 +60,7 @@ import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyRep
 import {
   renderOpenaiInstructions,
   resolveBehaviourContract,
+  stableBehaviourDigest,
 } from '../../../prompt/behaviourContract.js'
 import {
   openaiSourceIdentity,
@@ -620,7 +621,7 @@ export async function* openaiCallModel(
     providerScope: `openai:${auth.account.kind}`,
     servedModel: modelId,
     projectPath: getCwd(),
-    behaviorContractDigest: contract.digest,
+    behaviorContractDigest: stableBehaviourDigest(contract),
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
