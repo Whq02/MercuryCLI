@@ -83,7 +83,7 @@ section('§3 a lane with no recorded rate lands unpriced: zero USD under the unk
 section('§4 the first-party table and the GPT pins are untouched')
 {
   const sonnet = getModelCosts('claude-sonnet-5')
-  check('claude-sonnet-5 keeps the 3/15 tier', sonnet.inputTokens === 3 && sonnet.outputTokens === 15)
+  check('claude-sonnet-5 keeps the 2/10 tier', sonnet.inputTokens === 2 && sonnet.outputTokens === 10)
   const { gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.ts')
   const gptId = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4'].find(id => gptDisplayPin(id)?.costInPerMtok !== undefined)
   if (gptId !== undefined) {

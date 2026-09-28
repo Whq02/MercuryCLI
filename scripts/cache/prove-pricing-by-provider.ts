@@ -57,7 +57,7 @@ section('§1 one owner per route — each family prices at its own recorded rate
 {
   flagReset()
   const sonnet = cost.resolveModelPricing('claude-sonnet-5')
-  check('first-party: claude-sonnet-5 at the 3/15 tier, basis recorded', sonnet.basis === 'recorded' && sonnet.costs.inputTokens === 3 && sonnet.costs.outputTokens === 15)
+  check('first-party: claude-sonnet-5 at the 2/10 tier, basis recorded', sonnet.basis === 'recorded' && sonnet.costs.inputTokens === 2 && sonnet.costs.outputTokens === 10)
 
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
@@ -233,7 +233,7 @@ section('§4 the display string follows the same owner')
   check('a Hugging Face floor displays (it is a published figure)', cost.getModelPricingString('huggingface/deepseek-ai/DeepSeek-V4-Pro-0813') === '$1.32/$3.96 per Mtok')
   check('an unpriced id displays nothing', cost.getModelPricingString('compat/fixture-model') === undefined)
   check('a same-family estimate displays nothing (the display never shows a guessed figure)', cost.getModelPricingString('claude-nonesuch-9') === undefined)
-  check('the first-party rows still display', cost.getModelPricingString('claude-sonnet-5') === '$3/$15 per Mtok')
+  check('the first-party rows still display', cost.getModelPricingString('claude-sonnet-5') === '$2/$10 per Mtok')
 }
 
 section('§5 the shape')
