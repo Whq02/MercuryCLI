@@ -13,6 +13,9 @@ function section(t: string): void {
 
 type AnyMessage = Record<string, unknown>
 
+const RESULT_REPEATS = 3000
+const resultText = (i: number): string => `file ${i} contents `.repeat(RESULT_REPEATS)
+
 function toolTurn(i: number, stampMsAgo: number): AnyMessage[] {
   const now = Date.now()
   return [
@@ -21,6 +24,7 @@ function toolTurn(i: number, stampMsAgo: number): AnyMessage[] {
       uuid: `asst-${i}`,
       timestamp: new Date(now - stampMsAgo).toISOString(),
       message: {
+        id: `resp-${i}`,
         role: 'assistant',
         content: [
           { type: 'tool_use', id: `tu-${i}`, name: 'Read', input: { file_path: `/tmp/f${i}` } },
@@ -37,7 +41,7 @@ function toolTurn(i: number, stampMsAgo: number): AnyMessage[] {
           {
             type: 'tool_result',
             tool_use_id: `tu-${i}`,
-            content: `file ${i} contents `.repeat(50),
+            content: resultText(i),
           },
         ],
       },
@@ -50,9 +54,29 @@ async function main(): Promise<void> {
 
   const ok = await import('../../src/services/run/ownerKey.js')
   const planMod = await import('../../src/services/run/requestContextPlan.js')
+  const { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } = await import('../../src/services/compact/pruneProtections.js')
+  const { getTimeBasedMCConfig } = await import('../../src/services/compact/timeBasedMCConfig.js')
+  const { MAX_TOOL_RESULTS_PER_MESSAGE_CHARS } = await import('../../src/constants/toolLimits.js')
+  const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'parity', lane: 'main' })
   const skip = new Set<string>()
+
+  section('0. the eight-turn fixture is sized so the five-result window decides')
+  {
+    const resultTokens = roughTokenCountEstimation(resultText(0))
+    const keepRecent = getTimeBasedMCConfig().keepRecent
+    check(
+      'six results outweigh the newest-output protection, so the five-result window decides and exactly three of eight are eligible',
+      keepRecent === 5 && resultTokens * (keepRecent + 1) > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,
+      `${resultTokens} tokens per result, keep ${keepRecent}, protection ${PROTECT_NEWEST_TOOL_OUTPUT_TOKENS}`,
+    )
+    check(
+      'each turn is its own response group under the aggregate tool-result budget',
+      resultText(0).length < MAX_TOOL_RESULTS_PER_MESSAGE_CHARS,
+      `${resultText(0).length} chars per result, budget ${MAX_TOOL_RESULTS_PER_MESSAGE_CHARS}`,
+    )
+  }
 
   section('1. apply/inspect parity — stale-cache turn (time-based clear fires)')
   {
@@ -208,8 +232,9 @@ async function main(): Promise<void> {
     }
     visit(source)
     if (!initial || !resetState) throw new Error('The teammate initialization and compaction state expressions must exist')
-    const make = (expression: import('typescript').Expression, parent: ReturnType<typeof createContentReplacementState> | undefined, current?: ReturnType<typeof createContentReplacementState>) =>
-      new Function('createContentReplacementState', 'toolUseContext', 'contentReplacementState', `return (${expression.getText(source)})`)(createContentReplacementState, { contentReplacementState: parent }, current)
+    type ReplacementState = ReturnType<typeof createContentReplacementState>
+    const make = (expression: import('typescript').Expression, parent: ReplacementState | undefined, current?: ReplacementState, resume?: { contentReplacementState?: ReplacementState }) =>
+      new Function('createContentReplacementState', 'toolUseContext', 'contentReplacementState', 'config', `return (${expression.getText(source)})`)(createContentReplacementState, { contentReplacementState: parent }, current, resume === undefined ? {} : { resume })
     check('teammates leave a disabled replacement policy disabled', make(initial, undefined) === undefined)
     for (const budgetChars of [Infinity, 4096]) {
       const parent = { ...createContentReplacementState(), budgetChars }
@@ -219,6 +244,9 @@ async function main(): Promise<void> {
       child.replacements.set('old-call', 'old-content')
       const compacted = make(resetState, parent, child)
       check(`teammate compaction preserves budget ${budgetChars} and clears old ids`, compacted.budgetChars === budgetChars && compacted.seenIds.size === 0 && compacted.replacements.size === 0)
+      const rebuilt = reconstructForSubagentResume(parent, messages, [{ kind: 'tool-result', toolUseId: 'tu-0', replacement: '[stale tool result recorded earlier]' }])
+      check(`a resumed teammate carries the state its transcript rebuilt at budget ${budgetChars}`, rebuilt !== undefined && make(initial, parent, undefined, { contentReplacementState: rebuilt }) === rebuilt && rebuilt.replacements.get('tu-0') === '[stale tool result recorded earlier]')
+      check(`a resume that rebuilt no state falls to the parent's policy at budget ${budgetChars}`, make(initial, parent, undefined, {}).budgetChars === budgetChars && make(initial, undefined, undefined, {}) === undefined)
     }
 
     let release!: () => void
@@ -235,9 +263,13 @@ async function main(): Promise<void> {
       skipToolNames: skip,
       pressurePrune: true,
     }, 'apply').then(result => { settled = true; return result })
-    await persistenceStarted
+    const persistenceAsked = await Promise.race([
+      persistenceStarted.then(() => true),
+      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000)),
+    ])
+    check('the applied projection asks for persistence instead of finishing silently', persistenceAsked)
     await new Promise<void>(resolve => setImmediate(resolve))
-    check('the applied projection cannot finish before its records persist', !settled)
+    check('the applied projection cannot finish before its records persist', persistenceAsked && !settled)
     release()
     const applied = await pending
     check('the persisted projection then finishes with three clearings', settled && applied.reductions.pressurePruned?.cleared === 3)
@@ -247,4 +279,7 @@ async function main(): Promise<void> {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-void main()
+main().catch(error => {
+  console.error(error)
+  process.exit(1)
+})
