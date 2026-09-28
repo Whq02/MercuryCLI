@@ -600,6 +600,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   )
 
   const deferredSpaceArmedRef = useRef(false)
+  const deferredSpaceShiftRef = useRef(0)
 
   const stashPeakRef = useRef(0)
 
@@ -998,12 +999,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (deferredSpaceArmedRef.current) {
         deferredSpaceArmedRef.current = false
         if (
+          cursorOffset === input.length &&
           value.length === input.length + 1 &&
           value.startsWith(input) &&
           value.slice(input.length) !== ' ' &&
           value.slice(input.length).trim() !== ''
         ) {
           value = `${input} ${value.slice(input.length)}`
+          deferredSpaceShiftRef.current = 1
         }
       }
 
@@ -2835,7 +2838,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     value: input,
     onChange,
     cursorOffset,
-    onChangeCursorOffset: setCursorOffset,
+    onChangeCursorOffset: (offset: number) => {
+      const shift = deferredSpaceShiftRef.current
+      deferredSpaceShiftRef.current = 0
+      setCursorOffset(offset + shift)
+    },
     columns: textColumns,
     pastePendingRef,
     routeInput: compactWork === undefined ? undefined : (raw: string, key: Key, event: import('../../ink/events/input-event.js').InputEvent, pastePending: boolean) => {

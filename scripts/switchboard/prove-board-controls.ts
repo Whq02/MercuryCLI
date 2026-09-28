@@ -461,9 +461,10 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
       shared.startsWith(GROUND_NOTE_MARK),
   )
   const snapSrc = read('src/services/concourse/concourseSnapshot.ts')
+  const portableSrc = read('src/utils/sessionStoragePortable.ts')
   check(
-    'F5 the board brief (and its stage-2 title) derive from the words alone — both content shapes strip the note',
-    snapSrc.includes('stripGroundNote(content)') && snapSrc.includes('.filter(b => !b.text.startsWith(GROUND_NOTE_MARK))'),
+    'F5 the board brief (and its stage-2 title) derive from the words alone — the brief reads the session list\'s first-prompt extractor, which strips the note from every text',
+    snapSrc.includes('extractFirstPromptFromHead(lines.join') && portableSrc.includes('const text = stripGroundNote(rawText)'),
   )
   const logsSrc = read('src/utils/sessionStorage/logs.ts')
   check(

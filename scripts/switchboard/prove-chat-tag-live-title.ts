@@ -62,5 +62,24 @@ check('§2 status() reads the title through the registered deriver, the snapshot
 check('§2 POISON absent: status() no longer spells the frozen snapshot alone', !/title: this\.record\.title,\n/.test(connectorSrc))
 check('§2 the hop registers the deriver beside its snapshot derivation', hopSrc.includes('seat.registerLiveTitleDeriver(liveTitleDeriverFor(supervisor, sessionTitleOf, headBriefLabel))'))
 
+const { extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
+const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/utils/messages/factories.ts')
+for (const withPrompt of [false, true]) {
+  const id = withPrompt ? 'aaaaaaaa-1111-4222-8333-555555555555' : 'aaaaaaaa-1111-4222-8333-666666666666'
+  const commandRows = [
+    createSyntheticUserCaveatMessage(),
+    { type: 'user', message: { role: 'user', content: formatCommandInputTags('model', 'claude-sonnet-5') } },
+    { type: 'user', message: { role: 'user', content: '<local-command-stdout>Set model to claude-sonnet-5</local-command-stdout>' } },
+    ...(withPrompt ? [{ type: 'user', message: { role: 'user', content: 'hello after a command' } }] : []),
+  ].map((row, index) => ({ ...row, uuid: `command-first-${index}`, sessionId: id, timestamp: new Date().toISOString() }))
+  const bytes = encodeSeedTranscript(commandRows, id)
+  writeFileSync(join(paths.getProjectDir(workspace), `${id}.jsonl`), bytes)
+  const rec = { ...record, sessionId: id, runnerId: `command-${withPrompt}` }
+  const expected = withPrompt ? 'hello after a command' : '/model'
+  const actual = headBriefLabel(rec, 48)
+  check(`command-first ${withPrompt ? 'with prompt' : 'command only'}: the view title uses the session list's clean words`, actual === expected && actual === extractFirstPromptFromHead(bytes) && !actual.includes('<'), String(actual))
+  check('the live view-header title follows the same cleanup', deriver(rec) === expected, String(deriver(rec)))
+}
+
 console.log(failures === 0 ? '\nprove-chat-tag-live-title: ALL LAWS HOLD' : `\nprove-chat-tag-live-title: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

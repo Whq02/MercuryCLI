@@ -15,7 +15,6 @@ import { bootBirthFacts, nextBirthModel } from '../switchboard/bootBirthFacts.js
 import { sessionDefaultsKeyOn } from '../switchboard/sessionDefaultsKey.js'
 import { workspaceKindOf } from '../../daemon/concourseWorktrees.js'
 import { saturnSoonestFireMs } from '../../daemon/saturn.js'
-import { GROUND_NOTE_MARK, stripGroundNote } from '../../daemon/isolationNote.js'
 import {
   currentProject,
   inProject,
@@ -27,7 +26,7 @@ import {
   type ParkedSessionFact,
   type ProjectIdentity,
 } from '../../utils/bootCardFacts.js'
-import { getProjectDir } from '../../utils/sessionStoragePortable.js'
+import { extractFirstPromptFromHead, getProjectDir, LITE_READ_BUF_SIZE } from '../../utils/sessionStoragePortable.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
@@ -182,34 +181,11 @@ export function tailActivityLabel(rec: { sessionId: string; workspaceId: string 
 
 export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, maxChars = 200): string | null {
   try {
-    const lines = transcriptWindowLines(rec, 8192, 'head')
+    const lines = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, 'head')
     if (lines === null) return null
-    for (const raw of lines) {
-      if (raw.length < 8) continue
-      let entry: unknown
-      try {
-        entry = JSON.parse(raw)
-      } catch {
-        continue
-      }
-      const e = entryShapeOf(entry)
-      if (e === null || e.type !== 'user') continue
-      const content = e.message?.content
-      const text =
-        typeof content === 'string'
-          ? stripGroundNote(content)
-          : Array.isArray(content)
-            ? content
-                .filter((b): b is { type: 'text'; text: string } => !!b && (b as { type?: unknown }).type === 'text' && typeof (b as { text?: unknown }).text === 'string')
-                .filter(b => !b.text.startsWith(GROUND_NOTE_MARK))
-                .map(b => b.text)
-                .join(' ')
-            : ''
-      const flat = text.replace(/\s+/g, ' ').trim()
-      if (flat.length === 0) continue
-      return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
-    }
-    return null
+    const flat = extractFirstPromptFromHead(lines.join('\n')).replace(/\s+/g, ' ').trim()
+    if (flat.length === 0) return null
+    return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
   } catch {
     return null
   }
