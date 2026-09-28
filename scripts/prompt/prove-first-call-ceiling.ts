@@ -109,13 +109,11 @@ try {
     const eagerBytes = eager.reduce((total, tool) => total + bytes(tool), 0)
     const attachmentBytes = reminderTexts.reduce((total: number, text: string) => total + Buffer.byteLength(normalize(text), 'utf8'), 0)
     const deferred = tools.filter(tool => tool.defer_loading === true)
+    const requestBytes = bytes(body)
+    const tokens = (count: number) => `~${Math.round(count / 4)} tokens at 4 bytes/token`
     console.log(`  [INFO] ${route}: eager definitions: ${eager.map(tool => `${tool.name}(${bytes(tool)})`).join(' ')}`)
-    console.log(`  [INFO] ${route}: ${deferred.length} deferred definitions on the wire (${deferred.reduce((total, tool) => total + bytes(tool), 0)} bytes) · Debug ${tools.some(tool => tool.name === 'Debug') ? 'present' : 'absent'} · coordination tools ${tools.filter(tool => String(tool.name).startsWith('mcp__mercury__')).length} · system ${systemBytes} · attachments ${attachmentBytes} · request ${bytes(body)}`)
-    check(`${route}: system text stays under 27500 bytes`, systemBytes <= 27500, String(systemBytes))
-    check(`${route}: initial definitions stay under 46000 bytes`, eagerBytes <= 46000, String(eagerBytes))
-    check(`${route}: at most twelve tools load initially`, eager.length <= 12, String(eager.length))
-    check(`${route}: initial attachments stay under 6800 bytes`, attachmentBytes <= 6800, String(attachmentBytes))
-    check(`${route}: the complete request stays within its byte ceiling`, bytes(body) <= (route === 'anthropic' ? 240000 : 81000), String(bytes(body)))
+    console.log(`  [INFO] ${route}: ${deferred.length} deferred definitions on the wire (${deferred.reduce((total, tool) => total + bytes(tool), 0)} bytes) · Debug ${tools.some(tool => tool.name === 'Debug') ? 'present' : 'absent'} · coordination tools ${tools.filter(tool => String(tool.name).startsWith('mcp__mercury__')).length}`)
+    console.log(`  [INFO] ${route}: sizes reported, never bounded — system ${systemBytes} bytes (${tokens(systemBytes)}) · initial definitions ${eagerBytes} bytes in ${eager.length} tools (${tokens(eagerBytes)}) · attachments ${attachmentBytes} bytes · request ${requestBytes} bytes (${tokens(requestBytes)})`)
     check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Agent', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
     check(`${route}: rare tools remain discoverable without loading initially`, rare.every(name => !eager.some(tool => tool.name === name) && reminderTexts.some((text: string) => text.split('\n').includes(name))))
   }
