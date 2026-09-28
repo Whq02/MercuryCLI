@@ -159,6 +159,12 @@ try {
   tally.check('the seat\'s sidecar records the resolved word (effort max)', sidecar?.effort === 'max', JSON.stringify(sidecar))
   tally.check('the seat\'s sidecar records the pin the call asked (effortOverride max)', sidecar?.effortOverride === 'max', JSON.stringify(sidecar))
   tally.check('the sidecar names the seat\'s model', sidecar?.model === SEAT_MODEL, JSON.stringify(sidecar))
+  const firstAnswerSeen = Date.now() + TURN_MS / 3
+  const firstAnswerLanded = (): boolean => {
+    const only = agentFilesUnder(projects, '.jsonl')
+    return only.length === 1 && readFileSync(only[0]!, 'utf8').includes(SEAT_ONE)
+  }
+  while (!firstAnswerLanded() && Date.now() < firstAnswerSeen) await sleep(50)
   const firstFiles = agentFilesUnder(projects, '.jsonl')
   const firstRows = firstFiles[0] === undefined ? 0 : recordLines(firstFiles[0])
   tally.check('the seat\'s first turn landed in one transcript file named by the seat\'s own agent id', firstFiles.length === 1 && /agent-a[0-9a-z]{8}\.jsonl$/.test(firstFiles[0] ?? ''), firstFiles.join(' | '))
