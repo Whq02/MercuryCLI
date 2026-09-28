@@ -375,7 +375,7 @@ if (!existsSync(DIST)) {
     for (const s of WF_SEATS) check(`…and the workflow agent ${s} (by its prompt head, with the run view's own state word)`, roster.includes(`${SEAT_MARK}${s}`))
     check(`…the plain sub-agent ${PLAIN_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting|landed)`).test(roster))
     check(`…the shell by its command, asked "${SHELL_DESCRIPTION}"`, roster.includes(`local_bash "sleep ${SHELL_SECONDS}"`) && roster.includes(`asked: ${SHELL_DESCRIPTION}`))
-    check('every row names what is owed and the doors (SendMessage for the sub-agent, TaskOutput and TaskStop for the rest)', /owed:/.test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster) && roster.includes('reach it: TaskOutput and TaskStop by its id'))
+    check('every row names what is owed and the doors (SendMessage for the sub-agent, TaskStop for the rest)', /owed:/.test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster) && roster.includes('reach it: TaskStop by its id'))
     check('the sub-agent row carries its output path', new RegExp(`\\[a[0-9a-z]+\\][^\\n]*output: [^\\n]*\\.output`).test(roster))
     check('the roster says a running agent is never re-spawned and an owed result is collected', roster.includes('A running agent is never re-spawned') && roster.includes('never re-derived'))
     check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'))

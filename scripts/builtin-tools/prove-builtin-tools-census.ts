@@ -110,8 +110,28 @@ check(
   `undeclared: ${newUndeclared.join(', ')}`,
 )
 
-const RETIRED_TOOLS = ['RememberLesson', 'LaunchFleet']
-const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts/builtin-tools/fixtures', 'scripts/project-services/fixtures']
+type RetiredTool = { name: string; covered: string; aliases: string[]; references: RegExp[] }
+const RETIRED_TOOLS: RetiredTool[] = [
+  { name: 'RememberLesson', covered: 'plain memory writing and RecordConvention cover it', aliases: [], references: [/RememberLesson/] },
+  { name: 'LaunchFleet', covered: 'TaskCreate once per subtask covers it', aliases: [], references: [/LaunchFleet/] },
+  {
+    name: 'TaskOutput',
+    covered: 'reading the task output file with Read covers it',
+    aliases: ['AgentOutputTool', 'BashOutputTool'],
+    references: [
+      /\bTaskOutputTool\b/,
+      /TASK_OUTPUT_TOOL_NAME/,
+      /['"`]TaskOutput['"`]/,
+      /^\s*TaskOutput\s*:/m,
+      /^\| TaskOutput \|/m,
+      /\b(?:AgentOutputTool|BashOutputTool)\b/,
+      /\bTaskOutput (?:tool|shows|reads)\b/,
+    ],
+  },
+]
+const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts', 'design-system']
+const RETIRED_SCAN_HISTORY =
+  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts)/
 const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
 function walk(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -131,24 +151,42 @@ for (const root of RETIRED_SCAN_ROOTS) {
   if (!existsSync(dir)) continue
   for (const file of walk(dir, [])) {
     const rel = file.slice(repoRoot.length + 1)
+    if (RETIRED_SCAN_HISTORY.test(rel)) continue
     const text = readFileSync(file, 'utf8')
-    const hits = RETIRED_TOOLS.filter(name => rel.includes(name) || text.includes(name))
+    const hits = RETIRED_TOOLS.filter(t => t.references.some(re => re.test(rel) || re.test(text))).map(t => t.name)
     if (hits.length > 0) survivors.push(`${rel} (${hits.join(', ')})`)
   }
 }
 check(
-  'neither retired tool name survives in src/, docs/ or the roster fixtures: RememberLesson (plain memory writing and RecordConvention cover it) and LaunchFleet (TaskCreate once per subtask covers it)',
+  `no retired tool is referenced in src/, docs/, scripts/ or design-system/ (history pages aside): ${RETIRED_TOOLS.map(t => `${t.name} (${t.covered})`).join('; ')}`,
   survivors.length === 0,
   `${survivors.length} file(s): ${survivors.join('; ')}`,
 )
+const retiredNames = new Set(RETIRED_TOOLS.flatMap(t => [t.name, ...t.aliases]))
 check(
-  'the live census rows name neither retired tool',
-  !census.rows.some(r => RETIRED_TOOLS.includes(r.name)),
-  census.rows.filter(r => RETIRED_TOOLS.includes(r.name)).map(r => r.name).join(', '),
+  'the live census rows name no retired tool',
+  !census.rows.some(r => retiredNames.has(r.name)),
+  census.rows.filter(r => retiredNames.has(r.name)).map(r => r.name).join(', '),
 )
+const { getAllBaseTools } = await import('../../src/tools.ts')
+const { findToolByName } = await import('../../src/Tool.ts')
+const { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, IN_PROCESS_TEAMMATE_ALLOWED_TOOLS } = await import(
+  '../../src/constants/tools.ts'
+)
+const catalogue = getAllBaseTools()
+const offered = [...retiredNames].filter(n => findToolByName(catalogue, n) !== undefined)
 check(
-  'the census counts 73 tools: the 75 less RememberLesson and LaunchFleet',
-  census.summary.tools === 73,
+  'no route offers a retired tool or one of its old spellings: the catalogue resolves none of them',
+  offered.length === 0,
+  `resolved: ${offered.join(', ')}`,
+)
+const inAgentSets = [...retiredNames].filter(
+  n => ALL_AGENT_DISALLOWED_TOOLS.has(n) || ASYNC_AGENT_ALLOWED_TOOLS.has(n) || IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(n),
+)
+check('the agent allow and deny sets name no retired tool', inAgentSets.length === 0, inAgentSets.join(', '))
+check(
+  'the census counts 72 tools: the 75 less RememberLesson, LaunchFleet and TaskOutput',
+  census.summary.tools === 72,
   `live census: ${census.summary.tools} tools`,
 )
 

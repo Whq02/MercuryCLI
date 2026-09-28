@@ -93,7 +93,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   TaskCreate: 'plan',
   TaskGet: 'plan',
   TaskList: 'plan',
-  TaskOutput: 'plan',
   TaskStop: 'plan',
   TaskUpdate: 'plan',
   Retain: 'memory',

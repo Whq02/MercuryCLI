@@ -414,14 +414,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_TASKS',
     conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
-  TaskOutput: {
-    intents: ['read output from a background task or agent'],
-    units: ['task-coordination'],
-    class: 'observation',
-    resources: ['task', 'agent'],
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
   TaskStop: {
     intents: ['stop a background task or agent'],
     units: ['task-coordination'],

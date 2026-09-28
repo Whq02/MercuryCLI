@@ -2279,12 +2279,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT } = await import(
               './shell/outputLimits.js'
             )
-            const { TASK_MAX_OUTPUT_DEFAULT, TASK_MAX_OUTPUT_UPPER_LIMIT } = await import(
-              './task/outputFormatting.js'
-            )
             const rows: Array<[string, number, number]> = [
               ['BASH_MAX_OUTPUT_LENGTH', BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT],
-              ['TASK_MAX_OUTPUT_LENGTH', TASK_MAX_OUTPUT_DEFAULT, TASK_MAX_OUTPUT_UPPER_LIMIT],
             ]
             const findings: string[] = []
             for (const [name, def, cap] of rows) {

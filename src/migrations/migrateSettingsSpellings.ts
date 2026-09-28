@@ -134,8 +134,6 @@ export function rewriteRetiredSettingsSpellings(settings: unknown): unknown {
 export const RETIRED_TOOL_NAMES: Readonly<Record<string, string>> = {
   Task: 'Agent',
   KillShell: 'TaskStop',
-  AgentOutputTool: 'TaskOutput',
-  BashOutputTool: 'TaskOutput',
   ListMcpResourcesTool: 'ListMcpResources',
   ReadMcpResourceTool: 'ReadMcpResource',
   contract: 'Contract',

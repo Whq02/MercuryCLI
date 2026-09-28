@@ -98,39 +98,6 @@ const refusal = (tool: string, r: { success: boolean; error?: unknown }): string
 const describes = (schema: unknown, key: string): string =>
   ((schema as { shape: Record<string, { description?: string }> }).shape[key]?.description ?? '')
 
-const { TaskOutputTool } = await import(
-  '../../src/tools/TaskOutputTool/TaskOutputTool.tsx'
-)
-{
-  const r = TaskOutputTool.inputSchema.safeParse({
-    task_id: 'x',
-    timeout: '5000',
-  })
-  t(
-    'TaskOutput timeout accepts a quoted number',
-    r.success === true && (r as { data?: { timeout?: number } }).data?.timeout === 5000,
-  )
-  const above = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: '900000' }) as Parsed<{ timeout: number }>
-  t(
-    'TaskOutput timeout above the ceiling passes the schema (the tool clamps it to 600000 and says so)',
-    above.success === true && above.data.timeout === 900000,
-    refusal('TaskOutput', above),
-  )
-  const atCeiling = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: 600000 }) as Parsed<{ timeout: number }>
-  t('TaskOutput timeout at the ceiling parses as before', atCeiling.success === true && atCeiling.data.timeout === 600000, refusal('TaskOutput', atCeiling))
-  const negative = TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: -1 })
-  t(
-    'TaskOutput timeout below zero keeps a typed refusal',
-    negative.success === false && refusal('TaskOutput', negative).includes('The parameter `timeout` must have a minimum of 0'),
-    refusal('TaskOutput', negative),
-  )
-  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, 'ten minutes']) {
-    t(`TaskOutput timeout ${String(bad)} keeps a typed refusal`, TaskOutputTool.inputSchema.safeParse({ task_id: 'x', timeout: bad }).success === false)
-  }
-  const words = describes(TaskOutputTool.inputSchema, 'timeout')
-  t("the timeout parameter's own words name the ceiling and say a value above it is clamped", words.includes('600000') && /clamped/.test(words), words)
-}
-
 const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
 {
   const r = SleepTool.inputSchema.safeParse({ seconds: '30' })

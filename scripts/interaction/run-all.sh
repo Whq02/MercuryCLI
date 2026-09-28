@@ -12,7 +12,7 @@
 # gate-watch: src/components/tasks/useFocusedWork.ts src/entrypoints/init.ts src/hooks/*
 # gate-watch: src/input-core/pending-input.ts src/screens/REPL.tsx src/tools/AgentTool/AgentTool.tsx
 # gate-watch: src/tools/AgentTool/UI.tsx src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/UI.tsx
-# gate-watch: src/tools/GrepTool/GrepTool.ts src/tools/TaskOutputTool/TaskOutputTool.tsx src/utils/*
+# gate-watch: src/tools/GrepTool/GrepTool.ts src/utils/*
 # gate-watch: src/utils/cockpit/inputSelectionBridge.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

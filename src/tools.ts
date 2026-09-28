@@ -98,7 +98,6 @@ import { SyntheticOutputTool } from './tools/SyntheticOutputTool/SyntheticOutput
 import { TaskCreateTool } from './tools/TaskCreateTool/TaskCreateTool.js'
 import { TaskGetTool } from './tools/TaskGetTool/TaskGetTool.js'
 import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
-import { TaskOutputTool } from './tools/TaskOutputTool/TaskOutputTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { TaskUpdateTool } from './tools/TaskUpdateTool/TaskUpdateTool.js'
 import { TeamBriefTool } from './tools/TeamBriefTool/TeamBriefTool.js'
@@ -179,7 +178,6 @@ export function getAllBaseTools(): Tools {
 
   const tools: Array<Tool | null | undefined | false> = [
     AgentTool,
-    TaskOutputTool,
     BashTool,
     ...(includeSearchTools ? [GlobTool, GrepTool] : []),
     ExitPlanModeV2Tool,

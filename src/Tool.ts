@@ -37,7 +37,6 @@ import type {
   MCPProgress,
   REPLToolProgress,
   SkillToolProgress,
-  TaskOutputProgress,
   ToolProgressData,
   WebSearchProgress,
 } from './types/tools.js'
@@ -51,7 +50,6 @@ export type {
   MCPProgress,
   REPLToolProgress,
   SkillToolProgress,
-  TaskOutputProgress,
   ToolProgressData,
   WebSearchProgress,
 }

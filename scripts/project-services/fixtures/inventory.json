@@ -62,7 +62,6 @@
       "TaskCreate",
       "TaskGet",
       "TaskList",
-      "TaskOutput",
       "TaskStop",
       "TaskUpdate",
       "TeamBrief",
