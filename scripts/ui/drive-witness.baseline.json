@@ -233,7 +233,7 @@
     "scripts/ui/prove-modal-surfaces-fit.ts": 10,
     "scripts/ui/prove-mode-band-first-frame-drive.ts": 16,
     "scripts/ui/prove-mode-discipline.ts": 3,
-    "scripts/ui/prove-model-default-key-drive.ts": 18,
+    "scripts/ui/prove-model-default-key-drive.ts": 16,
     "scripts/ui/prove-model-picker-frontier-members.ts": 7,
     "scripts/ui/prove-model-picker-groups-drive.ts": 8,
     "scripts/ui/prove-model-picker-landing-cursor.ts": 13,
