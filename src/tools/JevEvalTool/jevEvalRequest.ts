@@ -5,15 +5,11 @@ import {
   type JevQuestion,
   type JevRequest,
 } from '../../services/jev/jevContract.js'
-import {
-  JEV_EVAL_BYTES_PER_TOKEN,
-  JEV_EVAL_ESCAPE_MEANS,
-  JEV_EVAL_ESCAPE_OPTION,
-  JEV_EVAL_PARAGRAPH_FACT,
-  JEV_EVAL_ROW_POSITION_PREFIX,
-  JEV_EVAL_TOKENIZER_NOTE,
-} from './constants.js'
-import type { JevEvalEvidenceItem, JevEvalInput, JevEvalQuestion } from './jevEvalSchema.js'
+import { JEV_EVAL_BYTES_PER_TOKEN, JEV_EVAL_ESCAPE_MEANS, JEV_EVAL_ESCAPE_OPTION, JEV_EVAL_TOKENIZER_NOTE } from './constants.js'
+import { expandJevEvalEvidence, type JevEvalItem, type JevEvalSource } from './jevEvalEvidence.js'
+import type { JevEvalInput, JevEvalQuestion } from './jevEvalSchema.js'
+
+export { expandJevEvalEvidence, type JevEvalItem, jevEvalRowLabel } from './jevEvalEvidence.js'
 
 export interface JevEvalEstimate {
   stateTokens: number
@@ -23,12 +19,6 @@ export interface JevEvalEstimate {
   longestTokens: number
 }
 
-export interface JevEvalItem {
-  label: string
-  index: number
-  state: Record<string, string>
-}
-
 export interface JevEvalItemRequest {
   item: JevEvalItem
   request: Pick<JevRequest, 'state' | 'questions'>
@@ -36,23 +26,11 @@ export interface JevEvalItemRequest {
 }
 
 export type JevEvalAssembly =
-  | { ok: true; items: JevEvalItemRequest[]; questions: Record<string, JevQuestion>; order: string[] }
+  | { ok: true; items: JevEvalItemRequest[]; questions: Record<string, JevQuestion>; order: string[]; sources: JevEvalSource[] }
   | { ok: false; reason: string }
 
 export function jevEvalTokenEstimate(text: string): number {
   return Math.ceil(Buffer.byteLength(text, 'utf8') / JEV_EVAL_BYTES_PER_TOKEN)
-}
-
-export function jevEvalRowLabel(index: number): string {
-  return `${JEV_EVAL_ROW_POSITION_PREFIX}${index + 1}`
-}
-
-export function jevEvalItems(evidence: readonly JevEvalEvidenceItem[]): JevEvalItem[] {
-  return evidence.map((item, index) => {
-    if (typeof item === 'string') return { label: jevEvalRowLabel(index), index, state: { [JEV_EVAL_PARAGRAPH_FACT]: item } }
-    const { id, ...facts } = item
-    return { label: id ?? jevEvalRowLabel(index), index, state: facts }
-  })
 }
 
 export function jevEvalWireQuestion(question: JevEvalQuestion): JevQuestion {
@@ -86,11 +64,13 @@ export function assembleJevEvalRequest(input: JevEvalInput, road: JevRoad = 'off
       longestId = id
     }
   }
+  const expanded = expandJevEvalEvidence(input.evidence)
+  if (!expanded.ok) return expanded
   const items: JevEvalItemRequest[] = []
-  for (const item of jevEvalItems(input.evidence)) {
+  for (const item of expanded.items) {
     const stateTokens = jevEvalTokenEstimate(JSON.stringify(item.state))
     const totalTokens = stateTokens + questionTotal
-    const name = `evidence[${item.index}] (${item.label})`
+    const name = `evidence[${item.index}] (${item.origin !== undefined ? `${item.origin}, ` : ''}${item.label})`
     if (stateTokens + longestTokens > JEV_MAX_STATE_PLUS_QUESTION_TOKENS) {
       return {
         ok: false,
@@ -105,5 +85,5 @@ export function assembleJevEvalRequest(input: JevEvalInput, road: JevRoad = 'off
     }
     items.push({ item, request: { state: item.state, questions }, estimate: { stateTokens, questionTokens, totalTokens, longestId, longestTokens } })
   }
-  return { ok: true, items, questions, order }
+  return { ok: true, items, questions, order, sources: expanded.sources }
 }

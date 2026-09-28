@@ -6,7 +6,9 @@ import { noteJevAttempt, noteJevWireFailure, settleJevCall, takeJevNotice } from
 import { readJevSettings } from '../../services/jev/jevSetting.js'
 import { type JevAgentIdentity, jevStatus } from '../../services/jev/jevStatus.js'
 import { getAgentContext } from '../../utils/agentContext.js'
+import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { JEV_EVAL_MAX_RESULT_CHARS, JEV_EVAL_TOOL_NAME } from './constants.js'
+import { jevEvalFileOf } from './jevEvalEvidence.js'
 import { assembleJevEvalRequest } from './jevEvalRequest.js'
 import {
   jevEvalAbortedText,
@@ -105,8 +107,15 @@ export async function jevEvalCall(input: JevEvalInput, signal?: AbortSignal): Pr
     return { ...unavailableResult, text: [`${headline} | ${jevEvalFailureEvidence(failure)}${count}`, ...notices].join('\n') }
   }
   const kinds: Record<string, JevEvalKind> = Object.fromEntries(input.questions.map(question => [question.id, question.kind]))
-  const table = jevEvalTableText({ rows, order: assembled.order, kinds })
+  const table = jevEvalTableText({ rows, order: assembled.order, kinds, sources: assembled.sources })
   return { status: 'ok', text: after.kind === 'ready' ? table : `${table}\n${unavailable(after, road).text}` }
+}
+
+export function jevEvalFilePaths(input: Pick<JevEvalInput, 'evidence'>): string[] {
+  return (input.evidence ?? []).flatMap(item => {
+    const file = jevEvalFileOf(item)
+    return file === undefined ? [] : [file.path]
+  })
 }
 
 export const JevEvalTool = buildTool({
@@ -145,6 +154,14 @@ export const JevEvalTool = buildTool({
   },
   interruptBehavior() {
     return 'cancel' as const
+  },
+  async checkPermissions(input, context) {
+    const permissionContext = context.getAppState().toolPermissionContext
+    for (const path of jevEvalFilePaths(input)) {
+      const decision = checkReadPermissionForTool({ name: JEV_EVAL_TOOL_NAME, getPath: () => path }, input, permissionContext)
+      if (decision.behavior !== 'allow') return decision
+    }
+    return { behavior: 'allow', updatedInput: input }
   },
   toAutoClassifierInput() {
     return ''

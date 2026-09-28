@@ -830,11 +830,24 @@ answered, the stated cost and the generation id, or the refusal's own code
 and words.
 
 A JevEval call takes a list of evidence items — each a record of named
-facts or a bare paragraph — and one question set; every item is judged
-against every question in its own request, all sent at once and each
-counted against the pace and the budget, and one table comes back: rows
-the items, columns the questions, a row that no answer reached saying so
-in place. A cell under the confidence floor (0.6; for a yes/no answer, a
+facts, a bare paragraph, a file or an inline table — and one question
+set; every item is judged against every question in its own request, all
+sent at once and each counted against the pace and the budget, and one
+table comes back: rows the items, columns the questions, a row that no
+answer reached saying so in place. A file item names a path the tool
+reads under the same rules as Read (deny and ask rules, the working
+directories): a table file — tsv, csv, a markdown pipe table or jsonl, by
+its extension or a stated format — becomes one item per row with the
+header's names as the facts' names, and a column named `id` (or the
+stated id column) keys the row and is never sent; a text file is one item,
+or one per paragraph when the format says so. An inline table
+(`columns` and `rows`) does the same without a file, so a session never
+pastes every row. The result names each file or table source after the
+rows with its row count and bytes. The size rule is stated in the tool's
+own words and never trims: files and tables add at most 100 rows to one
+call and a file is at most 1,048,576 bytes; above either, or on a ragged
+row, the call is refused naming the count or the line and nothing is
+sent. A cell under the confidence floor (0.6; for a yes/no answer, a
 probability from 0.4 through 0.6) opens with "unsure" and keeps its
 numbers. The tool's prompt asks the model to put to Jev only what the
 evidence in front of it answers: whether a run was killed from outside,

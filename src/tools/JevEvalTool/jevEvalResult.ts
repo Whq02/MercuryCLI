@@ -10,6 +10,7 @@ import {
 } from '../../services/jev/jevContract.js'
 import { jevStatusIsFinalForSession } from '../../services/jev/jevStatus.js'
 import { JEV_EVAL_CONFIDENCE_FLOOR, JEV_EVAL_LEVEL_LABEL_CLIP, JEV_EVAL_UNSURE } from './constants.js'
+import { type JevEvalSource, jevEvalSourceLine } from './jevEvalEvidence.js'
 import type { JevEvalKind } from './jevEvalSchema.js'
 
 export const JEV_EVAL_FINAL_NOTICE = 'no further call will succeed this session for this reason; do not retry; carry on unaided'
@@ -29,6 +30,7 @@ export interface JevEvalTable {
   rows: readonly JevEvalRow[]
   order: readonly string[]
   kinds: Readonly<Record<string, JevEvalKind>>
+  sources?: readonly JevEvalSource[]
 }
 
 export function jevEvalProbability(value: number): string {
@@ -113,7 +115,7 @@ export function jevEvalTableText(table: JevEvalTable): string {
   const verdict = answered.length === table.rows.length ? 'ok' : `ok ${answered.length} of ${table.rows.length}`
   const header = `JEV ${model} | ${count(table.rows.length, 'item')} × ${count(table.order.length, 'question')} | in ${inputTokens} tok | ${jevUsdLabel(charge)}${stated !== undefined ? ` | stated $${stated}` : ''}${requestId ? ` | id=${requestId}` : ''} | floor ${JEV_EVAL_CONFIDENCE_FLOOR} | ${verdict}`
   const columns = `item | ${table.order.map(id => `${id} (${table.kinds[id] ?? '?'})`).join(' | ')}`
-  return [header, columns, ...table.rows.map(row => jevEvalRowLine(row, table.order)), ...jevEvalLegendLines(table)].join('\n')
+  return [header, columns, ...table.rows.map(row => jevEvalRowLine(row, table.order)), ...jevEvalLegendLines(table), ...(table.sources ?? []).map(jevEvalSourceLine)].join('\n')
 }
 
 export function jevEvalNoticeSentence(status: JevStatus): string {
