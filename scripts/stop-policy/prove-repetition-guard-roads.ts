@@ -5,6 +5,9 @@ import { join } from 'node:path'
 import {
   bootRunner,
   bound,
+  DIST,
+  NODE,
+  MODEL,
   childEnv,
   isInit,
   isResult,
@@ -130,7 +133,7 @@ const sameAnswers = (answers: { bash: string[]; grep: string[] }): boolean =>
   answers.bash.length === 1 && answers.grep.length === 1 && !answers.bash[0]!.startsWith('error:') && !answers.grep[0]!.startsWith('error:')
 
 if (import.meta.main) {
-  section('§1 the refusing repetition breaker is gone from the tree; what stands is a guard that reminds and, only by the key, ends')
+  section('§1 calls are never refused for repeating; headless identical failures stop, and successful cycles remain opt-in')
   check('the old guard module is gone', !existsSync(join(REPO, 'src/services/tools/identicalFailureGuard.ts')))
   const named = offenders(join(REPO, 'src'), BREAKER_NAMES, RELEASE_NOTES)
   check('nothing under src names the breaker, its bounds, its nudges, its stop or its result subtype', named.length === 0, named.slice(0, 12).join(' · '))
@@ -139,11 +142,9 @@ if (import.meta.main) {
   const lastRunAt = orchestration.lastIndexOf('runToolUse(')
   check('the tool orchestration refuses no call for repeating: it closes the loop guard\'s round only after every call of the response has run', !/refus/i.test(orchestration) && closeAt > -1 && lastRunAt > -1 && closeAt > lastRunAt, `close=${closeAt} lastRun=${lastRunAt}`)
   const execution = src('src/services/tools/toolExecution.ts')
-  const observeAt = execution.indexOf('recordToolCall(')
-  const settleAt = execution.indexOf('await body')
-  check('the tool transaction records every settled call for the loop guard after the result, never before the call', observeAt > -1 && settleAt > -1 && observeAt > settleAt, `observe=${observeAt} settle=${settleAt}`)
+  check('unavailable calls are observed after their error result; known calls after the transaction settles', execution.includes('yield unavailable') && execution.includes('recordToolCall(') && execution.includes('await body') && execution.indexOf('recordToolCall(') > execution.indexOf('yield unavailable') && execution.lastIndexOf('recordToolCall(') > execution.indexOf('await body'))
   const guard = src('src/services/tools/loopGuard.ts')
-  check('the guard ends a turn only behind the settings key, and only for a cycle longer than one call', guard.includes('loopGuardStopEnabled === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled'))
+  check('successful cycles remain behind the key while headless identical failures have their own stop', guard.includes('loopGuardStopEnabled === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes('getIsNonInteractiveSession() && state.failureRun >= HEADLESS_FAILED_CALL_LIMIT'))
   const schema = src('src/entrypoints/sdk/coreSchemas.ts')
   check('the SDK result schema carries no repetition-breaker subtype and does carry the loop-stopped one', !schema.includes('repetition') && schema.includes("'error_loop_stopped'"))
   const agent = src('src/tools/AgentTool/agentToolUtils.ts')
@@ -151,7 +152,7 @@ if (import.meta.main) {
   const scriptsNamed = offenders(join(REPO, 'scripts'), BREAKER_NAMES)
   check('no proof pins the breaker', scriptsNamed.length === 0, scriptsNamed.slice(0, 12).join(' · '))
   const durability = src('docs/DURABILITY.md').replace(/\s+/g, ' ')
-  check('the durability page says no call is refused for repeating, the guard reminds by default, and the key ends the second detection of one cycle', durability.includes('A repeated tool call is never refused, and by default no turn is ended for repeating itself: the loop guard only reminds') && durability.includes('With `loopGuardStopEnabled: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
+  check('the durability page says no call is refused for repeating, the guard reminds by default, and the key ends the second detection of one cycle', durability.includes('A repeated tool call is never refused. In interactive sessions the loop guard only reminds by default') && durability.includes('eight consecutive failed calls') && durability.includes('With `loopGuardStopEnabled: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
 
   section('§2 DEFAULT ROAD on the built product: twenty identical reads of an unchanged file are reminded, never refused, and run to the model’s own end')
   {
@@ -239,6 +240,46 @@ if (import.meta.main) {
     check('no request carried the stop note before the end (the note is the next turn’s context, not this one’s)', wire.every(h => !h.stopped), j(wire.filter(h => h.stopped).map(h => h.n)))
     if (failed() === failedAtOpen) await removeWorld(home)
     else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)
+  }
+
+  section('§5 a headless built-product turn reports eight matching failures and exits with an error')
+  {
+    const home = join(SCRATCH_ROOT, `mercury-guard-failure-${process.pid}`)
+    const cwd = join(home, 'repo')
+    seedHome(home, cwd)
+    let calls = 0
+    const ask = 'Repeat the unavailable skill call.'
+    const server = createServer((req, res) => {
+      const chunks: Buffer[] = []
+      req.on('data', chunk => chunks.push(chunk))
+      req.on('end', () => {
+        const body = JSON.parse(Buffer.concat(chunks).toString() || '{}')
+        const opening = (userTextItems(body.messages ?? [])[0] ?? '').trim()
+        if (req.method !== 'POST' || opening !== ask) return answerText(res, 0, MODEL, 'svc')
+        calls++
+        if (calls <= 9) return answerTool(res, calls, MODEL, 'toolu_failure_' + calls, 'Skill', { skill: 'missing-proof-skill' })
+        return answerText(res, calls, MODEL, 'the fixture ended itself')
+      })
+    })
+    await new Promise<void>(done => server.listen(0, '127.0.0.1', done))
+    const port = (server.address() as { port: number }).port
+    const debug = join(home, 'debug.log')
+    const env = childEnv(home, port)
+    const child = Bun.spawn([NODE, DIST, '-p', ask, '--model', MODEL, '--permission-mode', 'bypassPermissions', '--allowed-tools', 'Skill', '--output-format', 'text', '--max-turns', '12', '--debug-file', debug], { cwd, env, stdout: 'pipe', stderr: 'pipe' })
+    const stdout = new Response(child.stdout).text()
+    const stderr = new Response(child.stderr).text()
+    const code = await child.exited
+    const out = await stdout
+    const err = await stderr
+    server.closeAllConnections()
+    await new Promise<void>(done => server.close(() => done()))
+    const stopped = 'stopped: the tool call Skill failed the same way 8 times in a row:'
+    check('the ninth failing request is never sent', calls === 8, 'calls=' + calls)
+    check('text mode exits 1 and names the call, count and failure', code === 1 && err.includes(stopped) && err.includes('Unknown skill: missing-proof-skill'), 'exit=' + code + ' stderr=' + err)
+    check('the stop is also recorded in the debug log', existsSync(debug) && readFileSync(debug, 'utf8').includes(stopped))
+    check('the fixture cannot turn the failure into successful final text', !out.includes('the fixture ended itself'), out)
+    if (code === 1 && calls === 8 && err.includes(stopped)) await removeWorld(home)
+    else console.log('  [forensics] the world stays at ' + home)
   }
 
   finish()
