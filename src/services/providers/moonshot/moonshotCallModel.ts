@@ -10,6 +10,7 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildMoonshotExtras } from '../openaicompat/compatWire.js'
+import { toolDeclarationRowAsTools } from '../zai/zaiCodec.js'
 import { KIMI_PRESERVED_THINKING_MODELS } from './kimiPins.js'
 import {
   moonshotChatCompletionsUrl,
@@ -50,6 +51,7 @@ export const moonshotLaneProfile: CompatLaneProfile = {
   noteServedModel: (requested, served, credential) => {
     recordMoonshotServedModel(requested, served, { identity: credential.accountIdentity })
   },
+  toolDeclarationRow: toolDeclarationRowAsTools,
 }
 
 export function moonshotLiveProofState(): { at: number; model: string } | null {

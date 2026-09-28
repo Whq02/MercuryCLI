@@ -52,12 +52,16 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('every declared route has a capability row', [...declared].every(r => tabled.has(r)), [...declared].filter(r => !tabled.has(r)).join(','))
   check('no capability row names an undeclared route', [...tabled].every(r => declared.has(r)), [...tabled].filter(r => !declared.has(r)).join(','))
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
-  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic').every(([, c]) => c === 'text'))
+  const TEXT_APPEND_ROUTES = new Set(['moonshot'])
+  check('every other row is a client-side text form (text, or text-append where the docs place an admission at the end of the messages)', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic').every(([r, c]) => (TEXT_APPEND_ROUTES.has(r) ? c === 'text-append' : c === 'text')))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
-    const expected = route === 'anthropic' ? 'block' : 'text'
+    const expected = route === 'anthropic' ? 'block' : TEXT_APPEND_ROUTES.has(route) ? 'text-append' : 'text'
     check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && (route === 'anthropic' ? verdict.why === 'first-party-contract' : verdict.why === 'route-table'))
   }
+  const olderKimi = wire.deferralWireFormFor('kimi-k2.6')
+  check('a Kimi model without dynamic tool loading (kimi-k2.6) reads the text form, and says why', olderKimi.form === 'text' && olderKimi.why === 'model-without-dynamic-tools' && wire.supportsToolDeferral('kimi-k2.6') === false, `${olderKimi.form}/${olderKimi.why}`)
+  check('the append form defers (supportsToolDeferral) on kimi-k3; the zai row stays text and does not defer (the live measurement ruled: the cache held but GLM never called a text-declared tool)', wire.supportsToolDeferral('kimi-k3') === true && wire.deferralWireFormFor('glm-5.3').form === 'text' && wire.supportsToolDeferral('glm-5.3') === false)
   const stranger = wire.deferralWireFormFor('mystery-model-9000')
   check('an unrecognised id reads the home lane evidence (first-party here ⇒ block)', stranger.form === 'block' && stranger.why === 'first-party-contract')
   const absent = wire.deferralWireFormFor('')
@@ -210,6 +214,7 @@ section('§6 THE FENCE — defer_loading and the description follow the wire for
   }
   check('first-party model: the block-form description (the unchanged bytes)', (await describe('claude-sonnet-5')) === getPrompt('block'))
   check('text-form model: the text-form description', (await describe('gpt-5.6-sol')) === getPrompt('text'))
+  check('text-append model: the append-form description (definitions appended to the conversation after the result)', (await describe('kimi-k3')) === getPrompt('text-append') && getPrompt('text-append') !== getPrompt('text') && /appended to the conversation/.test(getPrompt('text-append')))
   process.env.ANTHROPIC_BASE_URL = 'https://litellm.corp.example.com'
   probe._resetGatewayProbeStoreForTesting()
   probe.recordGatewayProbe('litellm.corp.example.com', { verdict: 'text', evidence: 'http 400: defer_loading', status: 400, probedAt: new Date().toISOString() })

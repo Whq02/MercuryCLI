@@ -145,6 +145,12 @@ export interface ToolPayloadPlan {
   announcement: string | null
   isDeferredUnadmitted(name: string): boolean
   restoredMissingTools: readonly string[]
+  admissionDeclarations: readonly AdmissionDeclaration[]
+}
+
+export interface AdmissionDeclaration {
+  toolUseId: string
+  tools: Tools
 }
 
 const ANNOUNCEMENT_OPEN = '<available-deferred-tools>'
@@ -237,6 +243,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
+  let admissionDeclarations: AdmissionDeclaration[] = []
   if (enabled && wire.form === 'text') {
     const available = new Map(roster.map(tool => [tool.name, tool]))
     roster = [
@@ -246,6 +253,16 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         return tool !== undefined && deferredNames.has(name) ? [tool] : []
       }),
     ]
+  } else if (enabled && wire.form === 'text-append') {
+    const available = new Map(roster.map(tool => [tool.name, tool]))
+    roster = [
+      ...roster.filter(tool => !deferredNames.has(tool.name)),
+      ...[...boundaryAdmittedNames(messages)].flatMap(name => {
+        const tool = available.get(name)
+        return tool !== undefined && deferredNames.has(name) ? [tool] : []
+      }),
+    ]
+    admissionDeclarations = admissionDeclarationsOf(messages, available, deferredNames, new Set(roster.map(tool => tool.name)))
   }
 
   const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
@@ -261,7 +278,53 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     announcement,
     isDeferredUnadmitted: (name: string) => enabled && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
+    admissionDeclarations,
   }
+}
+
+function boundaryAdmittedNames(messages: readonly Message[]): Set<string> {
+  const names = new Set<string>()
+  for (const message of messages) {
+    if (message.type !== 'system' || (message as { subtype?: string }).subtype !== 'compact_boundary') continue
+    const carried = (message as { compactMetadata?: { preCompactDiscoveredTools?: unknown } }).compactMetadata?.preCompactDiscoveredTools
+    if (!Array.isArray(carried)) continue
+    for (const name of carried) {
+      if (typeof name === 'string') names.add(name)
+    }
+  }
+  return names
+}
+
+function admissionDeclarationsOf(
+  messages: readonly Message[],
+  available: ReadonlyMap<string, Tool>,
+  deferredNames: ReadonlySet<string>,
+  listed: ReadonlySet<string>,
+): AdmissionDeclaration[] {
+  const declared = new Set<string>()
+  const out: AdmissionDeclaration[] = []
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result') continue
+      const inner = (block as { content?: unknown }).content
+      if (!Array.isArray(inner)) continue
+      const tools: Tool[] = []
+      for (const item of inner as unknown[]) {
+        if (!isToolReferenceBlock(item)) continue
+        const name = (item as { tool_name?: unknown }).tool_name
+        if (typeof name !== 'string' || !deferredNames.has(name) || listed.has(name) || declared.has(name)) continue
+        const tool = available.get(name)
+        if (tool === undefined) continue
+        declared.add(name)
+        tools.push(tool)
+      }
+      if (tools.length > 0) out.push({ toolUseId: block.tool_use_id, tools })
+    }
+  }
+  return out
 }
 
 export function announcementMessage(plan: ToolPayloadPlan): UserMessage | null {
@@ -293,12 +356,15 @@ export function foldAnnouncementIntoFirstUserTurn<M extends Message>(messages: M
   return out
 }
 
-export function admissionRecordText(names: readonly string[]): string {
+export function admissionRecordText(names: readonly string[], form: DeferralWireForm = 'text'): string {
   const list = names.map(n => `- ${n}`).join('\n')
+  if (form === 'text-append') {
+    return `Tools admitted to this session:\n${list}\nTheir complete definitions follow this result — call them like any other tool.`
+  }
   return `Tools admitted to this session:\n${list}\nTheir full schemas are in your tool list from this request on — call them like any other tool.`
 }
 
-export function renderAdmissionRecordsAsText<M extends Message | UserMessage | AssistantMessage>(messages: M[]): M[] {
+export function renderAdmissionRecordsAsText<M extends Message | UserMessage | AssistantMessage>(messages: M[], form: DeferralWireForm = 'text'): M[] {
   return messages.map(message => {
     if (message.type !== 'user') return message
     const content = (message as UserMessage).message.content
@@ -327,7 +393,7 @@ export function renderAdmissionRecordsAsText<M extends Message | UserMessage | A
       if (names.length === 0) return block
       return {
         ...(block as object),
-        content: [{ type: 'text' as const, text: admissionRecordText(names) }, ...rest],
+        content: [{ type: 'text' as const, text: admissionRecordText(names, form) }, ...rest],
       }
     })
     return {

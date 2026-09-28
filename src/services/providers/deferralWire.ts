@@ -2,8 +2,12 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
 import { readGatewayProbeVerdict } from './deferralProbe.js'
+import { kimiSupportsDynamicToolLoading } from './moonshot/kimiPins.js'
 
-export type DeferralWireForm = 'block' | 'text'
+export type DeferralWireForm =
+  | 'block'
+  | 'text'
+  | 'text-append'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
@@ -11,7 +15,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   anthropic: 'gateway-evidence',
   openai: 'text',
   zai: 'text',
-  moonshot: 'text',
+  moonshot: 'text-append',
   deepseek: 'text',
   'openai-compat': 'text',
   openrouter: 'text',
@@ -35,6 +39,7 @@ export interface DeferralWireVerdict {
     | 'gateway-probed-block'
     | 'gateway-probed-text'
     | 'gateway-unprobed'
+    | 'model-without-dynamic-tools'
     | 'no-route'
 }
 
@@ -69,7 +74,14 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
   if (verdict.kind === 'unrecognised') return homeLaneWireForm(reads)
   const capability = DEFERRAL_WIRE_CAPABILITY[verdict.route]
   if (capability === 'gateway-evidence') return homeLaneWireForm(reads)
+  if (capability === 'text-append' && !textAppendAccepted(verdict.route, model)) {
+    return { form: 'text', why: 'model-without-dynamic-tools' }
+  }
   return { form: capability, why: 'route-table' }
+}
+
+function textAppendAccepted(route: CallModelRoute, model: string): boolean {
+  return route === 'moonshot' ? kimiSupportsDynamicToolLoading(model) : true
 }
 
 export function toolReferenceWireAccepted(reads: DeferralWireReads = {}): boolean {
@@ -84,6 +96,7 @@ const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallMode
 
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
   if (form === 'block') return true
+  if (form === 'text-append') return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }

@@ -61,7 +61,8 @@ import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
-import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
+import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowAsText, type ApiShapedTool, type ToolDeclarationRowBuilder } from '../zai/zaiCodec.js'
+import type { ZaiWireMessage } from '../zai/zaiClient.js'
 import { effortVocabularyFor, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
 import {
@@ -77,7 +78,7 @@ import {
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
-import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
@@ -136,6 +137,7 @@ export interface CompatLaneProfile {
   }): Record<string, unknown>
   keepsReasoningHistory?(wireModel: string): boolean
   noteServedModel?(requested: string, served: string, credential: CompatCredential): void
+  toolDeclarationRow?: ToolDeclarationRowBuilder
 }
 
 const liveProof = new Map<CompatLaneId, { at: number; model: string }>()
@@ -288,12 +290,13 @@ async function buildApiShapedTools(
   options: Options,
   model: string,
   conversationKey?: string,
+  pool: Tools = tools,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
-        tools,
+        tools: pool,
         agents: options.agents,
         allowedAgentTypes: options.allowedAgentTypes,
         model,
@@ -313,6 +316,21 @@ async function buildApiShapedTools(
     }
   }
   return out
+}
+
+async function buildToolDeclarationRows(
+  plan: ToolPayloadPlan,
+  pool: Tools,
+  options: Options,
+  model: string,
+  build: ToolDeclarationRowBuilder,
+): Promise<ReadonlyMap<string, ZaiWireMessage>> {
+  const rows = new Map<string, ZaiWireMessage>()
+  for (const declaration of plan.admissionDeclarations) {
+    const shaped = await buildApiShapedTools(declaration.tools, options, model, plan.conversationKey, pool)
+    if (shaped.length > 0) rows.set(declaration.toolUseId, build(mapToolsToZai(shaped)))
+  }
+  return rows
 }
 
 export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeof EMPTY_USAGE {
@@ -371,7 +389,8 @@ export async function* compatChatCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
+  const toolDeclarations = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages, plan.wireForm), plan)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
@@ -395,6 +414,7 @@ export async function* compatChatCallModel(
     messages: mapMessagesToZai(systemText, toBridgeMessages(preparedMessages), {
       keepReasoningHistory: profile.keepsReasoningHistory?.(wireModel) ?? false,
       imagesSupported: imagesSupportedForCompatModel(modelId),
+      ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
     }),
     ...(apiTools.length > 0
       ? {

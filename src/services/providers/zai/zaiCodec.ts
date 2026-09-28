@@ -9,7 +9,9 @@ import type {
   ZaiMessage,
   ZaiStreamEvent,
   ZaiTool,
+  ZaiToolDeclarationMessage,
   ZaiUsage,
+  ZaiWireMessage,
 } from './zaiClient.js'
 
 
@@ -28,6 +30,20 @@ export function mapToolsToZai(tools: readonly ApiShapedTool[]): ZaiTool[] {
       parameters: t.input_schema,
     },
   }))
+}
+
+export type ToolDeclarationRowBuilder = (tools: readonly ZaiTool[]) => ZaiWireMessage
+
+export function toolDeclarationRowAsTools(tools: readonly ZaiTool[]): ZaiToolDeclarationMessage {
+  return { role: 'system', tools: [...tools] }
+}
+
+export function toolDeclarationText(tools: readonly ZaiTool[]): string {
+  return `Additional tools declared for this conversation from this point on, in the same format as your tool list; call them exactly like the tools declared there.\n<tools>\n${tools.map(tool => JSON.stringify(tool)).join('\n')}\n</tools>`
+}
+
+export function toolDeclarationRowAsText(tools: readonly ZaiTool[]): ZaiMessage {
+  return { role: 'system', content: toolDeclarationText(tools) }
 }
 
 export function imageUrlOfBlock(block: unknown): string | undefined {
@@ -78,14 +94,14 @@ function userRowContent(texts: readonly string[], images: readonly string[]): st
   return parts
 }
 
-export function requestCarriesImage(messages: readonly ZaiMessage[]): boolean {
-  return messages.some(message => Array.isArray(message.content) && message.content.some(part => part.type === 'image_url'))
+export function requestCarriesImage(messages: readonly ZaiWireMessage[]): boolean {
+  return messages.some(message => 'content' in message && Array.isArray(message.content) && message.content.some(part => part.type === 'image_url'))
 }
 
 export { providerRefusedImage }
 
 export function imageRefusalWords(
-  request: { messages: readonly ZaiMessage[] },
+  request: { messages: readonly ZaiWireMessage[] },
   fault: { code: string; message: string },
 ): string | null {
   if (!requestCarriesImage(request.messages)) return null
@@ -96,9 +112,9 @@ export function imageRefusalWords(
 export function mapMessagesToZai(
   system: string | undefined,
   messages: readonly MessageParam[],
-  opts?: { keepReasoningHistory?: boolean; imagesSupported?: boolean },
-): ZaiMessage[] {
-  const out: ZaiMessage[] = []
+  opts?: { keepReasoningHistory?: boolean; imagesSupported?: boolean; toolDeclarations?: ReadonlyMap<string, ZaiWireMessage> },
+): ZaiWireMessage[] {
+  const out: ZaiWireMessage[] = []
   const imagesSupported = opts?.imagesSupported !== false
   if (system && system.trim() !== '') out.push({ role: 'system', content: system })
   for (const message of messages) {
@@ -132,6 +148,7 @@ export function mapMessagesToZai(
       continue
     }
     const toolRows: ZaiMessage[] = []
+    const declarationRows: ZaiWireMessage[] = []
     const userParts: string[] = []
     const userImages: string[] = []
     for (const block of message.content) {
@@ -145,6 +162,8 @@ export function mapMessagesToZai(
           content: b.is_error ? `[tool error] ${parts.text}` : parts.text,
         })
         userImages.push(...parts.images)
+        const declaration = opts?.toolDeclarations?.get(b.tool_use_id)
+        if (declaration !== undefined) declarationRows.push(declaration)
       } else {
         const url = block.type === 'image' && imagesSupported ? imageUrlOfBlock(block) : undefined
         if (url !== undefined) userImages.push(url)
@@ -152,6 +171,7 @@ export function mapMessagesToZai(
       }
     }
     out.push(...toolRows)
+    out.push(...declarationRows)
     if (userParts.length > 0 || userImages.length > 0) {
       out.push({ role: 'user', content: userRowContent(userParts, userImages) })
     }
@@ -165,6 +185,7 @@ export interface BuildZaiRequestInput {
   messages: readonly MessageParam[]
   imagesSupported?: boolean
   tools?: readonly ApiShapedTool[]
+  toolDeclarations?: ReadonlyMap<string, ZaiWireMessage>
   maxTokens?: number
   reasoningEffort?: string
   thinkingEnabled?: boolean
@@ -180,7 +201,7 @@ export function zaiEffortWireFact(request: ZaiChatRequest, supported: boolean): 
 export function buildZaiChatRequest(i: BuildZaiRequestInput): ZaiChatRequest {
   return {
     model: i.model,
-    messages: mapMessagesToZai(i.system, i.messages, { imagesSupported: i.imagesSupported }),
+    messages: mapMessagesToZai(i.system, i.messages, { imagesSupported: i.imagesSupported, ...(i.toolDeclarations !== undefined ? { toolDeclarations: i.toolDeclarations } : {}) }),
     ...(i.tools && i.tools.length > 0
       ? { tools: mapToolsToZai(i.tools), tool_choice: 'auto' as const }
       : {}),

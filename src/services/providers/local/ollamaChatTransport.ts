@@ -33,9 +33,9 @@ import {
   startLocalSilenceWatch,
   type CompatChatRequest,
   type CompatCompletedToolCall,
-  type CompatMessage,
   type CompatStreamEvent,
   type CompatStreamOptions,
+  type CompatWireMessage,
 } from '../openaicompat/compatChatClient.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
@@ -101,13 +101,15 @@ function dataUrlBase64(url: string): string | undefined {
   return m?.[1]
 }
 
-export function ollamaMessagesOf(messages: readonly CompatMessage[]): OllamaMessage[] {
+export function ollamaMessagesOf(messages: readonly CompatWireMessage[]): OllamaMessage[] {
   const namesByCallId = new Map<string, string>()
   for (const m of messages) {
+    if (!('content' in m)) continue
     for (const call of m.tool_calls ?? []) namesByCallId.set(call.id, call.function.name)
   }
   const out: OllamaMessage[] = []
   for (const m of messages) {
+    if (!('content' in m)) continue
     let content = ''
     const images: string[] = []
     if (typeof m.content === 'string') content = m.content

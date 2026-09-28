@@ -341,6 +341,8 @@ interface Measure {
   announcedNames: number
   deltaRowNames: number
   deltaRowBytes: number
+  declaredTools: number
+  declaredBytes: number
   deferLoadingMarked: number
   betaHeader: string
   bodyBytes: number
@@ -396,6 +398,22 @@ function announcementOf(route: Route, body: Body): { present: boolean; bytes: nu
   return { present: false, bytes: 0, names: 0 }
 }
 
+function declarationsOf(body: Body): { tools: number; bytes: number } {
+  let tools = 0
+  let bytes = 0
+  for (const m of (body.messages as Array<Record<string, unknown>> | undefined) ?? []) {
+    if (m.role !== 'system') continue
+    if (Array.isArray(m.tools)) {
+      tools += m.tools.length
+      bytes += Buffer.byteLength(JSON.stringify(m), 'utf8')
+    } else if (typeof m.content === 'string' && m.content.includes('<tools>')) {
+      tools += m.content.split('\n').filter(line => line.startsWith('{"type":"function"')).length
+      bytes += Buffer.byteLength(JSON.stringify(m), 'utf8')
+    }
+  }
+  return { tools, bytes }
+}
+
 function deltaRowOf(pool: Tools, model: string): { names: number; bytes: number } {
   const row = getDeferredToolsDeltaAttachment(pool, model, [])[0]
   if (!row || row.type !== 'deferred_tools_delta') return { names: 0, bytes: 0 }
@@ -444,7 +462,7 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
     return {
       route: leg.route, model: leg.model, view, captured: false, url: '', poolSize: pool.length, poolDeferrable, toolSearchPooled,
       toolsSent: 0, toolNames: [], toolBytes: 0, estTokens: 0, announcementPresent: false, announcementBytes: 0, announcedNames: 0,
-      deltaRowNames: 0, deltaRowBytes: 0, deferLoadingMarked: 0, betaHeader: '', bodyBytes: 0, toolsDigest: '', bodyDigest: '', probes, error: errors.join(' | ') || 'no capture',
+      deltaRowNames: 0, deltaRowBytes: 0, declaredTools: 0, declaredBytes: 0, deferLoadingMarked: 0, betaHeader: '', bodyBytes: 0, toolsDigest: '', bodyDigest: '', probes, error: errors.join(' | ') || 'no capture',
     }
   }
   const tools = toolsOfBody(leg.route, hit.body)
@@ -452,6 +470,7 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
   const toolBytes = Buffer.byteLength(toolsJson, 'utf8')
   const ann = announcementOf(leg.route, hit.body)
   const deltaRow = view === 'fresh' ? deltaRowOf(pool, leg.model) : { names: 0, bytes: 0 }
+  const declared = isHomeWire(leg.route) || leg.route === 'openai' ? { tools: 0, bytes: 0 } : declarationsOf(hit.body)
   const { metadata: _metadata, ...bodySansMetadata } = hit.body
   if (leg.route === 'anthropic') {
     mkdirSync(join(import.meta.dir, '.out'), { recursive: true })
@@ -475,6 +494,8 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
     announcedNames: ann.names,
     deltaRowNames: deltaRow.names,
     deltaRowBytes: deltaRow.bytes,
+    declaredTools: declared.tools,
+    declaredBytes: declared.bytes,
     deferLoadingMarked: tools.filter(t => t.deferLoading).length,
     betaHeader: hit.headers['anthropic-beta'] ?? '',
     bodyBytes: hit.bodyBytes,
@@ -526,12 +547,12 @@ check('no probe request rode the first-party or the probe-off gateway leg', (fp?
 
 section('§B the table')
 const fmt = (n: number): string => n.toLocaleString('en-US')
-const header = '| route | model | view | pool | deferrable | ToolSearch pooled | tools sent | tool bytes | est tokens (bytes/3.9) | announced names (per request) | announcement bytes (per request) | delta row names (once) | delta row bytes (once) | defer_loading marks | beta header | body bytes | tools digest | body digest (sans metadata) | probes |'
-const divider = '|---|---|---|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|---:|'
+const header = '| route | model | view | pool | deferrable | ToolSearch pooled | tools sent | tool bytes | est tokens (bytes/3.9) | announced names (per request) | announcement bytes (per request) | delta row names (once) | delta row bytes (once) | declared at the end of the messages | declaration bytes | defer_loading marks | beta header | body bytes | tools digest | body digest (sans metadata) | probes |'
+const divider = '|---|---|---|---:|---:|:---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---|---|---:|'
 const lines = [header, divider]
 for (const r of rows) {
   lines.push(
-    `| ${r.route} | ${r.model} | ${r.view} | ${r.poolSize} | ${r.poolDeferrable} | ${r.toolSearchPooled ? 'yes' : 'no'} | ${r.toolsSent} | ${fmt(r.toolBytes)} | ${fmt(r.estTokens)} | ${r.announcedNames} | ${fmt(r.announcementBytes)} | ${r.deltaRowNames} | ${fmt(r.deltaRowBytes)} | ${r.deferLoadingMarked} | ${r.betaHeader || '—'} | ${fmt(r.bodyBytes)} | ${r.toolsDigest || '—'} | ${r.bodyDigest || '—'} | ${r.probes} |`,
+    `| ${r.route} | ${r.model} | ${r.view} | ${r.poolSize} | ${r.poolDeferrable} | ${r.toolSearchPooled ? 'yes' : 'no'} | ${r.toolsSent} | ${fmt(r.toolBytes)} | ${fmt(r.estTokens)} | ${r.announcedNames} | ${fmt(r.announcementBytes)} | ${r.deltaRowNames} | ${fmt(r.deltaRowBytes)} | ${r.declaredTools} | ${fmt(r.declaredBytes)} | ${r.deferLoadingMarked} | ${r.betaHeader || '—'} | ${fmt(r.bodyBytes)} | ${r.toolsDigest || '—'} | ${r.bodyDigest || '—'} | ${r.probes} |`,
   )
 }
 console.log(lines.join('\n'))

@@ -64,6 +64,8 @@ import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 import {
   buildZaiChatRequest,
   imageRefusalWords,
+  mapToolsToZai,
+  toolDeclarationRowAsText,
   zaiEffortWireFact,
   type ApiShapedTool,
 } from './zaiCodec.js'
@@ -76,6 +78,7 @@ import {
   type ZaiFinishReason,
   type ZaiStreamEvent,
   type ZaiUsage,
+  type ZaiWireMessage,
 } from './zaiClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
@@ -145,12 +148,13 @@ async function buildApiShapedTools(
   options: Options,
   model: string,
   conversationKey?: string,
+  pool: Tools = tools,
 ): Promise<ApiShapedTool[]> {
   const schemas = await Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
         getToolPermissionContext: options.getToolPermissionContext,
-        tools,
+        tools: pool,
         agents: options.agents,
         allowedAgentTypes: options.allowedAgentTypes,
         model,
@@ -232,7 +236,12 @@ export async function* zaiCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
-  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
+  const toolDeclarations = new Map<string, ZaiWireMessage>()
+  for (const declaration of plan.admissionDeclarations) {
+    const shaped = await buildApiShapedTools(declaration.tools, options, modelId, plan.conversationKey, tools)
+    if (shaped.length > 0) toolDeclarations.set(declaration.toolUseId, toolDeclarationRowAsText(mapToolsToZai(shaped)))
+  }
+  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages, plan.wireForm), plan)
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
   const wireMessagesForBridge =
     retiredScreenshots.firstEdited === -1
@@ -254,6 +263,7 @@ export async function* zaiCallModel(
     messages: toBridgeMessages(healWalkableForWire(wireMessagesForBridge)),
     imagesSupported: imagesSupportedForCompatModel(modelId),
     tools: apiTools,
+    ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
     maxTokens: Math.min(
       options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS,
       ZAI_MAX_OUTPUT_TOKENS,

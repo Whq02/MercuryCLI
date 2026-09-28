@@ -52,9 +52,16 @@ export interface ZaiTool {
   function: { name: string; description?: string; parameters: unknown }
 }
 
+export interface ZaiToolDeclarationMessage {
+  role: 'system'
+  tools: ZaiTool[]
+}
+
+export type ZaiWireMessage = ZaiMessage | ZaiToolDeclarationMessage
+
 export interface ZaiChatRequest {
   model: string
-  messages: ZaiMessage[]
+  messages: ZaiWireMessage[]
   tools?: ZaiTool[]
   tool_choice?: 'auto'
   max_tokens?: number
