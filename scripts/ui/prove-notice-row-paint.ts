@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -31,14 +31,14 @@ section("§1 the classification: a wrapped notice, the notification lane, and th
   check('one monitor block is one monitor notice', one !== null && one.length === 1 && one[0]!.kind === 'monitor', JSON.stringify(one))
   check("the block's task and name are read back unquoted", one?.[0]?.kind === 'monitor' && one[0].taskId === 'bk1' && one[0].name === WATCH, JSON.stringify(one))
   check('blank lines are dropped, the event lines kept in order', JSON.stringify(one?.[0]?.lines) === JSON.stringify(['==> OPUS-55.md <==', '18:26 · OPUS-55 · landed']), JSON.stringify(one?.[0]?.lines))
-  check('the plate names the kind and the watch', one !== null && noticePlate(one[0]!) === `monitor · ${WATCH}`, one === null ? 'null' : noticePlate(one[0]!))
+  check('the plate names the kind and the watch', one !== null && noticePlate(one[0]!) === `[Monitor]: ${WATCH}`, one === null ? 'null' : noticePlate(one[0]!))
 
   const two = noticeOfText(`${monitorBlock('bk1', WATCH, 'event-1')}${monitorBlock('bk1', WATCH, 'event-2')}`, false)
   check('two blocks of the same watch in one text fold into one plate with both lines', two !== null && two.length === 1 && JSON.stringify(two[0]!.lines) === JSON.stringify(['event-1', 'event-2']), JSON.stringify(two))
   const other = noticeOfText(`${monitorBlock('bk1', WATCH, 'event-1')}\n${monitorBlock('bk2', 'the build watch', 'built')}`, false)
   check('two watches in one text keep two plates', other !== null && other.length === 2 && other[1]!.kind === 'monitor' && other[1]!.name === 'the build watch', JSON.stringify(other))
   const empty = noticeOfText(monitorBlock('bk1', '', 'x'), false)
-  check('a nameless watch plates as the bare kind word', empty !== null && noticePlate(empty[0]!) === 'monitor')
+  check('a nameless watch plates as the bare kind word', empty !== null && noticePlate(empty[0]!) === '[Monitor]:')
 
   const reminderOnly = noticeOfText('<system-reminder>Stop hook blocking error from command "lint": 3 errors</system-reminder>', false)
   check("a row that is only a system reminder is a plain notice with the reminder's lines", reminderOnly !== null && reminderOnly[0]!.kind === 'notice' && reminderOnly[0]!.lines[0] === 'Stop hook blocking error from command "lint": 3 errors', JSON.stringify(reminderOnly))
@@ -78,7 +78,10 @@ const clockOf = (iso: string): string => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
-async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }): Promise<string> {
+const frameArg = process.argv.indexOf('--frames')
+const frameDir = frameArg < 0 ? undefined : process.argv[frameArg + 1]
+if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
+async function paint(body: React.ReactElement, meta: { type: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }, band = { columns: 100, rows: 30 }, frameName?: string): Promise<string> {
   let written = ''
   const stdout = Object.assign(
     new Writable({
@@ -87,7 +90,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
         cb()
       },
     }),
-    { columns: 100, rows: 30, isTTY: false },
+    { ...band, isTTY: false },
   ) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
   const instance = await render(
@@ -95,6 +98,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
     { stdout, stdin, exitOnCtrlC: false, patchConsole: false },
   )
   await settle()
+  if (frameDir !== undefined && frameName !== undefined) writeFileSync(join(frameDir, `${frameName}-${band.columns}x${band.rows}.txt`), strip(instance.lastFrame()) + '\n')
   instance.unmount?.()
   await settle(50)
   return strip(written).replace(/\s+/g, ' ')
@@ -105,15 +109,15 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: false }), { type: 'user', timestamp: STAMP })
   check('THE DEFECT PIN: a monitor notice taken between turns paints no operator caret', !frame.includes('❯'), frame.slice(0, 200))
   check('…and no raw wrapper', !frame.includes('<monitor') && !frame.includes('</monitor>'), frame.slice(0, 200))
-  check('…the plate names the watch', frame.includes(`● monitor · ${WATCH}`), frame.slice(0, 200))
+  check('…the plate names the watch, muted, with no accent dot', frame.includes(`[Monitor]: ${WATCH}`) && !frame.includes('●'), frame.slice(0, 200))
   check('…the event lines stand beneath it', frame.includes('==> OPUS-55.md <==') && frame.includes('18:26 · OPUS-55 · landed'), frame.slice(0, 240))
-  check("…under the row's own clock", frame.includes(`${clockOf(STAMP)} ●`), frame.slice(0, 120))
+  check("…under the row's own clock", frame.includes(`${clockOf(STAMP)} [Monitor]:`), frame.slice(0, 120))
   check("…and the operator's handle is nowhere on it", !frame.includes('[sam]'), frame.slice(0, 120))
 }
 {
   const text = monitorBlock('bk1', WATCH, 'event-1')
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
-  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} ● monitor · ${WATCH}`) && !frame.includes('queued') && frame.includes('event-1'), frame.slice(0, 240))
+  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} [Monitor]: ${WATCH}`) && !frame.includes('queued') && frame.includes('event-1'), frame.slice(0, 240))
   check('…and never the caret or the wrapper', !frame.includes('❯') && !frame.includes('<monitor'), frame.slice(0, 200))
 }
 {
@@ -132,7 +136,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 {
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: 'carried to the owner, waiting' }, verbose: false }), { type: 'user', timestamp: STAMP })
   check("the operator's own line keeps its caret and handle", frame.includes('[sam]') && frame.includes('❯ carried to the owner, waiting'), frame.slice(0, 160))
-  check('…and wears no notice plate', !frame.includes('● notice') && !frame.includes('● monitor'), frame.slice(0, 160))
+  check('…and wears no notice plate', !frame.includes('● notice') && !frame.includes('[Monitor]:'), frame.slice(0, 160))
 }
 {
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: '<p>hello there' }, verbose: false }), { type: 'user', timestamp: STAMP })
@@ -181,7 +185,8 @@ for (const prompt of noticeCases) {
   const before = await paint(body(), { type: 'attachment', timestamp: STAMP })
   const delayed = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP })
   check('RED on the base: a notice delivered six minutes after it completed names the delivery as a suffix', delayed.includes(`· delivered ${clockOf(sixMinutesLater)}`), delayed)
-  check('the row clock remains the completion it sits at, never the delivery', delayed.includes(`${clockOf(STAMP)} ●`) && !delayed.includes('held') && !delayed.includes('· completed'), delayed)
+  const mark = prompt.startsWith('<monitor') ? '[Monitor]:' : '●'
+  check('the row clock remains the completion it sits at, never the delivery', delayed.includes(`${clockOf(STAMP)} ${mark}`) && !delayed.includes('held') && !delayed.includes('· completed'), delayed)
   const nearby = await paint(body(new Date(Date.parse(STAMP) + 2000).toISOString()), { type: 'attachment', timestamp: STAMP })
   check('a two-second delivery paints byte-identically to the ordinary notice', nearby === before, nearby)
   const boundary = await paint(body(new Date(Date.parse(STAMP) + 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
@@ -194,6 +199,33 @@ for (const prompt of noticeCases) {
   check('an older record without a delivery clock paints its own stamp alone (red on the base: a completed suffix)', legacy === before, legacy)
   const held = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP, queued: true })
   check('a waiting notice names its arrival only, never a delivery suffix', held.includes(`held since ${clockOf(STAMP)}`) && !held.includes('· delivered'), held)
+}
+
+section('monitor bodies are muted text even when they carry other row markup')
+const monitorBodies = [
+  ['command', '<command-name>/model</command-name>\n<command-message>model</command-message>\n<command-args>fable</command-args>'],
+  ['caveat', '<local-command-caveat>keep these words</local-command-caveat>'],
+  ['tick', '<tick>keep this tick text</tick>'],
+  ['bash', '<bash-input>printf checked</bash-input>'],
+  ['task', taskNotice('keep this task text')],
+  ['stdout', '<local-command-stdout>keep output</local-command-stdout>'],
+  ['memory', '<user-memory-input>keep this memory text</user-memory-input>'],
+  ['channel', '<channel source="local">keep this channel text</channel>'],
+] as const
+const { isMutedNoticeBlock } = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
+for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }, { columns: 120, rows: 40 }]) {
+  for (const [name, content] of monitorBodies) {
+    const text = monitorBlock('watch', 'the transcript watch', content)
+    const blocks = wrappedNoticeBlocks(text)
+    check(`${name}: a monitor is a muted notice`, blocks !== null && blocks.length === 1 && isMutedNoticeBlock(blocks[0]!))
+    for (const queued of [false, true]) {
+      const body = queued
+        ? h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false })
+        : h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: false })
+      const frame = await paint(body, { type: queued ? 'attachment' : 'user', timestamp: STAMP, ...(queued ? { queued: true as const } : {}) }, band, `monitor-${name}-${queued ? 'held' : 'taken'}`)
+      check(`${band.columns} ${name} ${queued ? 'held' : 'taken'}: [Monitor]: precedes literal text, never an operator or command row`, frame.includes('[Monitor]: the transcript watch') && !frame.includes('❯') && !frame.includes('[sam]') && !frame.includes('●') && frame.includes(content.split('\n')[0]!), frame)
+    }
+  }
 }
 
 console.log(`\nprove-notice-row-paint: ${checks} checks, ${failures} failed`)

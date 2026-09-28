@@ -16,7 +16,7 @@ import {
   turnCutOfText,
   turnCutWhy,
 } from '../../utils/messages.js'
-import { advisorBlockOf, isAdvisorOrigin, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf } from '../../utils/messages/noticeRows.js'
+import { advisorBlockOf, isAdvisorOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { UserAgentNotificationMessage } from './UserAgentNotificationMessage.js'
@@ -72,6 +72,11 @@ export function UserTextMessage({
 
   if (planContent) {
     return <UserPlanMessage addMargin={addMargin} planContent={planContent} />
+  }
+
+  const monitorBlocks = isMonitorText(param.text) ? wrappedNoticeBlocks(param.text) : null
+  if (monitorBlocks !== null) {
+    return <UserNoticeMessage addMargin={addMargin} blocks={monitorBlocks} deliveredAt={deliveredAt} />
   }
 
   if (extractTag(param.text, TICK_TAG)) {

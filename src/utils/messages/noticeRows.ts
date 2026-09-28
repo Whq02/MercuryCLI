@@ -29,7 +29,7 @@ export type NoticeBlock =
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
   | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
 
-export const MONITOR_NOTICE_WORD = 'monitor'
+export const MONITOR_PLATE_NAME = 'Monitor'
 export const PLAIN_NOTICE_WORD = 'notice'
 export const SATURN_PLATE_NAME = 'Saturn'
 export const ADVISOR_PLATE_NAME = 'advisor'
@@ -124,6 +124,10 @@ export function saturnBlockOf(origin: SaturnOrigin, text: string): NoticeBlock {
 }
 
 export function isMutedNoticeBlock(block: NoticeBlock): boolean {
+  return block.kind === 'saturn' || block.kind === 'advisor' || block.kind === 'monitor'
+}
+
+export function noticeCarriesOwnClock(block: NoticeBlock): boolean {
   return block.kind === 'saturn' || block.kind === 'advisor'
 }
 
@@ -177,6 +181,10 @@ function foldSameWatch(blocks: NoticeBlock[]): NoticeBlock[] {
   return out
 }
 
+export function isMonitorText(text: string): boolean {
+  return MONITOR_OPEN.test(text.replace(/^\s+/, ''))
+}
+
 export function wrappedNoticeBlocks(text: string): NoticeBlock[] | null {
   const blocks: NoticeBlock[] = []
   let rest = text.replace(/^\s+/, '')
@@ -218,5 +226,5 @@ export function noticePlate(block: NoticeBlock, rowStamp?: string): string {
   if (block.kind === 'notice') return PLAIN_NOTICE_WORD
   if (block.kind === 'saturn') return `[${SATURN_PLATE_NAME}] · ${saturnFirstLine(block.origin, rowStamp)}`
   if (block.kind === 'advisor') return `[${ADVISOR_PLATE_NAME}] · ${advisorFirstLine(block.origin)}`
-  return block.name === '' ? MONITOR_NOTICE_WORD : `${MONITOR_NOTICE_WORD} · ${block.name}`
+  return block.name === '' ? `[${MONITOR_PLATE_NAME}]:` : `[${MONITOR_PLATE_NAME}]: ${block.name}`
 }
