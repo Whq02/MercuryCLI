@@ -36,6 +36,7 @@ for p in \
   scripts/prompt-input/prove-history-scan-debounce.ts \
   scripts/prompt-input/prove-typing-survives-rekey.ts \
   scripts/prompt-input/prove-image-paste-drive.ts \
+  scripts/prompt-input/prove-image-chip-typing.ts \
   scripts/prompt-input/prove-stash-carries-mode.ts \
   scripts/prompt-input/prove-edit-sanitises.ts \
   scripts/prompt-input/prove-draft-carries-selection.ts \
