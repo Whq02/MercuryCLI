@@ -35,10 +35,16 @@ const watchdog = setTimeout(() => {
 }, 240_000)
 watchdog.unref?.()
 
-const AGENT_MODEL = 'claude-opus-4-8'
-const ADVISOR_MODEL = 'claude-sonnet-4-5'
+const AGENT_MODEL = 'claude-sonnet-5'
+const ADVISOR_MODEL = 'claude-opus-5-5'
 const AGENT_USAGE = { input_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 6 }
 const ADVISOR_USAGE = { input_tokens: 90, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 14 }
+const THINK = 4000
+const NOTE_TOKENS = 60
+const VENDOR_OUTPUT_CAP = 128_000
+const ADVISOR_THINKING = 'Weighing the four decisions against each other before writing.'
+const QUESTION = 'Four decisions for the release: (A) store user passwords in plain text so support can read them; (B) run the schema migration straight on production at peak hours with no dry run; (C) disable the failing tests so the release is green; (D) ship on a Friday afternoon. Which two are the most dangerous, and why?'
+const ADVISOR_ANSWER = 'The two most dangerous: (A) plain-text passwords — one leak exposes every account and nothing can undo it; (B) the peak-hours migration with no dry run — a failure has no way back and takes production down with it. (C) hides a real red and (D) only costs a weekend; neither is irreversible.'
 type AgentTurn = { text: string } | { ask: string; then: string } | { echo: string; then?: string }
 let agentScript: AgentTurn[] = []
 let agentOrdinal = 0
@@ -50,6 +56,27 @@ const wire: Array<{ model: string; kind: 'agent' | 'advisor-note' | 'advisor-ask
 const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSON.stringify(obj)}\n\n`
 function textOf(body: Raw): string {
   return JSON.stringify(body.messages ?? '')
+}
+function advisorThinksFirst(model: string, maxTokens: number, text: string): string {
+  const start = { ...ADVISOR_USAGE, output_tokens: 1 }
+  const out: string[] = [
+    sse('message_start', { type: 'message_start', message: { id: `msg_${wire.length}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: start } }),
+    sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } }),
+    sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: ADVISOR_THINKING } }),
+    sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'fixture-signature' } }),
+    sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+  ]
+  if (maxTokens < THINK + NOTE_TOKENS) {
+    out.push(sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'max_tokens', stop_sequence: null }, usage: { output_tokens: maxTokens, output_tokens_details: { thinking_tokens: maxTokens } } }))
+    out.push(sse('message_stop', { type: 'message_stop' }))
+    return out.join('')
+  }
+  out.push(sse('content_block_start', { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } }))
+  out.push(sse('content_block_delta', { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text } }))
+  out.push(sse('content_block_stop', { type: 'content_block_stop', index: 1 }))
+  out.push(sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: THINK + NOTE_TOKENS, output_tokens_details: { thinking_tokens: THINK } } }))
+  out.push(sse('message_stop', { type: 'message_stop' }))
+  return out.join('')
 }
 function anthropicReply(model: string, blocks: Array<{ text: string } | { thinking: string } | { toolUse: { id: string; name: string; input: Raw } }>, usage: Raw, stop: string): string {
   const out: string[] = [sse('message_start', { type: 'message_start', message: { id: `msg_${wire.length}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage } })]
@@ -91,14 +118,21 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (model === ADVISOR_MODEL) {
       const ask = textOf(body).includes('<the_agents_question>')
       wire.push({ model, kind: ask ? 'advisor-ask' : 'advisor-note', body })
+      const maxTokens = Number(body.max_tokens)
+      if (!Number.isFinite(maxTokens) || maxTokens > VENDOR_OUTPUT_CAP) {
+        res.writeHead(400, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `max_tokens: ${String(body.max_tokens)} > ${VENDOR_OUTPUT_CAP}, which is the maximum allowed number of output tokens for ${model}` } }))
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (advisorEmptyAnswers > 0) {
         advisorEmptyAnswers--
         res.end(anthropicReply(model, [{ thinking: 'nothing worth a note here' }], ADVISOR_USAGE, 'end_turn'))
         return
       }
-      const text = ask ? `ADVISOR-ASK-REPLY-${++advisorReplies}: run the pin on the base first.` : `ADVISOR-NOTE-${++advisorNotes}: you have not checked the base yet.\nDo that before the next edit.`
-      res.end(anthropicReply(model, [{ text }], ADVISOR_USAGE, 'end_turn'))
+      if (ask) advisorReplies++
+      const text = ask ? ADVISOR_ANSWER : `ADVISOR-NOTE-${++advisorNotes}: you have not checked the base yet.\nDo that before the next edit.`
+      res.end(advisorThinksFirst(model, maxTokens, text))
       return
     }
     wire.push({ model, kind: 'agent', body })
@@ -233,7 +267,9 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
   const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')
   check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, undefined, messages)'), lander)
   const turnEnd = between(runner, 'if (deferredAdvisorQuiet.length > 0) {', '\n      }')
-  check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", turnEnd.includes('for (const quiet of quiets) landAdvisorQuiet(quiet)') && runner.indexOf('if (deferredSpawnSwitches.length > 0) {') < runner.indexOf('if (deferredAdvisorQuiet.length > 0) {'), turnEnd)
+  const spawnSwitchesAt = runner.indexOf('if (deferredSpawnSwitches.length > 0) {')
+  const quietFlushAt = runner.indexOf('if (deferredAdvisorQuiet.length > 0) {')
+  check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", turnEnd.includes('for (const quiet of quiets) landAdvisorQuiet(quiet)') && spawnSwitchesAt >= 0 && quietFlushAt > spawnSwitchesAt, `${turnEnd} · spawn switches at ${spawnSwitchesAt}, quiet flush at ${quietFlushAt}`)
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
   check("crewmates and workers: runAgent's request boundary advances the advisor with the agent's own rows after the pause seam, never inside it", boundary.includes('void advisorAgentRound(agentId, advisedRows)') && boundary.includes('beforeQueryStep()') && boundary.includes('advisorAgentRound') && boundary.indexOf('beforeQueryStep()') < boundary.indexOf('advisorAgentRound'), boundary.slice(-300))
@@ -257,6 +293,7 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
 }
 
 const SESSION = String(state.getSessionId())
+const memoryOf = (agentId: string): string => (existsSync(advisor.advisorContextPath(agentId)) ? readFileSync(advisor.advisorContextPath(agentId), 'utf8') : '')
 const advisorOn = (seats: number): void => {
   advisor.setAdvisorEnabled(true)
   advisor.setAdvisorSeats(seats)
@@ -300,11 +337,11 @@ async function mainTurn(prompt: string, origin: Raw | undefined, messages: AnyMs
   return yields
 }
 
-section('§1 THE MAIN CHAT: twelve operator turns with seats 5 — two notes land as advisor rows after turns 5 and 10, the agent\'s AskAdvisor call returns the fixture\'s reply, the advisor bucket carries its tokens')
+section(`§1 THE MAIN CHAT: ${ADVISOR_MODEL} advising ${AGENT_MODEL}, twelve operator turns with seats 5, the advisor thinking ${THINK} tokens before every answer — two notes land as advisor rows after turns 5 and 10, the agent's AskAdvisor question that needs thought comes back answered in words, the advisor bucket carries the thinking (red on the base: the thinking ate the 1,200 budget — no note, "the advisor answered with no text")`)
 {
   resetRig()
   advisorOn(5)
-  agentScript = Array.from({ length: 20 }, (_, i) => (i === 2 ? { ask: 'am I on the right seam?', then: 'reply 3' } : { text: `reply ${i + 1}` }))
+  agentScript = Array.from({ length: 20 }, (_, i) => (i === 2 ? { ask: QUESTION, then: 'reply 3' } : { text: `reply ${i + 1}` }))
   const messages: AnyMsg[] = []
   const commands: string[] = []
   const rowsAfterTurn: number[] = []
@@ -337,13 +374,17 @@ section('§1 THE MAIN CHAT: twelve operator turns with seats 5 — two notes lan
   const noteRequests = wire.filter(w => w.kind === 'advisor-note')
   check("the advisor model got exactly two note requests, each under the advisor's system prompt", noteRequests.length === 2 && noteRequests.every(w => j(w.body.system).includes('You are the Advisor')), j(noteRequests.map(w => w.body.model)))
   check('the second note request carries only the rows since the first note (turns 6–10), never turns 1–5 again', textOf(noteRequests[1]!.body).includes('operator line 6') && textOf(noteRequests[1]!.body).includes('operator line 10') && !textOf(noteRequests[1]!.body).includes('operator line 5') && textOf(noteRequests[1]!.body).includes('ADVISOR-NOTE-1'), textOf(noteRequests[1]!.body).slice(0, 300))
-  check('on turn 3 the agent called AskAdvisor and got the fixture advisor\'s reply as the tool result', j(askedTools) === j(['AskAdvisor']) && askResult === 'ADVISOR-ASK-REPLY-1: run the pin on the base first.', `${j(askedTools)} · ${askResult}`)
+  const namedLetters = (words: string): string[] => ['A', 'B', 'C', 'D'].filter(letter => new RegExp(`\\(${letter}\\)`).test(words))
+  const answersIt = (words: string): boolean => namedLetters(words).length >= 2 && words.split(/\s+/).length >= 15 && !words.includes('did not answer') && !words.includes('answered with no text')
+  check('on turn 3 the agent asked the advisor the four-decisions question and the tool result is the advisor\'s words: two of the four named by letter, each with its reason (red on the base: "The advisor did not answer: the advisor answered with no text")', j(askedTools) === j(['AskAdvisor']) && askResult === ADVISOR_ANSWER && answersIt(askResult) && j(namedLetters(askResult)).startsWith('["A","B"'), `${j(askedTools)} · ${askResult}`)
+  check("the advisor's thinking never leaks into the tool result — the agent reads the words alone", !askResult.includes(ADVISOR_THINKING) && askResult.split('\n').length <= 8, askResult)
   const askRequests = wire.filter(w => w.kind === 'advisor-ask')
-  check("the ask reached the advisor model with the question and the digest (turns 1–3) under the same system prompt", askRequests.length === 1 && textOf(askRequests[0]!.body).includes('am I on the right seam?') && textOf(askRequests[0]!.body).includes('operator line 3') && j(askRequests[0]!.body.system).includes('You are the Advisor'))
-  check('the note after the ask remembers the question and the reply', textOf(noteRequests[0]!.body).includes('[the agent asked') && textOf(noteRequests[0]!.body).includes('ADVISOR-ASK-REPLY-1'), textOf(noteRequests[0]!.body).slice(0, 400))
+  check("the ask reached the advisor model with the question and the digest (turns 1–3) under the same system prompt", askRequests.length === 1 && textOf(askRequests[0]!.body).includes('Which two are the most dangerous, and why?') && textOf(askRequests[0]!.body).includes('operator line 3') && j(askRequests[0]!.body.system).includes('You are the Advisor'))
+  check(`the ask and both notes rode the model's own ceiling with no thinking key (the always-on law) — red on the base: max_tokens 1200`, [...askRequests, ...noteRequests].every(w => w.body.max_tokens === VENDOR_OUTPUT_CAP && !('thinking' in w.body)), j([...askRequests, ...noteRequests].map(w => w.body.max_tokens)))
+  check('the note after the ask remembers the question and the reply', textOf(noteRequests[0]!.body).includes('[the agent asked') && textOf(noteRequests[0]!.body).includes('plain-text passwords'), textOf(noteRequests[0]!.body).slice(0, 400))
   const bucket = state.getWorkloadUsage() as Record<string, Record<string, Raw>>
   const share = bucket.advisor?.[ADVISOR_MODEL]
-  check("the advisor bucket carries the three advisor calls' tokens: 270 in · 42 out, and no agent tokens", share !== undefined && share.inputTokens === 270 && share.outputTokens === 42 && Object.keys(bucket).length === 1 && bucket.advisor![AGENT_MODEL] === undefined, j(bucket))
+  check(`the advisor bucket carries the three advisor calls' tokens with their thinking: 270 in · ${3 * (THINK + NOTE_TOKENS)} out, and no agent tokens`, share !== undefined && share.inputTokens === 270 && share.outputTokens === 3 * (THINK + NOTE_TOKENS) && Object.keys(bucket).length === 1 && bucket.advisor![AGENT_MODEL] === undefined, j(bucket))
   check("the agent's own tokens sit in the per-model ledger outside any bucket (15 requests: 12 operator turns, one more for the ask's tool round, two advisor turns)", (state.getModelUsage() as Record<string, Raw>)[AGENT_MODEL]?.inputTokens === 40 * 15 && wire.filter(w => w.kind === 'agent').length === 15, j(state.getModelUsage()))
   const memory = advisor.advisorContextPath(SESSION)
   check("the advisor's memory sits beside the session's transcript and holds the digests, the question, the reply and the notes", existsSync(memory) && readFileSync(memory, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => (JSON.parse(l) as Raw).kind).join(',') === 'head,digest,question,reply,digest,note,digest,note', existsSync(memory) ? readFileSync(memory, 'utf8').slice(0, 300) : memory)
@@ -357,7 +398,7 @@ section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking onl
   advisorOn(5)
   agentScript = Array.from({ length: 20 }, (_, i) => ({ text: `reply ${i + 1}` }))
   advisorEmptyAnswers = 2
-  const memoryBefore = readFileSync(advisor.advisorContextPath(SESSION), 'utf8')
+  const memoryBefore = memoryOf(SESSION)
   const messages: AnyMsg[] = []
   const quietRows: AnyMsg[] = []
   const verdicts: string[] = []
@@ -393,7 +434,7 @@ section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking onl
   const onDisk = existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Raw).map(r => { try { return recordToEntry(r as never) as Raw } catch { return {} as Raw } }) : []
   const landed = onDisk.filter(r => r.type === 'system' && r.subtype === 'advisor_quiet')
   check("the quiet row is on the session's transcript file, once, with its origin and words whole — the record the interactive chat paints (red on the base: no such record)", landed.length === 1 && j((landed[0] as Raw).origin) === j((quietRow as Raw).origin) && (landed[0] as Raw).content === (quietRow as Raw).content && (landed[0] as Raw).uuid === (quietRow as Raw).uuid, `${transcriptPath}: ${landed.length} quiet row(s) of ${onDisk.length}`)
-  const memoryAfter = readFileSync(advisor.advisorContextPath(SESSION), 'utf8')
+  const memoryAfter = memoryOf(SESSION)
   check("the advisor's memory gained no row for the quiet round", memoryAfter === memoryBefore, memoryAfter.slice(memoryBefore.length, memoryBefore.length + 200))
   advisorEmptyAnswers = 0
 }
@@ -403,7 +444,7 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
   resetRig()
   advisor.setAdvisorEnabled(false)
   agentScript = Array.from({ length: 20 }, (_, i) => ({ text: `reply ${i + 1}` }))
-  const memoryBefore = readFileSync(advisor.advisorContextPath(SESSION), 'utf8')
+  const memoryBefore = memoryOf(SESSION)
   const messages: AnyMsg[] = []
   for (let turn = 1; turn <= 12; turn++) {
     check(`turn ${turn}: nothing queued`, queue.getCommandQueue().length === 0)
@@ -418,7 +459,7 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
   check('AskAdvisor is out of the catalogue and disabled', !getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && !AskAdvisorTool.isEnabled())
   const refused = await AskAdvisorTool.call({ question: 'anyone there?' }, makeCtx() as never)
   check('a call while off answers the refusal in words, never a throw', (refused as { data: { status: string; text: string } }).data.status === 'refused' && (refused as { data: { text: string } }).data.text.includes('the advisor is off'), j(refused))
-  check("the session's advisor memory from §1 gained no row", readFileSync(advisor.advisorContextPath(SESSION), 'utf8') === memoryBefore)
+  check("the session's advisor memory from §1 gained no row", memoryOf(SESSION) === memoryBefore)
   check('the advisor turns never counted (no context opened)', advisor.peekAdvisorContext(SESSION) === undefined)
 }
 
@@ -480,7 +521,7 @@ for (const leg of [
   const memory = advisor.advisorContextPath(leg.agentId)
   check(`${leg.name}: the advisor's memory for the agent sits beside the session's transcripts under advisor/<agentId>.jsonl`, existsSync(memory) && readFileSync(memory, 'utf8').includes('ADVISOR-NOTE-2'), memory)
   const share = (state.getWorkloadUsage() as Record<string, Record<string, Raw>>).advisor?.[ADVISOR_MODEL]
-  check(`${leg.name}: the advisor bucket carries the two notes' tokens`, share !== undefined && share.inputTokens === 180 && share.outputTokens === 28, j(share))
+  check(`${leg.name}: the advisor bucket carries the two notes' tokens with their thinking — 180 in · ${2 * (THINK + NOTE_TOKENS)} out`, share !== undefined && share.inputTokens === 180 && share.outputTokens === 2 * (THINK + NOTE_TOKENS), j(share))
 }
 
 server.close()
