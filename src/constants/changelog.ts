@@ -1,6 +1,34 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.23
+- Added /localsetup, the local model set-up inside Mercury: it finds Ollama on this machine or offers to install it, starts the server, asks which model — every model the server has and every Qwen 3.5 size this machine can hold, nothing pre-chosen — pulls the chosen one, sets its window from this machine's memory, then picks it and proves a reply; every step shows what it will run and waits for Enter, and esc stops it and says what is done
+- Added the /localsetup offer wherever local models are named and no local server answers: the model picker's LOCAL section (s opens it there), the Boot face, the /config Local row and the /usage local block
+- Added a Local Server page under /config: the server's knobs (models kept loaded, parallel slots, keep-alive, context length) beside what it is running with and how it was launched, a review of the exact lines and the restart before anything is applied, and a refusal with the memory figures when a choice would not fit this machine
+- Added a window row for a local model, the picker's w row and /config → Local model window: auto takes the biggest of 32k, 64k, 128k or 256k that fits this machine, the rail's ctx row says why, and a window that does not fit is refused with the figures
+- Fixed a local model's context window being guessed at 4k: the window is read from the server before a request is judged against it, a request that does not fit is refused with the window, its source and how to raise it, and a compaction that cannot run on the window says so plainly instead of a bare API error
+- Fixed the memory arithmetic for hybrid-attention local models (the Qwen 3.5, 3.6 and 3.8 families): auto lands on the biggest window that truly fits, a hand-picked trained maximum is accepted where it fits, and a loaded model's measured size outranks the formula
+- Added patience on the local route: no watchdog cuts a local model while its server answers — the status row says when the first byte is expected from the model's size and the measured pace, extends it while the server still answers, says when the server has stopped answering, and a request is capped at two hours
+- Added a warm-up for a local Ollama model: it is loaded and its prompt ingested when you switch to it, before your first word, and kept warm across a pause
+- Fixed a local Ollama model reloading on every request after a long turn and losing its prompt cache: one option set stands for the whole session, and a model already loaded is never reloaded
+- Added tool deferral for a local model: a request carries only the tools the model needs, the rest stay a search away, and the prompt is a fraction of its former size
+- Fixed a local request being refused as too large when it would have fit: the size is judged as the request is sent, an over-size answer from the server takes the usual compaction path, and a machine whose memory cannot be read gets the bigger window
+- Added two guards for a local model: an Edit whose old_string is over half the file is refused before anything is written, and the prompt names the working directory so files land in the project, not the memory folder
+- Fixed thinking off never reaching a local model: with thinking off the request says so, and the model's own default thinking stays off
+- Added a 128k default output ceiling for every model whose catalogue states one, and a continuation at the same effort when a turn spends its ceiling thinking: the thinking is carried, the model answers on, and the turn never restarts from scratch; a turn that closes inside its thinking says so
+- Added llama.cpp and LM Studio as verified local servers, each through discovery, a streamed reply, a tool loop, a crewmate and a workflow agent on Qwen 3.5 9B; a single-model llama.cpp server states its served window
+- Fixed the live status row showing a dead 0 tokens while a request is alive: it reads the prompt with the clock, counts thinking tokens, and names what it is waiting for
+- Added the advisor: a second model of any family, local included, that reads the working model's conversation every few turns and writes it one short note as a muted [advisor] row — on the main chat, crewmates and workflow workers — with its own memory and compaction clock, an AskAdvisor tool for the model to ask it a question, its model under /submodels → ADVISOR, /config → Advisor and Advisor interval, and its spend on /usage
+- Added the effort on every request record: what was asked, what the provider applied, and how it rode the wire
+- Fixed a notice row's clock: a notice sits at the time of its event, the delivery time rides as a suffix when it came later, and no row is stamped later than the rows under it
+- Fixed the header staying on compacting context after a /compact had landed
+- Fixed a teammate's chat not showing in the crew view, a teammate running at the default effort instead of the one asked, and a teammate waiting on its inbox reading busy instead of idle
+- Fixed a workflow agent carrying the whole session's tool box instead of a crewmate's: both carry the same one
+- Fixed the working card above the transcript changing height as its words changed and moving the rows beneath it: within a turn it only grows
+- Fixed a GPT session re-reading its whole prompt each time it opened a deferred tool: on GPT 5.4 and later, GPT 6 included, the tools ride OpenAI's own tool search and the prompt cache holds
+- Fixed an OpenRouter session paying for every tool on every request: a tool is found and used within the request through OpenRouter's own tool search, and the prompt cache holds from request to request
+- Fixed a Kimi session paying for every tool on every request: on K3 a request carries only the tools it needs, and a newly opened tool joins without disturbing the prompt cache
+
 ## 1.0.0-beta.22
 - Added a crew view in the main chat: a crewmate opens from its rail row with its transcript in the centre, m ties the composer to it, and esc on a crewmate that is not running goes back to Mercury Lead
 - Added a CREW box that keeps every crewmate the session has had, with its state (running, landed, stopped, interrupted), greyed when finished, until you clear it with c
