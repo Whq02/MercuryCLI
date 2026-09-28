@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { getSessionId } from '../../../bootstrap/state.js'
+import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../../utils/bootCardFacts.js'
 import { filterResumableSessions } from '../../../commands/resume/resume.js'
 import type { LogOption } from '../../../types/logs.js'
@@ -113,7 +113,7 @@ export function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
       try {
         const first = await loadAllProjectsMessageLogsProgressive()
         const publish = (all: LogOption[]): void => {
-          if (alive) setLogs(resumableNewestFirst(all, getSessionId()))
+          if (alive) setLogs(resumableNewestFirst(all, conversationIdHere()))
         }
         let acc = first.logs
         let next = first.nextIndex

@@ -39,6 +39,8 @@ export const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = getProjectDir(RUNTIME_CWD)
 export const SID = `00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 export const SID_ERRORED = `00000000-aaaa-bbbb-dddd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
+export const SID_PRIOR = `00000000-aaaa-bbbb-ccdd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
+export const PRIOR_SESSION_TITLE = 'earlier task'
 
 const WF_SUFFIX = (process.pid % 0xffffff).toString(16).padStart(6, '0')
 const WF_RUN_COMPLETED = `wf_fixture_completed_${WF_SUFFIX}`
@@ -969,7 +971,29 @@ export function writeSyntheticSession(
           message: { role: 'user', content: 'second task — 日本語の確認' }, timestamp: '2026-06-19T12:00:02.000Z' }),
       ]
   if (!existsSync(PROJECTS)) mkdirSync(PROJECTS, { recursive: true })
+  if (sid === SID) writePriorSession()
   writeFileSync(join(PROJECTS, `${sid}.jsonl`), encodeFixtureTranscript(lines, sid))
+}
+
+function writePriorSession(): void {
+  const base = (extra: Record<string, unknown>) => ({
+    isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID_PRIOR,
+    version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
+  })
+  const lines = [
+    base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000101',
+      message: { role: 'user', content: PRIOR_SESSION_TITLE }, timestamp: '2026-06-18T12:00:01.000Z' }),
+    base({ parentUuid: '00000000-0000-4000-8000-000000000101', type: 'assistant',
+      uuid: '00000000-0000-4000-8000-000000000102', requestId: 'req_synth_p1',
+      message: { id: 'msg_synth_p1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+        content: [{ type: 'text', text: 'Done.' }], stop_reason: 'end_turn', stop_sequence: null,
+        usage: { input_tokens: 1, output_tokens: 1 } },
+      timestamp: '2026-06-18T12:00:02.000Z' }),
+  ]
+  const path = join(PROJECTS, `${SID_PRIOR}.jsonl`)
+  writeFileSync(path, encodeFixtureTranscript(lines, SID_PRIOR))
+  const older = new Date(Date.now() - 3_600_000)
+  utimesSync(path, older, older)
 }
 
 function writeWorkflowFixtures(opts?: {
@@ -4285,6 +4309,7 @@ export function cleanupScenario(name: string): void {
     delete process.env.MERCURY_CRITTER_IDLE
   }
   try { rmSync(join(PROJECTS, `${SID}.jsonl`)) } catch {  }
+  rmSync(join(PROJECTS, `${SID_PRIOR}.jsonl`), { force: true })
   if (name === 'resume-picker') {
     try { rmSync(join(PROJECTS, `${SID_ERRORED}.jsonl`)) } catch {  }
   }

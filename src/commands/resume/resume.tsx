@@ -11,7 +11,8 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { ResumeEntrypoint } from '../../commands.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { LogOption } from '../../types/logs.js'
-import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
+import { getOriginalCwd } from '../../bootstrap/state.js'
+import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
 import { getWorktreePathsPortable } from '../../utils/getWorktreePathsPortable.js'
 import { checkCrossProjectResume } from '../../utils/crossProjectResume.js'
 import { setClipboard } from '../../ink/termio/osc.js'
@@ -105,7 +106,7 @@ function ResumeLogPicker({
           ? await loadAllProjectsMessageLogs()
           : await loadSameRepoMessageLogs(worktreePaths)
         if (cancelled) return
-        const resumable = filterResumableSessions(loaded, getSessionId())
+        const resumable = filterResumableSessions(loaded, conversationIdHere())
         if (resumable.length === 0) {
           onDone('No conversations found to resume.')
           return
