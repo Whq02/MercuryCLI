@@ -24,6 +24,8 @@ import {
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
+  SILENT_AFTER_HEADERS_CODE,
+  silentAfterHeadersFaultWords,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
   streamIdleFaultWords,
@@ -41,6 +43,7 @@ export interface OpenaiStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  silentAfterHeadersMs?: number | null
   onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
@@ -160,7 +163,7 @@ export async function* streamOpenaiResponses(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null })
     idleWatchdog = watchdog
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
 
@@ -197,21 +200,24 @@ export async function* streamOpenaiResponses(
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
-        watchdog.noteActivity()
+        if (!chunk.done && chunk.value.byteLength > 0) watchdog.noteActivity()
         if (!chunk.done && chunk.value !== undefined) {
           bytes += chunk.value.length
           lastByteAtMs = Date.now()
         }
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
+        const noBytes = isIdle && error.noBytes
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
-            : isIdle
-              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true, forensics: forensics() }
-              : {
+            : noBytes
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true, forensics: forensics() }
+              : isIdle
+                ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true, forensics: forensics() }
+                : {
                   kind: 'transport-error',
                   code: 'read-failed',
                   message: error instanceof Error ? error.message : String(error),

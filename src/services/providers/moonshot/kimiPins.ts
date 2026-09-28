@@ -6,8 +6,17 @@ export function isKimiModelId(model: string): boolean {
 
 export const KIMI_K3_MODELS: ReadonlySet<string> = new Set(['kimi-k3', 'k3', 'k3-256k'])
 
+export const KIMI_DYNAMIC_TOOL_MODELS: ReadonlySet<string> = new Set([...KIMI_K3_MODELS, 'kimi-for-coding'])
+
+let liveDynamicToolSupport: ((model: string) => boolean | undefined) | null = null
+
+export function bindKimiDynamicToolSupport(reader: ((model: string) => boolean | undefined) | null): void {
+  liveDynamicToolSupport = reader
+}
+
 export function kimiSupportsDynamicToolLoading(model: string): boolean {
-  return KIMI_K3_MODELS.has(model.trim().toLowerCase())
+  const id = model.trim().toLowerCase()
+  return liveDynamicToolSupport?.(id) ?? KIMI_DYNAMIC_TOOL_MODELS.has(id)
 }
 
 export const KIMI_EFFORT_MODELS: ReadonlySet<string> = KIMI_K3_MODELS

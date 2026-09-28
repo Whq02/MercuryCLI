@@ -70,6 +70,14 @@ ids; an unreachable catalogue permits a named id with an explicit note.
 An unnamed first chat reads the catalogue within the existing bounded
 allowance; idle boot and explicit model choices remain unchanged.
 
+Kimi models whose live catalogue declares dynamic-tool support use the
+end-of-messages deferral form: admitted schemas append as system tool rows,
+while the initial tools array and earlier messages stay unchanged. This
+includes the K2 coding alias `kimi-for-coding`; an explicit live false
+keeps deferral off, including on `kimi-for-coding-highspeed`. Without a
+capability observation, only the recorded K3 ids and supported K2 coding
+alias use this form; other K2 ids are not assumed to support it.
+
 Z.AI documents no model-list endpoint. Its rows therefore remain recorded
 observations, dated 2026-08-21, not a claim of current availability. A chat
 refusal carries Z.AI's own reason after the status.

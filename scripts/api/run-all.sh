@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence* src/services/api/withRetry.ts src/services/api/errors.ts scripts/api/authRetry* scripts/api/prove-authentication-retry.ts
-# gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
+# gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 # gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
 # gate-watch: src/services/api/** src/run-core/turn-machine.ts
@@ -42,6 +42,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ingestion-tr
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-watchdog-posture.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-watchdog-posture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-pool-reset.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-watchdog-pool-reset.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-timer-economy.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-watchdog-timer-economy.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-silent-after-headers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-silent-after-headers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-turn-end-typed.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-client-contract-door.ts" "$__t" "$__rc"

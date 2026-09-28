@@ -85,11 +85,24 @@ the complete index; the load-bearing ones:
   SIGKILL after a five-second grace.
 - **API connect budget** (`MERCURY_CONNECT_TIMEOUT_MS`, default 30000 ms): the
   transport's TCP/TLS connect timeout.
+- **Dead connection after the headers** (`MERCURY_SILENT_AFTER_HEADERS_MS`,
+  default 30 s): a hosted provider that answers its response headers and then
+  sends not one body byte for the window is cut with its reason ("<model>
+  answered and then sent nothing for 30 s — not one byte after the headers on
+  a prompt of ~X tokens: a dead connection") and reissued once by the road's
+  own retry ladder, before the idle budget. Any byte at all — a keep-alive comment, a ping, an
+  empty delta — disarms it for good, so a model that is thinking is never
+  touched: only the idle budget governs from the first byte on, and thinking
+  time itself is never fenced. A cold prefix (a fresh session's first turn, a
+  model switch, a compaction) adds the first-byte budget's per-token ingest
+  allowance to the window, and the fence never stands past the idle budget.
+  It stands on every hosted route, including Gemini, Hugging Face and custom
+  compatible endpoints. The local route keeps its own liveness law unchanged.
 
 Mercury never stops or parks a runner for its memory use.
 
-A repeated tool call is never refused, and by default no turn is ended for
-repeating itself: the loop guard only reminds. A reminder rides into context
+A repeated tool call is never refused. In interactive sessions the loop
+guard only reminds by default. A reminder rides into context
 after the third, fifth and eighth identical call whose result is identical
 too, counted across model responses — a response is judged once, after all
 of its calls have settled, in the order the model issued them, so the calls
@@ -112,8 +125,20 @@ same cycle of two to five calls ends the turn after the round it landed in
 has settled: the model's context carries a `loop_stopped` note naming the
 cycle in the order the calls were issued, the operator sees a warning row, a
 headless run settles with the `error_loop_stopped` result, and a sub-agent
-so ended reports a typed failure to its parent. A run of one identical call
-is advisory on both roads, and the key is read live from the settings files.
+so ended reports a typed failure to its parent. A run of one identical
+successful call is advisory on both roads, and the key is read live from the
+settings files.
+
+In headless sessions, eight consecutive failed calls with the same tool,
+JSON-normalized input and first error line end the turn after the issued
+round settles. A successful call, another tool, changed input or a different
+first error line resets that count; changing detail below the first line
+does not. Failed bookkeeping calls count too. The output and debug log say
+`stopped: the tool call <name> failed the same way 8 times in a row: <error>`,
+the result is `error_loop_stopped`, and text mode exits with status 1. This
+failure-only rule does not depend on the optional cycle-stop setting and
+counts no thinking time, elapsed time or tokens.
+
 A reply that chants — the same fifty-character stretch of prose ten times
 over within a short span, code fences, lists, tables, headings, quotes and
 dividers left out — is answered once with the same kind of reminder and the

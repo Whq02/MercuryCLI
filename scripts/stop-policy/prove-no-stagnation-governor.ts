@@ -192,7 +192,7 @@ if (import.meta.main) {
   const docsNamed = offenders(join(REPO, 'docs'), /stagnation governor|cycle lease|cycle_handoff|re-plan directive/i, ['docs/releases'])
   check('no product page describes it', docsNamed.filter(h => !h.startsWith('docs/releases/')).length === 0, docsNamed.join(' · '))
   const durability = src('docs/DURABILITY.md')
-  check('the durability page says a repeated tool call is never refused and that by default the loop guard only reminds', durability.replace(/\s+/g, ' ').includes('A repeated tool call is never refused, and by default no turn is ended for repeating itself: the loop guard only reminds'))
+  check('the durability page preserves advisory interactive loops and names the headless failure-only rule', durability.replace(/\s+/g, ' ').includes('A repeated tool call is never refused. In interactive sessions the loop guard only reminds by default') && durability.replace(/\s+/g, ' ').includes('eight consecutive failed calls'))
 
   section('§2 on the built product, a turn that re-reads a changing file twenty times runs to the model’s own end')
   const home = join(SCRATCH_ROOT, `mercury-no-governor-${process.pid}`)

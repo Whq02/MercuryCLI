@@ -6,6 +6,7 @@ import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
 import {
   createStreamActivityRelay, createStreamIdleWatchdog, firstByteBudgetMs,
   firstByteTimeoutLine, streamIdleTimeoutMs, StreamIdleTimeoutError, streamIdleFaultWords,
+  SILENT_AFTER_HEADERS_CODE, silentAfterHeadersFaultWords,
   type RequestWaitV1, type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -152,7 +153,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     clearTimeout(firstTimer)
     options.firstByte?.onWait?.(null)
     options.onResponseHeaders?.(response.headers, response.status)
-    watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: response.ok && stream ? options.silentAfterHeadersMs ?? null : null })
     if (!response.ok) {
       const text = safe(await watchdog.guard(response.text()))
       let body: unknown
@@ -173,7 +174,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       const relay = createStreamActivityRelay(at => options.onStreamActivity?.(at))
       for (;;) {
         const chunk = await watchdog.guard(reader.read())
-        watchdog.noteActivity()
+        if (!chunk.done && chunk.value.byteLength > 0) watchdog.noteActivity()
         const events = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value))
         if (events.some(event => event.kind === 'event')) relay.noteEvent()
         else relay.noteChunk()
@@ -215,9 +216,11 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled', retryable: false }
       : firstByteFired
         ? { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true }
-        : idle
-          ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-          : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: !headersReceived, ...(outage !== null ? { outage } : {}) } }
+        : idle && error.noBytes
+          ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+          : idle
+            ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+            : { kind: headersReceived ? 'truncated-stream' : 'transport-error', code: headersReceived ? 'read-failed' : 'fetch-failed', message: safe(describeTransportFailure(error, options.url)), retryable: !headersReceived, ...(outage !== null ? { outage } : {}) } }
   } finally {
     if (firstTimer) clearTimeout(firstTimer)
     options.firstByte?.onWait?.(null)

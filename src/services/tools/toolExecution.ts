@@ -315,6 +315,12 @@ export async function* runToolUse(
       tool = baseMatch
     }
   }
+  const owner = ownerFromToolUseContext(toolUseContext)
+  const joined = round ?? ambientRound(owner, toolUseContext.toolUseId)
+  const ownRound = joined === null ? `call:${toolUseID}` : null
+  const roundID = joined?.id ?? ownRound!
+  const roundOrdinal = joined?.ordinal ?? 0
+  const roundHandle = openRoundCall(owner, roundID, toolUseID, roundOrdinal, joined !== null && round === undefined ? (toolUseContext.roundHandle ?? toolUseContext.toolUseId ?? null) : null, toolUseContext.messages)
   if (!tool) {
     const closest = closestToolByName(toolUseContext.options.tools, requestedName)
     const loadRoad =
@@ -326,21 +332,22 @@ export async function* runToolUse(
         : loadRoad
           ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${closest.name}", then retry this call.`
           : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
-    yield errorResultUpdate({
+    const unavailable = errorResultUpdate({
       toolUseID,
       content: unknownToolText,
       toolUseResult: `Error: ${unknownToolText}`,
       sourceToolAssistantUUID: assistantMessage.uuid,
     })
+    yield unavailable
+    if (toolUseContext.abortController.signal.aborted) return
+    recordToolCall(owner, {
+      toolName: requestedName, toolUseID, roundHandle, roundID, roundOrdinal,
+      arguments: rawInput, result: toolResultBlockOf(unavailable.message, toolUseID), messages: toolUseContext.messages,
+    })
+    if (ownRound !== null) for (const message of closeRound(owner, ownRound).messages) yield { message }
     return
   }
 
-  const owner = ownerFromToolUseContext(toolUseContext)
-  const joined = round ?? ambientRound(owner, toolUseContext.toolUseId)
-  const ownRound = joined === null ? `call:${toolUseID}` : null
-  const roundID = joined?.id ?? ownRound!
-  const roundOrdinal = joined?.ordinal ?? 0
-  const roundHandle = openRoundCall(owner, roundID, toolUseID, roundOrdinal, joined !== null && round === undefined ? (toolUseContext.roundHandle ?? toolUseContext.toolUseId ?? null) : null, toolUseContext.messages)
   const stream = new Stream<MessageUpdateLazy>()
   const resolved = tool
   const body = runTransactionBody({

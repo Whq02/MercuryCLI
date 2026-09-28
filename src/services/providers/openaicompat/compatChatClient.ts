@@ -10,6 +10,8 @@ import {
   firstByteBudgetMs,
   firstByteTimeoutLine,
   REAL_STREAM_TIMERS,
+  SILENT_AFTER_HEADERS_CODE,
+  silentAfterHeadersFaultWords,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
   streamIdleFaultWords,
@@ -207,6 +209,7 @@ export interface CompatStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  silentAfterHeadersMs?: number | null
   onStreamActivity?: (atMs: number) => void
   firstByte?: {
     cold: boolean
@@ -560,7 +563,7 @@ export async function* streamCompatChat(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-    const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs }) : null
+    const watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
     if (local !== undefined) {
       const law = local
@@ -583,10 +586,11 @@ export async function* streamCompatChat(
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await (watchdog !== null ? watchdog.guard(reader.read()) : reader.read())
-        watchdog?.noteActivity()
+        if (!chunk.done && chunk.value.byteLength > 0) watchdog?.noteActivity()
         silenceWatch?.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
+        const noBytes = isIdle && error.noBytes
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
@@ -596,9 +600,11 @@ export async function* streamCompatChat(
               ? { kind: 'timeout', code: LOCAL_DEAD_SERVER_CODE, message: localDeadServerLine(local.serverWords, cut.dead.unansweredMs, 'writing'), retryable: false }
               : local !== undefined && cut.cap
                 ? { kind: 'timeout', code: LOCAL_CAP_CODE, message: localCapLine(wait.model, timers.now() - requestStartedAt, 'writing'), retryable: false }
-                : isIdle
-                  ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-                  : {
+                : noBytes
+                  ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+                  : isIdle
+                    ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+                    : {
                       kind: 'transport-error',
                       code: 'read-failed',
                       message: error instanceof Error ? error.message : String(error),

@@ -112,7 +112,19 @@ function makeTool(name: string): never {
     }),
   } as never
 }
-const TOOLS = [makeTool('Edit'), makeTool('Bash')]
+let failureMode: 'same' | 'changing' | 'details' = 'same'
+let attemptedFailures = 0
+const failingTool = (name: string): never => ({
+  ...(makeTool(name) as unknown as Record<string, unknown>),
+  async validateInput(input: Record<string, unknown>) {
+    if (input.pass === true) return { result: true }
+    attemptedFailures++
+    const suffix = failureMode === 'changing' ? String(attemptedFailures) : ''
+    const detail = failureMode === 'details' ? '\nAttempt detail ' + attemptedFailures : ''
+    return { result: false, message: 'Unknown skill: Sleep.' + suffix + detail }
+  },
+}) as never
+const TOOLS = [makeTool('Edit'), makeTool('Bash'), failingTool('Skill'), failingTool('Sleep')]
 
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({ behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }) as never
@@ -250,6 +262,65 @@ section('H3 — KEY ON, a parallel round on the live shape: the settlement lands
   const lastResultAt = run.yields.reduce((at, m, i) => (m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content) ? i : at), -1)
   check('the settlement is the last thing on the stream, after the last tool result', resultAt === run.yields.length - 1 && lastResultAt < resultAt, `result=${resultAt} lastResult=${lastResultAt} yields=${run.yields.length}`)
   setStopKey(null)
+}
+
+const LIMIT = 8
+const failingSteps = (count: number, name = 'Skill'): Step[] => Array.from({ length: count }, (_, i) => ({ name, input: i % 2 === 0 ? { skill: 'Sleep', args: 'same' } : { args: 'same', skill: 'Sleep' } }))
+
+section('H4 — headless repeated failure stops after eight normalized identical calls')
+{
+  attemptedFailures = 0
+  setStopKey(false)
+  const run = await runHeadless(failingSteps(LIMIT + 1))
+  const result = resultOf(run.yields)
+  check('exactly eight failures execute, never the ninth call or another model request', attemptedFailures === LIMIT && run.modelCalls === LIMIT, 'executed=' + attemptedFailures + ' modelCalls=' + run.modelCalls)
+  check('the result is error_loop_stopped with the call, count and first error line', result?.subtype === 'error_loop_stopped' && result.is_error === true && /stopped: the tool call Skill failed the same way 8 times in a row:.*Unknown skill: Sleep/.test(String(result?.errors)), JSON.stringify(result))
+  check('the failure is never reported as success', !run.yields.some(row => row.type === 'result' && row.subtype === 'success'))
+  setStopKey(null)
+}
+
+section('H5 — interactive sessions remain advisory for the same failures')
+{
+  bootstrap.setIsInteractive(true)
+  const run = await runHeadless(failingSteps(LIMIT + 1))
+  check('interactive mode executes every call and lets the model finish', run.modelCalls === LIMIT + 2 && resultOf(run.yields)?.subtype === 'success', 'modelCalls=' + run.modelCalls)
+  bootstrap.setIsInteractive(false)
+}
+
+section('H6 — the first error line, not changing detail below it, identifies the failure')
+{
+  failureMode = 'details'
+  const run = await runHeadless(failingSteps(LIMIT + 1))
+  check('changing error detail under the same first line still stops', run.modelCalls === LIMIT && resultOf(run.yields)?.subtype === 'error_loop_stopped', 'modelCalls=' + run.modelCalls)
+  failureMode = 'changing'
+  const changed = await runHeadless(failingSteps(LIMIT + 1))
+  check('a different first error line resets the failing-call count', changed.modelCalls === LIMIT + 2 && resultOf(changed.yields)?.subtype === 'success', 'modelCalls=' + changed.modelCalls)
+  failureMode = 'same'
+}
+
+section('H7 — success, changed arguments and different calls break a consecutive run')
+{
+  const success = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Skill', input: { pass: true } }, ...failingSteps(LIMIT - 1)])
+  check('success between two shorter runs resets the failure count', resultOf(success.yields)?.subtype === 'success', JSON.stringify(resultOf(success.yields)))
+  const changed = await runHeadless(failingSteps(LIMIT + 1).map((step, i) => ({ ...step, input: { ...step.input, args: String(i) } })))
+  check('different normalized arguments never match', resultOf(changed.yields)?.subtype === 'success')
+  const other = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Bash', input: TEST }, ...failingSteps(LIMIT - 1)])
+  check('another tool call resets the failing-call count', resultOf(other.yields)?.subtype === 'success')
+  const bookkeeping = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Sleep', input: { pass: true } }, ...failingSteps(LIMIT - 1)])
+  check('a successful bookkeeping call also breaks the failing sequence', resultOf(bookkeeping.yields)?.subtype === 'success')
+}
+
+section('H8 — failed bookkeeping calls are not invisible to the headless fence')
+{
+  const run = await runHeadless(failingSteps(LIMIT + 1, 'Sleep'))
+  check('a bookkeeping tool that fails identically also stops after eight', run.modelCalls === LIMIT && resultOf(run.yields)?.subtype === 'error_loop_stopped', 'modelCalls=' + run.modelCalls)
+}
+
+section('H9 — unavailable tool names still produce counted failures')
+{
+  const run = await runHeadless(failingSteps(LIMIT + 1, 'MissingProbeTool'))
+  const result = resultOf(run.yields)
+  check('an unavailable tool stops after eight, with its own error words', run.modelCalls === LIMIT && result?.subtype === 'error_loop_stopped' && String(result.errors).includes('No such tool available: MissingProbeTool'), 'modelCalls=' + run.modelCalls + ' result=' + JSON.stringify(result))
 }
 
 console.log('\n' + '='.repeat(76))

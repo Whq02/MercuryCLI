@@ -17,7 +17,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { patienceSeconds } from '../patience.js'
@@ -782,6 +782,9 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   const extraHeaders = profile.extraHeaders?.()
+  const idleTimeoutMs = streamIdleTimeoutMsForRoute(profile.lane)
+  const cold = coldPrefixOf(ctx.messages, modelId)
+  const promptTokens = estimateRequestTokens(request)
   const streamOptions: CompatStreamOptions = {
     ...(apiKey !== undefined ? { apiKey } : {}),
     ...(profile.onResponseHeaders ? { onResponseHeaders: profile.onResponseHeaders } : {}),
@@ -789,11 +792,12 @@ async function* streamOneCompatAttempt(ctx: {
     url: requestUrl,
     request,
     signal,
-    idleTimeoutMs: streamIdleTimeoutMsForRoute(profile.lane),
+    idleTimeoutMs,
+    silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, cold, promptTokens, idleMs: idleTimeoutMs }),
     ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
     firstByte: {
-      cold: coldPrefixOf(ctx.messages, modelId),
-      promptTokens: estimateRequestTokens(request),
+      cold,
+      promptTokens,
       model: getPublicModelDisplayName(modelId) ?? modelId,
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },

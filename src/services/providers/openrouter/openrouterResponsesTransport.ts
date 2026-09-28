@@ -14,6 +14,8 @@ import {
   createStreamIdleWatchdog,
   firstByteBudgetMs,
   firstByteTimeoutLine,
+  SILENT_AFTER_HEADERS_CODE,
+  silentAfterHeadersFaultWords,
   streamIdleTimeoutMs,
   StreamIdleTimeoutError,
   streamIdleFaultWords,
@@ -329,23 +331,25 @@ async function* streamOpenrouterResponses(options: CompatStreamOptions, body: st
     }
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null })
     idleWatchdog = watchdog
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
-        watchdog.noteActivity()
+        if (!chunk.done && chunk.value.byteLength > 0) watchdog.noteActivity()
       } catch (error) {
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
           fault: cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
-            : error instanceof StreamIdleTimeoutError
-              ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
-              : { kind: 'transport-error', code: 'read-failed', message: error instanceof Error ? error.message : String(error), retryable: true },
+            : error instanceof StreamIdleTimeoutError && error.noBytes
+              ? { kind: 'timeout', code: SILENT_AFTER_HEADERS_CODE, message: silentAfterHeadersFaultWords(wait.model, error.silentMs, wait.promptTokens), retryable: true }
+              : error instanceof StreamIdleTimeoutError
+                ? { kind: 'timeout', code: 'idle-timeout', message: streamIdleFaultWords(idleMs), retryable: true }
+                : { kind: 'transport-error', code: 'read-failed', message: error instanceof Error ? error.message : String(error), retryable: true },
         }
         void reader.cancel().catch(() => {})
         return
