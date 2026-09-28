@@ -1228,6 +1228,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/prompt-input/prove-pasted-prompt-row.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], { cwd: root, env: childEnv, stdio: ['ignore', 'ignore',",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/prompt-input/prove-prompt-input-async-note.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
@@ -2234,6 +2241,13 @@
       "excerpt": "const hits = execSync(`grep -rlE '<(MessageRow|Messages)\\\\b' src/components src/screens src/utils src/tools src/commands 2>/dev/null || true",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/ui/prove-runs-board-name.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
       "file": "scripts/ui/prove-runs-row-detail-drive.ts",
