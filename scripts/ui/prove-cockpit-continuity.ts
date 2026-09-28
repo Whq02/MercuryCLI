@@ -39,11 +39,11 @@ check(
   'the streaming hold keeps the 1-row slot while prose streams',
   /: spinnerSlotReserved \? <StreamingHoldRow [\s\S]{0,220}\/> : null\}/.test(repl),
 );
+const holdRow = readFileSync('src/components/Spinner/StreamingHoldRow.tsx', 'utf8');
 check(
-  'StreamingHoldRow itself is a height-1 row (the slot footprint)',
-  /<Box height=\{1\} width="100%">/.test(
-    readFileSync('src/components/Spinner/StreamingHoldRow.tsx', 'utf8'),
-  ),
+  'StreamingHoldRow itself is the slot footprint: one row until the turn took two (the strip height latch, keyed by the turn clock)',
+  /<Box height=\{stripLines\} width="100%">/.test(holdRow) &&
+    holdRow.includes('const stripLines = turnStripLines(loadingStartTimeRef.current, 1)'),
 );
 
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8');

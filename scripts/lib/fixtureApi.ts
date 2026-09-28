@@ -57,6 +57,7 @@ type ScriptedTurnBody =
       firstChunkDelayMs?: number
       usage?: FixtureUsage
       model?: string
+      tools?: { name: string; input: Record<string, unknown>; id?: string }[]
     }
 
 export interface CapturedRequest {
@@ -727,6 +728,7 @@ export async function startFixtureApi(
         type PlannedChunk = {
           payload: string
           emit?: { blockIndex: number; blockType: 'thinking' | 'text'; index: number; text: string }
+          tool?: { name: string; id: string }
         }
         const chunks: PlannedChunk[] = [
           { payload: messageStart(`msg_fixture_${msgSeq}`, turn.usage, undefined, turn.model) },
@@ -760,6 +762,12 @@ export async function startFixtureApi(
             payload: sseEvent('content_block_stop', { type: 'content_block_stop', index: bi }),
           })
         })
+        const streamTools = turn.tools ?? []
+        streamTools.forEach((tool, ti) => {
+          const id = tool.id ?? `toolu_fixture_${turnNo}_${ti}`
+          chunks.push({ payload: toolUseBlocks(id, tool.name, tool.input, turn.blocks.length + ti), tool: { name: tool.name, id } })
+        })
+        const streamStop = streamTools.length > 0 ? 'tool_use' : (turn.stopReason ?? 'end_turn')
         const pump = (): void => {
           openResponses.add(res)
           let i = 0
@@ -771,7 +779,7 @@ export async function startFixtureApi(
             }
             if (i >= chunks.length) {
               clearInterval(tick)
-              res.end(messageEnd(turn.stopReason ?? 'end_turn', turn.usage))
+              res.end(messageEnd(streamStop, turn.usage))
               openResponses.delete(res)
               return
             }
@@ -779,6 +787,7 @@ export async function startFixtureApi(
             try {
               res.write(chunk.payload)
               if (chunk.emit) streamEmits.push({ turn: turnNo, ...chunk.emit, at: Date.now() })
+              if (chunk.tool) toolEmits.push({ turn: turnNo, name: chunk.tool.name, id: chunk.tool.id, at: Date.now() })
             } catch {
               clearInterval(tick)
               openResponses.delete(res)
