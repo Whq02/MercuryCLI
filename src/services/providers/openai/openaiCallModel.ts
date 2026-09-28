@@ -84,7 +84,7 @@ import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitS
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
-import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
@@ -1084,6 +1084,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
     for (const note of ctx.settlementNotes) yield* emitNoteBlock(note)
   }
 
+  const idleTimeoutMs = streamIdleTimeoutMsForRoute('openai')
+  const cold = coldPrefixOf(ctx.messages, modelId)
+  const promptTokens = estimateRequestTokens(request)
   const events =
     ctx._eventsForTesting ??
     streamOpenaiResponses({
@@ -1091,11 +1094,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
       headers: auth.headers,
       request,
       signal,
-      idleTimeoutMs: streamIdleTimeoutMsForRoute('openai'),
+      idleTimeoutMs,
+      silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: 'openai', cold, promptTokens, idleMs: idleTimeoutMs }),
       ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
       firstByte: {
-        cold: coldPrefixOf(ctx.messages, modelId),
-        promptTokens: estimateRequestTokens(request),
+        cold,
+        promptTokens,
         model: getPublicModelDisplayName(modelId) ?? modelId,
         ...(ctx.attempt !== undefined ? { attempt: ctx.attempt } : {}),
         ...(options.onWait ? { onWait: options.onWait } : {}),

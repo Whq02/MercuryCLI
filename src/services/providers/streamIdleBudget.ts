@@ -85,6 +85,46 @@ export function coldPrefixOf(messages: ReadonlyArray<unknown>, model: string): b
   return true
 }
 
+export const SILENT_AFTER_HEADERS_DEFAULT_MS = 30_000
+const SILENT_AFTER_HEADERS_FLOOR_MS = 100
+export const SILENT_AFTER_HEADERS_CODE = 'silent-after-headers'
+
+function pinnedSilentAfterHeadersMs(): number | null {
+  const raw = process.env.MERCURY_SILENT_AFTER_HEADERS_MS
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  return Number.isFinite(parsed) && parsed >= SILENT_AFTER_HEADERS_FLOOR_MS ? parsed : null
+}
+
+export function silentAfterHeadersMsForRoute(route: string | null): number | null {
+  switch (route) {
+    case 'anthropic':
+    case 'openai':
+    case 'zai':
+    case 'moonshot':
+    case 'deepseek':
+    case 'openrouter':
+    case 'gemini':
+    case 'huggingface':
+    case 'openai-compat':
+      return pinnedSilentAfterHeadersMs() ?? SILENT_AFTER_HEADERS_DEFAULT_MS
+    default:
+      return null
+  }
+}
+
+export function silentAfterHeadersWindowMs(args: { route: string | null; cold: boolean; promptTokens: number; idleMs: number }): number | null {
+  const base = silentAfterHeadersMsForRoute(args.route)
+  if (base === null) return null
+  const tokens = Number.isFinite(args.promptTokens) && args.promptTokens > 0 ? args.promptTokens : 0
+  const allowance = args.cold && pinnedSilentAfterHeadersMs() === null ? Math.round((tokens / 1000) * COLD_INGEST_MS_PER_1K_TOKENS) : 0
+  const window = base + allowance
+  return window < args.idleMs ? window : null
+}
+
+export function silentAfterHeadersFaultWords(model: string, silentMs: number, promptTokens = 0): string {
+  return `${model} answered and then sent nothing for ${seconds(silentMs)} — not one byte after the headers on a prompt of ~${Math.round(promptTokens)} tokens: a dead connection`
+}
+
 export type RequestWaitV1 =
   | {
       kind: 'first-byte'
@@ -234,6 +274,7 @@ export function retryReasonWords(status: number | null | undefined, message?: st
   const outage = outageCauseWordsOf(message)
   if (outage !== undefined) return outage
   if (/no first byte/.test(message)) return 'a first-byte timeout'
+  if (/not one byte after the headers/.test(message)) return 'a dead connection'
   return 'a connection error'
 }
 
@@ -246,14 +287,17 @@ export function retryNoticeWait(notice: SystemAPIErrorMessage, nowMs: number = D
 export type StreamIdleFire = {
   silentMs: number
   activity: number
+  noBytes: boolean
 }
 
 export class StreamIdleTimeoutError extends Error {
   readonly silentMs: number
-  constructor(silentMs: number) {
-    super(`no stream activity for ${silentMs} ms`)
+  readonly noBytes: boolean
+  constructor(silentMs: number, noBytes = false) {
+    super(noBytes ? `no bytes for ${silentMs} ms after the headers` : `no stream activity for ${silentMs} ms`)
     this.name = 'StreamIdleTimeoutError'
     this.silentMs = silentMs
+    this.noBytes = noBytes
   }
 }
 
@@ -280,12 +324,18 @@ export interface StreamIdleWatchdog {
 
 export function createStreamIdleWatchdog(opts: {
   timeoutMs: number
+  silentAfterHeadersMs?: number | null
   onWarning?: (silentMs: number) => void
   onFire?: (fire: StreamIdleFire) => void
 }): StreamIdleWatchdog {
   const timeoutMs = opts.timeoutMs
   const warningMs = streamIdleWarningMsOf(timeoutMs)
-  let lastActivityAtMs = Date.now()
+  const fenceMs =
+    typeof opts.silentAfterHeadersMs === 'number' && opts.silentAfterHeadersMs > 0 && opts.silentAfterHeadersMs < timeoutMs
+      ? opts.silentAfterHeadersMs
+      : null
+  const createdAtMs = Date.now()
+  let lastActivityAtMs = createdAtMs
   let activity = 0
   let warnedForMs = -1
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -302,9 +352,10 @@ export function createStreamIdleWatchdog(opts: {
     timer = null
     if (stopped || fire !== null) return
     const silentMs = Date.now() - lastActivityAtMs
-    if (silentMs >= timeoutMs) {
-      fire = { silentMs, activity }
-      const error = new StreamIdleTimeoutError(silentMs)
+    const noBytes = fenceMs !== null && activity === 0 && silentMs >= fenceMs
+    if (silentMs >= timeoutMs || noBytes) {
+      fire = { silentMs, activity, noBytes }
+      const error = new StreamIdleTimeoutError(silentMs, noBytes)
       for (const reject of waiters) reject(error)
       waiters.clear()
       opts.onFire?.(fire)
@@ -317,7 +368,8 @@ export function createStreamIdleWatchdog(opts: {
     arm()
   }
   function arm(): void {
-    const nextDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? timeoutMs : warningMs)
+    const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? timeoutMs : warningMs)
+    const nextDeadlineAt = fenceMs !== null && activity === 0 ? Math.min(idleDeadlineAt, createdAtMs + fenceMs) : idleDeadlineAt
     timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - Date.now()))
   }
   arm()
@@ -337,7 +389,7 @@ export function createStreamIdleWatchdog(opts: {
       return Date.now() - lastActivityAtMs
     },
     guard<T>(pending: Promise<T>): Promise<T> {
-      if (fire !== null) return Promise.reject(new StreamIdleTimeoutError(fire.silentMs))
+      if (fire !== null) return Promise.reject(new StreamIdleTimeoutError(fire.silentMs, fire.noBytes))
       return new Promise<T>((resolve, reject) => {
         waiters.add(reject)
         pending.then(
@@ -401,7 +453,7 @@ export function observeStreamActivity(response: Response, note: StreamActivityNo
   const tapped = response.body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
-        note()
+        if (chunk.byteLength > 0) note()
         controller.enqueue(chunk)
       },
     }),

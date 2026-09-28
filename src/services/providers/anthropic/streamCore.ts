@@ -196,6 +196,8 @@ import {
   firstByteBudgetMs,
   firstByteTimeoutLine,
   retryReasonWords,
+  silentAfterHeadersFaultWords,
+  silentAfterHeadersWindowMs,
   streamActivityFetchOptions,
   createStreamActivityRelay,
   createStreamIdleWatchdog,
@@ -970,6 +972,8 @@ async function* queryModel(
   try {
     streamingPass: for (;;) {
     let noteTransportActivity: (() => void) | null = null
+    let transportSawByte = false
+    const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
     const generator = withRetry(
       () =>
         getAnthropicClient({
@@ -1009,6 +1013,8 @@ async function* queryModel(
           sinceMs: Date.now(),
           attempt,
         }
+        firstByte.wait = wait
+        transportSawByte = false
         options.onWait?.(wait)
 
         if (!options.agentId) {
@@ -1025,7 +1031,10 @@ async function* queryModel(
               {
                 signal,
                 timeout: wait.budgetMs,
-                fetchOptions: streamActivityFetchOptions(() => noteTransportActivity?.()) as never,
+                fetchOptions: streamActivityFetchOptions(() => {
+                  transportSawByte = true
+                  noteTransportActivity?.()
+                }) as never,
                 ...(clientRequestId && {
                   headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
                 }),
@@ -1098,8 +1107,21 @@ async function* queryModel(
     let streamEventCount = 0
     let streamWatchdogFiredAt: number | null = null
     let sawMessageStop = false
+    const modelWords = getPublicModelDisplayName(options.model) ?? options.model
+    const preEventSilenceWords = (): string => {
+      const fired = streamIdleWatchdog.fired()
+      return fired?.noBytes === true
+        ? silentAfterHeadersFaultWords(modelWords, fired.silentMs, firstByte.wait?.promptTokens ?? 0)
+        : `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly)`
+    }
     const streamIdleWatchdog = createStreamIdleWatchdog({
       timeoutMs: STREAM_IDLE_TIMEOUT_MS,
+      silentAfterHeadersMs: silentAfterHeadersWindowMs({
+        route: 'anthropic',
+        cold: firstByte.wait?.cold === true,
+        promptTokens: firstByte.wait?.promptTokens ?? 0,
+        idleMs: STREAM_IDLE_TIMEOUT_MS,
+      }),
       onWarning: () => {
         logForDebugging(
           `stream silent for ${patienceSeconds(STREAM_IDLE_WARNING_MS)} — watchdog warning`,
@@ -1111,13 +1133,16 @@ async function* queryModel(
         streamIdleAborted = true
         streamWatchdogFiredAt = performance.now()
         logForDebugging(
-          `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
+          streamIdleWatchdog.fired()?.noBytes === true
+            ? `${preEventSilenceWords()} — watchdog aborting the stream`
+            : `stream silent for ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} — watchdog aborting the stream`,
           { level: 'error' },
         )
         logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
         releaseStreamResources()
       },
     })
+    if (transportSawByte) streamIdleWatchdog.noteActivity()
     const activityRelay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
     noteTransportActivity = () => {
       streamIdleWatchdog.noteActivity()
@@ -1501,13 +1526,13 @@ async function* queryModel(
         resetApiConnectionPool()
         logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
         logForDebugging(
-          `watchdog: no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — reissuing the stream (pass 2)`,
+          `watchdog: ${preEventSilenceWords()} — reissuing the stream (pass 2)`,
           { level: 'warn' },
         )
         yield createSystemAPIErrorMessage(
           Object.assign(
             new Error(
-              `no stream events within ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of dispatch — the request was accepted and the wait is provider-side (a switched or uncached prompt can ingest slowly); reissuing the stream`,
+              `${preEventSilenceWords()}; reissuing the stream`,
             ),
             { cause: streamingError },
           ),
@@ -1534,7 +1559,9 @@ async function* queryModel(
             new Error(
               sawFirstStreamEvent
                 ? `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} of mid-stream silence (${streamEventCount} event(s) arrived, then the stream went quiet — the connection likely dropped) — ${fallbackWaitWords}`
-                : `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
+                : streamIdleWatchdog.fired()?.noBytes === true
+                  ? `${preEventSilenceWords()}, TWICE (the request authenticates and is accepted, then nothing arrives) — ${fallbackWaitWords}; /model can switch families meanwhile`
+                  : `stream idle watchdog fired after ${patienceSeconds(STREAM_IDLE_TIMEOUT_MS)} with no first event, TWICE (the request authenticates and is accepted, then nothing arrives — a dead connection, or a request the server parks) — ${fallbackWaitWords}; /model can switch families meanwhile`,
             ),
             { cause: streamingError },
           )
@@ -1563,7 +1590,7 @@ async function* queryModel(
         captureModelRequest,
         streamRequestId,
         streamIdleAborted
-          ? { idleMs: STREAM_IDLE_TIMEOUT_MS, model: getPublicModelDisplayName(options.model) ?? options.model }
+          ? { idleMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS, model: modelWords }
           : undefined,
       )
 
