@@ -53,13 +53,13 @@ try {
         { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 5, data: '', mark: 'home' },
       ]
       if (road === 'lists') sends.push(
-        { afterPrevTicks: 2, data: '/sessions' },
-        { afterPrevTicks: 2, data: '\r' },
+        { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, data: '/sessions' },
+        { awaitText: '❯ /sessions', requireAwait: true, awaitSettleTicks: 2, data: '\r' },
         { awaitText: 'Switch to', awaitPattern: '(?s)Switch to.*after command', requireAwait: true, awaitStableTicks: 3, data: '', mark: 'sessions' },
       )
       const out = join(home, `${band.cols}-${road}.json`)
       const config = `${out}.cfg.json`
-      writeFileSync(config, JSON.stringify({ ...cfg, argv, sends, total: 160, ...band, out }))
+      writeFileSync(config, JSON.stringify({ ...cfg, argv, sends, readyText: road === 'lists' ? 'Switch to' : 'Type a prompt', total: 160, ...band, out }))
       const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {
         encoding: 'utf8', timeout: vshotBudgetMs(180_000), env: { ...process.env, MERCURY_AWAY_SUMMARY: '0' },
       })

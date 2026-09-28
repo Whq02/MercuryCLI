@@ -29,12 +29,12 @@ try {
       const cfg = scenario('resume-2turn', band.cols, band.rows)
       const sends = [
         { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 3, data: `/${command}` },
-        { afterPrevTicks: 3, data: '\r' },
-        { awaitPattern: 'Mercury — (runs|tasks)|Unknown (command|skill): /?runs', afterPrevTicks: 8, data: '', mark: 'board' },
+        { awaitText: `❯ /${command}`, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
+        { awaitText: 'Mercury — ', requireAwait: true, awaitSettleTicks: 3, data: '', mark: 'board' },
       ]
       const out = join(home, `${band.cols}-${command}.json`)
       const config = `${out}.cfg.json`
-      writeFileSync(config, JSON.stringify({ ...cfg, sends, total: 160, ...band, out }))
+      writeFileSync(config, JSON.stringify({ ...cfg, sends, readyText: 'Mercury — ', total: 160, ...band, out }))
       const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {
         encoding: 'utf8', timeout: vshotBudgetMs(180_000), env: { ...process.env, MERCURY_AWAY_SUMMARY: '0' },
       })
