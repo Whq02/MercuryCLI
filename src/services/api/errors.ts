@@ -589,11 +589,11 @@ function composeAssistantMessageFromError(
 
   if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
     const base =
-      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images.'
+      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit on retry; nothing is dropped.'
     return createAssistantAPIErrorMessage({
       content: nonInteractive
-        ? `${base} Start a new session with fewer images.`
-        : `${base} Run /compact to drop old images, or start a new session.`,
+        ? base
+        : `${base} Simply continue, or run /compact to drop old images.`,
       error: 'invalid_request',
       errorDetails: message,
     })
@@ -606,11 +606,11 @@ function composeAssistantMessageFromError(
     error.message.includes('max allowed size')
   ) {
     const base =
-      'An image exceeds the API limit of 8000px on any side. The oversized image is removed on retry.'
+      'An image exceeds the API limit of 8000px on any side. The oversized image is sized to that limit on retry; nothing is dropped.'
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base
-        : `${base} You can also run /compact to drop old images, or simply continue.`,
+        : `${base} Simply continue, or run /compact to drop old images.`,
       error: 'invalid_request',
       errorDetails: message,
     })
