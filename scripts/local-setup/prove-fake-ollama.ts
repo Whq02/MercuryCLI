@@ -152,7 +152,7 @@ const port = await new Promise<number>((resolve, reject) => {
   server.stdout!.on('data', chunk => {
     serverOut += String(chunk)
     const match = /PORT (\d+)/.exec(serverOut)
-    if (match) {
+    if (match && /ROOT http/.test(serverOut)) {
       clearTimeout(timer)
       resolve(Number(match[1]))
     }
