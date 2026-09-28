@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-28T22:32:45.492Z",
+ "capturedAt": "2026-09-28T22:39:58.915Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-uC7Y9R · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-5NKxdx · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:32:37 [sam] ❯ design the cache layer",
+    "23:39:51 [sam] ❯ design the cache layer",
     "",
-    "23:32:38 [Mercury] Let me confirm the open",
+    "23:39:51 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -58,13 +58,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-uC7Y9R · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-5NKxdx · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:32:37 [sam] ❯ design the cache layer",
+    "23:39:51 [sam] ❯ design the cache layer",
     "",
-    "23:32:38 [Mercury] Let me confirm the open",
+    "23:39:51 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,16 +106,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6203,
-   "frame-recommit": 15
+   "patches": 6142,
+   "frame-recommit": 23
   },
   "frames": {
-   "total": 29,
-   "window": 29,
-   "p50": 0.7789169999996375,
-   "p95": 10.059666999999536,
-   "p99": 10.412374999999997,
-   "maxMs": 10.412374999999997
+   "total": 36,
+   "window": 36,
+   "p50": 0.5636669999998958,
+   "p95": 11.138916999999992,
+   "p99": 23.385999999999513,
+   "maxMs": 23.385999999999513
   }
  },
  "requests": [
@@ -150,11 +150,11 @@
  ],
  "sends": [
   {
-   "atMs": 6696.9311237335205,
+   "atMs": 7050.971031188965,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7496.9311237335205,
+   "atMs": 7850.971031188965,
    "b64": "DQ=="
   }
  ]
