@@ -12,7 +12,7 @@ import { useCopyOnSelect, useSelectionBgColor } from '../hooks/useCopyOnSelect.j
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { topOverlay, topOverlayOwnsPageKeys } from '../context/overlayStack.js'
 import { useNotifications } from '../context/notifications.js'
-import { getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.js'
+import { copyReceipt, getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.js'
 import { logForDebugging } from '../utils/debug.js'
 import {
   clearOwnInputSelection,
@@ -283,17 +283,11 @@ export function ScrollKeybindingHandler({
     (text: string) => {
       void text
       const path = getClipboardPath()
-      const where =
-        path === 'native'
-          ? ''
-          : path === 'tmux-buffer'
-            ? ' (multiplexer buffer — paste with the prefix chord then ])'
-            : " (terminal escape transfer — check the terminal's clipboard settings if pasting fails)"
       addNotification({
         key: COPY_TOAST_KEY,
         priority: 'immediate',
         timeoutMs: path === 'native' ? 2000 : 4000,
-        text: `Copied to clipboard${where}`,
+        ...copyReceipt(path),
       })
       if (path === 'osc52') return
       copySettleWatchRef.current?.()
@@ -304,7 +298,7 @@ export function ScrollKeybindingHandler({
           key: COPY_TOAST_KEY,
           priority: 'immediate',
           timeoutMs: 4000,
-          text: `Copy did not settle — ${receipt.confirmation}`,
+          ...copyReceipt('unsettled'),
         })
       })
       copySettleWatchRef.current = () => {

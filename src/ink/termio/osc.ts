@@ -73,6 +73,24 @@ export function getClipboardPath(): ClipboardPath {
   return 'osc52'
 }
 
+export type CopyReceipt = { text: string; detail?: string }
+
+const COPY_RECEIPT = 'Copied to clipboard'
+const ESCAPE_TRANSFER_DETAIL = "check the terminal's clipboard settings if pasting fails"
+
+export function copyReceipt(path: ClipboardPath | 'unsettled'): CopyReceipt {
+  switch (path) {
+    case 'native':
+      return { text: COPY_RECEIPT }
+    case 'tmux-buffer':
+      return { text: `${COPY_RECEIPT} via tmux`, detail: 'paste with the prefix chord then ]' }
+    case 'osc52':
+      return { text: `${COPY_RECEIPT} via terminal escape`, detail: ESCAPE_TRANSFER_DETAIL }
+    case 'unsettled':
+      return { text: 'Copy did not settle — offered via terminal escape instead', detail: ESCAPE_TRANSFER_DETAIL }
+  }
+}
+
 const SUBPROCESS_TIMEOUT_MS = 2000
 
 export async function tmuxLoadBuffer(text: string): Promise<boolean> {

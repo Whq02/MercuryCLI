@@ -55,6 +55,11 @@ export function noticeRowText(current: Notification | null): React.ReactNode | n
   return current.color === undefined ? line : <Text color={current.color}>{line}</Text>
 }
 
+export function noticeRowDetail(current: Notification | null): React.ReactNode | null {
+  if (current === null || 'jsx' in current || current.detail === undefined) return null
+  return current.color === undefined ? current.detail : <Text color={current.color}>{current.detail}</Text>
+}
+
 export const NOTICE_BLOCK_MAX_ROWS = 3
 
 function noticeBlockChildren(block: React.ReactNode): React.ReactNode[] | null {

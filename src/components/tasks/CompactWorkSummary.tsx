@@ -12,7 +12,7 @@ import {
 } from '../../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
-import { noticeRowText } from '../PromptInput/Notifications.js'
+import { noticeRowDetail, noticeRowText } from '../PromptInput/Notifications.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snapshot.js'
 
@@ -74,17 +74,25 @@ export function CompactWorkSummary({
   const stripHint = useSyncExternalStore(subscribeSurfaceRoute, getStripHint, noHint)
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
+  const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.compactWayBack !== false
   const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null
+  const ink = { bold: focused, color: focused ? tokens.textPrimary : tokens.textMuted, backgroundColor: focused ? tokens.selectionBand : undefined }
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
-      <Box {...(noticeColumns === null ? { flexGrow: 1 } : { width: noticeColumns, flexShrink: 0 })} minWidth={0} onClick={onFocus}>
-        <Text wrap="truncate-end" bold={focused} color={focused ? tokens.textPrimary : tokens.textMuted} backgroundColor={focused ? tokens.selectionBand : undefined}>
+      <Box {...(noticeColumns === null ? { flexGrow: 1 } : { width: noticeColumns, flexShrink: 0 })} minWidth={0} flexWrap="wrap" height={1} overflow="hidden" onClick={onFocus}>
+        <Text wrap="truncate-end" {...ink}>
           {noticeText !== null ? noticeText : compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}
         </Text>
+        {noticeDetail !== null ? (
+          <Text wrap="truncate-end" {...ink}>
+            {' · '}
+            {noticeDetail}
+          </Text>
+        ) : null}
       </Box>
       {hint !== '' ? (
         <Box flexShrink={0} marginLeft={wayBackStays ? 2 : 1}>
