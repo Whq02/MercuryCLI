@@ -2796,6 +2796,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/visual-finish/prove-rail-recent-lane.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/winreg/prove-capture-grammar.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['-c', `import ast; ast.parse(open('${f}').read())`], { encoding: 'utf8' })",
