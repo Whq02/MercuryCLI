@@ -48,6 +48,7 @@ type Route =
   | 'anthropic-gateway'
   | 'anthropic-gateway-unprobed'
   | 'openai'
+  | 'openai-native'
   | 'zai'
   | 'moonshot'
   | 'deepseek'
@@ -126,10 +127,12 @@ interface Capture {
 }
 const captured: Capture[] = []
 let activeGatewayLeg: Route = 'anthropic-gateway'
+let activeOpenaiLeg: Route = 'openai'
 
 function isProbeBody(body: Body): boolean {
   const tools = Array.isArray(body.tools) ? (body.tools as Array<Record<string, unknown>>) : []
-  return body.max_tokens === 1 && tools.length === 1 && tools[0]?.name === 'deferral_probe'
+  if (body.max_tokens === 1 && tools.length === 1 && tools[0]?.name === 'deferral_probe') return true
+  return tools.some(t => t.name === 'deferral_probe') && tools.some(t => t.type === 'tool_search')
 }
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -186,7 +189,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         for (const [k, v] of Object.entries(req.headers)) {
           if (typeof v === 'string') headers[k.toLowerCase()] = v
         }
-        const owner: Route = route === 'anthropic-gateway' ? activeGatewayLeg : route
+        const owner: Route = route === 'anthropic-gateway' ? activeGatewayLeg : route === 'openai' ? activeOpenaiLeg : route
         captured.push({ route: owner, url: path, headers, body, bodyBytes: Buffer.byteLength(raw, 'utf8'), probe: isProbeBody(body) })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         res.end(isAnthropic ? anthropicSse() : isResponses ? responsesSse() : chatSse())
@@ -252,6 +255,7 @@ const { DEEPSEEK_STATIC_CATALOGUE } = await import('../../src/utils/router/provi
 const { HUGGINGFACE_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/huggingface.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { openaiGatewayProbeKey, recordGatewayProbe } = await import('../../src/services/providers/deferralProbe.ts')
 type Message = import('../../src/types/message.ts').Message
 type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
@@ -272,6 +276,7 @@ const LEGS: Leg[] = [
   { route: 'anthropic-gateway-unprobed', model: 'claude-sonnet-5', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-token', ANTHROPIC_BASE_URL: base, MERCURY_TOOL_DEFER_PROBE: undefined } },
   { route: 'anthropic-gateway', model: 'claude-sonnet-5', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-token', ANTHROPIC_BASE_URL: base, MERCURY_TOOL_DEFER_PROBE: '1' } },
   { route: 'openai', model: 'gpt-5.6-sol', env: {} },
+  { route: 'openai-native', model: 'gpt-5.6-sol', env: {} },
   { route: 'zai', model: GLM_STATIC_CATALOGUE[0]!.id, env: {} },
   { route: 'moonshot', model: moonshotCatalogueEntries()[0]!.id, env: {} },
   { route: 'deepseek', model: DEEPSEEK_STATIC_CATALOGUE[0]!.id, env: {} },
@@ -360,7 +365,7 @@ function toolsOfBody(route: Route, body: Body): Array<{ name: string; deferLoadi
     if (isHomeWire(route)) {
       return { name: String(t.name ?? ''), deferLoading: t.defer_loading === true }
     }
-    if (route === 'openai') return { name: String(t.name ?? ''), deferLoading: false }
+    if (route === 'openai' || route === 'openai-native') return { name: String(t.name ?? t.type ?? ''), deferLoading: t.defer_loading === true }
     const fn = (t.function ?? {}) as Record<string, unknown>
     return { name: String(fn.name ?? t.name ?? ''), deferLoading: false }
   })
@@ -380,7 +385,7 @@ function announcementOf(route: Route, body: Body): { present: boolean; bytes: nu
       }
     }
   }
-  if (route === 'openai') {
+  if (route === 'openai' || route === 'openai-native') {
     for (const item of (body.input as Array<Record<string, unknown>> | undefined) ?? []) collect(item.content)
   } else {
     for (const m of (body.messages as Array<Record<string, unknown>> | undefined) ?? []) collect(m.content)
@@ -508,6 +513,10 @@ for (const leg of LEGS) {
     admittedNames = [...builtins, 'mcp__filesys__read_file']
   }
   if (leg.route === 'anthropic-gateway' || leg.route === 'anthropic-gateway-unprobed') activeGatewayLeg = leg.route
+  if (leg.route === 'openai' || leg.route === 'openai-native') activeOpenaiLeg = leg.route
+  if (leg.route === 'openai-native') {
+    recordGatewayProbe(openaiGatewayProbeKey(new URL(process.env.MERCURY_OPENAI_API_BASE ?? '').host), { verdict: 'openai-native', evidence: 'http 200: the loopback passed the tool_search shape', status: 200, probedAt: new Date().toISOString() })
+  }
   const fresh = await drive(leg, 'fresh', pool, admittedNames)
   if (leg.route === 'anthropic-gateway') await settleGatewayProbe()
   const admitted = await drive(leg, 'admitted', pool, admittedNames)

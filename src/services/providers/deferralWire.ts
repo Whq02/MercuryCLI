@@ -1,15 +1,19 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
-import { readGatewayProbeVerdict } from './deferralProbe.js'
+import { OPENAI_FIRST_PARTY_PROBE_KEY, openaiGatewayProbeKey, readGatewayProbeVerdict } from './deferralProbe.js'
+import { parseGptModelId } from './openai/gptPins.js'
 
-export type DeferralWireForm = 'block' | 'text'
+export type DeferralWireForm =
+  | 'block'
+  | 'text'
+  | 'openai-native'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
 export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralWireCapability>> = {
   anthropic: 'gateway-evidence',
-  openai: 'text',
+  openai: 'openai-native',
   zai: 'text',
   moonshot: 'text',
   deepseek: 'text',
@@ -36,6 +40,9 @@ export interface DeferralWireVerdict {
     | 'gateway-probed-text'
     | 'gateway-unprobed'
     | 'no-route'
+    | 'model-below-native-floor'
+    | 'gateway-probed-native'
+    | 'first-party-refused'
 }
 
 export function gatewayHost(env: Record<string, string | undefined> = process.env): string | null {
@@ -69,7 +76,51 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
   if (verdict.kind === 'unrecognised') return homeLaneWireForm(reads)
   const capability = DEFERRAL_WIRE_CAPABILITY[verdict.route]
   if (capability === 'gateway-evidence') return homeLaneWireForm(reads)
+  if (capability === 'openai-native') return openaiLaneWireForm(model, reads)
   return { form: capability, why: 'route-table' }
+}
+
+export const OPENAI_NATIVE_DEFERRAL_FLOOR = { major: 5, minor: 4 } as const
+
+export const OPENAI_FIRST_PARTY_HOSTS: ReadonlySet<string> = new Set(['api.openai.com', 'chatgpt.com'])
+
+const OPENAI_BASE_ENV_KEYS = ['MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE'] as const
+
+export function gptModelCarriesNativeDeferral(model: string): boolean {
+  const identity = parseGptModelId(model)
+  if (identity === undefined) return false
+  if (identity.major !== OPENAI_NATIVE_DEFERRAL_FLOOR.major) return identity.major > OPENAI_NATIVE_DEFERRAL_FLOOR.major
+  return identity.minor >= OPENAI_NATIVE_DEFERRAL_FLOOR.minor
+}
+
+export function openaiGatewayHost(env: Record<string, string | undefined> = process.env): { firstParty: true } | { firstParty: false; host: string | null } {
+  for (const key of OPENAI_BASE_ENV_KEYS) {
+    const baseUrl = env[key]?.trim()
+    if (!baseUrl) continue
+    try {
+      const host = new URL(baseUrl).host
+      if (!OPENAI_FIRST_PARTY_HOSTS.has(host)) return { firstParty: false, host }
+    } catch {
+      return { firstParty: false, host: null }
+    }
+  }
+  return { firstParty: true }
+}
+
+export function openaiLaneWireForm(model: string, reads: DeferralWireReads = {}): DeferralWireVerdict {
+  const env = reads.env ?? process.env
+  if (!gptModelCarriesNativeDeferral(model)) return { form: 'text', why: 'model-below-native-floor' }
+  const endpoint = openaiGatewayHost(env)
+  const verdictOf = (key: string): DeferralWireForm | undefined => (reads.probeVerdict ? reads.probeVerdict(key) : readGatewayProbeVerdict(key))
+  if (endpoint.firstParty) {
+    if (verdictOf(OPENAI_FIRST_PARTY_PROBE_KEY) === 'text') return { form: 'text', why: 'first-party-refused' }
+    return { form: 'openai-native', why: 'first-party-contract' }
+  }
+  if (endpoint.host === null) return { form: 'text', why: 'gateway-unprobed' }
+  const verdict = verdictOf(openaiGatewayProbeKey(endpoint.host))
+  if (verdict === 'openai-native') return { form: 'openai-native', why: 'gateway-probed-native' }
+  if (verdict === 'text') return { form: 'text', why: 'gateway-probed-text' }
+  return { form: 'text', why: 'gateway-unprobed' }
 }
 
 export function toolReferenceWireAccepted(reads: DeferralWireReads = {}): boolean {
@@ -84,6 +135,7 @@ const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallMode
 
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
   if (form === 'block') return true
+  if (form === 'openai-native') return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }

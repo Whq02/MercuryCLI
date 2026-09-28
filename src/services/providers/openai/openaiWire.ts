@@ -12,6 +12,31 @@ export interface OpenaiFunctionTool {
   description?: string
   parameters: unknown
   strict?: boolean
+  defer_loading?: boolean
+}
+
+export interface OpenaiToolSearchTool {
+  type: 'tool_search'
+}
+
+export interface OpenaiToolSearchCallItem {
+  type: 'tool_search_call'
+  id?: string
+  call_id?: string | null
+  execution?: string
+  status?: string
+  arguments?: unknown
+  [key: string]: unknown
+}
+
+export interface OpenaiToolSearchOutputItem {
+  type: 'tool_search_output'
+  id?: string
+  call_id?: string | null
+  execution?: string
+  status?: string
+  tools?: unknown[]
+  [key: string]: unknown
 }
 
 export interface OpenaiWebSearchTool {
@@ -61,12 +86,14 @@ export type OpenaiInputItem =
   | OpenaiFunctionCallItem
   | OpenaiFunctionCallOutputItem
   | OpenaiReasoningItem
+  | OpenaiToolSearchCallItem
+  | OpenaiToolSearchOutputItem
 
 export interface OpenaiResponsesRequest {
   model: string
   instructions?: string
   input: OpenaiInputItem[]
-  tools?: Array<OpenaiFunctionTool | OpenaiWebSearchTool>
+  tools?: Array<OpenaiFunctionTool | OpenaiWebSearchTool | OpenaiToolSearchTool>
   tool_choice?: 'auto'
   parallel_tool_calls?: boolean
   reasoning?: { effort?: string; summary?: 'auto' | 'concise' | 'detailed' }
@@ -524,6 +551,8 @@ export class ResponsesStreamFold {
           const query = typeof action?.query === 'string' && action.query !== '' ? action.query : undefined
           this.webSearchCalls.push({ id, ...(query !== undefined ? { query } : {}) })
           out.push({ type: 'web-search-call', id, ...(query !== undefined ? { query } : {}) })
+        } else if (itemType === 'tool_search_call' || itemType === 'tool_search_output') {
+          this.orderedItems.push({ ...item, type: itemType } as OpenaiToolSearchCallItem | OpenaiToolSearchOutputItem)
         } else if (itemType !== '') {
           this.unknownItemTypes.add(itemType)
         }

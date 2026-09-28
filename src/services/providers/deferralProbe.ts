@@ -3,7 +3,10 @@ import { join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-export type GatewayProbeVerdict = 'block' | 'text'
+export type GatewayProbeVerdict =
+  | 'block'
+  | 'text'
+  | 'openai-native'
 
 export interface GatewayProbeRecord {
   verdict: GatewayProbeVerdict
@@ -172,4 +175,83 @@ export async function ensureGatewayProbe(
 export function _resetGatewayProbeFlightsForTesting(): void {
   inFlight.clear()
   attempted.clear()
+}
+
+export const OPENAI_GATEWAY_PROBE_KEY_PREFIX = 'openai:'
+
+export const OPENAI_FIRST_PARTY_PROBE_KEY = `${OPENAI_GATEWAY_PROBE_KEY_PREFIX}first-party`
+
+export function openaiGatewayProbeKey(host: string): string {
+  return `${OPENAI_GATEWAY_PROBE_KEY_PREFIX}${host}`
+}
+
+export const OPENAI_NATIVE_DEFERRAL_REFUSAL = /defer_loading|tool_search/i
+
+export function openaiGatewayProbeBody(model: string): Record<string, unknown> {
+  return {
+    model,
+    instructions: 'Reply with the single word ok.',
+    input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'probe' }] }],
+    tools: [
+      {
+        type: 'function',
+        name: 'deferral_probe',
+        description: 'A probe of the deferral wire form; never called.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        defer_loading: true,
+      },
+      { type: 'tool_search' },
+    ],
+    tool_choice: 'auto',
+    parallel_tool_calls: true,
+    store: false,
+    stream: true,
+  }
+}
+
+export function classifyOpenaiGatewayProbe(answer: GatewayProbeAnswer): GatewayProbeClassification {
+  const { status, bodyText } = answer
+  const evidence = status === null ? `no reply: ${firstLine(bodyText)}` : `http ${status}: ${firstLine(bodyText)}`
+  if (status === null) return { kind: 'indeterminate', reason: 'unreachable', evidence }
+  if (status >= 200 && status < 300) return { kind: 'verdict', verdict: 'openai-native', evidence }
+  if (status === 400 && OPENAI_NATIVE_DEFERRAL_REFUSAL.test(bodyText)) return { kind: 'verdict', verdict: 'text', evidence }
+  if (status === 401 || status === 403) return { kind: 'indeterminate', reason: 'auth-refused', evidence }
+  return { kind: 'indeterminate', reason: 'other-status', evidence }
+}
+
+export async function ensureOpenaiGatewayProbe(
+  host: string,
+  send: (body: Record<string, unknown>) => Promise<GatewayProbeAnswer>,
+  model: string,
+): Promise<GatewayProbeClassification | null> {
+  const key = openaiGatewayProbeKey(host)
+  if (attempted.has(key)) {
+    const running = inFlight.get(key)
+    return running ? running : null
+  }
+  attempted.add(key)
+  const work = (async (): Promise<GatewayProbeClassification> => {
+    let answer: GatewayProbeAnswer
+    try {
+      answer = await send(openaiGatewayProbeBody(model))
+    } catch (error) {
+      answer = { status: null, bodyText: error instanceof Error ? error.message : String(error) }
+    }
+    const classification = classifyOpenaiGatewayProbe(answer)
+    if (classification.kind === 'verdict') {
+      recordGatewayProbe(key, {
+        verdict: classification.verdict,
+        evidence: classification.evidence,
+        status: answer.status,
+        probedAt: new Date().toISOString(),
+      })
+    }
+    return classification
+  })()
+  inFlight.set(key, work)
+  try {
+    return await work
+  } finally {
+    inFlight.delete(key)
+  }
 }

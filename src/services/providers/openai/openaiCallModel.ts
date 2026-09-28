@@ -93,11 +93,22 @@ import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
+  loadedToolNamesOf,
   openaiEffortWireFact,
   requestCarriesInputImage,
   type BridgeMessage,
   type OpenaiTurnRecord,
 } from './responsesBridge.js'
+import {
+  ensureOpenaiGatewayProbe,
+  gatewayProbePolicyAllows,
+  OPENAI_FIRST_PARTY_PROBE_KEY,
+  OPENAI_NATIVE_DEFERRAL_REFUSAL,
+  openaiGatewayProbeKey,
+  recordGatewayProbe,
+  type GatewayProbeAnswer,
+} from '../deferralProbe.js'
+import { openaiGatewayHost } from '../deferralWire.js'
 import { effortStampOf, type EffortStampV1 } from '../../../utils/effortStamp.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type {
@@ -178,6 +189,7 @@ export interface OpenaiCallModelParams {
   tools: Tools
   signal: AbortSignal
   options: Options
+  deferralFormReissued?: string
 }
 
 function apiErrorMessage(
@@ -314,6 +326,42 @@ async function buildApiShapedTools(
     }
   }
   return out
+}
+
+const OPENAI_GATEWAY_PROBE_TIMEOUT_MS = 15_000
+
+async function sendOpenaiGatewayProbe(
+  body: Record<string, unknown>,
+  auth: OpenaiRequestAuth,
+  outer: AbortSignal,
+): Promise<GatewayProbeAnswer> {
+  const controller = new AbortController()
+  const onOuterAbort = (): void => controller.abort()
+  outer.addEventListener('abort', onOuterAbort, { once: true })
+  const timer = setTimeout(() => controller.abort(), OPENAI_GATEWAY_PROBE_TIMEOUT_MS)
+  timer.unref?.()
+  try {
+    const events = streamOpenaiResponses({
+      baseUrl: auth.baseUrl,
+      headers: auth.headers,
+      request: body as unknown as OpenaiResponsesRequest,
+      signal: controller.signal,
+      idleTimeoutMs: OPENAI_GATEWAY_PROBE_TIMEOUT_MS,
+    })
+    for await (const event of events) {
+      if (event.type === 'stream-fault') {
+        return { status: event.fault.status ?? null, bodyText: event.fault.message }
+      }
+      controller.abort()
+      return { status: 200, bodyText: '' }
+    }
+    return { status: 200, bodyText: '' }
+  } catch (error) {
+    return { status: null, bodyText: error instanceof Error ? error.message : String(error) }
+  } finally {
+    clearTimeout(timer)
+    outer.removeEventListener('abort', onOuterAbort)
+  }
 }
 
 export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSearchRequests = 0): typeof EMPTY_USAGE {
@@ -496,6 +544,14 @@ export async function* openaiCallModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
+  const nativeDeferral = plan.enabled && plan.wireForm === 'openai-native'
+  if (plan.enabled && plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows()) {
+    const endpoint = openaiGatewayHost()
+    if (!endpoint.firstParty && endpoint.host !== null) {
+      const probeAuth = auth
+      void ensureOpenaiGatewayProbe(endpoint.host, body => sendOpenaiGatewayProbe(body, probeAuth, signal), modelId)
+    }
+  }
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
@@ -532,6 +588,7 @@ export async function* openaiCallModel(
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
+  if (params.deferralFormReissued !== undefined) settlementNotes.push(params.deferralFormReissued)
 
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
   const wireMessagesForBridge =
@@ -577,6 +634,7 @@ export async function* openaiCallModel(
     imagesSupported: imagesRide,
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
+    ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),
   })
   let request = buildRequest(profile.wireEffort)
   const effortOnWire = (): EffortStampV1 => effortStampOf(effortTruth.requested, openaiEffortWireFact(request, effortTruth.supportsEffort))
@@ -661,6 +719,24 @@ export async function* openaiCallModel(
         continue
       }
       recovery = 'no-new-credential'
+    }
+    if (
+      nativeDeferral &&
+      params.deferralFormReissued === undefined &&
+      outcome.retryEligible &&
+      outcome.fault.status === 400 &&
+      OPENAI_NATIVE_DEFERRAL_REFUSAL.test(outcome.fault.message)
+    ) {
+      const endpoint = openaiGatewayHost()
+      const key = endpoint.firstParty ? OPENAI_FIRST_PARTY_PROBE_KEY : endpoint.host === null ? null : openaiGatewayProbeKey(endpoint.host)
+      if (key !== null) {
+        const evidence = `http 400 (${auth.baseUrl}): ${outcome.fault.message}`
+        recordGatewayProbe(key, { verdict: 'text', evidence, status: 400, probedAt: new Date().toISOString() })
+        const note = `[openai] ${auth.account.label} refused OpenAI's tool-search deferral form (${outcome.fault.message}) — recorded for this endpoint; this call and every later one ride the client-side text form.`
+        logForDebugging(note, { level: 'warn' })
+        yield* openaiCallModel({ ...params, deferralFormReissued: note })
+        return
+      }
     }
     const refusal = candidate !== undefined ? effortVocabularyRefusalOf(outcome.fault, profile.wireEffort) : undefined
     const reissueAtServedWord =
@@ -1218,6 +1294,10 @@ export async function* streamOneOpenaiAttempt(ctx: {
     yield* emitNoteBlock(
       `[openai] the provider returned output item types Mercury does not decode yet (${finish.unknownItemTypes.join(', ')}) — recording the omission rather than dropping it silently.`,
     )
+  }
+  const loadedTools = finish ? loadedToolNamesOf(finish.orderedItems) : []
+  if (loadedTools.length > 0) {
+    logForDebugging(`[openai] tool search loaded ${loadedTools.length} deferred tool(s) server-side (${loadedTools.join(', ')}); the tools array is unchanged and the loaded definitions replay at the end of the input`)
   }
   if (minted.length === 0) {
     const emptyKind: EmptyReplyKind =
