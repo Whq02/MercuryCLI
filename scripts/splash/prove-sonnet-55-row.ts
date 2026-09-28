@@ -40,7 +40,9 @@ section('§1 the baked table in source: the row, its words and its place')
   check('Sonnet 5 keeps its own row and words', rows[previous] === `"${PREVIOUS}": "Sonnet 5",`, rows[previous] ?? '(no row)')
   check(`the family word bakes to the newest row: "sonnet": "${NAME}"`, rows.includes(`"sonnet": "${NAME}",`), rows.find(line => line.startsWith('"sonnet":')) ?? '(no alias row)')
   check('the id appears once in the table', rows.filter(line => line.startsWith(`"${ID}":`)).length === 1)
-  check('the bake marks stand around the block (the generator owns it)', coreSrc.includes('// MERCURY-MODEL-NAMES-START') && coreSrc.includes('// MERCURY-MODEL-NAMES-END'))
+  const generator = readFileSync(join(ROOT, 'scripts', 'splash', 'bake-menu.mjs'), 'utf8')
+  const suite = readFileSync(join(ROOT, 'scripts', 'splash', 'run-all.sh'), 'utf8')
+  check('the generator owns the block: it addresses the declaration the core carries, and the suite runs its drift gate', /^const MODEL_NAMES = \{$/m.test(coreSrc) && generator.includes("const head = 'const MODEL_NAMES = {'") && suite.includes('bake-menu.mjs" --check'))
 }
 
 section("§2 the core's exported table agrees with the owners the bake reads")
