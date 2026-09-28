@@ -5,7 +5,8 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { keyHintLabel } from './keyHintLabel.js'
 import { chatOnlyBoot, concourseWayBack, routeSurfaceRegistered } from '../../context/surfaceRoute.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
+import { getProjectRoot } from '../../bootstrap/state.js'
+import { conversationIdHere, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { filterResumableSessions } from '../../commands/resume/resume.js'
 import { Box, Text } from '../../ink.js'
 import type { LogOption } from '../../types/logs.js'
@@ -66,7 +67,7 @@ export function SessionTabs({
   const accent = useSessionAccent().accent
   const barOn = useSessionsBar()
   const tokens = useMercuryTokens()
-  const sessionId = getSessionId()
+  const sessionId = useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)
   const scopeKey = `${getProjectRoot() || ''}::${sessionId}`
   const [tabs, setTabs] = useState<{ key: string; rows: LogOption[] | null }>(
     () => ({ key: scopeKey, rows: lastKnownTabs.get(scopeKey) ?? null }),

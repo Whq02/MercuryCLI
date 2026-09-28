@@ -1,4 +1,5 @@
-import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
+import { getProjectRoot } from '../../bootstrap/state.js'
+import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
 import { filterResumableSessions } from '../resume/resume.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { isProjectSession, isSubstantiveSession } from '../../utils/sessionFilter.js'
@@ -18,7 +19,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   }
   try {
     const all = await loadAllProjectsMessageLogs()
-    const resumable = filterResumableSessions(all, getSessionId())
+    const resumable = filterResumableSessions(all, conversationIdHere())
       .filter(isSubstantiveSession)
       .filter(l => isProjectSession(l, getProjectRoot() || ''))
       .filter(l => !isSessionCleared(getSessionIdFromLog(l)))
