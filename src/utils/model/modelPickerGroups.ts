@@ -288,12 +288,12 @@ export function doorWords(door: ProviderDoor, counts: { live: number; matched?: 
 
 export type PickerColumns = { alias: number; id: number; state: number; ctx: number; tail: number }
 
-export function pickerColumns(rowWidth: number, idWidth = 20): PickerColumns {
+export function pickerColumns(rowWidth: number): PickerColumns {
   const state = 13
   const ctx = 11
   const tailTarget = 14
   const alias = Math.max(12, Math.min(22, Math.round(rowWidth * 0.24)))
-  const id = Math.max(20, Math.min(32, Math.max(idWidth, rowWidth - alias - state - ctx - tailTarget), rowWidth - alias - state - ctx))
+  const id = Math.max(20, Math.min(32, rowWidth - alias - state - ctx - tailTarget))
   const tail = Math.max(0, rowWidth - alias - id - state - ctx)
   return { alias, id, state, ctx, tail }
 }
