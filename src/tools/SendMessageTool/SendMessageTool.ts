@@ -6,7 +6,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { asAgentId, toAgentId } from '../../types/ids.js'
 import { agentStatusWord } from '../../services/resources/adapters/agentStatusWord.js'
-import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
+import { getAgentTranscriptPath, listAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { readAgentTranscript, transcriptEndWords } from '../WorkflowTool/agentTranscriptReader.js'
 import { requestWorkflowControl, workflowControlBy } from '../WorkflowTool/runControl.js'
 import { listWorkflowRunsDetailed, runLiveness } from '../WorkflowTool/runManifest.js'
@@ -85,6 +85,7 @@ import {
   createShutdownApprovedMessage,
   createShutdownRejectedMessage,
   createShutdownRequestMessage,
+  formatTeammateMessages,
   isIdleNotification,
   readMailbox,
   writeToMailbox,
@@ -336,6 +337,68 @@ function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseCont
   if (last.status === 'failed') return `failed${last.error ? ` (${last.error})` : ''}`
   if (last.status === 'completed') return 'completed'
   return `was ${agentStatusWord(last.status)}`
+}
+
+type EndedTeammateSeat = { taskId: string; name: string; ended: string }
+
+async function endedTeammateSeat(rawTo: string, teamName: string, context: ToolUseContext): Promise<EndedTeammateSeat | null> {
+  const wanted = rawTo.toLowerCase()
+  if (wanted === TEAM_LEAD_NAME.toLowerCase()) return null
+  const seats = getAllInProcessTeammateTasks(context.getAppState().tasks ?? {}).filter(
+    task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === wanted,
+  )
+  if (seats.some(task => task.status === 'running')) return null
+  const roster = await readRoster(teamName)
+  const member = roster?.members.find(candidate => candidate.name.toLowerCase() === wanted)
+  if (member !== undefined && member.backendType !== 'in-process') return null
+  if (seats.length > 0) {
+    const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+    const ended =
+      last.status === 'failed'
+        ? `had failed${last.error ? ` (${last.error})` : ''}`
+        : last.status === 'completed'
+          ? 'had completed'
+          : `was ${agentStatusWord(last.status)}`
+    return { taskId: last.id, name: last.identity.agentName, ended }
+  }
+  let newest: { taskId: string; name: string; launchedAt: number } | undefined
+  for (const { agentId, metadata } of await listAgentMetadata().catch(() => [])) {
+    if (metadata.teammate?.teamName !== teamName || metadata.name?.toLowerCase() !== wanted) continue
+    const launchedAt = metadata.launchedAt ?? 0
+    if (newest === undefined || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
+  }
+  return newest === undefined ? null : { taskId: newest.taskId, name: newest.name, ended: 'had ended and its row had left the list' }
+}
+
+async function resumeEndedTeammate(
+  seat: EndedTeammateSeat,
+  content: string,
+  summary: string | undefined,
+  context: ToolUseContext,
+): Promise<MessageOutput> {
+  const from = senderName()
+  const color = senderColor(from)
+  const prompt = formatTeammateMessages([
+    { from, text: content, timestamp: nowIso(), ...(color ? { color } : {}), ...(summary !== undefined ? { summary } : {}) },
+  ])
+  const { resumeTeammateFromTranscript } = await import('../../services/agents/operatorResume.js')
+  const resumed = await resumeTeammateFromTranscript(seat.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
+  if (resumed.outcome === 'refused') {
+    return { success: false, message: `Teammate ${seat.name} ${seat.ended} and could not be resumed with your message: ${resumed.reason}` }
+  }
+  return {
+    success: true,
+    message:
+      `Teammate ${seat.name} ${seat.ended}; it was resumed from its transcript with your message as its next turn ` +
+      `and runs on under a new row (task ${resumed.taskId}) — it answers by SendMessage as before.`,
+    routing: {
+      sender: from,
+      ...(color ? { senderColor: color } : {}),
+      target: `@${seat.name}`,
+      ...(summary !== undefined ? { summary } : {}),
+      content,
+    },
+  }
 }
 
 async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
@@ -789,6 +852,9 @@ async function sendDirectedPlainMessage(
   summary: string | undefined,
   context: ToolUseContext,
 ): Promise<MessageOutput> {
+  const teamName = getTeamName(teamContextOf(context))
+  const ended = teamName ? await endedTeammateSeat(rawTo, teamName, context) : null
+  if (ended !== null) return resumeEndedTeammate(ended, content, summary, context)
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
 
