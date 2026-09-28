@@ -45,7 +45,7 @@ const ROUTE_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-5',
   openai: 'gpt-5.6-sol',
   zai: 'glm-5.3',
-  moonshot: 'kimi-k3',
+  moonshot: 'kimi-for-coding',
   deepseek: 'deepseek-v4-pro',
   'openai-compat': 'compat/qwen-max',
   openrouter: 'openrouter/qwen/qwen3-coder',

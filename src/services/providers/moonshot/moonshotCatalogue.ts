@@ -19,7 +19,7 @@ import {
   type MoonshotDispatchSource,
 } from './moonshotAccounts.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
-import { KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
+import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -34,6 +34,7 @@ export interface MoonshotLiveModel {
   supportsImage?: boolean
   supportsVideo?: boolean
   supportsReasoning?: boolean
+  supportsDynamicTools?: boolean
 }
 
 export function decodeMoonshotModel(raw: unknown): MoonshotLiveModel | undefined {
@@ -49,6 +50,7 @@ export function decodeMoonshotModel(raw: unknown): MoonshotLiveModel | undefined
     ...(typeof r.supports_image_in === 'boolean' ? { supportsImage: r.supports_image_in } : {}),
     ...(typeof r.supports_video_in === 'boolean' ? { supportsVideo: r.supports_video_in } : {}),
     ...(typeof r.supports_reasoning === 'boolean' ? { supportsReasoning: r.supports_reasoning } : {}),
+    ...(typeof r.supports_dynamic_tools === 'boolean' ? { supportsDynamicTools: r.supports_dynamic_tools } : {}),
   }
 }
 
@@ -136,6 +138,23 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
   liveIdSets.set(snapshot, ids)
   return ids
 }
+
+export function moonshotLiveDynamicToolSupport(model: string, env: NodeJS.ProcessEnv = process.env): boolean | undefined {
+  const identity = memoisedIdentity(env)
+  if (identity === 'none') return undefined
+  const snapshot = catalogueCache.get(identity)
+  if (snapshot === undefined || snapshot.fetchedAtMs === 0) return undefined
+  const wanted = model.trim().toLowerCase()
+  const unprefixed = wanted.startsWith('kimi-') ? wanted.slice('kimi-'.length) : undefined
+  for (const id of [wanted, unprefixed]) {
+    if (id === undefined || id === '') continue
+    const live = snapshot.models.find(row => row.id.trim().toLowerCase() === id)
+    if (live !== undefined) return live.supportsDynamicTools
+  }
+  return undefined
+}
+
+bindKimiDynamicToolSupport(model => moonshotLiveDynamicToolSupport(model))
 
 export function refreshMoonshotCatalogue(opts?: {
   force?: boolean
