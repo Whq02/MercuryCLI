@@ -20,7 +20,7 @@ await import('../../src/tasks.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { stopAgentByOperator } = await import('../../src/services/agents/operatorStop.js')
-const { operatorResumeWords, respawnTeammateByOperator, stoppedTeammateRecord, teammateRespawnConfig, teammateRespawnWords } = await import('../../src/services/agents/operatorResume.js')
+const { operatorResumeWords, respawnTeammateByOperator, teammateRespawnConfig, teammateRespawnWords } = await import('../../src/services/agents/operatorResume.js')
 const { spawnInProcessTeammate, unwindTeammateSpawn } = await import('../../src/utils/swarm/spawnInProcess.js')
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.js')
@@ -102,9 +102,6 @@ section('a stopped teammate: r resumes it from its transcript with its identity,
   const evicted = await respawnTeammateByOperator(id, { getAppState: store.get, toolUseContext: contextOf(store) }, { spawn, readTranscript })
   check('once both rows are evicted, r on the original id still resumes from the spawn record: the same identity, prompt, model, type and plan mode, the same transcript', evicted.outcome === 'applied' && evicted.agentId === AGENT_ID && configs.length === 2 && configs[1]!.name === 'sonnet-ping' && configs[1]!.team_name === 'ping-team' && configs[1]!.prompt === 'reply ping' && configs[1]!.model === 'claude-sonnet-5' && configs[1]!.agent_type === 'mercury-general' && configs[1]!.plan_mode_required === false && configs[1]!.resume?.transcriptAgentId === spawned.transcriptAgentId && configs[1]!.resume?.prompt.startsWith('The operator resumed you from the crew view'), JSON.stringify({ evicted, config: configs[1] }))
   check('the evicted-row resume runs under a new row and tells the main agent once more', evicted.outcome === 'applied' && teammateRows(store).filter(t => t.status === 'running').length === 1 && notices().length === 1 && notices()[0]!.value.includes(`<task-id>${evicted.taskId}</task-id>`), JSON.stringify(notices()))
-  const found = await stoppedTeammateRecord('Sonnet-Ping', 'ping-team')
-  check('a message to the name finds the teammate\'s newest record by name and team, case-folded, once every row has left the list', found !== null && found.name === 'sonnet-ping' && evicted.outcome === 'applied' && found.taskId === evicted.taskId, JSON.stringify({ found, ids: [id, receipt.outcome === 'applied' ? receipt.taskId : '', evicted.outcome === 'applied' ? evicted.taskId : ''] }))
-  check('the same name on another team, or a name no teammate carried, finds no record', (await stoppedTeammateRecord('sonnet-ping', 'other-team')) === null && (await stoppedTeammateRecord('nobody', 'ping-team')) === null)
 }
 
 section('the refusals: a running teammate, a row that is not a teammate, and a spawn the road refuses')

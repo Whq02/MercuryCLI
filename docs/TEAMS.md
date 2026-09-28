@@ -85,11 +85,9 @@ the same id. A stopped teammate keeps its transcript too: `r` on its row
 continues it from where it was under a new row with the same name, the work
 before the stop in its context, and the row may be pressed after it has left
 the list — the spawn's record beside the transcript is what `r` reads. A
-plain message to a stopped teammate does the same: SendMessage to its name
-continues it from its transcript with the message as its next turn, under
-the same name and roster row, and its reply comes back to the sender the way
-any teammate's message does — a stopped seat never swallows a message into an
-inbox nobody reads. Every
+message to a stopped or ended teammate takes the same road: SendMessage to
+its name resumes it from its transcript with the message as its next turn,
+and the answer names the new row and how the seat had ended. Every
 stop, resume and
 failure reaches the main agent as a notification of its own kind, never
 silently, a stop or resume from the crew view included. A teammate spawned
@@ -102,9 +100,10 @@ name.
 A named teammate spawned into a team with the Agent tool is answered only
 once its first turn has settled. A seat whose first dispatch fails — a
 provider refusal, a spent window, an error before its first response — is
-refused by name with the cause, is not on the roster, and a later message to
-it is refused with the same cause instead of landing in an inbox nobody
-reads. A seat that fails later leaves the roster the same way, so the team
+refused by name with the cause and is not on the roster; a later message to
+it tries the resume, and when the seat still cannot start the answer names
+that cause instead of landing in an inbox nobody reads. A seat that fails
+later leaves the roster the same way, so the team
 view and the brief never list a dead seat as running. When an Agent call
 names the parent's own model family, its sub-agent or named teammate keeps
 the parent's exact model. Engine models still pass their provider's dispatch
