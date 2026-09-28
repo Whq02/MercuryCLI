@@ -30,6 +30,10 @@ export interface WorkerModelRegistryV1 {
   entries: WorkerModelEntryV1[]
 }
 
+export interface WorkerRegistryReads {
+  modelOptions?: () => Array<{ value: string; label: string }>
+}
+
 const WORKER_MODEL_LEGACY_KEY_NAMES = new Set(['opus', 'sonnet', 'fable', 'fable51'])
 
 const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'])
@@ -194,9 +198,10 @@ export async function canonicalWorkerModelId(idOrKey: string): Promise<string> {
   return canonicalCoordinatorModelId(foldLegacyWorkerModelKey(idOrKey))
 }
 
-export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV1> {
+export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}): Promise<WorkerModelRegistryV1> {
   const { getModelOptions } = await import('../../utils/model/modelOptions.js')
   const { declaredRouteOf } = await import('../providers/routeLaw.js')
+  const options = reads.modelOptions !== undefined ? reads.modelOptions() : getModelOptions()
   const credentials = await readCredentialPresences()
   const entries: WorkerModelEntryV1[] = []
   const seen = new Set<string>()
@@ -214,7 +219,7 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
     } catch {
     }
   }
-  for (const o of getModelOptions()) {
+  for (const o of options) {
     const v = o.value
     if (!v || v.startsWith('__')) continue
     const modelId = await canonicalWorkerModelId(v)
@@ -280,7 +285,7 @@ export type WorkerModelValidation =
     }
   | {
       ok: false
-      reason: 'unknown-model' | WorkerModelRefusal
+      reason: WorkerModelRefusal
       detail?: string
       action?: string
     }
@@ -293,7 +298,11 @@ async function admissionNamesKeyedFamily(idOrKey: string): Promise<string | null
   return route !== null && isKeyedCatalogueFamily(route) ? route : null
 }
 
-export async function validateWorkerModelChoice(idOrKey: string | undefined, arm: WorkerDispatchArm): Promise<WorkerModelValidation> {
+export async function validateWorkerModelChoice(
+  idOrKey: string | undefined,
+  arm: WorkerDispatchArm,
+  reads: WorkerRegistryReads = {},
+): Promise<WorkerModelValidation> {
   if (idOrKey !== undefined) {
     const family = await admissionNamesKeyedFamily(idOrKey)
     if (family !== null && (await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending(family))) {
@@ -332,7 +341,7 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
       action: noCredentialAction(idOrKey),
     }
   }
-  const registry = await composeWorkerModelRegistry()
+  const registry = await composeWorkerModelRegistry(reads)
   const defaultId = await canonicalWorkerModelId(defaultWorkerModelId(registry, arm))
   const id = idOrKey === undefined ? defaultId : await canonicalWorkerModelId(idOrKey)
   const defaultDispatches = registry.entries.find(e => e.modelId === defaultId)?.[arm].availability === 'available'
@@ -361,58 +370,48 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
           action: unrecognisedRefusalAction(),
         }
       }
-      if (route !== 'anthropic') {
-        const credentials = await readCredentialPresences()
-        if (credentials.get(route) === true) {
-          const arms = composeArms(id, credentials, route)
-          const synthesized: WorkerModelEntryV1 = {
-            modelId: id,
-            displayName: id,
-            ...arms,
-            ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
-          }
-          const verdict = synthesized[arm]
-          if (verdict.availability !== 'available') {
-            return {
-              ok: false,
-              reason: verdict.refusal,
-              ...(verdict.detail !== undefined ? { detail: verdict.detail } : {}),
-              ...(verdict.action !== undefined ? { action: verdict.action } : {}),
-            }
-          }
-          return { ok: true, entry: synthesized }
-        }
-        if (route === 'local') {
-          return {
-            ok: false,
-            reason: 'unreachable:local',
-            detail: 'no local server is discovered on this box',
-            action: loginsActionFor(route),
-          }
-        }
+      const { isModelAllowed } = await import('../../utils/model/modelAllowlist.js')
+      if (!isModelAllowed(id)) {
         return {
           ok: false,
-          reason: `no-credential:${route}`,
-          detail: `the ${route} family holds no credential on this account`,
-          action: noCredentialAction(route),
+          reason: 'not-runnable:not-allowed',
+          detail: `'${id}' is outside this organization's availableModels`,
+          action: unrecognisedRefusalAction(),
         }
       }
-      const dispatchable = registry.entries
-        .filter(e => e[arm].availability === 'available')
-        .map(e => e.modelId)
-        .slice(0, 8)
-        .join(' · ')
-      const nearest = candidates[0]?.modelId
+      const credentials = await readCredentialPresences()
+      if (credentials.get(route) === true) {
+        const arms = composeArms(id, credentials, route)
+        const synthesized: WorkerModelEntryV1 = {
+          modelId: id,
+          displayName: id,
+          ...arms,
+          ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
+        }
+        const verdict = synthesized[arm]
+        if (verdict.availability !== 'available') {
+          return {
+            ok: false,
+            reason: verdict.refusal,
+            ...(verdict.detail !== undefined ? { detail: verdict.detail } : {}),
+            ...(verdict.action !== undefined ? { action: verdict.action } : {}),
+          }
+        }
+        return { ok: true, entry: synthesized }
+      }
+      if (route === 'local') {
+        return {
+          ok: false,
+          reason: 'unreachable:local',
+          detail: 'no local server is discovered on this box',
+          action: loginsActionFor(route),
+        }
+      }
       return {
         ok: false,
-        reason: 'unknown-model',
-        detail: `'${String(idOrKey ?? '')}' is not an exact model id`,
-        action:
-          nearest !== undefined
-            ? `did you mean ${nearest}?`
-            : dispatchable !== ''
-              ? `pick one of: ${dispatchable}`
-              : 'no models are dispatchable on this account yet — /logins signs a provider in',
+        reason: `no-credential:${route}`,
+        detail: `the ${route} family holds no credential on this account`,
+        action: noCredentialAction(route),
       }
     }
   }
