@@ -45,6 +45,7 @@ prove-s31-acceptance.ts
 prove-sandbox-dependency-paths.ts
 prove-saturn-screen.ts
 prove-select-mouse.ts
+prove-select-scroll-drive-hints.ts
 prove-selection-drag-coalesce.ts
 prove-selection-pointer.ts
 prove-session-pulse.ts
