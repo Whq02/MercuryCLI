@@ -19,6 +19,7 @@ import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { getTeamName } from './teammate.js'
 import { getTeammateContext, isInProcessTeammate } from './teammateContext.js'
+import { TEAM_LEAD_NAME } from './swarm/constants.js'
 import { readTeamFileAsync } from './swarm/teamHelpers.js'
 
 
@@ -521,6 +522,11 @@ export async function getAgentStatuses(teamName: string): Promise<AgentStatus[] 
     name: String(member.name),
     agentType: member.agentType,
   }))
+  const working = new Set(
+    (teamFile.members ?? [])
+      .filter(member => member.agentId !== teamFile.leadAgentId && member.name !== TEAM_LEAD_NAME && member.isActive !== false)
+      .map(member => String(member.agentId)),
+  )
   const tasks = await listTasks(sanitizeTeamNameForListId(teamName))
   const open = tasks.filter(task => task.status !== 'completed' && task.owner)
   return members.map(member => {
@@ -529,7 +535,7 @@ export async function getAgentStatuses(teamName: string): Promise<AgentStatus[] 
     )
     return {
       ...member,
-      status: ownedIds.length > 0 ? ('busy' as const) : ('idle' as const),
+      status: ownedIds.length > 0 || working.has(member.agentId) ? ('busy' as const) : ('idle' as const),
       currentTasks: ownedIds,
     }
   })

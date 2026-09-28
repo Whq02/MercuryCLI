@@ -61,6 +61,7 @@ export function computeAgentHealth(
       nowMs,
     )
     const busy = member.status === 'busy'
+    const busyWords = member.currentTasks.length > 0 ? `busy on ${member.currentTasks.length} task(s)` : 'working — its turn is in flight'
 
     if (!busy) {
       return {
@@ -80,9 +81,7 @@ export function computeAgentHealth(
         state: 'drifting' as const,
         currentTasks: member.currentTasks,
         leaseAgeMs,
-        why: `busy on ${member.currentTasks.length} task(s) but its lease has not refreshed in ${Math.round(
-          leaseAgeMs / 60000,
-        )}m`,
+        why: `${busyWords} but its lease has not refreshed in ${Math.round(leaseAgeMs / 60000)}m`,
       }
     }
 
@@ -92,7 +91,7 @@ export function computeAgentHealth(
       state: 'busy' as const,
       currentTasks: member.currentTasks,
       leaseAgeMs,
-      why: `busy on ${member.currentTasks.length} task(s)`,
+      why: busyWords,
     }
   })
 }
