@@ -1,0 +1,144 @@
+#!/usr/bin/env bun
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { mock } from 'bun:test'
+
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const HOME = mkdtempSync(join(tmpdir(), 'roster-busy-'))
+process.env.MERCURY_CONFIG_DIR = HOME
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_EVOLUTION_LEDGER = '0'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
+for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) process.env[base] = 'http://127.0.0.1:1'
+for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_TEAMS_DIR', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
+
+const TEAM = 'roster-truth'
+const LEAD = 'team-lead'
+const SEAT = 'mapper'
+const MODEL = 'claude-opus-4-6'
+
+let checks = 0
+let failures = 0
+function check(label: string, good: boolean, detail = ''): void {
+  checks++
+  if (!good) failures++
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+}
+function section(title: string): void {
+  console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
+}
+const sleep = (ms: number): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, ms))
+async function until(predicate: () => Promise<boolean>, ms = 6000): Promise<boolean> {
+  const deadline = Date.now() + ms
+  while (!(await predicate()) && Date.now() < deadline) await sleep(40)
+  return predicate()
+}
+const deadline = setTimeout(() => { console.error('roster-busy exceeded its deadline'); process.exit(1) }, 90_000)
+deadline.unref()
+
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+const runAgentModule = (await import('../../src/tools/AgentTool/runAgent.ts')) as Record<string, unknown>
+let releaseTurn: () => void = () => {}
+const turnHeld = new Promise<void>(resolve => { releaseTurn = resolve })
+let modelCalls = 0
+async function* fixtureRunAgent(params: { onResolvedIdentity?: (identity: { model: string }) => void }): AsyncGenerator<unknown, void> {
+  modelCalls++
+  params.onResolvedIdentity?.({ model: MODEL })
+  await turnHeld
+  yield createAssistantMessage({ content: 'the map is drawn' })
+}
+mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule, runAgent: fixtureRunAgent }))
+
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { spawnInProcessTeammate } = await import('../../src/utils/swarm/spawnInProcess.ts')
+const { runInProcessTeammate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { isInProcessTeammateTask } = await import('../../src/tasks/InProcessTeammateTask/types.ts')
+const { writeTeamFileAsync, readTeamFileAsync, getTeamFilePath } = await import('../../src/utils/swarm/teamHelpers.ts')
+const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
+const { getRoomHealth } = await import('../../src/utils/swarm/roomHealth.ts')
+const { teamBrief } = await import('../../src/services/coordination/coordinationService.ts')
+const { formatAgentId } = await import('../../src/utils/agentId.ts')
+type AppState = import('../../src/state/AppState.tsx').AppState
+type InProcessTeammateTaskState = import('../../src/tasks/InProcessTeammateTask/types.ts').InProcessTeammateTaskState
+
+const LEAD_ID = formatAgentId(LEAD, TEAM)
+const SEAT_ID = formatAgentId(SEAT, TEAM)
+let state: AppState = {
+  ...getDefaultAppState(),
+  teamContext: { teamName: TEAM, teamFilePath: getTeamFilePath(TEAM), leadAgentId: LEAD_ID, teammates: {} },
+} as AppState
+const setAppState = (updater: (prev: AppState) => AppState): void => {
+  state = updater(state)
+}
+const member = (agentId: string, name: string, paneId: string): Record<string, unknown> => ({ agentId, name, agentType: 'mercury-general', model: MODEL, joinedAt: Date.now(), tmuxPaneId: paneId, cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
+await writeTeamFileAsync(TEAM, { name: TEAM, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD, 'leader'), member(SEAT_ID, SEAT, 'in-process')] } as never)
+
+const context = {
+  options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
+  messages: [],
+  abortController: new AbortController(),
+  getAppState: () => state,
+  setAppState,
+  setAppStateForTasks: setAppState,
+  readFileState: new Map(),
+  toolUseId: 'toolu_fixture_spawn',
+} as never
+
+const taskOf = (taskId: string): InProcessTeammateTaskState | undefined => {
+  const task = state.tasks[taskId]
+  return task !== undefined && isInProcessTeammateTask(task) ? task : undefined
+}
+const statusOf = async (name: string): Promise<string | undefined> => (await getAgentStatuses(TEAM))?.find(row => row.name === name)?.status
+const flagOf = async (name: string): Promise<boolean | undefined> => ((await readTeamFileAsync(TEAM))?.members.find(candidate => candidate.name === name) as { isActive?: boolean } | undefined)?.isActive
+const ctx = { team: TEAM, agentId: LEAD_ID }
+
+section('§1 a teammate whose turn is in flight reads busy on the roster — the brief, the statuses and the health agree; the lead reads idle')
+const spawned = await spawnInProcessTeammate({ name: SEAT, teamName: TEAM, prompt: `${SEAT}: draw the map.`, planModeRequired: false, model: MODEL }, { setAppState })
+if (!spawned.success || spawned.taskId === undefined || spawned.teammateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
+const done = runInProcessTeammate({
+  identity: { agentId: SEAT_ID, agentName: SEAT, teamName: TEAM, planModeRequired: false, parentSessionId: String(getSessionId()) },
+  taskId: spawned.taskId,
+  prompt: `${SEAT}: draw the map.`,
+  teammateContext: spawned.teammateContext,
+  abortController: spawned.abortController,
+  toolUseContext: context,
+  model: MODEL,
+  systemPrompt: 'the fixture prompt',
+  systemPromptMode: 'replace',
+  ...(spawned.transcriptAgentId !== undefined ? { transcriptAgentId: spawned.transcriptAgentId } : {}),
+})
+const inFlight = await until(async () => modelCalls === 1 && (await flagOf(SEAT)) === true)
+check('rig: the seat is mid-turn — its model call is in flight and the roster member reads isActive: true', inFlight && taskOf(spawned.taskId)?.isIdle === false, `calls=${modelCalls} isActive=${String(await flagOf(SEAT))} isIdle=${String(taskOf(spawned.taskId)?.isIdle)}`)
+const busy = await until(async () => (await statusOf(SEAT)) === 'busy', 4000)
+check('the agent statuses read the working seat busy (RED on the base: idle, because it owns no task-list item)', busy, `status=${String(await statusOf(SEAT))}`)
+check('…and the lead, which never writes the live flag, reads idle', (await statusOf(LEAD)) === 'idle', `status=${String(await statusOf(LEAD))}`)
+const brief = await teamBrief(ctx)
+check('the brief\'s roster line reads the seat busy and the lead idle (RED on the base)', brief.roster.find(row => row.name === SEAT)?.status === 'busy' && brief.roster.find(row => row.name === LEAD)?.status === 'idle', JSON.stringify(brief.roster))
+const health = await getRoomHealth(TEAM)
+const seatHealth = health.agents.find(row => row.name === SEAT)
+check('the health reads the seat busy with the honest reason — its turn is in flight, no task-list item owned (RED on the base)', seatHealth?.state === 'busy' && seatHealth.why === 'working — its turn is in flight' && seatHealth.currentTasks.length === 0, JSON.stringify(seatHealth))
+
+section('§2 the same seat, idle between turns, reads idle again — the flag the runner writes at the idle transition')
+releaseTurn()
+const wentIdle = await until(async () => taskOf(spawned.taskId)?.isIdle === true && (await flagOf(SEAT)) === false)
+check('the seat delivered its turn and waits on its inbox (isIdle, isActive: false)', wentIdle, `isIdle=${String(taskOf(spawned.taskId)?.isIdle)} isActive=${String(await flagOf(SEAT))}`)
+check('the agent statuses read the idle seat idle', (await statusOf(SEAT)) === 'idle', `status=${String(await statusOf(SEAT))}`)
+check('the brief agrees', (await teamBrief(ctx)).roster.find(row => row.name === SEAT)?.status === 'idle')
+
+section('§3 a member the file has never marked — a pane seat before its first turn ends — reads busy, as the crew roster already reads it (running unless explicitly deactivated)')
+{
+  const file = await readTeamFileAsync(TEAM)
+  await writeTeamFileAsync(TEAM, { ...file, members: [...(file?.members ?? []), member(formatAgentId('fresh', TEAM), 'fresh', '%9')] } as never)
+  check('an unmarked member reads busy', (await statusOf('fresh')) === 'busy', `status=${String(await statusOf('fresh'))}`)
+}
+
+spawned.abortController.abort()
+await Promise.race([done, sleep(5000)])
+rmSync(HOME, { recursive: true, force: true })
+console.log(`\nroster-busy: ${checks} checks, ${failures} failed`)
+process.exit(failures === 0 ? 0 : 1)
