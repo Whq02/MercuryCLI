@@ -2719,6 +2719,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/usage-warning/prove-mock-limits-per-model-captures.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "'/usr/bin/python3',",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/usage-warning/prove-usage-pools-captures.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
