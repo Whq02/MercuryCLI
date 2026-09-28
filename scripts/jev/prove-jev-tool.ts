@@ -65,8 +65,10 @@ check('the name is JevEval, the owner\'s name in house spelling', JevEvalTool.na
 check('enabled with the switch on and a key stored', jevEvalEnabled() === true && JevEvalTool.isEnabled() === true)
 check('read-only and concurrency-safe', JevEvalTool.isReadOnly({} as never) === true && JevEvalTool.isConcurrencySafe({} as never) === true)
 check('not deferred (a tool the model cannot see is not reached for at the fork)', JevEvalTool.shouldDefer === false)
-const permissionVerdict = await JevEvalTool.checkPermissions({ goal: 'g' } as never, {} as never)
-check('checkPermissions is the default allow — it never joins the permission plane', permissionVerdict.behavior === 'allow' && !/checkPermissions|validateInput/.test(readFileSync(join(ROOT, 'src/tools/JevEvalTool/JevEvalTool.ts'), 'utf8')))
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const permissionVerdict = await JevEvalTool.checkPermissions(valid() as never, { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never)
+const toolSource = readFileSync(join(ROOT, 'src/tools/JevEvalTool/JevEvalTool.ts'), 'utf8')
+check('an inline call is allowed without a permission check; JevEval answers no permission request — its only permission call is the Read ladder on a file it loads', permissionVerdict.behavior === 'allow' && /checkReadPermissionForTool/.test(toolSource) && !/validateInput|classifierDecision/.test(toolSource))
 check('the classifier projection is declared deliberately, and empty', !isToolDefaultFn(JevEvalTool.toAutoClassifierInput) && JevEvalTool.toAutoClassifierInput({} as never) === '')
 check('the auto-mode classifier allowlist never names it', !/jev/i.test(readFileSync(join(ROOT, 'src/utils/permissions/classifierDecision.ts'), 'utf8')))
 check('the search hint is 3..10 words', JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length >= 3 && JEV_EVAL_SEARCH_HINT.trim().split(/\s+/).length <= 10, JEV_EVAL_SEARCH_HINT)
@@ -225,7 +227,7 @@ const exclusions: Array<[string, RegExp]> = [
   ['no re-asking a rephrased question', /re-ask a rephrased question/],
   ['report the answer even when it contradicts you', /even when it contradicts you/],
   ['one batched call', /in ONE call/],
-  ['filtered evidence only and why', /filtered excerpts, never whole files, never the transcript/],
+  ['filtered evidence only and why', /filtered excerpts or a file of filtered rows — never a whole source file, never the transcript/],
   ['why: it leaves the machine under the chosen road policy', /leaves the machine under the selected road's data policy/],
   ['why: unrelated material costs accuracy', /unrelated material measurably costs accuracy/],
   ['every option in, allow_none set', /an option you omit cannot be chosen/],
