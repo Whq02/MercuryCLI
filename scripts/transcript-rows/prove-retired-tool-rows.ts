@@ -13,7 +13,8 @@ const React = (await import('react')).default
 const { renderToString } = await import('../../src/utils/staticRender.tsx')
 const { AssistantToolUseMessage } = await import('../../src/components/messages/AssistantToolUseMessage.js')
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.js')
-const { getAllBaseTools } = await import('../../src/tools.ts')
+const { getAllBaseTools, getTools } = await import('../../src/tools.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
 function check(cond: boolean, label: string, detail = ''): void {
@@ -54,6 +55,10 @@ const CATALOGUE_ROWS: OldRow[] = [
   { id: 'toolu_old_to', name: 'TaskOutput', input: { task_id: 'b7x2', block: true, timeout: 30000 }, nameShape: /Task ?Output/, carries: 'b7x2' },
   { id: 'toolu_old_bo', name: 'BashOutputTool', spelling: 'alias', input: { task_id: 'b1' }, nameShape: /(?:Task|Bash) ?Output/, carries: 'b1' },
 ]
+const SESSION_POOL_ROWS: OldRow[] = [
+  { id: 'toolu_old_sum', name: 'SendUserMessage', input: { message: 'the old reply', status: 'normal' }, nameShape: /SendUserMessage/, carries: 'the old reply' },
+  { id: 'toolu_old_br', name: 'Brief', spelling: 'alias', input: { message: 'the older reply' }, nameShape: /\bBrief\b/, carries: 'the older reply' },
+]
 
 console.log('retired tool rows — an old transcript row still draws after its tool left the roster')
 
@@ -62,6 +67,17 @@ for (const row of CATALOGUE_ROWS) {
   const resolved = findToolForRender(catalogue as never, row.name)
   if (row.spelling !== 'alias') check(resolved.name === row.name, `${row.name}: the render lookup resolves the recorded name`, resolved.name)
   const lines = await renderOldRow(row, catalogue)
+  const text = lines.join('\n')
+  check(lines.length >= 1, `${row.name}: the old row draws at least one line`, JSON.stringify(lines))
+  check(row.nameShape.test(text), `${row.name}: the row names the tool`, text)
+  check(text.includes(row.carries), `${row.name}: the row carries the recorded input`, text)
+}
+
+const sessionPool = getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never)
+for (const row of SESSION_POOL_ROWS) {
+  const resolved = findToolForRender(sessionPool as never, row.name)
+  if (row.spelling !== 'alias') check(resolved.name === row.name, `${row.name}: the render lookup resolves the recorded name`, resolved.name)
+  const lines = await renderOldRow(row, sessionPool)
   const text = lines.join('\n')
   check(lines.length >= 1, `${row.name}: the old row draws at least one line`, JSON.stringify(lines))
   check(row.nameShape.test(text), `${row.name}: the row names the tool`, text)

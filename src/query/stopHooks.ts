@@ -13,7 +13,7 @@ import {
   createCacheSafeParams,
   saveCacheSafeParams,
 } from '../utils/forkedAgent.js'
-import { isBareMode, isEnvTruthy } from '../utils/envUtils.js'
+import { isBareMode } from '../utils/envUtils.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import {
   createStopHookSummaryMessage,
@@ -36,124 +36,6 @@ const MAIN_THREAD_SOURCE = 'repl_main_thread'
 const SDK_SOURCE = 'sdk'
 
 type StopHookInfo = { command: string; promptText?: string; durationMs?: number }
-
-function usesAnyTool(messages: Message[], toolNames: readonly string[]): boolean {
-  for (const message of messages) {
-    if (message.type !== 'assistant') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (
-        typeof block === 'object' &&
-        block !== null &&
-        (block as { type?: string }).type === 'tool_use' &&
-        toolNames.includes((block as { name?: string }).name ?? '')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-function windowAfterLastRealUserTurn(history: Message[]): Message[] {
-  for (let i = history.length - 1; i >= 0; i--) {
-    const message = history[i]!
-    if (message.type !== 'user') continue
-    if ((message as { isMeta?: boolean }).isMeta) continue
-    const content = message.message.content
-    const isToolResult =
-      Array.isArray(content) &&
-      content.some(
-        block =>
-          typeof block === 'object' &&
-          block !== null &&
-          (block as { type?: string }).type === 'tool_result',
-      )
-    if (isToolResult) continue
-    return history.slice(i + 1)
-  }
-  return history
-}
-
-function hasMetaMessageContaining(messages: Message[], marker: string): boolean {
-  return messages.some(
-    message =>
-      message.type === 'user' &&
-      (message as { isMeta?: boolean }).isMeta === true &&
-      typeof message.message.content === 'string' &&
-      message.message.content.includes(marker),
-  )
-}
-
-async function* briefModeSentinel(
-  messagesForQuery: Message[],
-  assistantMessages: AssistantMessage[],
-  toolUseContext: ToolUseContext,
-): AsyncGenerator<UserMessage> {
-  try {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    const briefTool = require('../tools/BriefTool/BriefTool.js') as {
-      isBriefEnabled: () => boolean
-    }
-    if (!briefTool.isBriefEnabled()) return
-    const briefPrompt = require('../tools/BriefTool/prompt.js') as {
-      BRIEF_TOOL_NAME: string
-      LEGACY_BRIEF_TOOL_NAME: string
-      BRIEF_ENFORCE_SENTINEL: string
-      BRIEF_RECAP_SENTINEL: string
-      getBriefEnforceText: () => string
-      getBriefRecapText: () => string
-    }
-    const questionTool = require('../tools/AskUserQuestionTool/prompt.js') as {
-      ASK_USER_QUESTION_TOOL_NAME: string
-    }
-    const briefFilters = require('../utils/messages/briefFilters.js') as {
-      hasTrailingTextAfterBrief: (messages: Message[]) => boolean
-    }
-    /* eslint-enable @typescript-eslint/no-require-imports */
-
-    const toolNames = toolUseContext.options.tools.map(tool => tool.name)
-    if (
-      !toolNames.includes(briefPrompt.BRIEF_TOOL_NAME) &&
-      !toolNames.includes(briefPrompt.LEGACY_BRIEF_TOOL_NAME)
-    ) {
-      return
-    }
-
-    const history = [...messagesForQuery, ...assistantMessages]
-    const window = windowAfterLastRealUserTurn(history)
-    const addressedTools = [
-      briefPrompt.BRIEF_TOOL_NAME,
-      briefPrompt.LEGACY_BRIEF_TOOL_NAME,
-      questionTool.ASK_USER_QUESTION_TOOL_NAME,
-    ]
-    const addressed =
-      usesAnyTool(window, addressedTools) || usesAnyTool(assistantMessages, addressedTools)
-
-    if (!addressed) {
-      if (!hasMetaMessageContaining(window, briefPrompt.BRIEF_ENFORCE_SENTINEL)) {
-        yield createUserMessage({
-          content: `${briefPrompt.BRIEF_ENFORCE_SENTINEL} ${briefPrompt.getBriefEnforceText()}`,
-          isMeta: true,
-        })
-      }
-      return
-    }
-
-    if (
-      !hasMetaMessageContaining(history, briefPrompt.BRIEF_RECAP_SENTINEL) &&
-      briefFilters.hasTrailingTextAfterBrief(window)
-    ) {
-      yield createUserMessage({
-        content: `${briefPrompt.BRIEF_RECAP_SENTINEL} ${briefPrompt.getBriefRecapText()}`,
-        isMeta: true,
-      })
-    }
-  } catch (error) {
-    logForDebugging(`brief-mode stop hook failed: ${errorMessage(error)}`, { level: 'error' })
-  }
-}
 
 type ExecutorStream = ReturnType<typeof executeStopHooks>
 
@@ -335,17 +217,6 @@ export async function* handleStopHooks(
         logForDebugging(`mneme turn observation failed: ${errorMessage(error)}`)
       }
     }
-  }
-
-  const mainThreadish =
-    typeof querySource === 'string' &&
-    (querySource.startsWith(MAIN_THREAD_SOURCE) || querySource === SDK_SOURCE)
-  if (
-    mainThreadish &&
-    !agentId &&
-    !isEnvTruthy(process.env.DISABLE_BRIEF_MODE_STOP_HOOK)
-  ) {
-    yield* briefModeSentinel(messagesForQuery, assistantMessages, toolUseContext)
   }
 
   const settlementBlocks: UserMessage[] = []

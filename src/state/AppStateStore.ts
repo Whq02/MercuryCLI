@@ -138,7 +138,6 @@ type AppStateImmutableHalf = {
   settings: Settings
   verbose: boolean
   expandedView: 'none' | 'tasks' | 'teammates'
-  isBriefOnly: boolean
   spinnerTip?: string
   showTeammateMessagePreview?: boolean
   isAssistantMode: boolean
@@ -275,7 +274,6 @@ export function getDefaultAppState(): AppState {
     settings: getInitialSettings(),
     verbose: false,
     expandedView: rememberedExpandedView(),
-    isBriefOnly: false,
     isAssistantMode: computeAssistantMode(),
     footerSelection: null,
 

@@ -30,10 +30,6 @@ import {
 import { normalizeMessages } from '../utils/messages/normalize.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { reorderMessagesInUI } from '../utils/messages/uiOrder.js'
-import {
-  dropTextInBriefTurns,
-  filterForBriefTool,
-} from '../utils/messages/briefFilters.js'
 import { deriveUUID } from '../utils/messages/identity.js'
 import {
   findLastCompactBoundaryIndex,
@@ -63,11 +59,6 @@ import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
 } from './messages/nullRenderingAttachments.js'
-import {
-  BRIEF_TOOL_NAME,
-  LEGACY_BRIEF_TOOL_NAME,
-} from '../tools/BriefTool/prompt.js'
-import { SEND_USER_FILE_TOOL_NAME } from '../tools/SendUserFileTool/prompt.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { isFullscreenActive, isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
@@ -189,7 +180,6 @@ type MessagesProps = {
   streamingTail?: StreamingTailStore | null
   streamingTextSuppressed?: boolean
   tailAnchor?: number
-  isBriefOnly?: boolean
   unseenDivider?: UnseenDivider
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   trackStickyPrompt?: boolean
@@ -218,10 +208,9 @@ function composeTranscript(input: {
   isTranscriptMode: boolean
   truncateTranscript: boolean
   tools: Tools
-  isBriefOnly: boolean
   inProgressToolUseIDs: Set<string>
 }): TranscriptComposition {
-  const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, isBriefOnly, inProgressToolUseIDs } = input
+  const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs } = input
   let working: NormalizedMessage[] = normalized
   if (!verbose && !fullscreen) {
     const boundary = findLastCompactBoundaryIndex(working)
@@ -289,30 +278,11 @@ function composeTranscript(input: {
     synthetic as Parameters<typeof reorderMessagesInUI>[1],
   ) as typeof working
 
-  const preBriefLength = working.length
-  const briefToolNames = [BRIEF_TOOL_NAME, LEGACY_BRIEF_TOOL_NAME, SEND_USER_FILE_TOOL_NAME].filter(
-    name => findToolByName(tools, name) !== undefined,
-  )
-  if (briefToolNames.length > 0) {
-    if (isTranscriptMode) {
-    } else if (isBriefOnly) {
-      working = filterForBriefTool(
-        working as Parameters<typeof filterForBriefTool>[0],
-        briefToolNames,
-      ) as typeof working
-    } else {
-      working = dropTextInBriefTurns(
-        working as Parameters<typeof dropTextInBriefTurns>[0],
-        briefToolNames,
-      ) as typeof working
-    }
-  }
-
   let truncated = false
   let hiddenCount = 0
   if (truncateTranscript) {
     truncated = working.length > TRANSCRIPT_TRUNCATE
-    hiddenCount = preBriefLength - TRANSCRIPT_TRUNCATE
+    hiddenCount = working.length - TRANSCRIPT_TRUNCATE
     if (truncated) {
       working = working.slice(-TRANSCRIPT_TRUNCATE)
     }
@@ -370,7 +340,6 @@ function MessagesInner({
   streamingTail = null,
   streamingTextSuppressed = false,
   tailAnchor,
-  isBriefOnly = false,
   unseenDivider,
   scrollRef,
   trackStickyPrompt = false,
@@ -439,15 +408,15 @@ function MessagesInner({
     isTranscriptMode && !showAllInTranscript && !virtualised
 
   const derived = useMemo(
-    () => composeTranscript({ normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, isBriefOnly, inProgressToolUseIDs }),
-    [verbose, normalized, isTranscriptMode, syntheticStreamingRows, truncateTranscript, tools, isBriefOnly, fullscreen, inProgressToolUseIDs],
+    () => composeTranscript({ normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs }),
+    [verbose, normalized, isTranscriptMode, syntheticStreamingRows, truncateTranscript, tools, fullscreen, inProgressToolUseIDs],
   )
   const derivedAfter = useMemo(
     () =>
       normalizedAfter.length === 0
         ? EMPTY_COMPOSITION
-        : composeTranscript({ normalized: normalizedAfter, syntheticStreamingRows: EMPTY_SYNTHETIC, verbose, fullscreen, isTranscriptMode, truncateTranscript: false, tools, isBriefOnly, inProgressToolUseIDs }),
-    [verbose, normalizedAfter, isTranscriptMode, tools, isBriefOnly, fullscreen, inProgressToolUseIDs],
+        : composeTranscript({ normalized: normalizedAfter, syntheticStreamingRows: EMPTY_SYNTHETIC, verbose, fullscreen, isTranscriptMode, truncateTranscript: false, tools, inProgressToolUseIDs }),
+    [verbose, normalizedAfter, isTranscriptMode, tools, fullscreen, inProgressToolUseIDs],
   )
   const { collapsed, lookups, truncated, hiddenCount } = derived
   const afterRows = derivedAfter.collapsed
@@ -874,15 +843,13 @@ function MessagesInner({
 
   const tail = (
     <>
-      {
-}
-      {streamingTail && !isBriefOnly ? (
+      {streamingTail ? (
         <LiveStreamingTail
           store={streamingTail}
           textSuppressed={streamingTextSuppressed}
         />
       ) : null}
-      {liveReasoningVisible && streamingThinking && !isBriefOnly ? (
+      {liveReasoningVisible && streamingThinking ? (
         <AssistantThinkingMessage
           param={{ type: 'thinking', thinking: streamingThinking.thinking }}
           addMargin
@@ -973,7 +940,6 @@ function areMessagesPropsEqual(
   if (prev.verbose !== next.verbose) return false
   if (prev.screen !== next.screen) return false
   if (prev.isLoading !== next.isLoading) return false
-  if (prev.isBriefOnly !== next.isBriefOnly) return false
   if (prev.showAllInTranscript !== next.showAllInTranscript) return false
   if (prev.toolJSX !== next.toolJSX) return false
   if (prev.isMessageSelectorVisible !== next.isMessageSelectorVisible) {

@@ -64,7 +64,7 @@ section('§4 source pins — the consumers ride the one owner')
   )
   check(
     'showSpinner stands the verb row up when the reveal is suppressed',
-    repl.includes('!textActive || isBriefOnly || streamingSuppressed'),
+    repl.includes('!textActive || streamingSuppressed'),
   )
   check(
     'the three transcript arms mount the focused tail on every surface (its quiet-stream line paints where the text is suppressed — FN-016 R12)',

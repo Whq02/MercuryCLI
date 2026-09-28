@@ -42,10 +42,6 @@ for (const key of [
   'MERCURY_TELEMETRY',
   'MERCURY_FEEDBACK_COMMAND',
   'MERCURY_BUG_COMMAND',
-  'MERCURY_AUGUR',
-  'MERCURY_AUGUR_MODEL',
-  'MERCURY_AUGUR_TOOL',
-  'MERCURY_AUGUR_BRIEF',
 ]) {
   delete process.env[key]
 }
@@ -137,12 +133,6 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   check('…and off under the essential-traffic posture (the local rule)', feedback.isEnabled() === false)
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
-
-  const augur = await import('../../src/utils/model/augur.js')
-  check('a variant switch is off by default', augur.isAugurTool() === false)
-  process.env.MERCURY_AUGUR = '1'
-  check('…and on by the operator\'s own environment', augur.isAugurTool() === true)
-  delete process.env.MERCURY_AUGUR
 
   await sleep(300)
   check('the fixture served NOTHING across every ask (no first-party side road fired)', served.length === 0, JSON.stringify(served))

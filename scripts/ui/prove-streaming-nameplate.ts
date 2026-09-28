@@ -38,7 +38,7 @@ section('LiveStreamingTail: the ONE streaming nameplate (FLUX S2 home)')
 check('the leaf imports the nameplate from ChatLine',
   /import \{ MercuryStreamingNameplate \} from '\.\/messages\/ChatLine\.js'/.test(tail))
 check('Messages renders the ONE subscribed leaf (per-delta publishes never re-render the tree)',
-  /\{streamingTail && !isBriefOnly \? \(?\s*<LiveStreamingTail\s+store=\{streamingTail\}[^>]*\/>\s*\)? : null\}/.test(msgs))
+  /\{streamingTail \? \(?\s*<LiveStreamingTail\s+store=\{streamingTail\}[^>]*\/>\s*\)? : null\}/.test(msgs))
 check('the streaming prose leads with MercuryStreamingNameplate',
   /leadingInline=\{<MercuryStreamingNameplate \/>\}/.test(tail))
 check('the leaf carries ONE nameplate (no mode branch)', (tail.match(/StreamingNameplate \/>/g) ?? []).length === 1)

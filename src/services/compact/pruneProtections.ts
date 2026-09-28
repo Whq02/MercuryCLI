@@ -5,7 +5,6 @@ import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 
 export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
   'Skill',
-  'Brief',
   'ExitStrategyMode',
   'EnterStrategyMode',
   ASK_USER_QUESTION_TOOL_NAME,

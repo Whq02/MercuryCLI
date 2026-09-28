@@ -8,7 +8,7 @@
 # gate-watch: src/keybindings/KeybindingProviderSetup* src/services/claudeAiLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
-# gate-watch: src/state/AppStateStore* src/substrate/bootNotes* src/tools/BriefTool/UI*
+# gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
 # gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json design-system/readme.md
 # gate-watch: mercury-skills/provider-apis/SKILL.md scripts/engine-durability/harness.ts

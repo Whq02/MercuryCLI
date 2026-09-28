@@ -121,10 +121,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'compact-status-inline',
     why: 'CLI handler text output — flat by design',
   },
-  'src/tools/BriefTool/UI.tsx': {
-    role: 'session-identity',
-    why: 'brief chat attribution — the session accent labels WHO spoke',
-  },
   'src/components/messages/ChatLine.tsx': {
     role: 'session-identity',
     why: 'the transcript nameplate — critter accent IS session identity',

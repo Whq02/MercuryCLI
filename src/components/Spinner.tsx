@@ -14,7 +14,6 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
 import { getViewedTeammateTask } from '../state/selectors.js'
 import type { InProcessTeammateTaskState } from '../tasks/InProcessTeammateTask/types.js'
-import { isManageableTask } from './tasks/taskStatusUtils.js'
 import { activityManager } from '../utils/activityManager.js'
 import { getEffortSuffix } from '../utils/effort.js'
 import { formatDuration } from '../utils/format.js'
@@ -335,37 +334,6 @@ export function SpinnerWithVerb({
         </Box>
       )}
       {tail}
-    </Box>
-  )
-}
-
-
-export function BriefIdleStatus(): React.ReactNode {
-  const { columns } = useTerminalSize()
-  const connection = useAppState(state => state.remoteConnectionStatus)
-  const backgroundCount = useAppState(
-    state => Object.values(state.tasks).filter(task => isManageableTask(task)).length,
-  )
-
-  const warning =
-    connection === 'reconnecting'
-      ? 'reconnecting…'
-      : connection === 'disconnected'
-        ? 'disconnected'
-        : null
-  const right = backgroundCount > 0 ? `${backgroundCount} background` : ''
-
-  if (warning === null && right === '') return <Box height={2} />
-
-  const left = warning ?? ''
-  const pad = Math.max(1, columns - 2 - stringWidth(left) - stringWidth(right))
-  return (
-    <Box flexDirection="column" height={2} justifyContent="flex-end">
-      <Text wrap="truncate-end">
-        {warning ? <Text color="error">{left}</Text> : left}
-        {' '.repeat(pad)}
-        <Text dimColor>{right}</Text>
-      </Text>
     </Box>
   )
 }

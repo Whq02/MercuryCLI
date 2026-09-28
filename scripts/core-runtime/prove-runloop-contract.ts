@@ -44,7 +44,6 @@ const lifecycle = await import('../../src/utils/commandLifecycle.ts')
 const sessionHooks = await import('../../src/utils/hooks/sessionHooks.ts')
 const effort = await import('../../src/utils/effort.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const briefPrompt = await import('../../src/tools/BriefTool/prompt.ts')
 
 const MODEL = 'claude-opus-4-8'
 const FALLBACK_MODEL = 'claude-sonnet-5'
@@ -1276,39 +1275,29 @@ section('L19 MAX TURNS — attachment + typed terminal')
   )
 }
 
-section('L20 BRIEF-TERMINAL — a Brief-only turn ends; an is_error Brief recurses')
+section('L20 NO TERMINAL TOOL — a courier-only round recurses like any other tool round')
 {
-  const briefTool = makeTool(briefPrompt.BRIEF_TOOL_NAME, {
-    call: async (input: Record<string, unknown>) => ({
-      data: input.fail === true ? 'FAIL: rejected' : 'delivered',
-    }),
-  })
-  const r = record(
-    await run({
-      tools: [briefTool],
-      script: [[y(asstToolUse('tu_br', briefPrompt.BRIEF_TOOL_NAME, { text: 'reply' }))]],
-    }),
-  )
-  check('Brief-only turn: terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('Brief-only turn: NO recursion (one model call)', r.calls.length === 1, String(r.calls.length))
-  check(
-    "the Brief tool_result settled and paired (yielded once)",
-    toolResultBlocks(r.yields).filter(b => b.tool_use_id === 'tu_br').length === 1,
-  )
-
-  const r2 = record(
-    await run({
-      tools: [briefTool],
-      script: [
-        [y(asstToolUse('tu_br2', briefPrompt.BRIEF_TOOL_NAME, { fail: true }))],
-        [y(asstText('retry prose'))],
-      ],
-    }),
-  )
-  check('is_error Brief: the recursion CONTINUES (two calls)', r2.calls.length === 2, String(r2.calls.length))
-  check('is_error Brief: terminal completed after retry', r2.terminal.reason === 'completed')
-  const errResult = toolResultBlocks(r2.yields).find(b => b.tool_use_id === 'tu_br2')
-  check('the failing Brief result is is_error', errResult?.is_error === true, JSON.stringify(errResult))
+  for (const name of ['SendUserMessage', 'Brief']) {
+    const courier = makeTool(name, {
+      call: async () => ({ data: 'delivered' }),
+    })
+    const id = `tu_${name}`
+    const r = record(
+      await run({
+        tools: [courier],
+        script: [
+          [y(asstToolUse(id, name, { message: 'reply' }))],
+          [y(asstText('done'))],
+        ],
+      }),
+    )
+    check(`${name}-only round: the loop recurses (two model calls)`, r.calls.length === 2, String(r.calls.length))
+    check(`${name}-only round: terminal completed after the recursion`, r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+    check(
+      `${name}-only round: the tool_result settled and paired (yielded once)`,
+      toolResultBlocks(r.yields).filter(b => b.tool_use_id === id).length === 1,
+    )
+  }
 }
 
 section('L21 TEARDOWN — .return() skips lifecycle-completed (teardown asymmetry)')

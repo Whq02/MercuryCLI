@@ -28,9 +28,6 @@ import {
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
 
-const BRIEF_TOOL_NAME: string | null =
-  null
-
 function getTaskReminderTurnCounts(messages: Message[]): {
   turnsSinceLastTaskManagement: number
   turnsSinceLastReminder: number
@@ -88,13 +85,6 @@ export async function getTaskReminderAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
   if (!isTaskToolsEnabled()) {
-    return []
-  }
-
-  if (
-    BRIEF_TOOL_NAME &&
-    toolUseContext.options.tools.some(t => toolMatchesName(t, BRIEF_TOOL_NAME))
-  ) {
     return []
   }
 

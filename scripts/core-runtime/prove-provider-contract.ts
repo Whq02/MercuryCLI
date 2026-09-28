@@ -23,10 +23,6 @@ for (const k of [
   'MERCURY_CACHE_TTL',
   'MERCURY_THINKING_BUDGET',
   'MERCURY_SMALL_FAST_MODEL',
-  'MERCURY_AUGUR',
-  'MERCURY_AUGUR_TOOL',
-  'MERCURY_AUGUR_BRIEF',
-  'MERCURY_AUGUR_MODEL',
 ]) {
   delete process.env[k]
 }

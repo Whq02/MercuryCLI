@@ -469,14 +469,6 @@ export function setStrictToolResultPairing(value: boolean): void {
   posture.strictToolResultPairing = value
 }
 
-export function getUserMsgOptIn(): boolean {
-  return posture.userMsgOptIn
-}
-
-export function setUserMsgOptIn(value: boolean): void {
-  posture.userMsgOptIn = value
-}
-
 export function getSessionSource(): string | undefined {
   return posture.sessionSource
 }

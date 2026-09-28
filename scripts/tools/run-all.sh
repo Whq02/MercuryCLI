@@ -3,7 +3,7 @@
 # gate-watch: src/Tool* src/bootstrap/state* src/services/mcp/registry/serverRegistry*
 # gate-watch: src/services/run/effectObserver* src/services/tools/toolExecution*
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask* src/tools/AgentTool/AgentTool*
-# gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool* src/tools/BriefTool/BriefTool*
+# gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool*
 # gate-watch: src/tools/DebugTool/DebugTool* src/tools/MonitorTool/**
 # gate-watch: src/tools/SleepTool/SleepTool*
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool* src/tools/ToolSearchTool/cooccurPrior*

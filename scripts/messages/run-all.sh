@@ -10,7 +10,7 @@
 # gate-watch: src/services/api/errors.ts src/services/concourse/coordinatorCall.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/responsesBridge.ts
-# gate-watch: src/tools.ts src/tools/BriefTool/prompt.ts src/tools/SkillTool/SkillTool.ts
+# gate-watch: src/tools.ts src/tools/SkillTool/SkillTool.ts
 # gate-watch: src/tools/WorkflowTool/agentTranscriptReader.ts src/utils/* src/utils/cockpit/helmConsoleAsk.ts
 # gate-watch: src/utils/cockpit/turnReceipt.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/hooks/execPromptHook.ts src/utils/hooks/hookHelpers.ts

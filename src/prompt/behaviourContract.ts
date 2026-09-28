@@ -46,7 +46,6 @@ const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
   ['dynamic:harness_map', 'src/utils/cockpit/harnessMap.ts'],
   ['dynamic:run_protocol', 'src/utils/cockpit/runProtocol.ts'],
   ['dynamic:runtime_posture', 'src/utils/cockpit/runtimePosture.ts'],
-  ['dynamic:brief', 'src/tools/BriefTool/prompt.ts'],
   ['wrapper:identity-floor', 'src/prompt/mercuryContract.ts'],
   ['wrapper:mercury-doctrine', 'src/prompt/mercuryContract.ts'],
   ['mode:mode-autopilot', 'src/utils/autopilot/autopilotPrompt.ts'],

@@ -6,7 +6,7 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 
 import { lazySchema } from '../../utils/lazySchema.js'
 import { plural } from '../../utils/stringUtils.js'
-import { resolveAttachments, validateAttachmentPaths } from '../BriefTool/attachments.js'
+import { resolveAttachments, validateAttachmentPaths } from './attachments.js'
 import { DESCRIPTION, SEND_USER_FILE_TOOL_NAME, SEND_USER_FILE_TOOL_PROMPT } from './prompt.js'
 
 const inputSchema = lazySchema(() =>
