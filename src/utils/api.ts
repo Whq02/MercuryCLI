@@ -23,7 +23,6 @@ import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../tools/ExitPlanModeTool/constants
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
-import { TASK_OUTPUT_TOOL_NAME } from '../tools/TaskOutputTool/constants.js'
 import { getCwd } from './cwd.js'
 import { createUserMessage } from './messages.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
@@ -345,18 +344,6 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       const isMarkdown = MARKDOWN_EXTENSIONS.some(ext => parsed.file_path.toLowerCase().endsWith(ext))
       const content = isMarkdown ? parsed.content : parsed.content.replace(/[ \t]+$/gm, '')
       return { ...parsed, content } as unknown as Input
-    }
-    case TASK_OUTPUT_TOOL_NAME: {
-      const raw = input as Record<string, unknown>
-      const task_id = raw.task_id ?? raw.agentId ?? raw.bash_id ?? ''
-      const timeout =
-        typeof raw.timeout === 'number'
-          ? raw.timeout
-          : typeof raw.wait_up_to === 'number'
-            ? raw.wait_up_to * 1000
-            : 30_000
-      const block = raw.block ?? true
-      return { task_id, block, timeout } as unknown as Input
     }
     default:
       return input

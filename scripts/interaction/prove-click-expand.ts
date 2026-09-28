@@ -79,10 +79,9 @@ check(
   src('src/tools/AgentTool/UI.tsx').includes('(isTranscriptMode || verbose) && content'),
 )
 check(
-  'Grep + Glob + TaskOutput gate click-expand',
+  'Grep + Glob gate click-expand',
   src('src/tools/GrepTool/GrepTool.ts').includes('isResultTruncated,') &&
-    src('src/tools/GlobTool/GlobTool.ts').includes('isResultTruncated,') &&
-    src('src/tools/TaskOutputTool/TaskOutputTool.tsx').includes('isResultTruncated('),
+    src('src/tools/GlobTool/GlobTool.ts').includes('isResultTruncated,'),
 )
 check(
   'the Glob renderer honors verbose (file list branch)',
@@ -95,8 +94,8 @@ check(
     src('src/components/FallbackToolUseErrorMessage.tsx').includes('export function isToolErrorResultTruncated'),
 )
 check(
-  'dist ships the 4 new isResultTruncated gates (11 method keys)',
-  (readFileSync('dist/mercury.mjs', 'utf8').match(/isResultTruncated/g)?.length ?? 0) >= 11,
+  'dist ships the 3 isResultTruncated gates (10 method keys)',
+  (readFileSync('dist/mercury.mjs', 'utf8').match(/isResultTruncated/g)?.length ?? 0) >= 10,
 )
 
 const base = capture('base', [], 70)

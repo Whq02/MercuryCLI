@@ -13,7 +13,6 @@ await import('../../src/tasks.js')
 const task = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const receipts = await import('../../src/tasks/LocalAgentTask/launchReceipts.js')
 const queue = await import('../../src/utils/messageQueueManager.js')
-const { TaskOutputTool } = await import('../../src/tools/TaskOutputTool/TaskOutputTool.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -64,31 +63,7 @@ section('G1 — two foreground seats; one fails, the other\'s wait is released a
   void c
 }
 
-section('G2 — the blocking read returns early on a sibling\'s failure, naming it')
-{
-  task.resetSiblingEnds()
-  const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'bg-1', description: 'long job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  task.registerAsyncAgent({ agentId: 'bg-2', description: 'short job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  const context = {
-    getAppState: store.get,
-    setAppState: store.set,
-    abortController: new AbortController(),
-    options: { tools: [] },
-  } as never
-  const started = Date.now()
-  setTimeout(() => task.failAgentTask('bg-2', 'crashed on a bad file', store.set as never), 250)
-  const result = (await TaskOutputTool.call({ task_id: 'bg-1', block: true, timeout: 5_000 } as never, context, undefined as never, undefined as never)) as { data: { retrieval_status: string; task: { task_id: string; status: string } | null; interrupted_by?: { task_id: string; status: string; error?: string; description: string } } }
-  const elapsed = Date.now() - started
-  check('the wait returned when the sibling failed, not at its own timeout', elapsed >= 200 && elapsed < 2_000, String(elapsed))
-  check('the waited task runs on and the read says which member ended', result.data.retrieval_status === 'timeout' && result.data.task?.task_id === 'bg-1' && result.data.task.status === 'running' && result.data.interrupted_by?.task_id === 'bg-2' && result.data.interrupted_by.status === 'failed' && result.data.interrupted_by.error === 'crashed on a bad file', JSON.stringify(result.data))
-  const block = TaskOutputTool.mapToolResultToToolResultBlockParam(result.data as never, 'toolu_x') as { content: string }
-  check('the tool result names the member and its state', /<interrupted_by>the wait ended early: agent "short job" \[bg-2\] failed — crashed on a bad file; the waited task runs on/.test(block.content), block.content)
-  const before = (await TaskOutputTool.call({ task_id: 'bg-1', block: true, timeout: 400 } as never, context, undefined as never, undefined as never)) as { data: { retrieval_status: string; interrupted_by?: unknown } }
-  check('an end from before the wait began does not return a later wait', before.data.retrieval_status === 'timeout' && before.data.interrupted_by === undefined, JSON.stringify(before.data))
-}
-
-section('G3 — a child\'s terminal notice rides the band the turn machine drains at its next tool result')
+section('G2 — a child\'s terminal notice rides the band the turn machine drains at its next tool result')
 {
   queue.resetCommandQueue()
   const store = makeStore()
@@ -102,96 +77,12 @@ section('G3 — a child\'s terminal notice rides the band the turn machine drain
   queue.resetCommandQueue()
 }
 
-section('G4 — the hand-over receipt names the sibling and its end')
+section('G3 — the hand-over receipt names the sibling and its end')
 {
   const line = receipts.foregroundNotKeptLine('sibling-ended', { taskId: 'seat-a', description: 'reads the tree', status: 'failed', error: 'the provider refused' })
   check('the sibling line', line === 'The foreground request was not kept: a wait on a group returns the moment any member fails or stops — agent "reads the tree" [seat-a] failed (the provider refused); read its result now, and this agent runs on in the background (its own notice follows).', line)
   check('a stop without words', receipts.foregroundNotKeptLine('sibling-ended', { taskId: 'seat-d', description: 'fourth', status: 'stopped' }).includes('agent "fourth" [seat-d] stopped; read its result now'))
   check('the other reasons keep their lines', receipts.foregroundNotKeptLine('turn-interrupted').startsWith('The foreground request was not kept: the turn it ran in was interrupted'))
-}
-
-section('G5 — a wait above the ceiling is clamped to it and the result says so; at or below, byte for byte as before')
-{
-  const { formatZodValidationError } = await import('../../src/utils/toolErrors.js')
-  type WaitResult = { data: { retrieval_status: string; task: { task_id: string; status: string } | null; clamped?: string } }
-  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('TaskOutput', r.error as never).replace(/\n/g, ' ')}`)
-  const CLAUSE = 'timeout clamped to 600000 ms (the maximum)'
-  task.resetSiblingEnds()
-  const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'bg-5', description: 'slow job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  const parsed = TaskOutputTool.inputSchema.safeParse({ task_id: 'bg-5', block: true, timeout: 900_000 })
-  check('a timeout of 900000 passes the schema — no round trip lost to a refusal', parsed.success === true && (parsed as { data?: { timeout?: number } }).data?.timeout === 900_000, refusal(parsed))
-  const abort = new AbortController()
-  const context = { getAppState: store.get, setAppState: store.set, abortController: abort, options: { tools: [] } } as never
-  const realNow = Date.now
-  let settledEarly = false
-  const pending = (TaskOutputTool.call({ task_id: 'bg-5', block: true, timeout: 900_000 } as never, context, undefined as never, undefined as never) as Promise<WaitResult>).catch(() => null)
-  void pending.then(() => {
-    settledEarly = Date.now === realNow
-  })
-  await new Promise(r => setTimeout(r, 150))
-  const openBeforeJump = !settledEarly
-  Date.now = () => realNow() + 650_000
-  const outcome = await Promise.race([pending, new Promise<null>(r => setTimeout(() => r(null), 1_500))])
-  Date.now = realNow
-  check('the wait is still open before the clock jumps (it did not end at once)', openBeforeJump)
-  check('the wait ends at the ceiling (600000 ms) — the requested 900000 ms is not waited', outcome !== null && outcome.data.retrieval_status === 'timeout' && outcome.data.task?.task_id === 'bg-5', outcome === null ? 'the wait was still open 650 s after its start (the clock jumped past the ceiling but short of the request)' : JSON.stringify(outcome.data))
-  check('the result says the clamp in the ScheduleWakeup grammar', outcome?.data.clamped === CLAUSE, JSON.stringify(outcome?.data.clamped))
-  const clampedBlock = outcome === null ? { content: '' } : (TaskOutputTool.mapToolResultToToolResultBlockParam(outcome.data as never, 'toolu_c') as { content: string })
-  check('the tool result text carries the clause once, as its own tagged line', clampedBlock.content.split(CLAUSE).length === 2 && clampedBlock.content.includes(`<clamped>${CLAUSE}</clamped>`), clampedBlock.content)
-  abort.abort()
-  await pending
-  const plainContext = { getAppState: store.get, setAppState: store.set, abortController: new AbortController(), options: { tools: [] } } as never
-  const plain = (await TaskOutputTool.call({ task_id: 'bg-5', block: true, timeout: 300 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
-  const plainBlock = TaskOutputTool.mapToolResultToToolResultBlockParam(plain.data as never, 'toolu_p') as { content: string }
-  check('a timeout at or below the ceiling carries no clamp field and no clause — byte for byte as before', plain.data.retrieval_status === 'timeout' && !('clamped' in plain.data) && !plainBlock.content.includes('clamped') && plainBlock.content === '<retrieval_status>timeout</retrieval_status>\n\n<task_id>bg-5</task_id>\n\n<task_type>local_agent</task_type>\n\n<status>running</status>', plainBlock.content)
-  const negative = TaskOutputTool.inputSchema.safeParse({ task_id: 'bg-5', timeout: -1 })
-  check('a negative timeout has no lawful reading and keeps its typed refusal', negative.success === false && refusal(negative).includes('The parameter `timeout` must have a minimum of 0'), refusal(negative))
-  const peek = (await TaskOutputTool.call({ task_id: 'bg-5', block: false, timeout: 900_000 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
-  check('a non-blocking read ran no wait, yet reports the clamped reading (one rule, wait or no wait)', peek.data.retrieval_status === 'not_ready' && peek.data.clamped === CLAUSE, JSON.stringify(peek.data))
-  const plainPeek = (await TaskOutputTool.call({ task_id: 'bg-5', block: false, timeout: 5_000 } as never, plainContext, undefined as never, undefined as never)) as WaitResult
-  const plainPeekBlock = TaskOutputTool.mapToolResultToToolResultBlockParam(plainPeek.data as never, 'toolu_q') as { content: string }
-  check('a non-blocking read inside the ceiling is byte for byte as before', !('clamped' in plainPeek.data) && plainPeekBlock.content === '<retrieval_status>not_ready</retrieval_status>\n\n<task_id>bg-5</task_id>\n\n<task_type>local_agent</task_type>\n\n<status>running</status>', plainPeekBlock.content)
-}
-
-section('G6 — the blocking read returns at once, not_ready, when new input lands for the turn')
-{
-  type WaitResult = { data: { retrieval_status: string; task: { task_id: string; status: string } | null; interrupted_by?: { new_input?: string; task_id?: string } } }
-  const NEW_INPUT = 'new input arrived for this turn (it follows this result)'
-  let seq = 0
-  const line = (value: string, extra: Record<string, unknown> = {}): never => ({ value, mode: 'prompt', uuid: `00000000-0000-4000-8000-${String(++seq).padStart(12, '0')}`, ...extra }) as never
-  task.resetSiblingEnds()
-  queue.resetCommandQueue()
-  const store = makeStore()
-  task.registerAsyncAgent({ agentId: 'bg-6', description: 'long job', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
-  const context = { getAppState: store.get, setAppState: store.set, abortController: new AbortController(), options: { tools: [] } } as never
-  const started = Date.now()
-  setTimeout(() => queue.enqueue(line('change of plan: stop that and summarise')), 100)
-  const result = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 3_000 } as never, context, undefined as never, undefined as never)) as WaitResult
-  const elapsed = Date.now() - started
-  check('the wait returned within a poll of the words landing, not at its own timeout', elapsed < 1_000, `the wait ran its full length: ${JSON.stringify(result.data)} after ${elapsed} ms`)
-  check('not_ready, naming the new input as what ended the wait; the waited task runs on', result.data.retrieval_status === 'not_ready' && result.data.task?.task_id === 'bg-6' && result.data.task.status === 'running' && result.data.interrupted_by?.new_input === NEW_INPUT, JSON.stringify(result.data))
-  const block = TaskOutputTool.mapToolResultToToolResultBlockParam(result.data as never, 'toolu_n') as { content: string }
-  check('the tool result says what ended the wait, in the group wait\'s own grammar', block.content.includes('<retrieval_status>not_ready</retrieval_status>') && block.content.includes(`<interrupted_by>the wait ended early: ${NEW_INPUT}; the waited task runs on (its own notice follows)</interrupted_by>`), block.content)
-  const kept = queue.getDrainableCommands(false)
-  check('the words stay queued for the drain, exactly once — the read never takes from the queue', kept.length === 1 && kept[0]?.value === 'change of plan: stop that and summarise', JSON.stringify(kept.map(c => c.value)))
-  queue.resetCommandQueue()
-  queue.enqueue(line('for the next turn', { priority: 'later' }))
-  queue.enqueue(line('/compact'))
-  queue.enqueue(line('for another agent', { agentId: 'agent-elsewhere' }))
-  queue.enqueue(line('<task-notification>a shell finished</task-notification>', { mode: 'task-notification', priority: 'next' }))
-  const startedFull = Date.now()
-  const full = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 600 } as never, context, undefined as never, undefined as never)) as WaitResult
-  const elapsedFull = Date.now() - startedFull
-  check('a later-band line, a slash command, another agent\'s line and a task notification do not end the wait: it runs to its timeout', elapsedFull >= 550 && full.data.retrieval_status === 'timeout' && full.data.interrupted_by === undefined, `${JSON.stringify(full.data)} after ${elapsedFull} ms`)
-  queue.enqueue(line('the operator speaks to the chat'))
-  const startedSub = Date.now()
-  const sub = (await TaskOutputTool.call({ task_id: 'bg-6', block: true, timeout: 400 } as never, { ...(context as object), agentId: 'agent-1' } as never, undefined as never, undefined as never)) as WaitResult
-  const elapsedSub = Date.now() - startedSub
-  check("a sub-agent's read never ends on the operator's words — they are for the chat's turn, not its own", elapsedSub >= 350 && sub.data.retrieval_status === 'timeout' && sub.data.interrupted_by === undefined, `${JSON.stringify(sub.data)} after ${elapsedSub} ms`)
-  const peek = (await TaskOutputTool.call({ task_id: 'bg-6', block: false } as never, context, undefined as never, undefined as never)) as WaitResult
-  check('a non-blocking read is untouched: not_ready with nothing named as ending it', peek.data.retrieval_status === 'not_ready' && peek.data.interrupted_by === undefined, JSON.stringify(peek.data))
-  queue.resetCommandQueue()
 }
 
 console.log(failures === 0 ? '\nprove-crew-group-wait: all green' : `\nprove-crew-group-wait: ${failures} FAILURE(S)`)

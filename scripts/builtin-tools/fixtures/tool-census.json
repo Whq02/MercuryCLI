@@ -2006,33 +2006,6 @@
       }
     },
     {
-      "name": "TaskOutput",
-      "category": "coord",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "read output from a background task or agent"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "observation",
-        "resources": [
-          "task",
-          "agent"
-        ],
-        "cancellation": "not-applicable",
-        "latency": "fast"
-      }
-    },
-    {
       "name": "TaskStop",
       "category": "coord",
       "risk": "medium",

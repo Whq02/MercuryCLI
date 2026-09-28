@@ -24,7 +24,6 @@ import {
 } from '../../tools/FileReadTool/FileReadTool.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
-import { TASK_OUTPUT_TOOL_NAME } from '../../tools/TaskOutputTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
@@ -903,7 +902,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           )
         } else {
           parts.push(
-            `Do NOT spawn a duplicate — you will be notified when it completes. ${TASK_OUTPUT_TOOL_NAME} shows its progress, and ${SEND_MESSAGE_TOOL_NAME} reaches it directly.`,
+            `Do NOT spawn a duplicate — you will be notified when it completes, and ${SEND_MESSAGE_TOOL_NAME} reaches it directly.`,
           )
         }
         return [
@@ -930,9 +929,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           `The result is in its output file: ${attachment.outputFilePath}`,
         )
       } else {
-        messageParts.push(
-          `Its output is available through the ${TASK_OUTPUT_TOOL_NAME} tool.`,
-        )
+        messageParts.push('Its output file was not recorded.')
       }
 
       return [
@@ -957,7 +954,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         bits.push(
           row.address !== null
             ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"`
-            : `reach it: ${TASK_OUTPUT_TOOL_NAME} and ${TASK_STOP_TOOL_NAME} by its id`,
+            : `reach it: ${TASK_STOP_TOOL_NAME} by its id`,
         )
         if (row.outputFilePath) bits.push(`output: ${row.outputFilePath}`)
         return `- ${bits.join(' · ')}`
@@ -969,7 +966,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
         countLine,
         lines.join('\n'),
-        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a sub-agent by the id or name shown; ${TASK_OUTPUT_TOOL_NAME} reads a task's output; ${TASK_STOP_TOOL_NAME} stops one.`,
+        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a sub-agent by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
       ].join('\n')
       return [createUserMessage({ content: wrapInSystemReminder(text), isMeta: true })]
     }

@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 73 built-in production tools · 188 operations · 73 with a declared capability contract.
+Census version 1 — 72 built-in production tools · 187 operations · 72 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 45 available · 13 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 23 observation · 21 mutation · 11 execution · 18 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 31 declare mercury:// outputs · 40 name a focused proof
+- support (at generation time): 44 available · 13 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 21 mutation · 11 execution · 18 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 30 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -79,7 +79,6 @@ Census version 1 — 73 built-in production tools · 188 operations · 73 with a
 | TaskCreate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskGet | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskList | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
-| TaskOutput | observation | task-coordination | — | block | yes | — | — | mercury://task, mercury://agent | NAMED GAP |
 | TaskStop | coordination | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskUpdate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TeamBrief | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |

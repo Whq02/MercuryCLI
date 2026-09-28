@@ -75,13 +75,6 @@ export type WebSearchProgress =
     }
 
 
-export type TaskOutputProgress = {
-  type: 'waiting_for_task'
-  taskDescription: string
-  taskType: string
-}
-
-
 export type REPLToolProgress = {
   type: 'repl_tool_call'
   phase: 'start' | 'end'
@@ -137,6 +130,5 @@ export type ToolProgressData =
   | SkillToolProgress
   | MCPProgress
   | WebSearchProgress
-  | TaskOutputProgress
   | REPLToolProgress
   | EvalToolProgress

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import { join } from 'node:path'
 
-import { readFileRange, tailFile } from '../fsOperations.js'
+import { readFileRange } from '../fsOperations.js'
 import { getErrnoCode } from '../errors.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
@@ -243,20 +243,5 @@ export async function getTaskOutputDelta(
     if (getErrnoCode(error) === 'ENOENT') return { content: '', newOffset: fromOffset }
     logError(error)
     return { content: '', newOffset: fromOffset }
-  }
-}
-
-export async function getTaskOutput(taskId: string, maxBytes: number = DEFAULT_READ_BUDGET_BYTES): Promise<string> {
-  try {
-    const result = await tailFile(getTaskOutputPath(taskId), maxBytes)
-    if (result.bytesTotal > result.bytesRead) {
-      const omittedKb = Math.round((result.bytesTotal - result.bytesRead) / 1024)
-      return `<${omittedKb}KB of earlier output omitted>\n${result.content}`
-    }
-    return result.content
-  } catch (error) {
-    if (getErrnoCode(error) === 'ENOENT') return ''
-    logError(error)
-    return ''
   }
 }

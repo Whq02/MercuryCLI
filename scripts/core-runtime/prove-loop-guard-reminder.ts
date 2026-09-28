@@ -99,7 +99,7 @@ function makeTool(name: string): never {
   } as never
 }
 
-const TOOLS = [makeTool('Grep'), makeTool('Read'), makeTool('Bash'), makeTool('TaskOutput')]
+const TOOLS = [makeTool('Grep'), makeTool('Read'), makeTool('Bash'), makeTool('TaskGet')]
 
 type CtxShape = { agentId?: string; preserveToolResults?: boolean; tools?: unknown[] }
 
@@ -399,15 +399,15 @@ section('R5 — a repeated call DENIED by permission still counts: three denied 
 
 section('R6 — bookkeeping tools are excluded and cannot launder a loop')
 {
-  const polling = await runScript(Array.from({ length: 5 }, () => ({ name: 'TaskOutput', input: { task_id: 't1' } })))
-  check('five identical TaskOutput waits are never a loop: no notice', polling.calls.length === 6 && firstRequestWith(polling, ANY_NOTICE) === -1, `first=${firstRequestWith(polling, ANY_NOTICE)}`)
+  const polling = await runScript(Array.from({ length: 5 }, () => ({ name: 'TaskGet', input: { taskId: 't1' } })))
+  check('five identical TaskGet reads are never a loop: no notice', polling.calls.length === 6 && firstRequestWith(polling, ANY_NOTICE) === -1, `first=${firstRequestWith(polling, ANY_NOTICE)}`)
   const laundered = await runScript([
     { name: 'Grep', input: GREP },
     { name: 'Grep', input: GREP },
-    { name: 'TaskOutput', input: { task_id: 't1' } },
+    { name: 'TaskGet', input: { taskId: 't1' } },
     { name: 'Grep', input: GREP },
   ])
-  check('a TaskOutput between two Greps does not reset the Grep chain: the notice rides after the third Grep (request 4)', requestText(laundered, 4).includes(GENTLE) && firstRequestWith(laundered, GENTLE) === 4, `first=${firstRequestWith(laundered, GENTLE)}`)
+  check('a TaskGet between two Greps does not reset the Grep chain: the notice rides after the third Grep (request 4)', requestText(laundered, 4).includes(GENTLE) && firstRequestWith(laundered, GENTLE) === 4, `first=${firstRequestWith(laundered, GENTLE)}`)
 }
 
 section('R7 — a poll is not a loop: ten identical Bash calls whose results differ (a growing log) fire nothing and never end the turn')

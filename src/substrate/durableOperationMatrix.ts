@@ -188,7 +188,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'recordTaskOutcome — mint a background task’s terminal outcome (exactly once) at the LocalShellTask terminal transition',
     ownerKey: 'sessionId',
     files: ['<projectDir>/<sessionId>.task-outcomes.json (tmp+rename)'],
-    projections: ['TaskOutputTool fallback read; TaskStop receipt is in-band'],
+    projections: ['TaskStop receipt is in-band'],
     lockOwner: 'per-session in-process write chain (no cross-process writer exists)',
     writeOrder:
       'load-or-cache → refuse duplicate taskId (first terminal outcome stands) → ring-bound (100) → durableAtomicPublish',
