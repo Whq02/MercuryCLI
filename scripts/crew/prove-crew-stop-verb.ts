@@ -221,7 +221,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('resume')) {
-    section('S5 the operator resumes a stopped named teammate (the crew view\'s r on its row): the runner spawns it again under a new row and says so')
+    section('S5 the operator resumes a stopped named teammate (the crew view\'s r on its row): the runner continues its transcript under a new row and says so')
     const w = await openWorld('resume')
     w.runner.send(user(LEAD_ASK_MATE, U1))
     const row = await waitRow(w, 'the teammate row', r => r.kind === 'teammate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
@@ -239,10 +239,11 @@ if (!existsSync(DIST)) {
       const again = await waitRow(w, 'the respawned teammate row', x => x.kind === 'teammate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))
       check('S5 a new teammate row runs under a new id', again !== null && again.id === rr.response?.task_id, j(again))
       const untilAsk = Date.now() + bound(20_000)
-      while (hitsOf(w.fx, 'mate', 'mate-ack') <= asksAtStop && Date.now() < untilAsk) await sleep(200)
-      check('S5 the respawned teammate asks the model again from its prompt', hitsOf(w.fx, 'mate', 'mate-ack') > asksAtStop, j(w.fx.hits.map(h => h.route)))
-      const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('spawned again from the crew view'), bound(15_000), before)
-      check('S5 the main agent is told the teammate was spawned again from the crew view', told !== null, j(told))
+      const resumeAsk = (): boolean => w.fx.hits.some(h => h.ask.includes('The operator resumed you from the crew view'))
+      while (!resumeAsk() && Date.now() < untilAsk) await sleep(200)
+      check('S5 the resumed teammate asks the model again with the resume note as its next turn, never its prompt over again', resumeAsk() && hitsOf(w.fx, 'mate', 'mate-ack') === asksAtStop, j(w.fx.hits.map(h => `${h.route}:${h.ask.slice(0, 40)}`)))
+      const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('resumed from the crew view'), bound(15_000), before)
+      check('S5 the main agent is told the teammate was resumed from the crew view', told !== null, j(told))
       const stopTold = w.runner.frames.slice(before).find(f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('stopped from the crew view'))
       check('S5 the main agent was told of the stop too, with the door that stopped it', stopTold !== undefined, j(w.runner.frames.slice(before).filter(f => f.type === 'system' && f.subtype === 'task_notification').map(f => f.summary)))
       const later = await facts(w)

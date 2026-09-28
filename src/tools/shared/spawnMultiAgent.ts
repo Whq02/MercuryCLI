@@ -39,7 +39,7 @@ import {
   TMUX_COMMAND,
 } from '../../utils/swarm/constants.js'
 import { It2SetupPrompt } from '../../utils/swarm/It2SetupPrompt.js'
-import { startInProcessTeammate, type FirstDispatchOutcome } from '../../utils/swarm/inProcessRunner.js'
+import { startInProcessTeammate, type FirstDispatchOutcome, type InProcessRunnerConfig } from '../../utils/swarm/inProcessRunner.js'
 import { resolveTeammateRole, type ResolvedTeammateRole } from '../../utils/swarm/roleResolver.js'
 import { spawnInProcessTeammate, unwindTeammateSpawn } from '../../utils/swarm/spawnInProcess.js'
 import { buildInheritedEnvVars, getTeammateCommand } from '../../utils/swarm/spawnUtils.js'
@@ -72,6 +72,7 @@ export type SpawnTeammateConfig = {
   agent_type?: string
   description?: string
   invokingRequestId?: string
+  resume?: InProcessRunnerConfig['resume']
 }
 
 export type SpawnOutput = {
@@ -597,6 +598,8 @@ async function spawnInProcessStrategy(
       color: prepared.color,
       planModeRequired: prepared.planModeRequired,
       model: prepared.model,
+      ...(prepared.effort !== undefined ? { effort: prepared.effort } : {}),
+      ...(config.resume !== undefined ? { transcriptAgentId: config.resume.transcriptAgentId } : {}),
       ...(resolvedRole.definition ? { agentType: resolvedRole.agentType } : {}),
       instructionAtSpawn,
     },
@@ -650,6 +653,7 @@ async function spawnInProcessStrategy(
       model: prepared.model,
       ...(prepared.effort !== undefined ? { effortOverride: prepared.effort } : {}),
       ...(spawnResult.transcriptAgentId !== undefined ? { transcriptAgentId: spawnResult.transcriptAgentId } : {}),
+      ...(config.resume !== undefined ? { resume: config.resume } : {}),
       ...(resolvedRole.definition ? { agentDefinition: resolvedRole.definition } : {}),
       role: resolvedRole,
       teammateContext: spawnResult.teammateContext,
@@ -741,7 +745,7 @@ export async function spawnTeammate(
 ): Promise<{ data: SpawnOutput }> {
   const prepared = await prepareSpawn(config, context)
 
-  if (isInProcessEnabled() || inProcessLatched) {
+  if (config.resume !== undefined || isInProcessEnabled() || inProcessLatched) {
     return { data: await spawnInProcessStrategy(config, context, prepared) }
   }
 

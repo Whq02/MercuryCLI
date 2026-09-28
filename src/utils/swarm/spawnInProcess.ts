@@ -18,6 +18,8 @@ import { logError } from '../log.js'
 import { evictTaskOutput } from '../task/diskOutput.js'
 import { evictTerminalTask, registerTask, STOPPED_DISPLAY_MS } from '../task/framework.js'
 import { emitTaskTerminatedSdk } from '../sdkEventQueue.js'
+import { writeAgentMetadata } from '../sessionStorage/paths.js'
+import { asAgentId } from '../../types/ids.js'
 import { createTeammateContext, type TeammateContext } from '../teammateContext.js'
 import { releaseAllForAgent } from './leaseGlob.js'
 import { removeMemberByAgentId } from './teamHelpers.js'
@@ -36,6 +38,8 @@ export type InProcessSpawnConfig = {
   planModeRequired: boolean
   model?: string
   agentType?: string
+  transcriptAgentId?: string
+  effort?: string
   instructionAtSpawn?: InProcessTeammateTaskState['instructionAtSpawn']
 }
 
@@ -56,7 +60,7 @@ export async function spawnInProcessTeammate(
   const agentId = formatAgentId(config.name, config.teamName)
   try {
     const taskId = generateTaskId('in_process_teammate')
-    const transcriptAgentId = generateTaskId('local_agent')
+    const transcriptAgentId = config.transcriptAgentId ?? generateTaskId('local_agent')
     const abortController = new AbortController()
     const parentSessionId = String(getSessionId())
 
@@ -116,6 +120,23 @@ export async function spawnInProcessTeammate(
       pendingUserMessages: [],
       messages: [],
     }
+    await writeAgentMetadata(asAgentId(taskId), {
+      agentType: config.agentType ?? config.name,
+      name: config.name,
+      description,
+      launchedAt: task.startTime,
+      ...(config.model !== undefined ? { model: config.model } : {}),
+      ...(config.effort !== undefined ? { effortOverride: config.effort } : {}),
+      teammate: {
+        teamName: config.teamName,
+        prompt: config.prompt,
+        transcriptAgentId,
+        planModeRequired: config.planModeRequired,
+        ...(config.agentType !== undefined ? { agentType: config.agentType } : {}),
+      },
+    }).catch((error: unknown) => {
+      logForDebugging(`teammate ${agentId}: the resume record was not written: ${errorMessage(error)}`)
+    })
     registerTask(task, context.setAppState)
     return { success: true, agentId, taskId, transcriptAgentId, abortController, teammateContext }
   } catch (error) {

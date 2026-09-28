@@ -81,8 +81,14 @@ reason — an id the registry no longer holds, a row that had already settled,
 a loop that did not end within the runner's settle budget — and a refusal is
 painted under the rows. A stopped agent's row reads `stopped` with the reason
 and its transcript stands on disk; `r` resumes it from that transcript under
-the same id. A stopped teammate keeps no transcript to resume, so `r` on its
-row spawns it again from its prompt under a new row. Every stop, resume and
+the same id. A stopped teammate keeps its transcript too: `r` on its row
+continues it from where it was under a new row with the same name, the work
+before the stop in its context, and the row may be pressed after it has left
+the list — the spawn's record beside the transcript is what `r` reads. A
+message to a stopped or ended teammate takes the same road: SendMessage to
+its name resumes it from its transcript with the message as its next turn,
+and the answer names the new row and how the seat had ended. Every
+stop, resume and
 failure reaches the main agent as a notification of its own kind, never
 silently, a stop or resume from the crew view included. A teammate spawned
 into a team that does not exist is refused, and no row is left standing for
@@ -94,9 +100,10 @@ name.
 A named teammate spawned into a team with the Agent tool is answered only
 once its first turn has settled. A seat whose first dispatch fails — a
 provider refusal, a spent window, an error before its first response — is
-refused by name with the cause, is not on the roster, and a later message to
-it is refused with the same cause instead of landing in an inbox nobody
-reads. A seat that fails later leaves the roster the same way, so the team
+refused by name with the cause and is not on the roster; a later message to
+it tries the resume, and when the seat still cannot start the answer names
+that cause instead of landing in an inbox nobody reads. A seat that fails
+later leaves the roster the same way, so the team
 view and the brief never list a dead seat as running. When an Agent call
 names the parent's own model family, its sub-agent or named teammate keeps
 the parent's exact model. Engine models still pass their provider's dispatch

@@ -68,6 +68,7 @@ import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
 import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
 import { jevStatus } from '../services/jev/jevStatus.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { asAgentId } from '../types/ids.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
@@ -2966,9 +2967,10 @@ export async function runHeadless(
             return
           }
           try {
-            if (isInProcessTeammateTask(target)) {
+            const { readAgentMetadata } = await import('../utils/sessionStorage.js')
+            if (isInProcessTeammateTask(target) || (await readAgentMetadata(asAgentId(request.task_id)))?.teammate !== undefined) {
               const { respawnTeammateByOperator } = await import('../services/agents/operatorResume.js')
-              const respawned = await respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext })
+              const respawned = await respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext, prompt: request.note })
               if (respawned.outcome === 'applied') respondSuccess(requestId, { agent_id: respawned.agentId, task_id: respawned.taskId, output_file: respawned.outputFile })
               else respondError(requestId, respawned.reason)
               for (const event of drainSdkEvents()) io.outbound.enqueue(event)

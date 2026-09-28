@@ -151,6 +151,13 @@ export type AgentMetadata = {
   instructionDigest?: string
   name?: string
   launchedAt?: number
+  teammate?: {
+    teamName: string
+    prompt: string
+    transcriptAgentId: string
+    planModeRequired: boolean
+    agentType?: string
+  }
 }
 
 export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }

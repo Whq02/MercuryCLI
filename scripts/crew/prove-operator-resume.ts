@@ -25,6 +25,9 @@ const { spawnInProcessTeammate, unwindTeammateSpawn } = await import('../../src/
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.js')
 const { spawnTeammate } = await import('../../src/tools/shared/spawnMultiAgent.js')
+const { createUserMessage } = await import('../../src/utils/messages.js')
+const savedMessages = [createUserMessage({ content: 'Retained teammate history' })]
+const readTranscript = async () => ({ messages: savedMessages, contentReplacements: [] })
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -61,7 +64,7 @@ const teammateRows = (store: ReturnType<typeof makeStore>): Task[] => Object.val
 const notices = (): Array<{ value: string; priority: string | undefined }> => getCommandQueueSnapshot().filter(c => c.mode === 'task-notification').map(c => ({ value: String(c.value), priority: c.priority }))
 const AGENT_ID = 'sonnet-ping@ping-team'
 
-section('a stopped teammate: r spawns it again with its identity, prompt, model and type under a new row, and the main agent is told')
+section('a stopped teammate: r resumes it from its transcript with its identity, prompt, model and type under a new row, and the main agent is told')
 {
   const store = makeStore()
   resetCommandQueue()
@@ -81,16 +84,24 @@ section('a stopped teammate: r spawns it again with its identity, prompt, model 
     )
     return { data: { teammate_id: again.agentId, agent_id: again.agentId, model: config.model ?? '', name: config.name, color: 'blue', tmux_session_name: 'in-process', tmux_window_name: 'in-process', tmux_pane_id: 'in-process', team_name: config.team_name, is_splitpane: false, plan_mode_required: false } }
   }
-  const receipt = await respawnTeammateByOperator(id, { getAppState: store.get, toolUseContext: contextOf(store) }, { spawn })
+  const receipt = await respawnTeammateByOperator(id, { getAppState: store.get, toolUseContext: contextOf(store), prompt: 'Continue with the saved work' }, { spawn, readTranscript })
   check('the resume is applied as a respawn', receipt.outcome === 'applied', JSON.stringify(receipt))
   const running = teammateRows(store).filter(t => t.status === 'running')
   check('one new teammate row runs under a new id with the same agent id; the stopped row stays killed', receipt.outcome === 'applied' && running.length === 1 && running[0]!.id === receipt.taskId && receipt.taskId !== id && running[0]!.identity?.agentId === AGENT_ID && receipt.agentId === AGENT_ID && store.state.tasks[id]?.status === 'killed', JSON.stringify({ receipt, running }))
   check('the respawn carries the row\'s name, team, prompt, model, type and plan mode', configs.length === 1 && configs[0]!.name === 'sonnet-ping' && configs[0]!.team_name === 'ping-team' && configs[0]!.prompt === 'reply ping' && configs[0]!.model === 'claude-sonnet-5' && configs[0]!.agent_type === 'mercury-general' && configs[0]!.plan_mode_required === false, JSON.stringify(configs))
+  check('the respawn restores history and the operator note through the same transcript id', configs[0]?.resume?.messages[0]?.uuid === savedMessages[0]?.uuid && configs[0]?.resume?.prompt === 'Continue with the saved work' && configs[0]?.resume?.transcriptAgentId === spawned.transcriptAgentId)
   check('the respawn rides the last turn\'s context with a fresh controller and no stale tool-use id', contexts.length === 1 && (contexts[0] as { toolUseId?: string }).toolUseId === undefined && contexts[0]!.abortController !== undefined && !contexts[0]!.abortController.signal.aborted)
   const told = notices()
   check('the main agent is told once, at the next priority, naming the new row and the door', told.length === 1 && told[0]!.priority === 'next' && receipt.outcome === 'applied' && told[0]!.value.includes(`<task-id>${receipt.taskId}</task-id>`) && told[0]!.value.includes(`<summary>${teammateRespawnWords('sonnet-ping')}</summary>`), JSON.stringify(told))
   const bare = { identity: { agentId: 'a@t', agentName: 'a', teamName: 't', planModeRequired: true }, prompt: 'p' }
   check('the config builder reads the identity\'s type before the definition\'s and carries no model when the row has none', teammateRespawnConfig({ ...bare, agentDefinition: { agentType: 'from-definition' } } as never).agent_type === 'from-definition' && teammateRespawnConfig(bare as never).model === undefined && teammateRespawnConfig(bare as never).agent_type === undefined && teammateRespawnConfig(bare as never).plan_mode_required === true)
+
+  await stopAgentByOperator(receipt.outcome === 'applied' ? receipt.taskId : '', { getAppState: store.get, setAppState: store.set as never }, quick)
+  store.set((prev => ({ ...(prev as object), tasks: {} })) as never)
+  resetCommandQueue()
+  const evicted = await respawnTeammateByOperator(id, { getAppState: store.get, toolUseContext: contextOf(store) }, { spawn, readTranscript })
+  check('once both rows are evicted, r on the original id still resumes from the spawn record: the same identity, prompt, model, type and plan mode, the same transcript', evicted.outcome === 'applied' && evicted.agentId === AGENT_ID && configs.length === 2 && configs[1]!.name === 'sonnet-ping' && configs[1]!.team_name === 'ping-team' && configs[1]!.prompt === 'reply ping' && configs[1]!.model === 'claude-sonnet-5' && configs[1]!.agent_type === 'mercury-general' && configs[1]!.plan_mode_required === false && configs[1]!.resume?.transcriptAgentId === spawned.transcriptAgentId && configs[1]!.resume?.prompt.startsWith('The operator resumed you from the crew view'), JSON.stringify({ evicted, config: configs[1] }))
+  check('the evicted-row resume runs under a new row and tells the main agent once more', evicted.outcome === 'applied' && teammateRows(store).filter(t => t.status === 'running').length === 1 && notices().length === 1 && notices()[0]!.value.includes(`<task-id>${evicted.taskId}</task-id>`), JSON.stringify(notices()))
 }
 
 section('the refusals: a running teammate, a row that is not a teammate, and a spawn the road refuses')
@@ -107,7 +118,10 @@ section('the refusals: a running teammate, a row that is not a teammate, and a s
   check('an id that is not a teammate row is refused', miss.outcome === 'refused' && miss.reason.includes('anope1234'), JSON.stringify(miss))
   await stopAgentByOperator(spawned.taskId!, { getAppState: store.get, setAppState: store.set as never }, quick)
   resetCommandQueue()
+  const noTranscript = await respawnTeammateByOperator(spawned.taskId!, { getAppState: store.get, toolUseContext: contextOf(store) }, { spawn: never, readTranscript: async () => null })
+  check('an absent transcript refuses without silently restarting the original prompt', noTranscript.outcome === 'refused' && noTranscript.reason.includes('No transcript found'))
   const refused = await respawnTeammateByOperator(spawned.taskId!, { getAppState: store.get, toolUseContext: contextOf(store) }, {
+    readTranscript,
     spawn: async () => {
       throw new Error('Team "ping-team" does not exist — create the team first')
     },
@@ -151,14 +165,14 @@ section('the unwind itself: a running teammate row is removed and bookended fail
   check('a settled row is left alone', unwindTeammateSpawn(settled.taskId!, store.set as never, 'late') === false && store.state.tasks[settled.taskId!]?.status === 'killed')
 }
 
-section('the doors in source: the runner\'s resume routes a teammate row to the respawn before the transcript resume and tells the main agent of an agent resume; the spawn road unwinds in the membership\'s catch')
+section('the doors in source: the runner\'s resume routes a teammate row, or an evicted row whose record is a teammate\'s, to the transcript continuation before the agent resume and tells the main agent of an agent resume; the spawn road unwinds in the membership\'s catch')
 {
   const runner = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("case 'resume_task': {"), runner.indexOf("case 'generate_session_title': {"))
-  check('the resume arm respawns a teammate row through the operator resume owner and answers its receipt', arm.includes('isInProcessTeammateTask(target)') && arm.includes('respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext })') && arm.includes('respawnTeammateByOperator(') && arm.indexOf('respawnTeammateByOperator(') < arm.indexOf('resumeAgentBackground({'))
+  check('the resume arm continues a teammate row through the operator resume owner with the operator\'s note and answers its receipt', arm.includes('isInProcessTeammateTask(target)') && arm.includes('readAgentMetadata(asAgentId(request.task_id)))?.teammate !== undefined') && arm.includes('respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext, prompt: request.note })') && arm.indexOf('respawnTeammateByOperator(') < arm.indexOf('resumeAgentBackground({'))
   check('the resume arm tells the main agent of an agent resumed from the board with its continuation note', arm.includes("enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })"))
   const view = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/screens/CrewView.tsx'), 'utf8')
-  check('the crew view paints the respawn line for a teammate row and the shipped resume line for an agent', view.includes("target.kind === 'named' ? `${target.name} spawned again from its prompt — it starts over under a new row` : `${target.name} resumed from its transcript — it runs on under the same id`"))
+  check('the crew view paints the continuation line for a teammate row and the shipped resume line for an agent', view.includes("target.kind === 'named' ? `${target.name} resumed from its transcript — it continues under a new row` : `${target.name} resumed from its transcript — it runs on under the same id`"))
   check('the resume words name the door and the id', operatorResumeWords('scout') === 'Agent "scout" resumed from the crew view · it runs on under the same id')
   const spawnRoad = readFileSync(join(import.meta.dir, '../../src/tools/shared/spawnMultiAgent.ts'), 'utf8')
   const inProcess = spawnRoad.slice(spawnRoad.indexOf('async function spawnInProcessStrategy('))
