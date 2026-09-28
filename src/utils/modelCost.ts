@@ -78,7 +78,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-sonnet-4': COST_TIER_3_15,
   'claude-sonnet-4-5': COST_TIER_3_15,
   'claude-sonnet-4-6': COST_TIER_3_15,
-  'claude-sonnet-5': COST_TIER_3_15,
+  'claude-sonnet-5': COST_TIER_2_10,
   'claude-sonnet-5-5': COST_TIER_2_10,
   'claude-opus-4': COST_TIER_15_75,
   'claude-opus-4-1': COST_TIER_15_75,
