@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { getProjectRoot, getSessionId } from '../bootstrap/state.js'
+import { getProjectRoot } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
-import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { conversationIdHere, getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { crewSettled, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { promptRows } from './prompts-panel/rows.js'
@@ -604,7 +604,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     runsAll.length === 0 &&
     daemonCrew.length === 0
 
-  const recentScopeKey = `${getProjectRoot() || ''}::${getSessionId()}`
+  const recentScopeKey = `${getProjectRoot() || ''}::${conversationIdHere()}`
   const [recentSnap, setRecentSnap] = useState<{ key: string; rows: LogOption[] | null }>(
     () => ({ key: recentScopeKey, rows: lastKnownRecent.get(recentScopeKey) ?? null }),
   )
@@ -619,7 +619,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       try {
         const all = await loadAllProjectsMessageLogs()
         const boardHomed = boardHomedSessionIds()
-        const resumable = filterResumableSessions(all, getSessionId())
+        const resumable = filterResumableSessions(all, conversationIdHere())
           .filter(isSubstantiveSession)
           .filter(l => !boardHomed.has(getSessionIdFromLog(l) ?? ''))
           .filter(l => !isCrewSession(l))
