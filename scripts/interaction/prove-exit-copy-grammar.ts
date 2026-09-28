@@ -157,9 +157,12 @@ console.log('== 4 · the severed exit loop stays closed ==')
 console.log('== 5 · one receipt · truthful footer ==')
 {
   const skh = read('src/components/ScrollKeybindingHandler.tsx')
+  const { copyReceipt } = await import('../../src/ink/termio/osc.js')
   check(
-    'the receipt copy is "Copied to clipboard" (where-clause only off the native path)',
-    skh.includes('`Copied to clipboard${where}`') && !skh.includes('characters} →'),
+    'the receipt copy is "Copied to clipboard" (the road named in the sentence only off the native path, the road\'s advice as the notice\'s detail)',
+    skh.includes('...copyReceipt(path),') && !skh.includes('characters} →') &&
+      copyReceipt('native').text === 'Copied to clipboard' && copyReceipt('native').detail === undefined &&
+      copyReceipt('tmux-buffer').text.startsWith('Copied to clipboard via ') && copyReceipt('osc52').text.startsWith('Copied to clipboard via '),
   )
   check(
     'the native receipt holds ~2 s; the mux/escape paths keep the longer read window',

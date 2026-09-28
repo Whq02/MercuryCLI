@@ -17,6 +17,7 @@ type BaseNotification = {
 
 type TextNotification = BaseNotification & {
   text: string
+  detail?: string
   color?: keyof Theme
 }
 

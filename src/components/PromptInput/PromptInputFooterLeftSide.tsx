@@ -38,7 +38,7 @@ import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snap
 import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
-import { noticeBlockRows, noticeRowBlock, noticeRowText } from './Notifications.js'
+import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } from './Notifications.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { LEAD_ROW_NAME } from '../../utils/cockpit/crewmateWords.js'
@@ -107,6 +107,7 @@ export function PromptInputFooterLeftSide({
   )
   const currentNotice = useAppState((state: AppState) => state.notifications.current)
   const noticeText = noticeRowText(currentNotice)
+  const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
   const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
   const blockRows = noticeBlock === null ? 0 : noticeBlockRows(currentNotice)
   const prStatus = usePrStatus(
@@ -369,11 +370,17 @@ export function PromptInputFooterLeftSide({
         </Box>
       ) : null}
       {noticeText !== null ? (
-        <Box flexShrink={1} minWidth={0}>
+        <Box flexShrink={1} minWidth={0} flexWrap="wrap" height={1} overflow="hidden">
           <Text dimColor wrap="truncate-end">
             {rowHasContent ? <Text color={tokens.textMuted}> · </Text> : null}
             {noticeText}
           </Text>
+          {noticeDetail !== null ? (
+            <Text dimColor wrap="truncate-end">
+              <Text color={tokens.textMuted}> · </Text>
+              {noticeDetail}
+            </Text>
+          ) : null}
         </Box>
       ) : null}
       {noticeBlock !== null ? (

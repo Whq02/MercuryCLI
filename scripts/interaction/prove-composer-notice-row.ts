@@ -10,11 +10,14 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
-const bundleFlag = process.argv.indexOf('--bundle')
-const DIST =
-  bundleFlag !== -1 && process.argv[bundleFlag + 1] !== undefined
-    ? realpathSync(process.argv[bundleFlag + 1]!)
-    : join(ROOT, 'dist', 'mercury.mjs')
+const arg = (name: string): string | undefined => {
+  const index = process.argv.indexOf(name)
+  return index === -1 ? undefined : process.argv[index + 1]
+}
+const bundleArg = arg('--bundle')
+const DIST = bundleArg !== undefined ? realpathSync(bundleArg) : join(ROOT, 'dist', 'mercury.mjs')
+const framesDir = arg('--frames')
+if (framesDir !== undefined) mkdirSync(framesDir, { recursive: true })
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,6 +34,7 @@ section('§1 source — the notice leaves the column for the hint row')
   const footer = readFileSync('src/components/PromptInput/PromptInputFooterLeftSide.tsx', 'utf8')
   const summary = readFileSync('src/components/tasks/CompactWorkSummary.tsx', 'utf8')
   const sandbox = readFileSync('src/components/PromptInput/SandboxPromptFooterHint.tsx', 'utf8')
+  const handler = readFileSync('src/components/ScrollKeybindingHandler.tsx', 'utf8')
   check(
     'the notifications column paints no transient row',
     !column.includes('{footerNoticeLine(current.text)}') && !column.includes("'jsx' in current ? ("),
@@ -41,7 +45,12 @@ section('§1 source — the notice leaves the column for the hint row')
       footer.includes('const noticeStands = noticeText !== null || noticeBlock !== null') &&
       footer.includes('const hintsShow = !vimInsert && !noticeStands && parts.length > 0') &&
       !footer.includes('parts.push(noticeText)') &&
-      /\{noticeText !== null \? \(\s*\n\s*<Box flexShrink=\{1\} minWidth=\{0\}>/.test(footer),
+      /\{noticeText !== null \? \(\s*\n\s*<Box flexShrink=\{1\} minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden">/.test(footer),
+  )
+  check(
+    "the hint row's notice box wraps with one row of height, so a notice's detail is its own text node that rides after the words only where the row has room for it whole, and steps aside whole where it does not",
+    footer.includes('const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null') &&
+      /\{noticeDetail !== null \? \(\s*\n\s*<Text dimColor wrap="truncate-end">\s*\n\s*<Text color=\{tokens\.textMuted\}> · <\/Text>\s*\n\s*\{noticeDetail\}/.test(footer),
   )
   check(
     'the idle hint keeps its words and its click road, and steps aside while a notice stands',
@@ -60,6 +69,16 @@ section('§1 source — the notice leaves the column for the hint row')
       !summary.includes('noticeWidth'),
   )
   check(
+    "the compact count line's box wraps with one row of height and paints the notice's detail as a second text node in the counts' ink, after the house seam, only where the columns before the hint hold both whole",
+    summary.includes('const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null') &&
+      /minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden" onClick=\{onFocus\}>/.test(summary) &&
+      /\{noticeDetail !== null \? \(\s*\n\s*<Text wrap="truncate-end" \{\.\.\.ink\}>\s*\n\s*\{' · '\}\s*\n\s*\{noticeDetail\}/.test(summary),
+  )
+  check(
+    "the copy receipt is raised from the clipboard service's own words for the predicted road, and the unsettled correction from the same owner",
+    handler.includes('...copyReceipt(path),') && handler.includes("...copyReceipt('unsettled'),") && !handler.includes('${where}'),
+  )
+  check(
     'the sandbox notice rides the notification queue instead of a row of its own',
     sandbox.includes("key: 'sandbox-blocked'") && !sandbox.includes('recentCount') && sandbox.includes('return null'),
   )
@@ -69,7 +88,7 @@ section('§2 pure — the notice in its row form')
 {
   const React = (await import('react')).default
   const { Box, Text } = await import('../../src/ink.ts')
-  const { footerNoticeLine, noticeBlockRows, noticeRowBlock, noticeRowText } = await import('../../src/components/PromptInput/Notifications.tsx')
+  const { footerNoticeLine, noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } = await import('../../src/components/PromptInput/Notifications.tsx')
   const plain = noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' })
   check('a plain text notice is its one line', plain === 'Copied to clipboard', JSON.stringify(plain))
   const folded = noticeRowText({ key: 'k', priority: 'low', text: 'hook said\nline two\nline three' })
@@ -96,6 +115,15 @@ section('§2 pure — the notice in its row form')
       noticeRowBlock({ key: 'k', priority: 'high', jsx: boxJsx }) === boxJsx,
   )
   check('no notice, nothing on the row', noticeRowText(null) === null && noticeRowBlock(null) === null)
+  const hasDetail = typeof noticeRowDetail === 'function'
+  check('the notice row reads a detail beside the words (noticeRowDetail)', hasDetail)
+  if (hasDetail) {
+    const detailed = noticeRowDetail({ key: 'k', priority: 'immediate', text: 'Copied to clipboard via terminal escape', detail: 'check the terminal' })
+    check("a text notice's detail is its own row part, the words untouched", detailed === 'check the terminal' && noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard via terminal escape', detail: 'check the terminal' }) === 'Copied to clipboard via terminal escape', JSON.stringify(detailed))
+    const colouredDetail = noticeRowDetail({ key: 'k', priority: 'high', text: 'failed', detail: 'why', color: 'error' })
+    check("a coloured notice's detail wears the same colour", React.isValidElement(colouredDetail) && colouredDetail.type === Text && (colouredDetail.props as { color?: string }).color === 'error')
+    check('a notice without a detail, a jsx notice and no notice carry none', noticeRowDetail({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' }) === null && noticeRowDetail({ key: 'k', priority: 'immediate', jsx: textJsx }) === null && noticeRowDetail(null) === null)
+  }
   const threeRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three'].map(row => React.createElement(Text, { key: row }, row)))
   check('a block notice asks the footer for as many rows as it stacks; a text or Text-shaped notice asks for none', noticeBlockRows({ key: 'k', priority: 'high', jsx: threeRows }) === 3 && noticeBlockRows({ key: 'k', priority: 'high', jsx: boxJsx }) === 1 && noticeBlockRows({ key: 'k', priority: 'immediate', jsx: textJsx }) === 0 && noticeBlockRows({ key: 'k', priority: 'low', text: 'a\nb\nc' }) === 0 && noticeBlockRows(null) === 0)
   const fiveRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three', 'four', 'five'].map(row => React.createElement(Text, { key: row }, row)))
@@ -104,7 +132,90 @@ section('§2 pure — the notice in its row form')
   check('a block taller than three rows keeps its first two rows and its last, the action row last', noticeBlockRows({ key: 'k', priority: 'high', jsx: fiveRows }) === 3 && cappedRows.length === 3 && cappedRows.every((row, i) => React.isValidElement(row) && (row.props as { children?: unknown }).children === ['one', 'two', 'five'][i]))
 }
 
-section('§3 pty — the real binary: the receipt and the escape hint take the hint row whole, the hints return, the composer never moves')
+section('§3 the copy receipt per road — a whole sentence beside the way back at 80 columns on both platforms, the detail only where the row holds it')
+type Road = 'native' | 'tmux-buffer' | 'osc52' | 'unsettled'
+type Platform = 'macos' | 'linux'
+const HOST: Platform = process.platform === 'darwin' ? 'macos' : 'linux'
+const RECEIPT = 'Copied to clipboard'
+const HOSTED_RED_ROW = 'Copied to clipboard (terminal escape transfer — check the term…  shift+← boot face'
+const OLD_ESCAPE_SENTENCE = "Copied to clipboard (terminal escape transfer — check the terminal's clipboard settings if pasting fails)"
+const { copyReceipt } = await import('../../src/ink/termio/osc.ts')
+const { compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+const { footerNoticeLine } = await import('../../src/components/PromptInput/Notifications.tsx')
+const COMPACT_COUNTS = { sessionsOn: 1, monitorsHere: 0, agentsHere: 0, samples: 0 }
+const compactHint = (platform: Platform): string => keyHintLabel('⇧← boot face', platform)
+const COMPACT_HINT = compactHint(HOST)
+const compactSummary = (cols: number, platform: Platform = HOST): string =>
+  compactWorkSummaryText(COMPACT_COUNTS, Math.max(0, cols - (stringWidth(compactHint(platform)) + 1)))
+const compactNoticeRow = (notice: string, cols: number, platform: Platform = HOST, detail?: string): string => {
+  const hint = compactHint(platform)
+  const keep = cols - 2 - stringWidth(hint)
+  const words = footerNoticeLine(notice)
+  const line = detail !== undefined && stringWidth(`${words} · ${detail}`) <= keep ? `${words} · ${detail}` : words
+  const cut = stringWidth(line) <= keep ? line : `${line.slice(0, keep - 1)}…`
+  return cut.padEnd(cols - stringWidth(hint)) + hint
+}
+const noticeRowHolds = (line: string, notice: string, platform: Platform = HOST, detail?: string): boolean =>
+  line === compactNoticeRow(notice, stringWidth(line), platform, detail)
+const wideNoticeRow = (notice: string, detail?: string): string => (detail === undefined ? notice : `${notice} · ${detail}`)
+const receiptOf = (road: Road): { text: string; detail?: string } => (typeof copyReceipt === 'function' ? copyReceipt(road) : { text: RECEIPT })
+const hasRoads = typeof copyReceipt === 'function'
+check('the clipboard service owns the receipt words per road (copyReceipt)', hasRoads)
+{
+  const native = receiptOf('native')
+  check('the native road (macOS, pbcopy) keeps its short receipt, no detail', native.text === RECEIPT && native.detail === undefined, JSON.stringify(native))
+  for (const road of ['native', 'tmux-buffer', 'osc52'] as const) {
+    check(`the ${road} road's receipt is the ONE receipt, qualified by its road`, receiptOf(road).text.startsWith(RECEIPT), JSON.stringify(receiptOf(road).text))
+  }
+  for (const road of ['native', 'tmux-buffer', 'osc52', 'unsettled'] as const) {
+    const words = receiptOf(road)
+    for (const platform of ['macos', 'linux'] as const) {
+      const budget = 80 - 2 - stringWidth(compactHint(platform))
+      check(
+        `${road} · ${platform}: the receipt's sentence fits whole in the ${budget} columns before the way back at 80 columns`,
+        stringWidth(words.text) <= budget,
+        `${stringWidth(words.text)} columns: ${JSON.stringify(words.text)}`,
+      )
+    }
+  }
+  check(
+    'the idle 82-column count row keeps its whole count line beside the way back on both platforms (nothing of it changes while no notice stands)',
+    compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 agents here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 agents here',
+    `macOS ${JSON.stringify(compactSummary(82, 'macos'))} · Linux ${JSON.stringify(compactSummary(82, 'linux'))}`,
+  )
+  for (const cols of [80, 82]) {
+    for (const road of ['native', 'tmux-buffer', 'osc52', 'unsettled'] as const) {
+      const words = receiptOf(road)
+      const rows = (['macos', 'linux'] as const).map(platform => ({ platform, row: compactNoticeRow(words.text, cols, platform, words.detail) }))
+      check(
+        `${cols} columns · ${road}: the receipt row on both platforms is the whole sentence, no ellipsis, the detail after the seam only where both fit, two blank columns, then the way back at the row's right end`,
+        rows.every(({ platform, row }) => {
+          const hint = compactHint(platform)
+          const keep = cols - 2 - stringWidth(hint)
+          const detailFits = words.detail !== undefined && stringWidth(`${words.text} · ${words.detail}`) <= keep
+          const body = detailFits ? `${words.text} · ${words.detail}` : words.text
+          return row.startsWith(body) && !row.includes('…') && row.slice(stringWidth(body)).startsWith('  ') && row.endsWith(hint) && stringWidth(row) === cols && !row.startsWith(' · ') && (detailFits || !row.includes(' · '))
+        }),
+        rows.map(({ platform, row }) => `${platform} ${JSON.stringify(row)}`).join(' · '),
+      )
+    }
+  }
+  const escape = receiptOf('osc52')
+  const oldRow = (platform: Platform): string => compactNoticeRow(OLD_ESCAPE_SENTENCE, 82, platform)
+  check(
+    "the hosted red — the escape transfer's old sentence cut mid-word before the way back at 82 columns — is the row the old law modelled, and no longer satisfies the row on either platform",
+    oldRow('linux') === HOSTED_RED_ROW && !noticeRowHolds(oldRow('linux'), escape.text, 'linux', escape.detail) && !noticeRowHolds(oldRow('macos'), escape.text, 'macos', escape.detail),
+    `Linux ${JSON.stringify(oldRow('linux'))} · macOS ${JSON.stringify(oldRow('macos'))}`,
+  )
+  check(
+    'the shipped shape — the notice alone across the row, cut at the width, the way back gone — no longer satisfies the row',
+    !noticeRowHolds(RECEIPT.padEnd(82), RECEIPT, 'macos') && !noticeRowHolds(`${wideNoticeRow(escape.text, escape.detail).slice(0, 81)}…`, escape.text, 'linux', escape.detail),
+  )
+}
+
+section('§4 pty — the real binary on each road: the receipt and the escape hint take the hint row whole, the hints return, the composer never moves')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.log(`  [SKIP] the pty legs need the posix capture driver (${driver.kind})`)
@@ -171,7 +282,9 @@ globalThis.fetch = (input, init) => {
     writeFileSync(cfgPath, JSON.stringify(cfg))
     return home
   }
-  const childEnv = (home: string): NodeJS.ProcessEnv => {
+  type DrivenRoad = 'native' | 'osc52'
+  const ROADS: readonly DrivenRoad[] = process.platform === 'darwin' ? ['native', 'osc52'] : ['osc52']
+  const childEnv = (home: string, road: DrivenRoad): NodeJS.ProcessEnv => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       PATH: `${shimDir}${delimiter}${process.env.PATH ?? ''}`,
@@ -203,6 +316,7 @@ globalThis.fetch = (input, init) => {
     ]) {
       delete env[key]
     }
+    if (road === 'osc52' && process.platform === 'darwin') env.SSH_CONNECTION = '10.0.0.2 51000 10.0.0.1 22'
     mkdirSync(env.HOME!, { recursive: true })
     return env
   }
@@ -213,49 +327,7 @@ globalThis.fetch = (input, init) => {
   type Capture = { marks: Map<string, Mark> }
 
   const T1 = 'the quick brown fox jumps over the lazy dog'
-  const RECEIPT = 'Copied to clipboard'
-  const ESCAPE_TRANSFER = " (terminal escape transfer — check the terminal's clipboard settings if pasting fails)"
-  const receiptWhole = (platform: 'macos' | 'linux'): string => (platform === 'macos' ? RECEIPT : `${RECEIPT}${ESCAPE_TRANSFER}`)
-  const HOST: 'macos' | 'linux' = process.platform === 'darwin' ? 'macos' : 'linux'
   const ESC_HINT = 'Press escape again to clear the input'
-  const { compactWorkSummaryText } = await import('../../src/components/tasks/useFocusedWork.ts')
-  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
-  const { footerNoticeLine } = await import('../../src/components/PromptInput/Notifications.tsx')
-  const COMPACT_COUNTS = { sessionsOn: 1, monitorsHere: 0, agentsHere: 0, samples: 0 }
-  const compactHint = (platform: 'macos' | 'linux'): string => keyHintLabel('⇧← boot face', platform)
-  const COMPACT_HINT = compactHint(HOST)
-  const compactSummary = (cols: number, platform: 'macos' | 'linux' = HOST): string =>
-    compactWorkSummaryText(COMPACT_COUNTS, Math.max(0, cols - (stringWidth(compactHint(platform)) + 1)))
-  const compactNoticeRow = (notice: string, cols: number, platform: 'macos' | 'linux' = HOST): string => {
-    const hint = compactHint(platform)
-    const keep = cols - 2 - stringWidth(hint)
-    const line = footerNoticeLine(notice)
-    const cut = stringWidth(line) <= keep ? line : `${line.slice(0, keep - 1)}…`
-    return cut.padEnd(cols - stringWidth(hint)) + hint
-  }
-  const noticeRowHolds = (line: string, notice: string, platform: 'macos' | 'linux' = HOST): boolean =>
-    line === compactNoticeRow(notice, stringWidth(line), platform)
-  {
-    check(
-      'the idle 82-column count row keeps its whole count line beside the way back on both platforms (nothing of it changes while no notice stands)',
-      compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 agents here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 agents here',
-      `macOS ${JSON.stringify(compactSummary(82, 'macos'))} · Linux ${JSON.stringify(compactSummary(82, 'linux'))}`,
-    )
-    const macRow = compactNoticeRow(receiptWhole('macos'), 82, 'macos')
-    const linuxRow = compactNoticeRow(receiptWhole('linux'), 82, 'linux')
-    check(
-      "the 82-column receipt row keeps the way back at its right end on both platforms — the counts step aside, no leading separator, the native clipboard's short receipt whole (macOS) and the escape transfer's long one cut to the columns before the hint with an ellipsis and two blank columns (Linux)",
-      macRow.startsWith(receiptWhole('macos')) && macRow.endsWith(compactHint('macos')) && stringWidth(macRow) === 82 && !macRow.includes('…') &&
-        linuxRow.startsWith(receiptWhole('linux').slice(0, 62)) && linuxRow.endsWith(`…  ${compactHint('linux')}`) && stringWidth(linuxRow) === 82 && !linuxRow.startsWith(' · ') &&
-        noticeRowHolds(macRow, receiptWhole('macos'), 'macos') && noticeRowHolds(linuxRow, receiptWhole('linux'), 'linux'),
-      `macOS ${JSON.stringify(macRow)} · Linux ${JSON.stringify(linuxRow)}`,
-    )
-    check(
-      'the shipped shape — the notice alone across the row, cut at the width, the way back gone — no longer satisfies the row',
-      !noticeRowHolds(receiptWhole('macos').padEnd(82), receiptWhole('macos'), 'macos') && !noticeRowHolds(`${receiptWhole('linux').slice(0, 81)}…`, receiptWhole('linux'), 'linux'),
-    )
-  }
   const PRESS = '\x1b[<0;{X};{Y}M'
   const MOVE = '\x1b[<32;{X};{Y}M'
   const RELEASE = '\x1b[<0;{X};{Y}m'
@@ -274,6 +346,7 @@ globalThis.fetch = (input, init) => {
 
   const capture = (
     tag: string,
+    road: DrivenRoad,
     size: { cols: number; rows: number },
     text: string,
     copyOnSelect: boolean,
@@ -297,7 +370,7 @@ globalThis.fetch = (input, init) => {
       }),
     )
     const res = spawnSync(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], {
-      env: childEnv(home),
+      env: childEnv(home, road),
       cwd: project,
       encoding: 'utf8',
       timeout: vshotBudgetMs(150_000),
@@ -307,7 +380,13 @@ globalThis.fetch = (input, init) => {
       return null
     }
     const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { marks?: Mark[] }
-    return { marks: new Map((payload.marks ?? []).map(m => [m.label, m])) }
+    const marks = new Map((payload.marks ?? []).map(m => [m.label, m]))
+    if (framesDir !== undefined) {
+      for (const [label, m] of marks) {
+        writeFileSync(join(framesDir, `${tag}-${label}.txt`), `${tag} · ${label} · ${size.cols}x${size.rows}\n${m.grid.map(row => row.map(c => c.c).join('').trimEnd()).join('\n')}\n`)
+      }
+    }
+    return { marks }
   }
 
   const rowText = (grid: Cell[][], y: number): string => (grid[y] ?? []).map(c => c.c).join('')
@@ -337,7 +416,7 @@ globalThis.fetch = (input, init) => {
     at: string,
     tag: string,
     got: Capture | null,
-    notice: string,
+    notice: { needle: string; text: string; detail?: string },
     anchor: RegExp | { idle: string },
     marks: { before: string; showing: string; after: string },
   ): void => {
@@ -347,19 +426,19 @@ globalThis.fetch = (input, init) => {
     const after = got.marks.get(marks.after)
     check(`${at} ${tag}: the three marks landed`, before !== undefined && showing !== undefined && after !== undefined)
     if (!before || !showing || !after) return
-    check(`${at} ${tag}: the notice is on screen at its moment`, textOf(showing.grid).includes(notice))
-    const row = rowOf(showing.grid, notice)
+    const row = rowOf(showing.grid, notice.needle)
     const line = row === -1 ? '' : rowText(showing.grid, row)
+    check(`${at} ${tag}: the notice is on screen at its moment, its sentence whole`, textOf(showing.grid).includes(notice.text), JSON.stringify(line.trimEnd()))
     if (anchor instanceof RegExp) {
       check(
-        `${at} ${tag}: the notice takes the hint row whole — it leads the row and the standing hints are gone while it stands`,
-        row !== -1 && line.startsWith(notice) && line.search(anchor) === -1 && !line.includes('for shortcuts'),
+        `${at} ${tag}: the notice takes the hint row whole — its sentence leads the row, its detail rides after the seam where the row holds both, and the standing hints are gone while it stands`,
+        row !== -1 && line.trimEnd() === wideNoticeRow(notice.text, notice.detail) && line.search(anchor) === -1 && !line.includes('for shortcuts'),
         JSON.stringify(line.trimEnd()),
       )
     } else {
       check(
-        `${at} ${tag}: the notice leads the count row cut to what fits, the counts step aside and the way back keeps the row's right end`,
-        row !== -1 && noticeRowHolds(line, notice),
+        `${at} ${tag}: the notice leads the count row as a whole sentence, the detail only where the columns before the hint hold both, the counts step aside and the way back keeps the row's right end`,
+        row !== -1 && noticeRowHolds(line, notice.text, HOST, notice.detail),
         JSON.stringify(line.trimEnd()),
       )
     }
@@ -372,42 +451,47 @@ globalThis.fetch = (input, init) => {
     check(
       `${at} ${tag}: the hint row sits right under the composer before, during and after — the hints (the counts as far as they have settled, the way back) before and after, the notice in the counts' place while it stands`,
       anchor instanceof RegExp
-        ? anchor.test(underComposer(before)) && anchor.test(underComposer(after)) && underComposer(showing).startsWith(notice)
-        : /^\d+ sessions? on · /.test(underComposer(before)) && underComposer(before).trimEnd().endsWith(COMPACT_HINT) && underComposer(after).startsWith(anchor.idle) && underComposer(after).trimEnd().endsWith(COMPACT_HINT) && noticeRowHolds(underComposer(showing), notice),
+        ? anchor.test(underComposer(before)) && anchor.test(underComposer(after)) && underComposer(showing).startsWith(notice.text)
+        : /^\d+ sessions? on · /.test(underComposer(before)) && underComposer(before).trimEnd().endsWith(COMPACT_HINT) && underComposer(after).startsWith(anchor.idle) && underComposer(after).trimEnd().endsWith(COMPACT_HINT) && noticeRowHolds(underComposer(showing), notice.text, HOST, notice.detail),
       [before, showing, after].map(m => JSON.stringify(underComposer(m).trimEnd())).join(' → '),
     )
-    check(`${at} ${tag}: the notice leaves after its moment`, !textOf(after.grid).includes(notice))
+    check(`${at} ${tag}: the notice leaves after its moment`, !textOf(after.grid).includes(notice.needle))
     check(`${at} ${tag}: …and the frame is where it was`, sameFrame(before, after), `${frameWords(before)} → ${frameWords(after)}`)
   }
 
-  for (const size of [
+  const sizes = [
     { cols: 120, rows: 40 },
     { cols: 82, rows: 17 },
-  ]) {
+    ...(framesDir !== undefined ? [{ cols: 178, rows: 51 }] : []),
+  ]
+  for (const size of sizes) {
     const at = `${size.cols}x${size.rows}`
     const wide = size.cols >= 100
     const expectFor = (): RegExp | { idle: string } =>
       wide ? /for commands \+ files/ : { idle: compactSummary(size.cols) }
     console.log(`\n  ── ${at}`)
 
-    const copy = capture(`copy-${at}`, size, T1, true, [
-      markWhen('typed', T1),
-      aim('quick brown', 0, PRESS),
-      aim('quick brown', 5, MOVE, 2),
-      aim('quick brown', 10, MOVE, 2),
-      aim('quick brown', 10, RELEASE, 2),
-      markWhen('receipt', RECEIPT),
-      mark('later', 14),
-    ])
-    noticeLeg(at, 'copy receipt', copy, RECEIPT, expectFor(), { before: 'typed', showing: 'receipt', after: 'later' })
+    for (const road of ROADS) {
+      const words = receiptOf(road)
+      const copy = capture(`copy-${road}-${at}`, road, size, T1, true, [
+        markWhen('typed', T1),
+        aim('quick brown', 0, PRESS),
+        aim('quick brown', 5, MOVE, 2),
+        aim('quick brown', 10, MOVE, 2),
+        aim('quick brown', 10, RELEASE, 2),
+        markWhen('receipt', RECEIPT),
+        mark('later', road === 'native' ? 14 : 26),
+      ])
+      noticeLeg(at, `copy receipt · ${road} road`, copy, { needle: RECEIPT, text: words.text, ...(words.detail !== undefined ? { detail: words.detail } : {}) }, expectFor(), { before: 'typed', showing: 'receipt', after: 'later' })
+    }
 
-    const esc = capture(`esc-${at}`, size, T1, false, [
+    const esc = capture(`esc-${at}`, ROADS[0]!, size, T1, false, [
       markWhen('typed', T1),
       { afterPrevTicks: 3, data: '\x1b' },
       markWhen('notice', ESC_HINT),
       mark('later', 18),
     ])
-    noticeLeg(at, 'escape hint', esc, ESC_HINT, expectFor(), { before: 'typed', showing: 'notice', after: 'later' })
+    noticeLeg(at, 'escape hint', esc, { needle: ESC_HINT, text: ESC_HINT }, expectFor(), { before: 'typed', showing: 'notice', after: 'later' })
   }
 }
 
@@ -416,4 +500,4 @@ if (failures > 0) {
   console.log(` ❌ prove-composer-notice-row: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log(' ✅ composer-notice-row — a notice takes the hint row for its moment and the compact row keeps its way back, the hints return after it · the composer never moves for a notice')
+console.log(' ✅ composer-notice-row — every road\'s copy receipt is a whole sentence beside the way back, its detail only where the row holds it · a notice takes the hint row for its moment, the hints return after it · the composer never moves for a notice')
