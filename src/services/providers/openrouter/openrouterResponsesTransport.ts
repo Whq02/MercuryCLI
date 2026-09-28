@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { AssistantMessage, Message } from '../../../types/message.js'
 import type { MessageParam } from '../../../types/wire.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -45,10 +44,6 @@ function asRecord(v: unknown): Record_ | undefined {
 
 export function openrouterResponsesUrl(chatUrl: string): string {
   return chatUrl.replace(/\/chat\/completions\/?$/, '/responses')
-}
-
-export function openrouterPromptCacheKey(conversationKey: string): string {
-  return `mercury-${createHash('sha256').update(conversationKey).digest('hex').slice(0, 32)}`
 }
 
 export function openrouterNativeTools(tools: readonly CompatTool[], deferredNames: ReadonlySet<string>): Record_[] {
@@ -122,7 +117,7 @@ export function buildOpenrouterResponsesBody(options: CompatStreamOptions, facts
     ...(reasoning !== undefined ? { reasoning: { ...reasoning, ...(reasoning.summary === undefined ? { summary: 'auto' } : {}) } } : {}),
     ...(typeof extra.max_tokens === 'number' ? { max_output_tokens: extra.max_tokens } : {}),
     stream: true,
-    ...(facts.conversationKey !== undefined ? { prompt_cache_key: openrouterPromptCacheKey(facts.conversationKey) } : {}),
+    ...(facts.cacheDomainKey !== undefined ? { prompt_cache_key: facts.cacheDomainKey } : {}),
   }
 }
 
