@@ -24,7 +24,7 @@ const TOOLS = [
       properties: {
         mode: { type: 'string', enum: ['fast', 'slow', 'weird'] },
         count: { type: ['integer', 'null'], description: 'nullable' },
-        label: { type: 'string' },
+        label: { type: 'string', description: `${'schema detail '.repeat(3000)}END-OF-SCHEMA` },
         items: {
           type: 'array',
           items: {

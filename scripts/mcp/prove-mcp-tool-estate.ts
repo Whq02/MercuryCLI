@@ -147,7 +147,19 @@ const props = (wireSchema?.properties ?? {}) as Record<string, Record<string, un
 t('the awkward schema is installed verbatim as the wire schema (enum · nullable · anyOf · array-of-object · strict)', wireSchema !== undefined && JSON.stringify(props.mode?.enum) === '["fast","slow","weird"]' && JSON.stringify(props.count?.type) === '["integer","null"]' && Array.isArray(props.choice?.anyOf) && (props.items?.items as { type?: string })?.type === 'object' && wireSchema.additionalProperties === false && JSON.stringify(wireSchema.required) === '["mode"]', JSON.stringify(wireSchema).slice(0, 200))
 t('the zod form accepts anything (the server owns validation)', awkward.inputSchema.safeParse({ anything: 1, mode: 7 }).success === true)
 const prompt = await awkward.prompt()
-t('an over-long description is truncated with a marker, the provenance header intact', prompt.startsWith(`[mcp:${SERVER} ·`) && prompt.includes('[description truncated]') && !prompt.includes('END-OF-DESCRIPTION') && prompt.length <= 2048 + 40, `${prompt.length} chars`)
+t('an over-long description rides whole with its provenance header intact', prompt.startsWith(`[mcp:${SERVER} ·`) && !prompt.includes('[description truncated]') && prompt.endsWith('END-OF-DESCRIPTION') && prompt.includes('Its description runs on and on. '.repeat(120)), `${prompt.length} chars`)
+t('a schema beyond the former size bound keeps every field instead of becoming permissive', props.label?.description === `${'schema detail '.repeat(3000)}END-OF-SCHEMA` && wireSchema?.additionalProperties === false && JSON.stringify(wireSchema).length > 32768)
+const fullDefinition = await toolToAPISchema(awkward, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools, agents: [], model: 'claude-sonnet-5' })
+t('the model wire keeps the complete MCP description and schema', fullDefinition.description === prompt && JSON.stringify(fullDefinition.input_schema) === JSON.stringify(wireSchema))
+{
+  const { APIError } = await import('@anthropic-ai/sdk')
+  const { getAssistantMessageFromError } = await import('../../src/services/api/errors.ts')
+  const providerWords = 'tools.3.custom.input_schema: the JSON schema is too large for this request'
+  const refused = new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: providerWords } }, undefined, undefined as never)
+  const row = getAssistantMessageFromError(refused, 'claude-sonnet-5') as unknown as { message: { content: Array<{ type?: string; text?: string }> } }
+  const words = row.message.content.map(block => (block.type === 'text' ? (block.text ?? '') : '')).join('')
+  t("a provider that refuses an oversized schema shows its own words on the row, never a silent swap", words.includes(providerWords), words)
+}
 t('readOnlyHint ⇒ read-only + concurrency-safe; destructiveHint ⇒ destructive', awkward.isReadOnly({}) === true && awkward.isConcurrencySafe({}) === true && (byServerName.get('destructive_op') as { isDestructive?: (i: unknown) => boolean })?.isDestructive?.({}) === true && byServerName.get('boom')?.isReadOnly({}) === false)
 t('the user-facing name carries server · title · (MCP)', awkward.userFacingName({}) === `${SERVER} - Awkward (MCP)`, awkward.userFacingName({}))
 

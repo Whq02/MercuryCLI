@@ -138,8 +138,6 @@ const REQUEST_TIMEOUT_MS = 60_000
 const LONG_CALL_LOG_INTERVAL_MS = 30_000
 const STDERR_FLUSH_BYTES = 1024 * 1024
 const INSTRUCTIONS_MAX_CHARS = 2048
-const PROMPT_MAX_CHARS = 2048
-const SCHEMA_MAX_CHARS = 32_768
 const TOOLS_MAX_PAGES = 50
 const TOOLS_MAX_PER_SERVER = 1000
 const TERMINAL_ERROR_LIMIT = 3
@@ -909,12 +907,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const modelFacingName = skipPrefix ? toolName : wireSafeMcpToolName(serverName, toolName)
   const rawDescription = sdkTool.description ?? ''
   const description = withMcpToolCardHeader(serverName, rawDescription, annotations)
-  const prompt = description.length > PROMPT_MAX_CHARS ? `${description.slice(0, PROMPT_MAX_CHARS)}\n\n[description truncated]` : description
-  let inputJSONSchema: unknown = sdkTool.inputSchema
-  if (JSON.stringify(inputJSONSchema ?? {}).length > SCHEMA_MAX_CHARS) {
-    logMCPError(serverName, `tool ${toolName} input schema exceeds ${SCHEMA_MAX_CHARS} characters; replaced with a permissive schema`)
-    inputJSONSchema = { type: 'object', additionalProperties: true }
-  }
+  const inputJSONSchema = sdkTool.inputSchema
   const effectiveMaxPermission = (client.config as ToolWithPermissions).toolPermissions?.[toolName]
   const displayName = `${serverName} - ${(annotations as { title?: string } | undefined)?.title ?? toolName} (MCP)`
 
@@ -926,7 +919,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
     searchHint,
     alwaysLoad,
     description: async () => description,
-    prompt: async () => prompt,
+    prompt: async () => description,
     isConcurrencySafe: () => (annotations as { readOnlyHint?: boolean } | undefined)?.readOnlyHint === true,
     isReadOnly: () => (annotations as { readOnlyHint?: boolean } | undefined)?.readOnlyHint === true,
     toAutoClassifierInput: (input: Record<string, unknown>) => mcpToolInputToAutoClassifierInput(input, toolName),
