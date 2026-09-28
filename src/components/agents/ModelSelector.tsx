@@ -6,11 +6,12 @@ import {
   getAgentModelPickerRows,
   type AgentModelPickerRow,
 } from '../../utils/model/agentModelPicker.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { AMBER } from '../mercuryPalette.js'
 import { Select } from '../CustomSelect/index.js'
 
 export function ModelSelector({
-  initialModel,
+  initialModel: suppliedModel,
   onComplete,
   onCancel,
 }: {
@@ -18,6 +19,7 @@ export function ModelSelector({
   onComplete: (model: string | undefined) => void
   onCancel?: () => void
 }): React.ReactNode {
+  const initialModel = suppliedModel === undefined ? undefined : parseUserSpecifiedModel(suppliedModel)
   const [notice, setNotice] = React.useState<string | null>(null)
   const rows = React.useMemo(() => getAgentModelPickerRows(), [])
   const byValue = React.useMemo(() => new Map(rows.map(row => [row.value, row])), [rows])
@@ -57,6 +59,7 @@ export function ModelSelector({
       <Select
         options={options}
         defaultValue={initialModel ?? 'inherit'}
+        defaultFocusValue={initialModel ?? 'inherit'}
         onChange={value => {
           const row = byValue.get(value)
           if (row === undefined) {

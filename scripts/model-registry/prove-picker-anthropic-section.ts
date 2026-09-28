@@ -69,9 +69,15 @@ process.env.ANTHROPIC_API_KEY = FIXTURE_KEY
 
 const React = (await import('react')).default
 const { render } = await import('../../src/ink.ts')
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { AppStoreContext, getDefaultAppState } = await import('../../src/state/AppState.tsx')
 const { createStore } = await import('../../src/state/store.ts')
-const { call } = await import('../../src/commands/model/mercuryModel.tsx')
+const { call, MercuryModelChoicePicker, modelChoiceRow } = await import('../../src/commands/model/mercuryModel.tsx')
+const { ModelPicker } = await import('../../src/components/ModelPicker.tsx')
+const { ModelSelector } = await import('../../src/components/agents/ModelSelector.tsx')
+const { SubModelPicker } = await import('../../src/components/SubModelPicker.tsx')
+const { resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
+const { getAgentModelPickerRows, agentModelPickOutcome } = await import('../../src/utils/model/agentModelPicker.ts')
 const { ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow, stripContext1m } = await import('../../src/utils/model/modelOptions.ts')
 type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
 const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/utils/model/configs.ts')
@@ -103,6 +109,8 @@ const OLDEST_OPUS = OPUS_BLOCK.at(-1)!
 const SONNET = strings[FAMILY_GENERATIONS.sonnet[0]]
 const HAIKU = strings[FAMILY_GENERATIONS.haiku[0]]
 const LAST_FABLE = strings[FAMILY_GENERATIONS.fable.at(-1)!]
+const FABLE = strings[FAMILY_GENERATIONS.fable[0]]
+const FAMILY_WORDS = new Set(['fable', 'haiku', 'opus', 'sonnet', 'mythos', 'best', 'fable51'])
 const RAW = 'claude-opus-5-7'
 const ANTHROPIC_TITLE = ' ANTHROPIC · '
 
@@ -132,6 +140,9 @@ function pinSection(tag: string, options: ModelOption[], shape: 'standard' | 'pr
   const explicit = rows.find(o => o.value === DEFAULT_OPUS)
   check(`[${tag}] the family words still fold onto the explicit rows: no 'opus' or 'sonnet' value; the literal ids carry the labels ${renderModelName(DEFAULT_OPUS)} and ${renderModelName(SONNET)}, selectable`, !values.includes('opus') && !values.includes('sonnet') && explicit !== undefined && explicit.label === renderModelName(DEFAULT_OPUS) && explicit.unavailable === undefined && rows.find(o => o.value === SONNET)?.label === renderModelName(SONNET), values.join(','))
   check(`[${tag}] one row per model`, new Set(ids).size === ids.length, ids.join(','))
+  const words = values.filter(value => FAMILY_WORDS.has(stripContext1m(value).toLowerCase()))
+  check(`[${tag}] no row saves a family word: every value is the model's full id (the fable and haiku rows included)`, words.length === 0 && values.every(value => value === parseUserSpecifiedModel(value)), values.join(','))
+  check(`[${tag}] the fable head row and the haiku row carry the ids their words resolve to: ${FABLE} and ${HAIKU}`, rows.find(o => o.value === FABLE)?.label === renderModelName(FABLE) && rows.find(o => o.value === HAIKU)?.label === renderModelName(HAIKU), values.join(','))
 }
 
 section('§1 the standard shape (an API key): the default Opus leads its block; the section runs in family blocks, newest first')
@@ -184,19 +195,29 @@ const headingOf = (lines: string[], title: string): string => {
   return lines[at]!.replace(/^\s*│ ?/, '').replace(/\s*│\s*$/, '').trim()
 }
 const rowAt = (lines: string[], name: string): number => lines.findIndex(l => l.includes(`${name} `) && !l.includes(' · ') && /│ (?:│ | {2})/.test(l))
-type Band = { columns: number; rows: number; pendingNext?: string }
-async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; unmount: () => void }> {
+type Band = { columns: number; rows: number; pendingNext?: string; surface?: 'inline' | 'choice' | 'advisor' | 'agent' }
+async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }): Promise<{ frame: () => string; press: (keys: string, expectChange?: boolean) => Promise<boolean>; picked: string[]; unmount: () => void }> {
   const stdout = Object.assign(new PassThrough(), { columns: band.columns, rows: band.rows })
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
   const store = createStore({ ...getDefaultAppState(), mainLoopModel: model, ...(band.pendingNext === undefined ? {} : { pendingModelSwitch: { setting: band.pendingNext } }) }, () => {})
-  const picker = await call(() => {}, { messages: [] } as never, '')
-  const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
+  const picked: string[] = []
+  const select = (id: string | undefined): void => { if (id !== undefined) picked.push(id) }
+  const picker = band.surface === 'inline'
+    ? React.createElement(ModelPicker, { initial: model, onSelect: select, skipSettingsWrite: true })
+    : band.surface === 'choice'
+      ? React.createElement(MercuryModelChoicePicker, { current: modelChoiceRow(model), onSelect: select, onClose: () => {} })
+      : band.surface === 'advisor'
+        ? React.createElement(SubModelPicker, { initialContainer: 'advisor', initialModelId: parseUserSpecifiedModel(model), onClose: () => {}, onRoute: () => {} })
+        : band.surface === 'agent'
+          ? React.createElement(ModelSelector, { initialModel: model, onComplete: select })
+          : await call(() => {}, { messages: [] } as never, '')
+  const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, React.createElement(KeybindingSetup, null, picker)), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')
   const settled = (): boolean => {
     const lines = frame().split('\n')
-    return rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0 && /^\s*╰/.test(lines.at(-1) ?? '')
+    return band.surface !== undefined ? frame().includes(FABLE) || frame().includes('Fable') : rowAt(lines, renderModelName(DEFAULT_OPUS)) >= 0 && /^\s*╰/.test(lines.at(-1) ?? '')
   }
   const until = Date.now() + 5000
   while (Date.now() < until && !settled()) await flush()
@@ -211,7 +232,7 @@ async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }
     await new Promise<void>(resolve => setTimeout(resolve, 40))
     return frame() !== before
   }
-  return { frame, press, unmount: () => instance.unmount() }
+  return { frame, press, picked, unmount: () => instance.unmount() }
 }
 
 section('§4 the /model surface at 178x51 with a signed-in Anthropic fixture: the header word and the painted order')
@@ -245,8 +266,50 @@ for (const fixture of ['anthropic-key', 'claude-max'] as const) {
   check(`[${fixture}] no row of another family paints inside the opus block`, first >= 0 && !between.some(l => others.some(name => l.includes(`${name} `))), between.map(l => l.trim()).join(' | '))
   check(`[${fixture}] the painted order is the row source's order`, painted.every((index, position) => index >= 0 && (position === 0 || index > painted[position - 1]!)), painted.join(','))
   check(`[${fixture}] the current mark sits on the default Opus row`, (lines[rowAt(lines, renderModelName(DEFAULT_OPUS))] ?? '').includes('current'), lines[rowAt(lines, renderModelName(DEFAULT_OPUS))])
+  for (const id of [FABLE, HAIKU, SONNET, DEFAULT_OPUS]) {
+    const row = lines[rowAt(lines, renderModelName(id))] ?? ''
+    check(`[${fixture}] the ${renderModelName(id)} row paints its full id ${id} in the id column`, new RegExp(`\\b${renderModelName(id).replace(/[.]/g, '\\.')} {2,}${id}(?: {2,}|\\s*│)`).test(row), row.trim())
+  }
   mounted.unmount()
   if (fixture === 'claude-max') signOutMax()
+}
+
+section('§4b a nickname already saved in settings still resolves and marks its row as current')
+for (const [word, id] of [['fable', FABLE], ['haiku', HAIKU]] as const) {
+  anthropicCatalogue.__resetAnthropicCatalogueForTest()
+  check(`'${word}' still resolves to ${id}`, parseUserSpecifiedModel(word) === id, parseUserSpecifiedModel(word))
+  const mounted = await mountModel(word)
+  const lines = mounted.frame().split('\n')
+  const row = lines[rowAt(lines, renderModelName(id))] ?? ''
+  check(`a saved '${word}' marks the ${renderModelName(id)} row current, which paints ${id}`, row.includes('current') && row.includes(id), row.trim())
+  mounted.unmount()
+  const narrow = await mountModel(word, { columns: 80, rows: 21 })
+  const narrowFrame = narrow.frame()
+  const narrowRow = narrowFrame.split('\n')[rowAt(narrowFrame.split('\n'), renderModelName(id))] ?? ''
+  check(`the 80-column ${word} row paints the complete resolved id`, narrowRow.includes(id), narrowRow.trim())
+  if (frameDir !== undefined) writeFileSync(join(frameDir, `model-80x21-${word}.txt`), narrowFrame + '\n')
+  narrow.unmount()
+}
+
+section('§4c all pickers show and select the same full id, including saved nicknames')
+for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }]) {
+  for (const surface of ['inline', 'choice', 'advisor', 'agent'] as const) {
+    anthropicCatalogue.__resetAnthropicCatalogueForTest()
+    const mounted = await mountModel('fable', { ...band, surface })
+    const frame = mounted.frame()
+    if (frameDir !== undefined) writeFileSync(join(frameDir, `${surface}-${band.columns}x${band.rows}.txt`), frame + '\n')
+    check(`${surface} at ${band.columns} columns paints the full fable id on its model row`, frame.split('\n').some(line => line.includes(FABLE) && !line.includes('frontier:')), frame)
+    await mounted.press('\r', false)
+    const saved = surface === 'advisor' ? resolveSubModel('advisor') : null
+    check(`${surface} selecting the saved nickname's row returns the full id`, surface === 'advisor' ? saved?.origin === 'saved' && saved.model === FABLE : mounted.picked.at(-1) === FABLE, JSON.stringify(surface === 'advisor' ? saved : mounted.picked))
+    mounted.unmount()
+  }
+}
+for (const word of ['fable', 'haiku']) {
+  const id = parseUserSpecifiedModel(word)
+  const row = getAgentModelPickerRows(getModelOptions({ anthropicCredentialed: () => true })).find(row => row.value === id)
+  check(`agent and boot agent rows show and save ${id}`, row !== undefined && row.label === id && agentModelPickOutcome(row).kind === 'picked' && (agentModelPickOutcome(row) as { model?: string }).model === id)
+  check(`config's saved ${word} selects the full-id row`, modelChoiceRow(word) === id, modelChoiceRow(word))
 }
 
 section('§5 the box spans its band whatever the cursor\'s row: from the first stop to the last the bottom border is one row, and the more marker keeps the bottom edge of the rows')

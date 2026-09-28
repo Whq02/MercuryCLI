@@ -61,9 +61,9 @@ section('the rows: the alias row and the previous generation\'s literal row are 
   const newestId = strings[FAMILY_GENERATIONS.fable[0]]
   const previousId = strings[previousGenerationKeys('fable')[0]!]
   const rows = getModelOptions({ anthropicCredentialed: () => true })
-  const family = rows.findIndex(o => o.value === 'fable')
+  const family = rows.findIndex(o => o.value === newestId)
   const member = rows.findIndex(o => o.value === previousId)
-  check('the family alias row is present', family >= 0)
+  check('the family full-id row is present', family >= 0)
   check("the previous generation's literal row is present", member >= 0)
   check('the previous row sits immediately after the family row', member === family + 1, `${family} / ${member}`)
   check("the one display owner labels them through the table ('Fable 5.1' / 'Fable 5')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.1' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5', `${rows[family]?.label} / ${rows[member]?.label}`)
@@ -164,7 +164,7 @@ if (driver.kind !== 'posix-pty') {
       const p = previousRow(ls)
       check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `${n} / ${p}`)
       check('picker: the previous row sits directly under the family row', p === n + 1, `${n} / ${p}`)
-      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}fable {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
+      check("picker: neither row reads 'current' yet (the state column is calm)", !/\bcurrent\b/.test(ls[n] ?? '') && !/\bcurrent\b/.test(ls[p] ?? '') && /\bFable 5\.1 {2,}claude-fable-5-1 {2,}/.test(ls[n] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
       check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
     }
     if (set) {

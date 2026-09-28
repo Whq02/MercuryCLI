@@ -58,8 +58,8 @@ const { getAgentModelPickerRows } = await import('../../src/utils/model/agentMod
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
 const options = getAgentModelPickerRows()
 t(
-  'picker offers fable',
-  options.some(o => o.value === 'fable'),
+  'picker offers the full fable id as its saved value and label',
+  options.some(o => o.value === 'claude-fable-5-1' && o.label === o.value),
 )
 t(
   'picker lists one row per model: no [1m] twin row (the typed [1m] forms stay accepted above)',

@@ -41,7 +41,6 @@ import { getModelStrings } from './modelStrings.js'
 import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
-import { isFableAvailable } from './model.js'
 import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
 import type { AnthropicLiveRow } from '../../services/providers/anthropic/anthropicCatalogue.js'
 
@@ -167,7 +166,8 @@ export function stripContext1m(value: string): string {
 
 
 function aliasRow(alias: string, description: string): ModelOption {
-  return { value: alias, label: renderModelName(parseUserSpecifiedModel(alias)), description }
+  const id = parseUserSpecifiedModel(alias)
+  return { value: id, label: renderModelName(id), description }
 }
 
 function literalRow(id: string, description: string): ModelOption {
@@ -175,11 +175,7 @@ function literalRow(id: string, description: string): ModelOption {
 }
 
 function getFableOption(): ModelOption {
-  return {
-    value: 'fable',
-    label: renderModelName(parseUserSpecifiedModel('fable')),
-    description: '',
-  }
+  return aliasRow('fable', '')
 }
 
 function previousGenerationFableRows(): ModelOption[] {
@@ -188,11 +184,7 @@ function previousGenerationFableRows(): ModelOption[] {
 }
 
 function getOpusFrontierFallbackOption(): ModelOption {
-  return {
-    value: 'opus',
-    label: renderModelName(parseUserSpecifiedModel('opus')),
-    description: '',
-  }
+  return aliasRow('opus', '')
 }
 
 function previousGenerationLargeRows(): ModelOption[] {
@@ -211,9 +203,7 @@ function premiumSubscriberTierRows(): ModelOption[] {
   const rows: ModelOption[] = []
   rows.push(getFableOption())
   rows.push(...previousGenerationFableRows())
-  if (isFableAvailable()) {
-    rows.push(getOpusFrontierFallbackOption())
-  }
+  rows.push(getOpusFrontierFallbackOption())
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('sonnet', ''))
   rows.push(aliasRow('haiku', ''))
@@ -284,13 +274,6 @@ function dedupOneModelOneRow(options: ModelOption[]): ModelOption[] {
 function pushIfAbsent(options: ModelOption[], row: ModelOption): void {
   if (options.some(existing => existing.value === row.value)) return
   options.push(row)
-}
-
-function leadFamilyBlock(options: ModelOption[], row: ModelOption): void {
-  if (options.some(existing => existing.value === row.value)) return
-  const family = anthropicFamilyOf(row.value)
-  const at = family === undefined ? -1 : options.findIndex(option => !isSentinelValue(option.value) && anthropicFamilyOf(option.value) === family)
-  options.splice(at === -1 ? options.length : at, 0, row)
 }
 
 export const ANTHROPIC_MODEL_GROUP = 'Mercury — Anthropic models'
@@ -681,15 +664,6 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
 
 export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   let options = baseTierRows()
-
-  for (const id of ['claude-sonnet-5', 'claude-opus-5-5']) {
-    const marketing = getMarketingNameForModel(id) ?? id
-    leadFamilyBlock(options, {
-      value: id,
-      label: marketing,
-      description: '',
-    })
-  }
 
   options = dedupOneModelOneRow(options)
 

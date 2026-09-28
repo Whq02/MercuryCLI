@@ -134,7 +134,7 @@ function fmtCtx(windowSize: number): string {
 
 function resolveCurrentRowId(models: ModelChoice[], served: string): string {
   if (models.some(m => m.id === served)) return served
-  const target = stripContext1m(served)
+  const target = stripContext1m(parseUserSpecifiedModel(served))
   const rows = models.filter(m => !m.gated && !m.action)
   const resolvedOf = (id: string): string | null => {
     try {
