@@ -34,6 +34,19 @@ function chatCompletionsSse(text: string): string {
   return [chunk({ role: 'assistant', content: '' }, null), chunk({ content: text }, null), chunk({}, 'stop'), 'data: [DONE]\n\n'].join('')
 }
 
+function responsesSse(text: string): string {
+  const id = `resp_fx_${Date.now()}`
+  const message = { id: `msg_${id}`, type: 'message', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text, annotations: [] }] }
+  return [
+    sse({ type: 'response.created', response: { id, model: 'fixture', status: 'in_progress' } }),
+    sse({ type: 'response.output_item.added', item: { ...message, status: 'in_progress', content: [] } }),
+    sse({ type: 'response.output_text.delta', item_id: message.id, delta: text }),
+    sse({ type: 'response.output_item.done', item: message }),
+    sse({ type: 'response.completed', response: { id, model: 'fixture', status: 'completed', output: [message], usage: { input_tokens: 20, output_tokens: 4, input_tokens_details: { cached_tokens: 0 } } } }),
+    'data: [DONE]\n\n',
+  ].join('')
+}
+
 function ollamaNdjson(text: string): string {
   const row = (message: Record<string, unknown>, tail: Record<string, unknown>): string => `${JSON.stringify({ model: 'fixture', created_at: new Date().toISOString(), message: { role: 'assistant', content: '', ...message }, ...tail })}\n`
   return row({ content: text }, { done: false }) + row({}, { done: true, done_reason: 'stop', prompt_eval_count: 10, eval_count: 2 })
@@ -88,7 +101,7 @@ function turn(family: Family | 'anthropic', res: ServerResponse, body: string): 
   record({ kind: 'turn', family })
   if (catalogue().switchOn !== 'never') turned = true
   res.writeHead(200, { 'content-type': body === 'ollama' ? 'application/x-ndjson' : 'text/event-stream' })
-  res.end(body === 'ollama' ? ollamaNdjson(text) : body === 'gemini' ? geminiSse(text) : body === 'anthropic' ? anthropicSse(text) : chatCompletionsSse(text))
+  res.end(body === 'ollama' ? ollamaNdjson(text) : body === 'gemini' ? geminiSse(text) : body === 'anthropic' ? anthropicSse(text) : body === 'responses' ? responsesSse(text) : chatCompletionsSse(text))
 }
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -162,6 +175,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       }
       if (method === 'POST' && path.endsWith('/chat/completions')) {
         turn(family, res, 'chat')
+        return
+      }
+      if (family === 'openrouter' && method === 'POST' && path.endsWith('/responses')) {
+        turn(family, res, 'responses')
         return
       }
       if (family === 'local' && method === 'POST' && path.endsWith('/api/chat')) {
