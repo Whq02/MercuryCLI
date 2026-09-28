@@ -296,10 +296,18 @@ export function setSubModel(
     }
   }
   const wanted = canonicalSubModelId(modelId)
-  const entry = composeSubModelRegistry(reads).entries.find(
+  const registry = composeSubModelRegistry(reads)
+  let entry = registry.entries.find(
     candidate => candidate.kind === 'model' && candidate.modelId === wanted,
   )
-  if (!entry) return { ok: false, reason: `${wanted} is not in the live catalogue` }
+  if (!entry) {
+    const route = declaredRouteOf(wanted)
+    const family = route === null ? undefined : registry.families.find(candidate => candidate.source === route)
+    if (route === null || family === undefined) return { ok: false, reason: `${wanted} is not in the live catalogue` }
+    entry = family.credentialed
+      ? { kind: 'model', modelId: wanted, displayName: wanted, source: route, state: 'selectable' }
+      : { kind: 'model', modelId: wanted, displayName: wanted, source: route, state: 'signed-out', reason: 'not signed in', connect: subModelConnectHome(route) }
+  }
   if (entry.state !== 'selectable') {
     const route = entry.connect !== undefined ? ` · ${entry.connect.note}` : ''
     return { ok: false, reason: `${entry.displayName}: ${entry.reason ?? 'not selectable'}${route}` }

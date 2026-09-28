@@ -125,6 +125,111 @@ section(`§3 the real case: '${REAL_ID}' saved after the daemon booted, judged b
   check(`the boot face's new session on '${REAL_ID}' resolves under that read — dispatched to the Anthropic lane, never "'${REAL_ID}' is not an exact model id"`, born.ok && born.entry.modelId === REAL_ID && born.entry.session.availability === 'available', text(born))
 }
 
+const FUTURE_IDS = [UNKNOWN_CLAUDE_ID, 'claude-sonnet-7-3']
+
+section('§4 the guarantee — a future Claude id starts from EVERY door, the wire deciding')
+{
+  process.env.MERCURY_WORKFLOW_ROUTING = '1'
+  const { resolveCrewSeatModel } = await import('../../src/daemon/crewSpawn.ts')
+  const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
+  const { resolveWorkflowRoutedModel } = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
+  const { setSubModel, resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
+  const { resolveAdvisorModel } = await import('../../src/services/advisor/advisorSettings.ts')
+  const { validateCoordinatorModelChoice } = await import('../../src/services/concourse/coordinatorModels.ts')
+  const { validateModel } = await import('../../src/utils/model/validateModel.ts')
+  const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/homeLaneAdmission.ts')
+  const { canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
+  const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { isModelAllowed } = await import('../../src/utils/model/modelAllowlist.ts')
+  for (const id of FUTURE_IDS) {
+    console.log(`  · ${id}`)
+    check(`identity: the id passes through the setting parser byte-identical, is first-party by the claude- mark, admitted by the home lane, allowed, and rides the wire as itself`, parseUserSpecifiedModel(id) === id && recognizeModelId(id).kind === 'first-party' && homeLaneAdmissionRefusal(id) === null && isModelAllowed(id) && canonicalWireModelId(id).ok, id)
+    const admission = await wm.validateWorkerModelChoice(id, 'session')
+    check("door · the daemon's session admission (the boot face's New Session, /clear, --model and a saved setting all reach it through bornSession)", admission.ok && admission.entry.modelId === id, text(admission))
+    const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: id })
+    check("door · the birth door's preflight", preflight.ok === true, text(preflight))
+    const seat = await resolveCrewSeatModel(id)
+    check('door · the crew and teammate seats', seat.ok && seat.model === id, text(seat))
+    const crewArm = await wm.validateWorkerModelChoice(id, 'crew')
+    check("door · the crew arm of the one validator", crewArm.ok && crewArm.entry.modelId === id, text(crewArm))
+    check('door · the workflow seats: an explicit model stands (routing never substitutes it)', resolveWorkflowRoutedModel({ tier: 'executor', model: id }) === undefined)
+    const picked = setSubModel('advisor', id)
+    const advisor = resolveAdvisorModel()
+    check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', `${text(picked)} ${text(advisor)}`)
+    setSubModel('advisor', null)
+    const console_ = setSubModel('console', id)
+    check('door · the console pick', console_.ok, text(console_))
+    setSubModel('console', null)
+    const coordinator = await validateCoordinatorModelChoice(id)
+    check("door · the coordinator's assist model, selectable under its family's label", coordinator.ok && coordinator.entry.modelId === id && coordinator.entry.source === 'anthropic' && coordinator.entry.availability === 'ready', text(coordinator))
+  }
+  check("door · the REPL's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'validateModel.ts'), 'utf8')
+    const admission = src.indexOf('homeLaneAdmissionRefusal(trimmed)')
+    const probe = src.indexOf('queryModelWithoutStreaming(')
+    return admission !== -1 && probe !== -1 && admission < probe && !src.includes('is not an exact model id')
+  })())
+  delete process.env.MERCURY_WORKFLOW_ROUTING
+
+  check('the shape guards stay: a bare vendor slug is carrier-shaped junk for the home lane', !canonicalWireModelId('anthropic/claude-zephyr-9-1').ok)
+  check("the shape guards stay: a spelling without the claude- mark is no family's ('claude zephyr 9' → unrecognised)", recognizeModelId('claude zephyr 9').kind === 'unrecognised')
+  const spaced = await wm.validateWorkerModelChoice('claude zephyr 9', 'session')
+  check('…and the door refuses it not-runnable:unrecognised, the honest class', !spaced.ok && spaced.reason === 'not-runnable:unrecognised', text(spaced))
+}
+
+section('§5 the road census — every door reaches a capability owner; a new judge must be declared here')
+{
+  const { readFileSync } = await import('node:fs')
+  const { join: j } = await import('node:path')
+  const { execFileSync } = await import('node:child_process')
+  const ROOT = j(import.meta.dir, '..', '..')
+  const read = (rel: string): string => readFileSync(j(ROOT, rel), 'utf8')
+  const doors: Array<[string, string, string]> = [
+    ['src/components/BootSplashScreen.tsx', "the boot face's New Session", 'bornSession'],
+    ['src/services/switchboard/hopIntoSession.ts', '/clear', 'bornSession('],
+    ['src/screens/REPL.tsx', "the screen's own birth", 'bornSession('],
+    ['src/services/switchboard/bornSession.ts', 'the birth door reaches the daemon admission', "op: 'sessionAdmit'"],
+    ['src/daemon/concourseSupervisor.ts', 'the daemon admission', 'validateWorkerModelChoice('],
+    ['src/daemon/concourseDispatch.ts', 'the birth preflight', 'validateWorkerModelChoice('],
+    ['src/daemon/crewSpawn.ts', 'the crew seat', 'validateWorkerModelChoice('],
+    ['src/daemon/controlServer.ts', 'the seat reconfigure', 'validateWorkerModelChoice('],
+    ['src/daemon/sessionSeat.ts', 'the switch on a gone runner', 'validateWorkerModelChoice('],
+    ['src/commands/model/model.tsx', "the REPL's /model <id>", 'validateModel('],
+    ['src/services/advisor/advisorSettings.ts', "the advisor's model", "resolveSubModel("],
+    ['src/tools/WorkflowTool/workflowRouting.ts', 'the workflow seat', 'neutralSeatDefault'],
+  ]
+  for (const [file, door, owner] of doors) {
+    check(`${door} (${file}) reaches ${owner}`, read(file).includes(owner))
+  }
+  const owners: Array<[string, string]> = [
+    ['src/services/concourse/workerModels.ts', 'validateWorkerModelChoice'],
+    ['src/services/concourse/coordinatorModels.ts', 'validateCoordinatorModelChoice'],
+    ['src/utils/model/subModelSlots.ts', 'setSubModel'],
+  ]
+  for (const [file, fn] of owners) {
+    const src = read(file)
+    check(`${fn} (${file}) carries the capability clause (declaredRouteOf) and no exact-id membership refusal`, src.includes('declaredRouteOf(') && !src.includes('is not an exact model id'))
+  }
+  const composers = execFileSync('grep', ['-rl', '-e', 'composeWorkerModelRegistry(', '-e', 'composeSubModelRegistry(', '-e', 'composeCoordinatorModelRegistry(', 'src'], { cwd: ROOT })
+    .toString('utf8')
+    .split('\n')
+    .filter(Boolean)
+    .sort()
+  const declared = [
+    'src/components/SubModelPicker.tsx',
+    'src/components/concourse/CoordinatorModelPicker.tsx',
+    'src/services/concourse/concourseSnapshot.ts',
+    'src/services/concourse/coordinatorModels.ts',
+    'src/services/concourse/workerModels.ts',
+    'src/utils/model/subModelSlots.ts',
+  ]
+  check('every file that composes a model registry is declared here (the pickers and the snapshot paint rows; the three owners judge) — a new judge joins this list and takes the clause', JSON.stringify(composers) === JSON.stringify(declared), composers.join(' · '))
+  const docs = read('docs/ENGINES.md').replace(/\s+/g, ' ')
+  check('the docs say a new Anthropic model runs before a catalogue row lands, and what a row adds', /runs before its catalogue row lands/.test(docs) && /A catalogue row adds/.test(docs) && /display name/.test(docs) && /price tier/.test(docs) && /1M twin/.test(docs) && /wire laws/.test(docs))
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ prove-claude-door-capability — all checks pass' : `\n❌ prove-claude-door-capability — ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
