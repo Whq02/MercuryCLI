@@ -9,7 +9,8 @@ const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
-const rare = ['Service', 'Inspect', 'AstEdit', 'AstSearch', 'Sleep', 'TeamBrief', 'Checkpoint', 'ArtifactsList', 'Rewind']
+const rare = ['Service', 'Inspect', 'Sleep', 'TeamBrief', 'ArtifactsList']
+const loadedInFull = ['ChangeSet', 'AstSearch', 'AstEdit', 'LSP', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   if (!condition) failures++
@@ -114,7 +115,12 @@ try {
     console.log(`  [INFO] ${route}: eager definitions: ${eager.map(tool => `${tool.name}(${bytes(tool)})`).join(' ')}`)
     console.log(`  [INFO] ${route}: ${deferred.length} deferred definitions on the wire (${deferred.reduce((total, tool) => total + bytes(tool), 0)} bytes) · Debug ${tools.some(tool => tool.name === 'Debug') ? 'present' : 'absent'} · coordination tools ${tools.filter(tool => String(tool.name).startsWith('mcp__mercury__')).length}`)
     console.log(`  [INFO] ${route}: sizes reported, never bounded — system ${systemBytes} bytes (${tokens(systemBytes)}) · initial definitions ${eagerBytes} bytes in ${eager.length} tools (${tokens(eagerBytes)}) · attachments ${attachmentBytes} bytes · request ${requestBytes} bytes (${tokens(requestBytes)})`)
+    const fullOnWire = loadedInFull.filter(name => eager.some(tool => tool.name === name))
+    const fullBytes = eager.filter(tool => loadedInFull.includes(tool.name)).reduce((total, tool) => total + bytes(tool), 0)
+    console.log(`  [INFO] ${route}: loaded in full beside the daily set: ${eager.filter(tool => loadedInFull.includes(tool.name)).map(tool => `${tool.name}(${bytes(tool)})`).join(' ')} · ${fullBytes} bytes (${tokens(fullBytes)})`)
     check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Agent', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
+    check(`${route}: the tools loaded in full beside the daily set ride eager from the first request`, fullOnWire.length === loadedInFull.length, `missing ${loadedInFull.filter(name => !fullOnWire.includes(name)).join(', ')}`)
+    check(`${route}: none of them is named in the deferred-tools row`, loadedInFull.every(name => !reminderTexts.some((text: string) => text.split('\n').includes(name))))
     check(`${route}: rare tools remain discoverable without loading initially`, rare.every(name => !eager.some(tool => tool.name === name) && reminderTexts.some((text: string) => text.split('\n').includes(name))))
   }
 } finally {

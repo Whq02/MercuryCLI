@@ -208,7 +208,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   check("the fork runner stamps the parent's roster owner on the fork context (rosterOwner)", forkSrc.includes('rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext)'))
   check('the turn machine keys the roster latch on the roster owner', tmSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext))'))
   check("the direct summariser road keys the latch on the conversation's roster owner", compactSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(context))'))
-  check('the Anthropic lane never re-reads a deferral mark live (the LSP rule rides the plan, judged once)', scSrc.includes('alsoDefer: shouldDeferLspTool') && !/willDefer = [^\n]*shouldDeferLspTool/.test(scSrc))
+  check('the Anthropic lane uses only the plan marks, with no language-server deferral override', scSrc.includes('const deferredToolNames = plan.deferredNames') && !scSrc.includes('shouldDeferLspTool'))
 
   process.env.MERCURY_TOOL_SEARCH = '0'
   const s1 = await plan([search, readTool, deferrable], { key: 'conv-c' })

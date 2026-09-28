@@ -50,7 +50,7 @@ import {
   isToolSearchEnabledOptimistic,
   isToolSearchToolAvailable,
 } from '../../utils/toolSearch.js'
-import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
@@ -117,11 +117,12 @@ export function buildSchemaNotSentHint(
   tool: Tool,
   messages: Message[],
   tools: readonly { name: string }[],
+  model = getMainLoopModel(),
 ): string | null {
   if (!isToolSearchEnabledOptimistic()) return null
   if (!isToolSearchToolAvailable(tools)) return null
-  if (!isDeferredTool(tool)) return null
-  if (deferralSearchIsServerSide(deferralWireFormFor(getMainLoopModel()).form)) return null
+  if (!isDeferredToolFor(tool, model, undefined, messages)) return null
+  if (deferralSearchIsServerSide(deferralWireFormFor(model).form)) return null
   const discovered = extractDiscoveredToolNames(messages)
   if (discovered.has(tool.name)) return null
   return (
@@ -318,7 +319,7 @@ export async function* runToolUse(
     const closest = closestToolByName(toolUseContext.options.tools, requestedName)
     const loadRoad =
       closest !== undefined &&
-      buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools) !== null
+      buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.mainLoopModel) !== null
     const unknownToolText =
       closest === undefined
         ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
@@ -478,6 +479,7 @@ async function runTransactionBody(args: {
       tool,
       toolUseContext.messages,
       toolUseContext.options.tools,
+      toolUseContext.options.mainLoopModel,
     )
     if (hint) content += hint
     emitError(content, `InputValidationError: ${parsed.error.message}`)

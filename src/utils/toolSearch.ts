@@ -2,7 +2,7 @@ import memoize from 'lodash-es/memoize.js'
 
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
 import { toolMatchesName } from '../Tool.js'
-import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
+import { formatDeferredToolLine, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import type { Message } from '../types/message.js'
 import { countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD } from './analyzeContext.js'
@@ -166,7 +166,7 @@ export async function isToolSearchEnabled(
   if (mode === 'standard') return false
 
   const thresholdPermissionMode = (await getToolPermissionContext()).mode
-  const deferrableTools = tools.filter(tool => isDeferredTool(tool, thresholdPermissionMode))
+  const deferrableTools = tools.filter(tool => isDeferredToolFor(tool, model, thresholdPermissionMode))
   const cacheKey = deferrableTools.map(tool => tool.name).join(',')
   const exactTokens = await memoizedDeferredToolTokens(cacheKey, deferrableTools, getToolPermissionContext, agents, model)
   const suffix = source !== undefined ? ` (${source})` : ''
@@ -246,6 +246,7 @@ export function getDeferredToolsDelta(
   tools: Tools,
   messages: Message[],
   scanContext?: DeferredToolsDeltaScanContext,
+  model?: string,
 ): DeferredToolsDelta | null {
   const holdMcpRemovals = scanContext?.hasPendingMcpServers === true
 
@@ -259,7 +260,7 @@ export function getDeferredToolsDelta(
     for (const name of delta.removedNames ?? []) announced.delete(name)
   }
 
-  const deferrableTools = tools.filter(tool => isDeferredTool(tool))
+  const deferrableTools = tools.filter(tool => isDeferredToolFor(tool, model, undefined, messages))
   const deferrableNames = new Set(deferrableTools.map(tool => tool.name))
   const pooledNames = new Set(tools.map(tool => tool.name))
 

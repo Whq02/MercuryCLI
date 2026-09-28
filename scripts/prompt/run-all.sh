@@ -14,7 +14,9 @@
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts
 # gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
-# gate-watch: src/constants/system.ts src/utils/api.ts
+# gate-watch: src/constants/system.ts src/utils/api.ts src/utils/messages.ts
+# gate-watch: src/main.tsx src/services/providers/anthropic/streamCore.ts src/services/lsp/**
+# gate-watch: scripts/lsp/fixtures/fake-lsp-server.mjs src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

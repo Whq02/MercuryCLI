@@ -1,5 +1,7 @@
 import type { Tool } from '../../Tool.js'
+import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
+import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../ApolloReviewTool/constants.js'
 import {
@@ -27,6 +29,29 @@ export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   if (tool.name === SATURN_EXEMPT_TOOL_A && isSaturnExemptAEnabled()) return false
   if (tool.name === SATURN_EXEMPT_TOOL_B && isSaturnExemptBEnabled()) return false
   return Boolean(tool.shouldDefer)
+}
+
+export function loadsInFullFor(tool: Tool, model: string | undefined): boolean {
+  if (tool.loadInFullOnCloud !== true) return false
+  if (model === undefined || model.trim() === '') return false
+  return qualifiedIdSpaceOf(model)?.route !== 'local'
+}
+
+export function isDeferredToolFor(tool: Tool, model: string | undefined, permissionMode?: string, messages: readonly Message[] = []): boolean {
+  if (tool.loadInFullOnCloud && model !== undefined) {
+    const first = messages.find(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
+    const suffix = `|${first?.uuid ?? 'empty'}|${model}`
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i]!
+      if (message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
+      const record = message.attachment
+      if (!record.boundKey.endsWith(suffix)) continue
+      const mark = record.roster.find(item => item.name === tool.name)
+      if (mark) return record.rosterEnabled && mark.deferred
+      break
+    }
+  }
+  return isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)
 }
 
 export function formatDeferredToolLine(tool: Tool): string {

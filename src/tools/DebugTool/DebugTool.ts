@@ -1181,6 +1181,7 @@ export const DebugTool = buildTool({
   },
   userFacingName,
   shouldDefer: true,
+  loadInFullOnCloud: true,
   get inputSchema(): SchemaType {
     return inputSchema()
   },

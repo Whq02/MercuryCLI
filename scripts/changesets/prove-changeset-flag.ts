@@ -58,7 +58,7 @@ console.log('── §3 self-description + seams ──')
 {
   const cap = (ChangeSetTool as { capability?: { gate?: string; class?: string; transaction?: { receipts?: boolean } } }).capability
   check('the tool self-declares its capability (gate + mutation class + receipts)', cap?.gate === 'MERCURY_CHANGESET' && cap?.class === 'mutation' && cap?.transaction?.receipts === true)
-  check('the tool is DEFERRED (zero permanent prompt mass)', (ChangeSetTool as { shouldDefer?: boolean }).shouldDefer === true)
+  check('the tool declares itself deferrable (the local lane keeps it in the drawer) and loaded in full on cloud routes', (ChangeSetTool as { shouldDefer?: boolean; loadInFullOnCloud?: boolean }).shouldDefer === true && (ChangeSetTool as { loadInFullOnCloud?: boolean }).loadInFullOnCloud === true)
   const pinned = mkdtempSync(join(tmpdir(), 'fulcrum-flag-cs-'))
   process.env.MERCURY_CHANGESET_DIR = pinned
   check('MERCURY_CHANGESET_DIR pins the durable home (hermetic seam)', changeSetHomeDir() === pinned)

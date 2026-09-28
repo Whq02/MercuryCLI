@@ -448,7 +448,9 @@ export const TestTool = buildTool({
     return 'Run project tests as structured transactions: discover, run, rerun failures, debug one test'
   },
   async prompt() {
-    return `Run project tests as STRUCTURED transactions (Python: pytest/unittest — the framework is auto-resolved from the project and the shared interpreter; results come from framework-level records, never parsed prose).
+    return `Use this over running tests in Bash for structured results, precise failure reruns and durable test records.
+
+Run project tests as STRUCTURED transactions (Python: pytest/unittest — the framework is auto-resolved from the project and the shared interpreter; results come from framework-level records, never parsed prose).
 
 Operations:
 1. op:"discover" — list test node ids (pytest: file::test · unittest: module.Class.test) or the manifest-declared runner profiles (rp-…). Collect errors are reported, never hidden.
@@ -461,6 +463,7 @@ A run whose exit code disagrees with its structured records says so (verdictNote
   },
   userFacingName,
   shouldDefer: true,
+  loadInFullOnCloud: true,
   straightQuoteInputs: ['path', 'file'],
   get inputSchema(): SchemaType {
     return inputSchema()

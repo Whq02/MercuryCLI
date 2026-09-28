@@ -146,7 +146,6 @@ import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
-import { getInitializationStatus } from '../../lsp/manager.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
 import { clientContractMoveOf } from '../../api/clientContractLearned.js'
@@ -360,14 +359,6 @@ async function sendGatewayProbe(
   }
 }
 
-function shouldDeferLspTool(tool: Tool): boolean {
-  if (!('isLsp' in tool) || !tool.isLsp) {
-    return false
-  }
-  const status = getInitializationStatus()
-  return status.status === 'pending' || status.status === 'not-started'
-}
-
 function getNonstreamingFallbackTimeoutMs(): number {
   return nonstreamingFallbackCeilingMs()
 }
@@ -504,7 +495,6 @@ async function* queryModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
     latchKey: rosterOwnerKey,
-    alsoDefer: shouldDeferLspTool,
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames

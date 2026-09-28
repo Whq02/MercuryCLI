@@ -32,7 +32,7 @@ export function getDeferredToolsDeltaAttachment(
   const form = deferralWireFormFor(model).form
   if (form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
-  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext)
+  const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model)
   if (!delta) return []
   const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : 'The following tools are available in this session:'
   const body = [

@@ -23,7 +23,9 @@ const RATE_BURST = 20
 const RATE_REFILL_PER_SEC = 10
 const OVERFLOW_STOP_MS = 10_000
 
-const DESCRIPTION = `Start a background monitor that streams events from a long-running script. Each stdout line is an event — you keep working and notifications arrive in the chat. Events arrive on their own schedule and are not replies from the user, even if one lands while you're waiting for the user to answer a question.
+const DESCRIPTION = `Use this over polling a log: new lines arrive as notifications while you keep working.
+
+Start a background monitor that streams events from a long-running script. Each stdout line is an event — you keep working and notifications arrive in the chat. Events arrive on their own schedule and are not replies from the user, even if one lands while you're waiting for the user to answer a question.
 
 Pick by how many notifications you need:
 - **One** ("tell me when the server is ready / the build finishes") → use **Bash with \`run_in_background\`** and a command that exits when the condition is true, e.g. \`until grep -q "Ready in" dev.log; do sleep 0.5; done\`. You get a single completion notification when it exits.
@@ -103,6 +105,7 @@ export const MonitorTool = buildTool({
     return outputSchema()
   },
   shouldDefer: true,
+  loadInFullOnCloud: true,
   isEnabled() {
     return true
   },
@@ -118,8 +121,11 @@ export const MonitorTool = buildTool({
   async description() {
     return DESCRIPTION
   },
-  async prompt() {
-    return ''
+  async prompt(options) {
+    const canStop = options?.tools?.some(tool => tool.name === 'TaskStop') ?? true
+    return canStop
+      ? DESCRIPTION
+      : DESCRIPTION.replace('until you stop it with TaskStop or the session ends', 'until the session ends (this session has no stop control, so prefer a bounded watch)')
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     return {

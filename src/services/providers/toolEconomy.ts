@@ -1,6 +1,6 @@
 import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
-import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import { formatDeferredToolLine, isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { clearConversationToolSchemas, getConversationToolSchemas } from '../../utils/toolSchemaCache.js'
@@ -192,7 +192,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     if (enabled && !supportsToolDeferral(model, wire.form)) enabled = false
   }
 
-  const defers = (t: Tool): boolean => isDeferredTool(t) || input.alsoDefer?.(t) === true
+  const defers = (t: Tool): boolean => (isDeferredTool(t) && !loadsInFullFor(t, model)) || input.alsoDefer?.(t) === true
 
   const deferredNames = new Set<string>()
   if (latched !== undefined) {

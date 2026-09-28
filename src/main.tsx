@@ -24,7 +24,9 @@ import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
 import { launchRepl } from './replLauncher.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
-import { initializeLspServerManager } from './services/lsp/manager.js'
+import { initializeLspServerManager, waitForInitialization } from './services/lsp/manager.js'
+import { mercuryLspEnabled } from './services/lsp/mercuryLsp.js'
+import { qualifiedIdSpaceOf } from './services/providers/idSpaces.js'
 import { fetchClaudeAIMcpConfigsIfEligible } from './services/mcp/claudeai.js'
 import {
   clearServerCache,
@@ -2132,6 +2134,11 @@ async function printLaunch(args: {
   const { opts } = args
 
   setHeadlessOneShot(args.inputFormat !== 'stream-json')
+
+  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getMainLoopModel())?.route !== 'local') {
+    initializeLspServerManager()
+    await waitForInitialization()
+  }
 
   let tools = [...getTools(args.toolPermissionContext)]
   const jsonSchemaOpt = typedString(opts.jsonSchema)

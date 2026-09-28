@@ -535,6 +535,18 @@ A sub-agent keeps the same kind of record on its own transcript: one brought
 back after its run ended (a message sent to it, the crew view's resume) sends
 the tool list it first sent, whatever the session's tools are by then.
 
+On a cloud model a conversation starts with Agent, Bash, Glob, Grep, Read,
+Edit, Write, Skill, Workshop, Eval, JevEval, ScheduleWakeup, PushNotification
+and ToolSearch in full when their gates admit them and, loaded in full
+beside them, ChangeSet, AstSearch, AstEdit, LSP (whenever a language server
+is reachable), Test, Git, Debug (whenever a debug adapter is reachable),
+Monitor, Checkpoint and Rewind. Routes that support deferral announce the
+remaining tools by name and load them on demand. A local model keeps its
+own set: the daily tools in full, everything else by name. An adapter found
+after the first request joins in full at the next compaction or /clear,
+without moving the current conversation's prefix. Nothing is trimmed,
+dropped or deferred to fit a size limit.
+
 The tool list a conversation starts with is kept for its life, so nothing
 already sent moves under the model. A tool that joins later (a connector
 that connects after the first request, a tool a setting turns on) rides

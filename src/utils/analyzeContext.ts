@@ -21,7 +21,7 @@ import { findToolByName } from '../Tool.js'
 import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import { SkillTool } from '../tools/SkillTool/SkillTool.js'
 import { getSkillToolInfo, getLimitedSkillToolCommands } from '../tools/SkillTool/prompt.js'
-import { isDeferredTool } from '../tools/ToolSearchTool/prompt.js'
+import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
 import type { Message } from '../types/message.js'
 import { toolToAPISchema } from './api.js'
 import { getContextWindowForModel } from './context.js'
@@ -261,7 +261,7 @@ export async function countMcpToolTokens(
     const tool = tools[i] as Tool
     const displayTokens = Math.round((bulkTotal * (estimates[i] as number)) / estimateSum)
     const serverName = tool.name.split('__')[1] || UNKNOWN_NAME
-    const isLoaded = usedNames.has(tool.name) || !isDeferredTool(tool)
+    const isLoaded = usedNames.has(tool.name) || !isDeferredToolFor(tool, model, undefined, messages)
     if (isLoaded) {
       loadedSum += displayTokens
       loadedMcpToolNames.add(tool.name)
@@ -572,8 +572,8 @@ export async function analyzeContextUsage(
 
   const mcpTools = tools.filter(tool => tool.name.startsWith('mcp__'))
   const builtinTools = tools.filter(tool => !tool.name.startsWith('mcp__'))
-  const deferredBuiltins = builtinTools.filter(tool => isDeferredTool(tool))
-  const loadedBuiltins = builtinTools.filter(tool => !isDeferredTool(tool))
+  const deferredBuiltins = builtinTools.filter(tool => isDeferredToolFor(tool, runtimeModel, undefined, messages))
+  const loadedBuiltins = builtinTools.filter(tool => !isDeferredToolFor(tool, runtimeModel, undefined, messages))
   const agentInfo = agentDefinitions
   const toolSearchEnabled = await isToolSearchEnabled(
     runtimeModel,

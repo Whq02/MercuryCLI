@@ -310,6 +310,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   maxResultSizeChars: number
   shouldDefer?: boolean
   alwaysLoad?: boolean
+  loadInFullOnCloud?: boolean
   searchHint?: string
   userFacingNameBackgroundColor?(input?: any): string | undefined
   description(
