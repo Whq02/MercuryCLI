@@ -123,9 +123,13 @@ console.log('R4: the host wiring (structural)')
     'print.ts arms the seam over the live roster binding',
     printSrc.includes('armRunnerAgentFreshness({') && printSrc.includes('setActive: next => {'),
   )
+  const roadStart = printSrc.indexOf('closeOutput: async () => {')
+  const roadEnd = roadStart === -1 ? -1 : printSrc.indexOf('io.outbound.done()', roadStart)
+  const road = roadStart !== -1 && roadEnd !== -1 ? printSrc.slice(roadStart, roadEnd) : ''
   check(
-    'print.ts disarms beside the skills detector dispose (the session-end road)',
-    printSrc.includes('skillChangeDetector.dispose()\n      disarmAgentFreshness()'),
+    'print.ts disarms on the session-end road beside the skills detector dispose (both before the output closes)',
+    road.includes('skillChangeDetector.dispose()') && road.includes('disarmAgentFreshness()'),
+    `road=${road.length} chars`,
   )
   const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useAgentsChange.ts'), 'utf-8')
   check(
