@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   IMAGE_LIMITS_BY_FAMILY,
   type ImageLimitFamily,
@@ -7,6 +8,7 @@ import { classifyModelRoute } from '../services/providers/idSpaces.js'
 import { getImageProcessor, imageProcessorState, type SharpFunction } from '../tools/FileReadTool/imageProcessor.js'
 import { imageDimensionsFromHeader } from '../tools/FileReadTool/imageProcessorJs.js'
 import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
+import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 
@@ -90,14 +92,18 @@ function base64LengthOf(rawBytes: number): number {
   return Math.ceil(rawBytes / 3) * 4
 }
 
+export function requestImageSidePx(limits: ImageLimits, imagesInRequest: number): number | null {
+  const sidePx = limits.maxSidePx
+  if (limits.manyImages !== null && imagesInRequest > limits.manyImages.threshold) {
+    return sidePx === null ? limits.manyImages.maxSidePx : Math.min(sidePx, limits.manyImages.maxSidePx)
+  }
+  return sidePx
+}
+
 async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
   const model = options?.model ?? (options?.limits === undefined || options?.role === 'tool-result' ? await mainLoopModel() : undefined)
   const limits = options?.limits ?? imageLimitsForModel(model)
-  let sidePx = limits.maxSidePx
-  const inRequest = options?.imagesInRequest ?? 0
-  if (limits.manyImages !== null && inRequest > limits.manyImages.threshold) {
-    sidePx = sidePx === null ? limits.manyImages.maxSidePx : Math.min(sidePx, limits.manyImages.maxSidePx)
-  }
+  const sidePx = requestImageSidePx(limits, options?.imagesInRequest ?? 0)
   let longEdgePx: number | null = null
   if (options?.role === 'tool-result' && limits.toolResultRejectsAboveNative) {
     const tier = limits.family === 'anthropic' ? anthropicResolutionTier(model) : 'standard'
@@ -339,6 +345,163 @@ export async function clampToolResultImageBlocks(
     }
   }
   for (const text of notes) parts.push({ type: 'text', text })
+}
+
+export interface RequestImageFit<M> {
+  messages: M[]
+  firstEdited: number
+  images: number
+  sized: number
+  sidePx: number | null
+}
+
+export interface RequestImageFitOptions {
+  limits?: ImageLimits
+  model?: string
+}
+
+type RequestRow = { type: string }
+type BlockRecord = Record<string, unknown> & { type?: unknown }
+
+const HEADER_PREFIX_CHARS = 96 * 1024
+const SIZED_IMAGE_CACHE_BYTES = 64 * 1024 * 1024
+const sizedImageCache = new Map<string, Base64ImageSource>()
+let sizedImageCacheBytes = 0
+
+export function imageDimensionsOfBase64(data: string): { width: number; height: number } | null {
+  const head = imageDimensionsFromHeader(Buffer.from(data.length > HEADER_PREFIX_CHARS ? data.slice(0, HEADER_PREFIX_CHARS) : data, 'base64'))
+  if (head !== null || data.length <= HEADER_PREFIX_CHARS) return head
+  return imageDimensionsFromHeader(Buffer.from(data, 'base64'))
+}
+
+function isBase64ImageRecord(block: unknown): block is BlockRecord & { source: Base64ImageSource } {
+  if (typeof block !== 'object' || block === null) return false
+  const candidate = block as BlockRecord & { source?: { type?: unknown; data?: unknown } }
+  return candidate.type === 'image' && typeof candidate.source === 'object' && candidate.source !== null && candidate.source.type === 'base64' && typeof candidate.source.data === 'string'
+}
+
+function contentOfRow(row: unknown): unknown[] | null {
+  const content = (row as { message?: { content?: unknown } } | null)?.message?.content
+  return Array.isArray(content) ? content : null
+}
+
+export function countRequestImages(messages: readonly unknown[]): number {
+  let count = 0
+  for (const row of messages) {
+    if ((row as RequestRow).type !== 'user') continue
+    const content = contentOfRow(row)
+    if (content === null) continue
+    for (const block of content) {
+      if (isBase64ImageRecord(block)) count++
+      const nested = (block as BlockRecord).type === 'tool_result' ? (block as BlockRecord).content : undefined
+      if (Array.isArray(nested)) for (const inner of nested) if (isBase64ImageRecord(inner)) count++
+    }
+  }
+  return count
+}
+
+function rememberSized(key: string, source: Base64ImageSource): void {
+  if (source.data.length > SIZED_IMAGE_CACHE_BYTES) return
+  while (sizedImageCacheBytes + source.data.length > SIZED_IMAGE_CACHE_BYTES && sizedImageCache.size > 0) {
+    const oldest = sizedImageCache.keys().next().value
+    if (oldest === undefined) break
+    sizedImageCacheBytes -= sizedImageCache.get(oldest)?.data.length ?? 0
+    sizedImageCache.delete(oldest)
+  }
+  sizedImageCache.set(key, source)
+  sizedImageCacheBytes += source.data.length
+}
+
+async function sizedImageSource(
+  block: BlockRecord & { source: Base64ImageSource },
+  sidePx: number,
+  limits: ImageLimits,
+  model: string | undefined,
+  imagesInRequest: number,
+): Promise<Base64ImageSource | null> {
+  const dims = imageDimensionsOfBase64(block.source.data)
+  if (dims === null || Math.max(dims.width, dims.height) <= sidePx) return null
+  const key = `${sidePx}:${block.source.data.length}:${createHash('sha256').update(block.source.data).digest('hex')}`
+  const remembered = sizedImageCache.get(key)
+  if (remembered !== undefined) return remembered
+  try {
+    const resized = await maybeResizeAndDownsampleImageBlock(block as unknown as ImageBlockParam, { limits, model, imagesInRequest, role: 'input' })
+    if (resized.block.source.type !== 'base64') return null
+    rememberSized(key, resized.block.source)
+    return resized.block.source
+  } catch (error) {
+    logForDebugging(`an image of ${dims.width}x${dims.height} px could not be sized to the request's ${sidePx} px cap and rides as it is: ${error instanceof Error ? error.message : String(error)}`, { level: 'warn' })
+    return null
+  }
+}
+
+export async function fitImagesToRequestCap<M extends RequestRow>(
+  messages: M[],
+  options?: RequestImageFitOptions,
+): Promise<RequestImageFit<M>> {
+  const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await mainLoopModel()))
+  const images = countRequestImages(messages)
+  const sidePx = requestImageSidePx(limits, images)
+  const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, sidePx }
+  if (sidePx === null || images === 0) return identity
+  const fitBlock = async (block: unknown): Promise<unknown> => {
+    if (!isBase64ImageRecord(block)) return block
+    const source = await sizedImageSource(block, sidePx, limits, options?.model, images)
+    return source === null ? block : { ...block, source }
+  }
+  let firstEdited = -1
+  let sized = 0
+  const out: M[] = []
+  for (let index = 0; index < messages.length; index++) {
+    const row = messages[index]!
+    const content = row.type === 'user' ? contentOfRow(row) : null
+    if (content === null) {
+      out.push(row)
+      continue
+    }
+    let changed = false
+    const blocks: unknown[] = []
+    for (const block of content) {
+      const fitted = await fitBlock(block)
+      if (fitted !== block) {
+        changed = true
+        sized++
+        blocks.push(fitted)
+        continue
+      }
+      const nested = (block as BlockRecord).type === 'tool_result' ? (block as BlockRecord).content : undefined
+      if (!Array.isArray(nested)) {
+        blocks.push(block)
+        continue
+      }
+      let innerChanged = false
+      const inner: unknown[] = []
+      for (const part of nested) {
+        const fitted = await fitBlock(part)
+        if (fitted !== part) {
+          innerChanged = true
+          sized++
+        }
+        inner.push(fitted)
+      }
+      if (!innerChanged) {
+        blocks.push(block)
+        continue
+      }
+      changed = true
+      blocks.push({ ...(block as BlockRecord), content: inner })
+    }
+    if (!changed) {
+      out.push(row)
+      continue
+    }
+    if (firstEdited === -1) firstEdited = index
+    const carrier = row as M & { message: Record<string, unknown> }
+    out.push({ ...carrier, message: { ...carrier.message, content: blocks } })
+  }
+  if (firstEdited === -1) return identity
+  logForDebugging(`${sized} of the ${images} images in this request sized to ${sidePx} px a side (${limits.family} limits${limits.manyImages !== null && images > limits.manyImages.threshold ? `, the cap for a request with more than ${limits.manyImages.threshold} images` : ''})`)
+  return { messages: out, firstEdited, images, sized, sidePx }
 }
 
 

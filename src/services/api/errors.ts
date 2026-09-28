@@ -389,9 +389,13 @@ export function getPromptTooLongTokenGap(msg: Message): number | undefined {
 }
 
 
+export function isManyImageRefusal(raw: string): boolean {
+  return /many[- ]images?\b/i.test(raw)
+}
+
 export function isMediaSizeError(raw: string): boolean {
   if (raw.includes('image exceeds') && raw.includes('maximum')) return true
-  if (raw.includes('image dimensions exceed') && raw.includes('many-image')) return true
+  if (raw.includes('image dimensions exceed') && isManyImageRefusal(raw)) return true
   if (raw.includes('image dimensions exceed') && raw.includes('max allowed size')) return true
   return PDF_PAGES_PATTERN.test(raw)
 }
@@ -583,6 +587,18 @@ function composeAssistantMessageFromError(
     })
   }
 
+  if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
+    const base =
+      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images.'
+    return createAssistantAPIErrorMessage({
+      content: nonInteractive
+        ? `${base} Start a new session with fewer images.`
+        : `${base} Run /compact to drop old images, or start a new session.`,
+      error: 'invalid_request',
+      errorDetails: message,
+    })
+  }
+
   if (
     status === 400 &&
     error instanceof Error &&
@@ -595,18 +611,6 @@ function composeAssistantMessageFromError(
       content: nonInteractive
         ? base
         : `${base} You can also run /compact to drop old images, or simply continue.`,
-      error: 'invalid_request',
-      errorDetails: message,
-    })
-  }
-
-  if (status === 400 && message.includes('image dimensions exceed') && message.includes('many-image')) {
-    const base =
-      'An image exceeds the stricter 2000-pixel limit that applies to requests with many images.'
-    return createAssistantAPIErrorMessage({
-      content: nonInteractive
-        ? `${base} Start a new session with fewer images.`
-        : `${base} Run /compact to drop old images, or start a new session.`,
       error: 'invalid_request',
       errorDetails: message,
     })
@@ -822,7 +826,7 @@ export function classifyAPIError(error: unknown): string {
   if (message.includes(PDF_PASSWORD_PHRASE)) return 'pdf_password_protected'
   if (
     (message.includes('image exceeds') && message.includes('maximum')) ||
-    (message.includes('image dimensions exceed') && message.includes('many-image'))
+    (message.includes('image dimensions exceed') && isManyImageRefusal(message))
   ) {
     return 'image_too_large'
   }

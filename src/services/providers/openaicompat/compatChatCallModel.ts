@@ -84,6 +84,7 @@ import { gateToolCalls, toolCallRefusalDiagnostic, toolCallRefusalNote } from '.
 import { isLocalLivenessCut, localStreamLawFor } from '../localLiveness.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 const COMPAT_MAX_ATTEMPTS = 2
@@ -428,10 +429,15 @@ export async function* compatChatCallModel(
     }
   }
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
-  const wireMessagesForBridge =
+  const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId })
+  const wireMessagesForBridge =
+    fittedImages.firstEdited === -1
+      ? fittedImages.messages
+      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
   const preparedMessages = healWalkableForWire(wireMessagesForBridge)
   const request: CompatChatRequest = {
     model: wireModel,

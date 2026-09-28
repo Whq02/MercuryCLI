@@ -60,6 +60,7 @@ import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 import {
   buildZaiChatRequest,
@@ -243,10 +244,15 @@ export async function* zaiCallModel(
   }
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages, plan.wireForm), plan)
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
-  const wireMessagesForBridge =
+  const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId })
+  const wireMessagesForBridge =
+    fittedImages.firstEdited === -1
+      ? fittedImages.messages
+      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const vocabulary = glmEffortsFor(modelId)
