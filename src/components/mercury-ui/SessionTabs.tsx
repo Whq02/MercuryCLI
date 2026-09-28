@@ -11,6 +11,7 @@ import { filterResumableSessions } from '../../commands/resume/resume.js'
 import { Box, Text } from '../../ink.js'
 import type { LogOption } from '../../types/logs.js'
 import { formatRelativeTimeAgo } from '../../utils/format.js'
+import { getLogDisplayTitle } from '../../utils/log.js'
 import { isCrewSession } from '../../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../../daemon/concourseSupervisor.js'
 import { isProjectSession, isSubstantiveSession } from '../../utils/sessionFilter.js'
@@ -38,10 +39,7 @@ import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 
 export function tabLabel(log: LogOption): string {
-  const t =
-    log.customTitle?.trim() || log.firstPrompt?.trim() || log.agentName?.trim()
-  if (!t) return 'untitled'
-  const cleaned = Array.from(t, ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
+  const cleaned = Array.from(getLogDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
     .join('')
     .replace(/\s+/g, ' ')
     .trim()

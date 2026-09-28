@@ -7,6 +7,7 @@ import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { getWorktreePathsPortable } from './getWorktreePathsPortable.js'
 import { djb2Hash } from './hash.js'
+import { stripGroundNote } from '../daemon/isolationNote.js'
 
 
 export const LITE_READ_BUF_SIZE = 65536
@@ -161,7 +162,7 @@ export function extractFirstPromptFromHead(head: string): string {
       continue
     }
     for (const rawText of collectTexts(content)) {
-      const text = rawText.replace(/\n/g, ' ').trim()
+      const text = stripGroundNote(rawText).replace(/\n/g, ' ').trim()
       if (text === '') continue
       const commandName = /<command-name>(.*?)<\/command-name>/.exec(text)
       if (commandName) {
