@@ -3,7 +3,7 @@ import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
 import { readGatewayProbeVerdict } from './deferralProbe.js'
 
-export type DeferralWireForm = 'block' | 'text'
+export type DeferralWireForm = 'block' | 'text' | 'openrouter-native'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
@@ -14,7 +14,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   moonshot: 'text',
   deepseek: 'text',
   'openai-compat': 'text',
-  openrouter: 'text',
+  openrouter: 'openrouter-native',
   gemini: 'text',
   huggingface: 'text',
   local: 'text',
@@ -82,8 +82,14 @@ export function gatewayProbeAllowedByFlag(): boolean {
 
 const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallModelRoute>(['openai', 'local'])
 
+const SERVER_SEARCH_FORMS: ReadonlySet<DeferralWireForm> = new Set<DeferralWireForm>(['openrouter-native'])
+
+export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
+  return SERVER_SEARCH_FORMS.has(form)
+}
+
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
-  if (form === 'block') return true
+  if (form === 'block' || deferralSearchIsServerSide(form)) return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }

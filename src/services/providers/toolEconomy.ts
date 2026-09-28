@@ -11,7 +11,7 @@ import {
   isToolReferenceBlock,
   isToolSearchEnabled,
 } from '../../utils/toolSearch.js'
-import { deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
+import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
 
 export interface ToolPayloadPlanInput {
   model: string
@@ -235,8 +235,9 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
   if (input.latchKey !== undefined) heldAtLastPlan.set(`${input.latchKey}|${firstConversationRow(messages)}`, held)
 
-  const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
+  const clientSearch = enabled && !deferralSearchIsServerSide(wire.form)
+  const admittedNames = clientSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || clientSearch)
   if (enabled && wire.form === 'text') {
     const available = new Map(roster.map(tool => [tool.name, tool]))
     roster = [
@@ -248,7 +249,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     ]
   }
 
-  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
+  const announcement = clientSearch && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,
@@ -259,7 +260,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     deferredNames,
     admittedNames,
     announcement,
-    isDeferredUnadmitted: (name: string) => enabled && deferredNames.has(name) && !admittedNames.has(name),
+    isDeferredUnadmitted: (name: string) => clientSearch && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
   }
 }

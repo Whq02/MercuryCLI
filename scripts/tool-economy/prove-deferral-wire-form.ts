@@ -52,10 +52,11 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('every declared route has a capability row', [...declared].every(r => tabled.has(r)), [...declared].filter(r => !tabled.has(r)).join(','))
   check('no capability row names an undeclared route', [...tabled].every(r => declared.has(r)), [...tabled].filter(r => !declared.has(r)).join(','))
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
-  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic').every(([, c]) => c === 'text'))
+  check("the openrouter row is the provider's own native form (openrouter:tool_search + defer_loading on the Responses API)", wire.DEFERRAL_WIRE_CAPABILITY.openrouter === 'openrouter-native', String(wire.DEFERRAL_WIRE_CAPABILITY.openrouter))
+  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openrouter').every(([, c]) => c === 'text'))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
-    const expected = route === 'anthropic' ? 'block' : 'text'
+    const expected = route === 'anthropic' ? 'block' : route === 'openrouter' ? 'openrouter-native' : 'text'
     check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && (route === 'anthropic' ? verdict.why === 'first-party-contract' : verdict.why === 'route-table'))
   }
   const stranger = wire.deferralWireFormFor('mystery-model-9000')

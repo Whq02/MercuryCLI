@@ -2,7 +2,7 @@
 import type { Message } from 'src/types/message.js'
 import type { Tools } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
-import { deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
+import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral } from '../../services/providers/deferralWire.js'
 import { heldToolsAtLastPlan } from '../../services/providers/toolEconomy.js'
 import {
   getMcpInstructionsDelta,
@@ -18,6 +18,9 @@ import {
 } from '../toolSearch.js'
 import type { Attachment } from './types.js'
 
+export const SERVER_SEARCH_ANNOUNCEMENT_HEAD =
+  'The following tools are available in this session but their definitions are not loaded yet. Before calling one, load it with the tool-search tool: pass the tool name as the pattern (a plain unanchored name such as WebFetch — the pattern is matched against the name and description together, so never use ^ or $), then call the tool as usual:'
+
 export function getDeferredToolsDeltaAttachment(
   tools: Tools,
   model: string,
@@ -26,12 +29,14 @@ export function getDeferredToolsDeltaAttachment(
 ): Attachment[] {
   if (!isDeferredToolsDeltaEnabled()) return []
   if (!isToolSearchEnabledOptimistic() || !supportsToolDeferral(model)) return []
-  if (deferralWireFormFor(model).form === 'block' && !modelSupportsToolReference(model)) return []
+  const form = deferralWireFormFor(model).form
+  if (form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
   const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext)
   if (!delta) return []
+  const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : 'The following tools are available in this session:'
   const body = [
-    ...(delta.addedLines.length > 0 ? [`The following tools are available in this session:
+    ...(delta.addedLines.length > 0 ? [`${addedHead}
 ${delta.addedLines.join(String.fromCharCode(10))}`] : []),
     ...(delta.removedNames.length > 0 ? [`The following tools are no longer available in this session:
 ${delta.removedNames.join(String.fromCharCode(10))}`] : []),

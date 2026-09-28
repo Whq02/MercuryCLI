@@ -68,6 +68,7 @@ import {
   streamCompatChat,
   type CompatChatRequest,
   type CompatCompletedToolCall,
+  type CompatDeferralFacts,
   type CompatFault,
   type CompatFinishReason,
   type CompatStreamEvent,
@@ -112,7 +113,7 @@ export interface CompatLaneProfile {
   streamTransport?(options: CompatStreamOptions, messages: readonly Message[]): {
     events: AsyncGenerator<CompatStreamEvent>
     settle?(messages: readonly AssistantMessage[]): void
-  }
+  } | undefined
   effortOnWire?(extra: Record<string, unknown>): EffortWireFact
   leadingNotes?: readonly string[]
   providerLabel: string
@@ -371,6 +372,14 @@ export async function* compatChatCallModel(
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
+  const deferral: CompatDeferralFacts | undefined = plan.enabled
+    ? {
+        form: plan.wireForm,
+        deferredNames: plan.deferredNames,
+        ...(plan.conversationKey !== undefined ? { conversationKey: plan.conversationKey } : {}),
+        imagesSupported: imagesSupportedForCompatModel(modelId),
+      }
+    : undefined
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
@@ -465,6 +474,7 @@ export async function* compatChatCallModel(
       preparedMessages,
       deferredUnadmitted: plan.isDeferredUnadmitted,
       effort: effortOnWire,
+      ...(deferral !== undefined ? { deferral } : {}),
       ...(profile.leadingNotes !== undefined ? { leadingNotes: profile.leadingNotes } : {}),
       ...(busy !== undefined ? { busy } : {}),
     })
@@ -622,6 +632,7 @@ async function* streamOneCompatAttempt(ctx: {
   preparedMessages: Message[]
   deferredUnadmitted?: (name: string) => boolean
   effort?: EffortStampV1
+  deferral?: CompatDeferralFacts
   leadingNotes?: readonly string[]
   busy?: { ladder: BusyRetryLadder; fault: CompatFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
@@ -766,6 +777,7 @@ async function* streamOneCompatAttempt(ctx: {
       model: getPublicModelDisplayName(modelId) ?? modelId,
       ...(options.onWait ? { onWait: options.onWait } : {}),
     },
+    ...(ctx.deferral !== undefined ? { deferral: ctx.deferral } : {}),
   }
   if (profile.lane === 'local') {
     const law = localStreamLawFor({ wireModel: request.model, cold: streamOptions.firstByte!.cold, promptTokens: streamOptions.firstByte!.promptTokens })

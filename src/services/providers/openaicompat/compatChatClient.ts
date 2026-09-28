@@ -30,6 +30,7 @@ import {
   type LocalLivenessLoop,
   type LocalStreamLaw,
 } from '../localLiveness.js'
+import type { DeferralWireForm } from '../deferralWire.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -62,6 +63,13 @@ export interface CompatChatRequest {
   tools?: CompatTool[]
   tool_choice?: 'auto' | 'none' | 'required'
   extra?: Record<string, unknown>
+}
+
+export interface CompatDeferralFacts {
+  form: DeferralWireForm
+  deferredNames: ReadonlySet<string>
+  conversationKey?: string
+  imagesSupported: boolean
 }
 
 
@@ -204,6 +212,7 @@ export interface CompatStreamOptions {
   onResponseHeaders?: (headers: Headers, status?: number) => void
   timers?: StreamTimers
   local?: LocalStreamLaw
+  deferral?: CompatDeferralFacts
 }
 
 interface LocalSilenceWatch {

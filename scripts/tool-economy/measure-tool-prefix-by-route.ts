@@ -179,7 +179,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const route = routeOfPath(path)
     if (req.method === 'POST' && route !== undefined) {
       const isAnthropic = route === 'anthropic-gateway' && path.endsWith('/v1/messages')
-      const isResponses = route === 'openai' && path.endsWith('/responses')
+      const isResponses = (route === 'openai' || route === 'openrouter') && path.endsWith('/responses')
       const isChat = path.endsWith('/chat/completions')
       if (isAnthropic || isResponses || isChat) {
         const headers: Record<string, string> = {}
@@ -361,6 +361,8 @@ function toolsOfBody(route: Route, body: Body): Array<{ name: string; deferLoadi
       return { name: String(t.name ?? ''), deferLoading: t.defer_loading === true }
     }
     if (route === 'openai') return { name: String(t.name ?? ''), deferLoading: false }
+    if (route === 'openrouter' && typeof t.type === 'string' && t.type.startsWith('openrouter:')) return { name: String(t.type), deferLoading: false }
+    if (route === 'openrouter' && t.function === undefined) return { name: String(t.name ?? ''), deferLoading: t.defer_loading === true }
     const fn = (t.function ?? {}) as Record<string, unknown>
     return { name: String(fn.name ?? t.name ?? ''), deferLoading: false }
   })
@@ -380,7 +382,7 @@ function announcementOf(route: Route, body: Body): { present: boolean; bytes: nu
       }
     }
   }
-  if (route === 'openai') {
+  if (route === 'openai' || (route === 'openrouter' && Array.isArray(body.input))) {
     for (const item of (body.input as Array<Record<string, unknown>> | undefined) ?? []) collect(item.content)
   } else {
     for (const m of (body.messages as Array<Record<string, unknown>> | undefined) ?? []) collect(m.content)

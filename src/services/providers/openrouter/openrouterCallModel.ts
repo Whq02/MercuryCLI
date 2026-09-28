@@ -23,6 +23,7 @@ import {
   recordOpenrouterRateHeaders,
   refreshOpenrouterKeyUsage,
 } from './openrouterUsageState.js'
+import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
 
 export function openrouterWireModelId(modelId: string): string {
   const slug = qualifiedWireId(modelId)
@@ -70,6 +71,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
+  streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),
   onResponseHeaders: headers => {
     recordOpenrouterRateHeaders(headers)
     void refreshOpenrouterKeyUsage().catch(() => {})

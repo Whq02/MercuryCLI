@@ -104,6 +104,11 @@ export type AssistantMessage = {
     projection: string
     refused?: Array<{ id: string; reason: string }>
   }
+  openrouterProviderTurn?: {
+    model: string
+    items: unknown[]
+    responseId?: string
+  }
   apexProviderTurn?: {
     provider: 'openai'
     responseId?: string

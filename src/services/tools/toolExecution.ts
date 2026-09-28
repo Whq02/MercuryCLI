@@ -51,6 +51,8 @@ import {
   isToolSearchToolAvailable,
 } from '../../utils/toolSearch.js'
 import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -119,6 +121,7 @@ export function buildSchemaNotSentHint(
   if (!isToolSearchEnabledOptimistic()) return null
   if (!isToolSearchToolAvailable(tools)) return null
   if (!isDeferredTool(tool)) return null
+  if (deferralSearchIsServerSide(deferralWireFormFor(getMainLoopModel()).form)) return null
   const discovered = extractDiscoveredToolNames(messages)
   if (discovered.has(tool.name)) return null
   return (

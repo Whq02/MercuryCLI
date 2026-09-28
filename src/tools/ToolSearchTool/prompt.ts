@@ -8,6 +8,7 @@ import {
   SATURN_EXEMPT_TOOL_B,
 } from '../saturnExemptTools.js'
 import { isDeferredToolsDeltaEnabled } from '../../utils/toolSearchFlags.js'
+import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 
 export { TOOL_SEARCH_TOOL_NAME }
 
@@ -32,7 +33,7 @@ export function formatDeferredToolLine(tool: Tool): string {
   return tool.name
 }
 
-export function getPrompt(wireForm: 'block' | 'text' = 'block'): string {
+export function getPrompt(wireForm: DeferralWireForm = 'block'): string {
   const head = `Load the full schemas of deferred tools so they become callable.
 
 `
@@ -43,7 +44,7 @@ export function getPrompt(wireForm: 'block' | 'text' = 'block'): string {
 - \`select:Read,Edit,Grep\` — pull exactly the tools named
 - \`notebook jupyter\` — keyword search returning the best matches, max_results at most
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
-  if (wireForm === 'text') {
+  if (wireForm !== 'block') {
     const tail = ` Before that fetch, the name is all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.
 
 `
