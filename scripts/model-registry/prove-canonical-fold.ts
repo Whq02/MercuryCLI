@@ -44,7 +44,7 @@ check('a newly declared point release is its own canonical without another subst
 check('the synthetic point release still needs its own cost and display declarations', !Object.hasOwn(MODEL_COSTS, future) && getPublicModelDisplayName(future) === null)
 const undeclared: Array<[string, string]> = [
   ['claude-opus-5-7', 'claude-opus-5-7'],
-  ['claude-sonnet-5-5', 'claude-sonnet-5-5'],
+  ['claude-sonnet-5-7', 'claude-sonnet-5-7'],
   ['claude-fable-5-3', 'claude-fable-5-3'],
   ['claude-haiku-5', 'claude-haiku-5'],
   ['claude-opus-6', 'claude-opus-6'],
@@ -62,6 +62,7 @@ const dated: Array<[string, string]> = [
   ['claude-opus-5-20260401', 'claude-opus-5'],
   ['claude-opus-5-5-20260401', 'claude-opus-5-5'],
   ['claude-sonnet-5-20260401', 'claude-sonnet-5'],
+  ['claude-sonnet-5-5-20260401', 'claude-sonnet-5-5'],
   ['claude-fable-5-1-20260401', 'claude-fable-5-1'],
   ['claude-opus-4-5-20260101', 'claude-opus-4-5'],
   ['claude-opus-4-8-20260101', 'claude-opus-4-6'],

@@ -199,6 +199,18 @@ function previousGenerationLargeRows(): ModelOption[] {
   return rows
 }
 
+function previousGenerationMidRows(): ModelOption[] {
+  const rows: ModelOption[] = []
+  const strings = getModelStrings()
+  const currentMid = normalizeModelStringForAPI(parseUserSpecifiedModel('sonnet'))
+  for (const key of previousGenerationKeys('sonnet')) {
+    const id = strings[key]
+    if (normalizeModelStringForAPI(id) === currentMid) continue
+    rows.push(literalRow(id, ''))
+  }
+  return rows
+}
+
 function premiumSubscriberTierRows(): ModelOption[] {
   const rows: ModelOption[] = []
   rows.push(getFableOption())
@@ -206,6 +218,7 @@ function premiumSubscriberTierRows(): ModelOption[] {
   rows.push(getOpusFrontierFallbackOption())
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('sonnet', ''))
+  rows.push(...previousGenerationMidRows())
   rows.push(aliasRow('haiku', ''))
   return rows
 }
@@ -215,6 +228,7 @@ function standardShapeTierRows(): ModelOption[] {
   rows.push(getFableOption())
   rows.push(...previousGenerationFableRows())
   rows.push(aliasRow('sonnet', ''))
+  rows.push(...previousGenerationMidRows())
   rows.push(aliasRow('opus', ''))
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('haiku', ''))

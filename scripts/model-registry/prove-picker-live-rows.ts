@@ -108,11 +108,11 @@ section('§2 an undeclared generation lands as ONE raw row at the end of its fam
 
 section('§3 every family block, the mirror word and an unknown family')
 {
-  const options = compose(live(['claude-sonnet-5-5', 'claude-fable-5-2', 'claude-haiku-5', 'claude-opus-6', 'claude-mythos-5-2', 'claude-zephyr-1', 'claude-opus-5-7']))
+  const options = compose(live(['claude-sonnet-5-7', 'claude-fable-5-2', 'claude-haiku-5', 'claude-opus-6', 'claude-mythos-5-2', 'claude-zephyr-1', 'claude-opus-5-7']))
   const v = values(options)
   const at = (id: string): number => v.indexOf(id)
-  check('seven raw rows, one each', ['claude-sonnet-5-5', 'claude-fable-5-2', 'claude-haiku-5', 'claude-opus-6', 'claude-mythos-5-2', 'claude-zephyr-1', 'claude-opus-5-7'].every(id => v.filter(x => x === id).length === 1), v.join(','))
-  check('the sonnet row follows Sonnet 5, before Opus 5.5', at('claude-sonnet-5-5') === at('claude-sonnet-5') + 1 && at('claude-sonnet-5-5') < at('claude-opus-5-5'), v.join(','))
+  check('seven raw rows, one each', ['claude-sonnet-5-7', 'claude-fable-5-2', 'claude-haiku-5', 'claude-opus-6', 'claude-mythos-5-2', 'claude-zephyr-1', 'claude-opus-5-7'].every(id => v.filter(x => x === id).length === 1), v.join(','))
+  check('the sonnet row follows Sonnet 4.6, the end of the sonnet block, before Opus 5.5', at('claude-sonnet-5-7') === at('claude-sonnet-4-6') + 1 && at('claude-sonnet-5-5') < at('claude-sonnet-5-7') && at('claude-sonnet-5-7') < at('claude-opus-5-5'), v.join(','))
   check('the fable rows follow Fable 5 in list order (the mirror word lands in the fable block)', at('claude-fable-5-2') === at('claude-fable-5') + 1 && at('claude-mythos-5-2') === at('claude-fable-5-2') + 1, v.join(','))
   check('the haiku row follows the haiku row', at('claude-haiku-5') === at('claude-haiku-4-5-20251001') + 1, v.join(','))
   check('the opus rows follow Opus 4.6, the end of the opus block, in list order', at('claude-opus-6') === at('claude-opus-4-6') + 1 && at('claude-opus-5-7') === at('claude-opus-6') + 1, v.join(','))

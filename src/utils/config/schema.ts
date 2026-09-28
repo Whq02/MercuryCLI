@@ -333,6 +333,7 @@ export type GlobalConfig = {
     fable5?: boolean
     fable51?: boolean
     opus55?: boolean
+    sonnet55?: boolean
   }
 
   compatProvider?: {

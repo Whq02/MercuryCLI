@@ -541,13 +541,14 @@ export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
 }
 
 
-type LaunchFamily = 'opus47' | 'opus48' | 'fable5' | 'fable51' | 'sonnet5' | 'opus55' | 'opus5'
+type LaunchFamily = 'opus47' | 'opus48' | 'fable5' | 'fable51' | 'sonnet55' | 'sonnet5' | 'opus55' | 'opus5'
 
 const LAUNCH_FAMILIES: Array<{ substring: string; flag: LaunchFamily; launchDefault: EffortLevel }> = [
   { substring: 'opus-4-7', flag: 'opus47', launchDefault: 'xhigh' },
   { substring: 'opus-4-8', flag: 'opus48', launchDefault: 'high' },
   { substring: 'fable-5-1', flag: 'fable51', launchDefault: 'high' },
   { substring: 'fable', flag: 'fable5', launchDefault: 'high' },
+  { substring: 'sonnet-5-5', flag: 'sonnet55', launchDefault: 'high' },
   { substring: 'sonnet-5', flag: 'sonnet5', launchDefault: 'high' },
   { substring: 'opus-5-5', flag: 'opus55', launchDefault: 'high' },
   { substring: 'opus-5', flag: 'opus5', launchDefault: 'high' },
@@ -578,7 +579,7 @@ export function unpinAllLaunchEffort(): void {
   if (allLaunchEffortUnpinned()) return
   saveGlobalConfig(current => ({
     ...current,
-    launchEffortUnpins: { opus47: true, opus48: true, fable5: true, fable51: true, sonnet5: true, opus55: true, opus5: true },
+    launchEffortUnpins: { opus47: true, opus48: true, fable5: true, fable51: true, sonnet55: true, sonnet5: true, opus55: true, opus5: true },
   }))
 }
 

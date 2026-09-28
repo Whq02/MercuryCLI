@@ -17,7 +17,7 @@ console.log('§1 the model rows live in the ratified owners')
     await import('../../src/utils/model/model.js')
   for (const k of ['MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete process.env[k]
   check("getDefaultOpusModel() = 'claude-opus-5-5'", getDefaultOpusModel() === 'claude-opus-5-5', getDefaultOpusModel())
-  check("getDefaultSonnetModel() = 'claude-sonnet-5'", getDefaultSonnetModel() === 'claude-sonnet-5', getDefaultSonnetModel())
+  check("getDefaultSonnetModel() = 'claude-sonnet-5-5'", getDefaultSonnetModel() === 'claude-sonnet-5-5', getDefaultSonnetModel())
   check(
     'the promoted ids are their own canonicals with owner display names',
     getCanonicalName('claude-sonnet-5') === 'claude-sonnet-5' &&

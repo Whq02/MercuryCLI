@@ -74,8 +74,8 @@ const sends = [
   { requireAwait: true, awaitText: 'fable picked up the handoff', awaitSettleTicks: 4, data: '', mark: 'pickup' },
   { requireAwait: true, awaitText: 'Fable 5.1 ·', awaitSettleTicks: 4, data: '', mark: 'settled' },
   { requireAwait: true, awaitText: 'ready · ', awaitSettleTicks: 4, data: '/model sonnet\r', mark: 'model-send' },
-  { requireAwait: true, awaitText: 'Sonnet 5 ·', awaitSettleTicks: 2, data: '', mark: 'sonnet-confirm' },
-  { requireAwait: true, awaitText: 'Sonnet 5 ·', awaitSettleTicks: 4, data: '', mark: 'sonnet' },
+  { requireAwait: true, awaitText: 'Sonnet 5.5 ·', awaitSettleTicks: 2, data: '', mark: 'sonnet-confirm' },
+  { requireAwait: true, awaitText: 'Sonnet 5.5 ·', awaitSettleTicks: 4, data: '', mark: 'sonnet' },
 ]
 type Grid = Array<Array<{ c: string }>>
 type Payload = { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; sendReceipts?: Array<{ ts: number }>; endReason?: string }
@@ -127,7 +127,7 @@ check('Anthropic received the pickup with the exact switched model and history',
 check('the switched reply painted', frame('pickup').includes('fable picked up the handoff'))
 check('the settled failover sentence remains', frame('settled').includes('on the anthropic failover lane · Fable 5.1'))
 check('the settled strip retains its failover mark', frame('settled').includes('Fable 5.1 · failover'))
-check('the later model switch retains the note', frame('sonnet').includes('failover lane · Sonnet 5') && frame('sonnet').includes('Sonnet 5 · failover'))
+check('the later model switch retains the note', frame('sonnet').includes('failover lane · Sonnet 5.5') && frame('sonnet').includes('Sonnet 5.5 · failover'))
 for (const event of events) console.log(`[record] ${JSON.stringify(event)}`)
 console.log(`${checks} checks, ${failures} failures; endReason=${payload.endReason}`)
 console.log(`Evidence kept at ${home}`)
