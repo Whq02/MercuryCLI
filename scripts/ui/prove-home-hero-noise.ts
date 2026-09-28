@@ -89,6 +89,8 @@ check('a tool_result user row is conversation (real work, no text blocks)',
   hasRealConversation([toolResultRow]))
 check('bash-input counts as conversation (arbitrary-length output = the scrolled-junk case)',
   hasRealConversation([bashInput]))
+check('a prompt that quotes the caveat or a breadcrumb tag mid-text is conversation (the marks are anchored at the start, as the renderer anchors them)',
+  hasRealConversation([{ type: 'user', message: { role: 'user', content: 'the header read "<local-command-caveat>Caveat: The messages below" and then <command-name>/model</command-name>' } }]))
 check('a progress row counts as conversation', hasRealConversation([progressRow]))
 check('a system notice row (resume recap) is furniture',
   isTranscriptFurnitureMessage(recapRow))

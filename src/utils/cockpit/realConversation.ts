@@ -56,7 +56,8 @@ export function isTranscriptFurnitureMessage(
   if (msg.isMeta === true) return true
   const text = textOf(msg.message?.content)
   if (text.length === 0) return false
-  return NOISE_MARKS.some(mark => text.includes(mark))
+  const head = text.trimStart()
+  return NOISE_MARKS.some(mark => head.startsWith(mark))
 }
 
 export function hasRealConversation(
