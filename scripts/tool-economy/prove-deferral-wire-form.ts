@@ -53,11 +53,12 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('no capability row names an undeclared route', [...tabled].every(r => declared.has(r)), [...tabled].filter(r => !declared.has(r)).join(','))
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
   check("the openai row is the provider's own form ('openai-native' — the model floor and the endpoint decide per request)", wire.DEFERRAL_WIRE_CAPABILITY.openai === 'openai-native')
+  check("the openrouter row is the provider's own native form (openrouter:tool_search + defer_loading on the Responses API)", wire.DEFERRAL_WIRE_CAPABILITY.openrouter === 'openrouter-native', String(wire.DEFERRAL_WIRE_CAPABILITY.openrouter))
   const TEXT_APPEND_ROUTES = new Set(['moonshot'])
-  check('every other row is a client-side text form (text, or text-append where the docs place an admission at the end of the messages)', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai').every(([r, c]) => (TEXT_APPEND_ROUTES.has(r) ? c === 'text-append' : c === 'text')))
+  check('every other row is a client-side text form (text, or text-append where the docs place an admission at the end of the messages)', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai' && r !== 'openrouter').every(([r, c]) => (TEXT_APPEND_ROUTES.has(r) ? c === 'text-append' : c === 'text')))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
-    const expected = route === 'anthropic' ? 'block' : route === 'openai' ? 'openai-native' : TEXT_APPEND_ROUTES.has(route) ? 'text-append' : 'text'
+    const expected = route === 'anthropic' ? 'block' : route === 'openai' ? 'openai-native' : route === 'openrouter' ? 'openrouter-native' : TEXT_APPEND_ROUTES.has(route) ? 'text-append' : 'text'
     const expectedWhy = route === 'anthropic' || route === 'openai' ? 'first-party-contract' : 'route-table'
     check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && verdict.why === expectedWhy)
   }

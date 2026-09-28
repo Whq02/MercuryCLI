@@ -10,6 +10,7 @@ export type DeferralWireForm =
   | 'text'
   | 'openai-native'
   | 'text-append'
+  | 'openrouter-native'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
@@ -20,7 +21,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   moonshot: 'text-append',
   deepseek: 'text',
   'openai-compat': 'text',
-  openrouter: 'text',
+  openrouter: 'openrouter-native',
   gemini: 'text',
   huggingface: 'text',
   local: 'text',
@@ -143,9 +144,15 @@ export function gatewayProbeAllowedByFlag(): boolean {
 
 const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallModelRoute>(['openai', 'local'])
 
+const SERVER_SEARCH_FORMS: ReadonlySet<DeferralWireForm> = new Set<DeferralWireForm>(['openai-native', 'openrouter-native'])
+
+export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
+  return SERVER_SEARCH_FORMS.has(form)
+}
+
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
   if (form === 'block') return true
-  if (form === 'openai-native') return true
+  if (deferralSearchIsServerSide(form)) return true
   if (form === 'text-append') return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)

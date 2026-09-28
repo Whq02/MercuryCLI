@@ -51,7 +51,7 @@ section('§A the result on the Anthropic route — tool_reference blocks, unchan
 
 section('§A the result off the Anthropic route — the SAME admission record, rendered as text on the wire')
 {
-  for (const model of ['openrouter/stealth/ox-alpha', 'glm-5.3', 'gpt-5.3-codex']) {
+  for (const model of ['deepseek-v4-pro', 'glm-5.3', 'gpt-5.3-codex']) {
     state.setMainLoopModelOverride(model as never)
     const route = declaredRouteOf(getMainLoopModel())
     check(`${model} routes off anthropic (${route})`, route !== 'anthropic')
@@ -72,6 +72,8 @@ section('§A the result off the Anthropic route — the SAME admission record, r
   check('no matches ⇒ the same plain sentence as before', String(none).startsWith('No matching deferred tools were found.'))
   state.setMainLoopModelOverride('gpt-5.5' as never)
   check("gpt-5.5 (5.4 or later, first-party OpenAI) rides the provider's own form — openai-native — where ToolSearch is not offered on the wire", deferralWireFormFor(getMainLoopModel()).form === 'openai-native')
+  state.setMainLoopModelOverride('openrouter/stealth/ox-alpha' as never)
+  check("openrouter/stealth/ox-alpha rides the provider's own form — openrouter-native — where ToolSearch is not offered on the wire", deferralWireFormFor(getMainLoopModel()).form === 'openrouter-native')
 }
 
 section('§B the roster gate is route-independent')

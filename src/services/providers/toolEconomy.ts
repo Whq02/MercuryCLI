@@ -11,7 +11,7 @@ import {
   isToolReferenceBlock,
   isToolSearchEnabled,
 } from '../../utils/toolSearch.js'
-import { deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
+import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
 
 export interface ToolPayloadPlanInput {
   model: string
@@ -241,8 +241,8 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
   if (input.latchKey !== undefined) heldAtLastPlan.set(`${input.latchKey}|${firstConversationRow(messages)}`, held)
 
-  const serverAdmits = wire.form === 'openai-native'
-  const admittedNames = enabled && !serverAdmits ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  const serverSearch = deferralSearchIsServerSide(wire.form)
+  const admittedNames = enabled && !serverSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
   let admissionDeclarations: AdmissionDeclaration[] = []
   if (enabled && wire.form === 'text') {
@@ -254,7 +254,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         return tool !== undefined && deferredNames.has(name) ? [tool] : []
       }),
     ]
-  } else if (enabled && serverAdmits) {
+  } else if (enabled && serverSearch) {
     roster = roster.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
   } else if (enabled && wire.form === 'text-append') {
     const available = new Map(roster.map(tool => [tool.name, tool]))
@@ -268,7 +268,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     admissionDeclarations = admissionDeclarationsOf(messages, available, deferredNames, new Set(roster.map(tool => tool.name)))
   }
 
-  const announcement = enabled && !serverAdmits && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
+  const announcement = enabled && !serverSearch && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,
@@ -279,7 +279,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     deferredNames,
     admittedNames,
     announcement,
-    isDeferredUnadmitted: (name: string) => enabled && !serverAdmits && deferredNames.has(name) && !admittedNames.has(name),
+    isDeferredUnadmitted: (name: string) => enabled && !serverSearch && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
     admissionDeclarations,
   }

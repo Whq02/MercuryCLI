@@ -35,7 +35,7 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { planToolPayload, deferredToolsAnnouncement, announcementMessage, foldAnnouncementIntoFirstUserTurn } = await import('../../src/services/providers/toolEconomy.ts')
-const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
+const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/utils/attachments/deltas.ts')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { isDeferredToolsDeltaEnabled } = await import('../../src/utils/toolSearchFlags.ts')
@@ -126,6 +126,7 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
     const plan = await planFor(model, fresh())
     if (plan.wireForm === 'block') check(`${route}: deferral is on and every deferrable tool rides the roster MARKED`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)))
     else if (plan.wireForm === 'openai-native') check(`${route}: the provider's own deferral form — deferral is on, every deferrable tool rides the roster MARKED, Mercury's ToolSearch stays off the wire`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
+    else if (plan.wireForm === 'openrouter-native') check(`${route}: deferral is on, every deferrable tool rides the roster MARKED for the server's search, Mercury's ToolSearch does not`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     else if (route === 'openai' || route === 'local') check(`${route}: only initial definitions and discovery are sent`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)))
     else if (plan.wireForm === 'text-append') check(`${route}: the append form sends only initial definitions and discovery (admissions ride the end of the messages)`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && plan.admissionDeclarations.length === 0)
     else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
@@ -227,7 +228,8 @@ let rowBytes = 0
   check('the prepend oracle (the retired per-request shape) spells the sorted names inside the tag pair', oracle !== null && oracle.startsWith('<available-deferred-tools>\n') && oracle.endsWith('\n</available-deferred-tools>') && oracleLines.join(',') === [...DEFERRED_NAMES].sort().join(','))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const row = deltaRow(POOL, model, fresh())
-    if (!(await planFor(model, fresh())).enabled) {
+    const routePlan = await planFor(model, fresh())
+    if (!routePlan.enabled) {
       check(`${route}: unsupported discovery produces no announcement`, row === null)
       continue
     }
@@ -235,11 +237,12 @@ let rowBytes = 0
     check(`${route}: its lines are the oracle's inner lines byte-for-byte (names only, no schema bytes)`, row !== null && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === oracleLines.join('\n') && !row.addedLines.join('\n').includes('{'))
     const content = row ? renderedContent(row) : ''
     check(`${route}: rendered, it is ONE system-reminder meta user row carrying every name`, content.startsWith('<system-reminder>\n') && content.endsWith('\n</system-reminder>') && DEFERRED_NAMES.every(n => content.split('\n').includes(n)) && (row ? normalizeAttachmentForAPI(row)[0]!.isMeta === true : false))
-    renderedRows.add(content)
+    if (routePlan.wireForm === 'openrouter-native' || routePlan.wireForm === 'openai-native') check(`${route}: the row's head names the server's search as the loading road (its own wording, the same name lines)`, content.includes(SERVER_SEARCH_ANNOUNCEMENT_HEAD))
+    else renderedRows.add(content)
     const persisted: Message[] = row ? [...fresh(), createAttachmentMessage(row) as Message] : fresh()
     check(`${route}: with the row persisted the next request announces nothing more`, getDeferredToolsDeltaAttachment(POOL, model, persisted).length === 0)
   }
-  check('the rendered row is byte-identical on every route', renderedRows.size === 1, String(renderedRows.size))
+  check('the rendered row is byte-identical on every route that loads through Mercury\'s ToolSearch', renderedRows.size === 1, String(renderedRows.size))
   rowBytes = bytes([...renderedRows][0] ?? '')
 }
 
