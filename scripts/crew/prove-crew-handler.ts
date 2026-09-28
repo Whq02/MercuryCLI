@@ -92,7 +92,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
 
   const ok = await handler('atlas', 'sonnet')
   check('valid spawn ⇒ ok + pid', ok.ok === true && typeof ok.pid === 'number')
-  check('onSpawned fired with (name, floor spec, pid)', spawned.length === 1 && spawned[0]!.name === 'atlas' && spawned[0]!.spec.model === 'claude-sonnet-5' && spawned[0]!.spec.permissionMode === 'flow' && spawned[0]!.pid === ok.pid)
+  check("onSpawned fired with (name, floor spec, pid) — the spec carries the seat the word resolved (sonnet → claude-sonnet-5-5, the family's head)", spawned.length === 1 && spawned[0]!.name === 'atlas' && spawned[0]!.spec.model === 'claude-sonnet-5-5' && spawned[0]!.spec.permissionMode === 'flow' && spawned[0]!.pid === ok.pid, JSON.stringify(spawned.map(s => [s.name, s.spec.model, s.spec.permissionMode, s.pid])))
   const dupe = await handler('atlas', 'opus')
   check('live dupe refused', !dupe.ok && /already live/.test(dupe.error ?? ''))
 
@@ -134,7 +134,7 @@ section('durable team-file identity — governance OFF, members persist, no dupe
   check("lead is team-lead@crew", team?.leadAgentId === 'team-lead@crew')
   const c1 = (team?.members ?? []).filter(m => m.name === 'c-one')
   check('spawned member present exactly once', c1.length === 1)
-  check('member carries the picked model', c1[0]?.model === 'claude-sonnet-5')
+  check("member carries the picked model (sonnet → claude-sonnet-5-5, the family's head)", c1[0]?.model === 'claude-sonnet-5-5', String(c1[0]?.model))
   const rig = makePort()
   const handler = cs.makeCrewSpawnHandler({ roster: () => rig.port, dir: scratch, onSpawned: () => {} })
   const re = await handler('c-one', 'sonnet')
