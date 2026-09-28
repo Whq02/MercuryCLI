@@ -208,7 +208,7 @@ const userRowOf = (f: Frame): number => f.rows.findIndex(r => r.includes('anatom
 const textRowOf = (f: Frame): number => f.rows.findIndex(r => TOKEN_RE.test(r))
 const stripWordsOf = (f: Frame): string => {
   const lines = cardLinesOf(f)
-  if (lines.length > 0) return lines.join(' ⏎ ')
+  if (lines.length > 0) return lines.join(' ↵ ')
   const compact = compactStripRowOf(f)
   return compact === -1 ? '' : f.rows[compact]!.trim()
 }
