@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-28T22:08:34.211Z",
+ "capturedAt": "2026-09-28T22:31:38.102Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-KOe7U6 · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-S0bhW1 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:08:26 [sam] ❯ design the cache layer",
+    "23:31:30 [sam] ❯ design the cache layer",
     "",
-    "23:08:26 [Mercury] Let me confirm the open",
+    "23:31:30 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -27,7 +27,7 @@
     "",
     "",
     "",
-    "────────────────────────────────────────────",
+    "",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-KOe7U6 · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-S0bhW1 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:08:26 [sam] ❯ design the cache layer",
+    "23:31:30 [sam] ❯ design the cache layer",
     "",
-    "23:08:26 [Mercury] Let me confirm the open",
+    "23:31:30 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -72,7 +72,7 @@
     "",
     "",
     "",
-    "────────────────────────────────────────────",
+    "",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5383,
-   "frame-recommit": 15
+   "patches": 5469,
+   "frame-recommit": 14
   },
   "frames": {
    "total": 30,
    "window": 30,
-   "p50": 0.7289170000003651,
-   "p95": 4.867874999999913,
-   "p99": 7.6875409999998965,
-   "maxMs": 7.6875409999998965
+   "p50": 2.1760410000001684,
+   "p95": 16.70095900000024,
+   "p99": 17.704375000000255,
+   "maxMs": 17.704375000000255
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6531.3990116119385,
+   "atMs": 6708.172798156738,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7331.3990116119385,
+   "atMs": 7508.172798156738,
    "b64": "DQ=="
   }
  ]

@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-28T22:08:18.978Z",
+ "capturedAt": "2026-09-28T22:31:22.790Z",
  "screens": [
   {
    "atMs": 12000,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 23:08:11 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 23:31:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 23:08:11 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 23:31:15 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -30,7 +30,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -47,7 +47,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-rmEE3W                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-3kU16p                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 23:08:11 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 23:31:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 23:08:11 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 23:31:15 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -75,7 +75,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -92,22 +92,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-rmEE3W                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-3kU16p                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 14011,
-   "frame-recommit": 15
+   "patches": 13854,
+   "frame-recommit": 17
   },
   "frames": {
-   "total": 29,
-   "window": 29,
-   "p50": 0.6663330000001224,
-   "p95": 14.911834000000113,
-   "p99": 27.737249999999676,
-   "maxMs": 27.737249999999676
+   "total": 31,
+   "window": 31,
+   "p50": 1.4500840000000608,
+   "p95": 11.538833000000068,
+   "p99": 18.919083999999998,
+   "maxMs": 18.919083999999998
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6666.104078292847,
+   "atMs": 6784.1949462890625,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7466.104078292847,
+   "atMs": 7584.1949462890625,
    "b64": "DQ=="
   }
  ]
