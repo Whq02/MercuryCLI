@@ -115,6 +115,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_BASE_URL: DEAD,
+    MERCURY_UPDATE_API_BASE_URL: DEAD,
     BROWSER: 'true',
   }
   for (const key of [

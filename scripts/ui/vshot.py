@@ -322,6 +322,7 @@ else:
                 break
             if tee:
                 tee.write(struct.pack(">II", tick, len(data)) + data)
+                tee.flush()
             raw_seen.extend(data)
             last_output_tick = tick
             stream.feed(kitty_filter.feed(data))
@@ -377,7 +378,7 @@ else:
                 if nxt.get("targetText"):
                     tgt = None
                     for ty in range(rows):
-                        row_text = "".join(screen.buffer[ty][tx].data for tx in range(cols))
+                        row_text = "".join(screen.buffer[ty][tx].data or " " for tx in range(cols))
                         tx0 = row_text.find(nxt["targetText"])
                         if tx0 != -1:
                             tgt = (tx0 + 1 + int(nxt.get("targetDx", 0)), ty + 1)
@@ -443,6 +444,7 @@ else:
                 break
             if tee:
                 tee.write(struct.pack(">II", total, len(data)) + data)
+                tee.flush()
             stream.feed(kitty_filter.feed(data))
             quiet_deadline = time.monotonic() + 0.3
     grid = [[{"c": screen.buffer[y][x].data,

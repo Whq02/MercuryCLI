@@ -155,8 +155,8 @@ t.section('§2 journey: header + CREW lead row + mouse return')
   const ESC = String.fromCharCode(27)
   const sgrClick = (col: number, row: number): string =>
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
-  const ROOT_ROW = 6
-  const CHILD_ROW = 7
+  const ROOT_ROW = 3
+  const CHILD_ROW = 4
 
   const turns: ScriptedTurn[] = [
     {

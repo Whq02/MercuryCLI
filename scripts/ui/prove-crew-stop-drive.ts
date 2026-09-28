@@ -98,7 +98,7 @@ const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', afterPrevTicks: 4 },
 ]
 
-const STATE_WORDS = /\b(running|stopped|landed|failed|paused|waiting)\b|Sleeping for/
+const STATE_WORDS = /\b(running|idle|stopped|landed|failed|paused|waiting)\b|Sleeping for/
 const rowOf = (text: string, name: string): string | undefined => {
   const lines = text.split('\n').filter(line => line.includes(name) && STATE_WORDS.test(line) && !line.includes('crew-stop:'))
   return lines.find(line => /[▸►]/.test(line)) ?? lines.find(line => /[◐✗●○]/.test(line)) ?? lines[0]
@@ -174,7 +174,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const running = marks['crew-running'] ?? ''
   const runningRow = rowOf(running, target)
-  check(`${tag}: the row runs before the chord`, runningRow !== undefined && /\brunning\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
+  check(`${tag}: the row is live before the chord (running, or idle while the teammate waits on its inbox)`, runningRow !== undefined && /\brunning\b|\bidle\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
   const armed = marks['armed'] ?? ''
   check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), flat(armed).slice(0, 200))
   const after = marks['crew-after'] ?? ''

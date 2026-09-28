@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, sta
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
+import { READING_PHASE_WORD } from '../../src/components/Spinner/liveCounterWords.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
@@ -141,7 +142,7 @@ console.log('leg B — the born session, mid-thinking, 120x40')
     check('B: the esc was sent', escMs !== undefined, JSON.stringify(run.sendLog.length))
     const grabs = grabScreens(run, 120, 40, [Math.max(0, (escMs ?? 8000) - 700), (escMs ?? 8000) + 2500, (escMs ?? 8000) + 5500])
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    check('B: the born session\'s turn was live before esc', /replying — your words land|thinking/.test(text(grabs[0]!)))
+    check('B: the born session\'s turn was live before esc (reading the prompt until the first byte, else thinking or replying)', text(grabs[0]!).includes(READING_PHASE_WORD) || /replying — your words land|thinking/.test(text(grabs[0]!)), text(grabs[0]!).split('\n').filter(r => /esc interrupt|first byte/.test(r)).join(' · ').slice(0, 300))
     const late = grabs.slice(1)
     check('B: esc interrupted the born session (⨯ Interrupted painted)', late.some(g => /Interrupted/.test(text(g))), late.map(g => String(g.atMs)).join(','))
     check('B: the composer returned', late.some(g => /Type a prompt/.test(text(g))))

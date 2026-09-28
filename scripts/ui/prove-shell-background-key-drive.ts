@@ -47,11 +47,29 @@ function wallTicks(ticks: number): number {
   return Math.max(1, Math.round(ticks / BUDGET_SCALE))
 }
 
-async function holdRunnerOnceItsShellRuns(leg: Leg, giveUpMs = 90_000): Promise<Hold> {
+const ESCAPES = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[()][A-Za-z0-9]|\x1b[=>]|\r|\x07/g
+const teeText = (tee: string): string => {
+  let raw: Buffer
+  try {
+    raw = readFileSync(tee)
+  } catch {
+    return ''
+  }
+  const parts: string[] = []
+  for (let at = 0; at + 8 <= raw.length; ) {
+    const size = raw.readUInt32BE(at + 4)
+    parts.push(raw.subarray(at + 8, at + 8 + size).toString('latin1'))
+    at += 8 + size
+  }
+  return parts.join('').replace(ESCAPES, '')
+}
+const hintPainted = (tee: string): boolean => teeText(tee).includes('background the command')
+
+async function holdRunnerOnceItsShellRuns(leg: Leg, tee: string, giveUpMs = 90_000): Promise<Hold> {
   const started = Date.now()
   let pid: number | null = null
   while (pid === null && Date.now() - started < giveUpMs) {
-    pid = runnerRunningShell(liveRunnerPids(leg.home))
+    pid = hintPainted(tee) ? runnerRunningShell(liveRunnerPids(leg.home)) : null
     if (pid === null) await new Promise(resolve => setTimeout(resolve, 200))
   }
   if (pid === null) return { pid: null, heldAtMs: null, heldAtTick: null, release: () => {} }
@@ -63,7 +81,7 @@ async function holdRunnerOnceItsShellRuns(leg: Leg, giveUpMs = 90_000): Promise<
   }
   try { process.kill(pid, 'SIGSTOP') } catch { return { pid, heldAtMs: null, heldAtTick: null, release } }
   const heldAtMs = Date.now()
-  setTimeout(release, vshotBudgetMs(30_000)).unref?.()
+  setTimeout(release, vshotBudgetMs(360 * 200 + 60_000)).unref?.()
   return { pid, heldAtMs, heldAtTick: null, release }
 }
 
@@ -86,7 +104,7 @@ const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).joi
 const tailRow = (rows: string[]): string => rows.find(r => r.includes(keyHintLabel('⇧← back'))) ?? ''
 const composerRow = (rows: string[]): string => rows.find(r => /^│❯ /.test(r)) ?? ''
 
-async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (leg: Leg) => Promise<Hold>): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg; hold: Hold | null }> {
+async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (leg: Leg, tee: string) => Promise<Hold>): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Leg; hold: Hold | null }> {
   const leg = await startLeg(tag, [
     { kind: 'paced_tool_use', preDeltas: ['Running ', 'the long ', 'command ', 'now, ', LAST_WORDS], gapMs: 1500, tools: [{ name: 'Bash', input: { command: COMMAND, description: 'a long command' } }] },
     { kind: 'text', text: `${FINISHED}.` },
@@ -95,10 +113,11 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (l
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
+  const tee = join(scratch, `${tag}-tee.bin`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST, ...SOVEREIGN_ARGV], cwd: ROOT, cols: COLS, rows: ROWS, sends, resizes: [], total: 360, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam', VSHOT_TEE: tee }), stdio: ['ignore', 'pipe', 'pipe'] })
   const startedAtMs = Date.now()
-  const holding = aside === undefined ? null : aside(leg)
+  const holding = aside === undefined ? null : aside(leg, tee)
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })
