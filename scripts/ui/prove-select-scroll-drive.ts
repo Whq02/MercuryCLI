@@ -8,6 +8,8 @@ process.chdir(join(import.meta.dir, '..', '..'))
 const ROOT = join(import.meta.dir, '..', '..')
 const { runCompassArena, requireDist, grabScreens } = await import(`${ROOT}/scripts/navigation/arena.ts`)
 const { TAIL_SENTINEL } = await import(`${ROOT}/scripts/navigation/fixture1k.ts`)
+const { keyHintLabel } = await import(`${ROOT}/src/components/mercury-ui/keyHintLabel.ts`)
+const BACK_HINTS = (['macos', 'linux'] as const).map(p => keyHintLabel('⇧← back', p))
 
 requireDist()
 if (!process.env.NODE_BIN) {
@@ -78,7 +80,7 @@ try {
     process.exit(1)
   }
   stripRow = final.rows.findIndex(r => r.includes('SESSIONS'))
-  if (stripRow < 0) stripRow = final.rows.findIndex(r => r.includes('⇧← back'))
+  if (stripRow < 0) stripRow = final.rows.findIndex(r => BACK_HINTS.some(h => r.includes(h)))
   if (stripRow < 0) stripRow = ROWS - 8
   paneBottom = stripRow - 3
   for (let r = tailRow; r < stripRow; r++) if ((final.rows[r] ?? '')[24] === '╰') paneBottom = r - 1
