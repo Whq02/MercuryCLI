@@ -49,8 +49,6 @@ export {
   type AdvisorSummarizer,
 } from './advisorContext.js'
 export {
-  ADVISOR_CALL_WALL_MS,
-  ADVISOR_MAX_OUTPUT_TOKENS,
   liveAdvisorCall,
   type AdvisorCall,
   type AdvisorCallArgs,

@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
-for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN']) {
+for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS']) {
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-service-home-'))
@@ -26,10 +26,12 @@ const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
 
-type FixtureMode = { kind: 'text'; text: string } | { kind: 'refuse'; status: number; message: string }
+type FixtureMode = { kind: 'text'; text: string } | { kind: 'refuse'; status: number; message: string } | { kind: 'think'; tokens: number; text: string }
 let fixture: FixtureMode = { kind: 'text', text: 'Verify the pin on the base before you cut.' }
 const wire: Array<{ path: string; body: Raw }> = []
 const FIXTURE_USAGE = { input_tokens: 90, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 14 }
+const VENDOR_OUTPUT_CAP = 128_000
+const NOTE_TOKENS = 60
 const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSON.stringify(obj)}\n\n`
 function anthropicText(text: string, model: string): string {
   return [
@@ -40,6 +42,27 @@ function anthropicText(text: string, model: string): string {
     sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: FIXTURE_USAGE }),
     sse('message_stop', { type: 'message_stop' }),
   ].join('')
+}
+function anthropicThinkFirst(mode: { tokens: number; text: string }, maxTokens: number, model: string): string {
+  const start = { input_tokens: 884, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }
+  const out: string[] = [
+    sse('message_start', { type: 'message_start', message: { id: 'msg_advisor_think', type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: start } }),
+    sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } }),
+    sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'Weighing the four decisions against each other before writing.' } }),
+    sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'fixture-signature' } }),
+    sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+  ]
+  if (maxTokens < mode.tokens + NOTE_TOKENS) {
+    out.push(sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'max_tokens', stop_sequence: null }, usage: { output_tokens: maxTokens, output_tokens_details: { thinking_tokens: maxTokens } } }))
+    out.push(sse('message_stop', { type: 'message_stop' }))
+    return out.join('')
+  }
+  out.push(sse('content_block_start', { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } }))
+  out.push(sse('content_block_delta', { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: mode.text } }))
+  out.push(sse('content_block_stop', { type: 'content_block_stop', index: 1 }))
+  out.push(sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: mode.tokens + NOTE_TOKENS, output_tokens_details: { thinking_tokens: mode.tokens } } }))
+  out.push(sse('message_stop', { type: 'message_stop' }))
+  return out.join('')
 }
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
@@ -57,6 +80,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (fixture.kind === 'refuse') {
         res.writeHead(fixture.status, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: fixture.message } }))
+        return
+      }
+      if (fixture.kind === 'think') {
+        const maxTokens = Number(body.max_tokens)
+        if (!Number.isFinite(maxTokens) || maxTokens > VENDOR_OUTPUT_CAP) {
+          res.writeHead(400, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `max_tokens: ${String(body.max_tokens)} > ${VENDOR_OUTPUT_CAP}, which is the maximum allowed number of output tokens for ${String(body.model)}` } }))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(anthropicThinkFirst(fixture, maxTokens, String(body.model ?? 'fixture')))
         return
       }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -85,6 +119,8 @@ const text = await import(join(ROOT, 'src/utils/messages/text.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
 const { calculateTokenWarningState, getEffectiveContextWindowSize } = await import(join(ROOT, 'src/services/compact/autoCompact.ts'))
+const { getMaxOutputTokensForModel } = await import(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'))
+const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/utils/model/capabilities.ts'))
 
 const ADVISOR_MODEL = 'claude-opus-4-8'
 const AGENT = 'agent-fixture-1'
@@ -325,7 +361,7 @@ section("§6 THE LIVE CALL through the one routing seam: the workload bucket car
   const reply = await advisor.liveAdvisorCall({ model: ADVISOR_MODEL, system: 'sys', prompt: 'the digest' })
   check('the live call answers the fixture\'s text', reply.ok && reply.text === 'Line one.\nLine two.', j(reply))
   check('one request left through the loopback fixture, no tools, the model named, the digest as the one user row', wire.length === 1 && wire[0]!.body.model === ADVISOR_MODEL && j((wire[0]!.body.tools as unknown[] | undefined) ?? []) === '[]' && j(wire[0]!.body.messages).includes('the digest'), j(wire[0]?.body).slice(0, 300))
-  check("the request's system prompt is the advisor's, its output bounded (a note is short)", j(wire[0]!.body.system).includes('sys') && wire[0]!.body.max_tokens === advisor.ADVISOR_MAX_OUTPUT_TOKENS, j({ system: wire[0]?.body.system, max: wire[0]?.body.max_tokens }))
+  check("the request's system prompt is the advisor's, its output ceiling the model's own (the main loop's law, never a smaller cap of the advisor's)", j(wire[0]!.body.system).includes('sys') && wire[0]!.body.max_tokens === getMaxOutputTokensForModel(ADVISOR_MODEL) && wire[0]!.body.max_tokens === 128_000, j({ system: wire[0]?.body.system, max: wire[0]?.body.max_tokens, ceiling: getMaxOutputTokensForModel(ADVISOR_MODEL) }))
   const bucket = state.getWorkloadUsage() as Record<string, Record<string, Raw>>
   const row = bucket.advisor?.[ADVISOR_MODEL]
   check("the advisor bucket carries the call's tokens (red on the base: no advisor workload) — 90 in · 14 out", row !== undefined && row.inputTokens === 90 && row.outputTokens === 14, j(bucket))
@@ -355,6 +391,48 @@ section("§6 THE LIVE CALL through the one routing seam: the workload bucket car
   for (let turn = 1; turn <= 10; turn++) unsetNote = await advisor.advisorTurnSettled('agent-unset', transcript as never, { call: call as never, dir: DIR })
   check('advisor on but no model pinned: silent with a debug line, no call (the choice is the operator\'s)', unset.enabled && unsetNote === null && calls.length === 0)
   advisor.setAdvisorEnabled(false)
+}
+
+section('§7 THE CALL HAS ROOM TO ANSWER: an always-thinking advisor that thinks past the old 1,200-token cap before it writes still lands its words (red on the base: the thinking ate the budget and the note read as no text)')
+{
+  const THINK = 4000
+  const NOTE = 'The two most dangerous: (A) plain-text passwords, one leak exposes every account; (B) the peak-hours migration with no dry run, no way back if it fails.'
+  for (const model of ['claude-opus-5-5', 'claude-fable-5-1']) {
+    state.resetCostState()
+    wire.length = 0
+    fixture = { kind: 'think', tokens: THINK, text: NOTE }
+    const reply = await advisor.liveAdvisorCall({ model, system: 'sys', prompt: 'the four decisions', effort: 'max' })
+    const body = wire[0]?.body ?? {}
+    check(`${model}: the words come back whole after ${THINK} thinking tokens (red on the base: "the advisor answered with no text")`, reply.ok && reply.text === NOTE, j(reply))
+    check(`${model}: thinking is always on for this model, so the request carries no thinking key at all (the vendor answers 400 to the disabled shape)`, modelThinkingAlwaysOn(model) && !('thinking' in body), j({ thinking: body.thinking, keys: Object.keys(body) }))
+    check(`${model}: max_tokens is the model's own output ceiling, the main loop's law (red on the base: 1200)`, body.max_tokens === getMaxOutputTokensForModel(model) && body.max_tokens === 128_000, j({ max: body.max_tokens, ceiling: getMaxOutputTokensForModel(model) }))
+    check(`${model}: the effort dial rides as given, never lowered to make room`, j(body.output_config) === j({ effort: 'max' }), j(body.output_config))
+    const bucket = state.getWorkloadUsage() as Record<string, Record<string, Raw>>
+    check(`${model}: the advisor bucket carries the thinking spend — ${THINK + NOTE_TOKENS} output tokens`, bucket.advisor?.[model]?.outputTokens === THINK + NOTE_TOKENS, j(bucket.advisor?.[model]))
+  }
+  advisor.resetAdvisorContextsForTests()
+  config.saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, advisor: 'claude-opus-5-5' } }))
+  advisor.setAdvisorEnabled(true)
+  advisor.setAdvisorSeats(5)
+  const dial = slots.setSubModelEffort('advisor', 'max')
+  check("the operator's dial: the advisor container's effort set to max on claude-opus-5-5", dial.ok && advisor.advisorDispatchEffort('claude-opus-5-5') === 'max', j(dial))
+  wire.length = 0
+  fixture = { kind: 'think', tokens: THINK, text: NOTE }
+  const transcript = [operatorRow(1, 'four decisions for the release'), replyRow(2, 'which two are the most dangerous?')]
+  let note: unknown = 'unset'
+  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-dial', transcript as never, { dir: DIR })
+  const landed = note as Raw | null
+  check("the operator's own condition — the saved model, the saved dial, the real call — lands the note on the fifth turn (red on the base: null)", landed !== null && landed.text === NOTE && (landed.origin as Raw).model === 'claude-opus-5-5', j(note))
+  check('that request carried output_config.effort max and the 128,000 ceiling, no thinking key', wire.length === 1 && j(wire[0]!.body.output_config) === j({ effort: 'max' }) && wire[0]!.body.max_tokens === 128_000 && !('thinking' in wire[0]!.body), j({ output_config: wire[0]?.body.output_config, max: wire[0]?.body.max_tokens }))
+  const callSource = readFileSync(join(ROOT, 'src/services/advisor/advisorCall.ts'), 'utf8')
+  check('by source: the advisor call carries no wall clock of its own (a thinking model is never cut) and no output cap of its own', !callSource.includes('AbortSignal.timeout(') && !callSource.includes('maxOutputTokensOverride'), callSource.split('\n').filter(l => l.includes('AbortSignal.timeout(') || l.includes('maxOutputTokensOverride')).join(' | '))
+  slots.setSubModelEffort('advisor', null)
+  advisor.setAdvisorEnabled(false)
+  config.saveGlobalConfig(c => {
+    const next = { ...c.subModels }
+    delete next.advisor
+    return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined }
+  })
 }
 
 server.close()
