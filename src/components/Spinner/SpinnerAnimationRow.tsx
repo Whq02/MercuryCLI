@@ -22,6 +22,7 @@ import type { SpinnerMode } from './types.js'
 import { teammateRole } from '../tasks/taskStatusUtils.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
+import { turnStripLines } from './stripHeight.js'
 
 export const STACK_EXIT_SLACK = 6
 export function spinnerStackDecision(facts: {
@@ -260,7 +261,9 @@ export function SpinnerAnimationRow(
     wasStacked: stackedLatchRef.current,
   })
   stackedLatchRef.current = stacked
-  const availableSpace = stacked ? railSpace - suffixWidth - 5 : oneLineSpace
+  const stripLines = turnStripLines(loadingStartTimeRef.current, stacked ? 2 : 1)
+  const secondRow = stripLines > 1
+  const availableSpace = secondRow ? railSpace - suffixWidth - 5 : oneLineSpace
 
   type Segment = { key: string; text: string; kind?: 'thinking' | 'waiting' }
   const admitted: Segment[] = []
@@ -464,7 +467,7 @@ export function SpinnerAnimationRow(
             />
           )}
         </Box>
-        {!stacked && segBVisible ? (
+        {!secondRow && segBVisible ? (
           <Text>
             {suffixText !== '' ? (
               <Text dimColor>
@@ -477,17 +480,19 @@ export function SpinnerAnimationRow(
           </Text>
         ) : null}
       </Box>
-      {stacked && segBVisible ? (
-        <Box flexDirection="row" width="100%">
-          <Text>
-            {suffixText !== '' ? (
-              <Text dimColor>
-                {suffixText}
-                {segBTail !== null ? ' ' : ''}
-              </Text>
-            ) : null}
-            {segBTail}
-          </Text>
+      {secondRow ? (
+        <Box flexDirection="row" height={1} width="100%">
+          {segBVisible ? (
+            <Text wrap="truncate-end">
+              {suffixText !== '' ? (
+                <Text dimColor>
+                  {suffixText}
+                  {segBTail !== null ? ' ' : ''}
+                </Text>
+              ) : null}
+              {segBTail}
+            </Text>
+          ) : null}
         </Box>
       ) : null}
     </Box>

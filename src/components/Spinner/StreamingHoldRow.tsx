@@ -7,6 +7,7 @@ import { WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { MID_STREAM_STILL_WAITING_MS } from './useStalledAnimation.js'
 import { liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
+import { turnStripLines } from './stripHeight.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 
 
@@ -50,8 +51,9 @@ export function StreamingHoldRow({
     movementRef.current = { lastChars: liveChars, lastMovedAt: now }
   }
   const stillWaiting = now - movementRef.current.lastMovedAt >= MID_STREAM_STILL_WAITING_MS
+  const stripLines = turnStripLines(loadingStartTimeRef.current, 1)
   return (
-    <Box height={1} width="100%">
+    <Box height={stripLines} width="100%">
       <Text>
         <WorkingGlyph color={tokens.textSecondary} tickMs={STREAM_GLYPH_TICK_MS} />
         <Text color={tokens.textMuted}> {formatDuration(Math.max(0, elapsedMs))}</Text>

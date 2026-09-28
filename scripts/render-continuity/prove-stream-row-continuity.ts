@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { dirname, join } from 'node:path'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
@@ -12,6 +13,10 @@ type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
+const framesFlag = process.argv.indexOf('--frames')
+const FRAMES_DIR = framesFlag >= 0 && process.argv[framesFlag + 1] ? resolve(process.argv[framesFlag + 1]!) : null
+const onlyFlag = process.argv.indexOf('--only')
+const ONLY = onlyFlag >= 0 && process.argv[onlyFlag + 1] ? process.argv[onlyFlag + 1]! : null
 const t = checker()
 
 const TOKENS = [
@@ -34,7 +39,35 @@ type Scene = {
   scrolls: boolean
   interrupted?: boolean
   markdown?: boolean
+  cols?: number
+  rows?: number
+  flips?: number
 }
+
+const THINKING_DELTAS = ['weighing the anatomy request... ', 'choosing a structure... ', 'settling the plan. ']
+const flipRequest = (n: number, tool: boolean): ScriptedTurn => ({
+  kind: 'stream',
+  headerDelayMs: 1500,
+  blocks: [
+    { type: 'thinking', deltas: THINKING_DELTAS },
+    { type: 'text', deltas: TOKENS.slice(n * 3, n * 3 + 3).map(x => `${x} stream body. `) },
+  ],
+  gapMs: 350,
+  ...(tool ? { tools: [{ name: 'Bash', input: { command: `sleep 2; echo flip-${n}`, description: `flip probe ${n}` } }] } : {}),
+})
+const flipScene = (cols: number, rows: number): Scene => ({
+  name: `B thinking-first · ten phase flips · ${cols}x${rows}`,
+  turns: [flipRequest(0, true), flipRequest(1, true), flipRequest(2, false), { kind: 'text', text: 'Spare.' }],
+  sends: ['after:↑↓ choose:900:\\r', '6000:thinking anatomy probe\\r'],
+  seconds: 38,
+  grabFrom: 6200,
+  grabTo: 34400,
+  grabStep: 300,
+  scrolls: false,
+  cols,
+  rows,
+  flips: 10,
+})
 
 const scenes: Scene[] = [
   {
@@ -50,26 +83,9 @@ const scenes: Scene[] = [
     grabStep: 300,
     scrolls: false,
   },
-  {
-    name: 'B thinking-first',
-    turns: [
-      {
-        kind: 'stream',
-        blocks: [
-          { type: 'thinking', deltas: ['weighing the anatomy request... ', 'choosing a structure... ', 'settling the plan. '] },
-          { type: 'text', deltas: TOKENS.slice(0, 8).map(x => `${x} stream body. `) },
-        ],
-        gapMs: 350,
-      },
-      { kind: 'text', text: 'Spare.' },
-    ],
-    sends: ['after:↑↓ choose:900:\\r','6000:thinking anatomy probe\\r'],
-    seconds: 15,
-    grabFrom: 6200,
-    grabTo: 12200,
-    grabStep: 300,
-    scrolls: false,
-  },
+  flipScene(80, 21),
+  flipScene(120, 40),
+  flipScene(178, 51),
   {
     name: 'C long-scroll pressure',
     turns: [
@@ -153,13 +169,70 @@ const scenes: Scene[] = [
 type Frame = { atMs: number; rows: string[] }
 const TOKEN_RE = /(alpha|bravo|charlie|delta|echo|foxtrot|golf|hotel|india|juliet|kilo|lima|mike|november|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiskey|xray) stream body/
 
+const READING_RE = /reading the prompt/
+const THINKING_RE = /\(thinking\)|· thinking\)|thinking \(max\)|· thinking ·/
+const WRITING_RE = /◐ \d+(?:m \d+)?s|· writing ·/
+const TOOL_RE = /Running sleep 2; echo flip/
+const phaseOf = (f: Frame): string | null => {
+  if (f.rows.some(r => READING_RE.test(r))) return 'reading'
+  if (f.rows.some(r => TOOL_RE.test(r))) return 'tool'
+  if (f.rows.some(r => THINKING_RE.test(r))) return 'thinking'
+  if (f.rows.some(r => WRITING_RE.test(r))) return 'writing'
+  return null
+}
+const CARD_TOP_RE = /╭─{40,}╮/
+const CARD_BOTTOM_RE = /▀▀▀▀▀▀▀▀▀.*╰─{40,}╯/
+const cardSpanOf = (f: Frame): { top: number; bottom: number } | null => {
+  const bottom = f.rows.findIndex(r => CARD_BOTTOM_RE.test(r))
+  if (bottom === -1) return null
+  let top = bottom - 1
+  while (top >= 0 && !CARD_TOP_RE.test(f.rows[top]!)) top--
+  return top < 0 ? null : { top, bottom }
+}
+const cardRowsOf = (f: Frame): number | null => {
+  const span = cardSpanOf(f)
+  return span === null ? null : span.bottom - span.top - 1
+}
+const cardLinesOf = (f: Frame): string[] => {
+  const span = cardSpanOf(f)
+  if (span === null) return []
+  const topRow = f.rows[span.top]!
+  const left = topRow.search(CARD_TOP_RE)
+  const right = topRow.indexOf('╮', left)
+  return f.rows.slice(span.top + 1, span.bottom).map(r => r.slice(left + 1, right).trim())
+}
+const COMPACT_STRIP_RE = /^(✶|✸|✹|✺|✷) \S.* · /
+const compactStripRowOf = (f: Frame): number => f.rows.findIndex(r => COMPACT_STRIP_RE.test(r))
+const composerRowOf = (f: Frame): number => f.rows.findIndex(r => /^╭─+╮$/.test(r))
+const userRowOf = (f: Frame): number => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯'))
+const textRowOf = (f: Frame): number => f.rows.findIndex(r => TOKEN_RE.test(r))
+const stripWordsOf = (f: Frame): string => {
+  const lines = cardLinesOf(f)
+  if (lines.length > 0) return lines.join(' ⏎ ')
+  const compact = compactStripRowOf(f)
+  return compact === -1 ? '' : f.rows[compact]!.trim()
+}
+const slugOf = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+const movesOf = (seq: number[]): { down: number; up: number } => {
+  let down = 0
+  let up = 0
+  for (let i = 1; i < seq.length; i++) {
+    if (seq[i]! > seq[i - 1]!) down++
+    else if (seq[i]! < seq[i - 1]!) up++
+  }
+  return { down, up }
+}
+
 for (const scene of scenes) {
+  if (ONLY !== null && !scene.name.includes(ONLY)) continue
+  const cols = scene.cols ?? 120
+  const rows = scene.rows ?? 40
   const run = await runPulseArena({
     turns: scene.turns,
     sends: scene.sends,
     seconds: scene.seconds,
-    cols: 120,
-    rows: 40,
+    cols,
+    rows,
     keep: true,
   })
   const offsets: string[] = []
@@ -167,8 +240,8 @@ for (const scene of scenes) {
   offsets.push('-1')
   const grab = spawnSync(
     '/usr/bin/python3',
-    [SCREENGRAB, run.paths.drive, '120', '40', ...offsets],
-    { encoding: 'utf8' },
+    [SCREENGRAB, run.paths.drive, String(cols), String(rows), ...offsets],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   t.section(scene.name)
   if (grab.status !== 0) {
@@ -182,6 +255,81 @@ for (const scene of scenes) {
   const timed = screens.filter(f => f.atMs !== -1)
   const withText = timed.filter(f => f.rows.some(r => TOKEN_RE.test(r)))
 
+  if (FRAMES_DIR !== null) {
+    mkdirSync(FRAMES_DIR, { recursive: true })
+    const edges: string[] = []
+    let lastSig = ''
+    for (const f of screens) {
+      const sig = `${cardRowsOf(f)}|${userRowOf(f)}|${textRowOf(f)}|${phaseOf(f)}|${compactStripRowOf(f)}`
+      if (sig === lastSig && f.atMs !== -1) continue
+      lastSig = sig
+      const card = cardRowsOf(f)
+      const where = card === null ? `strip row ${compactStripRowOf(f)} · composer row ${composerRowOf(f)}` : `card ${card} line${card === 1 ? '' : 's'} · user row ${userRowOf(f)} · text row ${textRowOf(f)}`
+      edges.push(`━━ @${f.atMs}  ${where} · ${phaseOf(f) ?? '-'} · ${stripWordsOf(f)}`)
+      edges.push(...f.rows.map((r, i) => `${String(i).padStart(2)}|${r}`))
+    }
+    writeFileSync(join(FRAMES_DIR, `${slugOf(scene.name)}.txt`), `${scene.name}\n${edges.join('\n')}\n`)
+  }
+
+  const compactLayout = scene.flips !== undefined && timed.every(f => cardRowsOf(f) === null)
+  if (scene.flips !== undefined) {
+    const phases = timed.map(phaseOf).filter((p): p is string => p !== null)
+    const runs = phases.filter((p, i) => i === 0 || p !== phases[i - 1])
+    const seen = new Set(runs)
+    t.check(
+      `the strip painted every phase of the flip cycle (reading, thinking, writing, tool)`,
+      ['reading', 'thinking', 'writing', 'tool'].every(p => seen.has(p)),
+      `saw ${[...seen].join(',') || 'nothing'}`,
+    )
+    t.check(
+      `the strip flipped phase at least ${Math.floor(scene.flips * 0.7)} times on screen (${scene.flips} scripted)`,
+      runs.length - 1 >= Math.floor(scene.flips * 0.7),
+      `${runs.length - 1} flips: ${runs.join(' → ')}`,
+    )
+    if (compactLayout) {
+      const stripRows = timed.map(compactStripRowOf).filter(i => i !== -1)
+      const composerRows = timed.map(composerRowOf).filter(i => i !== -1)
+      t.check(
+        `the compact strip is one line whose row never moves across the flips (row ${[...new Set(stripRows)].join(',')})`,
+        stripRows.length > 0 && new Set(stripRows).size === 1,
+      )
+      t.check(
+        `the composer never moves across the flips (row ${[...new Set(composerRows)].join(',')})`,
+        composerRows.length > 0 && new Set(composerRows).size === 1,
+      )
+    } else {
+      const turnFrames = timed.filter(f => phaseOf(f) !== null)
+      const cardSeq = turnFrames.map(cardRowsOf).filter((n): n is number => n !== null)
+      const cardMoves = movesOf(cardSeq)
+      t.check(
+        `the working card never loses a line within the turn (${cardSeq.length ? `${Math.min(...cardSeq)}..${Math.max(...cardSeq)} lines` : 'no card found'})`,
+        cardSeq.length > 0 && cardMoves.up === 0,
+        `card lines ${cardSeq.join(',')}`,
+      )
+      t.check('the working card grows at most once within the turn', cardMoves.down <= 1, `${cardMoves.down} growths`)
+      const userSeq = turnFrames.map(userRowOf).filter(i => i !== -1)
+      const userMoves = movesOf(userSeq)
+      t.check(
+        `the user row never moves up mid-turn and moves down at most once, with the card (rows ${[...new Set(userSeq)].join(',')})`,
+        userMoves.up === 0 && userMoves.down <= 1 && userMoves.down <= cardMoves.down,
+        `${userMoves.down} down, ${userMoves.up} up`,
+      )
+      const textSeq = turnFrames.filter(f => textRowOf(f) !== -1).map(textRowOf)
+      const textMoves = movesOf(textSeq)
+      t.check(
+        `the text start row never moves up mid-turn and moves down at most once, with the card (rows ${[...new Set(textSeq)].join(',')})`,
+        textMoves.up === 0 && textMoves.down <= 1 && textMoves.down <= cardMoves.down,
+        `${textMoves.down} down, ${textMoves.up} up`,
+      )
+      const finalUser = userRowOf(final)
+      t.check(
+        'the settled frame stands at or above the turn\'s rows (the card may return to one line between turns)',
+        finalUser !== -1 && userSeq.length > 0 && finalUser <= userSeq[userSeq.length - 1]!,
+        `final ${finalUser}, last live ${userSeq[userSeq.length - 1]}`,
+      )
+    }
+  }
+
   const identityLaw = [...withText, final].every(f => {
     const textIdx = f.rows.findIndex(r => TOKEN_RE.test(r))
     if (textIdx === -1) return true
@@ -189,7 +337,7 @@ for (const scene of scenes) {
   })
   t.check('every frame with response text carries the nameplate at-or-above it', identityLaw)
 
-  if (!scene.scrolls) {
+  if (!scene.scrolls && scene.flips === undefined) {
     const startSeq = [...withText, final]
       .filter(f => f.rows.some(r => TOKEN_RE.test(r)))
       .map(f => f.rows.findIndex(r => TOKEN_RE.test(r)))
@@ -219,7 +367,7 @@ for (const scene of scenes) {
   let elapsedLawHolds = true
   let monotonic = true
   let prev = -1
-  const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '')
+  const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '').replace(/first byte expected within [\dsmh ]+|past the [\dsmh ]+ first-byte budget/g, '')
   const carriesElapsed = (r: string): boolean => /\b\d+s\b/.test(withoutPostscript(r)) && /esc|interrupt|thinking|✻|✶/i.test(r)
   const spinnerFrames = timed.filter(f => f.rows.some(carriesElapsed))
   const turnFrames: typeof timed = []
