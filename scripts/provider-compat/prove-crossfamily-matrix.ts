@@ -120,7 +120,7 @@ function sawToolResult(family: Family, body: Body): boolean {
       m => Array.isArray(m.content) && (m.content as Array<{ type?: string }>).some(b => b?.type === 'tool_result'),
     )
   }
-  if (family === 'openai') {
+  if (family === 'openai' || (family === 'openrouter' && Array.isArray(body.input))) {
     const input = (body.input as Array<{ type?: string }> | undefined) ?? []
     return input.some(i => i?.type === 'function_call_output')
   }
@@ -213,7 +213,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 
     if (req.method === 'POST' && family !== undefined) {
       const isAnthropic = family === 'anthropic' && path.endsWith('/v1/messages')
-      const isResponses = family === 'openai' && path.endsWith('/responses')
+      const isResponses = (family === 'openai' || family === 'openrouter') && path.endsWith('/responses')
       const isChat = path.endsWith('/chat/completions')
       if (isAnthropic || isResponses || isChat) {
         captured.push({ family, path, body })
@@ -458,6 +458,12 @@ function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, exp
   const first = workerHits[0]!.body
   const wireModel = String(first.model ?? '')
   check(`${tag}: the wire carries the exact id '${expectedWireId}'`, wireModel === expectedWireId, wireModel)
+  if (workerFamily === 'openrouter') {
+    const deferred = Array.isArray(first.tools) && (first.tools as Array<{ type?: string }>).some(t => t?.type === 'openrouter:tool_search')
+    const endpoints = workerHits.map(h => h.path.replace(/^\/openrouter\/api\/v1/, ''))
+    check(`${tag}: the OpenRouter wire is the Responses endpoint when the route defers (its search tool first), the chat endpoint when it does not`,
+      endpoints.every(p => p === (deferred ? '/responses' : '/chat/completions')), `${deferred ? 'deferring' : 'not deferring'}: ${endpoints.join(',')}`)
+  }
   check(`${tag}: the resolved identity names '${expectedResolved}'`, o.resolvedModel === expectedResolved, String(o.resolvedModel))
   const serialized = text(first)
   check(`${tag}: the brief rode the wire`, serialized.includes('matrix-brief'), serialized.slice(0, 200))

@@ -321,7 +321,7 @@ section('§5b coordinator-dispatched sessions ride the SESSION arm — haiku + a
       await untilAsync(async () => existsSync(seatJsonl(sid, work7)) && readFileSync(seatJsonl(sid, work7), 'utf8').includes('nemotron-landed body.'), 45_000),
       sid)
     const orSeats = captured.filter(h => h.lane === 'openrouter-seat')
-    check('…the routed seat call rode the OpenRouter chat wire with the nemotron id',
+    check('…the routed seat call rode the OpenRouter wire with the nemotron id',
       orSeats.length >= 1 && orSeats.every(h => /nemotron/i.test(h.model) && !text(h.body).includes('<switchboard')),
       orSeats.map(h => h.model).join(','))
     await freeSeat(sid)
@@ -376,9 +376,13 @@ section('§8 the wire-separation law over the whole run')
     gptSeats.length >= 2 && gptSeats.every(h => h.path === '/openai/v1/responses'),
     String(gptSeats.length))
   const routedSeats = captured.filter(h => h.lane === 'openrouter-seat')
-  check('every routed seat call rode the OpenRouter chat endpoint',
-    routedSeats.length >= 1 && routedSeats.every(h => h.path === '/openrouter/api/v1/chat/completions'),
-    String(routedSeats.length))
+  const openrouterEndpointOf = (h: { body: unknown }): string =>
+    Array.isArray((h.body as { tools?: unknown }).tools) && ((h.body as { tools: Array<{ type?: string }> }).tools).some(t => t?.type === 'openrouter:tool_search')
+      ? '/openrouter/api/v1/responses'
+      : '/openrouter/api/v1/chat/completions'
+  check('every routed seat call rode the OpenRouter wire — the Responses endpoint when the seat defers (its search tool first), the chat endpoint when it does not',
+    routedSeats.length >= 1 && routedSeats.every(h => h.path === openrouterEndpointOf(h)),
+    routedSeats.map(h => `${h.path}${openrouterEndpointOf(h) === h.path ? '' : ' (expected ' + openrouterEndpointOf(h) + ')'}`).join(','))
   check('no seat call of ANY family carried the coordinator block',
     [...anthropicSeats, ...gptSeats, ...routedSeats].every(h => !text(h.body).includes('<switchboard')),
     'a seat body carried <switchboard')

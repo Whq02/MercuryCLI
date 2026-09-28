@@ -217,8 +217,8 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
     return emit({ final: `cma-${dialect}-final.` })
   }
 
-  function seatScript(serialized: string, dialect: 'anthropic' | 'openai' | 'zai' | 'openrouter' = 'anthropic'): string {
-    const emit = dialect === 'anthropic' ? anthropicSse : dialect === 'openai' ? responsesSse : chatSse
+  function seatScript(serialized: string, dialect: 'anthropic' | 'openai' | 'zai' | 'openrouter' | 'openrouter-responses' = 'anthropic'): string {
+    const emit = dialect === 'anthropic' ? anthropicSse : dialect === 'openai' || dialect === 'openrouter-responses' ? responsesSse : chatSse
     const closed = /tool_result|function_call_output|"role":"tool"/.test(serialized)
     const marker = serialized.includes(CMA_STEER_TEXT.slice(0, 20))
       ? 'steer'
@@ -331,6 +331,13 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
         record({ lane: isCoordinator ? 'openai' : 'openai-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         res.end(isCoordinator ? coordinatorScript(raw, body, 'openai') : seatScript(raw, 'openai'))
+        return
+      }
+      if (req.method === 'POST' && path === '/openrouter/api/v1/responses') {
+        const isCoordinator = raw.includes('<switchboard')
+        record({ lane: isCoordinator ? 'openrouter' : 'openrouter-seat', path, model: String(body.model ?? ''), body })
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(isCoordinator ? coordinatorScript(raw, body, 'openai') : seatScript(raw, 'openrouter-responses'))
         return
       }
       if (req.method === 'POST' && path === '/openrouter/api/v1/chat/completions') {

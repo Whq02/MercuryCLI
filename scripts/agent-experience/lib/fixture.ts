@@ -24,7 +24,7 @@ export const FAMILIES: Record<FamilyId, FamilySpec> = {
   anthropic: { id: 'anthropic', dialect: 'anthropic', model: 'claude-opus-4-8', backend: 'anthropic-messages', label: 'Anthropic Messages' },
   openai: { id: 'openai', dialect: 'responses', model: 'gpt-5.5', backend: 'openai-responses', label: 'OpenAI Responses' },
   chat: { id: 'chat', dialect: 'chat', model: 'glm-5.3', backend: 'zai-glm', label: 'chat-completions (Z.AI)' },
-  openrouter: { id: 'openrouter', dialect: 'chat', model: 'openrouter/stealth/ox-alpha', backend: 'openrouter-chat', label: 'chat-completions (OpenRouter carrier)' },
+  openrouter: { id: 'openrouter', dialect: 'responses', model: 'openrouter/stealth/ox-alpha', backend: 'openrouter-responses', label: 'Responses (OpenRouter, its own tool search)' },
 }
 
 export const MECHANICAL_FAMILIES: FamilyId[] = ['anthropic', 'openai', 'chat', 'openrouter']
@@ -81,6 +81,7 @@ export function pickTurn(script: ScriptedTurn[], results: number): ScriptedTurn 
 function familyOf(path: string): { family: FamilyId; dialect: Dialect } | null {
   if (path === '/openai/v1/responses') return { family: 'openai', dialect: 'responses' }
   if (path === '/zai/v4/chat/completions') return { family: 'chat', dialect: 'chat' }
+  if (path === '/openrouter/api/v1/responses') return { family: 'openrouter', dialect: 'responses' }
   if (path === '/openrouter/api/v1/chat/completions') return { family: 'openrouter', dialect: 'chat' }
   if (path.endsWith('/v1/messages')) return { family: 'anthropic', dialect: 'anthropic' }
   return null
