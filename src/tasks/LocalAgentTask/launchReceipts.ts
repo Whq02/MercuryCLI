@@ -202,7 +202,7 @@ export function launchesNamed(messages: readonly Message[], name: string): Named
 export async function recordedNamedLaunches(): Promise<NamedLaunch[]> {
   const launches: NamedLaunch[] = []
   for (const { agentId, metadata } of await listAgentMetadata()) {
-    if (typeof metadata.name !== 'string' || metadata.name.trim() === '') continue
+    if (typeof metadata.name !== 'string' || metadata.name.trim() === '' || metadata.teammate !== undefined) continue
     launches.push({
       agentId,
       name: metadata.name.trim(),

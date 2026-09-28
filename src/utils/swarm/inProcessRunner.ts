@@ -105,6 +105,12 @@ export type InProcessRunnerConfig = {
   model?: string
   effortOverride?: string
   transcriptAgentId?: string
+  resume?: {
+    transcriptAgentId: string
+    prompt: string
+    messages: Message[]
+    contentReplacementState?: ReturnType<typeof createContentReplacementState>
+  }
   systemPrompt?: string
   systemPromptMode?: 'default' | 'replace' | 'append'
   allowedTools?: string[]
@@ -604,15 +610,12 @@ export async function runInProcessTeammate(
     ...(config.invokingRequestId !== undefined
       ? { invokingRequestId: config.invokingRequestId }
       : {}),
-    invocationKind: 'spawn',
+    invocationKind: config.resume === undefined ? 'spawn' : 'resume',
     invocationEmitted: false,
   }
-  let currentPrompt = wrapAsTeammateMessage(
-    TEAM_LEAD_NAME,
-    config.prompt,
-    undefined,
-    config.description,
-  )
+  let currentPrompt =
+    config.resume?.prompt ??
+    wrapAsTeammateMessage(TEAM_LEAD_NAME, config.prompt, undefined, config.description)
   await claimNextAvailableTask(identity)
 
   try {
@@ -665,12 +668,13 @@ export async function runInProcessTeammate(
       messages: appendCappedMessage(task.messages, createUserMessage({ content: currentPrompt })),
     }))
 
-    let contentReplacementState =
+    let contentReplacementState = config.resume?.contentReplacementState ?? (
       toolUseContext.contentReplacementState !== undefined
         ? { ...createContentReplacementState(), budgetChars: toolUseContext.contentReplacementState.budgetChars }
         : undefined
+    )
 
-    const accumulated: Message[] = []
+    const accumulated: Message[] = [...(config.resume?.messages ?? [])]
     let exitRequested = false
 
     while (!config.abortController.signal.aborted && !exitRequested) {

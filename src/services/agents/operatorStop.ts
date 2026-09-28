@@ -42,7 +42,7 @@ export function unsettledWords(name: string, settleMs: number): string {
 }
 
 export function teammateStopWords(name: string): string {
-  return `Teammate "${name}" stopped from the crew view · r on its row spawns it again from its prompt`
+  return `Teammate "${name}" stopped from the crew view · r on its row resumes its transcript`
 }
 
 export async function stopAgentByOperator(

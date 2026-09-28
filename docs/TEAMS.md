@@ -81,8 +81,11 @@ reason — an id the registry no longer holds, a row that had already settled,
 a loop that did not end within the runner's settle budget — and a refusal is
 painted under the rows. A stopped agent's row reads `stopped` with the reason
 and its transcript stands on disk; `r` resumes it from that transcript under
-the same id. A stopped teammate keeps no transcript to resume, so `r` on its
-row spawns it again from its prompt under a new row. Every stop, resume and
+the same id. A stopped teammate keeps its transcript too: `r` on its row
+continues it from where it was under a new row with the same name, the work
+before the stop in its context, and the row may be pressed after it has left
+the list — the spawn's record beside the transcript is what `r` reads. Every
+stop, resume and
 failure reaches the main agent as a notification of its own kind, never
 silently, a stop or resume from the crew view included. A teammate spawned
 into a team that does not exist is refused, and no row is left standing for
