@@ -45,8 +45,8 @@ Every error text is bounded, with the message kept ahead of the bound.
 In the chat, a cell's row paints its state, id, duration and generation,
 the first line of its error, the first line of its value and the last four
 output lines (every line under ctrl+o). A failed or timed-out cell's row
-opens a card, the way a shell's row in the background board opens its own:
-click the row or type `/tasks <cell id>` (the row says so on its last
+opens a card, the way a shell's row in the runs board opens its own:
+click the row or type `/runs <cell id>` (the row says so on its last
 line). The card carries the cell's language and title, its code, the whole
 error, the output tail with a count of the lines shown, the duration, the
 generation and the runtime-killed fact; on a short window the code is

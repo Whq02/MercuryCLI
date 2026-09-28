@@ -365,7 +365,7 @@ function paneRows(lines: string[]): string[] {
 }
 
 const GUTTER = /^│\s*/
-const DRESS = /^(\d\d:\d\d:\d\d\s+|queued\s+|\[[^\]]+\]\s*|[◐◑◒◓●⏺✶✷✸✹✺✻]\s*)+/
+const DRESS = /^(\d\d:\d\d:\d\d\s+|queued\s+|\[(?!Monitor\])[^\]]+\]\s*|[◐◑◒◓●⏺✶✷✸✹✺✻]\s*)+/
 const HEAD = /^(❯|▰|▶|■|◆|✶|Ran \d|Read \d|Searched)/
 function runsOf(rows: string[]): string[] {
   const out: string[] = []
@@ -454,14 +454,14 @@ for (const journey of JOURNEYS) {
   check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
   check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')))
   if (journey.name === 'monitor-mid-turn-rows') {
-    const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_MID}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_MID}`)
     check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     check(`${tag}: an event line stands beneath the plate, not under a caret`, runFrames(frames, r => plate(r) && r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     check(`${tag}: the held dress and arrival clock precede the plate while the runner's queue holds the notice`, rowFrames(frames, r => /^held\s+since \d{2}:\d{2}:\d{2}\s/.test(r) && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
     check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'notice-between-turns') {
-    const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_LATE}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_LATE}`)
     check(`${tag}: the notice that woke the turn stands under its plate, its line beneath`, runFrames(frames, r => plate(r) && r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     const plateAt = runIndex(lastRuns, plate)
     const notedAt = runIndex(lastRuns, r => r.includes(NOTED))
@@ -469,7 +469,7 @@ for (const journey of JOURNEYS) {
   }
   if (journey.name === 'text-between-tools') {
     const carried = (r: string): boolean => r.includes(CARRIED)
-    const plate = (r: string): boolean => r.includes(`monitor · ${WATCH_OWNER}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_OWNER}`)
     const noticeRun = (r: string): boolean => plate(r) || r.includes('<monitor task=')
     const firstFull = frames.findIndex(f => runsIn(f).some(r => r.includes('before the next step')))
     const gaps = firstFull === -1 ? [] : frames.slice(firstFull).filter(f => !runsIn(f).some(carried))

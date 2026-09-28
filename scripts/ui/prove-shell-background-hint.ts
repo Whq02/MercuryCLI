@@ -28,7 +28,7 @@ const EXPANDED_ROW = `Bash ${COMMAND}`
 const EXPANDED_HEAD = 'Expanded group (1 call)'
 const TASK_ID = 'b7f3a2'
 const WORDS = 'run in background'
-const RECEIPT = 'Running in the background — see /tasks'
+const RECEIPT = 'Running in the background — see /runs'
 const MEMBER_RECEIPT = 'Running in the background'
 const CANNOT_RENDER = 'could not be rendered'
 

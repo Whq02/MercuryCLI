@@ -164,7 +164,7 @@ for (const { cols, rows } of sizes) {
   tally.check(`${label} A1 every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} ${cap.stderr.slice(-200)}`)
   tally.check(`${label} A2 the lead answered and its turn ended`, (cap.marks.landed ?? '').includes(LANDED))
   tally.check(`${label} A3 the background agent launched its command in the background`, subLaunched)
-  tally.check(`${label} A4 the /tasks view opened on the agent\u2019s work`, board !== undefined && /Mercury \u2014 (tasks|agent)/.test(board) && board.includes(AGENT_DESCRIPTION), board?.slice(0, 200))
+  tally.check(`${label} A4 the /runs view opened on the agent\u2019s work`, board !== undefined && /Mercury \u2014 (runs|agent)/.test(board) && board.includes(AGENT_DESCRIPTION), board?.slice(0, 200))
   tally.check(`${label} A5 the board lists the agent\u2019s background command as a shell row`, board !== undefined && /Shells \(1\)/.test(board) && board.includes('sub-shell-row'), board === undefined ? '' : `rows: ${board.split('\n').filter(l => /Shells|sub-shell|Mercury \u2014/.test(l)).join(' | ').slice(0, 300)}`)
   if (tally.failed() === 0 && !KEEP) {
     rmSync(home, { recursive: true, force: true })

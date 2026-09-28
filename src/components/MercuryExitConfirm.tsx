@@ -38,7 +38,7 @@ export function MercuryExitConfirm({
           {liveWords} still running
         </Text>
       </Text>
-      <Text color={t.textMuted}>quitting stops them · see them with /tasks · the session itself stays resumable</Text>
+      <Text color={t.textMuted}>quitting stops them · see them with /runs · the session itself stays resumable</Text>
       <Text>
         {
 }

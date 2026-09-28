@@ -318,7 +318,7 @@ try {
   check('the guard admits a saturn origin and refuses the others', rows.isSaturnOrigin(wakeOrigin()) && rows.isSaturnOrigin(cronOrigin()) && rows.isSaturnOrigin(titledOrigin()) && !rows.isSaturnOrigin({ kind: 'channel', server: 'x' }) && !rows.isSaturnOrigin(undefined) && !rows.isSaturnOrigin({ kind: 'saturn' }))
   const plate = rows.noticePlate({ kind: 'saturn', origin: wakeOrigin(), lines: [] } as never, ROW_AT)
   check('the notice plate of a saturn block opens with the Saturn name', plate === `[Saturn] · self-paced wake · fifteen-minute cadence · reason: ${REASON}`, plate)
-  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === 'monitor · the build watch')
+  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor]: the build watch')
 } catch (error) {
   check('the Saturn word home stands (saturnFirstLine, cadenceWords, saturnPromptLines, isSaturnOrigin)', false, String(error))
 }
@@ -360,7 +360,7 @@ section("§2 the neighbours are byte-identical (a guard, green on both trees): t
   const notice = await paintText({ param: { type: 'text', text: 'Stop hook blocking error from command "lint": 3 errors' }, notice: true }, { type: 'user', timestamp: ROW_AT })
   check("a held notice keeps its dot and its plate exactly", notice === `${clock(ROW_AT)} ${DOT} notice Stop hook blocking error from command "lint": 3 errors`, notice)
   const monitor = await paintText({ param: { type: 'text', text: '<monitor task="bk1" name="the build watch">\nbuilt\n</monitor>' } }, { type: 'user', timestamp: ROW_AT })
-  check('a monitor notice keeps its dot and its watch exactly', monitor === `${clock(ROW_AT)} ${DOT} monitor · the build watch built`, monitor)
+  check('a monitor notice is the muted [Monitor]: row with its watch exactly', monitor === `${clock(ROW_AT)} [Monitor]: the build watch built`, monitor)
   const delivered = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE, noticeDeliveredAt: ROW_AT }, { type: 'user', timestamp: HELD_SINCE })
   check('a notice delivered later sits at its own clock and names the delivery exactly', delivered === `${clock(HELD_SINCE)} ${DOT} notice · delivered ${clock(ROW_AT)} the saved work is ready`, delivered)
 }

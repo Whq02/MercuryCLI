@@ -34,20 +34,20 @@ try {
     const sends = [
       { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2, minTick: 15, data: '\x16' },
       { awaitText: '│❯ [Image #1]', requireAwait: true, awaitSettleTicks: 2, data: 'i' },
-      { afterPrevTicks: 3, data: '', mark: 'i' },
-      { afterPrevTicks: 1, data: 't' },
-      { afterPrevTicks: 3, data: '', mark: 'it' },
-      { afterPrevTicks: 1, data: 's' },
-      { afterPrevTicks: 3, data: '', mark: 'its' },
-      { afterPrevTicks: 1, data: '\x05' },
-      { afterPrevTicks: 2, data: '\x15' },
-      { afterPrevTicks: 3, data: '\x16' },
+      { awaitText: '[Image #1] i', requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'i' },
+      { awaitText: '[Image #1] i', requireAwait: true, awaitSettleTicks: 1, data: 't' },
+      { awaitText: '[Image #1] ', requireAwait: true, awaitPattern: '\\[Image #1\\] (it|ti)', awaitSettleTicks: 2, data: '', mark: 'it' },
+      { awaitText: '[Image #1] ', requireAwait: true, awaitPattern: '\\[Image #1\\] (it|ti)', awaitSettleTicks: 1, data: 's' },
+      { awaitText: '[Image #1] ', requireAwait: true, awaitPattern: '\\[Image #1\\] (its|tsi)', awaitSettleTicks: 2, data: '', mark: 'its' },
+      { awaitText: '[Image #1] ', requireAwait: true, awaitPattern: '\\[Image #1\\] (its|tsi)', awaitSettleTicks: 1, data: '\x05' },
+      { awaitText: '[Image #1] ', requireAwait: true, awaitPattern: '\\[Image #1\\] (its|tsi)', awaitSettleTicks: 2, data: '\x15' },
+      { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 3, data: '\x16' },
       { awaitText: '│❯ [Image #2]', requireAwait: true, awaitSettleTicks: 2, data: 'it' },
-      { afterPrevTicks: 3, data: '', mark: 'burst' },
+      { awaitText: '[Image #2]', requireAwait: true, awaitPattern: '\\[Image #2\\] ?(it|ti)', awaitSettleTicks: 2, data: '', mark: 'burst' },
     ]
     const out = join(home, `${band.cols}x${band.rows}.json`)
     const config = join(home, `${band.cols}x${band.rows}-cfg.json`)
-    writeFileSync(config, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total: 290, ...band, out }))
+    writeFileSync(config, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, readyText: '[Image #2]', total: 290, ...band, out }))
     const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), config], {
       encoding: 'utf8', timeout: vshotBudgetMs(240_000),
       env: { ...process.env, MERCURY_CLIPBOARD_IMAGE_FILE: clipboard, MERCURY_AWAY_SUMMARY: '0' },

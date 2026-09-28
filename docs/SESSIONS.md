@@ -189,7 +189,7 @@ your own authority, under its own permission mode. A background session
 keeps working single-handed and waits — until you visit it, or until it
 holds the workflows-allowed grant (asked of the coordinator, chosen as
 keep-and-background on leave, or the manual-start option); a hop flips both
-answers at once. `/tasks`,
+answers at once. `/runs`,
 `/workflows` and the board's work chip show the focused session's own work
 and never another's. A shell's row on the board, or in the cockpit rail's RUNS
 lane, opens its card: the whole command, the directory it runs in, the time it

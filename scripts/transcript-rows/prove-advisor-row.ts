@@ -201,8 +201,8 @@ section('§0 the words: the plate, the first line, the guard, the note stripped 
   const stripped = rows.advisorPromptLines(wrapped)
   check("a mid-turn drained note paints its own words alone: the framing head and tail are stripped", JSON.stringify(stripped) === JSON.stringify(NOTE.split('\n')), JSON.stringify(stripped))
   check('a bare note is kept whole', JSON.stringify(rows.advisorPromptLines(NOTE)) === JSON.stringify(NOTE.split('\n')))
-  check('the muted-row law names saturn and advisor, no other kind', rows.isMutedNoticeBlock(block) && rows.isMutedNoticeBlock({ kind: 'saturn', origin: { kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }, lines: [] } as never) && !rows.isMutedNoticeBlock({ kind: 'notice', lines: [] } as never) && !rows.isMutedNoticeBlock({ kind: 'monitor', taskId: 't', name: 'n', lines: [] } as never))
-  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === 'monitor · the build watch')
+  check('the muted-row law names saturn, advisor and monitor, never a plain notice', rows.isMutedNoticeBlock(block) && rows.isMutedNoticeBlock({ kind: 'saturn', origin: { kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }, lines: [] } as never) && !rows.isMutedNoticeBlock({ kind: 'notice', lines: [] } as never) && rows.isMutedNoticeBlock({ kind: 'monitor', taskId: 't', name: 'n', lines: [] } as never))
+  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor]: the build watch')
 }
 
 section("§1 the row: a note with the advisor origin paints the muted [advisor] row — no accent dot, every line dim, never the operator's line (red on the base: the handle and the caret)")
@@ -238,7 +238,7 @@ section("§2 the neighbours are byte-identical (a guard, green on both trees): t
   const notice = await paintText({ param: { type: 'text', text: 'Stop hook blocking error from command "lint": 3 errors' }, notice: true }, { type: 'user', timestamp: ROW_AT })
   check('a held notice keeps its dot and its plate exactly', notice === `${clock(ROW_AT)} ${DOT} notice Stop hook blocking error from command "lint": 3 errors`, notice)
   const monitor = await paintText({ param: { type: 'text', text: '<monitor task="bk1" name="the build watch">\nbuilt\n</monitor>' } }, { type: 'user', timestamp: ROW_AT })
-  check('a monitor notice keeps its dot and its watch exactly', monitor === `${clock(ROW_AT)} ${DOT} monitor · the build watch built`, monitor)
+  check('a monitor notice is the muted [Monitor]: row with its watch exactly', monitor === `${clock(ROW_AT)} [Monitor]: the build watch built`, monitor)
 }
 for (const [columns, rowCount] of SIZES) {
   const frame = await paintChat([userRow(OPERATOR_LINE, U1, ROW_AT), replyRow(LATER)], columns, rowCount)

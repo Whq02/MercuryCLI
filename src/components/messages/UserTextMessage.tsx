@@ -4,6 +4,7 @@ import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import {
   CHANNEL_TAG,
   COMMAND_MESSAGE_TAG,
+  COMMAND_NAME_TAG,
   FORK_BOILERPLATE_TAG,
   LOCAL_COMMAND_CAVEAT_TAG,
   TASK_NOTIFICATION_TAG,
@@ -12,11 +13,10 @@ import {
 } from '../../constants/xml.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
-  extractTag,
   turnCutOfText,
   turnCutWhy,
 } from '../../utils/messages.js'
-import { advisorBlockOf, isAdvisorOrigin, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf } from '../../utils/messages/noticeRows.js'
+import { advisorBlockOf, isAdvisorOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { UserAgentNotificationMessage } from './UserAgentNotificationMessage.js'
@@ -74,11 +74,17 @@ export function UserTextMessage({
     return <UserPlanMessage addMargin={addMargin} planContent={planContent} />
   }
 
-  if (extractTag(param.text, TICK_TAG)) {
+  const monitorBlocks = isMonitorText(param.text) ? wrappedNoticeBlocks(param.text) : null
+  if (monitorBlocks !== null) {
+    return <UserNoticeMessage addMargin={addMargin} blocks={monitorBlocks} deliveredAt={deliveredAt} />
+  }
+
+  const head = param.text.trimStart()
+  if (head.startsWith(`<${TICK_TAG}`)) {
     return null
   }
 
-  if (param.text.includes(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) {
+  if (head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) {
     return null
   }
 
@@ -115,21 +121,21 @@ export function UserTextMessage({
 
   
 
-  if (param.text.includes('<bash-input>')) {
+  if (head.startsWith('<bash-input>')) {
     return <UserBashInputMessage addMargin={addMargin} param={param} />
   }
 
-  if (param.text.includes(`<${COMMAND_MESSAGE_TAG}>`)) {
+  if (head.startsWith(`<${COMMAND_NAME_TAG}>`) || head.startsWith(`<${COMMAND_MESSAGE_TAG}>`)) {
     return <UserCommandMessage addMargin={addMargin} param={param} />
   }
 
-  if (param.text.includes('<user-memory-input>')) {
+  if (head.startsWith('<user-memory-input>')) {
     return <UserMemoryInputMessage addMargin={addMargin} text={param.text} />
   }
 
   if (
     isAgentSwarmsEnabled() &&
-    param.text.includes(`<${TEAMMATE_MESSAGE_TAG}`)
+    head.startsWith(`<${TEAMMATE_MESSAGE_TAG}`)
   ) {
     return (
       <UserTeammateMessage
@@ -140,22 +146,22 @@ export function UserTextMessage({
     )
   }
 
-  if (param.text.includes(`<${TASK_NOTIFICATION_TAG}`)) {
+  if (head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
     return <UserAgentNotificationMessage addMargin={addMargin} param={param} deliveredAt={deliveredAt} />
   }
 
   if (
-    param.text.includes('<mcp-resource-update') ||
-    param.text.includes('<mcp-polling-update')
+    head.startsWith('<mcp-resource-update') ||
+    head.startsWith('<mcp-polling-update')
   ) {
     return <UserResourceUpdateMessage addMargin={addMargin} param={param} />
   }
 
-  if (param.text.includes(`<${FORK_BOILERPLATE_TAG}>`)) {
+  if (head.startsWith(`<${FORK_BOILERPLATE_TAG}>`)) {
     return <UserForkBoilerplateMessage addMargin={addMargin} param={param} />
   }
 
-  if (param.text.includes(`<${CHANNEL_TAG} source="`)) {
+  if (head.startsWith(`<${CHANNEL_TAG} source="`)) {
     return <UserChannelMessage addMargin={addMargin} param={param} />
   }
 

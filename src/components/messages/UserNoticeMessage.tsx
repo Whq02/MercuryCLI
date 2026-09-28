@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { NoticeBlock } from '../../utils/messages/noticeRows.js'
-import { isMutedNoticeBlock, noticePlate } from '../../utils/messages/noticeRows.js'
+import { isMutedNoticeBlock, noticeCarriesOwnClock, noticePlate } from '../../utils/messages/noticeRows.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { NameplateClock, useMessageMeta } from './TranscriptNameplate.js'
 
@@ -27,7 +27,7 @@ export function UserNoticeMessage({
             {isMutedNoticeBlock(block) ? null : <Text color={accent}>● </Text>}
             <Text dimColor>
               {noticePlate(block, meta?.timestamp)}
-              {index === 0 && !isMutedNoticeBlock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''}
+              {index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''}
             </Text>
           </Text>
           {block.lines.map((line, at) => (

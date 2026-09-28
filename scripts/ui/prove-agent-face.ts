@@ -511,14 +511,14 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     rows.map(r => r.value).join(' · '),
   )
   t.check(
-    'TOTALITY, row-wise: kind by the action-row owner · group by the catalogue paint law · unavailable/label/description carried byte-equal',
+    'TOTALITY, row-wise: kind by the action-row owner · group by the catalogue paint law · unavailable/description carried byte-equal · a model row is labelled by its full id, a connect row by its own words',
     expected.every((opt, i) => {
       const row = rows[i + 1]!
       return (
         row.kind === (isProviderActionRow(opt.value) ? 'connect' : 'model') &&
         row.group === (opt.group ?? ANTHROPIC_MODEL_GROUP) &&
         row.unavailable === opt.unavailable &&
-        row.label === opt.label &&
+        row.label === (isProviderActionRow(opt.value) ? opt.label : opt.value) &&
         row.description === opt.description
       )
     }),

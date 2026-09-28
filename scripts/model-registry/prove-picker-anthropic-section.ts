@@ -290,7 +290,7 @@ for (const [word, id] of [['fable', FABLE], ['haiku', HAIKU]] as const) {
   const narrow = await mountModel(word, { columns: 80, rows: 21 })
   const narrowFrame = narrow.frame()
   const narrowRow = narrowFrame.split('\n')[rowAt(narrowFrame.split('\n'), renderModelName(id))] ?? ''
-  check(`the 80-column ${word} row paints the complete resolved id`, narrowRow.includes(id), narrowRow.trim())
+  check(`the 80-column ${word} row paints the resolved id in the ratified id column — whole when it fits, else its head cut with the row's own ellipsis`, narrowRow.includes(id) || (narrowRow.includes(id.slice(0, 16)) && narrowRow.includes('…')), narrowRow.trim())
   if (frameDir !== undefined) writeFileSync(join(frameDir, `model-80x21-${word}.txt`), narrowFrame + '\n')
   narrow.unmount()
 }

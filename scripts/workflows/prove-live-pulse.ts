@@ -99,7 +99,7 @@ t('transcript line reads the run\'s work row (the focused session\'s rows, never
 t('transcript line reads the row\'s pulse through the shared projector', renderers.includes("from './livePulse.js'") && renderers.includes('workflowPulseAt(task.pulse, nowMs)'))
 t('transcript line carries the age heartbeat', renderers.includes('last event {formatQuietAge(pulse.quietMs)} ago'))
 t('quiet age turns AMBER on the transcript line', renderers.includes('pulse.moving ? FAINT : AMBER'))
-t('transcript line carries the /tasks <id> probe pointer', renderers.includes('/tasks {taskId}'))
+t('transcript line carries the /runs <id> probe pointer', renderers.includes('/runs {taskId}'))
 t('transcript tick is coarse AND parked when settled', renderers.includes('useNowTick(live ? 10_000 : null)'))
 const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
 t('statusbar chip reads the shared projector', frame.includes("from '../tools/WorkflowTool/livePulse.js'") && frame.includes('workflowPulseAt(w.pulse, wfNow)'))

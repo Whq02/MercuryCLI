@@ -90,8 +90,9 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
   check('the purged routes are ABSENT as command names', revenants.length === 0, revenants.join(', '))
   check("'rooms' is a /multiplayer alias in the artifact", byName.get('multiplayer')?.aliases.includes('rooms') === true)
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true)
+  check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true)
 
-  const LIVE = ['sessions', 'surfaces', 'teammates', 'memory', 'model', 'help', 'palette', 'status', 'usage', 'health', 'capabilities', 'tasks', 'workflows', 'agents', 'resume', 'diff']
+  const LIVE = ['sessions', 'surfaces', 'teammates', 'memory', 'model', 'help', 'palette', 'status', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'resume', 'diff']
   const missing = LIVE.filter(n => {
     const s = byName.get(n)
     return !s || !s.enabled || s.visibility !== 'normal'

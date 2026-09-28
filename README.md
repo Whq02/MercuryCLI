@@ -327,10 +327,10 @@ can run without approval and what must ask first. `/policy` is a read-only
 view of the current permission mode, sandbox settings and other permission
 controls.
 
-Review changes with `/diff`, by source, file and hunk. `/tasks` shows running
-shells and agents. When no turn is running, `/clear` saves the current chat
-for later and opens a fresh session; `/title` names the chat, and `/help`
-lists the available commands.
+Review changes with `/diff`, by source, file and hunk. `/runs` shows running
+shells and agents (`/tasks` still opens the same board). When no turn is
+running, `/clear` saves the current chat for later and opens a fresh session;
+`/title` names the chat, and `/help` lists the available commands.
 
 ### Moving between screens
 
@@ -504,7 +504,7 @@ the live list can also include skills and extension commands.
 
 | Domain | Commands |
 | --- | --- |
-| current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/supervisor` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/console` `/orient` |

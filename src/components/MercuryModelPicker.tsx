@@ -182,7 +182,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const popup = React.useContext(PopupFrameContext)
   const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))
   const inner = panelWidth - 4
-  const columns = pickerColumns(inner - 4, Math.max(20, ...listed.filter(isModelRow).map(model => model.id.length + 2)))
+  const columns = pickerColumns(inner - 4)
   const totalLines = lines.length
   const availRows = slot.rows
   const compact = availRows < 20

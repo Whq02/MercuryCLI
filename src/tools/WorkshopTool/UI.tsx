@@ -25,7 +25,7 @@ export function renderToolUseMessage(
 }
 
 export function cellCardHint(cellId: string): string {
-  return `${OUTPUT_CONNECTOR}view the card: /tasks ${cellId} · click to open`;
+  return `${OUTPUT_CONNECTOR}view the card: /runs ${cellId} · click to open`;
 }
 
 export function cellCardFactsOfResult(toolUseResult: unknown, input: Partial<Input> | undefined): WorkshopCellCardFacts[] {
@@ -50,7 +50,7 @@ function FailedCellsRow({ result, verbose, facts }: { result: ToolResultBlockPar
       directActivate
       selectionBand={false}
       flexDirection="column"
-      onActivate={() => requestCommandDispatch(`/tasks ${first.cellId}`)}
+      onActivate={() => requestCommandDispatch(`/runs ${first.cellId}`)}
     >
       <MessageResponse>
         <Box flexDirection="column">

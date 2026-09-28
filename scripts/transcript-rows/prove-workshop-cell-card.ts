@@ -91,7 +91,7 @@ console.log('── the inline row: a failed call keeps the error card and gains
   check('a text-only result (another harness\'s transcript) yields no facts', cellCardFactsOfResult('Error: x', input).length === 0 && cellCardFactsOfResult(undefined, input).length === 0)
   const text = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(`<tool_use_error>${failed.result}</tool_use_error>`, { verbose: false, toolUseResult: failed, input })), 120)
   check('the failed row keeps the error card: the head, the message lines, the folded frames', text.includes('▲ Error: [cell-js-g1-1] failed') && text.includes('expected 3 rows, found 5') && text.includes('+2 stack frames'))
-  check('the failed row offers the way to the card in the product\'s own words', text.includes(cellCardHint('cell-js-g1-1')) && cellCardHint('cell-js-g1-1') === '└ view the card: /tasks cell-js-g1-1 · click to open')
+  check('the failed row offers the way to the card in the product\'s own words', text.includes(cellCardHint('cell-js-g1-1')) && cellCardHint('cell-js-g1-1') === '└ view the card: /runs cell-js-g1-1 · click to open')
   check('painting the failed row remembers the cell for the board', cellCardOf('cell-js-g1-1')?.code === 'check(5)')
   const bare = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage('<tool_use_error>Error: x</tool_use_error>', { verbose: false })), 120)
   check('an error result without cell facts paints the error card alone', bare.includes('▲ Error: x') && !bare.includes('view the card'))

@@ -8,7 +8,7 @@ import type { Message } from '../../types/message.js'
 export const BACKGROUND_HINT_AFTER_MS = 100_000
 export const BACKGROUND_HINT_ACTION = 'chat:backgroundShell'
 export const BACKGROUND_HINT_WORDS = 'run in background'
-export const BACKGROUND_MOVED_WORDS = 'Running in the background — see /tasks'
+export const BACKGROUND_MOVED_WORDS = 'Running in the background — see /runs'
 
 export type ToolUseEntryV1 = { id: string; name: string }
 

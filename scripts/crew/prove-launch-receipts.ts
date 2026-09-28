@@ -470,7 +470,7 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   const exitSrc = src('src/commands/exit/exit.tsx')
   check('the exit command settles ownerless rows, then counts by kind, and hands the words to the card', exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') > 0 && exitSrc.indexOf('settleOwnerlessTasks(context.setAppState)') < exitSrc.indexOf('liveBackgroundCounts(') && exitSrc.includes('liveWords={liveWorkWords(counts)}'))
   const confirmSrc = src('src/components/MercuryExitConfirm.tsx')
-  check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /tasks'))
+  check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /runs'))
   const sessionSrc = src('src/tasks/LocalMainSessionTask.ts')
   check("the background session's abort branch settles its row before it returns", /killAsyncAgent\(taskId, args\.setAppState, 'stopped'\)\n\s*return\n/.test(sessionSrc))
 }
