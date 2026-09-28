@@ -322,6 +322,7 @@ else:
                 break
             if tee:
                 tee.write(struct.pack(">II", tick, len(data)) + data)
+                tee.flush()
             raw_seen.extend(data)
             last_output_tick = tick
             stream.feed(kitty_filter.feed(data))
@@ -443,6 +444,7 @@ else:
                 break
             if tee:
                 tee.write(struct.pack(">II", total, len(data)) + data)
+                tee.flush()
             stream.feed(kitty_filter.feed(data))
             quiet_deadline = time.monotonic() + 0.3
     grid = [[{"c": screen.buffer[y][x].data,

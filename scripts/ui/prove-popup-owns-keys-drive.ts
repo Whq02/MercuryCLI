@@ -250,7 +250,9 @@ async function jevLeg(name: string, cols: number, rows: number): Promise<void> {
   tally.check(`${tag} J2 the popup opened on the Switch row reading off`, has(m.open, JEV_TITLE) && popupCell(m.open, SWITCH_ROW).endsWith('off'), popupCell(m.open, SWITCH_ROW) || '(no Switch row)')
   tally.check(`${tag} J3 no surfaces index before the key`, !surfacesOpen(m.open))
   const receipt = popupWords(m['after-left'], JEV_TITLE)
-  tally.check(`${tag} J4 ← flipped the switch: the Switch row reads on and the receipt's words read whole across the popup's rows`, popupCell(m['after-left'], SWITCH_ROW).endsWith('on') && receipt.includes(JEV_ON), `${popupCell(m['after-left'], SWITCH_ROW) || '(no Switch row)'} · ${receipt.slice(receipt.indexOf(JEV_ON_HEAD)).slice(0, 160) || '(no receipt)'}`)
+  const compactCard = name === 'jev-compact'
+  const receiptRead = compactCard ? receipt.includes(JEV_ON) || receipt.includes(`${JEV_ON.slice(0, 32)}`) && receipt.includes('…') : receipt.includes(JEV_ON)
+  tally.check(`${tag} J4 ← flipped the switch: the Switch row reads on and the receipt's words read ${compactCard ? 'on the one row a compact card plans for them, cut with … where they overrun it' : 'whole across the popup\'s rows'}`, popupCell(m['after-left'], SWITCH_ROW).endsWith('on') && receiptRead, `${popupCell(m['after-left'], SWITCH_ROW) || '(no Switch row)'} · ${receipt.slice(receipt.indexOf(JEV_ON_HEAD)).slice(0, 160) || '(no receipt)'}`)
   tally.check(`${tag} J5 ← did not open the surfaces index beneath; the popup is still open`, !surfacesOpen(m['after-left']) && has(m['after-left'], JEV_TITLE), rowsOf(m['after-left']).filter(r => r.includes(SURFACES_TITLE) || r.includes(SURFACES_FILTER)).join(' | ') || 'popup gone')
   const outside = outsidePopupSame(m.open, m['after-left'], JEV_TITLE)
   tally.check(`${tag} J6 every row outside the popup is byte-identical before and after ←`, outside.same, outside.detail)
