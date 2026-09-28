@@ -1,0 +1,351 @@
+{
+  "model": "claude-sonnet-5-5",
+  "road": "the product's sideQuery builder and the main stream's composition, the owner's account, first-party host",
+  "legs": [
+    {
+      "leg": "R1",
+      "law": "control: no thinking parameter, no tools",
+      "road": "sideQuery",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 64,
+        "thinking": "absent"
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 48,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "leg": "R2",
+      "law": "law a: thinking off — the product spells {type:\"disabled\"} on a model its gate does not name",
+      "road": "sideQuery thinking:false",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 64,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "response": {
+        "status": 400,
+        "error_name": "Error",
+        "error_body": {
+          "type": "error",
+          "error": {
+            "type": "invalid_request_error",
+            "message": "\"thinking.type.disabled\" is not supported for this model. Use \"thinking.type.between_tools\" for the lowest thinking setting, or \"thinking.type.adaptive\" and \"output_config.effort\" to control thinking behavior."
+          },
+          "request_id": "req_***"
+        },
+        "message": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"\\\"thinking.type.disabled\\\" is not supported for this model. Use \\\"thinking.type.between_tools\\\" for the lowest thinking setting, or \\\"thinking.type.adaptive\\\" and \\\"output_config.effort\\\" to control thinking behavior.\"},\"request_id\":\"req_***\"}"
+      }
+    },
+    {
+      "leg": "R3",
+      "law": "law b: forced tool choice {type:\"tool\"} rides verbatim on a model its gate does not name",
+      "road": "sideQuery tool_choice:tool",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 256,
+        "tools": [
+          "classify_result"
+        ],
+        "tool_choice": {
+          "type": "tool",
+          "name": "classify_result"
+        }
+      },
+      "response": {
+        "status": 400,
+        "error_name": "Error",
+        "error_body": {
+          "type": "error",
+          "error": {
+            "type": "invalid_request_error",
+            "message": "tool_choice: type \"tool\" and \"any\" are not supported for this model."
+          },
+          "request_id": "req_***"
+        },
+        "message": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"tool_choice: type \\\"tool\\\" and \\\"any\\\" are not supported for this model.\"},\"request_id\":\"req_***\"}"
+      }
+    },
+    {
+      "leg": "R4",
+      "law": "law b: forced tool choice {type:\"any\"}",
+      "road": "sideQuery tool_choice:any",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 256,
+        "tools": [
+          "classify_result"
+        ],
+        "tool_choice": {
+          "type": "any"
+        }
+      },
+      "response": {
+        "status": 400,
+        "error_name": "Error",
+        "error_body": {
+          "type": "error",
+          "error": {
+            "type": "invalid_request_error",
+            "message": "tool_choice: type \"tool\" and \"any\" are not supported for this model."
+          },
+          "request_id": "req_***"
+        },
+        "message": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"tool_choice: type \\\"tool\\\" and \\\"any\\\" are not supported for this model.\"},\"request_id\":\"req_***\"}"
+      }
+    },
+    {
+      "leg": "R5",
+      "law": "control: the same tools under tool_choice auto (the fold's replacement)",
+      "road": "sideQuery tool_choice:auto",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 256,
+        "tools": [
+          "classify_result"
+        ],
+        "tool_choice": {
+          "type": "auto"
+        }
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 459,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 89,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "tool_use",
+            "name": "classify_result"
+          }
+        ]
+      }
+    },
+    {
+      "leg": "R6",
+      "law": "law b under the main stream's composition: adaptive thinking + the binding + effort high + forced tool choice",
+      "road": "client (streamCore shape)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 1024,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "tool_choice": {
+          "type": "tool",
+          "name": "classify_result"
+        },
+        "tools": [
+          "classify_result"
+        ],
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ]
+      },
+      "response": {
+        "status": 400,
+        "error_name": "Error",
+        "error_body": {
+          "type": "error",
+          "error": {
+            "type": "invalid_request_error",
+            "message": "tool_choice: type \"tool\" and \"any\" are not supported for this model."
+          },
+          "request_id": "req_***"
+        },
+        "message": "400 {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"tool_choice: type \\\"tool\\\" and \\\"any\\\" are not supported for this model.\"},\"request_id\":\"req_***\"}"
+      }
+    },
+    {
+      "leg": "R7",
+      "law": "control: the main stream's composition without tools",
+      "road": "client (streamCore shape)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 1024,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ]
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 48,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "leg": "R8",
+      "law": "extra: the vendor's new lowest thinking setting, between_tools, sent bare (no binding, no effort)",
+      "road": "client",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 1024,
+        "thinking": {
+          "type": "between_tools"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ]
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 47,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "OK"
+          }
+        ]
+      }
+    },
+    {
+      "leg": "R9",
+      "law": "extra: thinking.display updates under its beta (the candidate narration gate)",
+      "road": "client (streamCore shape)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 1024,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          },
+          "display": "updates"
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01",
+          "thinking-display-updates-2026-08-18"
+        ]
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 48,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 4,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "OK"
+          }
+        ]
+      }
+    }
+  ]
+}
