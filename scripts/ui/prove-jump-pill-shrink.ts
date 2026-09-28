@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const HOME = pinScratchHome('jump-pill-shrink')
 delete process.env.MERCURY_HOME
@@ -274,6 +274,6 @@ if (frameDir !== undefined) {
   writeFileSync(join(frameDir, 'index.txt'), index.join('\n') + '\n')
   console.log(`\nframes: ${frames.length} written to ${frameDir}`)
 }
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-jump-pill-shrink: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

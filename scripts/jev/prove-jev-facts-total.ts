@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-facts-total')
@@ -305,6 +305,6 @@ section(`§${n + 3} the source pins`)
 }
 
 slot._resetFocusedSessionConnectorForTesting()
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-jev-facts-total: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

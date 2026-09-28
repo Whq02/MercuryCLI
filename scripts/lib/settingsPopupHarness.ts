@@ -1,5 +1,6 @@
+import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,6 +26,24 @@ export function pinScratchHome(prefix: string): string {
   process.env.MERCURY_RECESS = '0'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   return home
+}
+
+export async function releaseScratchHome(home: string): Promise<void> {
+  process.chdir(tmpdir())
+  let fault = ''
+  for (const attempt of [1, 2]) {
+    try {
+      rmSync(home, { recursive: true, force: true })
+      return
+    } catch (error) {
+      fault = String(error)
+      if (attempt === 1) await settle(250)
+    }
+  }
+  const swept = process.platform === 'win32' ? null : spawnSync('rm', ['-rf', home], { encoding: 'utf8' })
+  const complaint = (swept?.stderr ?? '').trim()
+  const outcome = existsSync(home) ? `left in place${complaint === '' ? '' : ` (rm: ${complaint})`}` : 'removed by rm -rf'
+  console.log(`scratch home ${home}: rmSync failed twice — ${fault} — ${outcome}; the verdict stands`)
 }
 
 class FakeStdout extends EventEmitter {

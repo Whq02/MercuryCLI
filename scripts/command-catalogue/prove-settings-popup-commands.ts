@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { pinScratchHome } from '../lib/settingsPopupHarness.ts'
+import { pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -126,6 +126,6 @@ section('§3 nothing under src/ or scripts/ reads the retired road (the two dele
   check('no reader under scripts/ names the retired settings-status-tab scenario', stale.length === 0, stale.join(', '))
 }
 
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-settings-popup-commands: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

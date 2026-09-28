@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -162,6 +161,6 @@ section('§4 the geometry, pure')
   check('usage at 178×51: 150 wide at column 14, 29 rows from row 12 (ceil)', usage.width === 150 && usage.left === 14 && usage.rows === 29 && usage.top === 11, JSON.stringify(usage))
 }
 
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-settings-popup-frame: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

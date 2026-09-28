@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 if (existsSync('/private/tmp/mw')) process.env.TMPDIR = '/private/tmp/mw'
@@ -508,7 +508,7 @@ try {
 } finally {
   popup.closeSettingsPopup()
   if (dir) writeFileSync(join(dir, 'index.txt'), ['Source renders of the /localsetup dialog in the shared popup on a fixture road (no PTY, no network, no server): the LOCAL offer row of the model picker and the dialog its s key opens, the opening ask, the install offer after nothing was found, the model choice on a fresh server (the seven pulls sized for the box, the tested 9B a suggestion, nothing pre-chosen) before and after four ↓, the pull mid-way, the window words under step 6, the ready row, the model choice on a server already holding two models with the session\'s 27B marked current, the esc that keeps it, and the esc summary; 178x51 and 80x21.', ...frames].join('\n') + '\n')
-  rmSync(home, { recursive: true, force: true })
+  await releaseScratchHome(home)
 }
 console.log(`prove-local-setup-dialog: ${frames.length} frames; ${failures ? `${failures} FAILED` : 'ALL PASS'}`)
 process.exit(failures ? 1 : 0)

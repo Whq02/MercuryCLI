@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-facts-ride')
@@ -317,6 +317,6 @@ keyOwner.storeJevApiKey(null)
 setting.setJevEnabled(false)
 setting.setJevAllowanceUsd(setting.JEV_DEFAULT_ALLOWANCE_USD)
 cap._setHeldMachineSeatReadingForTesting(null)
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-jev-facts-ride: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -168,6 +167,6 @@ section('§2 the rendered popup at 178×51, driven through the ink pipeline: eve
   await settle(50)
 }
 
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-config-popup-scroll: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

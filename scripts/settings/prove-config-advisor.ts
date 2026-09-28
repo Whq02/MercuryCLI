@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -24,8 +24,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 function section(title: string): void {
   console.log(`\n${title}`)
 }
-function finish(): never {
-  rmSync(HOME, { recursive: true, force: true })
+async function finish(): Promise<never> {
+  await releaseScratchHome(HOME)
   console.log(`\nprove-config-advisor: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
   process.exit(failures === 0 ? 0 : 1)
 }
@@ -39,10 +39,10 @@ const mods = await (async () => {
     return undefined
   }
 })()
-if (!mods) finish()
+const ready = mods ?? (await finish())
 check('the rows and the service import', true)
-const { ADVISOR_ROW_IDS, advisorConfigItems, nextAdvisorInterval } = mods.page
-const { readAdvisorSettings } = mods.service
+const { ADVISOR_ROW_IDS, advisorConfigItems, nextAdvisorInterval } = ready.page
+const { readAdvisorSettings } = ready.service
 
 section('§1 the pure rows and the ladder')
 {
@@ -168,4 +168,4 @@ section('§4 ↵ saves: the advisor on at 5 turns survives the close and reads b
   check('the global config carries no other advisor key', JSON.stringify(Object.keys((getGlobalConfig().advisor ?? {}) as object).sort()) === JSON.stringify(['enabled', 'seats']))
 }
 
-finish()
+await finish()

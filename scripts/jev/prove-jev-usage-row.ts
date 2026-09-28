@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const HOME = pinScratchHome('jev-usage-row')
@@ -196,6 +196,6 @@ if (frameDir !== undefined) {
   console.log(`\nframes: ${frames.length} written to ${frameDir}`)
 }
 slot._resetFocusedSessionConnectorForTesting()
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-jev-usage-row: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

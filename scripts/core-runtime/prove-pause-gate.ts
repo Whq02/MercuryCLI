@@ -594,48 +594,75 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
     patchSeatEffort: () => true,
   }
   const framesOut: Array<Record<string, unknown> & { at: number }> = []
+  const QUARTER_SECOND_MS = 250
+  const RELAY_ALLOWANCE_MS = 50
+  const WORK_POLL_MS = 1000
+  type Reference = { frameAt: number; firedAt: number | null }
+  const references: Reference[] = []
   const stdout = setInterval(() => {
     for (const event of drainSdkEvents()) {
       framesOut.push({ ...(event as Record<string, unknown>), at: Date.now() })
       seat.onSeatLine(RUNNER, JSON.stringify(event), roster as never, daemonDir)
+      if ((event as { subtype?: unknown }).subtype === 'task_progress') {
+        const reference: Reference = { frameAt: Date.now(), firedAt: null }
+        references.push(reference)
+        setTimeout(() => { reference.firedAt = Date.now() }, QUARTER_SECOND_MS)
+      }
     }
   }, 5)
   const factsRows = (): WorkRowV1[] => (readSessionFacts(SESSION, daemonDir)?.work ?? []) as WorkRowV1[]
-  const QUARTER_SECOND_MS = 250
-  const RELAY_ALLOWANCE_MS = 50
-  const WORK_POLL_MS = 1000
+  const factsStamp = (): number => readSessionFacts(SESSION, daemonDir)?.atMs ?? 0
   const t0 = Date.now() - 30_000
+
+  type Landing = { landed: boolean; frameAt: number | null; requestAt: number | null; referenceFiredAt: number | null; stampAt: number; noticedAt: number }
+  const landing = async (since: number, rowsLanded: (rows: WorkRowV1[]) => boolean, what: string): Promise<Landing> => {
+    const landed = await until(() => rowsLanded(factsRows()), what, 3_000)
+    const noticedAt = Date.now()
+    const stampAt = landed ? factsStamp() : noticedAt
+    const reference = references.find(r => r.frameAt >= since) ?? null
+    if (reference !== null) await until(() => reference.firedAt !== null, `${what}: the prover's own quarter-second timer fires`, 3_000)
+    const request = requests.find(r => r.at >= since && r.request.subtype === 'session_facts') ?? null
+    return { landed, frameAt: reference?.frameAt ?? null, requestAt: request?.at ?? null, referenceFiredAt: reference?.firedAt ?? null, stampAt, noticedAt }
+  }
+  const offset = (at: number | null, since: number): string => (at === null ? 'never' : `+${at - since} ms`)
+  const segments = (since: number, l: Landing): string =>
+    `the frame at the seat ${offset(l.frameAt, since)} · the seat's re-ask ${offset(l.requestAt, since)} · the prover's quarter-second timer fired ${offset(l.referenceFiredAt, since)} · the daemon's stamp ${offset(l.landed ? l.stampAt : null, since)} · the file read back ${offset(l.noticedAt, since)}; facts requests since: ${requests.filter(r => r.at >= since).map(r => `${r.request.subtype}@${offset(r.at, since)}`).join(', ') || 'none'}`
 
   type Measured = { parkedAt: number; landedAt: number; clearedAt: number; clearLandedAt: number; frames: Array<Record<string, unknown> & { at: number }> }
   const measure = async (label: string, two: Rig, run: string, rowOf: () => WorkRowV1, parkedRow: (row: WorkRowV1) => boolean, doPause: () => boolean, doResume: () => boolean): Promise<Measured | null> => {
     rowsNow = () => [rowOf()]
     requests.length = 0
     framesOut.length = 0
+    references.length = 0
     seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
+    const primedAt = Date.now()
     await settle(20)
     const primed = factsRows()
     check(`${label}: the seat holds a running row before the pause (its 1 s work poll is armed)`, primed.length === 1 && primed[0]?.status === 'running' && !primed.some(parkedRow), j(primed))
+    const beatSeen = await until(() => requests.some(r => r.at > primedAt + 20), `${label}: the seat's work poll beats once before the pause`, WORK_POLL_MS * 2 + 500)
+    const beatAt = beatSeen ? requests.filter(r => r.at > primedAt + 20).at(-1)!.at : Date.now()
+    check(`${label}: the seat's work poll beat once before the pause (${beatAt - primedAt} ms after the primed answer), so its next beat is a full second away and the window belongs to the park's own frame`, beatSeen, `no poll request within ${WORK_POLL_MS * 2 + 500} ms of the primed answer`)
     check(`${label}: the pause verb applies`, doPause())
     two.modelLatch(run, 1).open()
     const reached = await until(() => two.waitOf(run) !== null, `${label}: the loop parks at the tool seam`)
     if (!reached) return null
     const parkedAt = two.waitAt(run)!
     const words = two.waitOf(run)!
-    const landed = await until(() => factsRows().some(parkedRow), `${label}: the parked words reach the published facts`, 3_000)
-    const landedAt = Date.now()
-    check(`${label}: the parked words reached the published facts at all`, landed, `words=${j(words)} rows=${j(factsRows())}`)
+    const park = await landing(parkedAt, rows => rows.some(parkedRow), `${label}: the parked words reach the published facts`)
+    check(`${label}: the parked words reached the published facts at all`, park.landed, `words=${j(words)} rows=${j(factsRows())}`)
     const parkFrames = framesOut.filter(f => f.subtype === 'task_progress' && f.at >= parkedAt - 5)
-    check(`${label}: the park itself put one task_progress frame on the runner's wire for the parked row's task (the daemon re-asks the facts on it)`, parkFrames.length >= 1, `frames since the park: ${j(framesOut.filter(f => f.at >= parkedAt - 5).map(f => f.subtype))}`)
-    const latency = landedAt - parkedAt
-    check(`${label}: the row's words land within a quarter second of the park — measured ${latency} ms (the seat's debounce, ${QUARTER_SECOND_MS} ms, plus ${RELAY_ALLOWANCE_MS} ms of in-process relay)`, landed && latency <= QUARTER_SECOND_MS + RELAY_ALLOWANCE_MS, `${latency} ms — the words waited for the seat's next work poll (${WORK_POLL_MS} ms cadence); facts requests since the park: ${requests.filter(r => r.at >= parkedAt).map(r => `${r.request.subtype}@+${r.at - parkedAt}ms`).join(', ')}`)
-    check(`${label}: never the next poll — the words landed in under half the poll interval`, landed && latency < WORK_POLL_MS / 2, `${latency} ms`)
+    check(`${label}: the park itself put one task_progress frame on the runner's wire for the parked row's task (the daemon re-asks the facts on it) — at the seat ${offset(park.frameAt, parkedAt)} after the park`, parkFrames.length >= 1, `frames since the park: ${j(framesOut.filter(f => f.at >= parkedAt - 5).map(f => f.subtype))}`)
+    const nextBeatAt = beatAt + WORK_POLL_MS
+    const window = parkedAt < nextBeatAt ? `the park came ${parkedAt - beatAt} ms after the beat, ${nextBeatAt - parkedAt} ms before the poll's next beat was due` : `the park itself came ${parkedAt - beatAt} ms after the beat, ${parkedAt - nextBeatAt} ms after the poll's next beat was already due: a box this slow cannot tell the two roads apart`
+    check(`${label}: the seat re-asked the facts on the park's frame within its debounce, never at the work poll — the request ${offset(park.requestAt, parkedAt)}, beside the prover's own quarter-second timer armed with the frame (fired ${offset(park.referenceFiredAt, parkedAt)}); ${window}`, park.requestAt !== null && park.referenceFiredAt !== null && park.requestAt <= park.referenceFiredAt + RELAY_ALLOWANCE_MS && park.requestAt < nextBeatAt, segments(parkedAt, park))
+    check(`${label}: the row's words land within a quarter second of the park — the daemon stamped them ${offset(park.landed ? park.stampAt : null, parkedAt)} (the seat's debounce, ${QUARTER_SECOND_MS} ms, plus ${RELAY_ALLOWANCE_MS} ms of relay, on the box's own quarter-second clock: the prover's reference timer fired ${offset(park.referenceFiredAt, parkedAt)}; the file read back ${offset(park.noticedAt, parkedAt)}, the box's transport and this prover's poll, not the mechanism)`, park.landed && park.referenceFiredAt !== null && park.stampAt <= park.referenceFiredAt + RELAY_ALLOWANCE_MS, segments(parkedAt, park))
+    check(`${label}: never the next poll — the words landed ${park.stampAt < nextBeatAt ? `${nextBeatAt - park.stampAt} ms before the poll's next beat was due` : `${park.stampAt - nextBeatAt} ms after the poll's next beat was due`}`, park.landed && park.stampAt < nextBeatAt, `${window}; ${segments(parkedAt, park)}`)
     check(`${label}: the resume verb applies`, doResume())
     await until(() => two.waitOf(run) === null, `${label}: the wait clears when the tool starts`)
     const clearedAt = two.waitAt(run)!
-    const cleared = await until(() => factsRows().length === 1 && !factsRows().some(parkedRow), `${label}: the cleared row reaches the published facts`, 3_000)
-    const clearLandedAt = Date.now()
-    check(`${label}: the clear lands within the same bound — measured ${clearLandedAt - clearedAt} ms`, cleared && clearLandedAt - clearedAt <= QUARTER_SECOND_MS + RELAY_ALLOWANCE_MS, `${clearLandedAt - clearedAt} ms`)
-    return { parkedAt, landedAt, clearedAt, clearLandedAt, frames: parkFrames }
+    const clear = await landing(clearedAt, rows => rows.length === 1 && !rows.some(parkedRow), `${label}: the cleared row reaches the published facts`)
+    check(`${label}: the clear lands within the same bound — the daemon stamped it ${offset(clear.landed ? clear.stampAt : null, clearedAt)} (the prover's reference timer fired ${offset(clear.referenceFiredAt, clearedAt)}; the file read back ${offset(clear.noticedAt, clearedAt)})`, clear.landed && clear.referenceFiredAt !== null && clear.stampAt <= clear.referenceFiredAt + RELAY_ALLOWANCE_MS, segments(clearedAt, clear))
+    return { parkedAt, landedAt: park.noticedAt, clearedAt, clearLandedAt: clear.noticedAt, frames: parkFrames }
   }
 
   {
