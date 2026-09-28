@@ -38,8 +38,9 @@ const check = (n: string, c: boolean, detail = ''): void => {
 {
   const v = await validateWorkerModelChoice('claude-sonnnet-9', 'session')
   check(
-    'a home-shaped stranger keeps the ruled unknown-model sentence',
-    v.ok === false && v.reason === 'unknown-model' && String(v.detail ?? '').includes('is not an exact model id'),
+    'a home-shaped id outside the picker dispatches on capability — the wire decides, never a catalogue refusal',
+    v.ok === true && v.entry.modelId === 'claude-sonnnet-9',
+    JSON.stringify(v).slice(0, 160),
   )
 }
 

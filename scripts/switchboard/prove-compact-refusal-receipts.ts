@@ -51,8 +51,9 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 
 {
   const models = read('src/services/concourse/workerModels.ts')
-  check('R3 unknown-model speaks the ruled why', models.includes(`is not an exact model id`))
-  check('R3 the one fix leads with did-you-mean, roll-call only without one', models.includes('did you mean ${nearest}?') && models.includes('pick one of: ${dispatchable}'))
+  check('R3 the family-less refusal speaks the ruled why with its one fix', models.includes("no provider family declares '${id}'") && models.includes('pick a listed row from the model picker'))
+  check("R3 no 'unknown-model' refusal exists: an id a family declares dispatches on capability, never on the catalogue's completeness", !models.includes("reason: 'unknown-model'") && !models.includes('is not an exact model id'))
+  check("R3 the organization's allowlist keeps its own typed refusal", models.includes("reason: 'not-runnable:not-allowed'"))
 }
 
 if (failures > 0) {

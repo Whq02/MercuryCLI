@@ -85,10 +85,10 @@ section('§1 — the session arm: pure product capability')
     !nemotron.ok && nemotron.reason === 'no-credential:openrouter', text(nemotron))
   check('…with the /logins action', !nemotron.ok && String(nemotron.action ?? '').includes('/logins'), text(nemotron))
 
-  const junk = await wm.validateWorkerModelChoice('claude-zzz-not-a-model-9', 'session')
-  check('an unknown Anthropic-space id refuses unknown-model',
-    !junk.ok && junk.reason === 'unknown-model', text(junk))
-  check('…with an actionable line', !junk.ok && typeof junk.action === 'string' && junk.action.length > 0, text(junk))
+  const unlisted = await wm.validateWorkerModelChoice('claude-zzz-not-a-model-9', 'session')
+  check('an unlisted Anthropic-space id dispatches on the credentialed family (the wire adjudicates)',
+    unlisted.ok && unlisted.entry.modelId === 'claude-zzz-not-a-model-9' && unlisted.entry.session.availability === 'available', text(unlisted))
+  check('…on the crew arm too', (await wm.validateWorkerModelChoice('claude-zzz-not-a-model-9', 'crew')).ok, text(unlisted))
 }
 
 section('§2 — the crew arm: the same vocabulary, row for row')
@@ -324,7 +324,7 @@ section("§8 — the refusal's action names the family's OWN /logins word")
   check('a credentialed default provider drifts nothing (the launch never fell through it)', wm.defaultProviderDriftNote('no-credential:anthropic', 'openrouter', f => f === 'openrouter') === undefined)
   check('no recorded default provider drifts nothing', wm.defaultProviderDriftNote('no-credential:anthropic', undefined, () => false) === undefined)
   check('the same family drifts nothing (the fall-through is the truth already)', wm.defaultProviderDriftNote('no-credential:openrouter', 'openrouter', () => false) === undefined)
-  check('a non-credential refusal drifts nothing', wm.defaultProviderDriftNote('unknown-model', 'openrouter', () => false) === undefined)
+  check('a non-credential refusal drifts nothing', wm.defaultProviderDriftNote('not-runnable:unrecognised', 'openrouter', () => false) === undefined)
 }
 
 try {
