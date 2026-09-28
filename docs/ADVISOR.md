@@ -28,8 +28,10 @@ Three settings, two doors.
 Any pairing works either way round: a local Qwen advised by Fable, Astra
 advised by Fable, Fable advised by Astra, Qwen advised by Astra. The advisor
 model may be the same family as the agent or any other. With the advisor on
-but no model pinned, the advisor stays silent; a signed-out or refused model
-also stays silent — a note is never an error in the agent's context.
+but no model pinned, the advisor stays silent. A signed-out or refused model
+never lands an error in the agent's context: on the main chat the round shows
+as a muted `[advisor]` row that says the advisor had nothing to say this
+round and why, addressed to you, never to the model.
 
 ## What the agent sees
 
@@ -52,6 +54,18 @@ a running turn. On a crewmate or a worker it arrives at the next tool-round
 boundary, framed for the model as advice from a second model, never as a
 message from the operator. An advisor that has nothing to say answers
 `carry on`, and nothing lands.
+
+The advisor thinks as deeply as its effort dial asks before it writes, and
+the call has room for that thinking and the note — a question that needs
+thought is answered with words, not cut short. An answer that comes back
+with no text is asked for once more; if the advisor still has nothing, the
+main chat shows a muted `[advisor]` row saying so — never silence, and never
+a turn for the model:
+
+```
+10:00:04 [advisor] · claude-opus-5-5 · every 5 turns
+  had nothing to say this round — answered with no text, twice
+```
 
 ## Asking the advisor
 

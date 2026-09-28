@@ -45,17 +45,22 @@ let agentOrdinal = 0
 let agentDelayMs = 0
 let advisorNotes = 0
 let advisorReplies = 0
+let advisorEmptyAnswers = 0
 const wire: Array<{ model: string; kind: 'agent' | 'advisor-note' | 'advisor-ask'; body: Raw }> = []
 const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSON.stringify(obj)}\n\n`
 function textOf(body: Raw): string {
   return JSON.stringify(body.messages ?? '')
 }
-function anthropicReply(model: string, blocks: Array<{ text: string } | { toolUse: { id: string; name: string; input: Raw } }>, usage: Raw, stop: string): string {
+function anthropicReply(model: string, blocks: Array<{ text: string } | { thinking: string } | { toolUse: { id: string; name: string; input: Raw } }>, usage: Raw, stop: string): string {
   const out: string[] = [sse('message_start', { type: 'message_start', message: { id: `msg_${wire.length}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage } })]
   blocks.forEach((block, index) => {
     if ('text' in block) {
       out.push(sse('content_block_start', { type: 'content_block_start', index, content_block: { type: 'text', text: '' } }))
       out.push(sse('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'text_delta', text: block.text } }))
+    } else if ('thinking' in block) {
+      out.push(sse('content_block_start', { type: 'content_block_start', index, content_block: { type: 'thinking', thinking: '' } }))
+      out.push(sse('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'thinking_delta', thinking: block.thinking } }))
+      out.push(sse('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'signature_delta', signature: 'fixture-signature' } }))
     } else {
       out.push(sse('content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id: block.toolUse.id, name: block.toolUse.name, input: {} } }))
       out.push(sse('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.toolUse.input) } }))
@@ -86,8 +91,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (model === ADVISOR_MODEL) {
       const ask = textOf(body).includes('<the_agents_question>')
       wire.push({ model, kind: ask ? 'advisor-ask' : 'advisor-note', body })
-      const text = ask ? `ADVISOR-ASK-REPLY-${++advisorReplies}: run the pin on the base first.` : `ADVISOR-NOTE-${++advisorNotes}: you have not checked the base yet.\nDo that before the next edit.`
       res.writeHead(200, { 'content-type': 'text/event-stream' })
+      if (advisorEmptyAnswers > 0) {
+        advisorEmptyAnswers--
+        res.end(anthropicReply(model, [{ thinking: 'nothing worth a note here' }], ADVISOR_USAGE, 'end_turn'))
+        return
+      }
+      const text = ask ? `ADVISOR-ASK-REPLY-${++advisorReplies}: run the pin on the base first.` : `ADVISOR-NOTE-${++advisorNotes}: you have not checked the base yet.\nDo that before the next edit.`
       res.end(anthropicReply(model, [{ text }], ADVISOR_USAGE, 'end_turn'))
       return
     }
@@ -127,8 +137,8 @@ const { AskAdvisorTool, askAdvisorAgentId } = await import(join(ROOT, 'src/tools
 const { ASK_ADVISOR_TOOL_NAME } = await import(join(ROOT, 'src/tools/AskAdvisorTool/constants.ts'))
 const toolsConstants = await import(join(ROOT, 'src/constants/tools.ts'))
 const { runAgent } = await import(join(ROOT, 'src/tools/AgentTool/runAgent.ts'))
-const { getAgentTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
-const { flushSessionStorage } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
+const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
+const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
 
@@ -219,6 +229,11 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
   const runner = src('src/cli/print.ts')
   const settled = between(runner, 'onTurnSettled: command => {', 'hasWaitableBackgroundTasks')
   check("the main chat: the driver's onTurnSettled advances the advisor with the session's own message list and enqueues the note for the NEXT turn through the Saturn door, kicking the driver", settled.includes('advisorMainTurnSettled(String(getSessionId()), command, messages') && settled.includes('enqueue(advisorNoteQueueCommand(note, randomUUID()))') && settled.includes('driver.kick()') && settled.includes('if (inputClosed) return'), settled.slice(0, 400))
+  check("a quiet round on the main chat lands a display-only row, never a queued prompt: landed now when no turn is open, else held to the turn's end, and dropped with the note once the host is gone (red on the base: no quiet road)", settled.includes('onQuiet: quiet => {') && settled.includes('if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)') && settled.includes('else landAdvisorQuiet(quiet)') && !settled.includes('enqueue(advisorNoteQueueCommand(quiet'), settled.slice(-400))
+  const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')
+  check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, undefined, messages)'), lander)
+  const turnEnd = between(runner, 'if (deferredAdvisorQuiet.length > 0) {', '\n      }')
+  check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", turnEnd.includes('for (const quiet of quiets) landAdvisorQuiet(quiet)') && runner.indexOf('if (deferredSpawnSwitches.length > 0) {') < runner.indexOf('if (deferredAdvisorQuiet.length > 0) {'), turnEnd)
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
   check("crewmates and workers: runAgent's request boundary advances the advisor with the agent's own rows after the pause seam, never inside it", boundary.includes('void advisorAgentRound(agentId, advisedRows)') && boundary.includes('beforeQueryStep()') && boundary.includes('advisorAgentRound') && boundary.indexOf('beforeQueryStep()') < boundary.indexOf('advisorAgentRound'), boundary.slice(-300))
@@ -334,6 +349,53 @@ section('§1 THE MAIN CHAT: twelve operator turns with seats 5 — two notes lan
   check("the advisor's memory sits beside the session's transcript and holds the digests, the question, the reply and the notes", existsSync(memory) && readFileSync(memory, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => (JSON.parse(l) as Raw).kind).join(',') === 'head,digest,question,reply,digest,note,digest,note', existsSync(memory) ? readFileSync(memory, 'utf8').slice(0, 300) : memory)
   const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
   check('with the advisor on, AskAdvisor is in the catalogue and enabled', getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && AskAdvisorTool.isEnabled())
+}
+
+section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking only, twice, at turn 5 — the chat gets one muted [advisor] row as a system record, the agent gets no turn and never reads it (red on the base: one advisor request, silence)")
+{
+  resetRig()
+  advisorOn(5)
+  agentScript = Array.from({ length: 20 }, (_, i) => ({ text: `reply ${i + 1}` }))
+  advisorEmptyAnswers = 2
+  const memoryBefore = readFileSync(advisor.advisorContextPath(SESSION), 'utf8')
+  const messages: AnyMsg[] = []
+  const quietRows: AnyMsg[] = []
+  const verdicts: string[] = []
+  for (let turn = 1; turn <= 6; turn++) {
+    check(`turn ${turn}: nothing queued for the agent`, queue.getCommandQueue().length === 0)
+    await mainTurn(`operator line ${turn}`, undefined, messages)
+    await recordTranscript(messages as never, undefined, undefined, messages as never)
+    const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, note => {
+      queue.enqueue(advisor.advisorNoteQueueCommand(note, crypto.randomUUID()) as never)
+    }, {
+      onQuiet: quiet => {
+        const row = advisor.createAdvisorQuietMessage(quiet)
+        messages.push(row as unknown as AnyMsg)
+        quietRows.push(row as unknown as AnyMsg)
+        void recordTranscript([row] as never, undefined, undefined, messages as never)
+      },
+    })
+    verdicts.push(verdict)
+  }
+  check('the verdicts: counted through turn 4, quiet at turn 5, counted again at turn 6 (red on the base: silent at turn 5)', j(verdicts) === j(['counted', 'counted', 'counted', 'counted', 'quiet', 'counted']), j(verdicts))
+  const noteRequests = wire.filter(w => w.kind === 'advisor-note')
+  check('the advisor was asked twice for the one round — once more after the empty answer, never a third time (red on the base: once)', noteRequests.length === 2 && textOf(noteRequests[1]!.body) === textOf(noteRequests[0]!.body), String(noteRequests.length))
+  check("nothing was queued for the agent and it made exactly six requests — a quiet round costs the agent no turn", queue.getCommandQueue().length === 0 && wire.filter(w => w.kind === 'agent').length === 6, String(wire.filter(w => w.kind === 'agent').length))
+  const quietRow = quietRows[0]
+  check('one quiet row landed in the session list after turn 5, a system record with the advisor origin and the had-nothing words', quietRows.length === 1 && quietRow !== undefined && advisor.isAdvisorQuietMessage(quietRow) && rows.isAdvisorOrigin((quietRow as Raw).origin) && ((quietRow as Raw).origin as Raw).model === ADVISOR_MODEL && String((quietRow as Raw).content) === 'had nothing to say this round — answered with no text, twice' && messages.indexOf(quietRow) > messages.findIndex(m => m.type === 'user' && j((m.message as Raw).content).includes('operator line 5')), j(quietRow))
+  check('no advisor-origin user row exists: the quiet row is not a note', messages.every(m => !(m.type === 'user' && rows.isAdvisorOrigin(m.origin))))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
+  const planned = normalizeMessagesForAPI(messages as never)
+  check("the API plan never carries the quiet row — the agent's requests after it read no such words", !j(planned).includes('had nothing to say') && !textOf(wire.filter(w => w.kind === 'agent').at(-1)!.body).includes('had nothing to say'))
+  await flushSessionStorage()
+  await settle(200)
+  const transcriptPath = getTranscriptPath()
+  const onDisk = existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Raw).map(r => { try { return recordToEntry(r as never) as Raw } catch { return {} as Raw } }) : []
+  const landed = onDisk.filter(r => r.type === 'system' && r.subtype === 'advisor_quiet')
+  check("the quiet row is on the session's transcript file, once, with its origin and words whole — the record the interactive chat paints (red on the base: no such record)", landed.length === 1 && j((landed[0] as Raw).origin) === j((quietRow as Raw).origin) && (landed[0] as Raw).content === (quietRow as Raw).content && (landed[0] as Raw).uuid === (quietRow as Raw).uuid, `${transcriptPath}: ${landed.length} quiet row(s) of ${onDisk.length}`)
+  const memoryAfter = readFileSync(advisor.advisorContextPath(SESSION), 'utf8')
+  check("the advisor's memory gained no row for the quiet round", memoryAfter === memoryBefore, memoryAfter.slice(memoryBefore.length, memoryBefore.length + 200))
+  advisorEmptyAnswers = 0
 }
 
 section('§2 OFF: with advisor.enabled false nothing of it happens — no request, no row, no bucket, no tool')

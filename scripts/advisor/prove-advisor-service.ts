@@ -435,6 +435,62 @@ section('§7 THE CALL HAS ROOM TO ANSWER: an always-thinking advisor that thinks
   })
 }
 
+section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is asked once more; still empty, the round hands the chat a muted row instead of silence; a refusal is never asked twice (red on the base: one call, no note, no row)')
+{
+  const transcript = [operatorRow(1, 'four decisions for the release'), replyRow(2, 'which two are the most dangerous?')]
+  const quiets: Raw[] = []
+  const onQuiet = (quiet: unknown): void => {
+    quiets.push(quiet as Raw)
+  }
+  advisor.resetAdvisorContextsForTests()
+  const once = makeCall(['', 'The real note, on the second ask.'])
+  let note: unknown = 'unset'
+  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-once-more', transcript as never, { call: once.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  check('an empty answer is asked once more and the second answer lands as the note — exactly two calls, no quiet row (red on the base: one call, an empty note)', (note as Raw | null)?.text === 'The real note, on the second ask.' && once.calls.length === 2 && quiets.length === 0, j({ note, calls: once.calls.length, quiets: quiets.length }))
+  check('the second ask carries the same prompt as the first', once.calls.length === 2 && once.calls[0]!.prompt === once.calls[1]!.prompt)
+  advisor.resetAdvisorContextsForTests()
+  const twice = makeCall(['', '', 'never a third answer'])
+  note = 'unset'
+  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-twice', transcript as never, { call: twice.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  check('empty twice: exactly two calls, never a third, and no note (red on the base: one call)', note === null && twice.calls.length === 2, j({ note, calls: twice.calls.length }))
+  const quiet = quiets[0]
+  check("and the round hands the chat ONE quiet verdict with the advisor origin, marked empty, whose words say the advisor had nothing to say (red on the base: nothing)", quiets.length === 1 && quiet !== undefined && rows.isAdvisorOrigin(quiet.origin) && (quiet.origin as Raw).model === ADVISOR_MODEL && (quiet.origin as Raw).seats === 5 && quiet.empty === true && quiet.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && advisor.advisorQuietWords(quiet as never) === 'had nothing to say this round — answered with no text, twice', j(quiets))
+  const twiceContext = advisor.peekAdvisorContext('agent-twice')!
+  check("the advisor's memory records nothing for the quiet round and its cursor stays, so the next round reads the same rows again", twiceContext.rows.length === 0 && twiceContext.cursor === undefined, j({ rows: twiceContext.rows.length, cursor: twiceContext.cursor }))
+  const minted = typeof advisor.createAdvisorQuietMessage === 'function'
+  check('the service mints the quiet row and its words (red on the base: no such factory)', minted)
+  const row = minted ? (advisor.createAdvisorQuietMessage(quiet as never) as unknown as Raw) : ({} as Raw)
+  check("the quiet row is a system record of its own subtype with the origin and the words, info level, never meta — a row the transcript keeps and the model never sees", row.type === 'system' && row.subtype === 'advisor_quiet' && minted && advisor.isAdvisorQuietMessage(row) && j(row.origin) === j(quiet!.origin) && row.content === 'had nothing to say this round — answered with no text, twice' && row.level === 'info' && row.isMeta === false && typeof row.uuid === 'string' && typeof row.timestamp === 'string', j(row))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
+  const planned = normalizeMessagesForAPI([...transcript, ...(minted ? [row] : [])] as never)
+  check('the API plan leaves the quiet row out: the agent never reads it', minted && planned.length === 2 && !j(planned).includes('had nothing to say'), j(planned.map((m: Raw) => m.type)))
+  quiets.length = 0
+  wire.length = 0
+  fixture = { kind: 'refuse', status: 401, message: 'no such key for this seat' }
+  advisor.resetAdvisorContextsForTests()
+  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-refused-quiet', transcript as never, { settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  const refusalWords = minted && quiets.length === 1 ? advisor.advisorQuietWords(quiets[0] as never) : ''
+  check('a refusal is asked once, never twice, and its quiet row carries the refusal words, not the empty words', note === null && wire.length === 1 && quiets.length === 1 && quiets[0]!.empty === false && refusalWords.startsWith('had nothing to say this round — ') && refusalWords.includes('no such key for this seat'), j({ wire: wire.length, quiets }))
+  const long = minted ? advisor.advisorQuietWords({ origin: { kind: 'advisor', model: ADVISOR_MODEL, seats: 5, at: 'now' }, reason: 'x'.repeat(500), empty: false } as never) : ''
+  check(`a long reason is clipped to ${String(advisor.ADVISOR_QUIET_REASON_CLIP)} characters on the row`, minted && long.length === 'had nothing to say this round — '.length + advisor.ADVISOR_QUIET_REASON_CLIP + 1 && long.endsWith('…'), String(long.length))
+  wire.length = 0
+  fixture = { kind: 'think', tokens: 200_000, text: 'never reached' }
+  const overrun = typeof advisor.callAdvisorOnceMore === 'function' ? await advisor.callAdvisorOnceMore(advisor.liveAdvisorCall, { model: ADVISOR_MODEL, system: 'sys', prompt: 'the digest' }) : await advisor.liveAdvisorCall({ model: ADVISOR_MODEL, system: 'sys', prompt: 'the digest' })
+  check('through the live call, a thinking-only turn that stops on max_tokens reads as empty, is asked once more, and answers the twice words — two requests on the wire (red on the base: one request, the one-ask words)', !overrun.ok && overrun.empty === true && overrun.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && wire.length === 2, j({ overrun, wire: wire.length }))
+  advisor.resetAdvisorContextsForTests()
+  const askOnce = makeCall(['', 'Check the base first.'])
+  const asked = await advisor.askAdvisor('agent-ask-once-more', 'am I on the right seam?', transcript as never, { call: askOnce.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  check('the ask road asks once more too: empty then words answers ok with two calls (red on the base: refused after one)', asked.ok && asked.reply === 'Check the base first.' && askOnce.calls.length === 2, j({ asked, calls: askOnce.calls.length }))
+  const askTwice = makeCall(['', ''])
+  const unanswered = await advisor.askAdvisor('agent-ask-twice', 'am I on the right seam?', transcript as never, { call: askTwice.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  check("empty twice on the ask road names it in the reason the tool result carries — the agent is told, never left in silence", !unanswered.ok && unanswered.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && askTwice.calls.length === 2, j(unanswered))
+  const crew = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, { call: makeCall(['', '']).call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  check("a crewmate's round answers the quiet verdict as its own word, distinct from silent (nothing new) and from delivered", ['counted', 'quiet'].includes(crew), crew)
+  let crewVerdict: string = crew
+  for (let turn = 1; turn <= 4; turn++) crewVerdict = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, { call: makeCall(['', '']).call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  check("on the fifth round the crewmate's road reads quiet and stashes no note", crewVerdict === 'quiet' && advisor.peekAdvisorNotes('agent-crew-quiet').length === 0, crewVerdict)
+}
+
 server.close()
 console.log(`\n${failures === 0 ? '✅' : '❌'} advisor service: ${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

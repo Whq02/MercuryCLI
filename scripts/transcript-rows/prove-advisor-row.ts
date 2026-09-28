@@ -281,12 +281,39 @@ section("§4 the queued note between turns: the service's queue command drains t
   }
 }
 
+section("§5 the quiet row: when the advisor had nothing to say, a display-only system record paints the same muted [advisor] row with the words — no dot, no handle, never a turn (red on the base: the unknown subtype paints nothing)")
+const QUIET_WORDS = 'had nothing to say this round — answered with no text, twice'
+const minted = typeof advisor.createAdvisorQuietMessage === 'function'
+const quietRow = (at: string): Raw =>
+  minted
+    ? { ...advisor.createAdvisorQuietMessage({ origin: advisorOrigin() as never, reason: advisor.ADVISOR_EMPTY_TWICE_REASON, empty: true }), timestamp: at }
+    : { type: 'system', subtype: 'advisor_quiet', content: QUIET_WORDS, origin: advisorOrigin(), level: 'info', isMeta: false, uuid: U3, timestamp: at }
+{
+  const row = quietRow(ROW_AT)
+  check('the words: the service mints the row with the advisor block and the line that says the advisor had nothing to say this round, twice (red on the base: no such row)', minted && row.subtype === 'advisor_quiet' && row.content === QUIET_WORDS && advisor.advisorQuietWords({ origin: advisorOrigin() as never, reason: 'the provider refused the advisor call', empty: false }) === 'had nothing to say this round — the provider refused the advisor call')
+  for (const [columns, rowCount] of SIZES) {
+    const frame = await paintChat([userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), row], columns, rowCount)
+    const plateAt = frame.findIndex(l => l.includes(`${PLATE} · ${MODEL} · every 5 turns`))
+    check(`${columns} columns: the chat paints the clock, then the dim [advisor] plate with the model and the cadence, beneath the reply`, plateAt > 0 && frame[plateAt]!.startsWith(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · every 5 turns`), frame.join('\n'))
+    check(`${columns} columns: the had-nothing line stands beneath the plate`, plateAt >= 0 && (frame[plateAt + 1] ?? '').trim() === 'had nothing to say this round — answered with no text, twice', frame.join('\n'))
+    check(`${columns} columns: no accent dot, no handle and no caret on the quiet row`, plateAt >= 0 && !frame[plateAt]!.includes(DOT) && !frame[plateAt]!.includes(HANDLE) && !frame[plateAt]!.includes(CARET), frame[plateAt] ?? '')
+  }
+  const record = entryToRecord(row as never, { sessionId: 'sess-advisor' as never, nextOrdinal: () => 2 as never, observedAt: ROW_AT, source: { channel: 'sdk' } as never })
+  const restored = recordToEntry(record) as Raw
+  check('the transcript keeps the quiet row whole through the codec: the subtype, the origin and the words', restored.type === 'system' && restored.subtype === 'advisor_quiet' && JSON.stringify(restored.origin) === JSON.stringify(advisorOrigin()) && restored.content === row.content && restored.uuid === row.uuid, JSON.stringify(restored))
+  const resumed = await paintChat([userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), { ...restored, timestamp: ROW_AT }], 178, 51)
+  const fresh = await paintChat([userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), row], 178, 51)
+  check('a resumed record paints the same quiet row as the live one', resumed.join('\n') === fresh.join('\n') && resumed.some(l => l.includes(PLATE)), resumed.join('\n'))
+  check("the quiet row is a row the chat shows and the model never reads: a system record, never meta, out of the API plan by the system-row law", row.type === 'system' && row.isMeta === false && visibleRows([row]).length === 1)
+}
+
 if (frameDir !== null) {
   section(`frames → ${frameDir}`)
   mkdirSync(frameDir, { recursive: true })
   const scenes: Array<[string, string, Raw[]]> = [
     ['advisor-row', "the operator's line, Mercury's reply, then the advisor's note as a muted row and the reply that reads it", [userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), userRow(NOTE, U2, ROW_AT, advisorOrigin()), replyRow(LATER)]],
     ['advisor-batched', "the operator's queued line and the advisor's note taken into one turn", [...(await batchedTurn(OPERATOR_LINE, NOTE, advisorOrigin())), replyRow(LATER)]],
+    ['advisor-quiet', "the operator's line, Mercury's reply, then the muted row that says the advisor had nothing to say this round", [userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), quietRow(ROW_AT)]],
   ]
   const index: string[] = ['the advisor row frames — the chat rows as the product paints them, transcript rows only, at the named width', '']
   for (const [name, words, messages] of scenes) {

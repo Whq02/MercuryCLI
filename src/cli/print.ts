@@ -39,7 +39,7 @@ import type { SessionId } from '../types/ids.js'
 import { loadConversationForResume } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
-import { flushSessionStorage, peekProject } from '../utils/sessionStorage/writer.js'
+import { flushSessionStorage, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
@@ -133,7 +133,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
-import { advisorMainTurnSettled, advisorNoteQueueCommand } from '../services/advisor/index.js'
+import { advisorMainTurnSettled, advisorNoteQueueCommand, createAdvisorQuietMessage, type AdvisorQuiet } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -814,6 +814,14 @@ export async function runHeadless(
   let heldSeatModel: { requestId: string; model: string } | null = null
   let heldSeatEffort: { requestId: string; effort: string } | null = null
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: string }> = []
+  let deferredAdvisorQuiet: AdvisorQuiet[] = []
+  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
+    const row = createAdvisorQuietMessage(quiet)
+    messages.push(row)
+    void recordTranscript([row], undefined, undefined, messages).catch((error: unknown) => {
+      logForDebugging(`advisor: the quiet row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
+    })
+  }
   const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
@@ -1362,6 +1370,11 @@ export async function runHeadless(
           io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), toggle.requestId, { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID()))
         }
       }
+      if (deferredAdvisorQuiet.length > 0) {
+        const quiets = deferredAdvisorQuiet
+        deferredAdvisorQuiet = []
+        for (const quiet of quiets) landAdvisorQuiet(quiet)
+      }
     }
     if (turnWatchdog.fired) {
       throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
@@ -1654,6 +1667,12 @@ export async function runHeadless(
         if (inputClosed) return
         enqueue(advisorNoteQueueCommand(note, randomUUID()))
         driver.kick()
+      }, {
+        onQuiet: quiet => {
+          if (inputClosed) return
+          if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
+          else landAdvisorQuiet(quiet)
+        },
       })
     },
     hasWaitableBackgroundTasks: () =>

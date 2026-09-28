@@ -15,12 +15,14 @@ export function advisorCountsTurn(command: Pick<QueuedCommand, 'mode' | 'origin'
   return ADVISOR_COUNTED_MODES.has(command.mode) && !isAdvisorOrigin(command.origin)
 }
 
+export type AdvisorRoundVerdict = 'off' | 'counted' | 'busy' | 'silent' | 'quiet' | 'delivered'
+
 export async function advisorRound(
   agentId: string,
   rows: readonly Message[],
   deliver: (note: AdvisorNote) => void,
   road: AdvisorRoad = {},
-): Promise<'off' | 'counted' | 'busy' | 'silent' | 'delivered'> {
+): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
   if (!settings.enabled) return 'off'
   const context = await loadAdvisorContext(agentId, {
@@ -34,8 +36,16 @@ export async function advisorRound(
   }
   inFlight.add(agentId)
   try {
-    const note = await composeAdvisorNote(context, rows, { ...road, settings })
-    if (note === null) return 'silent'
+    let quiet = false
+    const note = await composeAdvisorNote(context, rows, {
+      ...road,
+      settings,
+      onQuiet: verdict => {
+        quiet = true
+        road.onQuiet?.(verdict)
+      },
+    })
+    if (note === null) return quiet ? 'quiet' : 'silent'
     deliver(note)
     return 'delivered'
   } catch (error) {
@@ -52,7 +62,7 @@ export function advisorMainTurnSettled(
   rows: readonly Message[],
   deliver: (note: AdvisorNote) => void,
   road: AdvisorRoad = {},
-): Promise<'off' | 'counted' | 'busy' | 'silent' | 'delivered' | 'uncounted'> {
+): Promise<AdvisorRoundVerdict | 'uncounted'> {
   if (!advisorCountsTurn(command)) return Promise.resolve('uncounted')
   return advisorRound(sessionId, rows, deliver, road)
 }
@@ -73,7 +83,7 @@ export function peekAdvisorNotes(agentId: string): readonly AdvisorNote[] {
   return pendingNotes.get(agentId) ?? []
 }
 
-export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<'off' | 'counted' | 'busy' | 'silent' | 'delivered'> {
+export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {
   return advisorRound(agentId, rows, note => stashAdvisorNote(agentId, note), road)
 }
 

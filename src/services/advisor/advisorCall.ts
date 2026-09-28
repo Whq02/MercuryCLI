@@ -10,9 +10,26 @@ export interface AdvisorCallArgs {
   signal?: AbortSignal
 }
 
-export type AdvisorReply = { ok: true; text: string } | { ok: false; reason: string }
+export type AdvisorReply = { ok: true; text: string } | { ok: false; reason: string; empty?: true }
 
 export type AdvisorCall = (args: AdvisorCallArgs) => Promise<AdvisorReply>
+
+export const ADVISOR_EMPTY_REASON = 'the advisor answered with no text'
+export const ADVISOR_EMPTY_TWICE_REASON = 'the advisor answered with no text twice'
+
+export function advisorReplyIsEmpty(reply: AdvisorReply): boolean {
+  return reply.ok ? reply.text.trim() === '' : reply.empty === true
+}
+
+export async function callAdvisorOnceMore(call: AdvisorCall, args: AdvisorCallArgs): Promise<AdvisorReply> {
+  const first = await call(args)
+  if (!advisorReplyIsEmpty(first) || args.signal?.aborted === true) return first
+  logForDebugging(`advisor: ${args.model} answered with no text — asking once more`)
+  const second = await call(args)
+  if (!advisorReplyIsEmpty(second)) return second
+  logForDebugging(`advisor: ${args.model} answered with no text twice`)
+  return { ok: false, reason: ADVISOR_EMPTY_TWICE_REASON, empty: true }
+}
 
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content
@@ -62,7 +79,7 @@ export const liveAdvisorCall: AdvisorCall = async args => {
     }
     if (text === '') {
       logForDebugging(`advisor: ${args.model} answered with no text`)
-      return { ok: false, reason: 'the advisor answered with no text' }
+      return { ok: false, reason: ADVISOR_EMPTY_REASON, empty: true }
     }
     return { ok: true, text }
   } catch (error) {
