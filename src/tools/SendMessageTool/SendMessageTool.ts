@@ -15,6 +15,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId, getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
 import {
   agentMessageNotice,
   agentMessageSummary,
@@ -85,6 +86,7 @@ import {
   createShutdownApprovedMessage,
   createShutdownRejectedMessage,
   createShutdownRequestMessage,
+  formatTeammateMessages,
   isIdleNotification,
   readMailbox,
   writeToMailbox,
@@ -327,15 +329,25 @@ function teamContextOf(context: ToolUseContext): { teamName: string; leadAgentId
     | undefined
 }
 
-function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseContext): string | null {
+function lastInProcessSeat(rawTo: string, teamName: string, context: ToolUseContext): InProcessTeammateTaskState | null {
   const seats = getAllInProcessTeammateTasks(context.getAppState().tasks ?? {}).filter(
     task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
   )
   if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
-  const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+  return seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+}
+
+function deadSeatWords(last: InProcessTeammateTaskState): string {
   if (last.status === 'failed') return `failed${last.error ? ` (${last.error})` : ''}`
   if (last.status === 'completed') return 'completed'
   return `was ${agentStatusWord(last.status)}`
+}
+
+function stoppedSeatRefusal(rawTo: string): string {
+  return (
+    `Cannot deliver to "${rawTo}" this way: that teammate was stopped, so a structured message would sit in an inbox nobody reads. ` +
+    `Send it a plain message to resume it from its transcript with the message as its next turn.`
+  )
 }
 
 async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
@@ -367,9 +379,11 @@ async function readRoster(teamName: string | undefined): Promise<TeamFile | null
   }
 }
 
+type StoppedSeat = { taskId: string; name: string; teamName: string }
+
 type RecipientResolution =
   | { ok: true; name: string; teamName: string }
-  | { ok: false; refusal: string }
+  | { ok: false; refusal: string; stopped?: StoppedSeat }
 
 type KnownLaunchedAgent = { name: string; agentId: string; status: string }
 
@@ -449,7 +463,11 @@ async function resolveDeliverableRecipient(
   }
   const roster = await readRoster(teamName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
-  const deadSeat = deadInProcessSeat(rawTo, teamName, context) ?? (member ? null : await failedSeatNotice(rawTo, teamName))
+  const seat = lastInProcessSeat(rawTo, teamName, context)
+  if (seat?.status === 'killed') {
+    return { ok: false, refusal: stoppedSeatRefusal(rawTo), stopped: { taskId: seat.id, name: seat.identity.agentName, teamName } }
+  }
+  const deadSeat = seat !== null ? deadSeatWords(seat) : member ? null : await failedSeatNotice(rawTo, teamName)
   if (deadSeat !== null) {
     return {
       ok: false,
@@ -459,6 +477,11 @@ async function resolveDeliverableRecipient(
     }
   }
   if (!member) {
+    const { stoppedTeammateRecord } = await import('../../services/agents/operatorResume.js')
+    const record = await stoppedTeammateRecord(rawTo, teamName)
+    if (record !== null) {
+      return { ok: false, refusal: stoppedSeatRefusal(rawTo), stopped: { ...record, teamName } }
+    }
     const memberList = roster?.members.map(candidate => candidate.name).join(', ') || 'none'
     return {
       ok: false,
@@ -783,6 +806,49 @@ function agentTranscriptPathOf(agentId: string): string | null {
   }
 }
 
+async function resumeStoppedTeammate(
+  stopped: StoppedSeat,
+  content: string,
+  summary: string | undefined,
+  context: ToolUseContext,
+): Promise<MessageOutput> {
+  const from = senderName()
+  const color = senderColor(from)
+  const prompt = formatTeammateMessages([
+    {
+      from,
+      text: content,
+      timestamp: nowIso(),
+      read: true,
+      ...(summary !== undefined ? { summary } : {}),
+      ...(color ? { color } : {}),
+    },
+  ])
+  const { resumeTeammateFromTranscript } = await import('../../services/agents/operatorResume.js')
+  const receipt = await resumeTeammateFromTranscript(stopped.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
+  if (receipt.outcome === 'refused') {
+    return {
+      success: false,
+      message: `Teammate "${stopped.name}" was stopped and could not be resumed with your message: ${receipt.reason}`,
+    }
+  }
+  const targetColor = teamContextOf(context)?.teammates?.[receipt.name]?.color
+  return {
+    success: true,
+    message:
+      `Teammate "${receipt.name}" was stopped; it was resumed from its transcript with your message as its next turn — ` +
+      `the same name and seat, its work before the stop in its context (row ${receipt.taskId}). Its reply reaches you the way any teammate's message does.`,
+    routing: {
+      sender: from,
+      ...(color ? { senderColor: color } : {}),
+      target: `@${receipt.name}`,
+      ...(targetColor ? { targetColor } : {}),
+      ...(summary !== undefined ? { summary } : {}),
+      content,
+    },
+  }
+}
+
 async function sendDirectedPlainMessage(
   rawTo: string,
   content: string,
@@ -790,7 +856,8 @@ async function sendDirectedPlainMessage(
   context: ToolUseContext,
 ): Promise<MessageOutput> {
   const resolution = await resolveDeliverableRecipient(rawTo, context)
-  if (!resolution.ok) return { success: false, message: resolution.refusal }
+  if (!resolution.ok && resolution.stopped === undefined) return { success: false, message: resolution.refusal }
+  const recipient = resolution.ok ? resolution.name : resolution.stopped!.name
 
   const busRoleSender = Boolean(isCrewRole())
   if (busRoleSender && looksLikeHandSerializedBusPayload(content)) {
@@ -798,10 +865,11 @@ async function sendDirectedPlainMessage(
       success: false,
       message:
         `REFUSED: this looks like a hand-serialized bus envelope sent as a plain string. ` +
-        `Send it in structured form instead — { "to": "${resolution.name}", "message": { "type": "dispatch" | "progress" | "escalate" | "control", … } } — ` +
+        `Send it in structured form instead — { "to": "${recipient}", "message": { "type": "dispatch" | "progress" | "escalate" | "control", … } } — ` +
         `and re-send it now.`,
     }
   }
+  if (!resolution.ok) return resumeStoppedTeammate(resolution.stopped!, content, summary, context)
 
   const from = senderName()
   const color = senderColor(from)

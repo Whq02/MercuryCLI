@@ -6,6 +6,7 @@ import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../../tasks/LocalAgen
 import { asAgentId } from '../../types/ids.js'
 import { formatAgentId } from '../../utils/agentId.js'
 import { getAgentTranscript, readAgentMetadata, flushSessionStorage } from '../../utils/sessionStorage.js'
+import { listAgentMetadata, type AgentMetadataRow } from '../../utils/sessionStorage/paths.js'
 import { filterOrphanedThinkingOnlyMessages, filterUnresolvedToolUses, filterWhitespaceOnlyAssistantMessages } from '../../utils/messages.js'
 import { readTeamFileAsync, removeMemberByAgentId } from '../../utils/swarm/teamHelpers.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
@@ -55,6 +56,19 @@ export function respawnContextOf(toolUseContext: ToolUseContext): ToolUseContext
 }
 
 const resumingTeammates = new Set<string>()
+
+export type StoppedTeammateRecord = { taskId: string; name: string }
+
+export async function stoppedTeammateRecord(name: string, teamName: string): Promise<StoppedTeammateRecord | null> {
+  const folded = name.trim().toLowerCase()
+  let newest: (StoppedTeammateRecord & { launchedAt: number }) | null = null
+  for (const { agentId, metadata } of await listAgentMetadata().catch((): AgentMetadataRow[] => [])) {
+    if (metadata.teammate?.teamName !== teamName || typeof metadata.name !== 'string' || metadata.name.toLowerCase() !== folded) continue
+    const launchedAt = typeof metadata.launchedAt === 'number' && Number.isFinite(metadata.launchedAt) ? metadata.launchedAt : 0
+    if (newest === null || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
+  }
+  return newest === null ? null : { taskId: newest.taskId, name: newest.name }
+}
 
 async function dropStaleRosterRow(teamName: string, agentId: string): Promise<void> {
   const roster = await readTeamFileAsync(teamName).catch(() => null)

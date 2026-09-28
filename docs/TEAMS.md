@@ -84,7 +84,12 @@ and its transcript stands on disk; `r` resumes it from that transcript under
 the same id. A stopped teammate keeps its transcript too: `r` on its row
 continues it from where it was under a new row with the same name, the work
 before the stop in its context, and the row may be pressed after it has left
-the list — the spawn's record beside the transcript is what `r` reads. Every
+the list — the spawn's record beside the transcript is what `r` reads. A
+plain message to a stopped teammate does the same: SendMessage to its name
+continues it from its transcript with the message as its next turn, under
+the same name and roster row, and its reply comes back to the sender the way
+any teammate's message does — a stopped seat never swallows a message into an
+inbox nobody reads. Every
 stop, resume and
 failure reaches the main agent as a notification of its own kind, never
 silently, a stop or resume from the crew view included. A teammate spawned
