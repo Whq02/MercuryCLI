@@ -2,7 +2,8 @@ import type { Message, UserMessage } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin, type AdvisorOrigin } from '../../utils/messages/noticeRows.js'
-import { liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
+import { callAdvisorOnceMore, liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
+import type { AdvisorQuiet } from './advisorQuiet.js'
 import {
   appendAdvisorRow,
   loadAdvisorContext,
@@ -189,6 +190,7 @@ export interface AdvisorRoad {
   dir?: string
   persist?: boolean
   signal?: AbortSignal
+  onQuiet?: (quiet: AdvisorQuiet) => void
 }
 
 export async function composeAdvisorNote(
@@ -211,15 +213,17 @@ export async function composeAdvisorNote(
     logForDebugging(`advisor: nothing new for ${context.agentId} since the last note`)
     return null
   }
-  const call = road.call ?? liveAdvisorCall
-  const reply = await call({
+  const reply = await callAdvisorOnceMore(road.call ?? liveAdvisorCall, {
     model,
     system: ADVISOR_SYSTEM_PROMPT,
     prompt: composeNotePrompt(renderAdvisorMemory(context.rows), digest.text),
     ...(road.model === undefined ? { effort: advisorDispatchEffort(model) } : {}),
     ...(road.signal !== undefined ? { signal: road.signal } : {}),
   })
-  if (!reply.ok) return null
+  if (!reply.ok) {
+    road.onQuiet?.({ origin: { kind: 'advisor', model, seats: settings.seats, at: new Date().toISOString() }, reason: reply.reason, empty: reply.empty === true })
+    return null
+  }
   const at = new Date().toISOString()
   await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor, turn: context.turns })
   const text = clampNoteLines(reply.text)

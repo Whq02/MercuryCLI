@@ -49,11 +49,25 @@ export {
   type AdvisorSummarizer,
 } from './advisorContext.js'
 export {
+  ADVISOR_EMPTY_REASON,
+  ADVISOR_EMPTY_TWICE_REASON,
+  advisorReplyIsEmpty,
+  callAdvisorOnceMore,
   liveAdvisorCall,
   type AdvisorCall,
   type AdvisorCallArgs,
   type AdvisorReply,
 } from './advisorCall.js'
+export {
+  ADVISOR_QUIET_EMPTY_TAIL,
+  ADVISOR_QUIET_HEAD,
+  ADVISOR_QUIET_REASON_CLIP,
+  ADVISOR_QUIET_SUBTYPE,
+  advisorQuietWords,
+  createAdvisorQuietMessage,
+  isAdvisorQuietMessage,
+  type AdvisorQuiet,
+} from './advisorQuiet.js'
 export {
   ADVISOR_CARRY_ON,
   ADVISOR_MEMORY_NOTES,
@@ -84,6 +98,7 @@ export {
   resetAdvisorRoadsForTests,
   stashAdvisorNote,
   takeAdvisorNotes,
+  type AdvisorRoundVerdict,
 } from './advisorRoads.js'
 export {
   ADVISOR_ASK_PROMPT_TAIL,

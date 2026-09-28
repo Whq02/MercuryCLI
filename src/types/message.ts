@@ -223,6 +223,17 @@ export type SystemRosterTransitionMessage = {
   timestamp: string
 }
 
+export type SystemAdvisorQuietMessage = {
+  type: 'system'
+  subtype: 'advisor_quiet'
+  content: string
+  origin: AdvisorOrigin
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 export type SystemStreamCutMessage = {
   type: 'system'
   subtype: 'stream_cut'
@@ -546,6 +557,7 @@ export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
+  | SystemAdvisorQuietMessage
   | SystemStreamCutMessage
   | SystemBusyRecoveryMessage
   | SystemThinkingNoteMessage

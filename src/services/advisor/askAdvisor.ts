@@ -1,6 +1,6 @@
 import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { liveAdvisorCall } from './advisorCall.js'
+import { callAdvisorOnceMore, liveAdvisorCall } from './advisorCall.js'
 import { appendAdvisorRow, loadAdvisorContext, maybeCompactAdvisorContext } from './advisorContext.js'
 import {
   ADVISOR_SYSTEM_PROMPT,
@@ -59,8 +59,7 @@ export async function askAdvisor(
     ...(road.persist !== undefined ? { persist: road.persist } : {}),
   })
   const digest = renderAgentDigest(messages, context.cursor)
-  const call = road.call ?? liveAdvisorCall
-  const reply = await call({
+  const reply = await callAdvisorOnceMore(road.call ?? liveAdvisorCall, {
     model,
     system: ADVISOR_SYSTEM_PROMPT,
     prompt: composeAskPrompt(renderAdvisorMemory(context.rows), digest.text, trimmed),

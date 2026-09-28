@@ -14,6 +14,7 @@ import { openPath } from '../../utils/browser.js'
 import { renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote } from '../../utils/model/modelTransition.js'
 import { plural } from '../../utils/stringUtils.js'
+import { advisorBlockOf } from '../../utils/messages/noticeRows.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppStateStore } from '../../state/AppState.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
@@ -24,6 +25,7 @@ import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { ResumeRecapCard } from './ResumeRecapCard.js'
 import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
+import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 
 function TurnDurationRow({
@@ -313,6 +315,9 @@ export function SystemTextMessage({
 
     case 'roster_transition':
       return <Text dimColor>{message.content}</Text>
+
+    case 'advisor_quiet':
+      return <UserNoticeMessage addMargin={addMargin} blocks={[advisorBlockOf(message.origin, message.content)]} />
 
     case 'stream_cut':
       return (
