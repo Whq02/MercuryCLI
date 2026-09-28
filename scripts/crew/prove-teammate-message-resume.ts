@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, type Frame } from './team-world.ts'
+import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, TURN_MS, type Frame } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const team = 'message-resume-team'
@@ -53,6 +53,7 @@ const lastUser = (request: Request): string => {
   const last = request.body.messages?.at(-1)
   return last?.role === 'user' ? JSON.stringify(last.content) : ''
 }
+const continuationAfter = (from: number, message: string): Request | undefined => requests().slice(from).find(request => lastUser(request).includes(message))
 const until = async (test: () => boolean, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
   while (!test() && Date.now() < deadline) await sleep(100)
@@ -64,7 +65,7 @@ const refused = (text: string): boolean => /"success":false/.test(text) || /Cann
 try {
   tally.section('the lead spawns a worker that lands a tool result; the operator stops it from the crew view')
   session.submit(`${FIRST}: create the team, spawn the worker, and park.`)
-  await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'))
+  await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const taskId = rowsOf()[0]
   tally.check('a real in-process teammate runs with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
   if (typeof taskId !== 'string') throw new Error('the fixture has no teammate task id')
@@ -73,15 +74,15 @@ try {
   tally.check('the crew stop road stops the working teammate', stopped.subtype === 'success', JSON.stringify(stopped))
 
   tally.section('THE PIN, while the stopped row still stands: the stop notice wakes the lead, whose message to the worker resumes it with the message as its next turn')
-  const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), 60_000)
+  const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), TURN_MS * 2 / 3)
   const answer1 = toolResultOf(world, SEND_1)
   record('send-after-stop.txt', `${answer1?.text ?? ''}\nis_error=${String(answer1?.isError)}\n`)
   const text1 = answer1?.text ?? ''
   tally.check('the stop notice woke the lead and its message to the worker was answered', answered1 && answer1 !== null, session.stdout().slice(-600))
   tally.check('the message is not refused as a dead seat (RED on the base: "that seat is not running")', answer1 !== null && !refused(text1), text1.slice(0, 300))
   tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text1), text1.slice(0, 300))
-  await until(() => requests().length > requestsBeforeStop, 30_000)
-  const continued1 = requests()[requestsBeforeStop]
+  await until(() => continuationAfter(requestsBeforeStop, MESSAGE_1) !== undefined, TURN_MS / 3)
+  const continued1 = continuationAfter(requestsBeforeStop, MESSAGE_1) ?? requests()[requestsBeforeStop]
   record('continued-request-1.json', JSON.stringify(continued1?.body ?? null, null, 2))
   const history1 = JSON.stringify(continued1?.body.messages ?? [])
   tally.check('the worker makes a new request (RED on the base: none)', continued1 !== undefined, String(requests().length))
@@ -90,8 +91,8 @@ try {
   tally.check('the worker keeps its model', continued1?.body.model === peerModel)
 
   tally.section('THE PIN, after the row has left the list: the stop and the three-second eviction, then a message from a fresh turn resumes it from its record')
-  const resumedRow = (await until(() => rowsOf().length >= 2, 30_000)) ? rowsOf().find(row => row !== taskId) : undefined
-  const idle = await until(() => availableNotices() >= 1, 30_000)
+  const resumedRow = (await until(() => rowsOf().some(row => row !== taskId), TURN_MS / 3)) ? rowsOf().find(row => row !== taskId) : undefined
+  const idle = await until(() => availableNotices() >= 1, TURN_MS / 3)
   tally.check('the resumed worker ran under a new row and went idle after its answer', resumedRow !== undefined && idle, JSON.stringify({ rows: rowsOf(), available: availableNotices() }))
   const stoppedAgain = resumedRow === undefined ? { subtype: 'skipped' } : await control('stop-worker-again', { subtype: 'stop_task', task_id: resumedRow })
   tally.check('the resumed worker is stopped again on its new row', stoppedAgain.subtype === 'success', JSON.stringify(stoppedAgain))
@@ -101,21 +102,21 @@ try {
   tally.check('after the eviction the roster holds no row for the worker, and its one transcript stands on disk', roster !== null && !roster.members.some(member => member.name === worker) && before.length === 1, JSON.stringify({ members: roster?.members.map(member => member.name), before }))
   const requestsBeforeSecond = requests().length
   session.submit(`${THIRD}: message the worker again.`)
-  const answered2 = await until(() => session.stdout().includes('LEAD-SENT-2'), 60_000)
+  const answered2 = await until(() => session.stdout().includes('LEAD-SENT-2'), TURN_MS * 2 / 3)
   const answer2 = toolResultOf(world, SEND_2)
   record('send-after-eviction.txt', `${answer2?.text ?? ''}\nis_error=${String(answer2?.isError)}\n`)
   const text2 = answer2?.text ?? ''
   tally.check('the lead\'s second message was answered', answered2 && answer2 !== null, session.stdout().slice(-600))
   tally.check('the message is not refused as an unknown member (RED on the base: "no such member on team")', answer2 !== null && !refused(text2), text2.slice(0, 300))
   tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text2), text2.slice(0, 300))
-  await until(() => requests().length > requestsBeforeSecond, 30_000)
-  const continued2 = requests()[requestsBeforeSecond]
+  await until(() => continuationAfter(requestsBeforeSecond, MESSAGE_2) !== undefined, TURN_MS / 3)
+  const continued2 = continuationAfter(requestsBeforeSecond, MESSAGE_2) ?? requests()[requestsBeforeSecond]
   record('continued-request-2.json', JSON.stringify(continued2?.body ?? null, null, 2))
   const history2 = JSON.stringify(continued2?.body.messages ?? [])
   tally.check('the worker makes a new request from its record (RED on the base: none)', continued2 !== undefined, String(requests().length))
   tally.check('its history keeps the tool result, the first message and its answer: one conversation across both resumes', history2.includes('HISTORY-WITNESS') && history2.includes(MESSAGE_1) && history2.includes('CONTINUED-1'))
   tally.check('the second message rides as its next turn', continued2 !== undefined && lastUser(continued2).includes(MESSAGE_2), continued2 === undefined ? '' : lastUser(continued2).slice(-400))
-  const landed = await until(() => transcripts().some(path => readFileSync(join(projects, path), 'utf8').includes(MESSAGE_2)), 15_000)
+  const landed = await until(() => transcripts().some(path => readFileSync(join(projects, path), 'utf8').includes(MESSAGE_2)), TURN_MS / 6)
   const after = transcripts()
   tally.check('both continuations land on the one transcript file', landed && after.length === 1 && after[0] === before[0], JSON.stringify(after))
 } finally {
