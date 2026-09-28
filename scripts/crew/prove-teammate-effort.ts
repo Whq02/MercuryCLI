@@ -173,7 +173,11 @@ try {
   const secondEffort = secondRequest?.body.output_config?.effort
   tally.check('the seat\'s second turn carries the same word (the pin rides every turn)', secondEffort === 'max', `the wire read ${String(secondEffort)}`)
   const grown = Date.now() + TURN_MS / 3
-  while ((agentFilesUnder(projects, '.jsonl').length !== 1 || recordLines(agentFilesUnder(projects, '.jsonl')[0]!) <= firstRows) && Date.now() < grown) await sleep(100)
+  const secondAnswerLanded = (): boolean => {
+    const only = agentFilesUnder(projects, '.jsonl')
+    return only.length === 1 && recordLines(only[0]!) > firstRows && readFileSync(only[0]!, 'utf8').includes(SEAT_TWO)
+  }
+  while (!secondAnswerLanded() && Date.now() < grown) await sleep(100)
   const files = agentFilesUnder(projects, '.jsonl')
   const rows = files.map(file => recordLines(file))
   record('seat-transcripts.txt', files.map((file, index) => `${file} ${rows[index]} lines`).join('\n') + '\n')
