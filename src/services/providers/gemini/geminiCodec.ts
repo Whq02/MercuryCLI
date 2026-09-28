@@ -86,6 +86,7 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     return part
   }
   for (const row of request.messages) {
+    if (!('content' in row)) continue
     if (row.role === 'system') {
       for (const part of contentParts(row.content)) if (part.text !== undefined) systems.push({ text: part.text })
       continue

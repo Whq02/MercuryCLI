@@ -2,12 +2,14 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
 import { OPENAI_FIRST_PARTY_PROBE_KEY, openaiGatewayProbeKey, readGatewayProbeVerdict } from './deferralProbe.js'
+import { kimiSupportsDynamicToolLoading } from './moonshot/kimiPins.js'
 import { parseGptModelId } from './openai/gptPins.js'
 
 export type DeferralWireForm =
   | 'block'
   | 'text'
   | 'openai-native'
+  | 'text-append'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
@@ -15,7 +17,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   anthropic: 'gateway-evidence',
   openai: 'openai-native',
   zai: 'text',
-  moonshot: 'text',
+  moonshot: 'text-append',
   deepseek: 'text',
   'openai-compat': 'text',
   openrouter: 'text',
@@ -39,6 +41,7 @@ export interface DeferralWireVerdict {
     | 'gateway-probed-block'
     | 'gateway-probed-text'
     | 'gateway-unprobed'
+    | 'model-without-dynamic-tools'
     | 'no-route'
     | 'model-below-native-floor'
     | 'gateway-probed-native'
@@ -77,7 +80,14 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
   const capability = DEFERRAL_WIRE_CAPABILITY[verdict.route]
   if (capability === 'gateway-evidence') return homeLaneWireForm(reads)
   if (capability === 'openai-native') return openaiLaneWireForm(model, reads)
+  if (capability === 'text-append' && !textAppendAccepted(verdict.route, model)) {
+    return { form: 'text', why: 'model-without-dynamic-tools' }
+  }
   return { form: capability, why: 'route-table' }
+}
+
+function textAppendAccepted(route: CallModelRoute, model: string): boolean {
+  return route === 'moonshot' ? kimiSupportsDynamicToolLoading(model) : true
 }
 
 export const OPENAI_NATIVE_DEFERRAL_FLOOR = { major: 5, minor: 4 } as const
@@ -136,6 +146,7 @@ const TEXT_FORM_DEFERRING_ROUTES: ReadonlySet<CallModelRoute> = new Set<CallMode
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
   if (form === 'block') return true
   if (form === 'openai-native') return true
+  if (form === 'text-append') return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }

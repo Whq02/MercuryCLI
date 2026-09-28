@@ -53,15 +53,19 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('no capability row names an undeclared route', [...tabled].every(r => declared.has(r)), [...tabled].filter(r => !declared.has(r)).join(','))
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
   check("the openai row is the provider's own form ('openai-native' — the model floor and the endpoint decide per request)", wire.DEFERRAL_WIRE_CAPABILITY.openai === 'openai-native')
-  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai').every(([, c]) => c === 'text'))
+  const TEXT_APPEND_ROUTES = new Set(['moonshot'])
+  check('every other row is a client-side text form (text, or text-append where the docs place an admission at the end of the messages)', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai').every(([r, c]) => (TEXT_APPEND_ROUTES.has(r) ? c === 'text-append' : c === 'text')))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
-    const expected = route === 'anthropic' ? 'block' : route === 'openai' ? 'openai-native' : 'text'
+    const expected = route === 'anthropic' ? 'block' : route === 'openai' ? 'openai-native' : TEXT_APPEND_ROUTES.has(route) ? 'text-append' : 'text'
     const expectedWhy = route === 'anthropic' || route === 'openai' ? 'first-party-contract' : 'route-table'
     check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && verdict.why === expectedWhy)
   }
   const olderGpt = wire.deferralWireFormFor('gpt-5.3-codex')
   check('openai (gpt-5.3-codex, older than the 5.4 floor) → text (model-below-native-floor)', olderGpt.form === 'text' && olderGpt.why === 'model-below-native-floor')
+  const olderKimi = wire.deferralWireFormFor('kimi-k2.6')
+  check('a Kimi model without dynamic tool loading (kimi-k2.6) reads the text form, and says why', olderKimi.form === 'text' && olderKimi.why === 'model-without-dynamic-tools' && wire.supportsToolDeferral('kimi-k2.6') === false, `${olderKimi.form}/${olderKimi.why}`)
+  check('the append form defers (supportsToolDeferral) on kimi-k3; the zai row stays text and does not defer (the live measurement ruled: the cache held but GLM never called a text-declared tool)', wire.supportsToolDeferral('kimi-k3') === true && wire.deferralWireFormFor('glm-5.3').form === 'text' && wire.supportsToolDeferral('glm-5.3') === false)
   const stranger = wire.deferralWireFormFor('mystery-model-9000')
   check('an unrecognised id reads the home lane evidence (first-party here ⇒ block)', stranger.form === 'block' && stranger.why === 'first-party-contract')
   const absent = wire.deferralWireFormFor('')
@@ -215,6 +219,7 @@ section('§6 THE FENCE — defer_loading and the description follow the wire for
   check('first-party model: the block-form description (the unchanged bytes)', (await describe('claude-sonnet-5')) === getPrompt('block'))
   check('text-form model: the text-form description', (await describe('gpt-5.3-codex')) === getPrompt('text'))
   check('native-form model: the text-form description too (the tool is not offered on that wire; the text never promises the <functions> expansion)', (await describe('gpt-5.6-sol')) === getPrompt('text'))
+  check('text-append model: the append-form description (definitions appended to the conversation after the result)', (await describe('kimi-k3')) === getPrompt('text-append') && getPrompt('text-append') !== getPrompt('text') && /appended to the conversation/.test(getPrompt('text-append')))
   process.env.ANTHROPIC_BASE_URL = 'https://litellm.corp.example.com'
   probe._resetGatewayProbeStoreForTesting()
   probe.recordGatewayProbe('litellm.corp.example.com', { verdict: 'text', evidence: 'http 400: defer_loading', status: 400, probedAt: new Date().toISOString() })

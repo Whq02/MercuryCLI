@@ -56,9 +56,16 @@ export interface CompatTool {
   function: { name: string; description?: string; parameters: unknown }
 }
 
+export interface CompatToolDeclarationMessage {
+  role: 'system'
+  tools: CompatTool[]
+}
+
+export type CompatWireMessage = CompatMessage | CompatToolDeclarationMessage
+
 export interface CompatChatRequest {
   model: string
-  messages: CompatMessage[]
+  messages: CompatWireMessage[]
   tools?: CompatTool[]
   tool_choice?: 'auto' | 'none' | 'required'
   extra?: Record<string, unknown>

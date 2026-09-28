@@ -6,6 +6,10 @@ export function isKimiModelId(model: string): boolean {
 
 export const KIMI_K3_MODELS: ReadonlySet<string> = new Set(['kimi-k3', 'k3', 'k3-256k'])
 
+export function kimiSupportsDynamicToolLoading(model: string): boolean {
+  return KIMI_K3_MODELS.has(model.trim().toLowerCase())
+}
+
 export const KIMI_EFFORT_MODELS: ReadonlySet<string> = KIMI_K3_MODELS
 export const KIMI_EFFORTS: ReadonlySet<string> = new Set(['low', 'high', 'max'])
 
