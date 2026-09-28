@@ -67,6 +67,7 @@ import { laneWindowFact } from '../services/providers/laneWindowFact.js'
 import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
 import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
 import { jevStatus } from '../services/jev/jevStatus.js'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
@@ -277,7 +278,20 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
-import { getTeamName, isTeammate } from '../utils/teammate.js'
+import { getTeamName, isTeamLead, isTeammate } from '../utils/teammate.js'
+import {
+  acknowledgeMailboxDelivery,
+  formatTeammateMessages,
+  getMailboxStore,
+  isShutdownApproved,
+  prepareMailboxDelivery,
+  resolveShutdownApprovedVictim,
+  wasMailboxDeliveryHandled,
+  type MailboxDelivery,
+  type TeammateMessage,
+} from '../utils/teammateMailbox.js'
+import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
+import { removeTeammateFromTeamFile } from '../utils/swarm/teamHelpers.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -297,7 +311,6 @@ export type { DynamicMcpState, SdkMcpState }
 export type { McpSetServersResult } from './headless/controlHandlers.js'
 
 const SUGGESTION_CLOSE_WAIT_MS = 5_000
-const TEAM_POLL_INTERVAL_MS = 500
 const MAILBOX_REFUSAL_NOTICE_AFTER = 20
 const CONCOURSE_INTERRUPT_PREFIX = 'concourse-interrupt-'
 const INTERRUPT_DEDUPE_CAP = 200
@@ -327,6 +340,7 @@ type HeadlessOptions = {
   workload?: string
   setupTrigger?: 'init' | 'maintenance'
   bootSessionIdPinned?: boolean
+  subscribeAppState?: (listener: () => void) => () => void
   sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
   setSDKStatus?: unknown
   promptSuggestionEnabled?: boolean
@@ -1390,90 +1404,158 @@ export async function runHeadless(
     await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(() => undefined)))
   }
 
-  const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    const teamState = getAppState()
-    const { isTeamLead } = await import('../utils/teammate.js')
-    if (teamState.teamContext && isTeamLead(teamState.teamContext) && !isTeammate()) {
-      const { prepareMailboxDelivery, acknowledgeMailboxDelivery, wasMailboxDeliveryHandled, formatTeammateMessages, isShutdownApproved, resolveShutdownApprovedVictim } =
-        await import('../utils/teammateMailbox.js')
-      const { removeTeammateFromTeamFile } = await import('../utils/swarm/teamHelpers.js')
-      const { TEAM_LEAD_NAME } = await import('../utils/swarm/constants.js')
-      let refusedAcknowledgements = 0
-      for (;;) {
-        {
-          const next = peek()
-          if (next && isMainThreadCommand(next)) return 'reenter'
-        }
-        const current = getAppState()
-        const inProcessActive = getRunningTasks(current).some(
-          task => task.type === 'in_process_teammate',
+  const leadTeamName = (): string | null => {
+    const teamContext = getAppState().teamContext
+    if (!teamContext || !isTeamLead(teamContext) || isTeammate()) return null
+    return teamContext.teamName
+  }
+
+  const applyShutdownApprovals = (teamName: string, unread: TeammateMessage[]): void => {
+    for (const message of unread) {
+      const approval = isShutdownApproved(message.text)
+      if (!approval) continue
+      const victim = resolveShutdownApprovedVictim(message.from, approval)
+      if (!victim) continue
+      const roster = getAppState().teamContext?.teammates ?? {}
+      const victimId = Object.entries(roster).find(
+        ([, teammate]) => teammate.name === victim,
+      )?.[0]
+      removeTeammateFromTeamFile(teamName, { agentId: victimId, name: victim })
+      setAppState(previous => {
+        const teammates = previous.teamContext?.teammates
+        if (!previous.teamContext || !teammates) return previous
+        const remaining = Object.fromEntries(
+          Object.entries(teammates).filter(
+            ([id, teammate]) => id !== victimId && teammate.name !== victim,
+          ),
         )
-        const listed = Boolean(Object.keys(current.teamContext?.teammates ?? {}).length)
-        const teamName = current.teamContext?.teamName ?? ''
-        let delivery: Awaited<ReturnType<typeof prepareMailboxDelivery>>
-        try {
-          delivery = await prepareMailboxDelivery(TEAM_LEAD_NAME, teamName, getSessionId())
-          if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
-            await (await import('../utils/sessionStorage.js')).flushSessionStorage()
-            await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)
-            refusedAcknowledgements = 0
-            continue
-          }
-        } catch (error) {
-          refusedAcknowledgements += 1
-          logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
-          if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {
-            logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later teammate reports wait until the team state can be written (${errorMessage(error)})`))
-          }
-          await new Promise(resolve => setTimeout(resolve, TEAM_POLL_INTERVAL_MS))
+        return {
+          ...previous,
+          teamContext: { ...previous.teamContext, teammates: remaining },
+        }
+      })
+    }
+  }
+
+  let refusedAcknowledgements = 0
+  let enqueuedLeadDelivery: string | null = null
+  const deliverLeadMailOnce = async (): Promise<'queued' | 'none'> => {
+    for (;;) {
+      const teamName = leadTeamName()
+      if (teamName === null) return 'none'
+      let delivery: MailboxDelivery | null
+      try {
+        delivery = await prepareMailboxDelivery(TEAM_LEAD_NAME, teamName, getSessionId())
+        if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
+          await flushSessionStorage()
+          await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)
+          refusedAcknowledgements = 0
+          if (enqueuedLeadDelivery === delivery.id) enqueuedLeadDelivery = null
           continue
         }
-        if (delivery !== null) {
-          if (getCommandQueue().some(command => command.uuid === delivery.id)) return 'reenter'
-          const unread = delivery.messages
-          for (const message of unread) {
-            const approval = isShutdownApproved(message.text)
-            if (!approval) continue
-            const victim = resolveShutdownApprovedVictim(message.from, approval)
-            if (!victim) continue
-            const roster = current.teamContext?.teammates ?? {}
-            const victimId = Object.entries(roster).find(
-              ([, teammate]) => teammate.name === victim,
-            )?.[0]
-            removeTeammateFromTeamFile(teamName, { agentId: victimId, name: victim })
-            setAppState(previous => {
-              const teammates = previous.teamContext?.teammates
-              if (!previous.teamContext || !teammates) return previous
-              const remaining = Object.fromEntries(
-                Object.entries(teammates).filter(
-                  ([id, teammate]) => id !== victimId && teammate.name !== victim,
-                ),
-              )
-              return {
-                ...previous,
-                teamContext: { ...previous.teamContext, teammates: remaining },
-              }
-            })
-          }
-          const formatted = formatTeammateMessages(unread)
-          enqueue({ value: formatted, mode: 'prompt', uuid: delivery.id as UUID })
-          return 'reenter'
+      } catch (error) {
+        refusedAcknowledgements += 1
+        logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
+        if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {
+          logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later teammate reports wait until the team state can be written (${errorMessage(error)})`))
         }
+        return 'none'
+      }
+      if (delivery === null) return 'none'
+      if (enqueuedLeadDelivery === delivery.id || getCommandQueue().some(command => command.uuid === delivery.id)) return 'queued'
+      applyShutdownApprovals(teamName, delivery.messages)
+      enqueuedLeadDelivery = delivery.id
+      enqueue({ value: formatTeammateMessages(delivery.messages), mode: 'prompt', uuid: delivery.id as UUID })
+      return 'queued'
+    }
+  }
+
+  let leadMailDelivery: Promise<'queued' | 'none'> | null = null
+  let leadMailAgain = false
+  const deliverLeadMail = (): Promise<'queued' | 'none'> => {
+    if (leadMailDelivery !== null) {
+      leadMailAgain = true
+      return leadMailDelivery
+    }
+    const run = (async (): Promise<'queued' | 'none'> => {
+      let verdict: 'queued' | 'none' = 'none'
+      do {
+        leadMailAgain = false
+        verdict = await deliverLeadMailOnce()
+      } while (leadMailAgain && verdict === 'none')
+      return verdict
+    })()
+    leadMailDelivery = run
+    void run.finally(() => {
+      leadMailDelivery = null
+    })
+    return run
+  }
+
+  const leadContext = AsyncLocalStorage.snapshot()
+  let leadMailboxWake: { teamName: string; unsubscribe: () => void } | null = null
+  const syncLeadMailboxWake = (): void => leadContext(() => {
+    const teamName = leadTeamName()
+    if (teamName === (leadMailboxWake?.teamName ?? null)) return
+    leadMailboxWake?.unsubscribe()
+    leadMailboxWake = null
+    if (teamName === null) return
+    const unsubscribe = getMailboxStore(TEAM_LEAD_NAME, teamName).subscribe(() => {
+      void leadContext(deliverLeadMail)
+    }, { immediate: true })
+    leadMailboxWake = { teamName, unsubscribe }
+  })
+  const stopLeadStateWake = options.subscribeAppState?.(syncLeadMailboxWake)
+  syncLeadMailboxWake()
+
+  const leadSettle: { wake: (() => void) | null } = { wake: null }
+  const leadEvent = (teamName: string | null): Promise<void> =>
+    new Promise<void>(resolve => {
+      let settled = false
+      const unsubscribes: Array<() => void> = []
+      const done = (): void => {
+        if (settled) return
+        settled = true
+        leadSettle.wake = null
+        for (const unsubscribe of unsubscribes) unsubscribe()
+        resolve()
+      }
+      leadSettle.wake = done
+      if (teamName !== null) unsubscribes.push(getMailboxStore(TEAM_LEAD_NAME, teamName).subscribe(done, { immediate: false }))
+      if (options.subscribeAppState) unsubscribes.push(options.subscribeAppState(done))
+      unsubscribes.push(subscribeToCommandQueue(done), onTasksUpdated(done))
+    })
+
+  const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
+    for (let teamName = leadTeamName(); teamName !== null; teamName = leadTeamName()) {
+      const changed = leadEvent(teamName)
+      try {
+        const next = peek()
+        if (next && isMainThreadCommand(next)) return 'reenter'
+        if ((await deliverLeadMail()) === 'queued') return 'reenter'
+        const current = getAppState()
+        const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_teammate')
+        const listed = Boolean(Object.keys(current.teamContext?.teammates ?? {}).length)
         if (!inProcessActive && !listed) break
-        if (inputClosed) {
+        if (inputClosed && !teamShutdownPromptInjected.value) {
           injectTeamShutdownPrompt()
           return 'reenter'
         }
-        await new Promise(resolve => setTimeout(resolve, TEAM_POLL_INTERVAL_MS))
+        await changed
+      } finally {
+        leadSettle.wake?.()
       }
     }
     if (inputClosed) {
       for (;;) {
-        const running = getRunningTasks(getAppState()).some(
-          task => task.type === 'in_process_teammate' && !task.isIdle,
-        )
-        if (!running) break
-        await new Promise(resolve => setTimeout(resolve, TEAM_POLL_INTERVAL_MS))
+        const changed = leadEvent(null)
+        try {
+          const running = getRunningTasks(getAppState()).some(task => task.type === 'in_process_teammate' && !task.isIdle)
+          if (!running) break
+          await changed
+        } finally {
+          leadSettle.wake?.()
+        }
       }
       const current = getAppState()
       const swarmRemains =
@@ -1647,6 +1729,7 @@ export async function runHeadless(
         onMessage(message)
       }, initialNotices),
     onTurnSettled: command => {
+      void deliverLeadMail()
       generateSuggestionAfterTurn()
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
@@ -1693,6 +1776,9 @@ export async function runHeadless(
       const { finalizePendingAsyncHooks } = await import('../utils/hooks/AsyncHookRegistry.js')
       await finalizePendingAsyncHooks().catch(() => {})
       skillChangeDetector.dispose()
+      stopLeadStateWake?.()
+      leadMailboxWake?.unsubscribe()
+      leadSettle.wake?.()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()
       stopIdleSdkDrain()
@@ -3130,6 +3216,7 @@ export async function runHeadless(
       }
     } finally {
       inputClosed = true
+      leadSettle.wake?.()
       if (!driver.isRunning()) {
         await stopShellsForClose()
         await driver.closeOutputOnce()
