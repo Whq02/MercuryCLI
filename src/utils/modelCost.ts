@@ -38,6 +38,7 @@ function tierFromInputOutput(input: number, output: number): ModelCosts {
   }
 }
 
+export const COST_TIER_2_10: ModelCosts = tierFromInputOutput(2, 10)
 export const COST_TIER_3_15: ModelCosts = tierFromInputOutput(3, 15)
 export const COST_TIER_15_75: ModelCosts = tierFromInputOutput(15, 75)
 export const COST_TIER_5_25: ModelCosts = tierFromInputOutput(5, 25)
@@ -78,6 +79,7 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-sonnet-4-5': COST_TIER_3_15,
   'claude-sonnet-4-6': COST_TIER_3_15,
   'claude-sonnet-5': COST_TIER_3_15,
+  'claude-sonnet-5-5': COST_TIER_2_10,
   'claude-opus-4': COST_TIER_15_75,
   'claude-opus-4-1': COST_TIER_15_75,
   'claude-opus-4-5': COST_TIER_5_25,
