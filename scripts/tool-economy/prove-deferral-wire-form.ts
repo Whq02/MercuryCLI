@@ -15,7 +15,7 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_MODEL']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_MODEL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE']) {
   delete process.env[k]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-wire-'))
@@ -52,12 +52,16 @@ section('§1 THE TABLE — one row per declared route, read by one owner')
   check('every declared route has a capability row', [...declared].every(r => tabled.has(r)), [...declared].filter(r => !tabled.has(r)).join(','))
   check('no capability row names an undeclared route', [...tabled].every(r => declared.has(r)), [...tabled].filter(r => !declared.has(r)).join(','))
   check('the home lane is the ONLY evidence-decided row', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([, c]) => c === 'gateway-evidence').map(([r]) => r).join(',') === 'anthropic')
-  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic').every(([, c]) => c === 'text'))
+  check("the openai row is the provider's own form ('openai-native' — the model floor and the endpoint decide per request)", wire.DEFERRAL_WIRE_CAPABILITY.openai === 'openai-native')
+  check('every other row is the text form', Object.entries(wire.DEFERRAL_WIRE_CAPABILITY).filter(([r]) => r !== 'anthropic' && r !== 'openai').every(([, c]) => c === 'text'))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const verdict = wire.deferralWireFormFor(model)
-    const expected = route === 'anthropic' ? 'block' : 'text'
-    check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && (route === 'anthropic' ? verdict.why === 'first-party-contract' : verdict.why === 'route-table'))
+    const expected = route === 'anthropic' ? 'block' : route === 'openai' ? 'openai-native' : 'text'
+    const expectedWhy = route === 'anthropic' || route === 'openai' ? 'first-party-contract' : 'route-table'
+    check(`${route} (${model}) → ${expected} (${verdict.why})`, declaredRouteOf(model) === route && verdict.form === expected && verdict.why === expectedWhy)
   }
+  const olderGpt = wire.deferralWireFormFor('gpt-5.3-codex')
+  check('openai (gpt-5.3-codex, older than the 5.4 floor) → text (model-below-native-floor)', olderGpt.form === 'text' && olderGpt.why === 'model-below-native-floor')
   const stranger = wire.deferralWireFormFor('mystery-model-9000')
   check('an unrecognised id reads the home lane evidence (first-party here ⇒ block)', stranger.form === 'block' && stranger.why === 'first-party-contract')
   const absent = wire.deferralWireFormFor('')
@@ -209,7 +213,8 @@ section('§6 THE FENCE — defer_loading and the description follow the wire for
     return schema.description
   }
   check('first-party model: the block-form description (the unchanged bytes)', (await describe('claude-sonnet-5')) === getPrompt('block'))
-  check('text-form model: the text-form description', (await describe('gpt-5.6-sol')) === getPrompt('text'))
+  check('text-form model: the text-form description', (await describe('gpt-5.3-codex')) === getPrompt('text'))
+  check('native-form model: the text-form description too (the tool is not offered on that wire; the text never promises the <functions> expansion)', (await describe('gpt-5.6-sol')) === getPrompt('text'))
   process.env.ANTHROPIC_BASE_URL = 'https://litellm.corp.example.com'
   probe._resetGatewayProbeStoreForTesting()
   probe.recordGatewayProbe('litellm.corp.example.com', { verdict: 'text', evidence: 'http 400: defer_loading', status: 400, probedAt: new Date().toISOString() })

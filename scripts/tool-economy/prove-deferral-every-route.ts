@@ -17,7 +17,7 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE']) {
   delete process.env[k]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-route-'))
@@ -81,7 +81,9 @@ const MCP_B = ['create_issue', 'list_issues', 'get_issue'].map(n => fixtureTool(
 const POOL: Tool[] = [...NON_DEFERRED, ToolSearchTool as never, ...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B]
 const DEFERRED_NAMES = [...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B].map(t => t.name)
 
-const TEXT_DEFERRING = new Set(['openai', 'local'])
+const TEXT_DEFERRING = new Set(['local'])
+const NATIVE_DEFERRING = new Set(['openai'])
+const OLDER_GPT = 'gpt-5.3-codex'
 const permissionContext = getEmptyToolPermissionContext()
 const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; hasPendingMcpServers?: boolean; latchKey?: string } = {}) =>
   planToolPayload({
@@ -131,6 +133,11 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
       blockRoutes.push(route)
       check(`${route}: the block wire defers (deferral is on)`, plan.enabled === true, `wire=${plan.wireForm}/${plan.wireWhy}`)
       check(`${route}: the roster is EVERY pool tool in pool order — ToolSearch at its place, the deferrable ones riding marked`, names.join(',') === POOL.map(t => t.name).join(','), names.join(','))
+    } else if (NATIVE_DEFERRING.has(route)) {
+      check(`${route}: the provider's own deferral form defers (deferral is on, openai-native by first-party contract)`, plan.enabled === true && plan.wireForm === 'openai-native' && plan.wireWhy === 'first-party-contract', `wire=${plan.wireForm}/${plan.wireWhy}`)
+      check(`${route}: the roster is EVERY pool tool in pool order minus Mercury's own ToolSearch (the server's tool_search replaces it), the deferrable ones riding marked`, names.join(',') === POOL.filter(t => t.name !== TOOL_SEARCH_TOOL_NAME).map(t => t.name).join(','), names.join(','))
+      const older = await planFor(OLDER_GPT, fresh())
+      check(`${route}: a GPT older than 5.4 (${OLDER_GPT}) keeps the client-side text form — initial definitions and discovery only`, older.enabled && older.wireForm === 'text' && older.wireWhy === 'model-below-native-floor' && older.roster.map(t => t.name).join(',') === [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(','), `wire=${older.wireForm}/${older.wireWhy} ${older.roster.map(t => t.name).join(',')}`)
     } else if (TEXT_DEFERRING.has(route)) {
       check(`${route}: client-side discovery omits unadmitted definitions`, plan.enabled && names.join(',') === [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(','), names.join(','))
     } else {
@@ -231,7 +238,9 @@ section('§2 ADMISSION IS INERT ON THE WIRE — N distinct admissions ⇒ zero p
     } as unknown as Message
     const afterCompact = [boundary, createUserMessage({ content: 'summary' }) as Message]
     const planCompact = await planFor(model, afterCompact)
-    if (base.enabled) {
+    if (base.enabled && NATIVE_DEFERRING.has(route)) {
+      check(`${route}: the server admits — Mercury derives no admitted set and never names its own admission road`, planCompact.admittedNames.size === 0 && (await planFor(model, messages)).isDeferredUnadmitted('WebFetch') === false)
+    } else if (base.enabled) {
       check(`${route}: a compaction boundary keeps every admission (the snapshot is the record)`, [...planCompact.admittedNames].sort().join(',') === [...admittedSoFar].sort().join(','))
     } else {
       check(`${route}: a text wire admits nothing — nothing is deferred there (the snapshot is carried, never read)`, planCompact.admittedNames.size === 0 && (await planFor(model, messages)).admittedNames.size === 0)
@@ -245,7 +254,9 @@ section('§3 PENDING-SERVER HONESTY — a connecting server keeps ToolSearch, on
   const nothingDeferred = [...NON_DEFERRED, ToolSearchTool as never]
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const pending = await planFor(model, fresh(), { tools: nothingDeferred, hasPendingMcpServers: true })
-    if (pending.wireForm === 'block' || TEXT_DEFERRING.has(route)) {
+    if (NATIVE_DEFERRING.has(route)) {
+      check(`${route}: nothing deferred + a server still connecting ⇒ deferral stays on for the joiners (they append at the end, marked) while Mercury's ToolSearch stays off the wire`, pending.enabled === true && !pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
+    } else if (pending.wireForm === 'block' || TEXT_DEFERRING.has(route)) {
       check(`${route}: nothing deferred + a server still connecting ⇒ ToolSearch stays (the model can discover its tools once they land)`, pending.enabled === true && pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
     } else {
       check(`${route}: a wire that cannot defer keeps ToolSearch aside even with a server connecting (its tools join the array at the next lawful boundary)`, pending.enabled === false && !pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
@@ -262,8 +273,10 @@ section('§4 TYPED REFUSALS — the discovery path is named, the economy never r
   const messages = fresh()
   const plan = await planFor(ROUTE_MODELS.anthropic!, messages)
   const hints = { deferredUnadmitted: plan.isDeferredUnadmitted }
-  const textPlan = await planFor('gpt-5.6-sol', messages)
-  check('the OpenAI text form distinguishes unadmitted tools without removing their execution capability', textPlan.isDeferredUnadmitted('WebFetch') && textPlan.deferredNames.has('WebFetch'))
+  const textPlan = await planFor(OLDER_GPT, messages)
+  check('the OpenAI text form (a GPT older than 5.4) distinguishes unadmitted tools without removing their execution capability', textPlan.wireForm === 'text' && textPlan.isDeferredUnadmitted('WebFetch') && textPlan.deferredNames.has('WebFetch'))
+  const nativePlan = await planFor(ROUTE_MODELS.openai!, messages)
+  check("the OpenAI native form marks the tool deferred but never calls it unadmitted (the server's tool_search is the road)", nativePlan.wireForm === 'openai-native' && nativePlan.deferredNames.has('WebFetch') && nativePlan.isDeferredUnadmitted('WebFetch') === false)
   const unknown = gateToolCall(POOL as never, { id: 'c1', name: 'Nonexistent', argumentsRaw: '{}', malformed: false }, hints)
   check('an unresolvable name refuses typed (unknown-tool)', !unknown.ok && unknown.refusal.code === 'unknown-tool')
   check('…and the note names the discovery path', !unknown.ok && /ToolSearch/.test(toolCallRefusalNote('openai', unknown.refusal)) && /No such tool available: Nonexistent/.test(toolCallRefusalNote('openai', unknown.refusal)))
@@ -296,7 +309,7 @@ section('§5 THE SUBAGENT BOUND — inheriting the whole pool costs the non-defe
     const parent = await planFor(model, [...fresh(), ...admission('toolu_parent', ['Browser', 'mcp__github__list_issues'])])
     const child = await planFor(model, fresh())
     check(`${route}: a child starts without its parent's text-form admissions`, child.roster.map(t => t.name).join(',') === (TEXT_DEFERRING.has(route) ? [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(',') : parent.roster.map(t => t.name).join(',')) && [...child.deferredNames].sort().join(',') === [...parent.deferredNames].sort().join(','))
-    check(`${route}: the parent's admissions do not leak into the child (admission is per conversation)`, child.admittedNames.size === 0 && parent.admittedNames.size === (parent.enabled ? 2 : 0))
+    check(`${route}: the parent's admissions do not leak into the child (admission is per conversation)`, child.admittedNames.size === 0 && parent.admittedNames.size === (parent.enabled && !NATIVE_DEFERRING.has(route) ? 2 : 0))
     check(`${route}: the child's request carries no announcement bytes (the row is the carrier)`, child.announcement === null)
     const row = getDeferredToolsDeltaAttachment(POOL, model, fresh())[0]
     if (!child.enabled) {

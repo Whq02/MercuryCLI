@@ -235,7 +235,8 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
   if (input.latchKey !== undefined) heldAtLastPlan.set(`${input.latchKey}|${firstConversationRow(messages)}`, held)
 
-  const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  const serverAdmits = wire.form === 'openai-native'
+  const admittedNames = enabled && !serverAdmits ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
   if (enabled && wire.form === 'text') {
     const available = new Map(roster.map(tool => [tool.name, tool]))
@@ -246,9 +247,11 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         return tool !== undefined && deferredNames.has(name) ? [tool] : []
       }),
     ]
+  } else if (enabled && serverAdmits) {
+    roster = roster.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
   }
 
-  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
+  const announcement = enabled && !serverAdmits && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,
@@ -259,7 +262,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     deferredNames,
     admittedNames,
     announcement,
-    isDeferredUnadmitted: (name: string) => enabled && deferredNames.has(name) && !admittedNames.has(name),
+    isDeferredUnadmitted: (name: string) => enabled && !serverAdmits && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
   }
 }

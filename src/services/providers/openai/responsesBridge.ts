@@ -5,6 +5,9 @@ import type {
   OpenaiFunctionTool,
   OpenaiInputItem,
   OpenaiMessageItem,
+  OpenaiToolSearchCallItem,
+  OpenaiToolSearchOutputItem,
+  OpenaiToolSearchTool,
   OpenaiWebSearchTool,
 } from './openaiWire.js'
 import type { OpenaiResponsesRequest } from './openaiWire.js'
@@ -68,6 +71,9 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
     const phase = o.phase === 'commentary' || o.phase === 'final_answer' ? o.phase : undefined
     return { type: 'message', role: 'assistant', content, ...(phase ? { phase } : {}) }
   }
+  if (o.type === 'tool_search_call' || o.type === 'tool_search_output') {
+    return { ...o, type: o.type } as OpenaiToolSearchCallItem | OpenaiToolSearchOutputItem
+  }
   return undefined
 }
 
@@ -88,13 +94,33 @@ export function decodeOpenaiTurnRecord(raw: unknown): OpenaiTurnRecord | undefin
 }
 
 
-export function mapToolsToOpenai(tools: readonly ApiShapedTool[]): OpenaiFunctionTool[] {
+export function mapToolsToOpenai(tools: readonly ApiShapedTool[], deferred?: ReadonlySet<string>): OpenaiFunctionTool[] {
   return tools.map(t => ({
     type: 'function',
     name: t.name,
     ...(t.description ? { description: t.description } : {}),
     parameters: t.input_schema,
+    ...(deferred?.has(t.name) ? { defer_loading: true } : {}),
   }))
+}
+
+export const OPENAI_TOOL_SEARCH_TOOL: OpenaiToolSearchTool = { type: 'tool_search' }
+
+export function loadedToolNamesOf(items: readonly OpenaiInputItem[]): string[] {
+  const names: string[] = []
+  const walk = (tools: unknown): void => {
+    if (!Array.isArray(tools)) return
+    for (const raw of tools) {
+      const tool = asRecord(raw)
+      if (tool === undefined) continue
+      if (tool.type === 'namespace') walk(tool.tools)
+      else if (typeof tool.name === 'string') names.push(tool.name)
+    }
+  }
+  for (const item of items) {
+    if (item.type === 'tool_search_output') walk(item.tools)
+  }
+  return names
 }
 
 export interface BridgeMessage {
@@ -318,6 +344,8 @@ export interface BuildOpenaiRequestInput {
   imagesSupported?: boolean
   outputFormat?: JsonOutputFormat
   nativeWebSearch?: NativeWebSearchRequest
+  deferredToolNames?: ReadonlySet<string>
+  toolSearch?: boolean
 }
 
 export function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
@@ -334,9 +362,10 @@ export function openaiEffortWireFact(request: OpenaiResponsesRequest, supported:
 export function buildOpenaiResponsesRequest(
   i: BuildOpenaiRequestInput,
 ): OpenaiResponsesRequest {
-  const functionTools = i.tools && i.tools.length > 0 ? mapToolsToOpenai(i.tools) : []
+  const functionTools = i.tools && i.tools.length > 0 ? mapToolsToOpenai(i.tools, i.deferredToolNames) : []
   const hostedTools = i.nativeWebSearch ? [webSearchToolFor(i.nativeWebSearch)] : []
-  const composed = [...functionTools, ...hostedTools]
+  const searchTools = i.toolSearch ? [OPENAI_TOOL_SEARCH_TOOL] : []
+  const composed = [...functionTools, ...hostedTools, ...searchTools]
   const tools = composed.length > 0 ? composed : undefined
   return {
     model: i.model,

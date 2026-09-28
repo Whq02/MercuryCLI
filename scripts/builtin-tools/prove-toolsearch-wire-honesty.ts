@@ -7,6 +7,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'toolsearch-wire-'))
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_TOOL_SEARCH
 delete process.env.MERCURY_TOOL_DEFER
+delete process.env.MERCURY_OPENAI_API_BASE
+delete process.env.MERCURY_OPENAI_CHATGPT_BASE
 delete process.env.MERCURY_MODEL
 
 let failures = 0
@@ -49,7 +51,7 @@ section('§A the result on the Anthropic route — tool_reference blocks, unchan
 
 section('§A the result off the Anthropic route — the SAME admission record, rendered as text on the wire')
 {
-  for (const model of ['openrouter/stealth/ox-alpha', 'glm-5.3', 'gpt-5.5']) {
+  for (const model of ['openrouter/stealth/ox-alpha', 'glm-5.3', 'gpt-5.3-codex']) {
     state.setMainLoopModelOverride(model as never)
     const route = declaredRouteOf(getMainLoopModel())
     check(`${model} routes off anthropic (${route})`, route !== 'anthropic')
@@ -68,6 +70,8 @@ section('§A the result off the Anthropic route — the SAME admission record, r
   }
   const none = ToolSearchTool.mapToolResultToToolResultBlockParam({ matches: [], query: 'q', total_deferred_tools: 0 } as never, 'toolu_2').content
   check('no matches ⇒ the same plain sentence as before', String(none).startsWith('No matching deferred tools were found.'))
+  state.setMainLoopModelOverride('gpt-5.5' as never)
+  check("gpt-5.5 (5.4 or later, first-party OpenAI) rides the provider's own form — openai-native — where ToolSearch is not offered on the wire", deferralWireFormFor(getMainLoopModel()).form === 'openai-native')
 }
 
 section('§B the roster gate is route-independent')
@@ -75,9 +79,9 @@ section('§B the roster gate is route-independent')
   state.setMainLoopModelOverride('claude-opus-4-8' as never)
   check('a first-party Anthropic session keeps ToolSearch exactly as today (mounted)', isToolSearchEnabledOptimistic() === true)
   check("…and the tool's own isEnabled agrees", ToolSearchTool.isEnabled() === true)
-  for (const model of ['openrouter/stealth/ox-alpha', 'glm-5.3', 'gpt-5.5']) {
+  for (const model of ['openrouter/stealth/ox-alpha', 'glm-5.3', 'gpt-5.3-codex', 'gpt-5.5']) {
     state.setMainLoopModelOverride(model as never)
-    check(`${model}: ToolSearch mounts too (deferral rides the text form there)`, isToolSearchEnabledOptimistic() === true && ToolSearchTool.isEnabled() === true)
+    check(`${model}: ToolSearch mounts too (the pool is route-independent; the wire form decides what rides)`, isToolSearchEnabledOptimistic() === true && ToolSearchTool.isEnabled() === true)
   }
   process.env.MERCURY_TOOL_DEFER = '0'
   check('MERCURY_TOOL_DEFER=0 unmounts it on every route (the off arm inlines the catalogue)', isToolSearchEnabledOptimistic() === false && ToolSearchTool.isEnabled() === false)
@@ -95,8 +99,10 @@ section('§C the description tells the truth per wire form')
   check('text form: promises the admission notice and the tool list, never the expansion', text.includes('admits each match') && text.includes('in your tool list') && !text.includes('<functions>'))
   check('both carry the same head, location and query forms', [block, text].every(p => p.startsWith('Load the full schemas of deferred tools') && p.includes('inside <system-reminder> messages') && !p.includes('<available-deferred-tools>') && p.includes('select:Read,Edit,Grep') && p.includes('+slack send')))
   check("the default form is the block form (the first-party route's text)", getPrompt() === block)
+  state.setMainLoopModelOverride('gpt-5.3-codex' as never)
+  check('the tool renders the text-form description for a text-form model', (await ToolSearchTool.prompt({ model: 'gpt-5.3-codex' } as never)) === text)
   state.setMainLoopModelOverride('gpt-5.5' as never)
-  check('the tool renders the text-form description for a text-form model', (await ToolSearchTool.prompt({ model: 'gpt-5.5' } as never)) === text)
+  check('…and the text-form description for a native-form model (never the <functions> promise off the block wire)', (await ToolSearchTool.prompt({ model: 'gpt-5.5' } as never)) === text)
   state.setMainLoopModelOverride('claude-opus-4-8' as never)
   check('…and the block-form description for a first-party model', (await ToolSearchTool.prompt({ model: 'claude-opus-4-8' } as never)) === block)
   state.setMainLoopModelOverride(undefined)

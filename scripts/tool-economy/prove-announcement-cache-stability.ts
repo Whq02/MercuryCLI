@@ -21,7 +21,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_SCRIPTED_STREAM']) {
+for (const k of ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE']) {
   delete process.env[k]
 }
 process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'
@@ -125,6 +125,7 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const plan = await planFor(model, fresh())
     if (plan.wireForm === 'block') check(`${route}: deferral is on and every deferrable tool rides the roster MARKED`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)))
+    else if (plan.wireForm === 'openai-native') check(`${route}: the provider's own deferral form — deferral is on, every deferrable tool rides the roster MARKED, Mercury's ToolSearch stays off the wire`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)) && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
     else if (route === 'openai' || route === 'local') check(`${route}: only initial definitions and discovery are sent`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)))
     else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
     check(`${route}: the plan carries NO per-request announcement`, plan.announcement === null)
