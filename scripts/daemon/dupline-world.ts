@@ -49,7 +49,7 @@ export function makeTally(name: string): { check: (label: string, cond: boolean,
 }
 
 export type Rec = { recordId?: string; creationOrdinal?: string; occurredAt?: string; threadId?: string; annotations?: { uuid?: string }; payload?: { kind?: string; attachmentType?: string; metaKind?: string; content?: unknown; fields?: Record<string, unknown>; meta?: Record<string, unknown> } }
-export type Carrier = { file: string; kind: string; recordId: string; ordinal: string; occurredAt: string; sourceUuid: string; sentAt: string; thread: string; agentId: string; uuid: string }
+export type Carrier = { file: string; kind: string; recordId: string; ordinal: string; occurredAt: string; sourceUuid: string; sentAt: string; deliveredAt: string; thread: string; agentId: string; uuid: string }
 export function textOfRecord(r: Rec): string {
   const p = r.payload ?? {}
   if (p.kind === 'input') {
@@ -105,6 +105,7 @@ export function carriersOf(projectsDir: string, line: string): Carrier[] {
         occurredAt: String(r.occurredAt ?? ''),
         sourceUuid: String(f.source_uuid ?? ''),
         sentAt: String(f.sentAt ?? meta.sentAt ?? ''),
+        deliveredAt: String(f.deliveredAt ?? meta.deliveredAt ?? ''),
         thread: String(r.threadId ?? ''),
         agentId: agent?.[1] ?? '',
         uuid: String(r.annotations?.uuid ?? meta.uuid ?? ''),
@@ -140,7 +141,8 @@ export function queueJournal(projectsDir: string): QueueJournalRow[] {
 }
 export const inMainFile = (c: Carrier): boolean => !c.file.includes('subagents')
 export const isDrainedMainRow = (c: Carrier): boolean => inMainFile(c) && c.kind === 'attachment/queued_command'
-export const briefly = (cs: Carrier[]): string => j(cs.map(c => `${c.file.replace(/^.*?[\\/]/, '')} ${c.kind} src=${c.sourceUuid.slice(0, 8)} at=${c.occurredAt}`))
+export const briefly = (cs: Carrier[]): string => j(cs.map(c => `${c.file.replace(/^.*?[\\/]/, '')} ${c.kind} src=${c.sourceUuid.slice(0, 8)} at=${c.occurredAt}${c.deliveredAt === '' ? '' : ` delivered=${c.deliveredAt}`}`))
+export const deliveryClockOf = (c: Carrier): number => Date.parse(c.deliveredAt === '' ? c.occurredAt : c.deliveredAt)
 export async function settledCarriers(projectsDir: string, line: string, timeoutMs: number, settled: (cs: Carrier[]) => boolean = cs => cs.some(isDrainedMainRow)): Promise<Carrier[]> {
   const until = Date.now() + timeoutMs
   for (;;) {

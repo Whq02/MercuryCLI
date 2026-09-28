@@ -34,6 +34,7 @@ import {
   carrying,
   childEnv,
   CLOCK_TOLERANCE_MS,
+  deliveryClockOf,
   describeRequests,
   DIST,
   exportWorld,
@@ -213,7 +214,8 @@ if (!existsSync(DIST)) {
     const noticeRows = carriers.filter(c => c.word === CREW_NOTICE)
     const noticeMain = noticeRows.filter(isDrainedMainRow)
     const lastSub = requests.filter(r => r.arm === 'subwork').map(r => r.at).sort((a, b) => b - a)[0] ?? 0
-    check("the session's transcript holds the notice once, delivered between the sub-agent's last request and the session's own next one", noticeMain.length === 1 && noticeRows.filter(inMainFile).length === 1 && noticeRequest !== undefined && Date.parse(noticeMain[0]!.occurredAt) >= lastSub - 2000 && Date.parse(noticeMain[0]!.occurredAt) <= noticeRequest.at + 2000, briefly(noticeRows))
+    check("the session's transcript holds the notice once, delivered between the sub-agent's last request and the session's own next one (the row's delivery clock, never its stamp: the stamp is the completion the row sits at, minutes before a long-running sub-agent's last request)", noticeMain.length === 1 && noticeRows.filter(inMainFile).length === 1 && noticeRequest !== undefined && deliveryClockOf(noticeMain[0]!) >= lastSub - 2000 && deliveryClockOf(noticeMain[0]!) <= noticeRequest.at + 2000, briefly(noticeRows))
+    check("the notice row's stamp is its completion — the send clock the queue gave it, no later than the sub-agent's last request and no later than its own delivery", noticeMain.length === 1 && noticeMain[0]!.deliveredAt !== '' && noticeMain[0]!.occurredAt === noticeMain[0]!.sentAt && Date.parse(noticeMain[0]!.occurredAt) <= lastSub + 2000 && Date.parse(noticeMain[0]!.occurredAt) <= deliveryClockOf(noticeMain[0]!), briefly(noticeRows))
     check("no sub-agent's transcript holds the notice", noticeRows.every(inMainFile), briefly(noticeRows.filter(c => !inMainFile(c))))
     await closeWorld(w)
   }
