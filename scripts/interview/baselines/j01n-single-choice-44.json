@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-28T02:41:13.720Z",
+ "capturedAt": "2026-09-28T03:10:05.313Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-eemKgL · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0rM3Q6 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:41:06 [sam] ❯ design the cache layer",
+    "04:09:57 [sam] ❯ design the cache layer",
     "",
-    "03:41:06 [Mercury] Let me confirm the open",
+    "04:09:57 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-eemKgL · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0rM3Q6 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:41:06 [sam] ❯ design the cache layer",
+    "04:09:57 [sam] ❯ design the cache layer",
     "",
-    "03:41:06 [Mercury] Let me confirm the open",
+    "04:09:57 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5410,
+   "patches": 5404,
    "frame-recommit": 13
   },
   "frames": {
    "total": 28,
    "window": 28,
-   "p50": 0.5716670000001614,
-   "p95": 2.721625000000131,
-   "p99": 8.588374999999928,
-   "maxMs": 8.588374999999928
+   "p50": 0.6263339999995878,
+   "p95": 4.633291000000099,
+   "p99": 7.677415999999994,
+   "maxMs": 7.677415999999994
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6560.870885848999,
+   "atMs": 6523.836135864258,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7360.870885848999,
+   "atMs": 7323.836135864258,
    "b64": "DQ=="
   }
  ]
