@@ -69,10 +69,13 @@ export function ownerFor(group: BehaviourGroup, name: string): string {
   return SECTION_OWNERS.get(`${group}:${name}`) ?? GROUP_OWNERS[group]
 }
 
-function digestOf(sections: readonly BehaviourSection[]): string {
+function digestOf(
+  sections: readonly BehaviourSection[],
+  digested: (section: BehaviourSection) => boolean = section => section.group !== 'context',
+): string {
   const hash = createHash('sha256')
   for (const section of sections) {
-    if (section.group === 'context') continue
+    if (!digested(section)) continue
     hash.update(section.group)
     hash.update('\u001f')
     hash.update(section.name)
@@ -83,6 +86,10 @@ function digestOf(sections: readonly BehaviourSection[]): string {
     hash.update('\u001e')
   }
   return `bc1-${hash.digest('hex').slice(0, 24)}`
+}
+
+export function stableBehaviourDigest(contract: BehaviourContract): string {
+  return digestOf(contract.sections, section => section.cacheClass === 'stable')
 }
 
 export const STATIC_SECTION_NAMES: readonly string[] = [

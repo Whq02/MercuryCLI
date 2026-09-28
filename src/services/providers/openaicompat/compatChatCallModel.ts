@@ -1,6 +1,8 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
+import { getCwd } from '../../../utils/cwd.js'
+import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
 import type {
   ApiContentBlockDelta,
   ApiMessage,
@@ -55,6 +57,7 @@ import { canonicalWireModelId } from '../routeLaw.js'
 import {
   renderGenericInstructions,
   resolveBehaviourContract,
+  stableBehaviourDigest,
 } from '../../../prompt/behaviourContract.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
@@ -391,19 +394,31 @@ export async function* compatChatCallModel(
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const toolDeclarations = await buildToolDeclarationRows(plan, tools, options, modelId, profile.toolDeclarationRow ?? toolDeclarationRowAsText)
+  const contract = resolveBehaviourContract([...systemPrompt])
+  const systemText = renderGenericInstructions(contract)
+  const wireModel = profile.wireModelId(modelId)
+  const cacheDomainKey = mintCacheDomainKey({
+    providerScope: profile.lane,
+    servedModel: wireModel,
+    projectPath: getCwd(),
+    behaviorContractDigest: stableBehaviourDigest(contract),
+    toolSchemaDigest: createHash('sha256')
+      .update(JSON.stringify(apiTools.filter(tool => !plan.deferredNames.has(tool.name))))
+      .digest('hex')
+      .slice(0, 16),
+  })
   const deferral: CompatDeferralFacts | undefined = plan.enabled
     ? {
         form: plan.wireForm,
         deferredNames: plan.deferredNames,
         ...(plan.conversationKey !== undefined ? { conversationKey: plan.conversationKey } : {}),
+        cacheDomainKey,
         imagesSupported: imagesSupportedForCompatModel(modelId),
       }
     : undefined
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages, plan.wireForm), plan)
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
-  const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
-  const wireModel = profile.wireModelId(modelId)
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
   if (apiTools.length > 0 && profile.toolCapabilityRefusal) {
     const refusal = profile.toolCapabilityRefusal(wireModel)

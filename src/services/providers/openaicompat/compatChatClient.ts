@@ -78,6 +78,7 @@ export interface CompatDeferralFacts {
   form: DeferralWireForm
   deferredNames: ReadonlySet<string>
   conversationKey?: string
+  cacheDomainKey?: string
   imagesSupported: boolean
 }
 
