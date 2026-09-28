@@ -1084,7 +1084,9 @@ export const ChangeSetTool = buildTool({
     return 'Prepare, review, and apply one anchored text change across several existing files'
   },
   async prompt() {
-    return `Atomic multi-file text change sets: ONE call prepares, reviews, and applies an anchored change spanning several EXISTING text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.
+    return `Use this over Edit when the same change spans several files: one coordinated review and apply.
+
+Atomic multi-file text change sets: ONE call prepares, reviews, and applies an anchored change spanning several EXISTING text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.
 
 Operations:
 1. { op: "apply", changes: [...] } — the fast path: preflight every member, obtain ONE aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.

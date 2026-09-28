@@ -2,7 +2,7 @@ import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 
 export const DEBUG_TOOL_NAME = 'Debug' as const
 
-export const DEBUG_TOOL_DESCRIPTION = `Drive a real debugger over the Debug Adapter Protocol (DAP) — breakpoints, stepping, stacks, scopes, variables, evaluate — instead of print-statement archaeology.
+export const DEBUG_TOOL_DESCRIPTION = `Use this over print debugging: drive a real debugger over the Debug Adapter Protocol (DAP) — breakpoints, stepping, stacks, scopes, variables and evaluate.
 
 The debugging loop:
 1. op:"launch" with program (and optional adapter/args/stopOnEntry) plus optional file+lines to set breakpoints before the first instruction runs. op:"attach" (pid, port [+host], or program) joins an ALREADY-RUNNING debuggee instead — same session lifecycle from there; a bare port auto-picks the python adapter (the debugpy listen socket is the common shape).

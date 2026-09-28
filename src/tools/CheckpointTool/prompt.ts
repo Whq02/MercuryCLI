@@ -5,7 +5,9 @@ export { CHECKPOINT_TOOL_NAME }
 export const DESCRIPTION =
   'Mark the current conversation state before an exploratory detour, so Rewind can restore it later.'
 
-export const CHECKPOINT_TOOL_PROMPT = `Mark the CURRENT conversation state as a checkpoint before starting an exploratory detour (a risky refactor investigation, a speculative design probe, a large read-heavy dig) whose transcript you may not want to keep in context afterwards.
+export const CHECKPOINT_TOOL_PROMPT = `Use this with Rewind for a detour you don't want to keep in context: mark the state before you start.
+
+Mark the CURRENT conversation state as a checkpoint before starting an exploratory detour (a risky refactor investigation, a speculative design probe, a large read-heavy dig) whose transcript you may not want to keep in context afterwards.
 
 - State the goal of the exploration in \`goal\` — it is echoed back on Rewind.
 - ONE checkpoint may be active at a time; a second call refuses (typed) until you Rewind.

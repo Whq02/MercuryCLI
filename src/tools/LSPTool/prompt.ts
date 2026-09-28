@@ -1,7 +1,9 @@
 
 export const LSP_TOOL_NAME = 'LSP'
 
-export const DESCRIPTION = `Interact with language servers for code intelligence: find definitions, references, hover information, and symbols.
+export const DESCRIPTION = `Use this over Grep and Read for definitions and references: the language server resolves symbols rather than matching text.
+
+Interact with language servers for code intelligence: find definitions, references, hover information, and symbols.
 
 Operations:
 - goToDefinition: Jump to the place a symbol is declared

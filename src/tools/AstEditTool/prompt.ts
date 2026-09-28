@@ -6,7 +6,9 @@ import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 export const AST_EDIT_TOOL_NAME = 'AstEdit'
 
 export function getAstEditDescription(): string {
-  return `Rewrite code by its syntax shape: every match of a structural pattern is replaced by a rewrite built from the captured meta-variables, across files, as one reviewed change. Without apply this is a dry run — the unified diff per file and a plan token, nothing written; apply:true with that token writes through Mercury's file-write door (the edit permission ask, file snapshots for /rewind, atomic writes with rollback, re-read verification, one change receipt).
+  return `Use this over Edit to rewrite every match of a code shape at once, across files, as one reviewed change.
+
+Rewrite code by its syntax shape: every match of a structural pattern is replaced by a rewrite built from the captured meta-variables, across files, as one reviewed change. Without apply this is a dry run — the unified diff per file and a plan token, nothing written; apply:true with that token writes through Mercury's file-write door (the edit permission ask, file snapshots for /rewind, atomic writes with rollback, re-read verification, one change receipt).
 
 Usage:
 - ${PATTERN_GRAMMAR_LINES[0]}

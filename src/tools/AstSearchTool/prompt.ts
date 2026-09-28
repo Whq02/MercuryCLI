@@ -7,7 +7,9 @@ export const AST_SEARCH_TOOL_NAME = 'AstSearch'
 export const AST_EDIT_TOOL_NAME_REF = 'AstEdit'
 
 export function getAstSearchDescription(): string {
-  return `Find code by its syntax shape: a pattern written in the target language, with meta-variables for the parts that vary, matched against the parsed syntax tree of every file in scope — never against text.
+  return `Use this over Grep to find code by its shape rather than its text.
+
+Find code by its syntax shape: a pattern written in the target language, with meta-variables for the parts that vary, matched against the parsed syntax tree of every file in scope — never against text.
 
 Usage:
 - ${PATTERN_GRAMMAR_LINES[0]}

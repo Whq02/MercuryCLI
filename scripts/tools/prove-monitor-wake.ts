@@ -156,7 +156,7 @@ function harness(wall: WatchWall) {
   const notice = monitorExpiryNotice('the comms watch', 'b1', 300_000, 3)
   check('the expiry notice names the watch, the deadline and the event count', notice.includes('"the comms watch"') && notice.includes('task b1') && notice.includes('300s') && notice.includes('3 events'))
   check('the expiry notice says how to re-arm and names the persistent flag', notice.includes('calling Monitor again with the same command') && notice.includes('persistent: true'))
-  const description = await MonitorTool.description()
+  const description = await MonitorTool.prompt()
   check('the model-facing description says when to set persistent', description.includes('`persistent: true`') && description.includes('until you stop it with TaskStop or the session ends'))
   check('the model-facing description names the default deadline and the expiry notice', description.includes('default 5 minutes, at most 1 hour') && description.includes('expiry notice that says how to re-arm'))
   check('the model-facing description says what happens to events behind a closed usage window', description.includes('usage window is closed are held') && description.includes('delivered together, in one notification'))
