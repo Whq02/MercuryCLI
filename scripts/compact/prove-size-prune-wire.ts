@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startOverflowFixture, type Captured, type ScriptedCall, type Turn } from './overflowFixture.ts'
+import { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } from '../../src/services/compact/pruneProtections.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -23,8 +24,16 @@ mkdirSync(join(cwd, 'skills'))
 const model = arg('--model') ?? 'gpt-5.6-sol'
 const limit = Number(arg('--limit') ?? 240_000)
 const rounds = Number(arg('--rounds') ?? 30)
+const prunePct = arg('--prune-pct') ?? '50'
 const node = join(dirname(dist), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const fixture = await startOverflowFixture()
+const statedWindow = await (async (): Promise<number> => {
+  const catalogue = await (await fetch(`${fixture.base}/openai/v1/models`)).json() as { models: Array<{ slug: string; context_window: number }> }
+  const row = catalogue.models.find(entry => entry.slug === model)
+  return process.argv.includes('--bounded-window') ? Math.min(row?.context_window ?? 0, 200_000) : row?.context_window ?? 0
+})()
+const thresholdTokens = Math.ceil(statedWindow * Number(prunePct) / 100)
+const targetTokens = Math.floor(statedWindow * Number(prunePct) / 150)
 const payload = Array.from({ length: process.argv.includes('--bounded-window') ? 192 : 384 }, (_, i) => `entry ${String(i).padStart(3, '0')}: the module records the complete current file contents and keeps its checks repeatable.\n`).join('')
 const paths = [join(cwd, 'alpha.txt'), join(cwd, 'beta.txt')]
 for (const path of paths) writeFileSync(path, `revision 0\n${payload}`)
@@ -133,7 +142,7 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_VERIFY_EVIDENCE: '0',
   MERCURY_AUTO_COMPACT: '0',
   ...(process.argv.includes('--bounded-window') ? { MERCURY_DISABLE_1M_CONTEXT: '1' } : {}),
-  ...(arg('--prune-pct') !== undefined ? { MERCURY_PRUNE_PCT: arg('--prune-pct')! } : {}),
+  MERCURY_PRUNE_PCT: prunePct,
   BROWSER: '/usr/bin/true',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 }
@@ -176,7 +185,12 @@ const summary = {
   childExit: exit,
   requests: measurements.length,
   refusals,
-  pruneThreshold: arg('--prune-pct') ?? 'default',
+  pruneThreshold: Number(prunePct),
+  statedWindowTokens: statedWindow,
+  thresholdTokens,
+  targetTokens,
+  unprunableFloorTokens: (counts[0] ?? 0) + PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,
+  fileReadTokens: Math.round(Math.max(0, ...measurements.flatMap(row => Object.values(row.resultChars as Record<string, number>))) / 4),
   boundedWindow: process.argv.includes('--bounded-window'),
   pruneCount: pruneRequests.length,
   pruneRequests,
@@ -200,6 +214,7 @@ check('the replay makes every scripted Read and Edit', nextCall === calls.length
 check('every edit landed in the scratch files', paths.every((path, index) => readFileSync(path, 'utf8').startsWith(`revision ${Math.ceil((rounds - index) / paths.length)}\n`)))
 check('no tool result reports an error', !frames.some(frame => frame.type === 'user' && Array.isArray((frame.message as { content?: unknown })?.content) && ((frame.message as { content: Array<{ is_error?: boolean }> }).content).some(block => block.is_error === true)))
 check('the provider input-pairing rule refuses nothing', fixture.refusals.length === 0)
+check(`the threshold sits under the refusal limit (${thresholdTokens} < ${limit}) and the two-thirds target sits at least one file read above the floor no prune can clear, the first request plus the newest-output protection (${summary.unprunableFloorTokens} + ${summary.fileReadTokens} < ${targetTokens})`, thresholdTokens < limit && summary.unprunableFloorTokens + summary.fileReadTokens < targetTokens)
 check('the size prune lands before any provider refusal', summary.prunedBeforeRefusal)
 check('the replay incurs no context refusals', refusals === 0)
 check('a protected skill-file read remains on every later request', measurements.length > 2 && measurements.slice(1).every(row => row.protectedPresent))
