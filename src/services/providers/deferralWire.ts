@@ -3,7 +3,10 @@ import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { classifyModelRoute, type CallModelRoute } from './idSpaces.js'
 import { readGatewayProbeVerdict } from './deferralProbe.js'
 
-export type DeferralWireForm = 'block' | 'text' | 'openrouter-native'
+export type DeferralWireForm =
+  | 'block'
+  | 'text'
+  | 'openrouter-native'
 
 export type DeferralWireCapability = DeferralWireForm | 'gateway-evidence'
 
@@ -89,7 +92,8 @@ export function deferralSearchIsServerSide(form: DeferralWireForm): boolean {
 }
 
 export function supportsToolDeferral(model: string, form: DeferralWireForm = deferralWireFormFor(model).form): boolean {
-  if (form === 'block' || deferralSearchIsServerSide(form)) return true
+  if (form === 'block') return true
+  if (deferralSearchIsServerSide(form)) return true
   const result = classifyModelRoute(model)
   return result.kind === 'route' && TEXT_FORM_DEFERRING_ROUTES.has(result.route)
 }

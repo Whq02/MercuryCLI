@@ -235,9 +235,9 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
   if (input.latchKey !== undefined) heldAtLastPlan.set(`${input.latchKey}|${firstConversationRow(messages)}`, held)
 
-  const clientSearch = enabled && !deferralSearchIsServerSide(wire.form)
-  const admittedNames = clientSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || clientSearch)
+  const serverSearch = deferralSearchIsServerSide(wire.form)
+  const admittedNames = enabled && !serverSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
+  let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
   if (enabled && wire.form === 'text') {
     const available = new Map(roster.map(tool => [tool.name, tool]))
     roster = [
@@ -247,9 +247,11 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         return tool !== undefined && deferredNames.has(name) ? [tool] : []
       }),
     ]
+  } else if (enabled && serverSearch) {
+    roster = roster.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME))
   }
 
-  const announcement = clientSearch && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
+  const announcement = enabled && !serverSearch && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,
@@ -260,7 +262,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     deferredNames,
     admittedNames,
     announcement,
-    isDeferredUnadmitted: (name: string) => clientSearch && deferredNames.has(name) && !admittedNames.has(name),
+    isDeferredUnadmitted: (name: string) => enabled && !serverSearch && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
   }
 }
