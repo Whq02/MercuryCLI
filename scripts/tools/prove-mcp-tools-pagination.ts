@@ -16,13 +16,13 @@ const client = readFileSync(
 )
 
 console.log('============================================================')
-console.log(' mcp tools/list — paginated + count/schema capped (HB-0125)')
+console.log(' mcp tools/list — paginated + count capped, definitions whole (HB-0125)')
 console.log('============================================================')
 
-section('source: pagination loop + count cap + schema replace are wired')
+section('source: pagination loop + count cap are wired; no definition size cap')
 check('TOOLS_MAX_PAGES = 50 page bound', /const TOOLS_MAX_PAGES = 50/.test(client))
 check('TOOLS_MAX_PER_SERVER = 1000 count cap', /const TOOLS_MAX_PER_SERVER = 1000/.test(client))
-check('SCHEMA_MAX_CHARS = 32_768 (generous, NOT the 2048 description cap)', /const SCHEMA_MAX_CHARS = 32_768/.test(client))
+check('no description or schema size cap remains (PROMPT_MAX_CHARS and SCHEMA_MAX_CHARS are gone)', !/PROMPT_MAX_CHARS|SCHEMA_MAX_CHARS/.test(client))
 check('a bounded for-loop over tools/list (not a single request)', /for \(let page = 0; page < TOOLS_MAX_PAGES; page\+\+\)/.test(client))
 check('the cursor is passed: params: cursor ? { cursor } : {}', /params: cursor \? \{ cursor \} : \{\}/.test(client))
 check('result.nextCursor is read and drives the loop', /const next = result\.nextCursor/.test(client) && /cursor = next/.test(client))
@@ -30,14 +30,14 @@ check('a seenCursors repeated-cursor guard exists', /seenCursors\.has\(next\)/.t
 check('the count cap truncates + logs', /accumulated\.length >= TOOLS_MAX_PER_SERVER[\s\S]{0,200}accumulated\.length = TOOLS_MAX_PER_SERVER/.test(client))
 check('recursivelySanitizeUnicode runs on the ACCUMULATED set (raw = listAllTools), not page-1 result.tools', /const raw = await listAllTools\(client\)[\s\S]{0,80}recursivelySanitizeUnicode\(raw\)/.test(client) && !/recursivelySanitizeUnicode\(result\.tools\)/.test(client))
 check('page-0 error rethrows (preserves the outer return [] contract); page-N keeps accumulated', /if \(page === 0\) throw err/.test(client))
-check('the schema cap REPLACES with a permissive object (NOT a slice on the schema)', /inputJSONSchema = \{ type: 'object', additionalProperties: true \}/.test(client) && !/inputSchema[\s\S]{0,40}\.slice\(/.test(client))
-check('a logMCPError fires when the schema is replaced', /input schema exceeds \$\{SCHEMA_MAX_CHARS\} characters; replaced with a permissive schema/.test(client))
+check('the server schema is installed whole (never a permissive replacement, never a slice)', /const inputJSONSchema = sdkTool\.inputSchema\b/.test(client) && !/additionalProperties: true \}/.test(client) && !/inputSchema[\s\S]{0,40}\.slice\(/.test(client))
+check('the description rides whole to prompt() (no truncation marker)', /prompt: async \(\) => description,/.test(client) && !/\[description truncated\]/.test(client) && !/description\.slice\(/.test(client))
+check('no size-exceeded log stands in for a swapped schema', !/replaced with a permissive schema/.test(client))
 
-section('behavioural mirror: verbatim pagination loop + the 4 adversarial refutes')
+section('behavioural mirror: verbatim pagination loop + the adversarial refutes')
 
 const MAX_TOOLS_LIST_PAGES = 50
 const MAX_MCP_TOOLS_PER_SERVER = 1000
-const MAX_MCP_SCHEMA_LENGTH = 32_768
 
 type Page = { tools: { name: string }[]; nextCursor?: string }
 function paginate(request: (cursor: string | undefined) => Page): {
@@ -67,12 +67,6 @@ function paginate(request: (cursor: string | undefined) => Page): {
   }
   return { rawTools, logs }
 }
-function capSchema(raw: unknown): { replaced: boolean; schema: unknown } {
-  if (raw && JSON.stringify(raw).length > MAX_MCP_SCHEMA_LENGTH) {
-    return { replaced: true, schema: { type: 'object', additionalProperties: true } }
-  }
-  return { replaced: false, schema: raw }
-}
 
 {
   let calls = 0
@@ -96,20 +90,9 @@ function capSchema(raw: unknown): { replaced: boolean; schema: unknown } {
 }
 
 {
-  const huge = { type: 'object', properties: { x: { description: 'q'.repeat(40_000) } } }
-  const { replaced, schema } = capSchema(huge)
-  let roundTrips = false
-  let callableShaped = false
-  try {
-    const reparsed = JSON.parse(JSON.stringify(schema)) as { type?: string }
-    roundTrips = true
-    callableShaped = reparsed.type === 'object'
-  } catch {
-  }
-  check('REFUTE C: an over-32KB schema is REPLACED (not sliced)', replaced === true)
-  check('REFUTE C: the replacement is STILL valid JSON and callable-shaped (type:object)', roundTrips && callableShaped)
-  const small = capSchema({ type: 'object', properties: { y: { type: 'string' } } })
-  check('REFUTE C: a normal schema is passed through unchanged', small.replaced === false)
+  const build = /function buildMcpTool\([\s\S]*?\n\}/.exec(client)?.[0] ?? ''
+  check('REFUTE C: buildMcpTool was found', build.length > 0)
+  check('REFUTE C: buildMcpTool compares no length against a bound', !/\.length\s*[<>]=?\s*[A-Z_0-9]+/.test(build) && !/JSON\.stringify\([^)]*\)\.length/.test(build), build.match(/\.length[^\n]*/g)?.join(' · ') ?? '')
 }
 
 {
@@ -123,7 +106,7 @@ function capSchema(raw: unknown): { replaced: boolean; schema: unknown } {
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {
-  console.log(' ✅ HB-0125 — tools/list pagination + count/schema cap proven')
+  console.log(' ✅ HB-0125 — tools/list pagination + count cap proven, definitions whole')
   process.exit(0)
 } else {
   console.log(` ❌ HB-0125 — ${failures} check(s) failed`)
