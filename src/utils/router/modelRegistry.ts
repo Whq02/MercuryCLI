@@ -57,6 +57,7 @@ function classForCanonical(canonical: string): RouterModelClass | null {
   if (canonical === 'claude-opus-5') return 'opus'
   if (canonical === 'claude-opus-5-5') return 'opus'
   if (canonical === 'claude-sonnet-5') return 'sonnet'
+  if (canonical === 'claude-sonnet-5-5') return 'sonnet'
   if (canonical === 'claude-fable-5') return 'fable'
   if (canonical === 'claude-fable-5-1') return 'fable'
   return null

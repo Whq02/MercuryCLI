@@ -35,6 +35,9 @@ export const ALL_MODEL_CONFIGS = {
   sonnet5: {
     firstParty: 'claude-sonnet-5',
   },
+  sonnet55: {
+    firstParty: 'claude-sonnet-5-5',
+  },
   opus40: {
     firstParty: 'claude-opus-4-20250514',
     canonical: 'claude-opus-4',
@@ -81,7 +84,7 @@ export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 export const FAMILY_GENERATIONS = {
   fable: ['fable51', 'fable5'],
   opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
-  sonnet: ['sonnet5', 'sonnet46'],
+  sonnet: ['sonnet55', 'sonnet5', 'sonnet46'],
   haiku: ['haiku45'],
 } as const satisfies Record<string, readonly ModelKey[]>
 

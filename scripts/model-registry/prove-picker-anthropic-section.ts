@@ -106,7 +106,9 @@ const OPUS_BLOCK = FAMILY_GENERATIONS.opus.map(key => strings[key])
 const DEFAULT_OPUS = OPUS_BLOCK[0]!
 const PREVIOUS_OPUS = OPUS_BLOCK[1]!
 const OLDEST_OPUS = OPUS_BLOCK.at(-1)!
-const SONNET = strings[FAMILY_GENERATIONS.sonnet[0]]
+const SONNET_BLOCK = FAMILY_GENERATIONS.sonnet.map(key => strings[key])
+const SONNET = SONNET_BLOCK[0]!
+const LAST_SONNET = SONNET_BLOCK.at(-1)!
 const HAIKU = strings[FAMILY_GENERATIONS.haiku[0]]
 const LAST_FABLE = strings[FAMILY_GENERATIONS.fable.at(-1)!]
 const FABLE = strings[FAMILY_GENERATIONS.fable[0]]
@@ -127,13 +129,15 @@ function pinSection(tag: string, options: ModelOption[], shape: 'standard' | 'pr
   const opus = ids.filter(id => familyOf(id) === 'opus')
   check(`[${tag}] the default Opus leads the opus block: ${renderModelName(DEFAULT_OPUS)} is the first opus row, ${renderModelName(PREVIOUS_OPUS)} right after it`, opus[0] === DEFAULT_OPUS && at(PREVIOUS_OPUS) === at(DEFAULT_OPUS) + 1, show(ids))
   check(`[${tag}] the opus block reads the generation table newest first: ${show(OPUS_BLOCK)}`, opus.join(',') === OPUS_BLOCK.join(','), show(opus))
+  const sonnet = ids.filter(id => familyOf(id) === 'sonnet')
+  check(`[${tag}] the sonnet block reads the generation table newest first: ${show(SONNET_BLOCK)}`, sonnet.join(',') === SONNET_BLOCK.join(','), show(sonnet))
   const blocks = blocksOf(ids)
   check(`[${tag}] every family's rows form one block (fable · sonnet · opus · haiku each contiguous)`, new Set(blocks).size === blocks.length && ['fable', 'sonnet', 'opus', 'haiku'].every(family => blocks.includes(family)), blocks.join(' → '))
   check(`[${tag}] the section ends on the small family's row, never on the default Opus`, ids.at(-1) === HAIKU && at(DEFAULT_OPUS) < ids.length - 1, show(ids))
   if (shape === 'standard') {
-    check(`[${tag}] Sonnet 5 keeps the standard tier's place: after the fable block, right before the default Opus`, at(SONNET) === at(LAST_FABLE) + 1 && at(DEFAULT_OPUS) === at(SONNET) + 1, show(ids))
+    check(`[${tag}] the sonnet block keeps the standard tier's place: ${renderModelName(SONNET)} right after the fable block, the default Opus right after ${renderModelName(LAST_SONNET)}`, at(SONNET) === at(LAST_FABLE) + 1 && at(DEFAULT_OPUS) === at(LAST_SONNET) + 1, show(ids))
   } else {
-    check(`[${tag}] Sonnet 5 keeps the premium tier's place: right after the opus block, before Haiku`, at(SONNET) === at(OLDEST_OPUS) + 1 && at(HAIKU) === at(SONNET) + 1, show(ids))
+    check(`[${tag}] the sonnet block keeps the premium tier's place: ${renderModelName(SONNET)} right after the opus block, Haiku right after ${renderModelName(LAST_SONNET)}`, at(SONNET) === at(OLDEST_OPUS) + 1 && at(HAIKU) === at(LAST_SONNET) + 1, show(ids))
   }
   const rows = anthropicRows(options)
   const values = rows.map(o => o.value)

@@ -209,9 +209,11 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const c = capture('board', home, [], [
     ...boardSends,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: UP },
+    { afterPrevTicks: 3, data: UP },
+    { afterPrevTicks: 3, data: UP },
     { afterPrevTicks: 3, data: 'e' },
     { afterPrevTicks: 3, data: '\r' },
-    { requireAwait: true, awaitText: 'Sonnet 5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
+    { requireAwait: true, awaitText: 'Sonnet 5.5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
     { afterPrevTicks: 3, data: TAB },
     { afterPrevTicks: 3, data: 'm' },
     { afterPrevTicks: 4, data: '', mark: 'typed' },
@@ -233,7 +235,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   const saved = settingsOf(home)
   check("a pick writes the saved default (settings.json model names the picked row, effortLevel the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effortLevel === 'xhigh', JSON.stringify(saved))
-  check('the door row follows at once (Sonnet 5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5 · ◉ xhigh`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
+  check('the door row follows at once (Sonnet 5.5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5.5 · ◉ xhigh`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
   check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯')).join(' | '))
 }
 

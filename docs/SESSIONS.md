@@ -93,7 +93,10 @@ The model and the effort a session runs follow one law. An explicit
 `--model` or `--effort` on the command line wins, for a new session and for
 a resumed one alike. Without the flag, a new session starts on your saved
 choice — `/model` and `/effort` both save the pick as your default, and say
-so — and, with nothing saved, on the family default. A saved choice whose
+so — and, with nothing saved, on the family default. A saved family word
+follows its family's newest row (`sonnet` runs Sonnet 5.5 as `opus` runs Opus
+5.5) while a saved full id such as `claude-sonnet-5` stays on that generation.
+A saved choice whose
 family cannot serve it — no sign-in for that family here, or a sign-in whose
 catalogue refused it (a catalogue merely not fetched yet is not a refusal:
 the chat starts on the saved choice) — does not stop the birth: the chat starts on the

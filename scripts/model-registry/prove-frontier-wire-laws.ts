@@ -64,7 +64,7 @@ const show = (v: unknown): string => JSON.stringify(v)
 
 section('§1 forced tool_choice folds to auto exactly where the model rejects it')
 {
-  const rejecting = ['claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1']
+  const rejecting = ['claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const accepting = [
     'claude-fable-5',
     'claude-fable-5[1m]',
@@ -75,6 +75,7 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
     'claude-opus-4-6',
     'claude-haiku-4-5',
     'openrouter/anthropic/claude-fable-5-1',
+    'openrouter/anthropic/claude-sonnet-5-5',
   ]
   for (const m of rejecting) {
     check(`${m}: forced tool choice unsupported`, !modelSupportsForcedToolChoice(m))
@@ -111,8 +112,8 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
 
 section('§2 thinking is always on for the frontier family; the disable is omitted there')
 {
-  const alwaysOn = ['claude-fable-5', 'claude-fable-5[1m]', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5', 'claude-mythos-5-1']
-  const notAlwaysOn = ['claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-haiku-4-5', 'openrouter/anthropic/claude-fable-5-1']
+  const alwaysOn = ['claude-fable-5', 'claude-fable-5[1m]', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
+  const notAlwaysOn = ['claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-haiku-4-5', 'openrouter/anthropic/claude-fable-5-1', 'openrouter/anthropic/claude-sonnet-5-5']
   for (const m of alwaysOn) check(`${m}: thinking always on`, modelThinkingAlwaysOn(m))
   for (const m of notAlwaysOn) check(`${m}: thinking not always on`, !modelThinkingAlwaysOn(m))
 
@@ -229,6 +230,41 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('the default autopilot allowlist admits both (unset env)', autopilotAllowedModels(ID).includes('fable51') && autopilotAllowedModels(ID).includes('fable'))
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
   check("a crew record's legacy keys fold to it: fable51 and the family word land on the same newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === ID)
+}
+
+section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served')
+{
+  type Leg = { leg: string; request: Record<string, unknown>; response: { status: number; stop_reason?: string; content?: Array<{ type: string; name?: string }>; error_body?: { error?: { type?: string; message?: string } } } }
+  const fixture = JSON.parse(src('scripts/model-registry/fixtures/sonnet-55-wire-probe.json')) as { model: string; legs: Leg[] }
+  const ID = 'claude-sonnet-5-5'
+  const leg = (name: string): Leg => fixture.legs.find(l => l.leg === name) ?? { leg: name, request: {}, response: { status: 0 } }
+  const message = (l: Leg): string => l.response.error_body?.error?.message ?? ''
+  const DISABLED_REFUSED = '"thinking.type.disabled" is not supported for this model.'
+  const FORCED_REFUSED = 'tool_choice: type "tool" and "any" are not supported for this model.'
+
+  check('the fixture records the row', fixture.model === ID && fixture.legs.length >= 7, `${fixture.model} · ${fixture.legs.length} legs`)
+  const disabled = leg('R2')
+  check('the recorded request carried the disabled shape the side query spells for a model its gate does not name', show(disabled.request.thinking) === show({ type: 'disabled' }), show(disabled.request))
+  check('the wire refused it: 400 invalid_request_error naming thinking.type.disabled and pointing to between_tools', disabled.response.status === 400 && disabled.response.error_body?.error?.type === 'invalid_request_error' && message(disabled).includes(DISABLED_REFUSED) && message(disabled).includes('between_tools'), `${disabled.response.status} ${message(disabled)}`)
+  check('so thinking is always on for the row and its twin, and a thinking-off side query sends no thinking parameter', modelThinkingAlwaysOn(ID) && modelThinkingAlwaysOn(`${ID}[1m]`) && sideQueryThinkingParam(ID, false, 4096) === undefined, show(sideQueryThinkingParam(ID, false, 4096)))
+  const absent = leg('R1')
+  check('the omitted parameter is the served shape: the control without a thinking parameter answered 200', absent.request.thinking === 'absent' && absent.response.status === 200 && absent.response.stop_reason === 'end_turn', `${absent.response.status} ${String(absent.response.stop_reason)}`)
+
+  for (const [name, choice] of [['R3', { type: 'tool', name: 'classify_result' }], ['R4', { type: 'any' }]] as const) {
+    const forced = leg(name)
+    check(`${name}: the recorded request carried ${show(choice)} verbatim (the fold left it alone on a model its gate did not name)`, show(forced.request.tool_choice) === show(choice), show(forced.request.tool_choice))
+    check(`${name}: the wire refused it: 400 invalid_request_error, the vendor's forced-tool-choice words`, forced.response.status === 400 && message(forced) === FORCED_REFUSED, `${forced.response.status} ${message(forced)}`)
+  }
+  const composed = leg('R6')
+  const composedThinking = composed.request.thinking as { type?: string; block_binding?: { prefix_mismatch_behavior?: string } } | undefined
+  check("R6: under the main stream's own composition — adaptive thinking with the binding, effort high, the binding beta — a forced choice is refused the same way", composedThinking?.type === 'adaptive' && composedThinking.block_binding?.prefix_mismatch_behavior === 'drop_block' && show(composed.request.output_config) === show({ effort: 'high' }) && (composed.request.betas as string[]).includes('thinking-binding-controls-2026-08-01') && composed.response.status === 400 && message(composed) === FORCED_REFUSED, `${show(composed.request)} → ${composed.response.status} ${message(composed)}`)
+  check('so forced tool choice is unsupported on the row and its twin, and the one fold turns tool and any into auto', !modelSupportsForcedToolChoice(ID) && !modelSupportsForcedToolChoice(`${ID}[1m]`) && show(foldToolChoiceForModel(ID, { type: 'tool', name: 'classify_result' })) === show({ type: 'auto' }) && show(foldToolChoiceForModel(ID, { type: 'any' })) === show({ type: 'auto' }))
+  const auto = leg('R5')
+  check("auto is the served shape: the same tool under tool_choice auto answered 200 and the model called it (the fold's replacement costs nothing)", show(auto.request.tool_choice) === show({ type: 'auto' }) && auto.response.status === 200 && auto.response.stop_reason === 'tool_use' && (auto.response.content ?? []).some(b => b.type === 'tool_use' && b.name === 'classify_result'), `${auto.response.status} ${String(auto.response.stop_reason)}`)
+  const composedControl = leg('R7')
+  check("the main stream's composition without a forced choice answered 200 (the refusal is the choice's, not the composition's)", composedControl.response.status === 200, String(composedControl.response.status))
+  check('Sonnet 5 keeps its own answers: the disabled shape and a forced choice ride there', !modelThinkingAlwaysOn('claude-sonnet-5') && modelSupportsForcedToolChoice('claude-sonnet-5') && show(sideQueryThinkingParam('claude-sonnet-5', false, 4096)) === show({ type: 'disabled' }))
+  check('a carrier-shaped spelling of the row never joins either law', !modelThinkingAlwaysOn('openrouter/anthropic/claude-sonnet-5-5') && modelSupportsForcedToolChoice('openrouter/anthropic/claude-sonnet-5-5'))
 }
 
 console.log('\n' + '='.repeat(60))

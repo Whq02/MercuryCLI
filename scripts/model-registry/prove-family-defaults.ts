@@ -65,7 +65,7 @@ const show = (v: unknown): string => JSON.stringify(v)
 section('§1 the one owner: the family head of an undeclared generation, null for a declared id and an unknown family')
 const heads: Array<[string, string, string]> = [
   ['claude-opus-5-7', 'opus', model.getDefaultOpusModel()],
-  ['claude-sonnet-5-5', 'sonnet', model.getDefaultSonnetModel()],
+  ['claude-sonnet-5-7', 'sonnet', model.getDefaultSonnetModel()],
   ['claude-fable-5-2', 'fable', model.getDefaultFableModel()],
   ['claude-haiku-5', 'haiku', model.getDefaultHaikuModel()],
   ['claude-opus-6', 'opus', model.getDefaultOpusModel()],

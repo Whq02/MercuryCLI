@@ -54,7 +54,7 @@ section("2. the 'opus' alias tracks the current Opus through the ratified owners
   )
   check(
     'opusplan copy derives from the tier owners',
-    renderDefaultModelSetting('opusplan') === 'Opus 5.5 in strategy mode, else Sonnet 5',
+    renderDefaultModelSetting('opusplan') === 'Opus 5.5 in strategy mode, else Sonnet 5.5',
     renderDefaultModelSetting('opusplan'),
   )
 }
