@@ -49,6 +49,14 @@ door whose list the endpoint refuses is that door's own catalogue error,
 never a fault of the picker. The doctor's Model lists row says what the
 doors this process read serve and what they lack.
 
+The family words follow each family's newest row — `opus` means Opus 5.5 and
+`sonnet` means Sonnet 5.5 — so a saved `sonnet` runs Sonnet 5.5 while a saved
+`claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family
+in the picker; Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking is
+always on (a request with thinking off carries no thinking parameter and
+adaptive thinking runs) and a forced tool choice becomes `auto`, the prompt
+naming the tool.
+
 DeepSeek's rows come from its live model list. With a DeepSeek key present,
 Mercury reads the provider's models endpoint when the picker composes its
 rows (never without a key, and never while catalogue traffic is switched

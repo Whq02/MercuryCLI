@@ -191,6 +191,20 @@ section('§4 the wire laws as the real model answered: thinking always on, no fo
   check("the switch receipt names the row 'Sonnet 5.5'", receipt !== null && receipt.text.includes('stay out of the requests to Sonnet 5.5') && receipt.key === `main|${ID}`, show(receipt))
 }
 
+section('§5 the docs say what the family word means and which wire laws the row takes')
+{
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const doc = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf-8')
+  const engines = doc('docs/ENGINES.md')
+  const sessions = doc('docs/SESSIONS.md')
+  check("ENGINES.md: the family words follow the newest row — `sonnet` means Sonnet 5.5 beside `opus` means Opus 5.5", engines.includes('`opus` means Opus 5.5') && engines.includes('`sonnet` means Sonnet 5.5'))
+  check('ENGINES.md: a saved full id stays on its generation and Sonnet 5 keeps its own picker row', engines.includes('a saved\n`claude-sonnet-5` stays on Sonnet 5, which keeps its own row under the family\nin the picker'))
+  check('ENGINES.md: the row takes the two wire laws Opus 5.5 takes, in words', engines.includes('Sonnet 5.5 takes the two wire laws Opus 5.5 takes: thinking is\nalways on') && engines.includes('a forced tool choice becomes `auto`'))
+  check('SESSIONS.md: a saved family word follows its family\'s newest row', sessions.includes('A saved family word\nfollows its family\'s newest row (`sonnet` runs Sonnet 5.5 as `opus` runs Opus\n5.5)'))
+  check('SESSIONS.md: a saved full id stays on that generation', sessions.includes('while a saved full id such as `claude-sonnet-5` stays on that generation.'))
+}
+
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
   console.log(` FAIL — ${failures} Sonnet 5.5 row check(s) failed`)
