@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/advisor/** src/utils/model/subModelSlots.ts src/utils/messages/noticeRows.ts src/utils/messages/text.ts src/utils/workloadContext.ts src/constants/querySource.ts
+# gate-watch: src/services/advisor/** src/utils/model/subModelSlots.ts src/utils/messages/noticeRows.ts src/utils/messages/text.ts src/utils/workloadContext.ts src/constants/querySource.ts src/services/providers/anthropic/streamCore.ts src/utils/model/capabilities.ts
 # gate-watch: src/tools/AskAdvisorTool/** src/cli/headless/turnDriver.ts src/tools/AgentTool/runAgent.ts src/tools/WorkflowTool/agentHooks.ts src/utils/attachments/queuedCommands.ts
 # gate-watch: scripts/builtin-tools/fixtures/tool-census.json src/bootstrap/state.ts src/cli/print.ts src/commands/submodels/index.ts src/commands/submodels/submodels.tsx src/components/Settings/Usage.tsx src/components/SubModelPicker.tsx src/components/messages/AttachmentMessage.tsx src/constants/tools.ts src/cost-tracker.ts src/fabric/entryCodec.ts src/ink.ts src/ink/components/StdinContext.ts src/input-core/command-queue.ts src/query.ts src/query/deps.ts src/services/compact/autoCompact.ts src/services/providers/providerUsage.ts src/state/AppStateStore.ts src/tools.ts src/utils/config.ts src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/modelCost.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/writer.ts
 set -u

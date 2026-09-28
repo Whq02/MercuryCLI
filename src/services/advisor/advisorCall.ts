@@ -2,9 +2,6 @@ import type { EffortLevel } from '../../utils/effort.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { runWithWorkload, WORKLOAD_ADVISOR } from '../../utils/workloadContext.js'
 
-export const ADVISOR_MAX_OUTPUT_TOKENS = 1200
-export const ADVISOR_CALL_WALL_MS = 120_000
-
 export interface AdvisorCallArgs {
   model: string
   system: string
@@ -33,7 +30,7 @@ export const liveAdvisorCall: AdvisorCall = async args => {
       import('../../utils/messages/factories.js'),
       import('../../Tool.js'),
     ])
-  const signal = args.signal ?? AbortSignal.timeout(ADVISOR_CALL_WALL_MS)
+  const signal = args.signal ?? new AbortController().signal
   try {
     const settled = await runWithWorkload(WORKLOAD_ADVISOR, () =>
       routedCallModelSettled({
@@ -49,7 +46,6 @@ export const liveAdvisorCall: AdvisorCall = async args => {
           isNonInteractiveSession: true,
           hasAppendSystemPrompt: false,
           mcpTools: [],
-          maxOutputTokensOverride: ADVISOR_MAX_OUTPUT_TOKENS,
           enablePromptCaching: false,
           ...(args.effort !== undefined ? { effortValue: args.effort } : {}),
           async getToolPermissionContext() {
