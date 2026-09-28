@@ -4,7 +4,6 @@ prove-agent-face.ts
 prove-agent-fold-click.ts
 prove-appearance-system.ts
 prove-atomic-session-switch.ts
-prove-brief-nameplate.ts
 prove-chrome-hysteresis.ts
 prove-cockpit-continuity.ts
 prove-critter-idle.ts

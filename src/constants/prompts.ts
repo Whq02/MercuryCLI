@@ -34,7 +34,6 @@ import {
   isGuideAgentMounted,
 } from '../tools/AgentTool/built-in/mercuryGuideAgent.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
-import { BRIEF_PROACTIVE_SECTION } from '../tools/BriefTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
@@ -499,7 +498,6 @@ export async function getSystemPrompt(
     ),
     keyedSystemPromptSection('frc', () => model, () => null),
     systemPromptSection('summarize_tool_results', () => SUMMARIZE_TOOL_RESULTS_LINE),
-    systemPromptSection('brief', () => buildBriefSection(toolNames)),
     systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
     systemPromptSection('harness_map', () => getHarnessMapSection()),
     systemPromptSection(
@@ -565,9 +563,4 @@ function buildMcpInstructionsSection(clients: MCPServerConnection[]): string | n
       `## ${(client as { name: string }).name}\n${(client as { instructions?: string }).instructions}`,
   )
   return `# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n${blocks.join('\n\n')}`
-}
-
-function buildBriefSection(toolNames: ReadonlySet<string>): string | null {
-  if (!toolNames.has('SendUserMessage')) return null
-  return BRIEF_PROACTIVE_SECTION
 }

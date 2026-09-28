@@ -144,7 +144,6 @@ const OBSERVABLES: Array<{
   { key: 'assistantAvailable', family: 'posture', scope: 'derived', read: () => state.isAssistantFamilyAvailable() },
   { key: 'strictToolResultPairing', family: 'posture', scope: 'session', read: () => state.getStrictToolResultPairing() },
   { key: 'sdkAgentProgressSummariesEnabled', family: 'posture', scope: 'session', read: () => state.getSdkAgentProgressSummariesEnabled() },
-  { key: 'userMsgOptIn', family: 'posture', scope: 'session', read: () => state.getUserMsgOptIn() },
   { key: 'clientType', family: 'posture', scope: 'session', read: () => state.getClientType() },
   { key: 'sessionSource', family: 'posture', scope: 'session', read: () => state.getSessionSource() },
   { key: 'questionPreviewFormat', family: 'posture', scope: 'session', read: () => state.getQuestionPreviewFormat() },
@@ -294,7 +293,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTotalOutputTokens', 'getTotalToolDuration', 'getTotalUnpricedTurns', 'getTotalWebSearchRequests',
     'getTurnClassifierCount', 'getTurnClassifierDurationMs',
     'getTurnHookCount', 'getTurnHookDurationMs', 'getTurnOutputTokens', 'getTurnToolCount',
-    'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel', 'getUserMsgOptIn',
+    'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
     'handleAutoModeTransition', 'handlePlanModeTransition',
     'hasEnteredPlanModeThisSession', 'hasExitedPlanModeInSession',
     'hasUnknownModelCost',
@@ -323,7 +322,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setSessionBypassPermissionsMode', 'setSessionIngressToken',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
-    'setUserMsgOptIn', 'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
+    'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
     'updateLastInteractionTime', 'waitForScrollIdle',
   ]
   const actual = Object.keys(state).sort()
@@ -1181,7 +1180,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setAssistantSessionActive(true)
     state.setStrictToolResultPairing(true)
     state.setSdkAgentProgressSummariesEnabled(true)
-    state.setUserMsgOptIn(true)
     state.setSessionSource('populate')
     state.setQuestionPreviewFormat('markdown')
     state.setIsRemoteMode(true)

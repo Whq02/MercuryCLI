@@ -335,15 +335,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     conditions: ['a remote-environment delivery channel (none exists in this build, so the tool hides itself)'],
   },
-  SendUserMessage: {
-    intents: ['send the operator a brief out-of-band message'],
-    units: ['operator-io'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    gate: 'MERCURY_BRIEF',
-    conditions: ['an away session or the operator’s brief opt-in (MERCURY_BRIEF=1 forces it on)'],
-  },
   Service: {
     intents: [
       'start a named long-lived dev service',

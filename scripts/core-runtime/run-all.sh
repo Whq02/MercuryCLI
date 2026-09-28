@@ -7,7 +7,7 @@
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
 # gate-watch: src/services/compact/autoCompact* src/services/tokenEstimation*
 # gate-watch: src/state/AppStateStore* src/substrate/startupMenu* src/tools/AgentTool/constants*
-# gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
+# gate-watch: src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts

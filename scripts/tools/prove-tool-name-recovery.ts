@@ -196,8 +196,8 @@ section('§7 the lookup laws in src/Tool.ts')
   check('findToolByName: the fold on a miss', findToolByName(tools, 'read')?.name === 'Read')
   check('findToolByName: the fold reaches an MCP name', findToolByName(tools, 'MCP__FILESYS__READ_FILE')?.name === 'mcp__filesys__read_file')
   check('findToolByName: a separator difference is not a fold', findToolByName(tools, 'web_fetch') === undefined)
-  const aliased = [makeTool('SendUserMessage', { aliases: ['Brief'] })] as never
-  check('findToolByName: an alias folds too', findToolByName(aliased, 'brief')?.name === 'SendUserMessage')
+  const aliased = [makeTool('Workflow', { aliases: ['RunWorkflow'] })] as never
+  check('findToolByName: an alias folds too', findToolByName(aliased, 'runworkflow')?.name === 'Workflow')
   const twins = [makeTool('Foo'), makeTool('foo')] as never
   check('findToolByName: two advertised names that fold to one keep the exact road only', findToolByName(twins, 'Foo')?.name === 'Foo' && findToolByName(twins, 'foo')?.name === 'foo' && findToolByName(twins, 'FOO') === undefined)
   check('closestToolByName is exported from src/Tool.ts', typeof closestToolByName === 'function')

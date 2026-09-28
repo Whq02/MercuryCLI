@@ -128,16 +128,37 @@ const RETIRED_TOOLS: RetiredTool[] = [
       /\bTaskOutput (?:tool|shows|reads)\b/,
     ],
   },
+  {
+    name: 'SendUserMessage',
+    covered: 'the reply itself reaches the operator; no courier tool and no brief mode',
+    aliases: ['Brief'],
+    references: [
+      /\bSendUserMessage\b/,
+      /(?<!Team)BriefTool\b/,
+      /(?<!TEAM_)BRIEF_TOOL_NAME\b/,
+      /['"`]Brief['"`]/,
+      /^\s*(?:Brief|SendUserMessage)\s*:/m,
+      /^\| SendUserMessage \|/m,
+      /\bisBriefOnly\b/,
+      /\bbriefFilters\b/,
+      /\bBriefIdleStatus\b/,
+      /\bMERCURY_BRIEF\b/,
+      /\bMERCURY_AUGUR/,
+      /[Uu]serMsgOptIn/,
+      /DISABLE_BRIEF_MODE_STOP_HOOK/,
+      /brief[- ]mode|brief-only|brief-terminal|briefTerminalTurn/i,
+    ],
+  },
 ]
 const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts', 'design-system']
 const RETIRED_SCAN_HISTORY =
-  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts)/
+  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
 const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
 function walk(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) {
-      if (entry.name === 'node_modules' || entry.name === 'dist') continue
+      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) continue
       walk(path, out)
     } else if (TEXT_FILE.test(entry.name)) {
       out.push(path)
@@ -184,9 +205,31 @@ const inAgentSets = [...retiredNames].filter(
   n => ALL_AGENT_DISALLOWED_TOOLS.has(n) || ASYNC_AGENT_ALLOWED_TOOLS.has(n) || IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(n),
 )
 check('the agent allow and deny sets name no retired tool', inAgentSets.length === 0, inAgentSets.join(', '))
+const { getTools } = await import('../../src/tools.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getIsInteractive, setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const interactiveBefore = getIsInteractive()
+const briefBefore = process.env.MERCURY_BRIEF
+process.env.MERCURY_BRIEF = '1'
+const courierUnderSwitch: string[] = []
+for (const interactive of [true, false]) {
+  setIsInteractive(interactive)
+  const pool = getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never)
+  for (const name of ['SendUserMessage', 'Brief']) {
+    if (findToolByName(pool, name) !== undefined) courierUnderSwitch.push(`${name} (${interactive ? 'interactive' : 'non-interactive'})`)
+  }
+}
+setIsInteractive(interactiveBefore)
+if (briefBefore === undefined) delete process.env.MERCURY_BRIEF
+else process.env.MERCURY_BRIEF = briefBefore
 check(
-  'the census counts 72 tools: the 75 less RememberLesson, LaunchFleet and TaskOutput',
-  census.summary.tools === 72,
+  'the switch that used to force the courier offers nothing: with MERCURY_BRIEF=1 the session pool holds neither SendUserMessage nor Brief in either posture',
+  courierUnderSwitch.length === 0,
+  `offered: ${courierUnderSwitch.join(', ')}`,
+)
+check(
+  'the census counts 71 tools: the 75 less RememberLesson, LaunchFleet, TaskOutput and SendUserMessage',
+  census.summary.tools === 71,
   `live census: ${census.summary.tools} tools`,
 )
 

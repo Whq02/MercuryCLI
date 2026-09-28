@@ -183,20 +183,6 @@
       "excerpt": "<Wordmark />",
       "role": "session-identity",
       "why": "run inspector — the run/session identity mark"
-    },
-    {
-      "file": "src/tools/BriefTool/UI.tsx",
-      "kind": "accent-mercury-text",
-      "excerpt": "<Text color={TERRA}>Mercury</Text>",
-      "role": "session-identity",
-      "why": "brief chat attribution — the session accent labels WHO spoke"
-    },
-    {
-      "file": "src/tools/BriefTool/UI.tsx",
-      "kind": "accent-mercury-text",
-      "excerpt": "<Text color={TERRA}>Mercury</Text>",
-      "role": "session-identity",
-      "why": "brief chat attribution — the session accent labels WHO spoke"
     }
   ]
 }

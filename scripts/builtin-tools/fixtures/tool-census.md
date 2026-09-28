@@ -6,12 +6,12 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 187 operations · 72 with a declared capability contract.
+Census version 1 — 71 built-in production tools · 186 operations · 71 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 44 available · 13 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 21 mutation · 11 execution · 18 coordination · 0 unclassified
+- support (at generation time): 44 available · 12 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 21 mutation · 11 execution · 17 coordination · 0 unclassified
 - integrations: 10 declare transactions · 13 declare executions · 30 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
@@ -70,7 +70,6 @@ Census version 1 — 72 built-in production tools · 187 operations · 72 with a
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://team | scripts/crew/run-all.sh |
 | SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
-| SendUserMessage | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | Service | execution | service-management | 8 | block | yes | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
 | SetTier | coordination | task-coordination | — | block | no | — | — | — | scripts/autopilot/run-all.sh |
 | Skill | coordination | capability-discovery | — | block | no | — | — | — | NAMED GAP |

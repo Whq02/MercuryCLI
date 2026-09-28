@@ -1707,33 +1707,6 @@
       }
     },
     {
-      "name": "SendUserMessage",
-      "category": "read",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": false,
-      "operations": null,
-      "units": [
-        "operator-io"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "send the operator a brief out-of-band message"
-        ],
-        "units": [
-          "operator-io"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast",
-        "gate": "MERCURY_BRIEF",
-        "conditions": [
-          "an away session or the operator’s brief opt-in (MERCURY_BRIEF=1 forces it on)"
-        ]
-      }
-    },
-    {
       "name": "Service",
       "category": "read",
       "risk": "low",

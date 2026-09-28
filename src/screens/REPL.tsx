@@ -36,7 +36,6 @@ import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { SandboxViolationExpandedView } from '../components/SandboxViolationExpandedView.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
-import { BriefIdleStatus } from '../components/Spinner.js';
 import { MessageActionsBar } from '../components/messageActions.js';
 import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
 import { FocusedSessionStatusRow, statusLine, waitingStatusWords } from '../components/SwitchboardTagBar.js';
@@ -707,7 +706,6 @@ export function REPL({
   useMcpConnectivityStatus({ mcpClients: mcpState.clients });
   const toolPermissionContext = useAppState(state => state.toolPermissionContext);
   const agentDefinitions = useAppState(state => state.agentDefinitions);
-  const isBriefOnly = useAppState(state => state.isBriefOnly);
   const verbose = useAppState(state => state.verbose);
   const spinnerTip = useAppState(state => state.spinnerTip);
   const commands = useMergedCommands(initialCommands, mcpState.commands);
@@ -2139,7 +2137,7 @@ export function REPL({
     (isLoading || isStopping) &&
     !onlySleepToolActive;
   const showSpinner = spinnerSlotReserved && (
-    !textActive || isBriefOnly || streamingSuppressed
+    !textActive || streamingSuppressed
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
   const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, { ...focusedConnector.status(), wait: null }, null, true) : '';
@@ -2444,7 +2442,6 @@ export function REPL({
       hidePastReasoning
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
-      isBriefOnly={isBriefOnly}
       scrollRef={scrollRef}
       trackStickyPrompt={fullscreen}
       jumpRef={jumpRef}
@@ -2472,7 +2469,6 @@ export function REPL({
       hidePastReasoning
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
-      isBriefOnly={isBriefOnly}
       trackStickyPrompt={fullscreen}
       disableRenderCap={dumpMode}
     />
@@ -2495,7 +2491,6 @@ export function REPL({
       streamingTail={focusedTail}
       streamingTextSuppressed={streamingSuppressed}
       tailAnchor={inVirtualTranscript || paintedMessages !== messages ? undefined : tailAnchor}
-      isBriefOnly={isBriefOnly}
       unseenDivider={unseenDivider}
       scrollRef={scrollRef}
       trackStickyPrompt={fullscreen}
@@ -2509,7 +2504,6 @@ export function REPL({
     />
   );
 
-  const briefIdleLine = !isCompact && !showSpinner && !isLoading && isBriefOnly ? <BriefIdleStatus /> : null;
   const transcriptBody = inVirtualTranscript ? (
     <Box flexDirection="column">
       {messagesList}
@@ -2526,7 +2520,6 @@ export function REPL({
       {messagesList}
       {inlineToolJsx}
       <Box flexGrow={1} />
-      {briefIdleLine}
     </Box>
   );
 
@@ -2664,7 +2657,6 @@ export function REPL({
     mcpState,
     toolPermissionContext,
     agentDefinitions,
-    isBriefOnly,
     verbose,
     spinnerTip,
     prefersReducedMotion,

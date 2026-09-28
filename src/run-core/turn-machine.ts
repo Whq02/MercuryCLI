@@ -157,10 +157,6 @@ import {
 } from '../utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
-import {
-  BRIEF_TOOL_NAME,
-  LEGACY_BRIEF_TOOL_NAME,
-} from '../tools/BriefTool/prompt.js'
 import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
 import { executeInterruptHooks, executeStopFailureHooks } from '../utils/hooks.js'
 import type { QuerySource } from '../constants/querySource.js'
@@ -466,31 +462,6 @@ function decideMaxOutputTokensRecovery(input: {
     return { kind: 'nudge', attempt: input.recoveryCount + 1 }
   }
   return { kind: 'surface' }
-}
-
-function isBriefTerminalTurn(
-  querySource: QuerySource,
-  toolUseContext: ToolUseContext,
-  toolUseBlocks: ToolUseBlock[],
-  toolResults: (UserMessage | AttachmentMessage)[],
-): boolean {
-  return (
-    !toolUseContext.agentId &&
-    (querySource.startsWith('repl_main_thread') || querySource === 'sdk') &&
-    toolUseBlocks.length > 0 &&
-    toolUseBlocks.every(
-      // eslint-disable-next-line custom-rules/require-tool-match-name -- matches BOTH the canonical name and its legacy alias
-      b => b.name === BRIEF_TOOL_NAME || b.name === LEGACY_BRIEF_TOOL_NAME,
-    ) &&
-    !toolResults.some(
-      m =>
-        m.type === 'user' &&
-        Array.isArray(m.message.content) &&
-        m.message.content.some(
-          c => c.type === 'tool_result' && c.is_error === true,
-        ),
-    )
-  )
 }
 
 function replyTextOf(messages: readonly AssistantMessage[]): string {
@@ -1899,19 +1870,11 @@ export async function* runEventCore(
       toolResults.push(correction)
     }
 
-    const briefTerminalTurn = isBriefTerminalTurn(
-      querySource,
-      toolUseContext,
-      toolUseBlocks,
-      toolResults,
-    )
-
     let nextPendingToolUseSummary:
       | Promise<ToolUseSummaryMessage | null>
       | undefined
     if (
       config.gates.emitToolUseSummaries &&
-      !briefTerminalTurn &&
       toolUseBlocks.length > 0 &&
       !toolUseContext.abortController.signal.aborted &&
       !toolUseContext.agentId
@@ -2030,59 +1993,6 @@ export async function* runEventCore(
         yield emit({ kind: 'attachment', message: rewindRecord })
         toolResults.push(rewindRecord)
       }
-    }
-
-    if (briefTerminalTurn) {
-      const stopHookResult = yield* runStopHookGate(
-        handleStopHooks(
-          [...messagesForQuery, ...assistantMessages, ...toolResults],
-          [],
-          systemPrompt,
-          userContext,
-          systemContext,
-          { ...updatedToolUseContext, queryTracking },
-          querySource,
-          stopHookActive,
-        ),
-        emit,
-      )
-
-      if (stopHookResult.preventContinuation) {
-        if (toolUseContext.abortController.signal.aborted) fireInterruptHooks(toolUseContext, [])
-        const terminal: Terminal = { reason: 'stop_hook_prevented' }
-        yield emit({ kind: 'run_terminal', terminal })
-        return terminal
-      }
-
-      if (stopHookResult.blockingErrors.length > 0) {
-        const next: TurnState = {
-          messages: [
-            ...messagesForQuery,
-            ...assistantMessages,
-            ...toolResults,
-            ...stopHookResult.blockingErrors,
-          ],
-          toolUseContext: { ...updatedToolUseContext, queryTracking },
-          autoCompactTracking: tracking,
-          maxOutputTokensRecoveryCount: 0,
-          streamFaultRecoveryCount,
-          toolCallRefusalRecoveryCount,
-          maxOutputTokensOverride: undefined,
-          pendingToolUseSummary: undefined,
-          stopHookActive: true,
-          turnCount,
-          overflowEpisode,
-          pendingOverflow: undefined,
-          transition: { reason: 'stop_hook_blocking' },
-        }
-        yield emit({ kind: 'turn_settled', transition: next.transition! })
-        state = next
-        continue
-      }
-
-      const terminal: Terminal = { reason: 'completed' }
-      yield emit({ kind: 'run_terminal', terminal })
-      return terminal
     }
 
     if (tracking?.compacted) {

@@ -201,7 +201,6 @@ export type ToolResultRenderOptions = ToolRenderOptions & {
   progressMessagesForMessage?: ProgressMessage[]
   style?: 'condensed' | 'default'
   isTranscriptMode?: boolean
-  briefOnly?: boolean
   input?: unknown
   width?: number | string
 }

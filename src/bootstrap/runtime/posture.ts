@@ -14,7 +14,6 @@ export class PostureOwner {
   assistantSessionActive = false
   strictToolResultPairing = false
   sdkAgentProgressSummariesEnabled = false
-  userMsgOptIn = false
   clientType = 'cli'
   sessionSource: string | undefined = undefined
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined

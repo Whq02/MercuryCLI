@@ -125,7 +125,6 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
     delete env[v]
   }
   stripCrewRolePair(env)
-  env.MERCURY_BRIEF ??= '1'
   return env
 }
 

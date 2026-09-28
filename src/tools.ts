@@ -40,7 +40,6 @@ import { ApolloReviewTool } from './tools/ApolloReviewTool/ApolloReviewTool.js'
 import { ArtifactsListTool } from './tools/ArtifactsListTool/ArtifactsListTool.js'
 import { AskUserQuestionTool } from './tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { BashTool } from './tools/BashTool/BashTool.js'
-import { BriefTool } from './tools/BriefTool/BriefTool.js'
 import { ChangeSetTool } from './tools/ChangeSetTool/ChangeSetTool.js'
 import { ContextLeftTool } from './tools/ContextLeftTool/ContextLeftTool.js'
 import { DebugTool } from './tools/DebugTool/DebugTool.js'
@@ -229,7 +228,6 @@ export function getAllBaseTools(): Tools {
       ? [CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool]
       : []),
     MONITOR_TOOL,
-    BriefTool,
     ContextLeftTool,
     ...(contractToolHosted() ? [ContractTool] : []),
     RECORD_CONVENTION_TOOL,
