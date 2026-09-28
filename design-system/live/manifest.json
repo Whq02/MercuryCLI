@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "3bac110ef6b33ddff76e862d080d8690f55d3212",
-  "buildDigest": "a122535c060d7910b8f211f572b7daf501bba2d6",
-  "generatedAt": "2026-09-28T20:22:27.843Z",
+  "sourceSha": "3999911689f922b97c528f9dc8c761b958f7f3d6",
+  "buildDigest": "0b1b54981eaebf862f04847f1917277b85095009",
+  "generatedAt": "2026-09-28T20:30:44.592Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -777,8 +777,8 @@
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "3bac110ef6b33ddff76e862d080d8690f55d3212",
-      "buildDigest": "a122535c060d7910b8f211f572b7daf501bba2d6",
+      "sourceSha": "3999911689f922b97c528f9dc8c761b958f7f3d6",
+      "buildDigest": "0b1b54981eaebf862f04847f1917277b85095009",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -789,7 +789,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "e3c543806b98b4df2751605903a64cb3c6aec4e55933e9c3ebd1cd52cf95970f",
+      "gridDigest": "ca48dcfef962ecb8108c10c9bee7d55e1261a949fba651c15c42028647f4d91b",
       "styleDigest": "5f83ded0f9de5e5b6ca3baccec17fd33cf63c00b43d533eb9ee72b87a758bdd6",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -811,7 +811,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-28T20:22:27.789Z"
+      "generatedAt": "2026-09-28T20:30:44.512Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
@@ -1499,8 +1499,8 @@
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "3bac110ef6b33ddff76e862d080d8690f55d3212",
-      "buildDigest": "a122535c060d7910b8f211f572b7daf501bba2d6",
+      "sourceSha": "3999911689f922b97c528f9dc8c761b958f7f3d6",
+      "buildDigest": "0b1b54981eaebf862f04847f1917277b85095009",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1511,7 +1511,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "3711c5e748750c1efd22702b957f9ffea9bd5c10988ed36b6db00ceffcfb1438",
+      "gridDigest": "c18e7794616ebceaa357e57e2e67e457d57a7d3399128f858ef5f3973c838ac4",
       "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1533,7 +1533,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-28T20:22:27.786Z"
+      "generatedAt": "2026-09-28T20:30:44.510Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
@@ -1575,8 +1575,8 @@
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "3bac110ef6b33ddff76e862d080d8690f55d3212",
-      "buildDigest": "a122535c060d7910b8f211f572b7daf501bba2d6",
+      "sourceSha": "3999911689f922b97c528f9dc8c761b958f7f3d6",
+      "buildDigest": "0b1b54981eaebf862f04847f1917277b85095009",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1587,7 +1587,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "e3c543806b98b4df2751605903a64cb3c6aec4e55933e9c3ebd1cd52cf95970f",
+      "gridDigest": "ca48dcfef962ecb8108c10c9bee7d55e1261a949fba651c15c42028647f4d91b",
       "styleDigest": "5f83ded0f9de5e5b6ca3baccec17fd33cf63c00b43d533eb9ee72b87a758bdd6",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1609,7 +1609,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-28T20:22:27.790Z"
+      "generatedAt": "2026-09-28T20:30:44.514Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
