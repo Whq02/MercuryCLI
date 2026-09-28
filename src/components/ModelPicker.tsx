@@ -11,6 +11,7 @@ import {
   focusedOptionSupports1m,
   getModelOptions,
   isCatalogueDoorRow,
+  isProviderActionRow,
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
@@ -231,7 +232,7 @@ export function ModelPicker({
       ) : null}
       <Select
         options={options.map(option => ({
-          label: option.label,
+          label: isProviderActionRow(option.value) ? option.label : option.value,
           description: option.description,
           value: option.value,
         }))}

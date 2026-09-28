@@ -1,3 +1,4 @@
+import { parseUserSpecifiedModel } from './model.js'
 import {
   ANTHROPIC_MODEL_GROUP,
   getModelOptions,
@@ -37,7 +38,7 @@ export function getAgentModelPickerRows(
     }
     rows.push({
       value: opt.value,
-      label: opt.label,
+      label: opt.value,
       description: opt.description,
       group,
       kind: 'model',
@@ -52,9 +53,10 @@ export function agentModelAvailabilityNote(
   rows: AgentModelPickerRow[] = getAgentModelPickerRows(),
 ): string | null {
   if (model === undefined || model === INHERIT) return null
+  const id = parseUserSpecifiedModel(model)
   const row =
-    rows.find(r => r.value === model) ??
-    rows.find(r => r.kind === 'model' && stripContext1m(r.value) === stripContext1m(model))
+    rows.find(r => r.value === id) ??
+    rows.find(r => r.kind === 'model' && stripContext1m(r.value) === stripContext1m(id))
   return row?.unavailable ?? null
 }
 

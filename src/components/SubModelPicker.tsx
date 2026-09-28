@@ -280,7 +280,7 @@ function ContainerList({
   const shedBelow = Math.max(0, rows.length - (from + span))
 
   const meta = CONTAINER_META[container]
-  const nameW = compact ? Math.max(14, Math.min(24, width - 14)) : 28
+  const nameW = compact ? Math.max(14, Math.min(28, width - 14)) : 28
   const effortRange = (modelId: string): string => {
     const offered = subModelEffortStrip(container, modelId)
     if (offered.kind === 'none') return offered.receipt
@@ -341,7 +341,7 @@ function ContainerList({
         const marker = cur ? GLYPH.ok : ' '
         const name = isUnset
           ? 'Unset — no model pinned'
-          : (row as { entry: SubModelEntry }).entry.displayName
+          : row.entry.kind === 'model' ? row.entry.modelId : row.entry.displayName
         const entry = isUnset ? undefined : (row as { entry: SubModelEntry }).entry
         const signedOut = entry?.state === 'signed-out'
         return (

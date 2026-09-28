@@ -347,10 +347,10 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
   const { getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
   const newestFable = ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty
   const previousFables = previousGenerationKeys('fable').map(k => ALL_MODEL_CONFIGS[k].firstParty)
-  const aliasRows = fables.filter(o => o.value === 'fable')
+  const aliasRows = fables.filter(o => o.value === newestFable)
   const literalRows = fables.filter(o => typeof o.value === 'string' && previousFables.includes(o.value as never))
   check(
-    'the shared catalog carries exactly ONE frontier alias row and one literal row per previous generation',
+    'the shared catalog carries exactly ONE frontier full-id row and one literal row per previous generation',
     aliasRows.length === 1 &&
       literalRows.length === previousFables.length &&
       fables.length === 1 + previousFables.length &&
@@ -359,7 +359,7 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
   )
   const fableRow = aliasRows[0]
   check(
-    'the row is the frontier alias resolving to the real id, with the marketing name',
+    'the row saves the frontier id, with the marketing name',
     typeof fableRow?.value === 'string' && parseUserSpecifiedModel(fableRow.value) === newestFable && fableRow?.label === getMarketingNameForModel(newestFable),
     `${String(fableRow?.value)} · ${String(fableRow?.label)}`,
   )

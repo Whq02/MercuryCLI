@@ -358,7 +358,7 @@ section('§8 inline focus follows the actual model, including aliases')
   const initial = getMainLoopModel()
   check('the unpicked fixture resolves to the Fable model', initial === parseUserSpecifiedModel('fable'), initial)
   const selected = focus(initial, getModelOptions())
-  check('an unpicked model represented by an alias focuses that row, not sign-in', selected.focusDefault === 'fable' && selected.options.filter(option => resolvesToExistingOption([option], initial)).length === 1, JSON.stringify({ initial, focus: selected.focusDefault }))
+  check('the unpicked model focuses its full-id row, not sign-in', selected.focusDefault === initial && selected.options.filter(option => option.value === initial).length === 1, JSON.stringify({ initial, focus: selected.focusDefault }))
   const rows: ModelOption[] = [
     { value: GPT_CONNECT_OPTION_VALUE, label: 'GPT — sign in', description: '' },
     { value: 'fable', label: 'Fable', description: '' },

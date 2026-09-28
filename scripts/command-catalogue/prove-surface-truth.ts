@@ -180,7 +180,7 @@ check("a crew record's legacy keys fold: the family word to the head; the exact-
 const routed = resolveAnthropicModel('fable', 'adaptive')
 check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model))
 const options = getModelOptions()
-check("the picker carries the family alias row labelled with the head's display name", options.some(o => o.value === 'fable' && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === 'fable').map(o => o.label).join(','))
+check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))
 check('the picker carries a literal row per previous frontier generation', configs.previousGenerationKeys('fable').every(k => options.some(o => o.value === strings[k])), configs.previousGenerationKeys('fable').map(k => strings[k]).join(','))
 check('the picker carries the previous large generations from the table', configs.previousGenerationKeys('opus').every(k => options.some(o => o.value === strings[k])))
 const defaultsBody = src('src/utils/model/model.ts').match(/export function getDefault(Opus|Sonnet|Haiku|Fable)Model\(\)[\s\S]*?\n}/g) ?? []
