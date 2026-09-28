@@ -213,9 +213,14 @@ export function readJson<T>(path: string): T | null {
 }
 
 export function treeOf(dir: string, prefix = ''): string[] {
-  if (!existsSync(dir)) return []
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return []
+  }
   const out: string[] = []
-  for (const name of readdirSync(dir).sort()) {
+  for (const name of names.sort()) {
     const path = join(dir, name)
     let isDir = false
     try {
