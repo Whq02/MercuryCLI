@@ -5,6 +5,7 @@
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/components/messages/nullRenderingAttachments.ts
 # gate-watch: src/services/api/prefixFingerprint.ts src/services/tools/toolExecution.ts src/tools.ts
 # gate-watch: src/tools/MCPTool/MCPTool.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/services/dap/dapClient.ts src/tools/LSPTool/LSPTool.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/messages/attachmentText.ts
 # gate-watch: src/utils/router/providers/* src/utils/sessionStorage/chain.ts src/utils/toolSchemaCache.ts
 set -u
