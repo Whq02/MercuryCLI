@@ -20,6 +20,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/bake-ramp.mjs" --c
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-face-fit-floor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-face-fit-floor.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ramp-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ramp-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-units.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-units.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sonnet-55-row.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sonnet-55-row.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-receipt.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-receipt.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ripple-drain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ripple-drain.ts" "$__t" "$__rc"
 if [ "$fail" -ne 0 ]; then
