@@ -232,7 +232,7 @@ function runsDoor(name: string, frame: string): void {
   check(`${name}: RUNS counts the one live shell`, /RUNS · 1 live/.test(rail), railHits(frame, /RUNS/))
   check(`${name}: the run row names the shell with its live elapsed verb`, new RegExp(`${SHELL_NAME} · shell 12m`).test(rail), railHits(frame, /shell/))
   const door = lanesRows().find(row => row.label === `run:${SHELL_ID}`)
-  check(`${name}: the run row opens its card on the /tasks board`, door !== undefined && door.kind === 'command' && door.command === `/tasks ${SHELL_ID}`, JSON.stringify(door ?? null))
+  check(`${name}: the run row opens its card on the /runs board`, door !== undefined && door.kind === 'command' && door.command === `/runs ${SHELL_ID}`, JSON.stringify(door ?? null))
 }
 
 console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)

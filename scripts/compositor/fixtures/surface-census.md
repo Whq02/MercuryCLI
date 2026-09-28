@@ -90,6 +90,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /resume | irow | `src/commands/resume` |
 | /router | panes | `src/commands/router` |
 | /run | irow | `src/commands/run` |
+| /runs | — | `src/commands/tasks` |
 | /samples | irow | `src/commands/samples` |
 | /sandbox | — | `src/commands/sandbox-toggle` |
 | /saturn | ilist irow | `src/commands/saturn` |
@@ -103,7 +104,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /substrate | — | `src/commands/substrate` |
 | /supercode | ilist irow | `src/commands/supercode` |
 | /surfaces | ilist irow | `src/commands/manager` |
-| /tasks | — | `src/commands/tasks` |
 | /team | — | `src/commands/team` |
 | /teammates | — | `src/commands/teammates` |
 | /terminal-setup | — | `src/commands/terminalSetup` |

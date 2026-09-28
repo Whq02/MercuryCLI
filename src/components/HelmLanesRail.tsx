@@ -555,7 +555,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     rows.push({ text: truncateToWidth(statusBits.join(' · '), w), color: tok.textSecondary })
     if (planningObjective !== null && snap.objective === planningObjective) {
       if (workShape) rows.push({ text: truncateToWidth(`via ${workShape}`, w), color: tok.textSecondary })
-      pushWrapped('', 'plan: edit /tasks · steer by typing', tok.textMuted, 2)
+      pushWrapped('', 'plan: edit /runs · steer by typing', tok.textMuted, 2)
     }
     const active = snap.deliverables.find(d => d.state === 'in-progress')
     if (active && !terminal) pushWrapped(`${GLYPH.busy} `, active.title || active.id, tok.success, 2)
@@ -819,7 +819,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         verbColor={live ? tok.textSecondary : tok.textMuted}
         {...railRowProps(isOn, sel, {
           kind: 'command',
-          command: `/tasks ${r.id}`,
+          command: `/runs ${r.id}`,
           label: `run:${r.id}`,
         })}
       />
@@ -831,7 +831,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         key="runs:more"
         n={runsMore}
         width={rowW}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/tasks', label: 'runs:more' })}
+        {...railRowProps(isOn, sel, { kind: 'command', command: '/runs', label: 'runs:more' })}
       />,
     )
 
@@ -1129,7 +1129,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           {
 }
           {runsShown.length > 0
-            ? section('runs', GLYPH.turns, 'RUNS', `${runsLive} live`, runNodes, { open: '/tasks' })
+            ? section('runs', GLYPH.turns, 'RUNS', `${runsLive} live`, runNodes, { open: '/runs' })
             : null}
 
           {workbenchNodes.length > 0

@@ -418,7 +418,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
         has(f, /Agent "quick probe" completed/) &&
         has(f, 'run the quick probe') &&
         !has(f, /agent › quick probe/) &&
-        !has(f, /Mercury — tasks/),
+        !has(f, /Mercury — runs/),
     )
     t.check(
       'after completion the transcript carries the landing and nothing is open over it',
@@ -438,7 +438,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
 
     const iBack = findFrom(
       iCard + 1,
-      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — tasks/) && has(f, 'run the quick probe') && has(f, /Agent "quick probe" completed/),
+      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — runs/) && has(f, 'run the quick probe') && has(f, /Agent "quick probe" completed/),
     )
     t.check(
       'esc returned to main (the card gone, the transcript back with the landing on it)',

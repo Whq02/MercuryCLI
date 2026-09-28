@@ -118,7 +118,7 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
             <Text color={FAINT}> · </Text>
           </>
         ) : null}
-        <Text color={TEAL}>/tasks {taskId}</Text>
+        <Text color={TEAL}>/runs {taskId}</Text>
         <Text color={FAINT}> to inspect</Text>
       </Text>
     )

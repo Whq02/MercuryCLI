@@ -103,14 +103,14 @@ check('S8: CREW sources the projected roster through the crew predicate (the pro
     /return row\.kind === 'agent' \|\| row\.kind === 'teammate'/.test(crewFactsSrc))
 check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate), keeps every crewmate the session has had — never filtered to the running ones — and pulls the viewed or pinned row into the cap",
   /crewAgentsOf\(roster\.rows, sessionId\)/.test(crewLedgerSrc) && !/\.filter\(f => f\.running/.test(lanes) && /keptIds\.includes\(c\.id\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
-check('a hosted CREW row opens the agent in the view (the teammate road), never a /tasks command',
-  /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/tasks \$\{c\.id\}`/.test(lanes))
+check('a hosted CREW row opens the agent in the view (the teammate road), never a /runs command',
+  /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/(runs|tasks) \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
 check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
-check('RUNS is the one rail door to the /tasks board (header opens /tasks)',
-  /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/tasks' \}\)/.test(lanes))
+check('RUNS is the one rail door to the /runs board (header opens /runs)',
+  /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/runs' \}\)/.test(lanes))
 check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate, runs and daemon crew only — no peers term)',
   /const solo =\n\s+crewAll\.length === 0 &&\n\s+keptIds\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
@@ -126,8 +126,8 @@ check('RUNS: verb carries kind + live elapsed (formatSpan)',
   /\$\{r\.kind\} \$\{formatSpan\(Date\.now\(\) - r\.startedAtMs\)\}/.test(lanes))
 check('RUNS: lane is capped (RUNS_ROWS) with a +N more overflow',
   /slice\(0, RUNS_ROWS\)/.test(lanes) && /runsMore/.test(lanes))
-check('RUNS: rows drill to the SPECIFIC task card (/tasks <id>)',
-  /command: `\/tasks \$\{r\.id\}`/.test(lanes))
+check('RUNS: rows drill to the SPECIFIC task card (/runs <id>)',
+  /command: `\/runs \$\{r\.id\}`/.test(lanes))
 check('RUNS: elapsed floors on a stamped start (never an epoch span)',
   /live && r\.startedAtMs > 0 \?/.test(lanes))
 check('MoreRow has click parity (requestHelmRowActivation on click)',

@@ -755,7 +755,7 @@ export function BackgroundTasksDialog({
 
   return (
     <CommandCenter elevated
-      view={summaryEntry ? "activity" : "tasks"}
+      view={summaryEntry ? "activity" : "runs"}
       subtitle={subtitle}
       onClose={onDone}
       captureInput={false}

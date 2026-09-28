@@ -66,12 +66,12 @@ keeps for the repository, one color-coded chat each, side by side. There is
 no eager boot spawn: every named agent is an explicit, billed operator act
 through the spawn wizard. Esc or a click on the chat outside the Crew view
 closes it; from an opened agent card, either returns to the list first. The
-same rule closes the `/tasks` board. Closing a view never stops its work.
+same rule closes the `/runs` board. Closing a view never stops its work.
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and
 nothing else: the sub-agents and workflows the turn launched keep running on
 their own controllers, and the interrupted turn's receipt says how many. To
-stop one, open the Crew view (or the `/tasks` board), select it and press `x`
+stop one, open the Crew view (or the `/runs` board), select it and press `x`
 twice within two seconds — the first press names the agent the second press
 stops. The stop reaches every kind of row the same way: a dispatched
 sub-agent's controller aborts and its running tool ends with it, a named
@@ -195,15 +195,15 @@ rename, reconnect, or restart never mints a duplicate.
 
 ## Boards
 
-`/team` opens the crew board on `/tasks` — the named agents, their phases and
-handoffs. `/teammates` is the Crew view: the session's sub-agents live, and the
-named agents' chats; each sub-agent row carries the count of notices delivered
-to it that no turn of its own has read yet ([SESSIONS.md](SESSIONS.md), "A
-notice an agent has not read"). A command a sub-agent runs in the background
-is a shell task of the session like any other: it has its row on the `/tasks`
-board while it runs, the session's waiting line counts it, and when it
-finishes the notice goes to the agent that launched it, read at that agent's
-next turn. A sub-agent with nothing to do until then waits with the Sleep
+`/team` opens the crew board on `/runs` (`/tasks` still opens the same board)
+— the named agents, their phases and handoffs. `/teammates` is the Crew view:
+the session's sub-agents live, and the named agents' chats; each sub-agent row
+carries the count of notices delivered to it that no turn of its own has read
+yet ([SESSIONS.md](SESSIONS.md), "A notice an agent has not read"). A command
+a sub-agent runs in the background is a shell task of the session like any
+other: it has its row on the `/runs` board while it runs, the session's
+waiting line counts it, and when it finishes the notice goes to the agent
+that launched it, read at that agent's next turn. A sub-agent with nothing to do until then waits with the Sleep
 tool, which every sub-agent's roster carries, in a foreground and a
 background run alike: the wait names a ceiling (at most an hour, the same as
 the session's own) and ends the moment the shells that sub-agent launched

@@ -20,9 +20,9 @@ const CODE = [
 const ERROR_HEAD = 'Error: the ledger is out of balance'
 const ERROR_SECOND = 'expected 3 rows, found 5'
 const ERROR_THIRD = 'see the audit for the missing pair'
-const HINT = `└ view the card: /tasks ${CELL_ID} · click to open`
+const HINT = `└ view the card: /runs ${CELL_ID} · click to open`
 const CARD_TITLE = `Mercury — workshop · ${CELL_ID}`
-const BOARD_TITLE = 'Mercury — tasks'
+const BOARD_TITLE = 'Mercury — runs'
 const since = (rows: string[], needle: string): string[] => {
   const at = rows.findIndex(r => r.includes(needle))
   return at < 0 ? [] : rows.slice(at)
