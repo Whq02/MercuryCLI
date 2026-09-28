@@ -57,6 +57,8 @@ type InboxRow = { from: string; text: string; read?: boolean }
 type Roster = { members: Array<{ name: string; isActive?: boolean }> }
 const failedNotice = (): InboxRow | undefined =>
   (readJson<InboxRow[]>(inboxPath) ?? []).find(row => row.from === SEAT && row.text.includes('idle_notification') && row.text.includes('"failed"'))
+const seatRequests = (): number => world.fixture.messageRequests().filter(request => (request.body as { model?: string } | null)?.model === SEAT_MODEL).length
+const seatRows = (): number => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate').length
 
 try {
   tally.section('the lead creates the team and spawns a seat whose first dispatch fails')
@@ -86,7 +88,9 @@ try {
   const ghostRow = roster?.members.find(m => m.name === SEAT)
   tally.check('the dead seat is not a running roster member', ghostRow === undefined || ghostRow.isActive === false, JSON.stringify(ghostRow))
 
-  tally.section('a message to the dead seat is refused with the cause, and the brief agrees')
+  tally.section('a message to the dead seat is refused with the cause, without starting the seat again, and the brief agrees')
+  const seatRequestsBefore = seatRequests()
+  const seatRowsBefore = seatRows()
   session.submit(`${SECOND}: message the ghost and read the brief.`)
   await session.waitFor('the second turn never settled', () => session.stdout().includes('LEAD-DONE'))
   const message = toolResultOf(world, MESSAGE_ID)
@@ -96,8 +100,11 @@ try {
   const messageText = message?.text ?? ''
   tally.check('the message was not reported delivered', !/delivered to/.test(messageText), messageText.slice(0, 200))
   tally.check('the refusal names the cause', messageText.includes(CAUSE) || /failed/.test(messageText), messageText.slice(0, 200))
+  tally.check('the message does not start the dead seat again: no request leaves for its model', seatRequests() === seatRequestsBefore, `requests before ${seatRequestsBefore}, after ${seatRequests()}`)
+  tally.check('no new row starts for the dead seat', seatRows() === seatRowsBefore, `rows before ${seatRowsBefore}, after ${seatRows()}`)
   const briefText = brief?.text ?? ''
   tally.check('the brief does not list the dead seat as a live member', !new RegExp(`- ${SEAT}\\b[^\\n]*\\[(idle|busy)\\]`).test(briefText), briefText.slice(0, 300))
+  record('config-after-message.json', JSON.stringify(readJson<Roster>(configPath), null, 2) + '\n')
   record('lead-user-texts.txt', userTextsOf(world).join('\n\n=====\n\n') + '\n')
 } finally {
   await session.end()
