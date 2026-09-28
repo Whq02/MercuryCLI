@@ -36,6 +36,7 @@ function capture(tag: string, sends: unknown[], total: number): string[] {
       ...process.env,
       PATH: `${stubDir}:${process.env.PATH}`,
       MERCURY_AWAY_SUMMARY: '0',
+      MERCURY_UPDATE_NOTICE: '0',
       MERCURY_CONFIG_DIR: home,
     },
   })
