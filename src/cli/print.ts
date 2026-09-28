@@ -188,6 +188,7 @@ import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../utils/deadline.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import { AGENT_MESSAGE_STATUS } from '../constants/agentMessage.js'
+import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 import { getInMemoryErrors, logError } from '../utils/log.js'
@@ -2163,6 +2164,7 @@ export async function runHeadless(
             primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue) as Parameters<typeof primeOpenaiCatalogue>[0])
           }
           const claimedHome = consumeSessionHomePin()
+          clearSystemPromptSections()
           if (request.resume === true) {
             const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
             let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
