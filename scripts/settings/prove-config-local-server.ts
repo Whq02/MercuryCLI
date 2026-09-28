@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -23,8 +23,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 function section(title: string): void {
   console.log(`\n${title}`)
 }
-function finish(): never {
-  rmSync(HOME, { recursive: true, force: true })
+async function finish(): Promise<never> {
+  await releaseScratchHome(HOME)
   console.log(`\nprove-config-local-server: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
   process.exit(failures === 0 ? 0 : 1)
 }
@@ -38,10 +38,10 @@ const mods = await (async () => {
     return undefined
   }
 })()
-if (!mods) finish()
+const ready = mods ?? (await finish())
 check('the page and the reader import', true)
-const { __pinLocalServerTruthForTest } = mods.truth
-const { LOCAL_SERVER_ROW_IDS, serverRowWords, loadedRowWords, runnerRowWords, expiryWords, tildePath } = mods.page
+const { __pinLocalServerTruthForTest } = ready.truth
+const { LOCAL_SERVER_ROW_IDS, serverRowWords, loadedRowWords, runnerRowWords, expiryWords, tildePath } = ready.page
 
 const GIB = 1024 ** 3
 const AGENTS = join(HOME, 'Library', 'LaunchAgents')
@@ -276,4 +276,4 @@ section('§6 no server: the section says so and the apply row opens nothing')
   check('the row ids are the nine the docs name', LOCAL_SERVER_ROW_IDS.length === 9)
 }
 
-finish()
+await finish()

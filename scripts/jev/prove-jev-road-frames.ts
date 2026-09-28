@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const home = pinScratchHome('jev-road-frames')
 process.env.MERCURY_JEV_BASE = 'http://127.0.0.1:1'
@@ -163,7 +163,7 @@ try {
   slot._resetFocusedSessionConnectorForTesting()
   cap._setHeldMachineSeatReadingForTesting(null)
   if (dir) writeFileSync(join(dir, 'index.txt'), ['Source renders: complete /jev cards, /config and Boot faces, and the /usage JEV section; 178x51 and 80x21; no PTY or network.', ...frames].join('\n') + '\n')
-  rmSync(home, { recursive: true, force: true })
+  await releaseScratchHome(home)
 }
 console.log(`prove-jev-road-frames: ${frames.length} frames; ${failures ? `${failures} FAILED` : 'ALL PASS'}`)
 process.exit(failures ? 1 : 0)

@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { KEY, mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const HOME = pinScratchHome('composer-draft-dispatch')
 delete process.env.TYPESAFE_API_KEY
@@ -228,7 +228,7 @@ section('§7 the seam in source: the composer is taken only when it holds the su
 
 m.unmount()
 if (frameDir !== undefined) console.log(`\nframes: ${frames.join(', ')} under ${frameDir}`)
-if (failures === 0) rmSync(HOME, { recursive: true, force: true })
+if (failures === 0) await releaseScratchHome(HOME)
 else console.log(`scratch home kept: ${HOME}`)
 console.log(`\n${failures === 0 ? 'prove-composer-draft-survives-dispatch: ALL PASS' : `prove-composer-draft-survives-dispatch: ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

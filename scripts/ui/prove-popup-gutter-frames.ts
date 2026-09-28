@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 const HOME = pinScratchHome('popup-gutter-frames')
 Object.assign(process.env, {
@@ -213,6 +213,6 @@ if (!process.argv.includes('--session-only')) {
   const { concoursePopupFrames } = await import('./popupGutterConcourse.ts')
   await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, settle, waitFor, check, judge, save })
 }
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes; ${surfaces.length + sheets.length + 2} session/Boot surfaces plus 11 concourse surfaces and dynamic JEV growth`)
 process.exit(failures === 0 ? 0 : 1)

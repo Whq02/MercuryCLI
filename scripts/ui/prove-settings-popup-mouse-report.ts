@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { mountOffscreen, pinScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import type { ParsedInput, ParsedKey } from '../../src/ink/input/input-decoder.js'
 import type { DOMElement } from '../../src/ink.js'
 
@@ -263,6 +263,6 @@ section('§6 the files popup, its filter focused: the same road on another popup
   await settle(40)
 }
 
-rmSync(HOME, { recursive: true, force: true })
+await releaseScratchHome(HOME)
 console.log(`\nprove-settings-popup-mouse-report: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)
