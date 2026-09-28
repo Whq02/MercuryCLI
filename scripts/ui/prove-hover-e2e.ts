@@ -80,7 +80,7 @@ function capture(
     return null
   }
   const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as Grid).grid
-  return { lines: grid.map(r => r.map(c => c.c).join('')), grid }
+  return { lines: grid.map(r => r.map(c => c.c || ' ').join('')), grid }
 }
 
 const motionT = '\x1b[<35;{X};{Y}M'

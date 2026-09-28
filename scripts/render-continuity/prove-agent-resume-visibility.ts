@@ -23,9 +23,9 @@ const FRAMES = ((): string | undefined => {
 const ESC = String.fromCharCode(27)
 const sgrClick = (col: number, row: number): string =>
   `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
-const LEAD_ROW = 6
-const FIRST_CHILD_ROW = 7
-const SECOND_CHILD_ROW = 8
+const LEAD_ROW = 3
+const FIRST_CHILD_ROW = 4
+const SECOND_CHILD_ROW = 5
 type Frame = { atMs: number; rows: string[] }
 const frameIn = (screens: Frame[], atMs: number): Frame => {
   const f = screens.find(s => s.atMs === atMs)

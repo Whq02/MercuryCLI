@@ -38,16 +38,20 @@ def furniture_rows(g):
     berth rows under it, clipped to SPAN columns from the header's x."""
     out = []
     for y, row in enumerate(g['grid']):
-        text = ''.join(c['c'] for c in row)
+        text = cell_text(row)
         if HEADER in text:
             x = text.index(HEADER)
             for dy in range(4):
                 r2 = g['grid'][y + dy]
-                t2 = ''.join(c['c'] for c in r2)[x:x + SPAN]
+                t2 = cell_text(r2)[x:x + SPAN]
                 fgs = [c['fg'] for c in r2[x:x + SPAN]]
                 out.append((y + dy, x, t2, fgs))
             break
     return out
+
+
+def cell_text(row):
+    return ''.join(c['c'] or ' ' for c in row)
 
 
 print('=' * 60)
@@ -81,7 +85,7 @@ if direct and journey:
                     for i in range(4) for j in range(SPAN)
                     if bd[i][3][j] != bj[i][3][j]), 'all equal'))
     def has_critter(g):
-        lines = [''.join(c['c'] for c in row) for row in g['grid']]
+        lines = [cell_text(row) for row in g['grid']]
         for y, line in enumerate(lines[:-2]):
             x = line.find('▀▀▄▄▄▄▄▀▀')
             if x >= 0 and all(lines[y + dy][x:x + 9] == '▀' * 9 for dy in (1, 2)):

@@ -274,9 +274,10 @@ try {
     const order = [...KNOWN.map(id => KNOWN_NAMES[id]!), ...BARE, ...UNSERVED]
     const shown = order.slice(0, 12)
     const hidden = order.length - shown.length
+    const windowStart = order.findIndex(name => painted.length > 0 && sameName(painted[0]!, name))
     const inOrder = band.rows >= 40
       ? painted.length >= shown.length && shown.every((name, index) => sameName(painted[index]!, name)) && (hidden === 0 || frame.includes(`↓ ${hidden} more · → unfolds the rest`))
-      : painted.length >= 3 && painted.includes('whisper-1') && painted.slice(0, Math.min(painted.length, shown.length)).every((name, index) => sameName(name, shown[index]!))
+      : painted.length >= 3 && painted.includes('whisper-1') && windowStart >= 0 && windowStart <= KNOWN.length && painted.every((name, index) => order[windowStart + index] !== undefined && sameName(name, order[windowStart + index]!))
     check(`${tag(band)}: the rows paint in provenance order after the gpt rows${band.rows >= 40 ? ' (all seven, then the unserved pins; the top group shows twelve and names the rest)' : ' (the window around the current row)'}`, inOrder, painted.join(','))
     check(`${tag(band)}: the current mark sits on whisper-1, a selectable row under its raw id with the no-alias note`, focusOf(frame) === 'whisper-1' && cellsOf(rowText(rowLine(frame, 'whisper-1'))).includes('current') && tailOf(frame, 'whisper-1') !== '' && hasRow(frame, 'whisper-1'), `${focusOf(frame)} · ${rowText(rowLine(frame, 'whisper-1'))}`)
     check(`${tag(band)}: the focused unknown row carries the marker as its words`, cardWords(frame) === MARKER, `card "${cardOf(frame).join(' / ')}"`)

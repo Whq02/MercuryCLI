@@ -22,7 +22,7 @@ for (const size of SIZES) {
   const res = await drive(driver, leg, size, [
     ...OPENING('click the document'),
     { requireAwait: true, awaitText: 'first act', awaitStableTicks: 2, mark: 'card', data: '\r' },
-    { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 1, mark: 'driving', data: '' },
+    { requireAwait: true, awaitText: 'hands off', awaitStableTicks: 2, awaitStableRegion: [0, size.rows - 3, size.cols, size.rows], mark: 'driving', data: '' },
     { requireAwait: true, awaitText: 'Done.', awaitStableTicks: 3, mark: 'done', data: '' },
   ], 240)
   await endLeg(leg)

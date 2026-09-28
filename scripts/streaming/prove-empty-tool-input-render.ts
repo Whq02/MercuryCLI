@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { projectSlug } from '../../src/utils/sessionStoragePortable.ts'
 import { driverOutcome } from './artifactArena.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -43,7 +44,7 @@ writeFileSync(
     projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
   }),
 )
-const slug = cwd.replace(/[/.]/g, '-')
+const slug = projectSlug(cwd)
 const projectDir = join(configDir, 'projects', slug)
 mkdirSync(projectDir, { recursive: true })
 const SID = '00000000-aaaa-bbbb-cccc-000000000001'

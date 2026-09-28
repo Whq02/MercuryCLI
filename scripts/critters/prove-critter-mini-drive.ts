@@ -42,7 +42,7 @@ if (!existsSync(DIST)) {
 
 type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
-type Send = { data: string; targetText?: string; awaitText?: string; awaitSettleTicks?: number; afterPrevTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
+type Send = { data: string; targetText?: string; awaitText?: string; awaitPattern?: string; awaitSettleTicks?: number; afterPrevTicks?: number; minTick?: number; requireAwait?: boolean; mark?: string }
 type Capture = { grid: Grid; marks: Record<string, Grid>; endReason: string }
 
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'critter-mini-'))
@@ -51,7 +51,8 @@ process.env.ANTHROPIC_API_KEY = KEY
 const WRAP_VERB = 'Reading the complete fixture response and checking every part of it'
 const STACK_VERB = 'Reading the whole fixture answer before replying'
 const TALL_VERB = `${WRAP_VERB} against the recorded expectations before answering`
-const GROW_VERB: Record<number, string> = { 120: 'Basking in the warm sun on the rocks', 100: 'Basking in the glow' }
+const GROW_VERB = 'Basking'
+const ONE_LINE_COLS = 130
 
 function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : undefined): { configHome: string; cwd: string } {
   const world = join(scratch, name)
@@ -66,6 +67,8 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
 
 const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
 const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6, data, mark })
+const WORK_REPORTED = '⤳ WORKFLOW[^\\n]*\\n[^\\n]*\\bidle\\b'
+const onReported = (data: string, mark: string): Send => ({ ...onReady(data, mark), awaitPattern: WORK_REPORTED })
 
 type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: number; rows: number }
 async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, envPatch: Record<string, string> = {}): Promise<Capture> {
@@ -252,13 +255,13 @@ console.log('============================================================')
 try {
   if (!mountsOnly) {
   const wide = homeFor('wide')
-  const a = await capture('wide-a', wide, 178, 51, [onReady('/view on\r', 'boot'), onReady('/view off\r', 'bar'), onReady('/view\r', 'bar-off'), onReady('/view on\r', 'state')], '← back')
+  const a = await capture('wide-a', wide, 178, 51, [onReported('/view on\r', 'boot'), onReady('/view off\r', 'bar'), onReady('/view\r', 'bar-off'), onReady('/view on\r', 'state')], '← back')
   const boot = a.marks['boot']!
   const bar = a.marks['bar']!
   const barOff = a.marks['bar-off']!
   const state = a.marks['state']!
   const barAgain = a.grid
-  const b = await capture('wide-b', wide, 178, 51, [onReady('/view off\r', 'second-boot')], '← back')
+  const b = await capture('wide-b', wide, 178, 51, [onReported('/view off\r', 'second-boot')], '← back')
   const secondBoot = b.marks['second-boot']!
   const offAfterSecondBoot = b.grid
   const band = await capture('band', homeFor('band'), 80, 21, [], '1 session on')
@@ -395,23 +398,23 @@ try {
   }
   console.log('§14 the sprite’s middle tracks the thinking box’s middle however tall the box grows')
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-    const legs: Array<[string, string, number]> = [['one', 'Basking', 3], ['stack', STACK_VERB, 4], ['tall', TALL_VERB, cols === 120 ? 5 : 6]]
-    for (const [leg, verb, expectedRows] of legs) {
-      const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
+    const legs: Array<[string, string, number, number]> = [['one', GROW_VERB, 3, ONE_LINE_COLS], ['stack', STACK_VERB, 4, cols], ['tall', TALL_VERB, cols === 120 ? 5 : 6, cols]]
+    for (const [leg, verb, expectedRows, legCols] of legs) {
+      const shot = await capture(`level-${leg}-${cols}x${rows}`, homeFor(`level-${leg}-${cols}`, verb), legCols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
       const b = berthOf(shot.grid)
-      check(`${cols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
-      check(`${cols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
-      check(`${cols}×${rows} ${leg}: no sprite row lies beside the box’s top border unless the box is three rows`, expectedRows === 3 || b.y > b.cardTop, `sprite rows ${b.y}–${b.y + 2}, top border ${b.cardTop}`)
+      check(`${legCols}×${rows} ${leg}: the thinking box is ${expectedRows} rows tall with the complete sprite beside it${leg === 'one' ? ' (the reading-phase meta shares the verb’s line only from 130 columns: at 120 and 100 it stacks under even the shortest verb)' : ''}`, cardRows(b) === expectedRows && b.cells === 27 && b.bottom - b.top - 1 === expectedRows, `card ${b.cardTop}..${b.cardBottom} (${cardRows(b)} rows), box ${b.top}..${b.bottom}, art cells ${b.cells}`)
+      check(`${legCols}×${rows} ${leg}: the sprite’s middle is the box’s middle, the lower middle row for an even box (sprite rows ${spriteTop(b)}–${spriteTop(b) + 2})`, b.y === spriteTop(b), `sprite top ${b.y}, expected ${spriteTop(b)}`)
+      check(`${legCols}×${rows} ${leg}: no sprite row lies beside the box’s top border unless the box is three rows`, expectedRows === 3 || b.y > b.cardTop, `sprite rows ${b.y}–${b.y + 2}, top border ${b.cardTop}`)
     }
-    const wide = cols + 10
-    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB[cols]!), wide, rows, [
+    const wide = ONE_LINE_COLS
+    const grow = await capture(`grow-${cols}x${rows}`, homeFor(`grow-${cols}`, GROW_VERB), wide, rows, [
       onReady('hello fixture\r', 'idle'),
-      { requireAwait: true, awaitText: GROW_VERB[cols]!, awaitSettleTicks: 5, data: '', mark: 'one-line' },
+      { requireAwait: true, awaitText: GROW_VERB, awaitSettleTicks: 5, data: '', mark: 'one-line' },
     ], '│ (', [{ afterMark: 'one-line', afterMs: 400, cols, rows }], true)
     const before = berthOf(grow.marks[`stage0:${wide}x${rows}`]!)
     const after = berthOf(grow.grid)
     console.log(`  ${cols}×${rows} grow: the box is ${cardRows(before)} rows at ${wide} columns and ${cardRows(after)} rows at ${cols} (sprite top ${before.y} → ${after.y})`)
-    check(`${cols}×${rows} grow: at ${wide} columns the status fits one line and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
+    check(`${cols}×${rows} grow: at ${wide} columns the status (reading the prompt · the clock · the first-byte promise) fits one line beside the verb and the box is three rows`, cardRows(before) === 3 && before.cells === 27 && before.y === before.cardTop, `card ${before.cardTop}..${before.cardBottom} (${cardRows(before)} rows), sprite top ${before.y}, art cells ${before.cells}`)
     check(`${cols}×${rows} grow: at ${cols} columns the meta stacks and the box is four rows`, cardRows(after) === 4 && after.cells === 27, `card ${after.cardTop}..${after.cardBottom} (${cardRows(after)} rows), art cells ${after.cells}`)
     check(`${cols}×${rows} grow: once the stats stack the sprite sits on the box’s lower three rows (the verb line, the stats, the bottom border)`, after.y === after.cardTop + 1, `sprite top ${after.y}, card top ${after.cardTop}`)
     check(`${cols}×${rows} grow: the sprite moves down one row as the box grows from three rows to four, its middle following the box’s middle`, after.y === before.y + 1 && before.cardTop === after.cardTop, `sprite top ${before.y} → ${after.y}, card top ${before.cardTop} → ${after.cardTop}`)
