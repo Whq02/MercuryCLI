@@ -10,7 +10,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { escapeRegExp } from '../../utils/stringUtils.js'
 import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
 import { cooccurBoostFor, recordToolDiscovery, toolSearchCooccurEnabled } from './cooccurPrior.js'
-import { getPrompt, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
+import { getPrompt, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
 
 
 export const inputSchema = z.object({
@@ -255,7 +255,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
   const { query, max_results = 5 } = input
   const allTools = context.options.tools ?? []
   const searchPermissionMode = context.getAppState().toolPermissionContext.mode
-  const deferredTools = allTools.filter(tool => isDeferredTool(tool, searchPermissionMode))
+  const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, context.options.mainLoopModel, searchPermissionMode, context.messages))
   maybeInvalidateCache(deferredTools)
 
   const selection = SELECT_FORM.exec(query)

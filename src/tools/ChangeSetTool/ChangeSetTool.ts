@@ -1062,6 +1062,7 @@ export const ChangeSetTool = buildTool({
   maxResultSizeChars: 60_000,
   strict: true,
   shouldDefer: true,
+  loadInFullOnCloud: true,
   capability: {
     intents: [
       'apply one coordinated change across several files',

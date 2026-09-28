@@ -130,7 +130,7 @@ for (const table of tables) {
   check(`${f}: no run timed out or died without a result envelope`, rows.every(r => !r.timedOut && r.resultSubtype !== 'no-result' && r.resultSubtype !== 'timeout'), rows.filter(r => r.timedOut || r.resultSubtype === 'no-result').map(r => `${r.task}:${r.resultSubtype}`).join(', '))
   const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Workshop', 'Eval', 'PushNotification', 'ToolSearch']
   const rosterPresent = f === 'openai'
-    ? table.header.toolCount === daily.length && daily.every(name => table.header.toolNames.includes(name))
+    ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))
     : (table.header.toolCount ?? 0) >= 15
   check(`${f}: the first request carries its complete tool set and a system prompt (> 2000 chars)`, (table.header.promptChars ?? 0) > 2000 && rosterPresent, `prompt ${table.header.promptChars} · tools ${table.header.toolCount}`)
   const two = table.rows.find(r => r.task === 'two-seats')

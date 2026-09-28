@@ -172,6 +172,7 @@ function dryRunText(scope: AstScope, plan: AstRewritePlan): string {
 
 export const AstEditTool = buildTool({
   shouldDefer: true,
+  loadInFullOnCloud: true,
   name: AST_EDIT_TOOL_NAME,
   strict: true,
   straightQuoteInputs: ['pattern', 'path', 'glob'],
