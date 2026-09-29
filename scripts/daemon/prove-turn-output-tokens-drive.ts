@@ -23,6 +23,9 @@ const firstLeg = 'First leg done.'
 const secondLeg = 'Second leg done.'
 const thought = 'weighing the ask.. '
 const firstThinkDeltas = 15
+const firstThinkCeiling = 80
+const estimateNeedle = ' tokens · '
+const estimateHoldMs = vshotBudgetMs(1_500)
 const secondThinkDeltas = 60
 const firstWireTokens = 777
 const secondWireTokens = 555
@@ -41,6 +44,22 @@ const sse = (response: ServerResponse, type: string, fields: Record<string, unkn
 type Cell = { c?: string }
 type Frame = { label?: string; atMs?: number; cols: number; rows: number; grid: Cell[][] }
 const textOf = (frame: Frame): string => frame.grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
+const ESCAPES = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[()][A-Za-z0-9]|\x1b[=>]|\r|\x07/g
+const teeText = (tee: string): string => {
+  let raw: Buffer
+  try {
+    raw = readFileSync(tee)
+  } catch {
+    return ''
+  }
+  const parts: Buffer[] = []
+  for (let at = 0; at + 8 <= raw.length; ) {
+    const size = raw.readUInt32BE(at + 4)
+    parts.push(raw.subarray(at + 8, at + 8 + size))
+    at += 8 + size
+  }
+  return Buffer.concat(parts).toString('utf8').replace(ESCAPES, '')
+}
 const figureNumber = (digits: string, kilo: string | undefined): number => Number(digits.replaceAll(',', '')) * (kilo === 'k' ? 1000 : 1)
 const figureOf = (text: string): { count: number; estimate: boolean } | null => {
   const split = /↓\s*~([\d,.]+)(k?)\s+thinking\s+·\s+([\d,.]+)(k?)\s+tokens?/.exec(text)
@@ -85,6 +104,15 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     wire.push(row)
     appendFileSync(wireFile, `${JSON.stringify(row)}\n`)
   }
+  const tee = join(home, 'tee.bin')
+  let needleAt: number | null = null
+  const estimateRead = (): boolean => {
+    if (needleAt === null && teeText(tee).includes(estimateNeedle)) {
+      needleAt = Date.now()
+      record({ kind: 'needle' })
+    }
+    return needleAt !== null && Date.now() - needleAt >= estimateHoldMs
+  }
   let streamedChars = 0
   const open = (response: ServerResponse): void => {
     response.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -96,9 +124,11 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     response.end()
     record({ kind: 'usage', chars: outputTokens })
   }
-  const think = async (response: ServerResponse, deltas: number): Promise<boolean> => {
+  const think = async (response: ServerResponse, deltas: number, hold?: { until: () => boolean; ceiling: number }): Promise<boolean> => {
     sse(response, 'content_block_start', { index: 0, content_block: { type: 'thinking', thinking: '' } })
-    for (let i = 0; i < deltas; i++) {
+    for (let i = 0; i < (hold?.ceiling ?? deltas); i++) {
+      const held = hold !== undefined && hold.until()
+      if (i >= deltas && held) break
       await pause(vshotBudgetMs(100))
       if (response.destroyed) return false
       sse(response, 'content_block_delta', { index: 0, delta: { type: 'thinking_delta', thinking: thought } })
@@ -142,7 +172,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       }
       record({ kind: 'first-request' })
       open(response)
-      if (!(await think(response, firstThinkDeltas))) return
+      if (!(await think(response, firstThinkDeltas, { until: estimateRead, ceiling: firstThinkCeiling }))) return
       say(response, 1, firstLeg)
       sse(response, 'content_block_start', { index: 2, content_block: { type: 'tool_use', id: 'toolu_notes', name: 'Read', input: {} } })
       sse(response, 'content_block_delta', { index: 2, delta: { type: 'input_json_delta', partial_json: toolInput } })
@@ -233,7 +263,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     writeFileSync(config, JSON.stringify({ argv: [resolveCaptureArgv0(runtime, driver), dist, '--model', model, '--permission-mode', 'default'], cwd, cols, rows, sends, out, total: 300, readyText: secondLeg, readySettleTicks: 2, liveSeat: true, ...(process.platform === 'win32' ? { hostProfile: 'wt' } : {}) }))
     const startedAt = Date.now()
     const status = await new Promise<number | null>((resolve, reject) => {
-      capture = spawn(driver.python, [captureEngineEntry(driver, repo), config], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+      capture = spawn(driver.python, [captureEngineEntry(driver, repo), config], { cwd, env: { ...env, VSHOT_TEE: tee }, stdio: ['ignore', 'pipe', 'pipe'] })
       const timer = setTimeout(() => capture?.kill('SIGKILL'), vshotBudgetMs(70_000))
       capture.stdout?.on('data', chunk => { captureLog += String(chunk) })
       capture.stderr?.on('data', chunk => { captureLog += String(chunk) })
@@ -254,6 +284,9 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     const firstUsageAt = wire.find(row => row.kind === 'usage' && row.chars === firstWireTokens)?.at ?? Number.POSITIVE_INFINITY
     const estimateFigure = figureOf(estimateText)
     const charsByEstimate = wire.filter(row => row.chars !== undefined && row.kind !== 'usage' && row.at <= estimateAt).at(-1)?.chars ?? 0
+    const needleRow = wire.find(row => row.kind === 'needle')
+    const firstDeltaAt = wire.find(row => row.kind === 'think')?.at ?? firstUsageAt
+    console.log(`[hold] ${geometry}: the row's tokens needle painted ${needleRow ? `${needleRow.at - firstDeltaAt} ms` : 'never (the ceiling ended the hold)'} after the first delta; the usage frame went out ${firstUsageAt - firstDeltaAt} ms after it; the mark landed ${estimateAt - firstDeltaAt} ms after it`)
     check(`${geometry} estimate: the mark landed before the first usage frame`, estimateAt < firstUsageAt, `mark=${estimateAt} usage=${firstUsageAt}`)
     check(`${geometry} estimate: before any usage frame the row paints the characters-over-four figure with its ~ mark`, estimateFigure !== null && estimateFigure.estimate && estimateFigure.count <= Math.floor(charsByEstimate / 4) + (cols >= 100 ? 50 : 0), JSON.stringify({ figure: estimateFigure, chars: charsByEstimate }))
     const factFigure = figureOf(factText)
