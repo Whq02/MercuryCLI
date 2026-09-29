@@ -23,6 +23,10 @@ export BROWSER="${BROWSER:-/usr/bin/true}"
 
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
 
+. "$repo_root/scripts/lib/process-ledger.sh"
+export MERCURY_PROCESS_LEDGER_DIR="$outdir/$dom.ledger"
+mkdir -p "$MERCURY_PROCESS_LEDGER_DIR"
+
 kill_tree() {
   local p=$1 c
   kill -STOP "$p" 2>/dev/null
@@ -49,9 +53,25 @@ exec bash "$runner"
 rm -f "$outdir/$dom.hang"
 run_checked_suite >"$out" 2>&1 &
 pid=$!
-( sleep "$secs"; kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; kill_tree "$pid"; } ) 2>/dev/null &
+runner=$$
+end_suite_tree() {
+  kill_tree "$pid"
+  process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
+}
+( n=0; while [ "$n" -lt "$secs" ]; do sleep 1; n=$((n + 1)); kill -0 "$pid" 2>/dev/null || exit 0; kill -0 "$runner" 2>/dev/null || { printf '\n__SUITE_RUNNER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; }; done; kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; end_suite_tree; } ) 2>/dev/null &
 watcher=$!
+on_runner_signal() {
+  printf '\n__SUITE_RUNNER_SIGNALLED %s (tree-killed)__\n' "$1" >>"$out"
+  end_suite_tree
+  kill_tree "$watcher" 2>/dev/null
+  exit "$2"
+}
+trap 'on_runner_signal TERM 143' TERM
+trap 'on_runner_signal INT 130' INT
+trap 'on_runner_signal HUP 129' HUP
 wait "$pid" 2>/dev/null; rc=$?
+if [ -f "$outdir/$dom.hang" ]; then wait "$watcher" 2>/dev/null; fi
+process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
 times >"$outdir/$dom.times"
 cpu_secs=$(tail -1 "$outdir/$dom.times" | awk '{
   n = 0
