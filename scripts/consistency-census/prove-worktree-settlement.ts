@@ -142,8 +142,8 @@ const settle = (repo: string, lane: string, branch: string, head: string) =>
   const agentTool = readFileSync(join(root, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const hooks = readFileSync(join(root, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
   check(
-    '§L AgentTool + WorkflowTool both settle through settleAgentWorktree',
-    agentTool.includes('settleAgentWorktree({') && hooks.includes('settleAgentWorktree({'),
+    '§L the WorkflowTool settles through settleAgentWorktree (workflows unchanged); the Agent tool keeps every crewmate worktree and reads it through the reminder owner',
+    hooks.includes('settleAgentWorktree({') && !agentTool.includes('settleAgentWorktree(') && agentTool.includes('crewWorktreeLeftoverOf('),
   )
   check(
     '§L neither consumer hand-rolls the old boolean+remove pair',

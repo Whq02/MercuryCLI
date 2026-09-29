@@ -50,6 +50,8 @@ export interface CrewAgentFacts {
   pendingAsks: number
   unreadNotices: number
   sessionId: string | null
+  cwd: string | null
+  worktree: string | null
 }
 
 export function isCrewRow(row: WorkRowV1): boolean {
@@ -122,6 +124,8 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     pendingAsks: row.pendingAsks ?? 0,
     unreadNotices: typeof row.unreadNotices === 'number' && Number.isFinite(row.unreadNotices) && row.unreadNotices > 0 ? Math.floor(row.unreadNotices) : 0,
     sessionId,
+    cwd: typeof row.cwd === 'string' && row.cwd !== '' ? row.cwd : null,
+    worktree: typeof row.worktree === 'string' && row.worktree !== '' ? row.worktree : null,
   }
 }
 
