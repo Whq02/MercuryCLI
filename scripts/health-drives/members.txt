@@ -8,3 +8,4 @@ prove-health-mcp-row.ts
 prove-health-json-tty.ts
 prove-process-sweep-doctor-drive.ts
 prove-model-lists-doctor-drive.ts
+prove-runner-ends-children.sh

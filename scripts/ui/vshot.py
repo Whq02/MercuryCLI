@@ -178,6 +178,135 @@ if _pure_fixed_window:
 if _scale != 1:
     total = max(1, _scaled(total))
 argv, sends, out = cfg["argv"], cfg.get("sends", []), cfg["out"]
+import signal as _signal
+import subprocess as _subprocess
+_child = {"pid": None, "fd": None, "entry": None}
+_CHILD_EXIT_GRACE_S = float(os.environ.get("MERCURY_VSHOT_CHILD_EXIT_GRACE_S", "8")) * _scale
+
+
+def _ledger_dir():
+    pinned = os.environ.get("MERCURY_PROCESS_LEDGER_DIR", "").strip()
+    if pinned:
+        return pinned
+    import tempfile
+    return os.path.join(tempfile.gettempdir(), "mercury-process-ledger-%d" % os.getuid())
+
+
+def _started_at(pid):
+    try:
+        return _subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        return ""
+
+
+def _ledger_write(pid, argv):
+    try:
+        d = _ledger_dir()
+        os.makedirs(d, exist_ok=True)
+        path = os.path.join(d, "%d.%d.entry" % (pid, os.getpid()))
+        with open(path, "w") as f:
+            f.write("%d\t%d\t%s\t%s\t%s\n" % (pid, os.getpid(), _started_at(pid), os.getcwd(), " ".join(argv)))
+        return path
+    except Exception:
+        return None
+
+
+def _descendants(root):
+    try:
+        table = _subprocess.run(["ps", "-axo", "pid=,ppid=,lstart="], capture_output=True, text=True, timeout=20).stdout
+    except Exception:
+        return []
+    kids, born = {}, {}
+    for line in table.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            kids.setdefault(int(parts[1]), []).append(int(parts[0]))
+            born[int(parts[0])] = parts[2].strip()
+    found, stack = [], [root]
+    while stack:
+        p = stack.pop()
+        for c in kids.get(p, []):
+            found.append((c, born.get(c, "")))
+            stack.append(c)
+    return found
+
+
+def _reaped(pid):
+    try:
+        done, _ = os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        return True
+    return done == pid
+
+
+def _end_capture_child(grace_s):
+    pid, fd = _child["pid"], _child["fd"]
+    if pid is None:
+        return
+    _child["pid"] = None
+    before = _descendants(pid)
+    try:
+        os.killpg(pid, _signal.SIGCONT)
+    except OSError:
+        pass
+    if fd is not None:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        _child["fd"] = None
+    deadline = time.monotonic() + max(0.0, grace_s)
+    exited = _reaped(pid)
+    while not exited and time.monotonic() < deadline:
+        time.sleep(0.05)
+        exited = _reaped(pid)
+    if not exited:
+        tree = [p for p, _ in _descendants(pid)]
+        for p in [pid] + tree:
+            try:
+                os.kill(p, _signal.SIGSTOP)
+            except OSError:
+                pass
+        for p in list(reversed(tree)) + [pid]:
+            try:
+                os.kill(p, _signal.SIGKILL)
+            except OSError:
+                pass
+        try:
+            os.killpg(pid, _signal.SIGKILL)
+        except OSError:
+            pass
+        for _ in range(100):
+            if _reaped(pid):
+                break
+            time.sleep(0.05)
+        sys.stderr.write("vshot: the captured process %d did not exit %.1fs after the hangup; ended it and %d descendant(s)\n" % (pid, grace_s, len(tree)))
+    left = [p for p, born in before if born and _started_at(p) == born]
+    for p in left:
+        try:
+            os.kill(p, _signal.SIGKILL)
+        except OSError:
+            pass
+    try:
+        os.killpg(pid, _signal.SIGKILL)
+    except OSError:
+        pass
+    entry = _child["entry"]
+    if entry:
+        _child["entry"] = None
+        try:
+            os.remove(entry)
+        except OSError:
+            pass
+
+
+def _on_signal(signum, frame):
+    _end_capture_child(1.0)
+    os._exit(128 + signum)
+
+
+for _s in (_signal.SIGTERM, _signal.SIGINT, _signal.SIGHUP):
+    _signal.signal(_s, _on_signal)
 ready_texts = cfg.get("readyText")
 if isinstance(ready_texts, str):
     ready_texts = [ready_texts]
@@ -265,6 +394,8 @@ if pid == 0:
         os.chdir(cfg["cwd"])
     os.execvp(argv[0], argv)
 else:
+    _child["pid"], _child["fd"] = pid, fd
+    _child["entry"] = _ledger_write(pid, argv)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
     sent = 0
     resized = 0
@@ -471,6 +602,7 @@ else:
         sends, sent, stable_need, cfg.get("requireStable"), grid_text(),
         ready_seen_pre_sends)
     json.dump(payload, open(out, "w"))
+    _end_capture_child(_CHILD_EXIT_GRACE_S)
     print(grid_text())
     emit_refusals(payload["refusals"])
     if ready_texts and ready_at is None:
