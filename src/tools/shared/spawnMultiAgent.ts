@@ -25,7 +25,7 @@ const DESCRIPTION_PROMPT_CHARS = 50
 export type SpawnCrewmateConfig = {
   name: string
   prompt: string
-  team_name?: string
+  crew_name?: string
   cwd?: string
   worktree?: { at?: string }
   plan_mode_required?: boolean
@@ -38,7 +38,7 @@ export type SpawnCrewmateConfig = {
 }
 
 export type SpawnOutput = {
-  teammate_id: string
+  crewmate_id: string
   agent_id: string
   agent_type?: string
   model: string
@@ -47,7 +47,7 @@ export type SpawnOutput = {
   tmux_session_name: string
   tmux_window_name: string
   tmux_pane_id: string
-  team_name?: string
+  crew_name?: string
   is_splitpane: boolean
   plan_mode_required: boolean
 }
@@ -75,12 +75,12 @@ export function resolveCrewmateModel(
 
 export async function generateUniqueCrewmateName(
   baseName: string,
-  teamName: string | undefined,
+  crewName: string | undefined,
 ): Promise<string> {
-  if (!teamName) return baseName
+  if (!crewName) return baseName
   let crew: CrewFile | null = null
   try {
-    crew = await readCrewFileAsync(teamName)
+    crew = await readCrewFileAsync(crewName)
   } catch {
     return baseName
   }
@@ -96,7 +96,7 @@ export async function generateUniqueCrewmateName(
 type PreparedSpawn = {
   crewmateName: string
   crewmateId: string
-  teamName: string
+  crewName: string
   color: string
   model: string
   effort?: string
@@ -112,24 +112,24 @@ async function prepareSpawn(
   context: ToolUseContext,
 ): Promise<PreparedSpawn> {
   if (!config.name || !config.prompt) {
-    throw new Error('Teammate spawns require both a name and a prompt.')
+    throw new Error('Crewmate spawns require both a name and a prompt.')
   }
-  const crewContext = context.getAppState().crewContext as { teamName: string } | undefined
-  const teamName = resolveSpawnCrew(crewContext)
-  const uniqueName = await generateUniqueCrewmateName(config.name, teamName)
+  const crewContext = context.getAppState().crewContext as { crewName: string } | undefined
+  const crewName = resolveSpawnCrew(crewContext)
+  const uniqueName = await generateUniqueCrewmateName(config.name, crewName)
   const crewmateName = uniqueName.replaceAll('@', '-')
-  const crewmateId = formatAgentId(crewmateName, teamName)
+  const crewmateId = formatAgentId(crewmateName, crewName)
   const color = assignCrewmateColor(crewmateId)
   const model = resolveCrewmateModel(config.model, context.options.mainLoopModel ?? null)
   const promptPreview =
     config.prompt.length > DESCRIPTION_PROMPT_CHARS
       ? `${config.prompt.slice(0, DESCRIPTION_PROMPT_CHARS)}…`
       : config.prompt
-  const roster = await readCrewFileAsync(teamName).catch(() => null)
+  const roster = await readCrewFileAsync(crewName).catch(() => null)
   return {
     crewmateName,
     crewmateId,
-    teamName,
+    crewName,
     color,
     model,
     ...(config.effort !== undefined && config.effort !== '' ? { effort: config.effort } : {}),
@@ -169,7 +169,7 @@ async function spawnInProcessStrategy(
   context: ToolUseContext,
   prepared: PreparedSpawn,
 ): Promise<SpawnOutput> {
-  const { crewmateId, crewmateName, teamName } = prepared
+  const { crewmateId, crewmateName, crewName } = prepared
 
   const resolvedRole = resolveCrewmateRole({ ...roleInputs(prepared, config, context) })
   const canonicalAgentType = canonicalAgentTypeOf(resolvedRole, config)
@@ -191,7 +191,7 @@ async function spawnInProcessStrategy(
   const spawnResult = await spawnInProcessCrewmate(
     {
       name: crewmateName,
-      teamName,
+      crewName,
       prompt: prepared.prompt,
       color: prepared.color,
       planModeRequired: prepared.planModeRequired,
@@ -209,11 +209,11 @@ async function spawnInProcessStrategy(
     },
   )
   if (!spawnResult.success) {
-    throw new Error(spawnResult.error ?? 'In-process teammate spawn failed')
+    throw new Error(spawnResult.error ?? 'In-process crewmate spawn failed')
   }
 
   try {
-    await appendCrewMember(teamName, {
+    await appendCrewMember(crewName, {
       agentId: crewmateId,
       name: crewmateName,
       agentType: canonicalAgentType ?? crewmateName,
@@ -243,7 +243,7 @@ async function spawnInProcessStrategy(
       identity: {
         agentId: crewmateId,
         agentName: crewmateName,
-        teamName,
+        crewName,
         color: prepared.color,
         planModeRequired: prepared.planModeRequired,
         parentSessionId: String(getSessionId()),
@@ -265,14 +265,14 @@ async function spawnInProcessStrategy(
       onFirstDispatch: outcome => settleFirstDispatch(outcome),
     })
     } catch (error) {
-      removeCrewmateFromCrewFile(teamName, { agentId: crewmateId })
+      removeCrewmateFromCrewFile(crewName, { agentId: crewmateId })
       throw error
     }
     const outcome = await firstDispatch
     if (!outcome.ok) {
-      removeCrewmateFromCrewFile(teamName, { agentId: crewmateId })
+      removeCrewmateFromCrewFile(crewName, { agentId: crewmateId })
       throw new Error(
-        `Teammate "${crewmateName}" failed at its first dispatch and is not running: ${outcome.cause}`,
+        `Crewmate "${crewmateName}" failed at its first dispatch and is not running: ${outcome.cause}`,
       )
     }
   }
@@ -280,17 +280,17 @@ async function spawnInProcessStrategy(
   context.setAppState(prevState => {
     const existing = prevState.crewContext as
       | {
-          teamName: string
+          crewName: string
           crewFilePath: string
           leadAgentId: string
           crewmates: Record<string, unknown>
         }
       | undefined
-    const crewContext = existing ?? crewContextFor(teamName)
+    const crewContext = existing ?? crewContextFor(crewName)
     const crewmates: Record<string, unknown> = { ...crewContext.crewmates }
     let leadAgentId = crewContext.leadAgentId
     if (!leadAgentId) {
-      leadAgentId = formatAgentId(CREW_LEAD_NAME, teamName)
+      leadAgentId = formatAgentId(CREW_LEAD_NAME, crewName)
       crewmates[CREW_LEAD_NAME] = {
         name: CREW_LEAD_NAME,
         agentType: CREW_LEAD_NAME,
@@ -318,7 +318,7 @@ async function spawnInProcessStrategy(
 
 
   return {
-    teammate_id: crewmateId,
+    crewmate_id: crewmateId,
     agent_id: crewmateId,
     agent_type: config.agent_type,
     model: prepared.model,
@@ -327,7 +327,7 @@ async function spawnInProcessStrategy(
     tmux_session_name: 'in-process',
     tmux_window_name: 'in-process',
     tmux_pane_id: 'in-process',
-    team_name: teamName,
+    crew_name: crewName,
     is_splitpane: false,
     plan_mode_required: prepared.planModeRequired,
   }

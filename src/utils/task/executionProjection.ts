@@ -14,7 +14,7 @@ export function taskExecutionKind(type: TaskType): ExecutionKind {
       return 'workflow-worker'
     case 'local_agent':
     case 'remote_agent':
-    case 'in_process_teammate':
+    case 'in_process_crewmate':
     case 'dream':
       return 'agent'
   }

@@ -19,7 +19,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'plan_mode_exit',
   'plan_mode_reentry',
   'structured_output',
-  'team_context',
+  'crew_context',
   'todo_reminder',
   'context_efficiency',
   'deferred_tools_delta',

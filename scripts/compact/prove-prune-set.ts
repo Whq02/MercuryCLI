@@ -30,7 +30,8 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 type Message = import('../../src/types/message.ts').Message
 
 const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Workshop', 'Inspect', 'Zzz']
-const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', 'TeamBrief']
+const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.ts')
+const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]
 const PROTECTED = ['Skill', 'ExitStrategyMode', 'EnterStrategyMode']
 const PERSISTED_PATH = join(home, 'tool-results', 'agent-1.txt')
 const PERSISTED_AGENT = buildLargeToolResultMessage({ filepath: PERSISTED_PATH, originalSize: 120_000, preview: 'p'.repeat(1_500) } as never)
@@ -75,7 +76,7 @@ if (projected === null) {
   for (const name of PROTECTED) check(`${name}: protected — its result stays verbatim`, resultOf(projected.messages, `use_${name}`) === chars(4_000))
   for (const id of ['f1', 'f2', 'f3', 'f4', 'f5']) check(`${id}: inside the recent five — stays`, resultOf(projected.messages, id) === chars(9_000))
   check('the cleared ids are exactly the class results plus the persisted Agent result', JSON.stringify([...projected.clearedIds].sort()) === JSON.stringify([...CLASS.map(n => `use_${n}`), 'use_agent_persisted'].sort()), projected.clearedIds.join(','))
-  check('the never-prune set is the protection law\'s own', NEVER.every(name => law.isProtectedFromPruning(name)) && law.PROTECTED_TOOL_NAMES.has('AskUserQuestion') && law.PROTECTED_TOOL_NAMES.has('ToolSearch') && law.PROTECTED_TOOL_NAMES.has('LiveComms') && law.PROTECTED_TOOL_NAMES.has('TeamBrief'))
+  check('the never-prune set is the protection law\'s own', NEVER.every(name => law.isProtectedFromPruning(name)) && law.PROTECTED_TOOL_NAMES.has('AskUserQuestion') && law.PROTECTED_TOOL_NAMES.has('ToolSearch') && law.PROTECTED_TOOL_NAMES.has('LiveComms') && law.PROTECTED_TOOL_NAMES.has('LiveComms'))
 }
 
 section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a pass under 20k clears nothing, never a result under 50 tokens')

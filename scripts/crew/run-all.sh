@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-watch: src/ink.ts
+# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts
 # gate-class: cpu
 # gate-watch: scripts/ui/vshot.py src/daemon/** src/utils/crew/crewClient*
 # gate-watch: src/utils/daemonBreaker* src/utils/swarm/crewHelpers*
@@ -7,7 +8,7 @@
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: src/tools/SendMessageTool/**
 # gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
-# gate-watch: scripts/lib/fixtureApi.ts src/Task.ts src/bootstrap/state.ts src/cli/print.ts
+# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/captureDriver.ts src/Task.ts src/bootstrap/state.ts src/cli/print.ts
 # gate-watch: src/commands/exit/exit.tsx src/components/MercuryExitConfirm.tsx
 # gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts

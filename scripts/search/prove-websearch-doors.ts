@@ -623,7 +623,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         MERCURY_CONFIG_DIR: join(homeDir, '.mercury'),
         MERCURY_CREDENTIAL_STORE: 'file',
         MERCURY_DAEMON_DIR: join(homeDir, 'daemon'),
-        MERCURY_CREWS_DIR: join(homeDir, 'teams'),
+        MERCURY_CREWS_DIR: join(homeDir, 'crews'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none',
         MERCURY_TOOL_SEARCH: '0',
         OPENAI_API_KEY: 'fixture-openai-key',

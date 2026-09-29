@@ -75,7 +75,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -175,10 +175,10 @@ async function leg(cols: number, rows: number): Promise<void> {
   const { home, cwd } = seedWorld()
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(LEAD_ASK_SLEEPER),
-    { data: '/teammates', atTick: 999, awaitText: SEAT_NAME, requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'crew-in-rail' },
+    { data: '/crewmates', atTick: 999, awaitText: SEAT_NAME, requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'crew-in-rail' },
     { data: '\r', afterPrevTicks: 4 },
     { data: ESC, atTick: 999, awaitText: MAIN_CHAT_KEY, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'popup' },
-    { data: '/teammates', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'popup-closed' },
+    { data: '/crewmates', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'popup-closed' },
     { data: '\r', afterPrevTicks: 4 },
     { data: 'm', atTick: 999, awaitText: MAIN_CHAT_KEY, requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
     { data: TAB, atTick: 999, awaitText: 'message sleeper', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'main-chat' },
@@ -207,7 +207,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   const popup = marks['popup'] ?? ''
   const window = windowOf(popup.split('\n'), CREW_TITLE)
   console.log(`  the crew window: ${describe(window)}`)
-  check(`${tag}: /teammates opens the crew view as one closed window inside the centre`, window !== null && window.left > RAIL_COLS && window.width < cols - 2 * RAIL_COLS - 4 && window.top > 1 && window.bottom < rows - 6, describe(window))
+  check(`${tag}: /crewmates opens the crew view as one closed window inside the centre`, window !== null && window.left > RAIL_COLS && window.width < cols - 2 * RAIL_COLS - 4 && window.top > 1 && window.bottom < rows - 6, describe(window))
   check(`${tag}: the composer stays on screen under the pop-up`, composerRow(popup) !== undefined, flat(popup).slice(-300))
   check(`${tag}: the crew view's key row carries "${MAIN_CHAT_KEY}"`, window !== null && window.rows.some(row => row.includes(MAIN_CHAT_KEY)), window === null ? '' : flat(window.rows[window.rows.length - 2] ?? ''))
   const closed = marks['popup-closed'] ?? ''

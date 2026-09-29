@@ -394,7 +394,7 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/crew/
   const warmEnv = buildStreamJsonInvocation(buildConcourseWorkerSpec({ runnerId: 'w-ins-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true, kit: K_RESOLVED as never })).env
   t("N2 POISON armed: a WARM child env carries ITS SPEC's kit and never the stray beside it (the ensure's stamp is the only speaker; a spec-less warm build still stamps nothing — K10)", warmEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
   const crewEnv = buildStreamJsonInvocation(buildCrewSpec('helper', 'fable', PROJECT)).env
-  t('N3 POISON armed: a CREW teammate (a non-session child) never inherits a kit spelling — the kit narrows only the session it was stamped on', !('MERCURY_SESSION_KIT' in crewEnv))
+  t('N3 POISON armed: a CREW crewmate (a non-session child) never inherits a kit spelling — the kit narrows only the session it was stamped on', !('MERCURY_SESSION_KIT' in crewEnv))
   delete process.env.MERCURY_SESSION_KIT
 
   const { spawnSync } = await import('node:child_process')

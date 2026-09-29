@@ -449,7 +449,7 @@ export type Attachment =
       tokenCount: number
     }
   | {
-      type: 'teammate_shutdown_batch'
+      type: 'crewmate_shutdown_batch'
       count: number
     }
   | {
@@ -567,11 +567,11 @@ export function isCrewMessagesAttachment(attachment: { type: string }): attachme
 }
 
 export type CrewContextAttachment = {
-  type: 'team_context'
+  type: 'crew_context'
   agentId: string
   agentName: string
-  teamName: string
-  teamConfigPath: string
+  crewName: string
+  crewConfigPath: string
   taskListPath: string
 }
 

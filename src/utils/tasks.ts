@@ -57,8 +57,8 @@ export function getTaskListId(): string {
   const override = process.env.MERCURY_TASK_LIST_ID
   if (override) return override
   if (isInProcessCrewmate()) {
-    const teamName = getCrewmateContext()?.teamName
-    if (teamName) return teamName
+    const crewName = getCrewmateContext()?.crewName
+    if (crewName) return crewName
   }
   return getCrewName() || leaderCrewName || getSessionId()
 }
@@ -135,9 +135,9 @@ export async function listSessionMission(): Promise<Task[]> {
   return rows
 }
 
-export function setLeaderCrewName(teamName: string): void {
-  if (leaderCrewName === teamName) return
-  leaderCrewName = teamName
+export function setLeaderCrewName(crewName: string): void {
+  if (leaderCrewName === crewName) return
+  leaderCrewName = crewName
   notifyTasksUpdated()
 }
 
@@ -151,8 +151,8 @@ export function sanitizePathComponent(input: string): string {
   return input.replace(/[^A-Za-z0-9_-]/g, '-')
 }
 
-function sanitizeCrewNameForListId(teamName: string): string {
-  return teamName.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()
+function sanitizeCrewNameForListId(crewName: string): string {
+  return crewName.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()
 }
 
 export function getTasksDir(taskListId: string): string {
@@ -557,8 +557,8 @@ export type AgentStatus = {
   currentTasks: string[]
 }
 
-export async function getAgentStatuses(teamName: string): Promise<AgentStatus[] | null> {
-  const crewFile = await readCrewFileAsync(teamName)
+export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] | null> {
+  const crewFile = await readCrewFileAsync(crewName)
   if (!crewFile) return null
   const members: CrewMember[] = (crewFile.members ?? []).map(member => ({
     agentId: String(member.agentId),
@@ -570,7 +570,7 @@ export async function getAgentStatuses(teamName: string): Promise<AgentStatus[] 
       .filter(member => member.agentId !== crewFile.leadAgentId && member.name !== CREW_LEAD_NAME && member.isActive !== false)
       .map(member => String(member.agentId)),
   )
-  const tasks = await listTasks(sanitizeCrewNameForListId(teamName))
+  const tasks = await listTasks(sanitizeCrewNameForListId(crewName))
   const open = tasks.filter(task => task.status !== 'completed' && task.owner)
   return members.map(member => {
     const ownedIds = uniq(
@@ -590,18 +590,18 @@ export type UnassignTasksResult = {
 }
 
 export async function unassignCrewmateTasks(
-  teamName: string,
+  crewName: string,
   crewmateId: string,
   crewmateName: string,
   reason: 'terminated' | 'shutdown',
 ): Promise<UnassignTasksResult> {
-  const tasks = await listTasks(teamName)
+  const tasks = await listTasks(crewName)
   const owned = tasks.filter(
     task => task.status !== 'completed' && (task.owner === crewmateId || task.owner === crewmateName),
   )
   const unassignedTasks: Array<{ id: string; subject: string }> = []
   for (const task of owned) {
-    await updateTask(teamName, task.id, { owner: undefined, status: 'pending' })
+    await updateTask(crewName, task.id, { owner: undefined, status: 'pending' })
     unassignedTasks.push({ id: task.id, subject: task.subject })
   }
   if (unassignedTasks.length > 0) {
@@ -614,6 +614,6 @@ export async function unassignCrewmateTasks(
       ? departed
       : `${departed} ${unassignedTasks.length} task(s) were unassigned: ${unassignedTasks
           .map(task => `#${task.id} "${task.subject}"`)
-          .join(', ')}. Use ${TASK_LIST_TOOL_NAME} to check availability and ${TASK_UPDATE_TOOL_NAME} with owner to reassign them to idle teammates.`
+          .join(', ')}. Use ${TASK_LIST_TOOL_NAME} to check availability and ${TASK_UPDATE_TOOL_NAME} with owner to reassign them to idle crewmates.`
   return { unassignedTasks, notificationMessage }
 }

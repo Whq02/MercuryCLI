@@ -79,7 +79,7 @@ Second paragraph.
 const GNARLY = `---
 # The reviewer agent — do not rename.
 name: gnarly
-x-team-owner: "platform ✓ 团队"
+x-crew-owner: "platform ✓ 团队"
 description: 'single quoted'
 # tools comment sits above tools
 tools:
@@ -105,7 +105,7 @@ Body with unicode — ✓ 你好.
   check(
     'unknown keys preserved',
     JSON.stringify([...doc.unknownKeys].sort()) ===
-      JSON.stringify(['custom-nested', 'notes', 'x-team-owner']),
+      JSON.stringify(['custom-nested', 'notes', 'x-crew-owner']),
     doc.unknownKeys.join(','),
   )
   check('raw survives byte-for-byte', doc.raw === GNARLY)

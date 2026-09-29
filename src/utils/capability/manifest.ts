@@ -50,7 +50,7 @@ const NET_NAME_HINTS = ['webfetch', 'websearch', 'fetch']
 const COORD_NAME_HINTS = [
   'agent',
   'task',
-  'team',
+  'crew',
   'crew',
   'livecomms',
   'cron',

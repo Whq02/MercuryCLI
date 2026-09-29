@@ -103,26 +103,6 @@ export function hasSandboxPermissionCallback(requestId: string): boolean {
   return sandboxCallbacks.has(requestId)
 }
 
-export function processSandboxPermissionResponse({
-  requestId,
-  host,
-  allow,
-}: {
-  requestId: string
-  host: string
-  allow: boolean
-}): boolean {
-  void host
-  const callback = sandboxCallbacks.get(requestId)
-  if (callback === undefined) {
-    logForDebugging(`sandbox response for unregistered request ${requestId}`)
-    return false
-  }
-  sandboxCallbacks.delete(requestId)
-  callback.resolve(allow)
-  return true
-}
-
 export function clearAllPendingCallbacks(): void {
   permissionCallbacks.clear()
   sandboxCallbacks.clear()
@@ -138,11 +118,11 @@ export function useSwarmPermissionPoller(): void {
       inFlightRef.current = true
       try {
         const agentName = getAgentName()
-        const teamName = getCrewName()
-        if (!agentName || !teamName) return
+        const crewName = getCrewName()
+        if (!agentName || !crewName) return
         for (const requestId of [...permissionCallbacks.keys()]) {
           try {
-            const response = await pollForResponse(requestId, agentName, teamName)
+            const response = await pollForResponse(requestId, agentName, crewName)
             if (response === null) continue
             const dispatched = processMailboxPermissionResponse({
               requestId,
@@ -152,7 +132,7 @@ export function useSwarmPermissionPoller(): void {
               permissionUpdates: response.permissionUpdates,
             })
             if (dispatched) {
-              await removeWorkerResponse(requestId, agentName, teamName)
+              await removeWorkerResponse(requestId, agentName, crewName)
             }
           } catch (error) {
             logForDebugging(`permission poll failed for ${requestId}: ${error}`)

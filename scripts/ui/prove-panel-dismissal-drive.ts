@@ -47,7 +47,7 @@ const deadProviders = Object.fromEntries([
 try {
   for (const [cols, rows, noDim] of [[178, 51, false], [120, 40, false], [178, 51, true]] as const) {
     if (process.argv.includes('--no-dim-only') && !noDim) continue
-    for (const panel of noDim ? ['teammates'] : ['teammates', 'tasks', 'model']) {
+    for (const panel of noDim ? ['crewmates'] : ['crewmates', 'tasks', 'model']) {
       const tag = `${panel}-${cols}x${rows}${noDim ? '-no-dim' : ''}`
       const world = join(scratch, tag)
       const cwd = join(world, 'cwd')
@@ -57,8 +57,8 @@ try {
       writeFileSync(join(home, 'settings.json'), '{}')
       const out = join(world, 'capture.json')
       const config = join(world, 'capture-config.json')
-      const title = panel === 'teammates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
-      const needle = panel === 'teammates' ? 'Sub-agents' : title
+      const title = panel === 'crewmates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
+      const needle = panel === 'crewmates' ? 'Sub-agents' : title
       const ready = { requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
@@ -79,7 +79,7 @@ try {
         ...deadProviders,
         TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', BROWSER: '/usr/bin/true',
         MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000',
-        MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREWS_DIR: join(world, 'teams'), MERCURY_CREW_DIR: join(world, 'crew'),
+        MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREWS_DIR: join(world, 'crews'), MERCURY_CREW_DIR: join(world, 'crew'),
         MERCURY_HOME: join(world, 'home'), MERCURY_DOCTOR_STATE_DIR: join(world, 'doctor'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_IDE_SKIP_AUTO_INSTALL: '1', MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
@@ -108,7 +108,7 @@ try {
       const viewBefore = inkOfRow(marks.chat!, '✶ VIEW')
       const viewOpen = inkOfRow(marks.open!, '✶ VIEW')
       if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the view header row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
-      else if (panel === 'teammates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the view header row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the view header row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))

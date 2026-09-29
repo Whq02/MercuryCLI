@@ -23,7 +23,7 @@ type Msg = {
   read: boolean
 }
 const AGENT = 'worker'
-const CREW = 'proofteam'
+const CREW = 'proofcrew'
 const key = (m: { from: string; timestamp: string; text: string }) =>
   `${m.from} ${m.timestamp} ${m.text}`
 

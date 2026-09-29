@@ -71,7 +71,7 @@ import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   getParentSessionId,
   getCrewName,
-  isTeammate,
+  isCrewmate,
 } from '../../utils/crewmate.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import {
@@ -121,6 +121,7 @@ import { isResultTruncated } from './UI.js'
 import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import { envelopeFor } from '../../services/agentResults/ingest.js'
 import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'
+import { readRetiredAgentToolInput } from '../../migrations/retiredCrewSpellings.js'
 
 export type Progress = AgentToolProgress | ShellProgress
 
@@ -138,7 +139,7 @@ export type AgentToolInput = {
   effort?: EffortLevel
   run_in_background?: boolean
   name?: string
-  team_name?: string
+  crew_name?: string
   mode?: string
   isolation?: 'worktree'
   worktree_at?: string
@@ -251,11 +252,11 @@ export const inputSchema = lazySchema(() => {
       .describe(
         'Name for the spawned agent; makes it addressable via SendMessage({to: name}) while it runs.',
       ),
-    team_name: z.string().optional().describe('Team for a teammate spawn.'),
+    crew_name: z.string().optional().describe('Crew for a crewmate spawn.'),
     mode: z
       .string()
       .optional()
-      .describe('Permission mode for the spawned teammate.'),
+      .describe('Permission mode for the spawned crewmate.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -333,7 +334,7 @@ export const outputSchema = lazySchema(() => {
 export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
   isAsync?: true
   agentName?: string
-  teamName?: string
+  crewName?: string
 }
 
 
@@ -408,8 +409,8 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
-function isCrewmateSpawn(input: AgentToolInput, teamName = isAgentSwarmsEnabled() ? (input.team_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
-  return Boolean(teamName && input.name)
+function isCrewmateSpawn(input: AgentToolInput, crewName = isAgentSwarmsEnabled() ? (input.crew_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
+  return Boolean(crewName && input.name)
 }
 
 export const AgentTool = buildTool({
@@ -417,7 +418,8 @@ export const AgentTool = buildTool({
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a task to a subagent that works on its own',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
-    return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
+    const schema = inputSchema()
+    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>
   },
   get outputSchema(): ZodType {
     return outputSchema() as unknown as ZodType
@@ -507,9 +509,9 @@ export const AgentTool = buildTool({
     const startTime = Date.now()
     const options = context.options
 
-    if (input.team_name && !isAgentSwarmsEnabled()) {
+    if (input.crew_name && !isAgentSwarmsEnabled()) {
       throw new Error(
-        'The team_name parameter requires agent teams, which are not available in this session.',
+        'The crew_name parameter requires agent crews, which are not available in this session.',
       )
     }
 
@@ -518,19 +520,19 @@ export const AgentTool = buildTool({
       throw new Error(authority.reason)
     }
 
-    const teamName = isAgentSwarmsEnabled()
-      ? (input.team_name ?? getCrewName())
+    const crewName = isAgentSwarmsEnabled()
+      ? (input.crew_name ?? getCrewName())
       : undefined
 
-    if (isTeammate() && teamName && input.name) {
+    if (isCrewmate() && crewName && input.name) {
       throw new Error(
-        'Teammates cannot spawn teammates — the roster is flat and has one lead. Omit the name parameter to launch a plain subagent instead.',
+        'Crewmates cannot spawn crewmates — the roster is flat and has one lead. Omit the name parameter to launch a plain subagent instead.',
       )
     }
 
-    if (isInProcessCrewmate() && input.run_in_background && teamName) {
+    if (isInProcessCrewmate() && input.run_in_background && crewName) {
       throw new Error(
-        'An in-process teammate cannot spawn a background agent — its lifecycle is bound to the leader process. Launch the agent synchronously instead.',
+        'An in-process crewmate cannot spawn a background agent — its lifecycle is bound to the leader process. Launch the agent synchronously instead.',
       )
     }
 
@@ -541,13 +543,13 @@ export const AgentTool = buildTool({
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
-    if (isCrewmateSpawn(input, teamName)) {
+    if (isCrewmateSpawn(input, crewName)) {
       const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
       if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
         throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
       }
       const requestedType = decodeAgentType(input.subagent_type)
-      if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
+      if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a crewmate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
       const crewmateDefinition = definitions.find(
         agent => agent.agentType === requestedType,
@@ -561,7 +563,7 @@ export const AgentTool = buildTool({
         {
           name: input.name,
           prompt: input.prompt,
-          team_name: teamName,
+          crew_name: crewName,
           ...(crewmateCwd !== undefined ? { cwd: crewmateCwd } : {}),
           ...(input.isolation === 'worktree'
             ? { worktree: { ...(input.worktree_at !== undefined ? { at: input.worktree_at } : {}) } }
@@ -582,10 +584,10 @@ export const AgentTool = buildTool({
       return {
         data: {
           ...record,
-          status: 'teammate_spawned',
+          status: 'crewmate_spawned',
           agentId: record.agent_id,
           agentName: input.name,
-          teamName: record.team_name ?? teamName,
+          crewName: record.crew_name ?? crewName,
           prompt: input.prompt,
           description: input.description,
         } as never,
@@ -645,9 +647,9 @@ export const AgentTool = buildTool({
       )
     }
 
-    if (agentDef.background === true && isInProcessCrewmate() && teamName) {
+    if (agentDef.background === true && isInProcessCrewmate() && crewName) {
       throw new Error(
-        `Agent type '${agentDef.agentType}' always runs in the background, and an in-process teammate cannot spawn background agents.`,
+        `Agent type '${agentDef.agentType}' always runs in the background, and an in-process crewmate cannot spawn background agents.`,
       )
     }
 
@@ -1018,18 +1020,18 @@ export const AgentTool = buildTool({
       worktreePath?: string
       worktreeBranch?: string
       agentName?: string
-      teamName?: string
+      crewName?: string
     }
     const status = (data as { status?: string }).status
 
-    if (status === 'teammate_spawned') {
+    if (status === 'crewmate_spawned') {
       return {
         type: 'tool_result' as const,
         tool_use_id: toolUseID,
         content: [
           {
             type: 'text' as const,
-            text: `Teammate spawned. Agent id: ${data.agentId}, name: ${data.agentName}, team: ${data.teamName}. The agent is running and will receive instructions through its mailbox.`,
+            text: `Crewmate spawned. Agent id: ${data.agentId}, name: ${data.agentName}, crew: ${data.crewName}. The agent is running and will receive instructions through its mailbox.`,
           },
         ],
       }

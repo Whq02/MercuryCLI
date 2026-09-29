@@ -24,7 +24,7 @@ check('self-approval (envelope==body) ⇒ victim is the verified sender', v('ali
 check('whitespace tolerated (still self)', v(' alice ', 'alice') === 'alice')
 
 check('SPOOF: in-body from=bob, sender=alice ⇒ IGNORED (null)', v('alice', 'bob') === null)
-check('cannot target another teammate by name via in-body from', v('attacker', 'victim') === null)
+check('cannot target another crewmate by name via in-body from', v('attacker', 'victim') === null)
 
 check('missing in-body from ⇒ bound to verified sender', v('alice', undefined) === 'alice')
 check('empty in-body from ⇒ bound to verified sender', v('alice', '') === 'alice')
@@ -35,14 +35,14 @@ check('undefined envelope sender ⇒ IGNORED (null)', v(undefined, 'alice') === 
 console.log('\n' + '─'.repeat(76) + '\n shutdown_request sender binding — reject the lead-attributed forge')
 const r = (env: string | undefined, from: unknown) =>
   resolveShutdownRequestSender(env, { from } as Parameters<typeof resolveShutdownRequestSender>[1])
-check('legit lead request (envelope==body) ⇒ attributed to lead', r('team-lead', 'team-lead') === 'team-lead')
+check('legit lead request (envelope==body) ⇒ attributed to lead', r('crew-lead', 'crew-lead') === 'crew-lead')
 check('legit command-rank request (envelope==body) ⇒ attributed to sender', r('captain', 'captain') === 'captain')
-check('SPOOF: body=team-lead, envelope=peer ⇒ IGNORED (null)', r('peer', 'team-lead') === null)
+check('SPOOF: body=crew-lead, envelope=peer ⇒ IGNORED (null)', r('peer', 'crew-lead') === null)
 check('cannot impersonate any other directing actor', r('attacker', 'captain') === null)
 check('honest peer request ⇒ attributed to the peer (not the lead)', r('peer', 'peer') === 'peer')
-check('missing in-body from ⇒ bound to verified sender', r('team-lead', undefined) === 'team-lead')
-check('no verified envelope sender ⇒ IGNORED (null)', r('', 'team-lead') === null)
-check('undefined envelope sender ⇒ IGNORED (null)', r(undefined, 'team-lead') === null)
+check('missing in-body from ⇒ bound to verified sender', r('crew-lead', undefined) === 'crew-lead')
+check('no verified envelope sender ⇒ IGNORED (null)', r('', 'crew-lead') === null)
+check('undefined envelope sender ⇒ IGNORED (null)', r(undefined, 'crew-lead') === null)
 
 console.log('\n' + '─'.repeat(76) + '\n Q&A answer authority (#18) — only the addressee closes')
 check('the addressee (to) closing ⇒ allowed', canAnswerCloseQuestion({ to: 'bob' }, 'bob') === true)
@@ -56,7 +56,7 @@ check('a different name still cannot close (case-insensitive is not any-name)', 
 
 console.log('\n— HB-0070: canDirect re-check on received shutdown_requests —')
 const actor = (name: string) => resolveDirectActor(null, name, undefined)
-check('lead → me: shutdown_request ALLOWED to surface', canDirect(actor('team-lead'), actor('me')).allowed === true)
+check('lead → me: shutdown_request ALLOWED to surface', canDirect(actor('crew-lead'), actor('me')).allowed === true)
 check('peer → me: shutdown_request DENIED (the coord_say-injected bypass is gated)', canDirect(actor('peer'), actor('me')).allowed === false)
 check('me → me: self-shutdown ALLOWED (an agent may request its own shutdown)', canDirect(actor('me'), actor('me')).allowed === true)
 const sendTool = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'SendMessageTool', 'SendMessageTool.ts'), 'utf-8')

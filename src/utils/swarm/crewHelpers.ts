@@ -15,11 +15,13 @@ import { lazySchema } from '../lazySchema.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
-import { getAgentName, getCrewName, isTeammate } from '../crewmate.js'
+import { getAgentName, getCrewName, isCrewmate } from '../crewmate.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import type { CrewCharter } from './crewCharter.js'
 import type { BackendType } from './backends/types.js'
+import { readRetiredCrewFile } from '../../migrations/retiredCrewSpellings.js'
+import { getRetiredCrewsDir } from '../envUtils.js'
 
 
 export type CrewAllowedPath = {
@@ -77,12 +79,21 @@ export function sanitizeAgentName(name: string): string {
   return name.replace(/@/g, '-')
 }
 
-export function getCrewDir(teamName: string): string {
-  return join(getCrewsDir(), sanitizeName(teamName))
+export function getCrewDir(crewName: string): string {
+  return join(getCrewsDir(), sanitizeName(crewName))
 }
 
-export function getCrewFilePath(teamName: string): string {
-  return join(getCrewDir(teamName), 'config.json')
+export function getCrewFilePath(crewName: string): string {
+  return join(getCrewDir(crewName), 'config.json')
+}
+
+function readableCrewFilePath(crewName: string): string {
+  const current = getCrewFilePath(crewName)
+  if (existsSync(current)) return current
+  const retired = getRetiredCrewsDir()
+  if (retired === null) return current
+  const old = join(retired, sanitizeName(crewName), 'config.json')
+  return existsSync(old) ? old : current
 }
 
 
@@ -141,7 +152,7 @@ function parseCrewFile(raw: string, path: string): CrewFile | null {
     nameRefusedRoster(path)
     throw error
   }
-  if (isCrewFile(parsed)) return parsed
+  if (isCrewFile(parsed)) return readRetiredCrewFile(parsed, CREW_LEAD_NAME)
   nameRefusedRoster(path)
   return null
 }
@@ -150,12 +161,12 @@ function nameRefusedRoster(path: string): void {
   if (namedRosterFiles.has(path)) return
   namedRosterFiles.add(path)
   const reason = `${path} is not a decodable roster: left in place, reported`
-  logForDebugging(`[team-roster] ${reason}`, { level: 'warn' })
-  void recordRefusedDurableFile({ store: 'team-roster', path, reason })
+  logForDebugging(`[crew-roster] ${reason}`, { level: 'warn' })
+  void recordRefusedDurableFile({ store: 'crew-roster', path, reason })
 }
 
-export function readCrewFile(teamName: string): CrewFile | null {
-  const path = getCrewFilePath(teamName)
+export function readCrewFile(crewName: string): CrewFile | null {
+  const path = readableCrewFilePath(crewName)
   try {
     return parseCrewFile(readFileSync(path, 'utf-8'), path)
   } catch (error) {
@@ -164,8 +175,8 @@ export function readCrewFile(teamName: string): CrewFile | null {
   }
 }
 
-export async function readCrewFileAsync(teamName: string): Promise<CrewFile | null> {
-  const path = getCrewFilePath(teamName)
+export async function readCrewFileAsync(crewName: string): Promise<CrewFile | null> {
+  const path = readableCrewFilePath(crewName)
   try {
     return parseCrewFile(await readFile(path, 'utf-8'), path)
   } catch (error) {
@@ -184,11 +195,11 @@ function writeCrewFileAtomicSync(path: string, crewFile: CrewFile): void {
 }
 
 export async function writeCrewFileAsync(
-  teamName: string,
+  crewName: string,
   crewFile: CrewFile,
   opts?: { exclusive?: boolean },
 ): Promise<void> {
-  const path = getCrewFilePath(teamName)
+  const path = getCrewFilePath(crewName)
   await mkdir(dirname(path), { recursive: true })
   if (opts?.exclusive) {
     const { writeFile } = await import('node:fs/promises')
@@ -207,8 +218,8 @@ const compromisedCrewLocks = new Set<string>()
 
 const crewFileLanes = new Map<string, GroupCommitLane<CrewFile | null>>()
 
-function laneFor(teamName: string): GroupCommitLane<CrewFile | null> {
-  const path = getCrewFilePath(teamName)
+function laneFor(crewName: string): GroupCommitLane<CrewFile | null> {
+  const path = getCrewFilePath(crewName)
   let lane = crewFileLanes.get(path)
   if (lane !== undefined) return lane
   lane = groupCommitLane<CrewFile | null>({
@@ -254,12 +265,12 @@ function laneFor(teamName: string): GroupCommitLane<CrewFile | null> {
 }
 
 async function withLockedCrewFile<R>(
-  teamName: string,
+  crewName: string,
   mutate: (
     current: CrewFile | null,
   ) => { next: CrewFile | null; result: R } | Promise<{ next: CrewFile | null; result: R }>,
 ): Promise<R> {
-  return laneFor(teamName).submit(async current => {
+  return laneFor(crewName).submit(async current => {
     const { next, result } = await mutate(current)
     const published = next !== null && Object.is(next, current) ? { ...next } : next
     return { next: published, result }
@@ -275,10 +286,10 @@ function sleepSyncMs(ms: number): void {
 }
 
 function withLockedCrewFileSync<R>(
-  teamName: string,
+  crewName: string,
   mutate: (current: CrewFile | null) => { next: CrewFile | null; result: R },
 ): R {
-  const path = getCrewFilePath(teamName)
+  const path = getCrewFilePath(crewName)
   let release: (() => void) | null = null
   if (existsSync(path)) {
     for (let attempt = 0; attempt < 20; attempt++) {
@@ -293,7 +304,7 @@ function withLockedCrewFileSync<R>(
         }
         if (!isENOENT(error)) {
           logForDebugging(
-            `team roster sync lock failed (${code ?? 'unknown'}) — proceeding unlocked`,
+            `crew roster sync lock failed (${code ?? 'unknown'}) — proceeding unlocked`,
           )
         }
         break
@@ -321,15 +332,15 @@ function withLockedCrewFileSync<R>(
 
 const MAX_CREW_MEMBERS = 16
 
-export async function appendCrewMember(teamName: string, member: CrewMember): Promise<void> {
-  await withLockedCrewFile(teamName, async current => {
-    const roster = current ?? (await import('../crew/crewBirth.js')).foundingRosterFor(teamName)
+export async function appendCrewMember(crewName: string, member: CrewMember): Promise<void> {
+  await withLockedCrewFile(crewName, async current => {
+    const roster = current ?? (await import('../crew/crewBirth.js')).foundingRosterFor(crewName)
     if (roster === null) {
-      throw new Error(`Team "${teamName}" does not exist`)
+      throw new Error(`Crew "${crewName}" does not exist`)
     }
     if (roster.members.length >= MAX_CREW_MEMBERS) {
       throw new Error(
-        `Team "${teamName}" already has ${roster.members.length} members (max ${MAX_CREW_MEMBERS}) — shut down an idle teammate before spawning another`,
+        `Crew "${crewName}" already has ${roster.members.length} members (max ${MAX_CREW_MEMBERS}) — shut down an idle crewmate before spawning another`,
       )
     }
     return { next: { ...roster, members: [...roster.members, member] }, result: undefined }
@@ -337,16 +348,16 @@ export async function appendCrewMember(teamName: string, member: CrewMember): Pr
 }
 
 export function removeCrewmateFromCrewFile(
-  teamName: string,
+  crewName: string,
   identifier: { agentId?: string; name?: string },
 ): boolean {
   if (!identifier.agentId && !identifier.name) {
     logForDebugging('removeCrewmateFromCrewFile: no identifier given')
     return false
   }
-  return withLockedCrewFileSync(teamName, current => {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) {
-      logForDebugging(`removeCrewmateFromCrewFile: no roster for ${teamName}`)
+      logForDebugging(`removeCrewmateFromCrewFile: no roster for ${crewName}`)
       return { next: null, result: false }
     }
     const surviving = current.members.filter(
@@ -357,15 +368,15 @@ export function removeCrewmateFromCrewFile(
         ),
     )
     if (surviving.length === current.members.length) {
-      logForDebugging(`removeCrewmateFromCrewFile: no member matched in ${teamName}`)
+      logForDebugging(`removeCrewmateFromCrewFile: no member matched in ${crewName}`)
       return { next: null, result: false }
     }
     return { next: { ...current, members: surviving }, result: true }
   })
 }
 
-export function addHiddenPaneId(teamName: string, paneId: string): boolean {
-  return withLockedCrewFileSync(teamName, current => {
+export function addHiddenPaneId(crewName: string, paneId: string): boolean {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
     const hidden = current.hiddenPaneIds ?? []
     if (hidden.includes(paneId)) return { next: null, result: true }
@@ -373,8 +384,8 @@ export function addHiddenPaneId(teamName: string, paneId: string): boolean {
   })
 }
 
-export function removeHiddenPaneId(teamName: string, paneId: string): boolean {
-  return withLockedCrewFileSync(teamName, current => {
+export function removeHiddenPaneId(crewName: string, paneId: string): boolean {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
     const hidden = current.hiddenPaneIds ?? []
     if (!hidden.includes(paneId)) return { next: null, result: true }
@@ -385,8 +396,8 @@ export function removeHiddenPaneId(teamName: string, paneId: string): boolean {
   })
 }
 
-export function removeMemberFromCrew(teamName: string, paneId: string): boolean {
-  return withLockedCrewFileSync(teamName, current => {
+export function removeMemberFromCrew(crewName: string, paneId: string): boolean {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
     const surviving = current.members.filter(member => member.tmuxPaneId !== paneId)
     if (surviving.length === current.members.length) return { next: null, result: false }
@@ -412,12 +423,12 @@ export async function removeMemberByAgentId(crew: string, id: string): Promise<b
   })
 }
 
-export function setMemberMode(teamName: string, memberName: string, mode: PermissionMode): boolean {
-  return withLockedCrewFileSync(teamName, current => {
+export function setMemberMode(crewName: string, memberName: string, mode: PermissionMode): boolean {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
     const member = current.members.find(candidate => candidate.name === memberName)
     if (member === undefined) {
-      logForDebugging(`setMemberMode: no member ${memberName} in ${teamName}`)
+      logForDebugging(`setMemberMode: no member ${memberName} in ${crewName}`)
       return { next: null, result: false }
     }
     if (member.mode === mode) return { next: null, result: true }
@@ -434,10 +445,10 @@ export function setMemberMode(teamName: string, memberName: string, mode: Permis
 }
 
 export function setMultipleMemberModes(
-  teamName: string,
+  crewName: string,
   updates: Array<{ memberName: string; mode: PermissionMode }>,
 ): boolean {
-  return withLockedCrewFileSync(teamName, current => {
+  return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
     const requestedByName = new Map(updates.map(update => [update.memberName, update.mode]))
     let changed = false
@@ -453,26 +464,26 @@ export function setMultipleMemberModes(
 }
 
 export function syncCrewmateMode(mode: PermissionMode, crewNameOverride?: string): void {
-  if (!isTeammate()) return
-  const teamName = crewNameOverride ?? getCrewName()
+  if (!isCrewmate()) return
+  const crewName = crewNameOverride ?? getCrewName()
   const agentName = getAgentName()
-  if (!teamName || !agentName) return
-  setMemberMode(teamName, agentName, mode)
+  if (!crewName || !agentName) return
+  setMemberMode(crewName, agentName, mode)
 }
 
 export async function setMemberActive(
-  teamName: string,
+  crewName: string,
   memberName: string,
   isActive: boolean,
 ): Promise<void> {
-  await withLockedCrewFile(teamName, current => {
+  await withLockedCrewFile(crewName, current => {
     if (current === null) {
-      logForDebugging(`setMemberActive: no roster for ${teamName}`)
+      logForDebugging(`setMemberActive: no roster for ${crewName}`)
       return { next: null, result: undefined }
     }
     const member = current.members.find(candidate => candidate.name === memberName)
     if (member === undefined) {
-      logForDebugging(`setMemberActive: no member ${memberName} in ${teamName}`)
+      logForDebugging(`setMemberActive: no member ${memberName} in ${crewName}`)
       return { next: null, result: undefined }
     }
     if (member.isActive === isActive) return { next: null, result: undefined }
@@ -482,12 +493,12 @@ export async function setMemberActive(
 }
 
 
-export function registerCrewForSessionCleanup(teamName: string): void {
-  getSessionCreatedCrews().add(teamName)
+export function registerCrewForSessionCleanup(crewName: string): void {
+  getSessionCreatedCrews().add(crewName)
 }
 
-export function unregisterCrewForSessionCleanup(teamName: string): void {
-  getSessionCreatedCrews().delete(teamName)
+export function unregisterCrewForSessionCleanup(crewName: string): void {
+  getSessionCreatedCrews().delete(crewName)
 }
 
 export async function cleanupSessionCrews(): Promise<void> {
@@ -499,10 +510,10 @@ export const inputSchema = lazySchema(() =>
   z.strictObject({
     operation: z
       .enum(['spawnCrew', 'cleanup'])
-      .describe('The team operation to perform: spawn a team or clean one up'),
-    agent_type: z.string().optional().describe('The agent type for spawned teammates'),
-    team_name: z.string().optional().describe('The team name'),
-    description: z.string().optional().describe('A description of the team'),
+      .describe('The crew operation to perform: spawn a crew or clean one up'),
+    agent_type: z.string().optional().describe('The agent type for spawned crewmates'),
+    crew_name: z.string().optional().describe('The crew name'),
+    description: z.string().optional().describe('A description of the crew'),
   }),
 )
 
@@ -511,7 +522,7 @@ export type Input = z.infer<ReturnType<typeof inputSchema>>
 export type SpawnCrewOutput = {
   operation: 'spawnCrew'
   success: boolean
-  teamName?: string
+  crewName?: string
   error?: string
 }
 

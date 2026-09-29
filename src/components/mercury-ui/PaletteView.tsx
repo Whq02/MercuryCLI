@@ -203,7 +203,7 @@ function LadderHeader({ ladder }: { ladder: CommandHierarchy | null }): React.Re
   return (
     <Box flexDirection="column" marginTop={1}>
       <Text color={FAINT}>
-        {GLYPH.handoff} command ladder · {ladder.fcRoom ?? 'team'}
+        {GLYPH.handoff} command ladder · {ladder.fcRoom ?? 'crew'}
       </Text>
       {fc ? (
         <Text>
@@ -216,7 +216,7 @@ function LadderHeader({ ladder }: { ladder: CommandHierarchy | null }): React.Re
         <Text key={r.room}>
           <Text color={r.running ? TEAL : FAINT}>  {GLYPH.dot} </Text>
           <Text color={SECOND}>{truncateToWidth(r.name, 24)}</Text>
-          <Text color={FAINT}> · reports to {r.reportsTo ?? ladder.fcRoom ?? 'team'}</Text>
+          <Text color={FAINT}> · reports to {r.reportsTo ?? ladder.fcRoom ?? 'crew'}</Text>
         </Text>
       ))}
       {rc.length > 4 ? (

@@ -24,8 +24,8 @@ const bus = (await import('../../src/utils/swarm/busEnvelopes.js')) as typeof im
 
 const CREW = 'crew'
 const WORKER = 'scout'
-const LEAD = 'team-lead'
-const drainOpts = { short: WORKER, agentName: WORKER, teamName: CREW, durableDedup: false as const }
+const LEAD = 'crew-lead'
+const drainOpts = { short: WORKER, agentName: WORKER, crewName: CREW, durableDedup: false as const }
 
 section('buildBackAgentUserFrame: total over every kind')
 const disp = bus.buildDispatch(LEAD, 'refactor the tokenizer with TDD', { title: 'Tokenizer' })
@@ -116,7 +116,7 @@ try {
     const d = await drainMod.drainDispatches(roster, { ...drainOpts, isBusy: () => true })
     check('a note and a plain text deliver even while busy (context, not work)', d === 2)
     check('the note carries the operator-note label', replies.some(r => r.text.includes(bus.OPERATOR_NOTE_LABEL)))
-    check('plain text arrives as an attributed [bus] frame', replies.some(r => r.text.includes('[bus] plain message from team-lead')))
+    check('plain text arrives as an attributed [bus] frame', replies.some(r => r.text.includes('[bus] plain message from crew-lead')))
     check("the worker's own echo is consumed, never delivered back", !replies.some(r => r.text.includes('my own echo')))
   }
 
@@ -162,7 +162,7 @@ try {
 
 section('daemon wiring (structural, src)')
 const main = src('daemon', 'main.ts')
-check('main arms the drain for every crew teammate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,200}armCrewDrain\(name\)/.test(main) && /const armCrewDrain = \(name: string\): void => \{[\s\S]{0,600}armDispatchDrain\([\s\S]{0,400}teamName: CREW/.test(main))
+check('main arms the drain for every crew crewmate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,200}armCrewDrain\(name\)/.test(main) && /const armCrewDrain = \(name: string\): void => \{[\s\S]{0,600}armDispatchDrain\([\s\S]{0,400}crewName: CREW/.test(main))
 check('one drain per crew name for the daemon\'s life: a respawn never arms a second drain on the same inbox', /if \(!r \|\| crewDrains\.has\(name\)\) return/.test(main))
 check('a message to a stopped seat wakes it: the drain replies through the crew wake roster', /armDispatchDrain\(\s*makeCrewWakeRoster\(r,/.test(main))
 check('offline crew members are armed at boot, so a message wakes a seat the daemon was restarted under', /void armOfflineCrewDrains\(\)/.test(main))

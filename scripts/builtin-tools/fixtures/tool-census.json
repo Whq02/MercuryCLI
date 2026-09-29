@@ -1276,7 +1276,7 @@
         ],
         "class": "coordination",
         "resources": [
-          "team"
+          "crew"
         ],
         "cancellation": "not-applicable",
         "latency": "fast"
@@ -1699,7 +1699,7 @@
         ],
         "class": "coordination",
         "resources": [
-          "team"
+          "crew"
         ],
         "cancellation": "not-applicable",
         "latency": "fast",

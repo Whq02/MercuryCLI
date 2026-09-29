@@ -6,7 +6,7 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, ROOT, sleep, toolResultOf, TURN_MS } from './team-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const HOME = mkdtempSync(join(tmpdir(), 'teammate-effort-'))
+const HOME = mkdtempSync(join(tmpdir(), 'crewmate-effort-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -49,11 +49,11 @@ tally.section('§1 the ladder: the call\'s word is the pin, else the definition\
   tally.check("the agent's own word is the pin", runner.agentOwnEffortWord({ effortOverride: 'max', useExactTools: undefined, definitionEffort: 'low' }) === 'max')
 }
 
-tally.section('§2 the spawn seam: the teammate arm forwards the call\'s effort to the teammate\'s run (call-shaped pins)')
+tally.section('§2 the spawn seam: the crewmate arm forwards the call\'s effort to the crewmate\'s run (call-shaped pins)')
 {
   const tool = src('src/tools/AgentTool/AgentTool.tsx')
   const arm = slice(tool, 'const spawned = await spawnCrewmate(', 900)
-  tally.check('the teammate arm hands spawnCrewmate the call\'s effort', /effort: input\.effort/.test(arm), arm.replace(/\s+/g, ' ').slice(0, 300))
+  tally.check('the crewmate arm hands spawnCrewmate the call\'s effort', /effort: input\.effort/.test(arm), arm.replace(/\s+/g, ' ').slice(0, 300))
   const spawn = src('src/tools/shared/spawnMultiAgent.ts')
   const config = slice(spawn, 'export type SpawnCrewmateConfig = {', 500)
   tally.check('SpawnCrewmateConfig carries an optional effort word', /\n\s*effort\?: string/.test(config), config.replace(/\s+/g, ' ').slice(0, 300))
@@ -64,17 +64,17 @@ tally.section('§2 the spawn seam: the teammate arm forwards the call\'s effort 
   const runnerSource = src('src/utils/swarm/inProcessRunner.ts')
   const run = slice(runnerSource, 'for await (const message of runAgent({', 1200)
   tally.check('the runner hands runAgent the effortOverride so the one ladder resolves it', /effortOverride/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))
-  tally.check('the runner hands runAgent one stable agent id for the teammate\'s whole life (override.agentId)', /agentId: config\.transcriptAgentId/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))
+  tally.check('the runner hands runAgent one stable agent id for the crewmate\'s whole life (override.agentId)', /agentId: config\.transcriptAgentId/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))
   tally.check('the runner records the resolved word on the task (onResolvedIdentity)', /onResolvedIdentity/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))
 }
 
-tally.section('§3 the crew facts: the teammate row carries the resolved word and the transcript id')
+tally.section('§3 the crew facts: the crewmate row carries the resolved word and the transcript id')
 {
   const task = {
-    ...createTaskStateBase('t1effort00', 'in_process_teammate', `${SEAT}: the seat`),
-    type: 'in_process_teammate',
+    ...createTaskStateBase('t1effort00', 'in_process_crewmate', `${SEAT}: the seat`),
+    type: 'in_process_crewmate',
     status: 'running',
-    identity: { agentId: `${SEAT}@${CREW}`, agentName: SEAT, teamName: CREW, planModeRequired: false, parentSessionId: 'lead' },
+    identity: { agentId: `${SEAT}@${CREW}`, agentName: SEAT, crewName: CREW, planModeRequired: false, parentSessionId: 'lead' },
     prompt: 'the seat',
     model: SEAT_MODEL,
     effort: 'max',
@@ -85,12 +85,12 @@ tally.section('§3 the crew facts: the teammate row carries the resolved word an
     messages: [],
   } as unknown as TaskState
   const row = projectWorkRoster({ t1effort00: task })[0] as (WorkRow & { effort?: string; transcriptAgentId?: string }) | undefined
-  tally.check('the roster row of a teammate carries its resolved effort', row?.effort === 'max', JSON.stringify(row))
-  tally.check('the roster row of a teammate carries its transcript agent id', row?.transcriptAgentId === 'a1effort00', JSON.stringify(row))
+  tally.check('the roster row of a crewmate carries its resolved effort', row?.effort === 'max', JSON.stringify(row))
+  tally.check('the roster row of a crewmate carries its transcript agent id', row?.transcriptAgentId === 'a1effort00', JSON.stringify(row))
   const facts = row === undefined ? null : (crewAgentFactsOf(row, 'lead') as ({ effort?: string | null; transcriptAgentId?: string | null } | null))
   tally.check('the crew facts carry the word (effort max)', facts?.effort === 'max', JSON.stringify(facts))
   tally.check('the crew facts carry the transcript agent id', facts?.transcriptAgentId === 'a1effort00', JSON.stringify(facts))
-  const bare = crewAgentFactsOf({ id: 't2', agentId: `${SEAT}-2@${CREW}`, kind: 'teammate', name: `${SEAT}-2`, status: 'running', startTime: Date.now(), crew: CREW } as WorkRow, 'lead') as ({ effort?: string | null; transcriptAgentId?: string | null } | null)
+  const bare = crewAgentFactsOf({ id: 't2', agentId: `${SEAT}-2@${CREW}`, kind: 'crewmate', name: `${SEAT}-2`, status: 'running', startTime: Date.now(), crew: CREW } as WorkRow, 'lead') as ({ effort?: string | null; transcriptAgentId?: string | null } | null)
   tally.check('a row without the fields reads as today: no word, no id (null, never a fabricated default)', bare !== null && bare.effort === null && bare.transcriptAgentId === null, JSON.stringify(bare))
 }
 
@@ -102,7 +102,7 @@ const script: ScriptedTurn[] = [
       kind: 'tool_use',
       id: SPAWN_ID,
       name: 'Agent',
-      input: { name: SEAT, team_name: 'crew', model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-general', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
+      input: { name: SEAT, crew_name: 'crew', model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-general', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
     },
     FIRST,
   ),
@@ -134,16 +134,16 @@ type SeatRequest = { body: { model?: string; output_config?: { effort?: string }
 const seatRequests = (world: Awaited<ReturnType<typeof makeWorld>>): SeatRequest[] =>
   world.fixture.messageRequests().filter(request => String((request.body as { model?: string } | null)?.model ?? '').includes(SEAT_GATE)) as unknown as SeatRequest[]
 
-tally.section('§4 the drive: an Agent call with team_name and effort max reaches the seat\'s run, its wire and its sidecar')
-const world = await makeWorld('teammate-effort', script)
+tally.section('§4 the drive: an Agent call with crew_name and effort max reaches the seat\'s run, its wire and its sidecar')
+const world = await makeWorld('crewmate-effort', script)
 const session = bootLead(world, [], ['Agent', 'SendMessage'])
 const projects = join(world.config, 'projects')
 try {
-  session.submit(`${FIRST}: create the team and the deep seat.`)
+  session.submit(`${FIRST}: create the crew and the deep seat.`)
   await session.waitFor('the lead never reported the spawn', () => session.stdout().includes('SPAWN-REPORTED'), TURN_MS)
   const spawnAnswer = toolResultOf(world, SPAWN_ID)
   record('agent-tool-answer.txt', `${spawnAnswer?.text ?? ''}\nis_error=${String(spawnAnswer?.isError)}\n`)
-  tally.check('the Agent tool answered with the spawn', spawnAnswer !== null && !spawnAnswer.isError && /Teammate spawned/.test(spawnAnswer.text), spawnAnswer?.text.slice(0, 200))
+  tally.check('the Agent tool answered with the spawn', spawnAnswer !== null && !spawnAnswer.isError && /Crewmate spawned/.test(spawnAnswer.text), spawnAnswer?.text.slice(0, 200))
   const firstSeen = Date.now() + TURN_MS / 3
   while (seatRequests(world).length < 1 && Date.now() < firstSeen) await sleep(50)
   const firstRequest = seatRequests(world)[0]
@@ -192,7 +192,7 @@ try {
   const writerId = /agent-(a[0-9a-z]{8})\.jsonl$/.exec(files[0] ?? '')?.[1] ?? ''
   const viewRows = writerId === '' ? [] : await readCrewmateTranscriptFile(files[0]!, writerId)
   const viewText = JSON.stringify(viewRows)
-  tally.check('the crew view\'s reader, given the file and the writer\'s id, returns rows holding both turns (what the teammate\'s pane paints)', viewRows.length > 0 && viewText.includes(SEAT_ONE) && viewText.includes(SEAT_TWO), `${viewRows.length} rows by id ${writerId}`)
+  tally.check('the crew view\'s reader, given the file and the writer\'s id, returns rows holding both turns (what the crewmate\'s pane paints)', viewRows.length > 0 && viewText.includes(SEAT_ONE) && viewText.includes(SEAT_TWO), `${viewRows.length} rows by id ${writerId}`)
 } finally {
   await session.end()
   await closeWorld(world)

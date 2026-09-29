@@ -33,7 +33,7 @@ else
   grep_ship "multipurpose workflow preamble ships"      'Mercury workflow subagent'
   grep_ship "workflow TEXT return-contract preserved"   'returned **verbatim**'
   grep_ship "workflow SCHEMA return-contract preserved" 'exactly once to return your final answer'
-  grep_ship "teammate tactical callouts ship"           'Tactical callouts (Mercury team register)'
+  grep_ship "crewmate tactical callouts ship"           'Tactical callouts (Mercury crew register)'
 fi
 
 echo "############################################################"

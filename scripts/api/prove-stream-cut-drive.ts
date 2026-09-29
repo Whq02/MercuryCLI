@@ -105,7 +105,7 @@ function runProduct(fixture: Fixture, prompt: string): Run {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     ANTHROPIC_API_KEY: PROBE_KEY,

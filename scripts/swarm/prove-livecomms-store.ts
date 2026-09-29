@@ -6,7 +6,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const TMP = mkdtempSync(join(tmpdir(), 'mercury-livecomms-store-'))
 process.env.MERCURY_CONFIG_DIR = TMP
-process.env.MERCURY_CREWS_DIR = join(TMP, 'teams')
+process.env.MERCURY_CREWS_DIR = join(TMP, 'crews')
 
 type AnyTool = {
   name: string
@@ -16,14 +16,8 @@ type AnyTool = {
   mapToolResultToToolResultBlockParam: (content: unknown, id: string) => { content: unknown }
 }
 
-let tool: AnyTool
-let toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'
-try {
-  tool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool
-} catch {
-  toolHome = 'src/tools/TeamBriefTool/TeamBriefTool.js'
-  tool = (await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')).TeamBriefTool as unknown as AnyTool
-}
+const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'
+const tool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
 const { writeCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
 const { liveMessagesFor } = await import('../../src/services/crew/liveComms.js')
@@ -42,17 +36,17 @@ await writeCrewFileAsync(CREW, {
   name: CREW,
   createdAt: Date.now(),
   leadAgentId: LEAD_ID,
-  members: [member(LEAD_ID, 'team-lead'), member(`alice@${CREW}`, 'alice'), member(`bob@${CREW}`, 'bob')],
+  members: [member(LEAD_ID, 'crew-lead'), member(`alice@${CREW}`, 'alice'), member(`bob@${CREW}`, 'bob')],
 })
 
 const asCrewmate = (name: string): void =>
-  setDynamicCrewContext({ agentId: `${name}@${CREW}`, agentName: name, teamName: CREW, color: 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `${name}@${CREW}`, agentName: name, crewName: CREW, color: 'blue', planModeRequired: false })
 const asLead = (): void => setDynamicCrewContext(null)
-const leadContext = { getAppState: () => ({ crewContext: { teamName: CREW, leadAgentId: LEAD_ID } }) }
+const leadContext = { getAppState: () => ({ crewContext: { crewName: CREW, leadAgentId: LEAD_ID } }) }
 const crewmateContext = { getAppState: () => ({}) }
 
 type Brief = {
-  teamName: string | null
+  crewName: string | null
   openTasks: Array<{ id: string; subject: string; status: string; owner?: string }>
   unreadMessages: Array<{ from: string; text: string; summary?: string }>
   roster: Array<{ name: string; status: string; doing?: string }>
@@ -75,8 +69,9 @@ console.log(`  tool module: ${toolHome}`)
 
 section('§1 the tool is LiveComms, still answers to its old name, and takes a write')
 {
-  check('the tool is named LiveComms (RED on the base: the tool is TeamBrief, a read-only snapshot)', tool.name === 'LiveComms', tool.name)
-  check('the old name TeamBrief is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes('TeamBrief'), JSON.stringify(tool.aliases ?? []))
+  check('the tool is named LiveComms (RED on the base: the tool is LiveComms, a read-only snapshot)', tool.name === 'LiveComms', tool.name)
+  const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.js')
+  check('the old name is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME), JSON.stringify(tool.aliases ?? []))
   const write = { say: { to: 'bob', message: 'LIVE-HELLO from alice', summary: 'hello' }, task: { subject: 'LIVE-TASK wire the store' }, claim: { paths: ['src/live/**'] }, busy: { busy: true, doing: 'LIVE-DOING' } }
   check('one call may carry a message, a task, a claim and a busy flag (RED on the base: the input is an empty strict object)', tool.inputSchema.safeParse(write).success)
   check('the empty read still parses', tool.inputSchema.safeParse({}).success)
@@ -106,7 +101,7 @@ let taskId = ''
 
   asLead()
   const lead = await call({}, leadContext)
-  check("the lead's read (its AppState crew context) lists the task, the claim and alice busy", lead.teamName === CREW && lead.openTasks.some(t => t.id === taskId) && lead.leases.some(l => l.agentId === 'alice') && lead.roster.some(r => r.name === 'alice' && r.status === 'busy'), JSON.stringify({ tasks: lead.openTasks, leases: lead.leases, roster: lead.roster }))
+  check("the lead's read (its AppState crew context) lists the task, the claim and alice busy", lead.crewName === CREW && lead.openTasks.some(t => t.id === taskId) && lead.leases.some(l => l.agentId === 'alice') && lead.roster.some(r => r.name === 'alice' && r.status === 'busy'), JSON.stringify({ tasks: lead.openTasks, leases: lead.leases, roster: lead.roster }))
   const inbox = await liveMessagesFor(CREW, 'bob')
   check("the message landed in bob's inbox by the same road SendMessage uses", inbox.some(m => m.from === 'alice' && m.text === 'LIVE-HELLO from alice'), JSON.stringify(inbox))
 }
@@ -143,7 +138,7 @@ section('§5 the words: a message to nobody is refused, a read outside a crew sa
   check('a message to a name not on the crew is refused in the receipt, nothing written', receipt !== undefined && receipt.ok === false && /not on/.test(receipt.detail), JSON.stringify(refused.wrote))
   asLead()
   const solo = await call({}, { getAppState: () => ({}) })
-  check('outside a crew the read is the honest empty state', solo.teamName === null && solo.openTasks.length === 0)
+  check('outside a crew the read is the honest empty state', solo.crewName === null && solo.openTasks.length === 0)
   check('and the rendered words say so in crew words', /Not part of a crew/.test(rendered(solo)), rendered(solo))
 }
 

@@ -61,7 +61,7 @@ A REQUEST FOR AUTOMATIC BEHAVIOUR IS A HOOK. "After every edit…", "whenever a 
 
 THE FILES, LOWEST PRIORITY FIRST:
 - user: <config-home>/settings.json — every project. The config home is ~/.mercury, or whatever MERCURY_CONFIG_DIR names.
-- project: .mercury/settings.json — checked in, shared with the team.
+- project: .mercury/settings.json — checked in, shared with the crew.
 - local: .mercury/settings.local.json — personal, gitignored.
 - flag: a file passed on the command line; managed: managed-settings.json plus its drop-ins — policy, not editable here.
 MERGE LAW across sources: objects deep-merge with later sources winning, and ARRAYS CONCATENATE (de-duplicated) — a project allow-list adds to the user's, it cannot subtract from it. Changes hot-apply through a file watcher; ConfigChange hooks observe every reload and a blocking result vetoes it.

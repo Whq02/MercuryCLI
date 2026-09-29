@@ -42,7 +42,7 @@ const spend1 = spent(MESSAGE_1)
 const spend2 = spent(MESSAGE_2)
 const spendScout = spent('SCOUT-ASK')
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: 'toolu_send_one', name: 'SendMessage', input: { to: worker, message: MESSAGE_1, summary: 'first ask' } }, SPEND_1),
   lead({ kind: 'text', text: 'LEAD-SENT-1' }, SPEND_1),
@@ -90,7 +90,7 @@ const rowsNamed = (rows: WorkRow[], name: string): WorkRow[] => rows.filter(row 
 const pausedRow = async (name: string): Promise<WorkRow | undefined> => rowsNamed(await facts(), name).find(row => row.paused?.why === 'usage limit' || row.paused?.why === 'provider busy')
 const rowsOf = (kind: string): Array<{ id: string; description: string }> =>
   session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === kind).map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
-const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, crew, 'team-lead').filter(row => row.from === name).map(row => row.text)
+const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, crew, 'crew-lead').filter(row => row.from === name).map(row => row.text)
 const rosterHolds = (name: string): boolean => (readJson<Roster>(rosterPath)?.members ?? []).some(member => member.name === name)
 const until = async (test: () => boolean | Promise<boolean>, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
@@ -104,9 +104,9 @@ const near = (value: number | undefined, target: number, slackMs: number): boole
 
 try {
   tally.section('the lead spawns a crewmate that answers its first turn and waits')
-  session.submit(`${FIRST}: create the team, spawn the worker, and park.`)
+  session.submit(`${FIRST}: create the crew, spawn the worker, and park.`)
   await session.waitFor('the worker never answered its first turn', () => requests().length >= 1 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
-  const firstRow = rowsOf('in_process_teammate')[0]
+  const firstRow = rowsOf('in_process_crewmate')[0]
   tally.check('a real in-process crewmate runs', firstRow !== undefined && requests()[0]?.body.model === peerModel)
   tally.check('its first turn was answered and it went idle', await until(async () => rowsNamed(await facts(), worker).some(row => row.status === 'running' && row.idle === true), TURN_MS / 3))
 
@@ -129,7 +129,7 @@ try {
   tally.check('the lead is told the crewmate paused, never that it failed (RED on the base: a failed idle notice)', told && !leadInboxFrom(worker).some(text => /idle_notification/.test(text) && /"failed"/.test(text)), JSON.stringify(leadInboxFrom(worker)).slice(0, 400))
 
   tally.section('THE PIN: the operator signs in on another account before the reset — the crewmate resumes at once, same name, same model, its history kept')
-  const rowsBeforeSwitch = rowsOf('in_process_teammate').length
+  const rowsBeforeSwitch = rowsOf('in_process_crewmate').length
   const before2 = requests().length
   const switched = await control({ subtype: 'credential_change' })
   tally.check('the credential change was taken by the session', switched.subtype === 'success', JSON.stringify(switched))
@@ -138,7 +138,7 @@ try {
   tally.check('the crewmate makes a new request with the resume note as its next turn (RED on the base: none)', resumed1 !== undefined, String(requests().length - before2))
   tally.check('its history keeps the first answer and the refused ask', resumed1 !== undefined && bodyText(resumed1).includes('WORKER-READY') && bodyText(resumed1).includes(MESSAGE_1))
   tally.check('it keeps its model', resumed1?.body.model === peerModel)
-  tally.check('it runs on under a new row with its name', await until(() => rowsOf('in_process_teammate').length > rowsBeforeSwitch, TURN_MS / 9) && rowsOf('in_process_teammate').at(-1)!.description.startsWith(`${worker}:`), JSON.stringify(rowsOf('in_process_teammate')))
+  tally.check('it runs on under a new row with its name', await until(() => rowsOf('in_process_crewmate').length > rowsBeforeSwitch, TURN_MS / 9) && rowsOf('in_process_crewmate').at(-1)!.description.startsWith(`${worker}:`), JSON.stringify(rowsOf('in_process_crewmate')))
   tally.check('the paused row is gone once the resume runs', await until(async () => (await pausedRow(worker)) === undefined, TURN_MS / 9), JSON.stringify(rowsNamed(await facts(), worker)))
   tally.check('the resumed crewmate answers and goes idle', await until(async () => rowsNamed(await facts(), worker).some(row => row.status === 'running' && row.idle === true), TURN_MS / 3))
 
@@ -146,7 +146,7 @@ try {
   const resetB = Date.now() + 8_000
   spend2.headers = spentHeaders(resetB)
   const before3 = requests().length
-  const rowsBeforeReset = rowsOf('in_process_teammate').length
+  const rowsBeforeReset = rowsOf('in_process_crewmate').length
   session.submit(`${SPEND_2}: send the second ask.`)
   await session.waitFor('the lead never sent the second ask', () => session.stdout().includes('LEAD-SENT-2'), TURN_MS)
   const refused2 = await until(() => requestCarrying(before3, MESSAGE_2) !== undefined, TURN_MS / 3)
@@ -157,7 +157,7 @@ try {
   record('resumed-request-2.json', JSON.stringify(resumed2?.body ?? null, null, 2))
   tally.check('at the reset the crewmate resumes by itself: a new request with the resume note (RED on the base: none)', resumed2 !== undefined && bodyText(resumed2).includes(MESSAGE_2) && bodyText(resumed2).includes('WORKER-CONTINUED-1'), String(requests().length - before3))
   tally.check('the resume waited for the reset (never before it)', resumed2 === undefined || (world.fixture.messageRequests() as Array<{ body: { model?: string }; at?: number }>).length >= 0)
-  tally.check('a new row with its name, the paused row gone', await until(() => rowsOf('in_process_teammate').length > rowsBeforeReset, TURN_MS / 9) && (await until(async () => (await pausedRow(worker)) === undefined, TURN_MS / 9)), JSON.stringify(rowsOf('in_process_teammate')))
+  tally.check('a new row with its name, the paused row gone', await until(() => rowsOf('in_process_crewmate').length > rowsBeforeReset, TURN_MS / 9) && (await until(async () => (await pausedRow(worker)) === undefined, TURN_MS / 9)), JSON.stringify(rowsOf('in_process_crewmate')))
 
   tally.section('THE PIN for the sub-agent kind: a paused sub-agent resumes on the credential change too')
   const resetC = Date.now() + 90_000

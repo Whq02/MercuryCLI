@@ -50,14 +50,14 @@ async function freshCrew(name: string): Promise<void> {
 }
 
 console.log('============================================================')
-console.log(' Team roster lock (#8) — concurrent RMW serialization proof')
+console.log(' Crew roster lock (#8) — concurrent RMW serialization proof')
 console.log('============================================================')
 
 const K = 12
 
 section('(a) withLockedCrewFile append — K concurrent appends, ZERO clobber')
 {
-  const CREW = 'locked-team'
+  const CREW = 'locked-crew'
   await freshCrew(CREW)
   await Promise.all(Array.from({ length: K }, (_, i) => appendCrewMember(CREW, mkMember(i))))
   const tf = await readCrewFileAsync(CREW)
@@ -73,7 +73,7 @@ section('(a) withLockedCrewFile append — K concurrent appends, ZERO clobber')
 
 section('(b) sensitivity — the old unlocked read→push→write LOSES members (so (a) is meaningful)')
 {
-  const CREW = 'racy-team'
+  const CREW = 'racy-crew'
   await freshCrew(CREW)
   const racyAppend = async (m: Member): Promise<void> => {
     const tf = await readCrewFileAsync(CREW)
@@ -89,7 +89,7 @@ section('(b) sensitivity — the old unlocked read→push→write LOSES members 
 
 section('(c) withLockedCrewFileSync — setMemberMode semantics preserved')
 {
-  const CREW = 'sync-team'
+  const CREW = 'sync-crew'
   await freshCrew(CREW)
   await appendCrewMember(CREW, mkMember(0))
   check('setMemberMode returns true for an existing member', setMemberMode(CREW, 'agent-0', 'implement') === true)
@@ -97,7 +97,7 @@ section('(c) withLockedCrewFileSync — setMemberMode semantics preserved')
   check('the mode was written', tf1?.members.find(m => m.name === 'agent-0')?.mode === 'implement')
   check('setMemberMode returns true (no write) when unchanged', setMemberMode(CREW, 'agent-0', 'implement') === true)
   check('setMemberMode returns false for a missing member', setMemberMode(CREW, 'nobody', 'strategy') === false)
-  check('setMemberMode returns false for a missing team', setMemberMode('no-such-team', 'x', 'strategy') === false)
+  check('setMemberMode returns false for a missing crew', setMemberMode('no-such-crew', 'x', 'strategy') === false)
 }
 
 section('(d) source — lock infra present + spawn appends routed through appendCrewMember')
@@ -119,20 +119,20 @@ section('(d) source — lock infra present + spawn appends routed through append
   )
   check('appendCrewMember locks the member-append', /appendCrewMember[\s\S]{0,300}withLockedCrewFile/.test(th))
   const sm = read('../../src/tools/shared/spawnMultiAgent.ts')
-  const appendCalls = (sm.match(/await appendCrewMember\(teamName, \{/g) || []).length
+  const appendCalls = (sm.match(/await appendCrewMember\(crewName, \{/g) || []).length
   check('every spawn member-append is routed through appendCrewMember (the one in-process strategy)', appendCalls === 1 && !/writeCrewFile\(/.test(sm), `found ${appendCalls}`)
   const inProcess = sm.slice(sm.indexOf('spawnInProcessStrategy'))
-  const appendAt = inProcess.indexOf('await appendCrewMember(teamName, {')
+  const appendAt = inProcess.indexOf('await appendCrewMember(crewName, {')
   const startAt = inProcess.indexOf('startInProcessCrewmate({')
   check('in-process: appendCrewMember runs before startInProcessCrewmate', appendAt !== -1 && startAt !== -1 && appendAt < startAt, `append@${appendAt} start@${startAt}`)
-  check('in-process: a start that throws removes the row it landed', /catch \(error\) \{\s*removeCrewmateFromCrewFile\(teamName, \{ agentId: crewmateId \}\)\s*throw error/.test(inProcess))
+  check('in-process: a start that throws removes the row it landed', /catch \(error\) \{\s*removeCrewmateFromCrewFile\(crewName, \{ agentId: crewmateId \}\)\s*throw error/.test(inProcess))
   check('no raw crewFile.members.push + writeCrewFileAsync append remains in spawn', !/members\.push\(\{[\s\S]{0,400}writeCrewFileAsync/.test(sm))
 }
 
 section('(HB-0068) roster cap — concurrent overshoot capped EXACTLY, surplus rejected')
 {
   const CAP = 16
-  const CREW = 'capped-team'
+  const CREW = 'capped-crew'
   await freshCrew(CREW)
   const N = CAP + 8
   const settled = await Promise.allSettled(
@@ -153,7 +153,7 @@ section('(HB-0068) roster cap — concurrent overshoot capped EXACTLY, surplus r
 
 section('(decoder) an out-of-shape roster is refused whole, named once, and its bytes stay untouched')
 {
-  const CREW = 'shapeless-team'
+  const CREW = 'shapeless-crew'
   const path = getCrewFilePath(CREW)
   mkdirSync(dirname(path), { recursive: true })
   const base = { name: CREW, createdAt: 1, leadAgentId: 'lead@t' }
@@ -205,10 +205,10 @@ section('(decoder) an out-of-shape roster is refused whole, named once, and its 
   const good = await readCrewFileAsync(CREW)
   check('a whole roster carrying every optional field decodes', good !== null && good.members.length === 1 && good.hiddenPaneIds?.length === 1 && good.allowedPaths?.length === 1)
   await flushDebugLogs()
-  const named = readFileSync(DEBUG_LOG, 'utf8').split('\n').filter(l => l.includes('[team-roster]') && l.includes(path))
+  const named = readFileSync(DEBUG_LOG, 'utf8').split('\n').filter(l => l.includes('[crew-roster]') && l.includes(path))
   check('the refused file is named ONCE in the debug log across every read of it', named.length === 1, `${named.length} line(s)`)
   const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
-  const refusedRowsFor = async (at: string) => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'team-roster' && e.path === at)
+  const refusedRowsFor = async (at: string) => (await readStoreRecoveryEvents()).filter(e => e.kind === 'refused' && e.store === 'crew-roster' && e.path === at)
   let refused = await refusedRowsFor(path)
   for (let i = 0; i < 40 && refused.length < 1; i++) {
     await new Promise(resolve => setTimeout(resolve, 50))
@@ -219,7 +219,7 @@ section('(decoder) an out-of-shape roster is refused whole, named once, and its 
     refused.length === 1 && refused[0]!.quarantinePath === null && refused[0]!.reason === `${path} is not a decodable roster: left in place, reported`,
     `${refused.length} row(s): ${JSON.stringify(refused)}`,
   )
-  const OTHER = 'shapeless-team-two'
+  const OTHER = 'shapeless-crew-two'
   const otherPath = getCrewFilePath(OTHER)
   mkdirSync(dirname(otherPath), { recursive: true })
   writeFileSync(otherPath, 'not json at all')
@@ -239,7 +239,7 @@ section('(decoder) an out-of-shape roster is refused whole, named once, and its 
 
 rmSync(TMP, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
-if (fail === 0) console.log('✅ ALL TEAM-ROSTER-LOCK PROOFS PASS')
-else console.log(`❌ ${fail} TEAM-ROSTER-LOCK PROOF(S) FAILED`)
+if (fail === 0) console.log('✅ ALL CREW-ROSTER-LOCK PROOFS PASS')
+else console.log(`❌ ${fail} CREW-ROSTER-LOCK PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(fail === 0 ? 0 : 1)

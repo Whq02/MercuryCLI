@@ -25,9 +25,9 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
       if (monitors > 0) parts.push(`${monitors} ${plural(monitors, 'monitor')}`)
       return parts.join(', ')
     }
-    case 'in_process_teammate': {
+    case 'in_process_crewmate': {
       const crews = new Set(
-        tasks.map(task => (task as { identity?: { teamName?: string } }).identity?.teamName),
+        tasks.map(task => (task as { identity?: { crewName?: string } }).identity?.crewName),
       ).size
       return `${crews} ${plural(crews, 'crew')}`
     }

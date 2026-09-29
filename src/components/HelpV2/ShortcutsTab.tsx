@@ -44,7 +44,7 @@ export const ADVANCED: Section[] = [
     head: 'advanced',
     rows: [
       { action: 'task:background', context: 'Task', fallback: 'ctrl+b', label: 'background the running task' },
-      { action: 'app:toggleTeammatePreview', context: 'Global', fallback: 'ctrl+shift+o', label: 'crewmate preview' },
+      { action: 'app:toggleCrewmatePreview', context: 'Global', fallback: 'ctrl+shift+o', label: 'crewmate preview' },
     ],
   },
 ]

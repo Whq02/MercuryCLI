@@ -49,7 +49,7 @@ export function crewmatePhaseLabel(p: CrewMemberPhase): string {
 
 export function lastActionWasLeadHandoff(
   messages: ReadonlyArray<unknown> | undefined,
-  leadName = 'team-lead',
+  leadName = 'crew-lead',
 ): boolean {
   if (!messages || messages.length === 0) return false
   for (let i = messages.length - 1; i >= 0; i--) {

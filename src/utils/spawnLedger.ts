@@ -23,8 +23,8 @@ export interface SpawnLedgerEntry {
     | 'long-lived-refused'
     | 'headless'
     | 'headless-refused'
-    | 'teammate'
-    | 'teammate-refused'
+    | 'crewmate'
+    | 'crewmate-refused'
   id: string
   cwd: string
   reason?: string
@@ -76,7 +76,7 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
 }
 
 export interface SpawnExitEntry {
-  kind: 'long-lived' | 'headless' | 'teammate' | 'supervisor'
+  kind: 'long-lived' | 'headless' | 'crewmate' | 'supervisor'
   event: 'exit' | 'reap'
   id: string
   pid?: number

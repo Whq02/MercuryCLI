@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-config-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-crews-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'poise-pr01-home-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-crew-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'

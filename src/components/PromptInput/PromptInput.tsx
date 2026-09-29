@@ -1651,7 +1651,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const prefill = consumePromptPrefill()
     if (activation !== null) {
       switch (activation.type) {
-        case 'teammate':
+        case 'crewmate':
           enterCrewmateView(activation.id, setAppState)
           setHelmFocus('prompt')
           break
@@ -1788,7 +1788,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       saveGlobalConfig(config => ({ ...config, lastStrategyModeUse: Date.now() }))
     }
     setToolPermissionContext({ ...nextContext, mode: nextMode })
-    syncCrewmateMode(nextMode, crewContext?.teamName)
+    syncCrewmateMode(nextMode, crewContext?.crewName)
     setHelpOpen(false)
   }, [appStateStore, toolPermissionContext, crewContext, setToolPermissionContext, setAppState, setHelpOpen])
 
@@ -2073,7 +2073,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         }
         if (rawInput === 'm' && !key.ctrl && !key.meta && focusPane === 'lanes') {
           const row = currentHelmRow('lanes')
-          if (row !== undefined && (row.kind === 'teammate' || row.kind === 'main')) {
+          if (row !== undefined && (row.kind === 'crewmate' || row.kind === 'main')) {
             event.stopImmediatePropagation()
             if (!helmRailPastEntryBuffer()) return
             if (row.kind === 'main') clearMainChat(setAppState)
@@ -2087,7 +2087,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         }
         if (rawInput === 'c' && !key.ctrl && !key.meta && focusPane === 'lanes') {
           const row = currentHelmRow('lanes')
-          if (row !== undefined && row.kind === 'teammate') {
+          if (row !== undefined && row.kind === 'crewmate') {
             event.stopImmediatePropagation()
             if (!helmRailPastEntryBuffer()) return
             const ledgerRow = (appStateStore.getState() as AppState).crewLedger[row.id]

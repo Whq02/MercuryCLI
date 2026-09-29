@@ -182,9 +182,9 @@ const ATTACHMENTS: Record<string, Fixture> = {
   output_token_usage: { good: { turn: 1, session: 2, budget: null }, bad: [{ label: 'budget is text', field: 'budget', fields: { turn: 1, session: 2, budget: 'many' } }] },
   usage_limit_notice: { good: { key: 'k', provider: 'p', window: 'w', pct: 80, text: 't' }, bad: [{ label: 'pct is text', field: 'pct', fields: { key: 'k', provider: 'p', window: 'w', pct: '80', text: 't' } }] },
   structured_output: { good: { data: { ok: true } }, bad: [] },
-  team_context: {
-    good: { agentId: 'a', agentName: 'n', teamName: 't', teamConfigPath: 'c', taskListPath: 'l' },
-    bad: [{ label: 'taskListPath is missing', field: 'taskListPath', fields: { agentId: 'a', agentName: 'n', teamName: 't', teamConfigPath: 'c' } }],
+  crew_context: {
+    good: { agentId: 'a', agentName: 'n', crewName: 't', crewConfigPath: 'c', taskListPath: 'l' },
+    bad: [{ label: 'taskListPath is missing', field: 'taskListPath', fields: { agentId: 'a', agentName: 'n', crewName: 't', crewConfigPath: 'c' } }],
   },
   hook_cancelled: { good: { hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'hookName is a number', field: 'hookName', fields: { hookName: 1, toolUseID: 't', hookEvent: 'PreToolUse' } }] },
   hook_non_blocking_error: {
@@ -214,7 +214,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   verify_plan_reminder: { good: {}, bad: [] },
   max_turns_reached: { good: { maxTurns: 3, turnCount: 3 }, bad: [{ label: 'maxTurns is text', field: 'maxTurns', fields: { maxTurns: '3', turnCount: 3 } }] },
   current_session_memory: { good: { content: 'c', path: 'p', tokenCount: 1 }, bad: [{ label: 'tokenCount is text', field: 'tokenCount', fields: { content: 'c', path: 'p', tokenCount: 'one' } }] },
-  teammate_shutdown_batch: { good: { count: 2 }, bad: [{ label: 'count is text', field: 'count', fields: { count: 'two' } }] },
+  crewmate_shutdown_batch: { good: { count: 2 }, bad: [{ label: 'count is text', field: 'count', fields: { count: 'two' } }] },
   compaction_reminder: { good: {}, bad: [] },
   context_efficiency: { good: {}, bad: [] },
   date_change: { good: { newDate: '2026-08-02' }, bad: [{ label: 'newDate is a number', field: 'newDate', fields: { newDate: 20260802 } }] },

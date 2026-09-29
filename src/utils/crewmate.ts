@@ -18,7 +18,7 @@ export type { CrewmateContext } from './crewmateContext.js'
 export type DynamicCrewContext = {
   agentId: string
   agentName: string
-  teamName: string
+  crewName: string
   color?: string
   planModeRequired: boolean
   parentSessionId?: string
@@ -76,33 +76,33 @@ export function resolveCoordAgentId(): string {
   return getAgentName() ?? crewChildName() ?? CREW_LEAD_NAME
 }
 
-export function getCrewName(crewContext?: { teamName: string }): string | undefined {
+export function getCrewName(crewContext?: { crewName: string }): string | undefined {
   const context = getCrewmateContext()
-  if (context) return context.teamName
-  if (dynamicCrewContext && dynamicCrewContext.teamName !== '') return dynamicCrewContext.teamName
-  return crewContext?.teamName
+  if (context) return context.crewName
+  if (dynamicCrewContext && dynamicCrewContext.crewName !== '') return dynamicCrewContext.crewName
+  return crewContext?.crewName
 }
 
 let leadCrewFallback: string | null = null
 
-export function setLeadCrewFallback(teamName: string | null): void {
-  leadCrewFallback = teamName
+export function setLeadCrewFallback(crewName: string | null): void {
+  leadCrewFallback = crewName
 }
 
 export function getLeadCrewFallback(): string | null {
   return leadCrewFallback
 }
 
-export function resolveLeadAwareCrewName(crewContext?: { teamName: string }): string | undefined {
+export function resolveLeadAwareCrewName(crewContext?: { crewName: string }): string | undefined {
   return getCrewName(crewContext) ?? leadCrewFallback ?? undefined
 }
 
-export function isTeammate(): boolean {
+export function isCrewmate(): boolean {
   if (getCrewmateContext() !== undefined) return true
   return (
     dynamicCrewContext !== null &&
     dynamicCrewContext.agentId !== '' &&
-    dynamicCrewContext.teamName !== ''
+    dynamicCrewContext.crewName !== ''
   )
 }
 

@@ -170,7 +170,7 @@ const ITEMS: GalleryItem[] = [
   ...group(
     'Coordination & remote',
     item('bridge', 'Bridge', <MercuryBridge />),
-    item('teammate-tree', 'Crewmate tree', <MercuryCrewmateTree />),
+    item('crewmate-tree', 'Crewmate tree', <MercuryCrewmateTree />),
     item('channels', 'Channels notice', <MercuryChannelsNotice />),
     item('remote', 'Remote callout', <MercuryRemoteCallout />),
     item('emergency-tip', 'Emergency tip', <MercuryEmergencyTip />),

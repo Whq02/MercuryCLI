@@ -139,15 +139,15 @@ export function detectTreeConflicts(
 }
 
 export async function getRoomHealth(
-  teamName: string | null | undefined,
+  crewName: string | null | undefined,
   opts: { nowMs?: number; driftWindowMs?: number } = {},
 ): Promise<RoomHealthSnapshot> {
-  if (!teamName) return { agents: [], conflicts: [] }
+  if (!crewName) return { agents: [], conflicts: [] }
   try {
     const nowMs = opts.nowMs ?? Date.now()
     const [statuses, leases] = await Promise.all([
-      getAgentStatuses(teamName),
-      listLeases(teamName, { nowMs }),
+      getAgentStatuses(crewName),
+      listLeases(crewName, { nowMs }),
     ])
     const roster = statuses ?? []
     return {

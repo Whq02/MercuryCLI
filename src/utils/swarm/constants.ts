@@ -1,5 +1,5 @@
 
-export const CREW_LEAD_NAME = 'team-lead'
+export const CREW_LEAD_NAME = 'crew-lead'
 
 export const TMUX_COMMAND = 'tmux'
 

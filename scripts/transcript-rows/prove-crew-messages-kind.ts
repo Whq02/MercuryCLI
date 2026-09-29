@@ -8,7 +8,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'crew-messages-kind-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-process.argv.push('--agent-teams')
+process.argv.push('--agent-crews')
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0

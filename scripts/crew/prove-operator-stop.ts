@@ -43,19 +43,19 @@ const quick = { settleMs: 300, sleep: (ms: number) => new Promise<void>(r => set
 section('the budget: the runner settles a stop well inside the seat\'s answer deadline')
 check('the settle budget is a fraction of the seat\'s deadline for the answer', AGENT_STOP_SETTLE_MS > 0 && AGENT_STOP_SETTLE_MS * 2 <= AGENT_VERB_ANSWER_DEADLINE_MS, `${AGENT_STOP_SETTLE_MS} vs ${AGENT_VERB_ANSWER_DEADLINE_MS}`)
 
-section('a named teammate: the operator\'s stop kills it and answers applied; a second stop is refused with its status')
+section('a named crewmate: the operator\'s stop kills it and answers applied; a second stop is refused with its status')
 {
   const store = makeStore()
-  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', teamName: 'ping-team', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
-  check('the teammate registers running', spawned.success && spawned.taskId !== undefined && statusOf(store, spawned.taskId) === 'running', JSON.stringify(spawned))
+  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
+  check('the crewmate registers running', spawned.success && spawned.taskId !== undefined && statusOf(store, spawned.taskId) === 'running', JSON.stringify(spawned))
   const id = spawned.taskId!
   const receipt = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
-  check('the stop is applied as a teammate kill', receipt.outcome === 'applied' && receipt.kind === 'teammate' && receipt.status === 'killed', JSON.stringify(receipt))
+  check('the stop is applied as a crewmate kill', receipt.outcome === 'applied' && receipt.kind === 'crewmate' && receipt.status === 'killed', JSON.stringify(receipt))
   check('the record reads killed and its controller is aborted', statusOf(store, id) === 'killed' && spawned.abortController?.signal.aborted === true)
   const { getCommandQueueSnapshot } = await import('../../src/input-core/command-queue.js')
   const stopWords = (await import('../../src/services/agents/operatorStop.js') as { crewmateStopWords?: (name: string) => string }).crewmateStopWords
   const notice = getCommandQueueSnapshot().find(c => c.mode === 'task-notification' && typeof c.value === 'string' && c.value.includes(`<task-id>${id}</task-id>`))
-  check('the main agent is told: the stop queues one task notification naming the teammate and the door that stopped it, at the next priority', stopWords !== undefined && notice !== undefined && typeof notice.value === 'string' && notice.value.includes('<status>killed</status>') && notice.value.includes(`<summary>${stopWords('sonnet-ping')}</summary>`) && notice.priority === 'next', JSON.stringify(notice ?? null))
+  check('the main agent is told: the stop queues one task notification naming the crewmate and the door that stopped it, at the next priority', stopWords !== undefined && notice !== undefined && typeof notice.value === 'string' && notice.value.includes('<status>killed</status>') && notice.value.includes(`<summary>${stopWords('sonnet-ping')}</summary>`) && notice.priority === 'next', JSON.stringify(notice ?? null))
   const again = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
   check('a second stop is refused with the row\'s status, never applied', again.outcome === 'refused' && again.reason === notRunningWords('sonnet-ping: reply ping', 'killed'), JSON.stringify(again))
 }
@@ -96,13 +96,13 @@ section('the misses: an unknown id and a settled row are refused, never applied'
   check('a settled workflow row is refused with its status', wfAgain.outcome === 'refused' && /not running \(status: killed\)/.test(wfAgain.reason), JSON.stringify(wfAgain))
 }
 
-section('the address: TaskStop resolves a named teammate\'s agent id and name, a launch name, and a task id as given')
+section('the address: TaskStop resolves a named crewmate\'s agent id and name, a launch name, and a task id as given')
 {
   const store = makeStore()
-  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', teamName: 'ping-team', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
+  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
   const id = spawned.taskId!
   const state = store.get() as unknown as Parameters<typeof resolveStopTargetId>[1]
-  check('the composite agent id resolves to the teammate\'s task id', resolveStopTargetId('sonnet-ping@ping-team', state) === id)
+  check('the composite agent id resolves to the crewmate\'s task id', resolveStopTargetId('sonnet-ping@ping-crew', state) === id)
   check('the bare name resolves to the same task', resolveStopTargetId('sonnet-ping', state) === id)
   check('the task id resolves to itself', resolveStopTargetId(id, state) === id)
   check('an unknown address comes back unchanged for the miss words', resolveStopTargetId('nobody@nowhere', state) === 'nobody@nowhere')

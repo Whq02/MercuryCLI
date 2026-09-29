@@ -77,7 +77,7 @@ export function PromptInputFooterLeftSide({
   )
   const viewedCrewmate = useViewedCrewmate()
   const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'teammates',
+    (state: AppState) => state.expandedView === 'crewmates',
   )
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)

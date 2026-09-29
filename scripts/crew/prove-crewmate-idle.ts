@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { mock } from 'bun:test'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const HOME = mkdtempSync(join(tmpdir(), 'teammate-idle-'))
+const HOME = mkdtempSync(join(tmpdir(), 'crewmate-idle-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -15,7 +15,7 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_CREWS_DIR', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const CREW = 'idle-truth'
-const LEAD = 'team-lead'
+const LEAD = 'crew-lead'
 const SEAT = 'deep'
 const SECOND_SEAT = 'quiet'
 const MODEL = 'claude-opus-4-6'
@@ -38,7 +38,7 @@ async function until(predicate: () => boolean, ms = 6000): Promise<boolean> {
   while (!predicate() && Date.now() < deadline) await sleep(20)
   return predicate()
 }
-const deadline = setTimeout(() => { console.error('teammate-idle exceeded its deadline'); process.exit(1) }, 120_000)
+const deadline = setTimeout(() => { console.error('crewmate-idle exceeded its deadline'); process.exit(1) }, 120_000)
 deadline.unref()
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -51,7 +51,7 @@ async function* fixtureRunAgent(params: { agentDefinition: { agentType: string }
   const seatName = JSON.stringify(params.promptMessages).includes(`${SECOND_SEAT}:`) ? SECOND_SEAT : SEAT
   modelCalls.push(seatName)
   if (modelCalls.filter(name => name === seatName).length > 1) {
-    modelFault = `the model was called again for ${seatName} (${modelCalls.length} calls) — an idle teammate's shutdown must never reach the model`
+    modelFault = `the model was called again for ${seatName} (${modelCalls.length} calls) — an idle crewmate's shutdown must never reach the model`
     throw new Error(modelFault)
   }
   params.onResolvedIdentity?.({ model: MODEL, effort: 'max' })
@@ -81,7 +81,7 @@ const SEAT_ID = formatAgentId(SEAT, CREW)
 const SECOND_ID = formatAgentId(SECOND_SEAT, CREW)
 let state: AppState = {
   ...getDefaultAppState(),
-  crewContext: { teamName: CREW, crewFilePath: getCrewFilePath(CREW), leadAgentId: LEAD_ID, crewmates: {} },
+  crewContext: { crewName: CREW, crewFilePath: getCrewFilePath(CREW), leadAgentId: LEAD_ID, crewmates: {} },
 } as AppState
 const setAppState = (updater: (prev: AppState) => AppState): void => {
   state = updater(state)
@@ -105,10 +105,10 @@ const taskOf = (taskId: string): InProcessCrewmateTaskState | undefined => {
   return task !== undefined && isInProcessCrewmateTask(task) ? task : undefined
 }
 async function startSeat(name: string): Promise<{ taskId: string; done: Promise<{ success: boolean; error?: Error }> }> {
-  const spawned = await spawnInProcessCrewmate({ name, teamName: CREW, prompt: `${name}: research only, then hand off.`, planModeRequired: false, model: MODEL }, { setAppState })
+  const spawned = await spawnInProcessCrewmate({ name, crewName: CREW, prompt: `${name}: research only, then hand off.`, planModeRequired: false, model: MODEL }, { setAppState })
   if (!spawned.success || spawned.taskId === undefined || spawned.crewmateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
   const done = runInProcessCrewmate({
-    identity: { agentId: formatAgentId(name, CREW), agentName: name, teamName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
+    identity: { agentId: formatAgentId(name, CREW), agentName: name, crewName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
     taskId: spawned.taskId,
     prompt: `${name}: research only, then hand off.`,
     crewmateContext: spawned.crewmateContext,
@@ -123,7 +123,7 @@ async function startSeat(name: string): Promise<{ taskId: string; done: Promise<
 }
 const memberFlag = async (name: string): Promise<boolean | undefined> => ((await readCrewFileAsync(CREW))?.members.find(candidate => candidate.name === name) as { isActive?: boolean } | undefined)?.isActive
 
-section('§1 a teammate that delivered its turn and waits on its inbox reads idle — on the task, the row, the facts and the words')
+section('§1 a crewmate that delivered its turn and waits on its inbox reads idle — on the task, the row, the facts and the words')
 const seat = await startSeat(SEAT)
 const wentIdle = await until(() => taskOf(seat.taskId)?.isIdle === true)
 check('the seat ran one turn and went idle (the task says isIdle)', wentIdle && modelCalls.length === 1, `isIdle=${String(taskOf(seat.taskId)?.isIdle)} · model calls ${modelCalls.length}`)
@@ -139,10 +139,10 @@ check('the seat ran one turn and went idle (the task says isIdle)', wentIdle && 
   let flag: boolean | undefined
   const deadlineAt = Date.now() + 4000
   while ((flag = await memberFlag(SEAT)) !== false && Date.now() < deadlineAt) await sleep(50)
-  check("the team file's member reads isActive: false at the idle transition (the delete's own flag)", flag === false, `isActive=${String(flag)}`)
+  check("the crew file's member reads isActive: false at the idle transition (the delete's own flag)", flag === false, `isActive=${String(flag)}`)
 }
 
-section('§2 a shutdown request to an idle teammate ends it at once: the approval reaches the lead, no model turn, the task settles completed')
+section('§2 a shutdown request to an idle crewmate ends it at once: the approval reaches the lead, no model turn, the task settles completed')
 {
   const request = createShutdownRequestMessage({ requestId: REQUEST_ID, from: LEAD, reason: 'the swarm is complete' })
   const delivered = await sendLiveMessage(CREW, { to: SEAT, from: LEAD, text: JSON.stringify(request), timestamp: new Date().toISOString() })
@@ -170,5 +170,5 @@ section('§3 an idle crewmate counts as done: the session\'s wait laws read it a
 
 clearTimeout(deadline)
 rmSync(HOME, { recursive: true, force: true })
-console.log(`\nteammate-idle: ${checks} checks, ${failures} failed`)
+console.log(`\ncrewmate-idle: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -244,9 +244,9 @@
       { "name": "engine_node_get", "class": "read", "lite": false, "side": "mercury", "summary": "Read properties from a node in a running worker, without parsing its log", "args": { "instance": "instance id from engine_jobs", "node": "NodePath", "properties": "optional array of property names" } },
       { "name": "engine_node_call", "class": "exec", "lite": false, "side": "mercury", "summary": "Call a method on a running worker's node and return its JSON result; runs code and always asks permission", "args": { "instance": "instance id from engine_jobs", "node": "NodePath", "method": "method name", "args": "optional JSON argument array" } },
       { "name": "engine_signal_wait", "class": "read", "lite": false, "side": "mercury", "summary": "Wait for a named signal on a running worker without changing its state; return the signal name and wait duration or a named timeout", "args": { "instance": "instance id from engine_jobs", "node": "NodePath", "signal": "signal name", "timeout_ms": "optional timeout in milliseconds (default 5000)" } },
-      { "name": "lease_take", "class": "mutate", "lite": false, "side": "mercury", "summary": "Take file leases under this project without a team; an overlapping holder is refused with its session and agent named", "args": { "paths": "array of project-relative paths" } },
+      { "name": "lease_take", "class": "mutate", "lite": false, "side": "mercury", "summary": "Take file leases under this project without a crew; an overlapping holder is refused with its session and agent named", "args": { "paths": "array of project-relative paths" } },
       { "name": "lease_release", "class": "mutate", "lite": false, "side": "mercury", "summary": "Release this session and agent's project file leases; never release another holder's leases", "args": { "paths": "optional array of project-relative paths (default all held paths)" } },
-      { "name": "lease_list", "class": "read", "lite": false, "side": "mercury", "summary": "List live project file leases with the session and agent that holds each path; no team required", "args": {} }
+      { "name": "lease_list", "class": "read", "lite": false, "side": "mercury", "summary": "List live project file leases with the session and agent that holds each path; no crew required", "args": {} }
     ] }
   ]
 }

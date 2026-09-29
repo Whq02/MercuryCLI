@@ -7,7 +7,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'mcp-estate-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'teams')
+process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'crews')
 delete process.env.MERCURY_MCP_MAX_RISK
 delete process.env.MERCURY_MCP_UNTRUSTED_HARDENING
 delete process.env.MERCURY_MCP_TRUSTED_SERVERS

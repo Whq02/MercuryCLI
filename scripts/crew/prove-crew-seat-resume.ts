@@ -224,7 +224,7 @@ const settledSeat = async (): Promise<Job | undefined> => (await jobs()).find(j 
 const spawnSeat = async (): Promise<{ ok?: boolean; pid?: number; error?: string }> =>
   (await daemonControlRpc({ op: 'crewSpawn', name: SEAT_NAME, model: SEAT_MODEL } as never, { timeoutMs: 30_000 })) as { ok?: boolean; pid?: number; error?: string }
 const killSeat = async (): Promise<{ ok?: boolean; error?: string }> => (await daemonControlRpc({ op: 'kill', short: SEAT_NAME } as never, { timeoutMs: 5_000 })) as { ok?: boolean; error?: string }
-const message = (text: string): Promise<boolean> => sendLiveMessage('crew', { to: SEAT_NAME, from: 'team-lead', text, timestamp: new Date().toISOString() })
+const message = (text: string): Promise<boolean> => sendLiveMessage('crew', { to: SEAT_NAME, from: 'crew-lead', text, timestamp: new Date().toISOString() })
 
 console.log('crew seat resume — a stopped seat keeps its history; r and a message continue it')
 console.log(`  home ${home}\n  fixture ${base}`)
@@ -280,7 +280,7 @@ try {
   check('the woken seat runs on the same model', (await liveSeat())?.model === SEAT_MODEL, JSON.stringify(await liveSeat()))
   check('still one transcript file for the seat', await untilAsync(() => transcriptsCarrying(THIRD_NOTE).length === 1 && transcriptsCarrying(THIRD_NOTE)[0] === transcript1, 30_000), JSON.stringify(transcriptFiles()))
   check('the message was delivered exactly once (one request carried it as the last turn)', seatHits().filter(c => c.last?.includes(THIRD_NOTE)).length === 1, JSON.stringify(seatHits().map(c => c.last)))
-  const spawnLines = daemonLog().split('\n').filter(l => l.includes('crew teammate spawned: @mate'))
+  const spawnLines = daemonLog().split('\n').filter(l => l.includes('crew crewmate spawned: @mate'))
   check('the daemon spawned the seat three times in all: the birth, the r road, the wake', spawnLines.length === 3, `${spawnLines.length} spawn lines`)
   console.log(`      daemon: ${spawnLines.at(-1) ?? '(no spawn line)'}`)
 

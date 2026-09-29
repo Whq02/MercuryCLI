@@ -17,7 +17,7 @@ export type BootRecoveryScope = 'session' | 'daemon'
 export type BootRecoveryPhase = 'pending' | 'running' | 'done'
 
 export interface LeaderProjectionSeed {
-  teamName: string
+  crewName: string
   crewFilePath: string
   leadAgentId: string
   crewmates: Record<
@@ -105,7 +105,7 @@ export function bootRecoveryStatusLine(
   if (r.daemonRecords?.state === 'reconciled' && r.daemonRecords.cleaned.length > 0) {
     parts.push(`${r.daemonRecords.cleaned.length} stale daemon record(s) reconciled`)
   }
-  if (r.leaderProjection) parts.push(`team "${r.leaderProjection.teamName}" projection rebuilt`)
+  if (r.leaderProjection) parts.push(`crew "${r.leaderProjection.crewName}" projection rebuilt`)
   if (unrecoverable > 0) parts.push(`${unrecoverable} op(s) NEED ATTENTION (journal preserved)`)
   if (r.errors.length > 0) parts.push(`${r.errors.length} recovery error(s)`)
   if (parts.length === 0) return null
@@ -243,11 +243,11 @@ async function rebuildLeaderProjection(
     const helpers = await import('../utils/swarm/crewHelpers.js')
     const { setLeaderCrewName } = await import('../utils/tasks.js')
     const { setLeadCrewFallback } = await import('../utils/crewmate.js')
-    setLeaderCrewName(helpers.sanitizeName(led.teamName))
-    setLeadCrewFallback(led.teamName)
-    helpers.registerCrewForSessionCleanup(led.teamName)
+    setLeaderCrewName(helpers.sanitizeName(led.crewName))
+    setLeadCrewFallback(led.crewName)
+    helpers.registerCrewForSessionCleanup(led.crewName)
     const crewmates: LeaderProjectionSeed['crewmates'] = {}
-    const tf = await helpers.readCrewFileAsync(led.teamName)
+    const tf = await helpers.readCrewFileAsync(led.crewName)
     for (const m of tf?.members ?? []) {
       crewmates[m.agentId] = {
         name: m.name,
@@ -261,7 +261,7 @@ async function rebuildLeaderProjection(
       }
     }
     return {
-      teamName: led.teamName,
+      crewName: led.crewName,
       crewFilePath: led.crewFilePath,
       leadAgentId: led.leadAgentId,
       crewmates,
@@ -312,7 +312,7 @@ export async function runBootRecovery(opts: {
       import('../services/changeTransaction/changeSetCommit.js').then(m => m.recoverChangeSetJournal()),
     ])
     if (crewSettled.status === 'fulfilled') report.crewJournal = crewSettled.value
-    else errors.push(`team journal recovery failed: ${describe(crewSettled.reason)}`)
+    else errors.push(`crew journal recovery failed: ${describe(crewSettled.reason)}`)
     if (changeSetSettled.status === 'fulfilled') report.changeSetJournal = changeSetSettled.value
     else errors.push(`change-set journal recovery failed: ${describe(changeSetSettled.reason)}`)
 

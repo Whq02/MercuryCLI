@@ -8,7 +8,7 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'empty-reply-nudge-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'empty-reply-nudge-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'empty-reply-nudge-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'empty-reply-nudge-crews-'))
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV']) {
   delete process.env[k]
 }

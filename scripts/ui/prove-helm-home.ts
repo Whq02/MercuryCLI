@@ -100,11 +100,11 @@ check('S8: CREW sources the projected roster through the crew predicate (the pro
   /useSessionCrew\(\)/.test(lanes) &&
     /crewAgentsOf\(projectWorkRoster\(kept\), sessionId\)/.test(crewLedgerSrc) &&
     workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
-    /return row\.kind === 'agent' \|\| row\.kind === 'teammate'/.test(crewFactsSrc))
+    /return row\.kind === 'agent' \|\| row\.kind === 'crewmate'/.test(crewFactsSrc))
 check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate), keeps every crewmate the session has had — never filtered to the running ones — and pulls the viewed or pinned row into the cap",
   /crewAgentsOf\(roster\.rows, sessionId\)/.test(crewLedgerSrc) && !/\.filter\(f => f\.running/.test(lanes) && /keptIds\.includes\(c\.id\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
-check('a hosted CREW row opens the agent in the view (the teammate road), never a /runs command',
-  /\{ kind: 'teammate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/(runs|tasks) \$\{c\.id\}`/.test(lanes))
+check('a hosted CREW row opens the agent in the view (the crewmate road), never a /runs command',
+  /\{ kind: 'crewmate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/(runs|tasks) \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
 check('no TASKS card: the rail builds no ledger section or rows of its own',
@@ -136,7 +136,7 @@ check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
   /runsAll\.length === 0 &&/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
   /useNowTick\(\s*mergedTelemetry \|\| runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
-check('CREW: running agent rows rotate too (one liveness grammar; an idle teammate, the viewed ◉ and main-chat ★ marks stand still)',
+check('CREW: running agent rows rotate too (one liveness grammar; an idle crewmate, the viewed ◉ and main-chat ★ marks stand still)',
   /glyphLive=\{c\.status === 'running' && !idle && !isViewing && !isMainChat\}/.test(lanes))
 
 check('telemetry rail renders the ctx-fill gauge (getLiveContextUsage)',

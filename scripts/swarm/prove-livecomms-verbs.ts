@@ -7,7 +7,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const TMP = mkdtempSync(join(tmpdir(), 'mercury-livecomms-verbs-'))
 process.env.MERCURY_CONFIG_DIR = TMP
-process.env.MERCURY_TEAMS_DIR = join(TMP, 'teams')
+process.env.MERCURY_CREWS_DIR = join(TMP, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -108,9 +108,9 @@ const subscribers = walk(join(ROOT, 'src')).filter(path => /subscribeLiveMessage
 check('the lead wake, the seat drain, the in-process runner and the crew board subscribe to the store (RED on the base: no such verb)', ['src/cli/print.ts', 'src/daemon/dispatchDrain.ts', 'src/utils/crew/crewClient.ts', 'src/utils/swarm/inProcessRunner.ts'].every(path => subscribers.includes(path)), subscribers.join(', '))
 
 section('§4 nothing wrote an inbox file')
-const teams = join(TMP, 'teams')
-const inboxFiles = existsSync(teams) ? walk(teams).filter(p => p.includes('inboxes')) : []
-check('no inboxes/ file under the teams home', inboxFiles.length === 0, inboxFiles.join(', '))
+const crews = join(TMP, 'crews')
+const inboxFiles = existsSync(crews) ? walk(crews).filter(p => p.includes('inboxes')) : []
+check('no inboxes/ file under the crews home', inboxFiles.length === 0, inboxFiles.join(', '))
 check('the one crew file holds the rows', existsSync(join(TMP, 'crew', 'livecomms', `${CREW}.json`)))
 
 rmSync(TMP, { recursive: true, force: true })

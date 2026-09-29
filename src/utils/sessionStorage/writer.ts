@@ -833,7 +833,7 @@ class Project {
     isSidechain: boolean = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
-    crewInfo?: { teamName?: string; agentName?: string },
+    crewInfo?: { crewName?: string; agentName?: string },
     preferLiveLeaf: boolean = false,
   ) {
     return this.trackWrite(() => this.serializeInsert(async () => {
@@ -878,7 +878,7 @@ class Project {
             ? (parentUuid ?? undefined)
             : undefined,
           isSidechain,
-          teamName: crewInfo?.teamName,
+          crewName: crewInfo?.crewName,
           agentName: crewInfo?.agentName,
           promptId:
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
@@ -1175,7 +1175,7 @@ class Project {
 }
 
 export type CrewInfo = {
-  teamName?: string
+  crewName?: string
   agentName?: string
 }
 

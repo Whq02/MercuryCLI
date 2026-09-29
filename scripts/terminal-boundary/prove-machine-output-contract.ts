@@ -68,7 +68,7 @@ async function runDist(
     MERCURY_CONFIG_DIR: join(home, '.claude'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     ...opts.extraEnv,
   }
   if (opts.baseUrl) env.ANTHROPIC_BASE_URL = opts.baseUrl
@@ -244,7 +244,7 @@ async function driveDist(
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: baseUrl,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
   }
   const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio'], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)

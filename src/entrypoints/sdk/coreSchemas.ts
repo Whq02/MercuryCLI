@@ -418,8 +418,8 @@ export const CrewmateIdleHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('CrewmateIdle'),
-    teammate_name: z.string().optional().describe('The teammate about to go idle'),
-    team_name: z.string().optional().describe('The team it belongs to'),
+    crewmate_name: z.string().optional().describe('The crewmate about to go idle'),
+    crew_name: z.string().optional().describe('The crew it belongs to'),
   }),
 )
 export const TaskCreatedHookInputSchema = lazySchema(() =>
@@ -429,8 +429,8 @@ export const TaskCreatedHookInputSchema = lazySchema(() =>
     task_id: z.string().describe('The new task\'s id'),
     task_subject: z.string().optional().describe('Its one-line subject'),
     task_description: z.string().optional().describe('Its longer body, when given'),
-    teammate_name: z.string().optional().describe('The teammate the task concerns'),
-    team_name: z.string().optional().describe('The owning team'),
+    crewmate_name: z.string().optional().describe('The crewmate the task concerns'),
+    crew_name: z.string().optional().describe('The owning crew'),
   }),
 )
 export const TaskCompletedHookInputSchema = lazySchema(() =>
@@ -440,8 +440,8 @@ export const TaskCompletedHookInputSchema = lazySchema(() =>
     task_id: z.string().describe('The finished task\'s id'),
     task_subject: z.string().optional().describe('Its one-line subject'),
     task_description: z.string().optional().describe('Its longer body, when given'),
-    teammate_name: z.string().optional().describe('The teammate that worked it'),
-    team_name: z.string().optional().describe('The owning team'),
+    crewmate_name: z.string().optional().describe('The crewmate that worked it'),
+    crew_name: z.string().optional().describe('The owning crew'),
     status: z.enum(['completed', 'failed', 'stopped']).optional().describe('How the task ended'),
   }),
 )

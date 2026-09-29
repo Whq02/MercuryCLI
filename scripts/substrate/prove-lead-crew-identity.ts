@@ -14,7 +14,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' lead team identity — briefs/verbs resolve from the lead seat')
+console.log(' lead crew identity — briefs/verbs resolve from the lead seat')
 console.log('============================================================')
 
 const REPO = join(import.meta.dir, '../..')
@@ -23,19 +23,19 @@ const crewmate = await import('../../src/utils/crewmate.js')
 const {
   getLeadCrewFallback,
   getCrewName,
-  isTeammate,
+  isCrewmate,
   resolveLeadAwareCrewName,
   setLeadCrewFallback,
 } = crewmate
 
-section('resolver UNIT — fallback rung, precedence, teammate semantics untouched')
+section('resolver UNIT — fallback rung, precedence, crewmate semantics untouched')
 setLeadCrewFallback(null)
 check('bare, no registration → undefined', resolveLeadAwareCrewName() === undefined)
 setLeadCrewFallback('crewX')
 check('registered → resolves the fallback', resolveLeadAwareCrewName() === 'crewX')
-check('explicit crewContext arg BEATS the fallback', resolveLeadAwareCrewName({ teamName: 'ctx' }) === 'ctx')
+check('explicit crewContext arg BEATS the fallback', resolveLeadAwareCrewName({ crewName: 'ctx' }) === 'ctx')
 check('getCrewName() itself stays blind (no global rung)', getCrewName() === undefined)
-check('isTeammate() stays false under a lead registration', isTeammate() === false)
+check('isCrewmate() stays false under a lead registration', isCrewmate() === false)
 setLeadCrewFallback(null)
 check('cleared → undefined again', resolveLeadAwareCrewName() === undefined)
 
@@ -66,14 +66,14 @@ check(
   briefSrc.includes('resolveCoordinationContext(context.getAppState().crewContext'),
 )
 const birthSrc = readFileSync(join(REPO, 'src/utils/crew/crewBirth.ts'), 'utf8')
-check('the crew birth registers the lead team from the first turn (every session has a crew from the moment it starts)', birthSrc.includes('setLeadCrewFallback(sessionCrewName(sessionId))'))
-check('the birth never overrides a led team the resume projection registered', birthSrc.includes('if (getLeadCrewFallback() === null) setLeadCrewFallback('))
+check('the crew birth registers the lead crew from the first turn (every session has a crew from the moment it starts)', birthSrc.includes('setLeadCrewFallback(sessionCrewName(sessionId))'))
+check('the birth never overrides a led crew the resume projection registered', birthSrc.includes('if (getLeadCrewFallback() === null) setLeadCrewFallback('))
 const runnerSrc = readFileSync(join(REPO, 'src/cli/print.ts'), 'utf8')
 const launcherSrc = readFileSync(join(REPO, 'src/replLauncher.tsx'), 'utf8')
 check('the headless runner and the REPL launcher both birth the crew once the session id is final', (runnerSrc.match(/birthSessionCrew\(/g) ?? []).length === 2 && launcherSrc.includes('birthSessionCrew(String(getSessionId()), update => {'))
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL LEAD-TEAM-IDENTITY PROOFS PASS')
-else console.log(`❌ ${failures} LEAD-TEAM-IDENTITY PROOF(S) FAILED`)
+if (failures === 0) console.log('✅ ALL LEAD-CREW-IDENTITY PROOFS PASS')
+else console.log(`❌ ${failures} LEAD-CREW-IDENTITY PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)

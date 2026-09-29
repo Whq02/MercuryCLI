@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-lease-words-'))
 process.env.MERCURY_CONFIG_DIR = tmpHome
-process.env.MERCURY_CREWS_DIR = join(tmpHome, 'teams')
+process.env.MERCURY_CREWS_DIR = join(tmpHome, 'crews')
 
 import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
@@ -52,12 +52,12 @@ const crew: CrewFile = {
   leadAgentId: `lead@${CREW}`,
   governance: undefined,
   members: [
-    { agentId: `lead@${CREW}`, name: 'team-lead', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
+    { agentId: `lead@${CREW}`, name: 'crew-lead', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
     { agentId: `w@${CREW}`, name: 'worker', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
   ],
 }
 await writeCrewFileAsync(CREW, crew)
-setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', teamName: CREW, planModeRequired: false })
+setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', crewName: CREW, planModeRequired: false })
 
 try {
   const client = await connect()
@@ -87,7 +87,7 @@ try {
   tally.check('B4 a claim with no list is refused', none.isError === true, textOf(none).slice(0, 300))
   tally.check('B5 the refusal names both spellings', /\bpaths\b/.test(textOf(none)) && /\bglobs\b/.test(textOf(none)), textOf(none).slice(0, 300))
   const emptySet = (await client.callTool({ name: 'lease_claim', arguments: { paths: [] } })) as Result
-  tally.check('B6 an explicit empty set still releases the team lease', !emptySet.isError && jsonOf(emptySet).ok === true && JSON.stringify(jsonOf(emptySet).globs) === JSON.stringify([]), textOf(emptySet).slice(0, 300))
+  tally.check('B6 an explicit empty set still releases the crew lease', !emptySet.isError && jsonOf(emptySet).ok === true && JSON.stringify(jsonOf(emptySet).globs) === JSON.stringify([]), textOf(emptySet).slice(0, 300))
 
   tally.section('C. a release with either spelling releases')
   const takeX = (await client.callTool({ name: 'lease_take', arguments: { paths: ['x.txt'] } })) as Result
@@ -97,14 +97,14 @@ try {
   const takeY = (await client.callTool({ name: 'lease_take', arguments: { paths: ['y.txt'] } })) as Result
   tally.check('C3 a second exact project lease is taken', !takeY.isError && jsonOf(takeY).ok === true, textOf(takeY).slice(0, 300))
   const claimAgain = (await client.callTool({ name: 'lease_claim', arguments: { paths: ['src/e.ts'] } })) as Result
-  tally.check('C4 the team lease stands again', !claimAgain.isError && jsonOf(claimAgain).ok === true, textOf(claimAgain).slice(0, 300))
+  tally.check('C4 the crew lease stands again', !claimAgain.isError && jsonOf(claimAgain).ok === true, textOf(claimAgain).slice(0, 300))
   const releaseY = (await client.callTool({ name: 'lease_release', arguments: { globs: ['y.txt'] } })) as Result
   tally.check('C5 a release sent as globs releases the named project lease', !releaseY.isError && jsonOf(releaseY).ok === true && jsonOf(releaseY).released === true, textOf(releaseY).slice(0, 300))
   const listAfter = (await client.callTool({ name: 'lease_list', arguments: {} })) as Result
   const leases = (jsonOf(listAfter).leases as Array<{ agentId?: string; globs?: string[] }>) ?? []
-  tally.check('C6 the team lease was not the one released', leases.some(l => l.agentId === 'worker' && JSON.stringify(l.globs) === JSON.stringify(['src/e.ts'])), textOf(listAfter).slice(0, 400))
+  tally.check('C6 the crew lease was not the one released', leases.some(l => l.agentId === 'worker' && JSON.stringify(l.globs) === JSON.stringify(['src/e.ts'])), textOf(listAfter).slice(0, 400))
   const releaseCrew = (await client.callTool({ name: 'lease_release', arguments: {} })) as Result
-  tally.check('C7 a release with no list still drops the team lease', !releaseCrew.isError && jsonOf(releaseCrew).ok === true && jsonOf(releaseCrew).released === true, textOf(releaseCrew).slice(0, 300))
+  tally.check('C7 a release with no list still drops the crew lease', !releaseCrew.isError && jsonOf(releaseCrew).ok === true && jsonOf(releaseCrew).released === true, textOf(releaseCrew).slice(0, 300))
   await client.close()
 } finally {
   clearDynamicCrewContext()

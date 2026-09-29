@@ -115,7 +115,7 @@ async function refreshOnce(): Promise<void> {
         next.fleetFull = s
         next.fleet = {
           state: s.state,
-          crew: s.data.teamName,
+          crew: s.data.crewName,
           conflicts: s.data.conflicts.length,
           drifting: s.data.health.filter(h => h.state === 'drifting').length,
         }

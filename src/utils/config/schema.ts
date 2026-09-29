@@ -237,7 +237,7 @@ export type GlobalConfig = {
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
   hasUsedBackgroundTask?: boolean
-  expandedView?: 'none' | 'tasks' | 'teammates'
+  expandedView?: 'none' | 'tasks' | 'crewmates'
   diffTool?: DiffTool
   iterm2SetupInProgress?: boolean
   iterm2BackupPath?: string

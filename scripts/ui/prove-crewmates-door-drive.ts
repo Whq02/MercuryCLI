@@ -26,7 +26,7 @@ const rowsOf = (grid: { c: string }[][]): string[] => grid.map(row => row.map(ce
 const CREW_TITLE = 'Mercury — crew'
 try {
   for (const band of [{ cols: 178, rows: 51 }, { cols: 80, rows: 21 }]) {
-    for (const command of ['crewmates', 'teammates']) {
+    for (const command of ['crewmates', 'crewmates']) {
       const cfg = scenario('resume-2turn', band.cols, band.rows)
       const sends = [
         { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 3, data: `/${command}` },
@@ -46,8 +46,8 @@ try {
       check(`${band.cols}: /${command} completes its command road`, result.status === 0 && payload?.marks?.some(mark => mark.label === 'view') === true, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}`)
       const heading = frame.find(row => row.includes(CREW_TITLE) || row.includes('Unknown command') || row.includes('Unknown skill')) ?? ''
       check(`${band.cols}: /${command} opens the crew view`, heading.includes(CREW_TITLE) && !heading.includes('Unknown'), heading.trim())
-      const stale = frame.filter(row => row.includes('/teammates'))
-      check(`${band.cols}: the crew view's own doors say /crewmates, not /teammates`, stale.length === 0, stale.map(row => row.trim()).join(' | '))
+      const stale = frame.filter(row => row.includes('/crewmates'))
+      check(`${band.cols}: the crew view's own doors say /crewmates, not /crewmates`, stale.length === 0, stale.map(row => row.trim()).join(' | '))
       cleanupScenario('resume-2turn')
     }
   }

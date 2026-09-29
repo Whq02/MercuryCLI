@@ -65,24 +65,24 @@ try {
   crewImportError = String(error).split('\n')[0] ?? String(error)
 }
 
-section('§1 the claim record is the crew\'s, not a team file\'s')
+section('§1 the claim record is the crew\'s, not a crew file\'s')
 const storePath = leaseGlob.getLeaseStorePath('crew')
 const relStore = relative(HOME, storePath)
-check('the claim store lives under the crew store root (<home>/crew/), not under teams/<team>/leases', relStore.startsWith('crew/') && !relStore.includes('teams/'), relStore)
+check('the claim store lives under the crew store root (<home>/crew/), not under crews/<crew>/leases', relStore.startsWith('crew/') && !relStore.includes('crews/'), relStore)
 check('the crew claim module exists (src/services/crew/claims.ts)', crew !== null, crewImportError)
 
-section('§2 the lead claims with no team at all')
+section('§2 the lead claims with no crew at all')
 if (crew) {
   const lead = crew.resolveClaimHolder()
   check(`the lead's claim identity is ${CREW_LEAD_NAME}, kind lead`, lead.name === CREW_LEAD_NAME && lead.kind === 'lead', JSON.stringify(lead))
   const claimed = await crew.claimCrewFiles(['src/claims/lead.ts'])
-  check('claimCrewFiles by the lead answers ok with no team context', claimed.ok === true, JSON.stringify(claimed))
+  check('claimCrewFiles by the lead answers ok with no crew context', claimed.ok === true, JSON.stringify(claimed))
   const rows = await crew.listCrewClaims()
   const mine = rows.find(r => r.holder.name === CREW_LEAD_NAME)
   check('the record names the lead as holder with kind lead', mine !== undefined && mine.holder.kind === 'lead' && mine.globs.includes('src/claims/lead.ts'), JSON.stringify(rows))
   check('the record file is on disk under the crew root', existsSync(storePath) && readFileSync(storePath, 'utf8').includes('"kind"'), storePath)
 } else {
-  check('the lead can claim with no team (needs the crew claim module)', false, crewImportError)
+  check('the lead can claim with no crew (needs the crew claim module)', false, crewImportError)
 }
 
 section('§3 crewmate alpha claims src/a.ts; its own edit passes')
@@ -90,7 +90,7 @@ section('§3 crewmate alpha claims src/a.ts; its own edit passes')
   const alpha = crewmate.createCrewmateContext({
     agentId: 'alpha@crew',
     agentName: 'alpha',
-    teamName: 'crew',
+    crewName: 'crew',
     planModeRequired: false,
     parentSessionId: 'parent',
     abortController: new AbortController(),
@@ -123,7 +123,7 @@ section('§4 a sub-agent claims under its own identity (not the lead\'s)')
     const rows = await crew.listCrewClaims()
     check('the record names the sub-agent, and the lead\'s own record is untouched', rows.some(r => r.holder.name === 'a1b2c3d4e' && r.holder.kind === 'subagent') && rows.some(r => r.holder.name === CREW_LEAD_NAME && r.globs.includes('src/claims/lead.ts')), JSON.stringify(rows))
   }
-  const ownEdit = await inSub(() => guard.checkLeaseGuard('Edit', { file_path: join(getProjectRoot(), 'src/b.ts') }, { teamName: 'crew' }))
+  const ownEdit = await inSub(() => guard.checkLeaseGuard('Edit', { file_path: join(getProjectRoot(), 'src/b.ts') }, { crewName: 'crew' }))
   check('the sub-agent\'s own Edit of src/b.ts passes the guard', ownEdit === null, String(ownEdit))
 }
 
@@ -139,7 +139,7 @@ section('§5 a daemon seat claims under its name with kind seat')
     const claimed = await crew.claimCrewFiles(['src/seat/**'])
     check('the seat claims src/seat/**', claimed.ok === true, JSON.stringify(claimed))
   }
-  crewmate.setDynamicCrewContext({ agentId: 'beta@crew', agentName: 'beta', teamName: 'crew', planModeRequired: false })
+  crewmate.setDynamicCrewContext({ agentId: 'beta@crew', agentName: 'beta', crewName: 'crew', planModeRequired: false })
   if (crew) {
     const holder = crew.resolveClaimHolder()
     check('with the identity args published too, the seat is still {beta, seat, beta@crew}', holder.name === 'beta' && holder.kind === 'seat' && holder.id === 'beta@crew', JSON.stringify(holder))
@@ -180,7 +180,7 @@ section('§7 the coordination service\'s road lands in the same crew store')
     check('crewClaimConflict names delta as the holder of src/d.ts for alpha', conflict !== null && conflict.holder.name === 'delta', JSON.stringify(conflict))
   }
   const listed = await leaseGlob.listLeases('crew')
-  check('listLeases lists every crew claim (lead, alpha, the sub-agent, beta, gamma, delta)', ['team-lead', 'alpha', 'a1b2c3d4e', 'beta', 'gamma', 'delta'].every(n => listed.some(l => l.agentId === n)), listed.map(l => l.agentId).join(','))
+  check('listLeases lists every crew claim (lead, alpha, the sub-agent, beta, gamma, delta)', ['crew-lead', 'alpha', 'a1b2c3d4e', 'beta', 'gamma', 'delta'].every(n => listed.some(l => l.agentId === n)), listed.map(l => l.agentId).join(','))
 }
 
 console.log('\n' + '═'.repeat(76))

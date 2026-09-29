@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === 'test') {
 const HERMETIC_HOME = mkdtempSync(join(tmpdir(), 'native-core-inputsched-'))
 process.env.MERCURY_CONFIG_DIR = HERMETIC_HOME
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC_HOME, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HERMETIC_HOME, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HERMETIC_HOME, 'crews')
 
 const q = await import('../../src/input-core/command-queue.js')
 const draft = await import('../../src/utils/promptDraft.js')
@@ -623,7 +623,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   pi.edit('')
   check('restore-matrix 5: a queued follow-up owns the next turn (never restores)',
     !pi.shouldAutoRestore({ ...ALL_TRUE, queueLength: 1 }))
-  check('restore-matrix 6: viewing a teammate never restores', !pi.shouldAutoRestore({ ...ALL_TRUE, viewingAgent: true }))
+  check('restore-matrix 6: viewing a crewmate never restores', !pi.shouldAutoRestore({ ...ALL_TRUE, viewingAgent: true }))
 
   pi.edit('ship it')
   pi.clearForSubmit('ship it')

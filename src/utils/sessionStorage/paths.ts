@@ -18,6 +18,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { getProjectDir as resolveProjectDirWithAdoption } from '../sessionStoragePortable.js'
 import { RETIRED_AGENT_TYPES } from '../../tools/AgentTool/constants.js'
+import { readRetiredAgentSidecar } from '../../migrations/retiredCrewSpellings.js'
 
 export function isTranscriptMessage(entry: Entry): entry is TranscriptMessage {
   switch (entry.type) {
@@ -152,7 +153,7 @@ export type AgentMetadata = {
   name?: string
   launchedAt?: number
   crewmate?: {
-    teamName: string
+    crewName: string
     prompt: string
     transcriptAgentId: string
     planModeRequired: boolean
@@ -202,8 +203,7 @@ export async function readAgentMetadata(
     throw e
   }
   try {
-    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }
-    const meta: AgentMetadata = parsed.crewmate === undefined && parsed.teammate !== undefined ? { ...parsed, crewmate: parsed.teammate } : parsed
+    const meta = readRetiredAgentSidecar(JSON.parse(raw) as AgentMetadata)
     const current = RETIRED_AGENT_TYPES[meta.agentType]
     return current === undefined ? meta : { ...meta, agentType: current }
   } catch {

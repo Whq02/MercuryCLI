@@ -41,7 +41,7 @@ if (!existsSync(DIST)) {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-artifact-faults-'))
 const home = join(tmp, 'home')
-const crews = join(tmp, 'teams')
+const crews = join(tmp, 'crews')
 const daemon = join(tmp, 'daemon')
 const project = join(tmp, 'project')
 for (const d of [home, crews, daemon, project]) mkdirSync(d, { recursive: true })
@@ -89,14 +89,14 @@ function checksOf(cert: unknown, sectionId: string): Check[] {
 const journalDir = join(crews, '.journal')
 const deadPid = spawnSync('node', ['-e', ''], { timeout: 10_000 }).pid ?? 999_999
 
-function seedDeadOp(opId: string, teamName: string): void {
-  mkdirSync(join(crews, teamName), { recursive: true })
+function seedDeadOp(opId: string, crewName: string): void {
+  mkdirSync(join(crews, crewName), { recursive: true })
   writeFileSync(
-    join(crews, teamName, 'config.json'),
+    join(crews, crewName, 'config.json'),
     JSON.stringify({
-      name: teamName,
+      name: crewName,
       createdAt: Date.now(),
-      leadAgentId: `team-lead@${teamName}`,
+      leadAgentId: `crew-lead@${crewName}`,
       leadSessionId: 'dead-owner-session',
       members: [],
     }),
@@ -109,12 +109,12 @@ function seedDeadOp(opId: string, teamName: string): void {
       schema: 1,
       operationId: opId,
       ownerKey: 'dead-owner-session',
-      kind: 'team-create',
-      idempotencyKey: `team-create:${teamName}`,
+      kind: 'crew-create',
+      idempotencyKey: `crew-create:${crewName}`,
       state: 'applying',
       steps: [
-        { id: 'team-file', target: join(crews, teamName, 'config.json'), state: 'applied' },
-        { id: 'task-epoch', target: teamName, state: 'pending' },
+        { id: 'crew-file', target: join(crews, crewName, 'config.json'), state: 'applied' },
+        { id: 'task-epoch', target: crewName, state: 'pending' },
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -190,23 +190,23 @@ const undecodableBytes = JSON.stringify({
   schema: 1,
   operationId: 'zz-undecodable',
   ownerKey: 'dead-owner-session',
-  kind: 'team-create',
-  idempotencyKey: 'team-create:af-ghost',
+  kind: 'crew-create',
+  idempotencyKey: 'crew-create:af-ghost',
   state: 'applying',
-  steps: [{ id: 'team-file', target: 'x', state: 'applied' }],
+  steps: [{ id: 'crew-file', target: 'x', state: 'applied' }],
   updatedAt: new Date().toISOString(),
   writerPid: deadPid,
 })
 const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(undecodablePath, 'utf8') === undecodableBytes
 {
-  seedDeadOp('af-b', 'af-team-b')
+  seedDeadOp('af-b', 'af-crew-b')
   writeFileSync(undecodablePath, undecodableBytes, 'utf8')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
   ok(row?.status === 'warn', `durable-journals warns beside an undecodable journal file (${row?.status})`)
   ok(row?.evidence.includes('1 interrupted awaiting recovery') === true, `evidence counts the op (${row?.evidence})`)
   ok(opState('af-b') === 'applying', 'doctor did NOT touch the op (diagnose-only)')
-  ok(existsSync(join(crews, 'af-team-b', 'config.json')), 'doctor did NOT touch the half-team')
+  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'doctor did NOT touch the half-crew')
   ok(undecodableIntact(), 'doctor did NOT touch the undecodable file')
   const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
   ok(
@@ -221,7 +221,7 @@ console.log('— C. daemon boot recovery on the artifact —')
   const r = await bootDaemon({ until: () => terminal(opState('af-b')), timeoutMs: 30_000 })
   ok(r.converged, `daemon boot terminal-ized the op beside the undecodable file (state ${opState('af-b')})`)
   ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
-  ok(existsSync(join(crews, 'af-team-b', 'config.json')), 'the half-team is left in place by the artifact boot (nothing is removed by itself)')
+  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'the half-crew is left in place by the artifact boot (nothing is removed by itself)')
   ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
@@ -245,16 +245,16 @@ const BOUNDARIES = [
 ] as const
 for (const [i, phase] of BOUNDARIES.entries()) {
   const opId = `af-d${i}`
-  const teamName = `af-team-d${i}`
-  seedDeadOp(opId, teamName)
+  const crewName = `af-crew-d${i}`
+  seedDeadOp(opId, crewName)
   const kill = await bootDaemon({ fault: `${phase}@op-${opId}:kill`, timeoutMs: 20_000 })
   const stateAfterKill = opState(opId)
   const died = kill.exited && !kill.converged
   const reboot = await bootDaemon({ until: () => terminal(opState(opId)), timeoutMs: 60_000 })
   const convergedState = opState(opId)
   ok(
-    died && reboot.converged && convergedState === 'aborted' && existsSync(join(crews, teamName, 'config.json')),
-    `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, the team left in place) in ${reboot.waitedMs}ms`,
+    died && reboot.converged && convergedState === 'aborted' && existsSync(join(crews, crewName, 'config.json')),
+    `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, the crew left in place) in ${reboot.waitedMs}ms`,
   )
 }
 

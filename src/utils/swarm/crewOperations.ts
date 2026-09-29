@@ -7,34 +7,35 @@ import {
 import { getCrewsDir } from '../envUtils.js'
 import { logForDebugging } from '../debug.js'
 import { getCrewDir, getCrewFilePath, readCrewFileAsync } from './crewHelpers.js'
+import { readRetiredJournalKey } from '../../migrations/retiredCrewSpellings.js'
 
 export function crewJournalDir(): string {
   return join(getCrewsDir(), '.journal')
 }
 
-function crewNameOf(idempotencyKey: string, kind: 'team-create' | 'team-delete'): string {
-  return idempotencyKey.replace(new RegExp(`^${kind}:`), '').replace(/:\d+$/, '')
+function crewNameOf(idempotencyKey: string, kind: 'crew-create' | 'crew-delete'): string {
+  return readRetiredJournalKey(idempotencyKey).replace(new RegExp(`^${kind}:`), '').replace(/:\d+$/, '')
 }
 
 function leaveCrewInPlace(name: string, why: string): void {
-  logForDebugging(`[teams-journal] ${why}: "${name}" is left in place at ${getCrewDir(name)} — nothing is removed by itself`)
+  logForDebugging(`[crews-journal] ${why}: "${name}" is left in place at ${getCrewDir(name)} — nothing is removed by itself`)
 }
 
 export function crewJournalRecoveryHandlers(): Record<string, JournalRecoveryHandler> {
   return {
-    'team-create': {
+    'crew-create': {
       rollForward: async op => {
-        const name = crewNameOf(op.idempotencyKey, 'team-create')
+        const name = crewNameOf(op.idempotencyKey, 'crew-create')
         const tf = await readCrewFileAsync(name)
-        if (!tf) throw new Error(`team-create roll-forward: "${name}" has no team file`)
+        if (!tf) throw new Error(`crew-create roll-forward: "${name}" has no crew file`)
       },
       compensate: async op => {
-        leaveCrewInPlace(crewNameOf(op.idempotencyKey, 'team-create'), 'an older build\'s create was interrupted')
+        leaveCrewInPlace(crewNameOf(op.idempotencyKey, 'crew-create'), 'an older build\'s create was interrupted')
       },
     },
-    'team-delete': {
+    'crew-delete': {
       rollForward: async op => {
-        leaveCrewInPlace(crewNameOf(op.idempotencyKey, 'team-delete'), 'an older build\'s delete was interrupted')
+        leaveCrewInPlace(crewNameOf(op.idempotencyKey, 'crew-delete'), 'an older build\'s delete was interrupted')
       },
     },
   }
@@ -47,7 +48,7 @@ export async function recoverCrewJournal(): Promise<
 }
 
 export async function rebuildCrewProjection(sessionId: string): Promise<{
-  teamName: string
+  crewName: string
   crewFilePath: string
   leadAgentId: string
 } | null> {
@@ -64,7 +65,7 @@ export async function rebuildCrewProjection(sessionId: string): Promise<{
       const tf = await readCrewFileAsync(name)
       if (tf && tf.leadSessionId === sessionId) {
         return {
-          teamName: tf.name,
+          crewName: tf.name,
           crewFilePath: getCrewFilePath(tf.name),
           leadAgentId: tf.leadAgentId,
         }

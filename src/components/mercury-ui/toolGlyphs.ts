@@ -1,5 +1,6 @@
 
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
+import { isRetiredToolName } from '../../migrations/retiredCrewSpellings.js'
 
 export type ToolFamily =
   | 'shell'
@@ -74,9 +75,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Contract: 'agent',
   SendMessage: 'agent',
   LiveComms: 'agent',
-  TeamBrief: 'agent',
-  TeamCreate: 'agent',
-  TeamDelete: 'agent',
   Workflow: 'agent',
   Test: 'test',
   Journey: 'test',
@@ -122,6 +120,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
 export function toolFamilyFor(toolName: string): ToolFamily {
   const known = TOOL_FAMILY_BY_NAME[toolName]
   if (known) return known
+  if (isRetiredToolName(toolName)) return 'agent'
   if (toolName.startsWith('mcp__')) return 'external'
   return 'system'
 }

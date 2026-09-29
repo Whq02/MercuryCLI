@@ -44,7 +44,7 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
         initialState: {
           ...appProps.initialState,
           crewContext: {
-            teamName: led.teamName,
+            crewName: led.crewName,
             crewFilePath: led.crewFilePath,
             leadAgentId: led.leadAgentId,
             crewmates: led.crewmates,

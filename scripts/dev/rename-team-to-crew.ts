@@ -19,73 +19,82 @@ const EXCLUDED_PATHS: Array<{ prefix: string } & Why> = [
   { prefix: 'src/tools/WorkflowTool/', why: 'workflows do not change in any way: not their code' },
   { prefix: 'scripts/workflows/', why: 'workflows do not change in any way: not their proofs' },
   { prefix: 'docs/releases/', why: 'published release pages are history' },
+  { prefix: 'src/constants/changelog.ts', why: 'past release notes stay as published' },
   { prefix: 'scripts/mission-runner/corpus/', why: 'fixture repositories of foreign source' },
+  { prefix: 'scripts/interview/baselines/', why: 'frozen journey capture records keep their recorded bytes' },
+  { prefix: 'scripts/visual-contract/baselines/', why: 'frozen capture records of earlier screens' },
+  { prefix: 'scripts/agent-experience/baselines/', why: 'frozen mechanical baselines of earlier prompts' },
   { prefix: SELF, why: 'the script itself carries both spellings by design' },
 ]
 
 const FROZEN_FILES: Array<{ path: string } & Why> = [
+  { path: 'scripts/ui/prove-crew-screens-unchanged.ts', why: 'reads the stored frames of the earlier screens through a table of the old words and drives the old command name on the real screen' },
   { path: 'src/migrations/migrateConfigSpellings.ts', why: 'the table of retired global-config spellings names old keys by design' },
   { path: 'src/migrations/migrateSettingsSpellings.ts', why: 'the table of retired settings spellings names old keys by design' },
+  { path: 'src/migrations/retiredCrewSpellings.ts', why: 'the read-side alias tables: every old spelling a saved file or an old caller may still carry' },
   { path: 'scripts/settings/prove-old-settings-keys-read.ts', why: 'the pin writes the old keys by design' },
   { path: 'scripts/substrate/prove-old-env-spellings-read.ts', why: 'the pin sets the old env spellings by design' },
   { path: 'scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', why: 'the pin holds old transcript rows by design' },
+  { path: 'scripts/identity/prove-no-old-spelling-remains.ts', why: 'the census names the spellings it hunts' },
+  { path: 'scripts/switchboard/prove-crewmates-command.ts', why: 'the pin of the old command name still opening the crew view' },
+  { path: 'scripts/crew/prove-saved-crews-convert.ts', why: 'the pin converts saved rosters an older build wrote, in their old shape' },
+  { path: 'scripts/crew/prove-crew-tools-removed.ts', why: 'the pin holds an old transcript row of a removed tool' },
+  { path: 'scripts/ui/prove-old-transcript-rows.ts', why: 'the pin holds old transcript rows by design' },
+  { path: 'scripts/identity/prove-crew-words.ts', why: 'the census composes the old word it hunts' },
+  { path: 'scripts/identity/prove-crew-docs-words.ts', why: 'the census composes the old word it hunts' },
+  { path: 'scripts/engine-connector/prove-crew-vocabulary.ts', why: 'the census composes the old word it hunts' },
+  { path: 'scripts/builtin-tools/prove-builtin-tools-census.ts', why: 'the census names the retired tools it hunts' },
 ]
 
 const PINNED_PATHS: Array<{ path: string } & Why> = [
-  { path: 'scripts/crew/team-world.ts', why: 'a workflow proof imports it by this path and workflow proofs do not change' },
-  { path: 'src/commands/team/', why: 'the /team command is a public door beside /crew; its file keeps the command name' },
-  { path: 'src/services/resources/adapters/team.ts', why: 'the mercury://team resource kind keeps its file beside the crew adapter that already exists' },
-  { path: 'scripts/ui/prove-teams-dialog-gone.ts', why: 'the law names the thing that is gone' },
+  { path: 'scripts/crew/team-world.ts', why: 'a workflow proof and the workflow suite runner name it by this path, and workflows do not change in any way — the one file name kept, listed for the owner' },
+  { path: 'scripts/identity/prove-no-old-spelling-remains.ts', why: 'the census names the spelling it hunts' },
+]
+
+const REMOVED_PATHS: Array<{ path: string } & Why> = [
+  { path: 'src/commands/team/index.ts', why: 'the /team door only opened the runs board, which /runs opens' },
+  { path: 'src/services/resources/adapters/team.ts', why: 'the mercury://team kind listed saved rosters; mercury://crew is the living crew and the saved rosters are its records' },
 ]
 
 const PROTECTED_PATTERNS: Array<{ re: RegExp } & Why> = [
   { re: /formerly: '[^']*'/g, why: 'a flag row names the spelling an older build wrote' },
-  { re: /parsed\.teammate\b|\bteammate\?: AgentMetadata\['crewmate'\]/g, why: 'the sidecar reader names the key an older build wrote' },
+  { re: /['"]Team(?:Create|Delete)['"]/g, why: 'the quoted name of a removed tool: the old row a pin drives or refuses' },
+  { re: /[Cc]laude[ _][Tt]eam|claude_team/g, why: 'the plan of that name is the provider\'s, not the crew' },
+  { re: /\b[Rr]ed[- ]team(?:ed|ing|s)?\b/g, why: 'the adversarial verb, not the crew' },
+  { re: /TeamMem\b|TEAMMEM\b|teamMemory[A-Za-z]*/g, why: 'team memory is the memory of the people who share a repository, not the crew' },
+  { re: /\bteamwork\b/gi, why: 'a plain English word' },
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.jsx', '.json', '.jsonl', '.md', '.txt', '.tsv', '.csv', '.sh', '.bash', '.py', '.yml', '.yaml', '.toml', '.sed', '.html', '.css', '.svg', '.xml', '.plist', '.ps1', '.cfg', '.ini'])
 const CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.jsx'])
 
-const PROTECTED_IDENTIFIERS: Rule[] = [
-  { name: 'teamName', why: 'a key on every saved transcript row and session record (the writer stamps it; the picker classes by it)' },
-  { name: 'isTeammate', why: 'a key on every saved session record' },
-  { name: 'teamConfigPath', why: 'a key of the saved team_context attachment' },
-  { name: 'team_name', why: 'the Agent tool parameter the model sends and old transcripts hold' },
-  { name: 'teamAdapter', why: 'the mercury://team resource adapter beside the crew adapter that already exists' },
-]
-
-const PROTECTED_WORDS: Rule[] = [
-  { name: 'TeamBrief', why: 'the old tool name an old transcript row carries; the reader keeps it as an alias' },
-  { name: 'TeamCreate', why: 'the old tool name an old transcript row carries' },
-  { name: 'TeamDelete', why: 'the old tool name an old transcript row carries' },
-  { name: 'TeamMem', why: 'team memory is the human team of a repository, not the crew' },
-  { name: 'TEAMMEM', why: 'the feature word of team memory' },
-]
-
-const PROTECTED_SEQUENCE = /TeamBrief|TeamCreate|TeamDelete|TEAM_BRIEF|TEAM_CREATE|TEAM_DELETE|teamCreate|teamDelete/
-
-const PROTECTED_PREFIXES: Rule[] = [
-  { name: 'teamMemory', why: 'team memory is the human team of a repository, not the crew' },
-]
-
-const PROTECTED_LITERALS: Rule[] = [
-  { name: 'app:toggleTeammatePreview', why: 'a keybinding action id saved in operator keybinding files' },
-  { name: 'teams', why: 'the folder name under the config home that saved teams live in' },
-]
-
-type FileRule = { path: string; protect?: string[]; map?: Record<string, string> } & Why
+type FileRule = { path: string; protect?: string[]; map?: Record<string, string>; allow?: string[] } & Why
 const FILE_RULES: FileRule[] = [
-  { path: 'src/commands.ts', protect: ['team'], why: 'the /team command binding beside the crew command' },
-  { path: 'src/commands/team/index.ts', protect: ['team'], why: 'the /team command binding' },
+  { path: 'src/services/oauth/types.ts', protect: ['team', 'claude_team'], why: 'the subscription tier the provider names on the wire' },
+  { path: 'src/services/oauth/client.ts', protect: ['team', 'claude_team'], why: 'the subscription tier the provider names on the wire' },
   { path: 'src/utils/auth.ts', protect: ['team'], why: 'the Claude Team plan tier keyed by its wire value' },
-  { path: 'src/utils/cockpit/fleetGauge.ts', protect: ['teamRows'], why: 'the team-file rows beside the crew rows the gauge already lists' },
+  { path: 'src/hooks/notifs/useRateLimitWarningNotification.tsx', protect: ['team'], why: 'the plan tier' },
+  { path: 'src/services/mcp/channelNotification.ts', protect: ['team'], why: 'the plan tier' },
+  { path: 'src/utils/planModeV2.ts', protect: ['team'], why: 'the plan tier' },
+  { path: 'src/services/providers/providerUsage.ts', protect: ['team'], why: 'the plan tier' },
+  { path: 'src/components/PromptInput/Notifications.tsx', protect: ['team'], why: 'the plan tier' },
+  { path: 'src/utils/memoryFileDetection.ts', protect: ['team'], why: 'the memory scope shared with the people of a repository' },
+  { path: 'src/components/TrustDialog/TrustDialog.tsx', protect: ['team'], why: 'the trust question speaks of the people whose code it is' },
+  { path: 'src/commands/insights.ts', protect: ['Team'], why: 'the insights section for the people who use the product' },
+  { path: 'src/tools/AgentTool/agentMemory.ts', protect: ['team'], why: 'the memory file header speaks of the people who share the repository' },
+  { path: 'src/utils/cockpit/fleetGauge.ts', map: { team: 'saved', teamRows: 'savedRows' }, why: 'the saved-roster source beside the living crew the gauge already lists' },
   { path: 'src/components/PromptInput/PromptInput.tsx', map: { viewedTeammate: 'viewedCrewmateTask' }, why: 'the viewed in-process task beside the viewed crewmate of the crew view' },
-  { path: 'src/main.tsx', protect: ['teammateMode'], why: 'the command line still spells --teammate-mode, and the option parser derives teammateMode from it' },
+  { path: 'scripts/crew/prove-resume-by-name.ts', map: { team: 'crewCtx' }, why: 'the crew context beside the crew the proof already names' },
+  { path: 'src/components/tasks/BackgroundTasksDialog.tsx', map: { team: 'group' }, why: 'the grouping key beside the crew the board already names' },
+  { path: 'src/utils/crewmateMailbox.ts', map: { team: 'targetCrew' }, why: 'the addressed crew beside the crew the mailbox already names' },
+  { path: 'src/utils/crew/crewBirth.ts', allow: ['teamName'], why: 'crewName is a parameter of another function in the file, not this scope' },
+  ...['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts', 'scripts/attachments/goldens.json'].map(path => ({ path, protect: ['teammate_mailbox'], why: 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it' })),
 ]
 
 const explicit = (from: string, to: string, re: string, why: string): Explicit => ({ from, to, re: new RegExp(re, 'g'), why })
 const EXPLICIT: Explicit[] = [
   explicit('TEAMS.md', 'CREW.md', '(?<![A-Za-z0-9])TEAMS\\.md(?![A-Za-z0-9])', 'the crew page name the brief names'),
+  explicit('TeamBrief', 'LiveComms', '(?<![A-Za-z0-9_])TeamBrief(?![A-Za-z0-9_])', 'the brief became live communication under its own name; the alias tables and the pins that drive the old name are frozen'),
 ]
 
 const COLLAPSE: Array<[string, string]> = [
@@ -141,21 +150,6 @@ const ALIAS_PATCHES: AliasPatch[] = [
     already: "  { env: 'MERCURY_CREWMATES', formerly: 'MERCURY_TEAMMATES',",
   },
   {
-    file: 'src/substrate/flagRegistry.ts',
-    why: 'the crewmate launch command flag honours the spelling saved shells and older builds set (a row the pane-option removal may have taken away)',
-    find: "  { env: 'MERCURY_CREWMATE_COMMAND', kind: 'value',",
-    replace: "  { env: 'MERCURY_CREWMATE_COMMAND', formerly: 'MERCURY_TEAMMATE_COMMAND', kind: 'value',",
-    already: "  { env: 'MERCURY_CREWMATE_COMMAND', formerly: 'MERCURY_TEAMMATE_COMMAND',",
-    optional: true,
-  },
-  {
-    file: 'src/utils/sessionStorage/paths.ts',
-    why: 'an agent sidecar written under the old teammate key still resumes as a crewmate',
-    find: "    const meta = JSON.parse(raw) as AgentMetadata\n    const current = RETIRED_AGENT_TYPES[meta.agentType]\n",
-    replace: "    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }\n    const meta: AgentMetadata = parsed.crewmate === undefined && parsed.teammate !== undefined ? { ...parsed, crewmate: parsed.teammate } : parsed\n    const current = RETIRED_AGENT_TYPES[meta.agentType]\n",
-    already: "    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }\n",
-  },
-  {
     file: 'src/migrations/migrateConfigSpellings.ts',
     why: 'a saved global config written under the old keys is read as the current keys',
     find: 'export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {\n',
@@ -169,17 +163,508 @@ const ALIAS_PATCHES: AliasPatch[] = [
     replace: "export const RETIRED_SETTINGS_KEYS: readonly KeyRename[] = [\n  { from: ['hooks', 'TeammateIdle'], to: ['hooks', 'CrewmateIdle'], value: 'same' },\n",
     already: "  { from: ['hooks', 'TeammateIdle'], to: ['hooks', 'CrewmateIdle'], value: 'same' },\n",
   },
+  {
+    file: 'src/fabric/transcriptDecode.ts',
+    why: 'every transcript row read anywhere passes the retired-spellings table once, at the one decode point',
+    find: "import { bodyShapeIssue, validateRecord } from './validate.js'\n",
+    replace: "import { bodyShapeIssue, validateRecord } from './validate.js'\nimport { readRetiredTranscriptRow } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredTranscriptRow } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/fabric/transcriptDecode.ts',
+    why: 'the decoded entries carry the current spellings',
+    find: '  const { valid, invalid } = classifyInvalid(values)\n  return { entries: valid as T[], malformed, invalid, totalLines }\n',
+    replace: '  const { valid, invalid } = classifyInvalid(values)\n  return { entries: valid.map(row => readRetiredTranscriptRow(row)) as T[], malformed, invalid, totalLines }\n',
+    already: '  return { entries: valid.map(row => readRetiredTranscriptRow(row)) as T[], malformed, invalid, totalLines }\n',
+  },
+  {
+    file: 'src/utils/sessionStorage/logs.ts',
+    why: 'the lite session listing scans the head line by key and reads the retired key too',
+    find: "import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'\n",
+    replace: "import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'\nimport { RETIRED_TRANSCRIPT_ROW_KEYS } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { RETIRED_TRANSCRIPT_ROW_KEYS } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/sessionStorage/logs.ts',
+    why: 'the lite session listing reads the retired crew-name key',
+    find: "  const crewName = extractJsonStringField(head, 'crewName')\n",
+    replace: "  const crewName = extractJsonStringField(head, 'crewName') ?? extractJsonStringField(head, Object.keys(RETIRED_TRANSCRIPT_ROW_KEYS).find(k => RETIRED_TRANSCRIPT_ROW_KEYS[k] === 'crewName')!)\n",
+    already: "extractJsonStringField(head, Object.keys(RETIRED_TRANSCRIPT_ROW_KEYS).find(k => RETIRED_TRANSCRIPT_ROW_KEYS[k] === 'crewName')!)\n",
+  },
+  {
+    file: 'src/utils/sessionStorage/paths.ts',
+    why: 'an agent sidecar written under the old keys still resumes as a crewmate',
+    find: "import { RETIRED_AGENT_TYPES } from '../../tools/AgentTool/constants.js'\n",
+    replace: "import { RETIRED_AGENT_TYPES } from '../../tools/AgentTool/constants.js'\nimport { readRetiredAgentSidecar } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredAgentSidecar } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/sessionStorage/paths.ts',
+    why: 'the sidecar reader maps the old keys through the one table',
+    find: "    const parsed = JSON.parse(raw) as AgentMetadata & { crewmate?: AgentMetadata['crewmate'] }\n    const meta: AgentMetadata = parsed.crewmate === undefined && parsed.crewmate !== undefined ? { ...parsed, crewmate: parsed.crewmate } : parsed\n",
+    replace: '    const meta = readRetiredAgentSidecar(JSON.parse(raw) as AgentMetadata)\n',
+    already: '    const meta = readRetiredAgentSidecar(JSON.parse(raw) as AgentMetadata)\n',
+  },
+  {
+    file: 'src/tools/AgentTool/AgentTool.tsx',
+    why: 'the Agent tool still accepts the old field name from an old transcript replay or an old caller',
+    find: "import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'\n",
+    replace: "import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'\nimport { readRetiredAgentToolInput } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredAgentToolInput } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/tools/AgentTool/AgentTool.tsx',
+    why: 'the tool reads its input through the table before validation; the exported schema keeps its shape and the schema the model sees is unchanged',
+    find: "  get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {\n    return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>\n  },\n",
+    replace: "  get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {\n    const schema = inputSchema()\n    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>\n  },\n",
+    already: '    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>\n',
+  },
+  {
+    file: 'src/utils/envUtils.ts',
+    why: 'the saved-crews home an older build wrote is still read',
+    find: "import { flagEnv } from '../substrate/flagRegistry.js'\n",
+    replace: "import { flagEnv } from '../substrate/flagRegistry.js'\nimport { RETIRED_CREWS_DIR_NAME } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { RETIRED_CREWS_DIR_NAME } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/envUtils.ts',
+    why: 'the reader of the folder an older build wrote',
+    find: "  return join(getMercuryHome(), 'crews')\n}\n",
+    replace: "  return join(getMercuryHome(), 'crews')\n}\n\nexport function getRetiredCrewsDir(): string | null {\n  const override = flagEnv('MERCURY_CREWS_DIR')\n  if (override !== undefined && override.trim() !== '') return null\n  return join(getMercuryHome(), RETIRED_CREWS_DIR_NAME)\n}\n",
+    already: 'export function getRetiredCrewsDir(): string | null {\n',
+  },
+  {
+    file: 'src/utils/swarm/crewHelpers.ts',
+    why: 'a roster an older build wrote reads with the current member roles and lead name, from the current folder or the old one',
+    find: "import type { BackendType } from './backends/types.js'\n",
+    replace: "import type { BackendType } from './backends/types.js'\nimport { readRetiredCrewFile } from '../../migrations/retiredCrewSpellings.js'\nimport { getRetiredCrewsDir } from '../envUtils.js'\n",
+    already: "import { readRetiredCrewFile } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/swarm/crewHelpers.ts',
+    why: 'a read falls back to the folder an older build wrote; a write never goes there',
+    find: "export function getCrewFilePath(crewName: string): string {\n  return join(getCrewDir(crewName), 'config.json')\n}\n",
+    replace: "export function getCrewFilePath(crewName: string): string {\n  return join(getCrewDir(crewName), 'config.json')\n}\n\nfunction readableCrewFilePath(crewName: string): string {\n  const current = getCrewFilePath(crewName)\n  if (existsSync(current)) return current\n  const retired = getRetiredCrewsDir()\n  if (retired === null) return current\n  const old = join(retired, sanitizeName(crewName), 'config.json')\n  return existsSync(old) ? old : current\n}\n",
+    already: 'function readableCrewFilePath(crewName: string): string {\n',
+  },
+  {
+    file: 'src/utils/swarm/crewHelpers.ts',
+    why: 'the parsed roster passes the retired-spellings table',
+    find: '  if (isCrewFile(parsed)) return parsed\n  nameRefusedRoster(path)\n  return null\n',
+    replace: '  if (isCrewFile(parsed)) return readRetiredCrewFile(parsed, CREW_LEAD_NAME)\n  nameRefusedRoster(path)\n  return null\n',
+    already: '  if (isCrewFile(parsed)) return readRetiredCrewFile(parsed, CREW_LEAD_NAME)\n',
+  },
+  {
+    file: 'src/utils/swarm/crewHelpers.ts',
+    why: 'the sync read falls back to the old folder',
+    find: "export function readCrewFile(crewName: string): CrewFile | null {\n  const path = getCrewFilePath(crewName)\n",
+    replace: "export function readCrewFile(crewName: string): CrewFile | null {\n  const path = readableCrewFilePath(crewName)\n",
+    already: "export function readCrewFile(crewName: string): CrewFile | null {\n  const path = readableCrewFilePath(crewName)\n",
+  },
+  {
+    file: 'src/utils/swarm/crewHelpers.ts',
+    why: 'the async read falls back to the old folder',
+    find: "export async function readCrewFileAsync(crewName: string): Promise<CrewFile | null> {\n  const path = getCrewFilePath(crewName)\n",
+    replace: "export async function readCrewFileAsync(crewName: string): Promise<CrewFile | null> {\n  const path = readableCrewFilePath(crewName)\n",
+    already: "export async function readCrewFileAsync(crewName: string): Promise<CrewFile | null> {\n  const path = readableCrewFilePath(crewName)\n",
+  },
+  {
+    file: 'src/utils/crew/crewConvert.ts',
+    why: 'the conversion of saved rosters keeps reading the folder an older build wrote',
+    find: "import { getCrewsDir } from '../envUtils.js'\n",
+    replace: "import { getCrewsDir, getRetiredCrewsDir } from '../envUtils.js'\n",
+    already: "import { getCrewsDir, getRetiredCrewsDir } from '../envUtils.js'\n",
+  },
+  {
+    file: 'src/utils/crew/crewConvert.ts',
+    why: 'both folders are scanned, the old one first',
+    find: "  const crewsDir = opts?.crewsDir ?? getCrewsDir()\n  const outcome: ConvertSavedCrewsOutcome = { crewsDir, converted: [], unchanged: [], skipped: [] }\n  let names: string[]\n  try {\n    names = (await readdir(crewsDir)).filter(name => !name.startsWith('.')).sort()\n  } catch {\n    return outcome\n  }\n  const read: Array<Omit<CrewRecordV1, 'convertedAt'>> = []\n  for (const name of names) {\n    let isDir = false\n    try {\n      isDir = (await stat(join(crewsDir, name))).isDirectory()\n    } catch {\n      isDir = false\n    }\n    if (!isDir) {\n      outcome.skipped.push(name)\n      continue\n    }\n    const record = await readSavedCrew(crewsDir, name)\n    if (record === null) {\n      outcome.skipped.push(name)\n      continue\n    }\n    read.push(record)\n  }\n",
+    replace: "  const crewsDir = opts?.crewsDir ?? getCrewsDir()\n  const outcome: ConvertSavedCrewsOutcome = { crewsDir, converted: [], unchanged: [], skipped: [] }\n  const retired = opts?.crewsDir === undefined ? getRetiredCrewsDir() : null\n  const folders = retired === null ? [crewsDir] : [retired, crewsDir]\n  const read: Array<Omit<CrewRecordV1, 'convertedAt'>> = []\n  const seen = new Set<string>()\n  for (const folder of folders) {\n    let names: string[]\n    try {\n      names = (await readdir(folder)).filter(name => !name.startsWith('.')).sort()\n    } catch {\n      continue\n    }\n    for (const name of names) {\n      if (seen.has(name)) continue\n      let isDir = false\n      try {\n        isDir = (await stat(join(folder, name))).isDirectory()\n      } catch {\n        isDir = false\n      }\n      if (!isDir) {\n        outcome.skipped.push(name)\n        continue\n      }\n      const record = await readSavedCrew(folder, name)\n      if (record === null) {\n        outcome.skipped.push(name)\n        continue\n      }\n      seen.add(name)\n      read.push(record)\n    }\n  }\n",
+    already: '  const folders = retired === null ? [crewsDir] : [retired, crewsDir]\n',
+  },
+  {
+    file: 'src/keybindings/parser.ts',
+    why: 'a saved keybinding carrying the old action id still binds',
+    find: "import type { Chord, KeybindingBlock, ParsedBinding, ParsedKeystroke } from './types.js'\n",
+    replace: "import type { Chord, KeybindingBlock, ParsedBinding, ParsedKeystroke } from './types.js'\nimport { readRetiredKeybindingAction } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredKeybindingAction } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/keybindings/parser.ts',
+    why: 'the parsed action id is read through the table',
+    find: '      out.push({ chord: parseChord(pattern), action: value, context: block.context })\n',
+    replace: '      out.push({ chord: parseChord(pattern), action: typeof value === \'string\' ? readRetiredKeybindingAction(value) : value, context: block.context })\n',
+    already: "action: typeof value === 'string' ? readRetiredKeybindingAction(value) : value, context: block.context })\n",
+  },
+  {
+    file: 'src/utils/agentSwarmsEnabled.ts',
+    why: 'the old opt-in flag spelling still counts',
+    find: "import { flagEnv } from '../substrate/flagRegistry.js'\n\nexport function isAgentSwarmsEnabled(): boolean {\n  return flagEnv('MERCURY_CREWMATES') !== '0' || process.argv.includes('--agent-crews')\n}\n",
+    replace: "import { flagEnv } from '../substrate/flagRegistry.js'\nimport { readRetiredCliFlags } from '../migrations/retiredCrewSpellings.js'\n\nexport function isAgentSwarmsEnabled(): boolean {\n  return flagEnv('MERCURY_CREWMATES') !== '0' || readRetiredCliFlags(process.argv).includes('--agent-crews')\n}\n",
+    already: "readRetiredCliFlags(process.argv).includes('--agent-crews')\n",
+  },
+  {
+    file: 'src/main.tsx',
+    why: 'the command line an older build\'s spawner passes is read through the table before parsing',
+    find: "import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'\n",
+    replace: "import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'\nimport { readRetiredCliFlags } from './migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredCliFlags } from './migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/main.tsx',
+    why: 'the three parse calls read the current spellings',
+    find: '        await program.parseAsync(process.argv)\n',
+    replace: '        await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+    already: '        await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+  },
+  {
+    file: 'src/main.tsx',
+    why: 'the second parse call',
+    find: '      await program.parseAsync(process.argv)\n',
+    replace: '      await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+    already: '      await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+  },
+  {
+    file: 'src/main.tsx',
+    why: 'the third parse call',
+    find: '\n  await program.parseAsync(process.argv)\n',
+    replace: '\n  await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+    already: '\n  await program.parseAsync(readRetiredCliFlags(process.argv))\n',
+  },
+  {
+    file: 'src/tools/SendMessageTool/SendMessageTool.ts',
+    why: 'a message addressed to the lead by its old name (an older crewmate still running) reaches the lead',
+    find: "import { renderToolResultMessage, renderToolUseMessage } from './UI.js'\n",
+    replace: "import { renderToolResultMessage, renderToolUseMessage } from './UI.js'\nimport { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/tools/SendMessageTool/SendMessageTool.ts',
+    why: 'the self check',
+    find: '  if (wanted === CREW_LEAD_NAME.toLowerCase()) return null\n',
+    replace: '  if (wanted === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(wanted)) return null\n',
+    already: '  if (wanted === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(wanted)) return null\n',
+  },
+  {
+    file: 'src/tools/SendMessageTool/SendMessageTool.ts',
+    why: 'the recipient resolution',
+    find: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) {\n',
+    replace: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) {\n',
+    already: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) {\n',
+  },
+  {
+    file: 'src/tools/SendMessageTool/SendMessageTool.ts',
+    why: 'the addressability check',
+    find: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) return true\n',
+    replace: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) return true\n',
+    already: '  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) return true\n',
+  },
+  {
+    file: 'src/utils/swarm/sendMessageGovernance.ts',
+    why: 'the governance reads the lead by its old name too',
+    find: "import type { CrewFile } from './crewHelpers.js'\n",
+    replace: "import type { CrewFile } from './crewHelpers.js'\nimport { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/swarm/sendMessageGovernance.ts',
+    why: 'the lead check',
+    find: '    name.toLowerCase() === CREW_LEAD_NAME.toLowerCase() ||\n',
+    replace: '    name.toLowerCase() === CREW_LEAD_NAME.toLowerCase() ||\n    isRetiredCrewLeadName(name) ||\n',
+    already: '    isRetiredCrewLeadName(name) ||\n',
+  },
+  {
+    file: 'src/daemon/crewSpawn.ts',
+    why: 'a crewmate never takes the lead\'s old name either',
+    find: "import type { WorkerModelValidation } from '../services/concourse/workerModels.js'\n",
+    replace: "import type { WorkerModelValidation } from '../services/concourse/workerModels.js'\nimport { RETIRED_CREW_LEAD_NAME } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { RETIRED_CREW_LEAD_NAME } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/daemon/crewSpawn.ts',
+    why: 'the reserved names',
+    find: "const RESERVED_NAMES = new Set(['crew-lead', ",
+    replace: "const RESERVED_NAMES = new Set(['crew-lead', RETIRED_CREW_LEAD_NAME, ",
+    already: "const RESERVED_NAMES = new Set(['crew-lead', RETIRED_CREW_LEAD_NAME, ",
+  },
+  {
+    file: 'src/state/AppStateStore.ts',
+    why: 'a saved expanded-view value written under the old word still opens the crew tree',
+    find: "import type { CrewLedger } from './crewLedger.js'\n",
+    replace: "import type { CrewLedger } from './crewLedger.js'\nimport { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/state/AppStateStore.ts',
+    why: 'the remembered value passes the table',
+    find: "    const remembered = getGlobalConfig().expandedView\n",
+    replace: "    const remembered = readRetiredGlobalConfigValue('expandedView', getGlobalConfig().expandedView)\n",
+    already: "    const remembered = readRetiredGlobalConfigValue('expandedView', getGlobalConfig().expandedView)\n",
+  },
+  {
+    file: 'src/components/mercury-ui/toolGlyphs.ts',
+    why: 'an old transcript row of a removed or renamed tool keeps its glyph family through the table',
+    find: "import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'\n",
+    replace: "import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'\nimport { isRetiredToolName } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { isRetiredToolName } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/components/mercury-ui/toolGlyphs.ts',
+    why: 'the three rows of the old names go; the lookup answers them',
+    find: "  LiveComms: 'agent',\n  LiveComms: 'agent',\n  CrewCreate: 'agent',\n  CrewDelete: 'agent',\n",
+    replace: "  LiveComms: 'agent',\n",
+    already: '  if (isRetiredToolName(toolName)) return \'agent\'\n',
+  },
+  {
+    file: 'src/components/mercury-ui/toolGlyphs.ts',
+    why: 'the lookup',
+    find: '  const known = TOOL_FAMILY_BY_NAME[toolName]\n  if (known) return known\n',
+    replace: "  const known = TOOL_FAMILY_BY_NAME[toolName]\n  if (known) return known\n  if (isRetiredToolName(toolName)) return 'agent'\n",
+    already: "  if (isRetiredToolName(toolName)) return 'agent'\n",
+  },
+  {
+    file: 'src/tools/LiveCommsTool/constants.ts',
+    why: 'the old tool name an old transcript row and an old call still resolve is the table\'s',
+    find: "export const LIVE_COMMS_TOOL_NAME = 'LiveComms'\nexport const LIVE_COMMS_OLD_TOOL_NAME = 'LiveComms'\n",
+    replace: "import { RETIRED_LIVE_COMMS_TOOL_NAME } from '../../migrations/retiredCrewSpellings.js'\n\nexport const LIVE_COMMS_TOOL_NAME = 'LiveComms'\nexport const LIVE_COMMS_OLD_TOOL_NAME = RETIRED_LIVE_COMMS_TOOL_NAME\n",
+    already: 'export const LIVE_COMMS_OLD_TOOL_NAME = RETIRED_LIVE_COMMS_TOOL_NAME\n',
+  },
+  {
+    file: 'src/utils/transcriptSearch.ts',
+    why: 'the search facets keep skipping the old tool names an old transcript carries',
+    find: "import { isTurnCutText } from './messages.js'\n",
+    replace: "import { isTurnCutText } from './messages.js'\nimport { RETIRED_TOOL_NAMES } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { RETIRED_TOOL_NAMES } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/transcriptSearch.ts',
+    why: 'the two rows of the old names come from the table',
+    find: "  'LiveComms',\n  'LiveComms',\n  'TeamDelete',\n",
+    replace: "  'LiveComms',\n  ...Object.keys(RETIRED_TOOL_NAMES),\n",
+    already: '  ...Object.keys(RETIRED_TOOL_NAMES),\n',
+  },
+  {
+    file: 'src/commands/crewmates/index.ts',
+    why: 'the old command name still opens the crew view, as an alias the table names',
+    find: "import type { Command } from '../../commands.js'\n",
+    replace: "import type { Command } from '../../commands.js'\nimport { RETIRED_CREWMATES_COMMAND_NAME } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { RETIRED_CREWMATES_COMMAND_NAME } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/commands/crewmates/index.ts',
+    why: 'the alias row',
+    find: "  aliases: ['crewmates'],\n",
+    replace: '  aliases: [RETIRED_CREWMATES_COMMAND_NAME],\n',
+    already: '  aliases: [RETIRED_CREWMATES_COMMAND_NAME],\n',
+  },
+  {
+    file: 'src/substrate/operationJournal.ts',
+    why: 'a journal row an older build wrote finds its handler under the current kind',
+    find: "import { durableAtomicPublish, faultPoint } from './durablePublish.js'\n",
+    replace: "import { durableAtomicPublish, faultPoint } from './durablePublish.js'\nimport { readRetiredJournalKind } from '../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredJournalKind } from '../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/substrate/operationJournal.ts',
+    why: 'the handler lookup',
+    find: '    const handler = handlers[op.kind]\n',
+    replace: '    const handler = handlers[readRetiredJournalKind(op.kind)]\n',
+    already: '    const handler = handlers[readRetiredJournalKind(op.kind)]\n',
+  },
+  {
+    file: 'src/utils/swarm/crewOperations.ts',
+    why: 'the crew name inside an old journal key still parses',
+    find: "import { getCrewDir, getCrewFilePath, readCrewFileAsync } from './crewHelpers.js'\n",
+    replace: "import { getCrewDir, getCrewFilePath, readCrewFileAsync } from './crewHelpers.js'\nimport { readRetiredJournalKey } from '../../migrations/retiredCrewSpellings.js'\n",
+    already: "import { readRetiredJournalKey } from '../../migrations/retiredCrewSpellings.js'\n",
+  },
+  {
+    file: 'src/utils/swarm/crewOperations.ts',
+    why: 'the key parse',
+    find: "  return idempotencyKey.replace(new RegExp(`^${kind}:`), '').replace(/:\\d+$/, '')\n",
+    replace: "  return readRetiredJournalKey(idempotencyKey).replace(new RegExp(`^${kind}:`), '').replace(/:\\d+$/, '')\n",
+    already: "  return readRetiredJournalKey(idempotencyKey).replace(new RegExp(`^${kind}:`), '').replace(/:\\d+$/, '')\n",
+  },
+  {
+    file: 'scripts/engine-connector/prove-crew-vocabulary.ts',
+    why: 'the /team door is gone',
+    find: "  'src/commands/team/index.ts',\n",
+    replace: '',
+    already: '\u0000',
+    optional: true,
+  },
+  {
+    file: 'scripts/engine-connector/prove-crew-vocabulary.ts',
+    why: "the seat's prompt and its roster role say crewmate now; the census keeps no exception for them",
+    find: "  ['src/daemon/crewSpawn.ts', 'You are @${name}, a Mercury crew teammate', \"the named agent's own system prompt — model-facing bytes, not operator copy\"],\n  ['src/daemon/crewSpawn.ts', 'Other teammates may be working', 'the same prompt'],\n  ['src/daemon/crewSpawn.ts', \"role: 'teammate'\", \"the team-file member record's role value — a wire spelling\"],\n",
+    replace: '',
+    already: "  ['src/utils/healthReport.ts', 'terminal-overrides', \"the same row's remedy for that real terminal\"],\n]",
+  },
+  {
+    file: 'scripts/crew/prove-crew-tools-removed.ts',
+    why: 'the old journal kinds are read through the alias table now, not carried as handler keys',
+    find: "operations.includes(\"'team-create'\") && operations.includes(\"'team-delete'\") && ",
+    replace: "src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind(op.kind)') && operations.includes(\"'crew-create'\") && operations.includes(\"'crew-delete'\") && ",
+    already: "src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind(op.kind)')",
+  },
+  {
+    file: 'scripts/crew/prove-crew-tools-removed.ts',
+    why: 'the marks of the old rows come from the alias table now',
+    find: "glyphs.includes('TeamCreate:') && glyphs.includes('TeamDelete:')",
+    replace: "glyphs.includes('isRetiredToolName(toolName)') && src('src/migrations/retiredCrewSpellings.ts').includes('TeamCreate') && src('src/migrations/retiredCrewSpellings.ts').includes('TeamDelete')",
+    already: "glyphs.includes('isRetiredToolName(toolName)')",
+  },
+  {
+    file: 'scripts/crew/run-all.sh',
+    why: 'the gate watches the two files the tools-removed pin now reads',
+    find: '# gate-watch: src/ink.ts\n',
+    replace: '# gate-watch: src/ink.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts\n',
+  },
+  {
+    file: 'scripts/swarm/prove-livecomms-store.ts',
+    why: 'the old name the tool still answers to is the table\'s',
+    find: "check('the old name LiveComms is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes('LiveComms'), JSON.stringify(tool.aliases ?? []))\n",
+    replace: "const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.js')\n  check('the old name is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME), JSON.stringify(tool.aliases ?? []))\n",
+    already: "(tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME)",
+  },
+  {
+    file: 'scripts/swarm/run-all.sh',
+    why: 'the gate watches the table the store pin now reads',
+    find: '# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts\n',
+    replace: '# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+  },
+  {
+    file: 'scripts/compact/prove-prune-set.ts',
+    why: 'the old name the prune law still protects is the table\'s',
+    find: "const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', 'LiveComms']\n",
+    replace: "const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.ts')\nconst NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]\n",
+    already: "const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]\n",
+  },
+  {
+    file: 'scripts/compact/run-all.sh',
+    why: 'the gate watches the table the prune-set pin now reads',
+    find: '# gate-watch: src/context.ts\n',
+    replace: '# gate-watch: src/context.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+  },
+  {
+    file: 'scripts/build-identity/prove-config-home.ts',
+    why: 'the pin of the one bounded env reader is trued to the alias law: the registered spelling, then its former one',
+    find: "check('flagEnv reads exactly the registered spelling', /return process\\.env\\[spec\\.env\\]\\n\\}/.test(registrySrc))\n",
+    replace: "check('flagEnv reads the registered spelling, then the former spelling the registry names, and nothing else', /return process\\.env\\[spec\\.env\\] \\?\\? \\(spec\\.formerly === undefined \\? undefined : process\\.env\\[spec\\.formerly\\]\\)\\n\\}/.test(registrySrc))\n",
+    already: "check('flagEnv reads the registered spelling, then the former spelling the registry names, and nothing else'",
+  },
 ]
+
+type PrePatch = { file: string; find: string; replace: string } & Why
+const PRE_PATCHES: PrePatch[] = [
+  {
+    file: 'scripts/swarm/prove-livecomms-store.ts',
+    find: "let tool: AnyTool\nlet toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'\ntry {\n  tool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool\n} catch {\n  toolHome = 'src/tools/TeamBriefTool/TeamBriefTool.js'\n  tool = (await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')).TeamBriefTool as unknown as AnyTool\n}\n",
+    replace: "const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'\nconst tool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool\n",
+    why: 'the fallback import of the removed tool folder was dead code',
+  },
+  {
+    file: 'scripts/substrate/prove-coordination-livecomms.ts',
+    find: "let liveTool: AnyTool\nlet toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'\ntry {\n  liveTool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool\n} catch {\n  toolHome = 'src/tools/TeamBriefTool/TeamBriefTool.js'\n  liveTool = (await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')).TeamBriefTool as unknown as AnyTool\n}\n",
+    replace: "const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'\nconst liveTool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool\n",
+    why: 'the fallback import of the removed tool folder was dead code',
+  },
+  {
+    file: 'scripts/substrate/prove-coordination-livecomms.ts',
+    find: "    const crewWords = verbs.filter(t => /\\bteam\\b|teammate|TEAM-ONLY|TeamBrief/i.test(t.description ?? ''))\n    check('no verb description says team, teammate or TeamBrief (RED on the base: TEAM-ONLY, teammates, \"the TeamBrief tool\")', crewWords.length === 0, crewWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))\n",
+    replace: "    const OLD_WORD = ['t', 'eam'].join('')\n    const oldWords = verbs.filter(t => new RegExp(`\\\\b${OLD_WORD}\\\\b|${OLD_WORD}mate|${OLD_WORD.toUpperCase()}-ONLY|${OLD_WORD.replace('t', 'T')}Brief`, 'i').test(t.description ?? ''))\n    check('no verb description says the old word (RED on the base: the old-only mark, the old mates, the old brief tool)', oldWords.length === 0, oldWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))\n",
+    why: 'the hunter of the old word in the verb descriptions composes the word it hunts, so the rename cannot turn it around',
+  },
+  {
+    file: 'scripts/substrate/prove-coordination-livecomms.ts',
+    find: "check('the server instructions speak of the crew and LiveComms, not the team mailbox (RED on the base: \"team brief\", \"team-mailbox\")', /crew/.test(instructions) && /LiveComms/.test(instructions) && !/\\bteam\\b|team-mailbox/i.test(instructions), instructions)\n",
+    replace: "check('the server instructions speak of the crew and LiveComms, never the old word (RED on the base: the old brief, the old mailbox)', /crew/.test(instructions) && /LiveComms/.test(instructions) && !new RegExp(`\\\\b${OLD_WORD}\\\\b|${OLD_WORD}-mailbox`, 'i').test(instructions), instructions)\n",
+    why: 'the hunter of the old word in the server instructions composes the word it hunts',
+  },
+  {
+    file: 'scripts/crew/prove-crew-from-birth.ts',
+    find: "  tally.check('the first brief names the session\\'s crew and lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`)",
+    replace: "  tally.check('the first brief names the session\\'s crew and lists scout', brief !== null && new RegExp(`# Crew: ${sessionId}`)",
+    why: 'the brief header has one spelling now',
+  },
+  {
+    file: 'scripts/crew/prove-crew-from-birth.ts',
+    find: "  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`)",
+    replace: "  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && new RegExp(`# Crew: ${sessionId}`)",
+    why: 'the brief header has one spelling now',
+  },
+  { file: 'src/components/HelpV2/commandDomains.ts', find: "      'team', 'router', 'invite', 'handoff',\n", replace: "      'router', 'invite', 'handoff',\n", why: 'the /team door goes from the help domains' },
+  {
+    file: 'scripts/ui/prove-crew-center.ts',
+    find: "section('§3 — /team deep link')\n{\n  const crew = (await import('../../src/commands/team/index.js')).default\n  check('command name is team', crew.name === 'team')\n  check('description names the crew board', crew.description.includes('Crew board'))\n  check('not hidden', crew.isHidden !== true)\n  const crewSrc = src('commands', 'team', 'index.ts')\n  check('routes into the CANONICAL surface (no competing dashboard)', crewSrc.includes(\"import('../tasks/tasks.js')\"))\n}\n",
+    replace: "section('§3 — the crew board\\'s deep link is /runs')\n{\n  const runs = (await import('../../src/commands/tasks/index.js')).default\n  check('command name is runs', runs.name === 'runs')\n  check('description names the runs board', runs.description.includes('runs board'))\n  check('not hidden', runs.isHidden !== true)\n  const runsSrc = src('commands', 'tasks', 'index.ts')\n  check('routes into the CANONICAL surface (no competing dashboard)', runsSrc.includes(\"import('./tasks.js')\"))\n}\n",
+    why: 'the /team door went; the board it opened is /runs',
+  },
+  { file: 'src/commands.ts', find: "import team from './commands/team/index.js'\n", replace: '', why: 'the /team door goes' },
+  { file: 'src/commands.ts', find: '  team,\n', replace: '', why: 'the /team door goes' },
+  { file: 'src/services/resources/registry.ts', find: "import { teamAdapter } from './adapters/team.js'\n", replace: '', why: 'the mercury://team kind goes' },
+  { file: 'src/services/resources/registry.ts', find: '  teamAdapter,\n', replace: '', why: 'the mercury://team kind goes' },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "import { createPermissionRequestMessage, createPermissionResponseMessage, createSandboxPermissionRequestMessage, createSandboxPermissionResponseMessage } from '../../services/crew/liveMessages.js'\n",
+    replace: "import { createPermissionRequestMessage, createSandboxPermissionRequestMessage } from '../../services/crew/liveMessages.js'\n",
+    why: 'the two response message makers leave with their senders',
+  },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "export async function sendPermissionResponseViaMailbox(\n  workerName: string,\n  resolution: PermissionResolution,\n  requestId: string,\n  teamName?: string,\n): Promise<boolean> {\n  try {\n    const crew = resolveCrew(teamName)\n    if (!crew) {\n      logForDebugging('permission sync: no team — permission response not sent')\n      return false\n    }\n    const message = createPermissionResponseMessage({\n      request_id: requestId,\n      subtype: resolution.decision === 'approved' ? 'success' : 'error',\n      ...(resolution.feedback !== undefined ? { error: resolution.feedback } : {}),\n      ...(resolution.updatedInput !== undefined ? { updated_input: resolution.updatedInput } : {}),\n      ...(resolution.permissionUpdates !== undefined\n        ? { permission_updates: resolution.permissionUpdates }\n        : {}),\n    })\n    return await sendLiveMessage(crew, {\n      to: workerName,\n      from: getAgentName() ?? CREW_LEAD_NAME,\n      text: JSON.stringify(message),\n      timestamp: new Date().toISOString(),\n    })\n  } catch (error) {\n    logError(error)\n    return false\n  }\n}\n\n",
+    replace: '',
+    why: 'the permission response sender lost its last caller when the mailbox went',
+  },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "\nexport async function sendSandboxPermissionResponseViaMailbox(\n  workerName: string,\n  requestId: string,\n  host: string,\n  allow: boolean,\n  teamName?: string,\n): Promise<boolean> {\n  try {\n    const crew = resolveCrew(teamName)\n    if (!crew) {\n      logForDebugging('permission sync: no team — sandbox response not sent')\n      return false\n    }\n    const message = createSandboxPermissionResponseMessage({ requestId, host, allow })\n    return await sendLiveMessage(crew, {\n      to: workerName,\n      from: getAgentName() ?? CREW_LEAD_NAME,\n      text: JSON.stringify(message),\n      timestamp: new Date().toISOString(),\n    })\n  } catch (error) {\n    logError(error)\n    return false\n  }\n}\n",
+    replace: '',
+    why: 'the sandbox response sender lost its last caller when the mailbox went',
+  },
+  {
+    file: 'src/hooks/useSwarmPermissionPoller.ts',
+    find: "export function processSandboxPermissionResponse({\n  requestId,\n  host,\n  allow,\n}: {\n  requestId: string\n  host: string\n  allow: boolean\n}): boolean {\n  void host\n  const callback = sandboxCallbacks.get(requestId)\n  if (callback === undefined) {\n    logForDebugging(`sandbox response for unregistered request ${requestId}`)\n    return false\n  }\n  sandboxCallbacks.delete(requestId)\n  callback.resolve(allow)\n  return true\n}\n\n",
+    replace: '',
+    why: 'the sandbox response dispatcher lost its last caller when the mailbox went',
+  },
+]
+
+const PRE_PATCHED: string[] = []
+
+function prePatched(rel: string, text: string): string {
+  let out = text
+  for (const p of PRE_PATCHES) {
+    if (p.file !== rel) continue
+    const at = out.indexOf(p.find)
+    if (at === -1 || out.indexOf(p.find, at + 1) !== -1) continue
+    out = out.slice(0, at) + p.replace + out.slice(at + p.find.length)
+    PRE_PATCHED.push(`${rel}: ${p.why}`)
+  }
+  return out
+}
 
 const GENERATORS: Generator[] = [
   { command: ['scripts/ownership/prove-contract-inventory.ts', '--record'], touches: ['scripts/ownership/contract-inventory.json'], why: 'the export inventory is sorted by name' },
   { command: ['scripts/consistency-census/gen-basename-census.ts'], touches: ['scripts/consistency-census/basename-census.json'], why: 'the basename census is sorted' },
   { command: ['scripts/settings/gen-settings-schema.ts', '--out', 'scripts/settings/settings-schema.json'], touches: ['scripts/settings/settings-schema.json'], why: 'the settings schema follows the hook event key' },
   { command: ['scripts/engine-durability/prove-write-route-ratchet.ts', '--regen'], touches: ['scripts/engine-durability/write-routes.baseline.json'], why: 'the write-route baseline is keyed by file path' },
+  { command: ['scripts/vulcan/regen-optable.mjs'], touches: ['src/utils/vulcan/optable.generated.ts', 'assets/vulcan/addon/core/op_classes.gd'], why: 'the op table is generated from its JSON source, which the rename touches' },
+  { command: ['scripts/consistency-census/gen-shellstring-census.ts'], touches: ['scripts/consistency-census/shellstring-census.json'], why: 'the shell-string census records the strings the rename touches' },
+  { command: ['scripts/orphans/prove-no-orphans.ts', '--regen'], touches: ['scripts/orphans/baseline.json'], why: 'the orphan baseline names files the rename removes or renames' },
 ]
 
-const TOKEN_RE = /TEAMMATES|TEAMMATE|TEAMS|TEAM|Teammates|Teammate|Teams|Team|teammates|teammate|teams|team/g
+const TOKEN_RE = /TEAMMATES|TEAMMATE|TEAMNAME|TEAMS|TEAM|Teammates|Teammate|Teams|Team|proofteam|proveteam|teammates|teammate|teamcreate|teamdelete|teamname|teams|team/g
 const TOKEN_TO: Record<string, string> = {
+  proofteam: 'proofcrew',
+  proveteam: 'provecrew',
+  TEAMNAME: 'CREWNAME',
+  teamcreate: 'crewcreate',
+  teamdelete: 'crewdelete',
+  teamname: 'crewname',
   TEAMMATES: 'CREWMATES',
   TEAMMATE: 'CREWMATE',
   TEAMS: 'CREWS',
@@ -228,7 +713,7 @@ function mergeTally(into: Tally, from: Tally, label: string): void {
 }
 
 function applyExplicit(text: string, t: Tally): string {
-  if (!text.includes('TEAMS.md')) return text
+  if (!text.includes('TEAMS.md') && !text.includes('TeamBrief')) return text
   let out = text
   for (const e of EXPLICIT) {
     out = out.replace(e.re, () => {
@@ -246,25 +731,24 @@ function collapse(run: string): string {
 }
 
 class Renamer {
-  readonly kebabNames = new Set<string>()
   fileProtect = new Set<string>()
   fileMap: Record<string, string> = {}
   collisionProtect = new Set<string>()
 
+  fileAllow = new Set<string>()
+
   forFile(rel: string): void {
     this.fileProtect = new Set()
     this.collisionProtect = new Set()
+    this.fileAllow = new Set()
     this.fileMap = {}
     for (const r of FILE_RULES) {
       if (r.path !== rel) continue
       for (const n of r.protect ?? []) this.fileProtect.add(n)
+      for (const n of r.allow ?? []) this.fileAllow.add(n)
       Object.assign(this.fileMap, r.map ?? {})
     }
   }
-  readonly protectedIdentifiers = new Set(PROTECTED_IDENTIFIERS.map(r => r.name))
-  readonly protectedWords = new Set(PROTECTED_WORDS.map(r => r.name))
-  readonly protectedPrefixes = PROTECTED_PREFIXES.map(r => r.name)
-  readonly protectedLiterals = new Set(PROTECTED_LITERALS.map(r => r.name))
 
   rewrite(text: string, ctx: Context, t: Tally): string {
     if (!/team/i.test(text)) return text
@@ -276,7 +760,8 @@ class Renamer {
       if (m.index < last) continue
       const [lo, hi] = runAround(text, m.index, m.index + m[0].length, isRunChar)
       const run = text.slice(lo, hi)
-      const newRun = this.rewriteRun(run, ctx, t, { before: text.slice(Math.max(0, lo - 2), lo), after: text.slice(hi, hi + 3) })
+      const around = { text: text.slice(Math.max(0, lo - 24), Math.min(text.length, hi + 24)), at: lo - Math.max(0, lo - 24), escaped: lo > 0 && text[lo - 1] === '\\' }
+      const newRun = this.rewriteRun(run, ctx, t, around)
       out += text.slice(last, lo) + newRun
       last = hi
       re.lastIndex = hi
@@ -284,7 +769,7 @@ class Renamer {
     return out + text.slice(last)
   }
 
-  private rewriteRun(run: string, ctx: Context, t: Tally, outer: { before: string; after: string }): string {
+  private rewriteRun(run: string, ctx: Context, t: Tally, around: { text: string; at: number; escaped: boolean }): string {
     const mapped = this.fileMap[run]
     if (mapped !== undefined && (ctx === 'identifier' || ctx === 'property')) {
       bump(t.renamed, `${run}→${mapped}`)
@@ -299,7 +784,7 @@ class Renamer {
       const token = m[0]
       const start = m.index
       const end = start + token.length
-      const verdict = this.decide(run, start, end, token, ctx, outer)
+      const verdict = this.decide(run, start, end, token, ctx, around)
       if (verdict.to === null) {
         bump(t.skipped, token)
         t.skips.push({ reason: verdict.reason, token, run })
@@ -314,43 +799,30 @@ class Renamer {
     return collapse(out + run.slice(last))
   }
 
-  private decide(run: string, start: number, end: number, token: string, ctx: Context, outer: { before: string; after: string }): { to: string | null; reason: string } {
-    const prev = start > 0 ? run[start - 1]! : ''
+  private decide(run: string, start: number, end: number, token: string, ctx: Context, around: { text: string; at: number; escaped: boolean }): { to: string | null; reason: string } {
+    let prev = start > 0 ? run[start - 1]! : ''
     const next = end < run.length ? run[end]! : ''
-    const before = start > 0 ? '' : outer.before
-    const after = end < run.length ? '' : outer.after
     const form = token === token.toUpperCase() ? 'upper' : token[0] === 'T' ? 'cap' : 'lower'
     const no = (reason: string): { to: null; reason: string } => ({ to: null, reason })
-    if (form === 'lower' && (isLetter(prev) || isLower(next))) return no('inside another word')
+    if (start === 1 && around.escaped && /[nrtbfv]/.test(prev)) prev = ''
+    const joined = token === 'proofteam' || token === 'proveteam'
+    if (form === 'lower' && !joined && (isLetter(prev) || isLower(next))) return no('inside another word')
+    if (joined && isLetter(prev)) return no('inside another word')
     if (form === 'cap' && isLower(next)) return no('inside another word')
     if (form === 'upper' && (isUpper(prev) || isUpper(next))) return no('inside another word')
     const [wlo, whi] = runAround(run, start, end, isWordChar)
     const word = run.slice(wlo, whi)
     if (this.fileProtect.has(word)) return no(`protected in this file: ${word}`)
-    if (ctx === 'identifier' && this.collisionProtect.has(word)) return no(`kept in this file: ${word} (its crew name is declared here)`)
-    if (this.protectedIdentifiers.has(word)) return no(`protected identifier ${word}`)
-    if (this.protectedWords.has(word) && ctx !== 'identifier') return no(`protected word ${word}`)
-    if (!this.protectedWords.has(word) && PROTECTED_SEQUENCE.test(word)) return no(`a name of the old tools: ${word}`)
-    for (const p of this.protectedPrefixes) if (word.startsWith(p)) return no(`protected prefix ${p}`)
-    if (ctx === 'filename') return { to: TOKEN_TO[token]!, reason: '' }
-    if (form !== 'upper' && (prev === '_' || next === '_')) return no('a snake_case key stays')
-    if (ctx === 'identifier' || ctx === 'property') return { to: TOKEN_TO[token]!, reason: '' }
-    if (prev === '-' || next === '-' || run.includes('-')) {
-      if (this.kebabNames.has(run)) return { to: TOKEN_TO[token]!, reason: '' }
-      return no('a dashed name that is not a renamed file')
+    if ((ctx === 'identifier' || ctx === 'property') && this.collisionProtect.has(word)) return no(`COLLISION in this file: ${word} (its crew name is declared here; add a per-file map)`)
+    const tokenAt = around.at + start
+    for (const p of PROTECTED_PATTERNS) {
+      const re = new RegExp(p.re.source, p.re.flags.includes('g') ? p.re.flags : `${p.re.flags}g`)
+      let hit: RegExpExecArray | null
+      while ((hit = re.exec(around.text)) !== null) {
+        if (hit.index <= tokenAt && tokenAt < hit.index + hit[0].length) return no(`not the crew: ${p.why}`)
+      }
     }
-    const compound = isAlnum(prev) || isAlnum(next) || (form === 'upper' && (prev === '_' || next === '_'))
-    if (compound) return { to: TOKEN_TO[token]!, reason: '' }
-    const codeShaped =
-      before.endsWith('.') ||
-      before.endsWith('${') ||
-      /^\.[A-Za-z_$]/.test(after) ||
-      /^\\\.[A-Za-z_$]/.test(after) ||
-      after.startsWith('(') ||
-      after.startsWith('?.') ||
-      after.startsWith('[')
-    if (codeShaped && ctx !== 'path') return { to: TOKEN_TO[token]!, reason: '' }
-    return no(ctx === 'path' ? 'a bare segment of a path that is not a renamed file' : ctx === 'string' ? 'a bare word in a string' : 'a bare word in prose')
+    return { to: TOKEN_TO[token]!, reason: '' }
   }
 }
 
@@ -367,6 +839,11 @@ function excluded(rel: string): string | null {
 
 function frozen(rel: string): string | null {
   for (const f of FROZEN_FILES) if (rel === f.path) return f.why
+  return null
+}
+
+function removed(rel: string): string | null {
+  for (const r of REMOVED_PATHS) if (rel === r.path) return r.why
   return null
 }
 
@@ -485,12 +962,10 @@ class Planner {
     const existing = new Set(this.files)
     const targets = new Map<string, string>()
     for (const rel of this.files) {
-      if (!inScope(rel) || excluded(rel) !== null) continue
+      if (!inScope(rel) || excluded(rel) !== null || removed(rel) !== null) continue
       const newRel = renamePath(rel, this.renamer, tally())
       if (newRel === rel) continue
       this.renameMap.set(rel, newRel)
-      const stem = basename(rel, extname(rel))
-      if (stem.includes('-')) this.renamer.kebabNames.add(stem)
       if (targets.has(newRel)) this.collisions.push(`${rel} and ${targets.get(newRel)} both become ${newRel}`)
       targets.set(newRel, rel)
       let from = posix.dirname(rel)
@@ -590,9 +1065,9 @@ class Planner {
     const q = literal[0]!
     const quoted = q === '\'' || q === '"' || q === '`'
     const body = quoted ? literal.slice(1, -1) : literal
-    if (this.renamer.protectedLiterals.has(body)) {
-      bump(t.skipped, `'${body}'`)
-      t.skips.push({ reason: 'protected literal', token: body, run: body })
+    const wholeLiteral = quoted ? PROTECTED_PATTERNS.find(p => new RegExp(`^(?:${p.re.source})$`).test(literal)) : undefined
+    if (wholeLiteral !== undefined) {
+      t.skips.push({ reason: `not the crew: ${wholeLiteral.why}`, token: body, run: body })
       return literal
     }
     if (/\s/.test(body)) {
@@ -607,12 +1082,10 @@ class Planner {
     const pathBody = lineSuffix === '' ? body : body.slice(0, body.length - lineSuffix.length)
     if (pathBody.includes('/') && REPO_PATH_RE.test(pathBody) && !this.resolvesToTracked(pathBody, fromRel)) {
       const byBasename = this.basenameFallback(pathBody)
-      if (byBasename === null) {
-        if (/team/i.test(body)) t.skips.push({ reason: 'a path to nothing tracked', token: body, run: body })
-        return literal
+      if (byBasename !== null) {
+        bump(t.renamed, `${basename(pathBody)}→${basename(byBasename)}`)
+        return quoted ? q + byBasename + lineSuffix + literal[literal.length - 1]! : byBasename + lineSuffix
       }
-      bump(t.renamed, `${basename(pathBody)}→${basename(byBasename)}`)
-      return quoted ? q + byBasename + lineSuffix + literal[literal.length - 1]! : byBasename + lineSuffix
     }
     const mapped = this.mapPathString(pathBody, fromRel) + lineSuffix
     const pathLike = body.includes('/') && REPO_PATH_RE.test(body)
@@ -622,7 +1095,7 @@ class Planner {
 
   private masks(text: string): Array<[number, number]> {
     const out: Array<[number, number]> = []
-    for (const p of PROTECTED_PATTERNS) {
+    for (const p of PROTECTED_PATTERNS.slice(0, 1)) {
       const re = new RegExp(p.re.source, 'g')
       let m: RegExpExecArray | null
       while ((m = re.exec(text)) !== null) out.push([m.index, m.index + m[0].length])
@@ -648,9 +1121,9 @@ class Planner {
     for (const name of declared) {
       if (!/team/i.test(name) || this.renamer.fileProtect.has(name)) continue
       const renamed = this.renamer.rewrite(name, 'identifier', tally())
-      if (renamed !== name && declared.has(renamed)) {
+      if (renamed !== name && declared.has(renamed) && this.renamer.fileMap[name] === undefined && !this.renamer.fileAllow.has(name)) {
         this.renamer.collisionProtect.add(name)
-        this.collisionKept.push(`${rel}: ${name} kept (${renamed} is declared there)`)
+        this.collisionKept.push(`${rel}: ${name} → ${renamed} collides with a name declared there`)
       }
     }
   }
@@ -693,16 +1166,17 @@ class Planner {
 
   planContents(): void {
     for (const rel of this.files) {
-      if (!inScope(rel) || excluded(rel) !== null) continue
+      if (!inScope(rel) || excluded(rel) !== null || removed(rel) !== null) continue
       const newRel = this.renameMap.get(rel) ?? rel
       const textual = TEXT_EXTENSIONS.has(extname(rel)) || rel.endsWith('members.txt') || rel.endsWith('run-all.sh')
       if (!textual || frozen(rel) !== null) {
         if (newRel !== rel) this.plans.push({ rel, newRel, text: null, newText: null, replacements: 0 })
         continue
       }
-      const text = readFileSync(join(this.root, rel), 'utf8')
+      const original = readFileSync(join(this.root, rel), 'utf8')
+      const text = prePatched(rel, original)
       if (!/team/i.test(text)) {
-        if (newRel !== rel) this.plans.push({ rel, newRel, text, newText: text, replacements: 0 })
+        if (newRel !== rel || text !== original) this.plans.push({ rel, newRel, text: original, newText: text, replacements: 0 })
         continue
       }
       const t = tally()
@@ -711,8 +1185,8 @@ class Planner {
       let replacements = 0
       for (const n of t.renamed.values()) replacements += n
       mergeTally(this.t, t, rel)
-      if (newText !== text || newRel !== rel) {
-        this.plans.push({ rel, newRel, text, newText, replacements })
+      if (newText !== original || newRel !== rel) {
+        this.plans.push({ rel, newRel, text: original, newText, replacements })
         if (replacements > 0) this.perFile.set(rel, replacements)
       }
     }
@@ -832,19 +1306,14 @@ function main(): void {
   for (const e of EXCLUDED_PATHS) say(`  never touched: ${e.prefix} — ${e.why}`)
   for (const f of FROZEN_FILES) say(`  content kept: ${f.path} — ${f.why}`)
   for (const p of PINNED_PATHS) say(`  name kept: ${p.path} — ${p.why}`)
-  for (const r of PROTECTED_IDENTIFIERS) say(`  identifier kept: ${r.name} — ${r.why}`)
-  for (const r of PROTECTED_WORDS) say(`  word kept: ${r.name} — ${r.why}`)
-  for (const r of PROTECTED_PREFIXES) say(`  prefix kept: ${r.name}* — ${r.why}`)
-  for (const r of PROTECTED_LITERALS) say(`  literal kept: '${r.name}' — ${r.why}`)
-  for (const p of PROTECTED_PATTERNS) say(`  pattern kept: ${p.re.source} — ${p.why}`)
+  for (const r of REMOVED_PATHS) say(`  removed: ${r.path} — ${r.why}`)
+  for (const p of PROTECTED_PATTERNS) say(`  not the crew: ${p.re.source} — ${p.why}`)
   for (const r of FILE_RULES) say(`  in ${r.path}: ${r.protect ? `kept ${r.protect.join(', ')}` : ''}${r.map ? Object.entries(r.map).map(([a, b]) => `${a} → ${b}`).join(', ') : ''} — ${r.why}`)
-  say(`### names kept where the crew name is already declared in the same file (${planner.collisionKept.length})`)
+  say(`### COLLISIONS: names whose crew form is already declared in the same file — each needs a per-file map (${planner.collisionKept.length})`)
   for (const c of planner.collisionKept) say(`  ${c}`)
-  say('  snake_case keys (team_context, teammate_mailbox, in_process_teammate, team_name, teammate_id, …) stay: saved rows and wire fields')
-  say("  bare words in strings and prose stay (kinds such as 'teammate', the plan tier 'team', docs prose): the words on screen are changed where they are spoken, not here")
-  say('  dashed names in strings and prose change only when they name a renamed file (CLI flags such as --team-name stay)')
+  say('  every other spelling in every context (identifiers, keys, strings, comments, docs, file names, paths, snake_case keys, dashed names) becomes the crew word; the old spellings survive only in the read-side alias tables (frozen files above)')
 
-  if (planner.collisions.length > 0) {
+  if (planner.collisions.length > 0 || planner.collisionKept.length > 0) {
     say('refused: rename collisions above')
     if (reportPath !== undefined) writeFileSync(reportPath, lines.join('\n') + '\n')
     process.exit(3)
@@ -857,6 +1326,15 @@ function main(): void {
   say('')
   say('## applying')
   const touched: string[] = []
+  for (const r of REMOVED_PATHS) {
+    if (!planner.fileSet.has(r.path)) {
+      say(`  already gone: ${r.path}`)
+      continue
+    }
+    git(root, 'rm', '-q', '--', r.path)
+    say(`  removed ${r.path} — ${r.why}`)
+  }
+  pruneEmptyDirs(root, REMOVED_PATHS.map(r => r.path))
   for (const [from, to] of planner.renameMap) {
     mkdirSync(dirname(join(root, to)), { recursive: true })
     git(root, 'mv', '-k', from, to)
@@ -873,6 +1351,8 @@ function main(): void {
   for (const l of patchLog) say(l)
   say(`  alias patches: ${patches.applied} applied, ${patches.already} already present, ${patches.missing.length} missing`)
   for (const m of patches.missing) say(`  MISSING ANCHOR: ${m}`)
+  say(`  pre-patches: ${PRE_PATCHED.length} applied`)
+  for (const l of PRE_PATCHED) say(`  pre-patched ${l}`)
   for (const p of ALIAS_PATCHES) touched.push(planner.renameMap.get(p.file) ?? p.file)
   if (!skipGenerators) {
     for (const g of GENERATORS) {

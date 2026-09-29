@@ -6,7 +6,7 @@ function isCrewmateShutdownAttachment(
   return (
     msg.type === 'attachment' &&
     msg.attachment.type === 'task_status' &&
-    msg.attachment.taskType === 'in_process_teammate' &&
+    msg.attachment.taskType === 'in_process_crewmate' &&
     msg.attachment.status === 'completed'
   )
 }
@@ -36,7 +36,7 @@ export function collapseCrewmateShutdowns(
           uuid: msg.uuid,
           timestamp: msg.timestamp,
           attachment: {
-            type: 'teammate_shutdown_batch',
+            type: 'crewmate_shutdown_batch',
             count,
           },
         })

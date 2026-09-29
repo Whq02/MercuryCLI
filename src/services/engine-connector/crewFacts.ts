@@ -55,7 +55,7 @@ export interface CrewAgentFacts {
 }
 
 export function isCrewRow(row: WorkRowV1): boolean {
-  return row.kind === 'agent' || row.kind === 'teammate'
+  return row.kind === 'agent' || row.kind === 'crewmate'
 }
 
 const positive = (v: unknown): number | null =>

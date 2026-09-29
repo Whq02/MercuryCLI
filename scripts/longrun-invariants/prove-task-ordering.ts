@@ -55,7 +55,7 @@ section('§A the guarded reset: a task created in the await window survives')
   check('nothing else was dropped either', (await listTasks(LIST)).length === 2)
 
   const wiped3 = await resetTaskList(LIST)
-  check('the unconditional reset (team ops contract) still wipes', wiped3 === true && (await listTasks(LIST)).length === 0)
+  check('the unconditional reset (crew ops contract) still wipes', wiped3 === true && (await listTasks(LIST)).length === 0)
 }
 
 section('§B TaskUpdate reports what actually landed')

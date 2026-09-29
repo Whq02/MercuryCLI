@@ -121,7 +121,7 @@ export async function logContextMetrics(
 
 const SWARM_ONLY_FIELDS: Record<string, string[]> = {
   [EXIT_PLAN_MODE_V2_TOOL_NAME]: ['launchSwarm', 'crewmateCount'],
-  [AGENT_TOOL_NAME]: ['name', 'team_name', 'mode'],
+  [AGENT_TOOL_NAME]: ['name', 'crew_name', 'mode'],
 }
 
 const serializedSchemaKeys = new WeakMap<object, string>()

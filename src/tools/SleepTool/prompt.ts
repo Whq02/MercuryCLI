@@ -9,7 +9,7 @@ export const SLEEP_TOOL_PROMPT = `Wait out a given duration. An interrupt from t
 Use it when:
 - a rest, hold, or break is what the user wants;
 - genuinely nothing is actionable right now;
-- you are waiting on something outside your control (a long build, an external process, a teammate's reply) and want to check back later.
+- you are waiting on something outside your control (a long build, an external process, a crewmate's reply) and want to check back later.
 
 While you sleep you may receive periodic check-in prompts wrapped in <${TICK_TAG}> tags. Treat each one as a nudge: look for useful work first (unread messages, finished tasks, pending follow-ups) and only go back to sleeping when there is still nothing to do.
 

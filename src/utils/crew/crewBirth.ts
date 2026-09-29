@@ -4,7 +4,7 @@ import { formatAgentId } from '../agentId.js'
 import { getCwd } from '../cwd.js'
 import { CREW_LEAD_NAME } from '../swarm/constants.js'
 import { getCrewFilePath, type CrewFile } from '../swarm/crewHelpers.js'
-import { crewChildName, getLeadCrewFallback, getCrewName, isTeammate, setLeadCrewFallback } from '../crewmate.js'
+import { crewChildName, getLeadCrewFallback, getCrewName, isCrewmate, setLeadCrewFallback } from '../crewmate.js'
 
 export type CrewContext = NonNullable<AppState['crewContext']>
 
@@ -17,11 +17,11 @@ export function crewLeadAgentId(crewName: string): string {
 }
 
 export function bornCrewContext(sessionId: string): CrewContext {
-  const teamName = sessionCrewName(sessionId)
+  const crewName = sessionCrewName(sessionId)
   return {
-    teamName,
-    crewFilePath: getCrewFilePath(teamName),
-    leadAgentId: crewLeadAgentId(teamName),
+    crewName,
+    crewFilePath: getCrewFilePath(crewName),
+    leadAgentId: crewLeadAgentId(crewName),
     isLeader: true,
     crewmates: {},
   }
@@ -50,21 +50,21 @@ export function bornCrewRoster(sessionId: string, cwd: string): CrewFile {
   }
 }
 
-export function isSessionCrew(teamName: string): boolean {
-  return teamName === sessionCrewName(String(getSessionId()))
+export function isSessionCrew(crewName: string): boolean {
+  return crewName === sessionCrewName(String(getSessionId()))
 }
 
-export function foundingRosterFor(teamName: string): CrewFile | null {
-  if (!isSessionCrew(teamName)) return null
+export function foundingRosterFor(crewName: string): CrewFile | null {
+  if (!isSessionCrew(crewName)) return null
   return bornCrewRoster(String(getSessionId()), getCwd())
 }
 
-export function crewContextFor(teamName: string): CrewContext {
-  if (isSessionCrew(teamName)) return bornCrewContext(String(getSessionId()))
-  return { teamName, crewFilePath: '', leadAgentId: '', crewmates: {} }
+export function crewContextFor(crewName: string): CrewContext {
+  if (isSessionCrew(crewName)) return bornCrewContext(String(getSessionId()))
+  return { crewName, crewFilePath: '', leadAgentId: '', crewmates: {} }
 }
 
-export function resolveSpawnCrew(crewContext: { teamName: string } | undefined): string {
+export function resolveSpawnCrew(crewContext: { crewName: string } | undefined): string {
   return getCrewName(crewContext) ?? sessionCrewName(String(getSessionId()))
 }
 
@@ -75,7 +75,7 @@ export function isBornCrewWithoutCrewmates(crewContext: AppState['crewContext'])
 }
 
 export function birthSessionCrew(sessionId: string, setAppState?: SetAppState): string | null {
-  if (isTeammate() || crewChildName() !== undefined) return null
+  if (isCrewmate() || crewChildName() !== undefined) return null
   if (getLeadCrewFallback() === null) setLeadCrewFallback(sessionCrewName(sessionId))
   setAppState?.(prev => (prev.crewContext !== undefined ? prev : { ...prev, crewContext: bornCrewContext(sessionId) }))
   void import('./crewConvert.js').then(convert => convert.bootCrewConversion())

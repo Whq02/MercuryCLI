@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 export type CrewmateContext = {
   agentId: string
   agentName: string
-  teamName: string
+  crewName: string
   color?: string
   planModeRequired: boolean
   parentSessionId: string

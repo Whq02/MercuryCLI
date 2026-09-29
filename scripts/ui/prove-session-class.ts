@@ -22,9 +22,9 @@ const base = (extra: Partial<LogOption>): LogOption =>
     ...extra,
   }) as LogOption
 
-check(isCrewSession(base({ teamName: 'crew', agentName: 'scout' })), 'crew seat via teamName stamp')
-check(isCrewSession(base({ teamName: 'crew' })), 'teamName stamp alone')
-check(isCrewSession(base({ isTeammate: true })), 'isTeammate stamp alone')
+check(isCrewSession(base({ crewName: 'crew', agentName: 'scout' })), 'crew seat via crewName stamp')
+check(isCrewSession(base({ crewName: 'crew' })), 'crewName stamp alone')
+check(isCrewSession(base({ isCrewmate: true })), 'isCrewmate stamp alone')
 
 check(
   isCrewSession(base({ firstPrompt: `${DISPATCH_REPORT_BACK_FRAMING}\n\nsmoke: count files` })),
@@ -44,9 +44,9 @@ check(
   'mentioning bus vocabulary mid-prompt is NOT crew (anchored match only)',
 )
 
-check(crewTagOf(base({ teamName: 'crew', agentName: 'scout' })) === 'crew · scout', 'tag crew · scout')
-check(crewTagOf(base({ teamName: 'crew' })) === 'crew', 'tag crew (no agent)')
-check(crewTagOf(base({ isTeammate: true })) === 'crew', 'stamp-only fallback tag')
+check(crewTagOf(base({ crewName: 'crew', agentName: 'scout' })) === 'crew · scout', 'tag crew · scout')
+check(crewTagOf(base({ crewName: 'crew' })) === 'crew', 'tag crew (no agent)')
+check(crewTagOf(base({ isCrewmate: true })) === 'crew', 'stamp-only fallback tag')
 
 console.log(failures === 0 ? '✅ session class GREEN' : `❌ session class RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

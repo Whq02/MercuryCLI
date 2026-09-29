@@ -415,7 +415,7 @@ function searchIssuesFlags(): Record<string, FlagArgType> {
     '-L': 'number', '--locked': 'none', '--match': 'string', '--mentions': 'string', '--milestone': 'string',
     '--no-assignee': 'none', '--no-label': 'none', '--no-milestone': 'none', '--no-project': 'none',
     '--order': 'string', '--owner': 'string', '--project': 'string', '--reactions': 'string', '--sort': 'string',
-    '--state': 'string', '--team-mentions': 'string', '--updated': 'string', '--visibility': 'string',
+    '--state': 'string', '--crew-mentions': 'string', '--updated': 'string', '--visibility': 'string',
   }, repoFlags)
 }
 

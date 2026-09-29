@@ -78,7 +78,7 @@ import {
   getCrewName,
   getCrewmateColor,
   isCrewLead,
-  isTeammate,
+  isCrewmate,
 } from '../../utils/crewmate.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { liveMessagesFor, sendLiveMessage } from '../../services/crew/liveComms.js'
@@ -87,6 +87,7 @@ import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { plainMessageSummary } from './summary.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
+import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'
 
 
 export type MessageRouting = {
@@ -245,7 +246,7 @@ const inputSchema = lazySchema(() => {
   }
 
   return z.object({
-    to: z.string().describe('The teammate name to send to, or "*" to broadcast to all teammates'),
+    to: z.string().describe('The crewmate name to send to, or "*" to broadcast to all crewmates'),
     summary: z
       .string()
       .optional()
@@ -292,17 +293,17 @@ type OutputSchema = ReturnType<typeof outputSchema>
 
 
 function senderName(): string {
-  return getAgentName() ?? (isTeammate() ? 'teammate' : CREW_LEAD_NAME)
+  return getAgentName() ?? (isCrewmate() ? 'crewmate' : CREW_LEAD_NAME)
 }
 
 function selfAddressRefusalText(rawTo: string): string | null {
-  const selfName = getAgentName() ?? (isTeammate() ? null : CREW_LEAD_NAME)
+  const selfName = getAgentName() ?? (isCrewmate() ? null : CREW_LEAD_NAME)
   if (selfName === null || rawTo.toLowerCase() !== selfName.toLowerCase()) {
     return null
   }
   return (
     `Cannot deliver to "${rawTo}": that is this session's own address, so the message would only land back ` +
-    `in your own inbox and read as if a teammate sent it.`
+    `in your own inbox and read as if a crewmate sent it.`
   )
 }
 
@@ -315,15 +316,15 @@ function nowIso(): string {
 }
 
 
-function crewContextOf(context: ToolUseContext): { teamName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> } | undefined {
+function crewContextOf(context: ToolUseContext): { crewName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> } | undefined {
   return context.getAppState().crewContext as
-    | { teamName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> }
+    | { crewName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> }
     | undefined
 }
 
-function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseContext): string | null {
+function deadInProcessSeat(rawTo: string, crewName: string, context: ToolUseContext): string | null {
   const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
-    task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
+    task => task.identity.crewName === crewName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
   )
   if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
   const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
@@ -337,14 +338,14 @@ export const PAUSED_SEAT_ENDED_WORDS = 'was paused on a usage limit'
 
 type EndedCrewmateSeat = { taskId: string; name: string; ended: string }
 
-async function endedCrewmateSeat(rawTo: string, teamName: string, context: ToolUseContext): Promise<EndedCrewmateSeat | null> {
+async function endedCrewmateSeat(rawTo: string, crewName: string, context: ToolUseContext): Promise<EndedCrewmateSeat | null> {
   const wanted = rawTo.toLowerCase()
-  if (wanted === CREW_LEAD_NAME.toLowerCase()) return null
+  if (wanted === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(wanted)) return null
   const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
-    task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === wanted,
+    task => task.identity.crewName === crewName && task.identity.agentName.toLowerCase() === wanted,
   )
   if (seats.some(task => task.status === 'running')) return null
-  const roster = await readRoster(teamName)
+  const roster = await readRoster(crewName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === wanted)
   if (member !== undefined && member.backendType !== 'in-process') return null
   if (seats.length > 0) {
@@ -354,10 +355,10 @@ async function endedCrewmateSeat(rawTo: string, teamName: string, context: ToolU
     const ended = last.status === 'completed' ? 'had completed' : `was ${agentStatusWord(last.status)}`
     return { taskId: last.id, name: last.identity.agentName, ended }
   }
-  if ((await failedSeatNotice(rawTo, teamName)) !== null) return null
+  if ((await failedSeatNotice(rawTo, crewName)) !== null) return null
   let newest: { taskId: string; name: string; launchedAt: number } | undefined
   for (const { agentId, metadata } of await listAgentMetadata().catch(() => [])) {
-    if (metadata.crewmate?.teamName !== teamName || metadata.name?.toLowerCase() !== wanted) continue
+    if (metadata.crewmate?.crewName !== crewName || metadata.name?.toLowerCase() !== wanted) continue
     const launchedAt = metadata.launchedAt ?? 0
     if (newest === undefined || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
   }
@@ -378,12 +379,12 @@ async function resumeEndedCrewmate(
   const { resumeCrewmateFromTranscript } = await import('../../services/agents/operatorResume.js')
   const resumed = await resumeCrewmateFromTranscript(seat.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
   if (resumed.outcome === 'refused') {
-    return { success: false, message: `Teammate ${seat.name} ${seat.ended} and could not be resumed with your message: ${resumed.reason}` }
+    return { success: false, message: `Crewmate ${seat.name} ${seat.ended} and could not be resumed with your message: ${resumed.reason}` }
   }
   return {
     success: true,
     message:
-      `Teammate ${seat.name} ${seat.ended}; it was resumed from its transcript with your message as its next turn ` +
+      `Crewmate ${seat.name} ${seat.ended}; it was resumed from its transcript with your message as its next turn ` +
       `and runs on under a new row (task ${resumed.taskId}) — it answers by SendMessage as before.`,
     routing: {
       sender: from,
@@ -395,10 +396,10 @@ async function resumeEndedCrewmate(
   }
 }
 
-async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
+async function failedSeatNotice(rawTo: string, crewName: string): Promise<string | null> {
   let rows: Awaited<ReturnType<typeof liveMessagesFor>>
   try {
-    rows = await liveMessagesFor(teamName, CREW_LEAD_NAME)
+    rows = await liveMessagesFor(crewName, CREW_LEAD_NAME)
   } catch {
     return null
   }
@@ -415,17 +416,17 @@ async function failedSeatNotice(rawTo: string, teamName: string): Promise<string
   return null
 }
 
-async function readRoster(teamName: string | undefined): Promise<CrewFile | null> {
-  if (!teamName) return null
+async function readRoster(crewName: string | undefined): Promise<CrewFile | null> {
+  if (!crewName) return null
   try {
-    return await readCrewFileAsync(teamName)
+    return await readCrewFileAsync(crewName)
   } catch {
     return null
   }
 }
 
 type RecipientResolution =
-  | { ok: true; name: string; teamName: string }
+  | { ok: true; name: string; crewName: string }
   | { ok: false; refusal: string }
 
 type KnownLaunchedAgent = { name: string; agentId: string; status: string }
@@ -459,15 +460,15 @@ async function noCrewRefusal(rawTo: string, context: ToolUseContext): Promise<st
     known.find(agent => agent.name.toLowerCase() === folded)
   if (own !== undefined) {
     return (
-      `Cannot deliver to "${rawTo}": that is a sub-agent of this session (id ${own.agentId}; ${own.status}), and a structured message reaches teammates only. ` +
+      `Cannot deliver to "${rawTo}": that is a sub-agent of this session (id ${own.agentId}; ${own.status}), and a structured message reaches crewmates only. ` +
       `Send it a plain message addressed to its name or to its id ${own.agentId}` +
       (own.status === 'running' ? ' — it is read at its next tool boundary.' : ' to resume it.')
     )
   }
   if (known.length === 0) {
     return (
-      `Cannot deliver to "${rawTo}": this session is not in a team and no in-process agent by that name exists, ` +
-      `so the message would land in a default inbox nobody reads. Spawn a team first, or address a live subagent by name.`
+      `Cannot deliver to "${rawTo}": this session is not in a crew and no in-process agent by that name exists, ` +
+      `so the message would land in a default inbox nobody reads. Spawn a crew first, or address a live subagent by name.`
     )
   }
   const running = known.filter(agent => agent.status === 'running').map(agent => agent.name)
@@ -484,13 +485,13 @@ async function resolveDeliverableRecipient(
   rawTo: string,
   context: ToolUseContext,
 ): Promise<RecipientResolution> {
-  const teamName = getCrewName(crewContextOf(context))
-  if (!teamName) {
+  const crewName = getCrewName(crewContextOf(context))
+  if (!crewName) {
     return { ok: false, refusal: await noCrewRefusal(rawTo, context) }
   }
   const selfRefusal = selfAddressRefusalText(rawTo)
   if (selfRefusal !== null) {
-    const roster = await readRoster(teamName)
+    const roster = await readRoster(crewName)
     const others = (roster?.members ?? [])
       .map(candidate => candidate.name)
       .filter(name => name.toLowerCase() !== rawTo.toLowerCase())
@@ -498,21 +499,21 @@ async function resolveDeliverableRecipient(
       ok: false,
       refusal:
         selfRefusal +
-        (others.length > 0 ? ` Teammates you can address: ${others.join(', ')}.` : ''),
+        (others.length > 0 ? ` Crewmates you can address: ${others.join(', ')}.` : ''),
     }
   }
-  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) {
-    return { ok: true, name: CREW_LEAD_NAME, teamName }
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) {
+    return { ok: true, name: CREW_LEAD_NAME, crewName }
   }
-  const roster = await readRoster(teamName)
+  const roster = await readRoster(crewName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
-  const deadSeat = deadInProcessSeat(rawTo, teamName, context) ?? (member ? null : await failedSeatNotice(rawTo, teamName))
+  const deadSeat = deadInProcessSeat(rawTo, crewName, context) ?? (member ? null : await failedSeatNotice(rawTo, crewName))
   if (deadSeat !== null) {
     return {
       ok: false,
       refusal:
         `Cannot deliver to "${rawTo}": that seat is not running — it ${deadSeat} — so the message would sit in an inbox nobody reads. ` +
-        `Spawn the seat again with the Agent tool, or address a running teammate.`,
+        `Spawn the seat again with the Agent tool, or address a running crewmate.`,
     }
   }
   if (!member) {
@@ -520,15 +521,15 @@ async function resolveDeliverableRecipient(
     return {
       ok: false,
       refusal:
-        `Cannot deliver to "${rawTo}": no such member on team "${teamName}" (members: ${memberList}). ` +
+        `Cannot deliver to "${rawTo}": no such member on crew "${crewName}" (members: ${memberList}). ` +
         `A message to an unknown name creates an inbox that is never read.`,
     }
   }
-  const freshRoster = await readRoster(teamName)
+  const freshRoster = await readRoster(crewName)
   const freshMember = freshRoster?.members.find(
     candidate => candidate.name.toLowerCase() === rawTo.toLowerCase(),
   )
-  return { ok: true, name: freshMember?.name ?? member.name, teamName }
+  return { ok: true, name: freshMember?.name ?? member.name, crewName }
 }
 
 function workerReplyTarget(addressed: string): string {
@@ -557,13 +558,13 @@ async function sendBusEnvelope(
   envelope: BusEnvelope,
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
-  const teamName = getCrewName(crewContextOf(context))
+  const crewName = getCrewName(crewContextOf(context))
   const resolvedTarget = { name: targetName.trim() }
   const isDirective =
     envelope.kind === 'dispatch' || envelope.kind === 'control' || envelope.kind === 'note'
 
   if (isDirective) {
-    const roster = await readRoster(teamName)
+    const roster = await readRoster(crewName)
     const leadAgentId = crewContextOf(context)?.leadAgentId
     const verdict = canDirect(
       resolveDirectActor(roster, envelope.from, leadAgentId),
@@ -584,7 +585,7 @@ async function sendBusEnvelope(
       const reply = await daemonControlRpc({
         op: 'envelope',
         to: resolvedTarget.name,
-        ...(teamName ? { crew: teamName } : {}),
+        ...(crewName ? { crew: crewName } : {}),
         env: envelope,
         ...(color ? { color } : {}),
       } as never)
@@ -595,7 +596,7 @@ async function sendBusEnvelope(
   }
 
   if (!deliveredViaRpc) {
-    const delivered = await sendLiveMessage(teamName, {
+    const delivered = await sendLiveMessage(crewName, {
       to: resolvedTarget.name,
       from: envelope.from,
       text: serializeBusEnvelope(envelope),
@@ -649,7 +650,7 @@ function routeToMainAgent(rawTo: string, content: string, context: ToolUseContex
       success: false,
       message:
         `Cannot deliver to "${rawTo}": that address names this session's own main agent, and only a background sub-agent reaches its main agent there. ` +
-        `Address a sub-agent by the id its launch receipt names or by its name${crew ? `, or a teammate by name (the lead is "${CREW_LEAD_NAME}")` : ''}.`,
+        `Address a sub-agent by the id its launch receipt names or by its name${crew ? `, or a crewmate by name (the lead is "${CREW_LEAD_NAME}")` : ''}.`,
     }
   }
   enqueueMessageToMainAgent({ fromTaskId: sender.id, description: sender.description, text: content })
@@ -780,10 +781,10 @@ async function routeToLocalAgent(
 }
 
 async function rosterHolds(rawTo: string, context: ToolUseContext): Promise<boolean> {
-  const teamName = getCrewName(crewContextOf(context))
-  if (!teamName) return false
-  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) return true
-  const roster = await readRoster(teamName)
+  const crewName = getCrewName(crewContextOf(context))
+  if (!crewName) return false
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) return true
+  const roster = await readRoster(crewName)
   return (roster?.members ?? []).some(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
 }
 
@@ -843,8 +844,8 @@ async function sendDirectedPlainMessage(
   summary: string | undefined,
   context: ToolUseContext,
 ): Promise<MessageOutput> {
-  const teamName = getCrewName(crewContextOf(context))
-  const ended = teamName ? await endedCrewmateSeat(rawTo, teamName, context) : null
+  const crewName = getCrewName(crewContextOf(context))
+  const ended = crewName ? await endedCrewmateSeat(rawTo, crewName, context) : null
   if (ended !== null) return resumeEndedCrewmate(ended, content, summary, context)
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
@@ -862,7 +863,7 @@ async function sendDirectedPlainMessage(
 
   const from = senderName()
   const color = senderColor(from)
-  const delivered = await sendLiveMessage(resolution.teamName, {
+  const delivered = await sendLiveMessage(resolution.crewName, {
     to: resolution.name,
     from,
     text: content,
@@ -897,16 +898,16 @@ async function sendBroadcast(
   context: ToolUseContext,
 ): Promise<BroadcastOutput> {
   const crewContext = crewContextOf(context)
-  const teamName = getCrewName(crewContext)
-  if (!teamName) {
+  const crewName = getCrewName(crewContext)
+  if (!crewName) {
     throw new Error(
-      `Cannot broadcast: this session is not in a team. Create one with the team-spawn tool, or launch with ` +
-        `the --team-name identity arguments.`,
+      `Cannot broadcast: this session is not in a crew. Create one with the crew-spawn tool, or launch with ` +
+        `the --crew-name identity arguments.`,
     )
   }
-  const roster = await readRoster(teamName)
+  const roster = await readRoster(crewName)
   if (!roster) {
-    throw new Error(`Cannot broadcast: unknown team "${teamName}"`)
+    throw new Error(`Cannot broadcast: unknown crew "${crewName}"`)
   }
   const from = senderName()
   if (!from) {
@@ -920,7 +921,7 @@ async function sendBroadcast(
   const fairnessDenial = await checkBroadcastFairness(
     from,
     (roster as CrewFileWithGovernance).governance,
-    teamName,
+    crewName,
   )
   if (fairnessDenial !== null) {
     return { success: false, message: fairnessDenial, recipients: [] }
@@ -932,7 +933,7 @@ async function sendBroadcast(
   if (recipients.length === 0) {
     return {
       success: true,
-      message: 'No teammates to broadcast to — you are the only member of the team.',
+      message: 'No crewmates to broadcast to — you are the only member of the crew.',
       recipients: [],
     }
   }
@@ -941,7 +942,7 @@ async function sendBroadcast(
   const deliveredNames: string[] = []
   const failedNames: string[] = []
   for (const recipient of recipients) {
-    const delivered = await sendLiveMessage(teamName, {
+    const delivered = await sendLiveMessage(crewName, {
       to: recipient,
       from,
       text: content,
@@ -971,7 +972,7 @@ async function sendBroadcast(
     routing: {
       sender: from,
       ...(color ? { senderColor: color } : {}),
-      target: '@team',
+      target: '@crew',
       ...(summary !== undefined ? { summary } : {}),
       content,
     },
@@ -985,8 +986,8 @@ async function sendShutdownRequest(
   context: ToolUseContext,
 ): Promise<RequestOutput> {
   const crewContext = crewContextOf(context)
-  const teamName = getCrewName(crewContext)
-  const roster = await readRoster(teamName)
+  const crewName = getCrewName(crewContext)
+  const roster = await readRoster(crewName)
   const from = senderName()
   const verdict = canDirect(
     resolveDirectActor(roster, from, crewContext?.leadAgentId),
@@ -998,7 +999,7 @@ async function sendShutdownRequest(
   const requestId = generateRequestId('shutdown', rawTo)
   const payload = createShutdownRequestMessage({ requestId, from, ...(reason !== undefined ? { reason } : {}) })
   const color = senderColor(from)
-  const delivered = await sendLiveMessage(teamName, { to: rawTo, from, text: JSON.stringify(payload), timestamp: nowIso(), ...(color ? { color } : {}) })
+  const delivered = await sendLiveMessage(crewName, { to: rawTo, from, text: JSON.stringify(payload), timestamp: nowIso(), ...(color ? { color } : {}) })
   if (!delivered) {
     return {
       success: false,
@@ -1020,12 +1021,12 @@ async function sendShutdownResponse(
   context: ToolUseContext,
 ): Promise<ResponseOutput> {
   const crewContext = crewContextOf(context)
-  const teamName = getCrewName(crewContext)
+  const crewName = getCrewName(crewContext)
   const agentId = getAgentId()
   const from = senderName()
 
   if (!message.approve) {
-    void (await sendLiveMessage(teamName, {
+    void (await sendLiveMessage(crewName, {
       to: CREW_LEAD_NAME,
       from,
       text: JSON.stringify(
@@ -1046,15 +1047,15 @@ async function sendShutdownResponse(
 
   let paneId: string | undefined
   let backendType: string | undefined
-  if (teamName && agentId) {
-    const roster = await readRoster(teamName)
+  if (crewName && agentId) {
+    const roster = await readRoster(crewName)
     const member = roster?.members.find(candidate => candidate.agentId === agentId) as
       | { tmuxPaneId?: string; backendType?: string }
       | undefined
     paneId = member?.tmuxPaneId || undefined
     backendType = member?.backendType || undefined
   }
-  void (await sendLiveMessage(teamName, {
+  void (await sendLiveMessage(crewName, {
     to: CREW_LEAD_NAME,
     from,
     text: JSON.stringify(
@@ -1104,9 +1105,9 @@ async function sendPlanApprovalResponse(
 ): Promise<ResponseOutput> {
   const crewContext = crewContextOf(context)
   if (!isCrewLead(crewContext)) {
-    throw new Error('Only the team lead can approve or reject plans.')
+    throw new Error('Only the crew lead can approve or reject plans.')
   }
-  const teamName = crewContext?.teamName
+  const crewName = crewContext?.crewName
   const approve = message.approve
   const currentMode = context.getAppState().toolPermissionContext.mode
   const permissionMode = currentMode === 'strategy' ? 'default' : currentMode
@@ -1120,13 +1121,13 @@ async function sendPlanApprovalResponse(
     timestamp: nowIso(),
     ...(approve ? { permissionMode } : { feedback }),
   }
-  const delivered = await sendLiveMessage(teamName, { to: rawTo, from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() })
+  const delivered = await sendLiveMessage(crewName, { to: rawTo, from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() })
   if (!delivered) {
     return {
       success: false,
       message: approve
-        ? `The plan approval was NOT delivered to ${rawTo} — the teammate has not been told to proceed.`
-        : `The plan rejection was NOT delivered to ${rawTo} — the teammate has not received the feedback.`,
+        ? `The plan approval was NOT delivered to ${rawTo} — the crewmate has not been told to proceed.`
+        : `The plan rejection was NOT delivered to ${rawTo} — the crewmate has not received the feedback.`,
       request_id: message.request_id,
     }
   }
@@ -1158,10 +1159,10 @@ async function sendQuestion(
       text: message.content,
       ...(message.summary !== undefined ? { summary: message.summary } : {}),
     },
-    resolution.teamName,
+    resolution.crewName,
   )
   const color = senderColor(from)
-  const delivered = await sendLiveMessage(resolution.teamName, {
+  const delivered = await sendLiveMessage(resolution.crewName, {
     to: resolution.name,
     from,
     text: message.content,
@@ -1190,14 +1191,14 @@ async function sendAnswer(
   message: Extract<StructuredMessageInput, { type: 'answer' }>,
   context: ToolUseContext,
 ): Promise<ResponseOutput> {
-  const teamName = getCrewName(crewContextOf(context))
+  const crewName = getCrewName(crewContextOf(context))
   const from = senderName()
   const closed = await answerQuestion(
     { request_id: message.request_id, answeredBy: from, answerText: message.content },
-    teamName,
+    crewName,
   )
   const color = senderColor(from)
-  const delivered = await sendLiveMessage(teamName, {
+  const delivered = await sendLiveMessage(crewName, {
     to: rawTo,
     from,
     text: message.content,
@@ -1243,7 +1244,7 @@ async function sendHandoff(
       summary: message.summary,
       ...(message.evidenceRefs !== undefined ? { evidenceRefs: message.evidenceRefs } : {}),
     },
-    resolution.teamName,
+    resolution.crewName,
   )
   const evidenceCount = (message.evidenceRefs ?? []).filter(
     entry => !!entry && typeof entry.ref === 'string' && entry.ref.trim().length > 0,
@@ -1252,7 +1253,7 @@ async function sendHandoff(
     `Handoff (${message.status})${verdict.verified ? '' : ' [UNVERIFIED — no evidence]'}: ${message.summary}` +
     (evidenceCount > 0 ? ` (${evidenceCount} evidence ref${evidenceCount === 1 ? '' : 's'})` : '')
   const color = senderColor(from)
-  const delivered = await sendLiveMessage(resolution.teamName, {
+  const delivered = await sendLiveMessage(resolution.crewName, {
     to: resolution.name,
     from,
     text,
@@ -1278,7 +1279,7 @@ async function sendHandoff(
 
 export const SendMessageTool = buildTool({
   name: SEND_MESSAGE_TOOL_NAME,
-  searchHint: 'send messages to agent teammates over the swarm protocol',
+  searchHint: 'send messages to agent crewmates over the swarm protocol',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
   get inputSchema(): InputSchema {
@@ -1311,7 +1312,7 @@ export const SendMessageTool = buildTool({
       return {
         result: false,
         message:
-          'Use a bare teammate name (or "*" for broadcast) — there is only one team per session, so the @team suffix is never needed.',
+          'Use a bare crewmate name (or "*" for broadcast) — there is only one crew per session, so the @crew suffix is never needed.',
         errorCode: 9,
       }
     }

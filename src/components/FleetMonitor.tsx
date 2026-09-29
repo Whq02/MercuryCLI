@@ -172,7 +172,7 @@ export function FleetMonitor({ onClose }: { onClose: () => void }): React.ReactN
     )
   }
 
-  const { teamName, tasks, health, leases, conflicts } = snap.data
+  const { crewName, tasks, health, leases, conflicts } = snap.data
   const { missions, loose } = groupMissions(tasks)
   const shownMissions = missions.slice(0, MAX_MISSIONS)
   const shownLoose = loose.slice(0, MAX_LOOSE)
@@ -186,7 +186,7 @@ export function FleetMonitor({ onClose }: { onClose: () => void }): React.ReactN
 
   const liveFooter = rosterLen > 0 ? '↑↓ move · ↵ detail · r refresh' : 'r refresh'
   return (
-    <CommandCenter view="fleet" subtitle={teamName ?? undefined} onClose={onClose} captureInput={false} footer={liveFooter}>
+    <CommandCenter view="fleet" subtitle={crewName ?? undefined} onClose={onClose} captureInput={false} footer={liveFooter}>
       {}
       <SectionHeader count={missions.length}>Missions</SectionHeader>
       {missions.length === 0 ? (

@@ -81,10 +81,10 @@ const again = await decideToolPermission(agentTool.AgentTool, launch(elsewhere),
 check('…and the engine allows the next launch there without a card', again.decision.behavior === 'allow', `${again.decision.behavior} by ${again.trace.decidedBy}`)
 check('…and the resolver accepts it without the admission', agentTool.resolveAgentCwd(elsewhere, context) === elsewhere)
 check('a different folder is still a question', agentTool.agentCwdQuestion(another, context) !== null)
-const crewmate = await agentTool.AgentTool.checkPermissions({ ...launch(another), team_name: 'crew', name: 'mate' }, seat('default'))
+const crewmate = await agentTool.AgentTool.checkPermissions({ ...launch(another), crew_name: 'crew', name: 'mate' }, seat('default'))
 check('a named crewmate spawn into an untrusted folder is the same question, the folder named', crewmate.behavior === 'ask' && JSON.stringify(crewmate).includes(another), JSON.stringify(crewmate))
 const crewmateContext = await import('../../src/utils/crewmate.ts')
-crewmateContext.setDynamicCrewContext({ agentId: '', agentName: '', teamName: 'crew', planModeRequired: false })
+crewmateContext.setDynamicCrewContext({ agentId: '', agentName: '', crewName: 'crew', planModeRequired: false })
 try {
   const named = await agentTool.AgentTool.checkPermissions({ ...launch(another), name: 'mate' }, seat('default'))
   check('a name-only crewmate launch asks the same question', named.behavior === 'ask')
@@ -103,7 +103,7 @@ check('the launch admits the folder once it is reached', source.includes("resolv
 const words = (agentTool.inputSchema().shape as Record<string, { description?: string }>).cwd?.description ?? ''
 check('the parameter words tell the model about the question', words.includes('permission question') && words.includes('once per folder per session') && words.includes('trusts') && words.includes("isolation 'worktree'"), words)
 const crewsDoc = readFileSync(join(ROOT, 'docs/CREW.md'), 'utf8').replace(/\s+/g, ' ')
-check('the teams page describes the question', crewsDoc.includes('permission question to the operator') && crewsDoc.includes('once per folder per session'))
+check('the crews page describes the question', crewsDoc.includes('permission question to the operator') && crewsDoc.includes('once per folder per session'))
 
 process.chdir(ROOT)
 state.setOriginalCwd(ROOT)

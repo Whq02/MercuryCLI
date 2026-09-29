@@ -399,7 +399,7 @@ export function MonitorView({ onClose }: { onClose: () => void }): React.ReactNo
     )
   }
 
-  const { teamName, tasks, health, leases, conflicts } = snap.data
+  const { crewName, tasks, health, leases, conflicts } = snap.data
   const missions = groupMissions(tasks)
 
   const sections: SectionDef<MonRow>[] = [
@@ -524,7 +524,7 @@ export function MonitorView({ onClose }: { onClose: () => void }): React.ReactNo
     <Box flexDirection="column">
       <NavigablePanes<MonRow>
         view="monitor"
-        subtitle={teamName ?? undefined}
+        subtitle={crewName ?? undefined}
         headerLine={
           <Box flexDirection="column">
             <Box>

@@ -45,7 +45,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_SKIP_PERMISSIONS: '1',
     MERCURY_BOOT_PREFLIGHT: '0',

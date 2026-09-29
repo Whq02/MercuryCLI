@@ -255,7 +255,7 @@ export function ExitPlanModePermissionRequest({
           `Details from the planning conversation are in the transcript at ${transcriptBeforeClear} if you need them.`,
         ]
         if (isAgentSwarmsEnabled()) {
-          lines.push('For parallelisable work, consider creating a team with the team-creation tool.')
+          lines.push('For parallelisable work, consider creating a crew with the crew-creation tool.')
         }
         const typed = feedback.trim()
         if (typed !== '') {

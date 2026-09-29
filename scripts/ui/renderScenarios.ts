@@ -1344,7 +1344,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_DOCTOR_STATE_DIR = join(tmpdir(), `mercury-render-doctor-${process.pid}`)
   process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
   process.env.MERCURY_LOCAL_PROBE_TARGETS = process.env.MERCURY_LOCAL_PROBE_TARGETS ?? 'none'
-  process.env.MERCURY_CREWS_DIR = join(tmpdir(), `mercury-render-teams-${process.pid}`)
+  process.env.MERCURY_CREWS_DIR = join(tmpdir(), `mercury-render-crews-${process.pid}`)
   process.env.MERCURY_CREW_DIR = join(tmpdir(), `mercury-render-crew-${process.pid}`)
   process.env.MERCURY_TURN_RECEIPT = '0'
   process.env.MERCURY_VERIFY_EVIDENCE = process.env.MERCURY_VERIFY_EVIDENCE ?? '0'
@@ -3307,7 +3307,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 170, cols, rows,
     }
   }
-  if (['critter', 'workflows', 'teammates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'workflows', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: `/${name}` }, { atTick: 36, data: '\r' }]
     const settled = name === 'sessions'
@@ -4293,7 +4293,7 @@ export function cleanupScenario(name: string): void {
   if (name === 'cockpit-console' || name === 'tasks-mission') {
     cleanupMissionLedgerFixture()
   }
-  for (const store of ['daemon', 'crew', 'teams', 'doctor']) {
+  for (const store of ['daemon', 'crew', 'crews', 'doctor']) {
     try {
       rmSync(join(tmpdir(), `mercury-render-${store}-${process.pid}`), { recursive: true, force: true })
     } catch {

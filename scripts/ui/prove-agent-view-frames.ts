@@ -457,7 +457,7 @@ check('the lead\'s rows are back in the centre and the crewmate\'s are gone', fr
 check('the lead\'s scroll state is restored exactly (top and stickiness)', scrollAfter.top === scrollBefore.top && scrollAfter.sticky === scrollBefore.sticky, `${JSON.stringify(scrollBefore)} → ${JSON.stringify(scrollAfter)}`)
 check('the composer target went back to the lead (no main chat pinned)', scene.state().mainChatTaskId === undefined)
 
-section('§3 screen 3: /teammates opens the crew view as a floating pop-up')
+section('§3 screen 3: /crewmates opens the crew view as a floating pop-up')
 let done = 0
 const element = await crewmatesCommand.call(() => { done++ }, { messages: [], options: {} } as never, '')
 if (element !== null && element !== undefined) scene.setModal(element)

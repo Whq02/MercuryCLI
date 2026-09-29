@@ -10,7 +10,7 @@ import { killInProcessCrewmate } from '../../utils/swarm/spawnInProcess.js'
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
 
-export type OperatorStopKind = 'agent' | 'teammate' | 'workflow' | 'task'
+export type OperatorStopKind = 'agent' | 'crewmate' | 'workflow' | 'task'
 
 export type OperatorStopReceipt =
   | { outcome: 'applied'; kind: OperatorStopKind; status: string }
@@ -60,7 +60,7 @@ export async function stopAgentByOperator(
     const killed = killInProcessCrewmate(taskId, context.setAppState)
     if (!killed) return { outcome: 'refused', reason: notRunningWords(name, context.getAppState().tasks?.[taskId]?.status ?? 'gone') }
     enqueueAgentReceiptRow({ taskId, description: name, status: 'killed', summary: crewmateStopWords(task.identity.agentName) })
-    return { outcome: 'applied', kind: 'teammate', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
+    return { outcome: 'applied', kind: 'crewmate', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
   }
   if (isLocalWorkflowTask(task)) {
     const receipt = killWorkflowTask(taskId, context.setAppState)

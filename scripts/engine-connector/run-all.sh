@@ -5,7 +5,7 @@
 # gate-watch: src/screens/REPL.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* src/bootstrap/state.ts src/cli/print.ts src/commands/crew/index.ts
-# gate-watch: src/commands/team/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx
+# gate-watch: src/commands/crew/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx
 # gate-watch: src/components/* src/components/Spinner/CrewmateSpinnerLine.tsx
 # gate-watch: src/components/Spinner/CrewmateSpinnerTree.tsx src/components/mercury-ui/SessionTabs.tsx
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/components/mercury-ui/screens/*

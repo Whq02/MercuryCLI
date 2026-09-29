@@ -92,7 +92,7 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true)
   check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true)
 
-  const LIVE = ['sessions', 'surfaces', 'teammates', 'memory', 'model', 'help', 'palette', 'status', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'resume', 'diff']
+  const LIVE = ['sessions', 'surfaces', 'crewmates', 'memory', 'model', 'help', 'palette', 'status', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'resume', 'diff']
   const missing = LIVE.filter(n => {
     const s = byName.get(n)
     return !s || !s.enabled || s.visibility !== 'normal'

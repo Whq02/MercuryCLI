@@ -60,7 +60,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     ANTHROPIC_BASE_URL: DEAD,
     MERCURY_OPENAI_API_BASE: DEAD,
@@ -203,9 +203,9 @@ for (const [cols, rows] of SIZES) {
 }
 
 for (const [cols, rows] of SIZES.slice(0, 1)) {
-  section(`§2 ${cols}×${rows} · the teammate default model row: Default and Leader's model lead, every family after, a named model written`)
-  const home = seededHome(`teammate-${cols}x${rows}`)
-  const c = capture(`teammate-${cols}x${rows}`, home, cols, rows, [
+  section(`§2 ${cols}×${rows} · the crewmate default model row: Default and Leader's model lead, every family after, a named model written`)
+  const home = seededHome(`crewmate-${cols}x${rows}`)
+  const c = capture(`crewmate-${cols}x${rows}`, home, cols, rows, [
     ...openConfig(cols),
     { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Default crewmate model' },
     { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
@@ -232,17 +232,17 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   const label = valueOf(after, CREWMATE_ROW)
   const focused = c.marks.get('focused') ?? []
   check("the row's value words are the picker's own row name for the pick (the row focused when ↵ was pressed)", label.length > 0 && !label.startsWith('Default') && !label.startsWith("Leader") && !/^claude-/.test(label) && focused.some(l => l.includes(label)), label)
-  writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-focused.txt`), (c.marks.get('focused') ?? []).join('\n'))
-  writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-before.txt`), before.join('\n'))
-  writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-picker.txt`), picker.join('\n'))
-  writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-after.txt`), after.join('\n'))
+  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-focused.txt`), (c.marks.get('focused') ?? []).join('\n'))
+  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-before.txt`), before.join('\n'))
+  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-picker.txt`), picker.join('\n'))
+  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-after.txt`), after.join('\n'))
 }
 
 }
 
 if (CASE === undefined || CASE === 'cold-catalogue') {
   section('a cold Config model door requests its live GPT list without a model turn')
-  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['teammate', CREWMATE_ROW, "Leader's model"]]) {
+  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['crewmate', CREWMATE_ROW, "Leader's model"]]) {
     const home = seededHome(`cold-${tag}`)
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: 'opus', prefersReducedMotion: true, spinnerTipsEnabled: false }))
     writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })

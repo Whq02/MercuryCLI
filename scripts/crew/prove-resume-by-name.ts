@@ -67,9 +67,9 @@ function makeStore(): Store {
   let st: AppState = getDefaultAppState()
   return { get: () => st, set: u => { st = u(st) } }
 }
-function makeCtx(store: Store, messages: Message[], team?: { teamName: string; leadAgentId: string }): never {
+function makeCtx(store: Store, messages: Message[], crewCtx?: { crewName: string; leadAgentId: string }): never {
   return {
-    getAppState: () => (team ? { ...store.get(), crewContext: team } : store.get()),
+    getAppState: () => (crewCtx ? { ...store.get(), crewContext: crewCtx } : store.get()),
     setAppState: store.set,
     setAppStateForTasks: store.set,
     options: { tools: [] },
@@ -77,7 +77,7 @@ function makeCtx(store: Store, messages: Message[], team?: { teamName: string; l
     messages,
   } as never
 }
-const TODAY = (to: string): string => `Cannot deliver to "${to}": this session is not in a team and no in-process agent by that name exists, so the message would land in a default inbox nobody reads. Spawn a team first, or address a live subagent by name.`
+const TODAY = (to: string): string => `Cannot deliver to "${to}": this session is not in a crew and no in-process agent by that name exists, so the message would land in a default inbox nobody reads. Spawn a crew first, or address a live subagent by name.`
 
 let n = 0
 const stamp = (): string => new Date(1_700_000_000_000 + ++n * 1000).toISOString()
@@ -234,17 +234,17 @@ const rowById = rowOf(store, harbour)
 check('…a fresh running row stands under the same id, its prompt the notice carrying the message', rowById?.status === 'running' && (rowById.prompt ?? '').includes('a word for the harbour'), JSON.stringify({ status: rowById?.status }))
 settleResumed(store, harbour)
 
-section('§3 THE PIN — the same message to the finished agent\'s NAME takes the resume road (RED on the base: the "spawn a team first" refusal)')
+section('§3 THE PIN — the same message to the finished agent\'s NAME takes the resume road (RED on the base: the "spawn a crew first" refusal)')
 const byName = await send(ctx, 'harbour-count', 'a second word for the harbour', 'req_name')
 console.log(`  the answer: ${JSON.stringify(byName.data)}`)
 check('the name road resumes the finished agent exactly as the id road did', byName.data.success === true && /resumed in the background with your message/.test(byName.data.message), byName.data.message)
-check('the words never say "spawn a team" for a name a finished agent carried', !/spawn a team/i.test(byName.data.message), byName.data.message)
+check('the words never say "spawn a crew" for a name a finished agent carried', !/spawn a crew/i.test(byName.data.message), byName.data.message)
 check('the answer names the id the name resolved to', byName.data.message.includes(harbour), byName.data.message)
 const rowByName = rowOf(store, harbour)
 check('…the same outcome as the id road: a running row under the same id, its prompt the notice carrying the message', rowByName?.status === 'running' && (rowByName.prompt ?? '').includes('a second word for the harbour'), JSON.stringify({ status: rowByName?.status }))
 settleResumed(store, harbour)
 
-section('§4 A NAME NOBODY CARRIED, with agents in the session — the refusal names what it found and never says "spawn a team" (RED on the base)')
+section('§4 A NAME NOBODY CARRIED, with agents in the session — the refusal names what it found and never says "spawn a crew" (RED on the base)')
 const lantern = launchNamed(store, transcript, 'lantern-index', 'index the lanterns')
 const nobody = await send(ctx, 'nobody-here', 'anyone there', 'req_nobody')
 console.log(`  the answer: ${JSON.stringify(nobody.data)}`)
@@ -252,14 +252,14 @@ check('the send is refused', nobody.data.success === false)
 check('the refusal says no agent by that name is in this session', /no agent named nobody-here in this session/.test(nobody.data.message), nobody.data.message)
 check('…names the finished agent by name', /finished agents are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message)
 check('…names the running agent by name', /running agents are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message)
-check('…and points at an id or one of those names, never at a team', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a team/i.test(nobody.data.message), nobody.data.message)
+check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message)
 check('the running launch is still reached by its name, as today (the live road is untouched)', (await send(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.includes('Message delivered to agent lantern-index'))
 
-section('§5 NOTHING LAUNCHED, NO TEAM — today\'s words stand (the one case that keeps them)')
+section('§5 NOTHING LAUNCHED, NO CREW — today\'s words stand (the one case that keeps them)')
 {
   const bare = makeStore()
   const nothing = await send(makeCtx(bare, []), 'nobody-here', 'anyone there', 'req_nothing')
-  check('a session that never launched a named agent and is in no team keeps the refusal it has today, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message)
+  check('a session that never launched a named agent and is in no crew keeps the refusal it has today, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message)
 }
 
 section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and the answer says so (RED on the base)')
@@ -282,28 +282,28 @@ section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and 
   settleResumed(twin, newer)
 }
 
-section('§7 A STRUCTURED MESSAGE to a finished agent\'s name outside a team — the refusal names the id and the plain-message resume, never "spawn a team" (RED on the base)')
+section('§7 A STRUCTURED MESSAGE to a finished agent\'s name outside a crew — the refusal names the id and the plain-message resume, never "spawn a crew" (RED on the base)')
 {
   const question = await send(ctx, 'harbour-count', { type: 'question', content: 'still there?' }, 'req_q')
   console.log(`  the answer: ${JSON.stringify(question.data)}`)
-  check('the question is refused: structured messages reach teammates only', question.data.success === false)
-  check('…the refusal names the id and says a plain message to the name or the id resumes it', question.data.message.includes(harbour) && /plain message/.test(question.data.message) && /resume/.test(question.data.message) && !/spawn a team/i.test(question.data.message), question.data.message)
+  check('the question is refused: structured messages reach crewmates only', question.data.success === false)
+  check('…the refusal names the id and says a plain message to the name or the id resumes it', question.data.message.includes(harbour) && /plain message/.test(question.data.message) && /resume/.test(question.data.message) && !/spawn a crew/i.test(question.data.message), question.data.message)
   const toId = await send(ctx, harbour, { type: 'question', content: 'still there?' }, 'req_q_id')
-  check('…and the same words answer the id', toId.data.success === false && toId.data.message.includes(harbour) && !/spawn a team/i.test(toId.data.message), toId.data.message)
+  check('…and the same words answer the id', toId.data.success === false && toId.data.message.includes(harbour) && !/spawn a crew/i.test(toId.data.message), toId.data.message)
 }
 
-section('§8 THE TEAM ROAD UNTOUCHED — in a team the roster keeps its rules: a roster name is delivered to its inbox even when a finished launch carried it, a name nobody carried keeps the roster refusal, and only a finished launch no roster row names is resumed')
+section('§8 THE CREW ROAD UNTOUCHED — in a crew the roster keeps its rules: a roster name is delivered to its inbox even when a finished launch carried it, a name nobody carried keeps the roster refusal, and only a finished launch no roster row names is resumed')
 {
-  const CREW = 'resume-fixture-team'
-  const crewDir = join(home, 'teams', CREW)
+  const CREW = 'resume-fixture-crew'
+  const crewDir = join(home, 'crews', CREW)
   mkdirSync(crewDir, { recursive: true })
   writeFileSync(join(crewDir, 'config.json'), JSON.stringify({ name: CREW, createdAt: Date.now(), leadAgentId: 'lead-fixture', members: [
-    { agentId: 'lead-fixture', name: 'team-lead', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
+    { agentId: 'lead-fixture', name: 'crew-lead', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
     { agentId: 'seat-1', name: 'harbour-count', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
   ] }))
   const crew = makeStore()
   const crewTranscript: Message[] = []
-  const crewCtx = makeCtx(crew, crewTranscript, { teamName: CREW, leadAgentId: 'lead-fixture' })
+  const crewCtx = makeCtx(crew, crewTranscript, { crewName: CREW, leadAgentId: 'lead-fixture' })
   const seat = launchNamed(crew, crewTranscript, 'harbour-count', 'count the harbour for the crew')
   finishAndEvict(crew, seat, 'count the harbour for the crew')
   const lone = launchNamed(crew, crewTranscript, 'lone-scout', 'scout alone')
@@ -311,10 +311,10 @@ section('§8 THE TEAM ROAD UNTOUCHED — in a team the roster keeps its rules: a
   const toSeat = await send(crewCtx, 'harbour-count', 'a crew word', 'req_crew_seat')
   check('a roster name goes to its inbox by the roster rules, even though a finished launch carried the same name', toSeat.data.success === true && /delivered to harbour-count's inbox/.test(toSeat.data.message) && crew.get().tasks[seat] === undefined, toSeat.data.message)
   const toNobody = await send(crewCtx, 'nobody-here', 'anyone there', 'req_crew_nobody')
-  check('a name no launch carried keeps the roster refusal in the roster\'s own words', toNobody.data.success === false && /no such member on team "resume-fixture-team"/.test(toNobody.data.message), toNobody.data.message)
+  check('a name no launch carried keeps the roster refusal in the roster\'s own words', toNobody.data.success === false && /no such member on crew "resume-fixture-crew"/.test(toNobody.data.message), toNobody.data.message)
   const toLone = await send(crewCtx, 'lone-scout', 'a crew word for the scout', 'req_crew_lone')
   console.log(`  the answer: ${JSON.stringify(toLone.data)}`)
-  check('a finished launch no roster row names is resumed from inside the team (RED on the base: the roster refusal)', toLone.data.success === true && /resumed in the background/.test(toLone.data.message) && rowOf(crew, lone)?.status === 'running', toLone.data.message)
+  check('a finished launch no roster row names is resumed from inside the crew (RED on the base: the roster refusal)', toLone.data.success === true && /resumed in the background/.test(toLone.data.message) && rowOf(crew, lone)?.status === 'running', toLone.data.message)
   settleResumed(crew, lone)
 }
 
@@ -329,8 +329,8 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
       receiptRow('toolu_named', 'a0harbour1', 'harbour-count', 'count the harbour'),
       launchRow('toolu_unnamed', undefined, 'no name given'),
       receiptRow('toolu_unnamed', 'a0noname01', undefined, 'no name given'),
-      launchRow('toolu_teammate', 'harbour-count', 'a teammate spawn'),
-      resultRow('toolu_teammate', 'Teammate spawned. Agent id: seat-9, name: harbour-count, team: crew. The agent is running and will receive instructions through its mailbox.'),
+      launchRow('toolu_crewmate', 'harbour-count', 'a crewmate spawn'),
+      resultRow('toolu_crewmate', 'Crewmate spawned. Agent id: seat-9, name: harbour-count, crew: crew. The agent is running and will receive instructions through its mailbox.'),
       launchRow('toolu_fg', 'quiet-walk', 'a foreground walk'),
       resultRow('toolu_fg', 'the walk is done: three lanterns\nagentId: a0quietwalk (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\nusage: 1 tool use'),
       launchRow('toolu_again', 'harbour-count', 'count the harbour again'),
@@ -339,7 +339,7 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
     const found = reader(rows)
     check('every launch that carried a name and whose result names an agent id is listed, in transcript order', found.map(r => `${r.name}=${r.agentId}`).join(' ') === 'harbour-count=a0harbour1 quiet-walk=a0quietwalk harbour-count=a0harbour2', JSON.stringify(found))
     check('a launch without a name is not listed', !found.some(r => r.agentId === 'a0noname01'))
-    check('a teammate spawn (its receipt names no continuation id) is not listed — the team road keeps it', !found.some(r => r.agentId === 'seat-9'))
+    check('a crewmate spawn (its receipt names no continuation id) is not listed — the crew road keeps it', !found.some(r => r.agentId === 'seat-9'))
     check('a foreground completion pairs through the same continuation words', found.some(r => r.agentId === 'a0quietwalk' && r.name === 'quiet-walk' && r.description === 'a foreground walk'))
     check('the lookup by name returns the launches that carried it, oldest first, the newest last', byName(rows, 'harbour-count').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2' && byName(rows, 'nobody').length === 0)
     check('the lookup matches the exact spelling first and falls back to a case-insensitive match', byName(rows, 'HARBOUR-COUNT').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2')
@@ -362,8 +362,8 @@ section('§11 THE SEAMS IN SOURCE')
   const lookupAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
   const giveUpAt = sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt)
   check('the local-agent road reads the launch receipts by name before it gives up', roadAt > 0 && lookupAt > roadAt && giveUpAt > lookupAt)
-  const noCrew = sendSrc.indexOf('if (!teamName) {')
-  check('the no-team refusal is minted only after the session\'s launched agents are read', noCrew > 0 && /noCrewRefusal\(rawTo, context\)/.test(sendSrc.slice(noCrew, noCrew + 200)) && /function noCrewRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc))
+  const noCrew = sendSrc.indexOf('if (!crewName) {')
+  check('the no-crew refusal is minted only after the session\'s launched agents are read', noCrew > 0 && /noCrewRefusal\(rawTo, context\)/.test(sendSrc.slice(noCrew, noCrew + 200)) && /function noCrewRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc))
   const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
   const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
   const helperEnd = receipts.indexOf('export function settledLaunchIds')
@@ -389,7 +389,7 @@ const launchWrite = existsSync(getAgentMetadataPath(asAgentId(beacon.id))) ? sta
 await evictKilled(durable, beacon.id, 'count the harbour')
 check('the settled row is evicted and the registry drops the name (the mechanism, as §1)', durable.get().tasks[beacon.id] === undefined && !durable.get().agentNameRegistry.has('harbour-count'))
 
-section('§13 THE FOLD — the messages a compaction leaves, minted with the compaction\'s own builders: the receipts are gone, the roster attachment carries no evicted row, the registry holds no name — and the name still resolves, from the sidecar (RED on the base: today\'s "spawn a team" words)')
+section('§13 THE FOLD — the messages a compaction leaves, minted with the compaction\'s own builders: the receipts are gone, the roster attachment carries no evicted row, the registry holds no name — and the name still resolves, from the sidecar (RED on the base: today\'s "spawn a crew" words)')
 const folded = await foldOf(durable, durableTranscript, '<summary>\nA background agent named harbour-count was launched to count the harbour and completed.\n</summary>')
 const foldCtx = makeCtx(durable, folded)
 check('the post-fold messages open with the compact boundary and the compact summary, in the compaction\'s one fixed order', (folded[0] as unknown as { subtype?: string })?.subtype === 'compact_boundary' && (folded[1] as unknown as { isCompactSummary?: boolean })?.isCompactSummary === true, JSON.stringify(folded.map(m => (m as unknown as { type: string; subtype?: string }).subtype ?? m.type)))
@@ -402,7 +402,7 @@ check('the registry holds no name either', !durable.get().agentNameRegistry.has(
 const afterFold = await send(foldCtx, 'harbour-count', 'a word after the fold', 'req_fold')
 console.log(`  the answer: ${JSON.stringify(afterFold.data)}`)
 check('THE PIN: the name resolves after the fold and the finished agent is resumed (RED on the base)', afterFold.data.success === true && /resumed in the background with your message/.test(afterFold.data.message), afterFold.data.message)
-check('the words never say "spawn a team" for a name the session\'s own launch carried', !/spawn a team/i.test(afterFold.data.message), afterFold.data.message)
+check('the words never say "spawn a crew" for a name the session\'s own launch carried', !/spawn a crew/i.test(afterFold.data.message), afterFold.data.message)
 check('the answer names the id the sidecar resolved the name to', afterFold.data.message.includes(beacon.id), afterFold.data.message)
 const rowAfterFold = rowOf(durable, beacon.id)
 check('…and a running row stands under the same id, its prompt the notice carrying the message', rowAfterFold?.status === 'running' && (rowAfterFold.prompt ?? '').includes('a word after the fold'), JSON.stringify({ status: rowAfterFold?.status }))
@@ -449,7 +449,7 @@ section('§15 TWO LAUNCHES, ONE NAME, THE RECEIPTS GONE — the newest by its la
   settleResumed(twin, newer.id)
   const question = await send(twinFold, 'scout', { type: 'question', content: 'still there?' }, 'req_fold_q')
   console.log(`  the answer: ${JSON.stringify(question.data)}`)
-  check('a structured message after the fold is refused with the id and the plain-message door, never "spawn a team"', question.data.success === false && question.data.message.includes(newer.id) && /plain message/.test(question.data.message) && !/spawn a team/i.test(question.data.message), question.data.message)
+  check('a structured message after the fold is refused with the id and the plain-message door, never "spawn a crew"', question.data.success === false && question.data.message.includes(newer.id) && /plain message/.test(question.data.message) && !/spawn a crew/i.test(question.data.message), question.data.message)
 }
 
 section('§16 THE RECEIPTS ROAD FIRST — a receipt still in the messages answers before any record on disk, unchanged; the resolver reads the records only after the receipts')

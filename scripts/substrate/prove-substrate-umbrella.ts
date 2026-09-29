@@ -107,7 +107,7 @@ clearEnv()
 check('bare stamp ⇒ the coordination server STILL on (stamp-independence)', gates().mcp === true)
 setStamp(true)
 clearEnv()
-check('stamped build default ⇒ the coordination server LIVE (coordination verbs ready for mid-session teams)', gates().mcp === true)
+check('stamped build default ⇒ the coordination server LIVE (coordination verbs ready for mid-session crews)', gates().mcp === true)
 process.env.MERCURY_SUBSTRATE = '0'
 check('the coordination server stays on under MERCURY_SUBSTRATE=0 (NOT part of the umbrella)', gates().mcp === true)
 clearEnv()

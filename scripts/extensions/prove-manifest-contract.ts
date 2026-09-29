@@ -25,7 +25,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const FULL = {
   name: 'review-tools',
   version: '1.2.0',
-  description: 'code review skills and a review agent for this team',
+  description: 'code review skills and a review agent for this crew',
   author: { name: 'Ada', url: 'https://example.org/ada' },
   homepage: 'https://example.org/review-tools',
   license: 'MIT',
@@ -89,7 +89,7 @@ console.log('[1] a valid manifest loads whole')
     writeExtension(root, FULL, FULL_FILES)
     const read = manifestMod.readManifest(root)
     check('readManifest reads the folder', read.status === 'ok')
-    const res = contributions.resolveContributions(parsed.manifest, root, 'review-tools@team-tools', probes)
+    const res = contributions.resolveContributions(parsed.manifest, root, 'review-tools@crew-tools', probes)
     check('every contribution resolves', res.defects.length === 0, res.defects.join('; '))
     check('the skill is namespaced /review-tools:review', res.skills[0]?.name === 'review-tools:review')
     check('the command is namespaced', res.commands[0]?.name === 'review-tools:changelog')
@@ -197,7 +197,7 @@ console.log('[7] the name grammar, the reserved labels, the ids')
     check(`name "${good.slice(0, 12)}" is accepted`, manifestMod.NAME_PATTERN.test(good))
   }
   check('project/session/mercury are reserved labels', ['project', 'session', 'mercury'].every(l => manifestMod.isReservedLabel(l)))
-  check('the id is <name>@<label>', manifestMod.extensionId('review-tools', 'team-tools') === 'review-tools@team-tools')
+  check('the id is <name>@<label>', manifestMod.extensionId('review-tools', 'crew-tools') === 'review-tools@crew-tools')
   check('parseExtensionId splits on the first @', JSON.stringify(manifestMod.parseExtensionId('a@b')) === JSON.stringify({ name: 'a', label: 'b' }))
   check('parseExtensionId refuses no-label', manifestMod.parseExtensionId('a@') === null && manifestMod.parseExtensionId('a') === null)
   check('server names carry the fixed prefix', manifestMod.serverRuntimeName('x', 'y') === 'ext:x:y')
@@ -289,7 +289,7 @@ console.log('[10] the catalogue: lying entries and escapes refused; a single-ext
   const source = join(scratch, 'source')
   mkdirSync(source, { recursive: true })
   writeExtension(join(source, 'review-tools'), FULL, FULL_FILES)
-  const good = { name: 'team-tools', description: "Ada's team", extensions: [{ name: 'review-tools', version: '1.2.0', description: 'code review', path: './review-tools' }, { name: 'deploy-kit', version: '0.4.1', description: 'deploy', git: 'https://git.example.org/ada/deploy-kit.git', ref: 'v0.4.1' }] }
+  const good = { name: 'crew-tools', description: "Ada's crew", extensions: [{ name: 'review-tools', version: '1.2.0', description: 'code review', path: './review-tools' }, { name: 'deploy-kit', version: '0.4.1', description: 'deploy', git: 'https://git.example.org/ada/deploy-kit.git', ref: 'v0.4.1' }] }
   const parsed = catalogueMod.parseCatalogueValue(good)
   check('a good catalogue parses', parsed.ok, parsed.ok ? '' : parsed.errors.join('; '))
   const both = catalogueMod.parseCatalogueValue({ ...good, extensions: [{ name: 'a', version: '1', description: 'd', path: './a', git: 'https://x' }] })
@@ -306,7 +306,7 @@ console.log('[10] the catalogue: lying entries and escapes refused; a single-ext
   check('… and errors under the validator', !extraStrict.ok)
   writeFileSync(join(source, 'mercury-extensions.json'), JSON.stringify(good))
   const root = catalogueMod.readSourceRoot(source)
-  check('readSourceRoot reads the catalogue', root.status === 'catalogue' && root.catalogue.name === 'team-tools')
+  check('readSourceRoot reads the catalogue', root.status === 'catalogue' && root.catalogue.name === 'crew-tools')
   const escaping = { ...good, extensions: [{ name: 'a', version: '1', description: 'd', path: './../elsewhere' }] }
   writeFileSync(join(source, 'mercury-extensions.json'), JSON.stringify(escaping))
   const esc = catalogueMod.readSourceRoot(source)

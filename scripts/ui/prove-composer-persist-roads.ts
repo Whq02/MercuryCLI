@@ -23,7 +23,7 @@ process.env.MERCURY_BOOT_PREFLIGHT = '0'
 process.env.MERCURY_OPERATOR = 'sam'
 process.env.MERCURY_HOME = join(HOME, 'proof-home')
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HOME, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HOME, 'crews')
 process.env.BROWSER = '/usr/bin/true'
 const PROJECT = join(HOME, 'proof-project')
 mkdirSync(PROJECT, { recursive: true })
@@ -161,10 +161,10 @@ await freshDraft(m)
 check('the operator typed the draft through the keys and the composer paints it', pending.text() === DRAFT && composerRow(m).includes(DRAFT), quoted(m))
 keepFrame('00-draft-typed', m)
 
-section('§1 the crew view (/teammates through the click door) — open, esc back')
+section('§1 the crew view (/crewmates through the click door) — open, esc back')
 {
   await freshDraft(m)
-  helm.requestCommandDispatch('/teammates')
+  helm.requestCommandDispatch('/crewmates')
   const opened = await waitFor(() => m.screen().includes(CREW_TITLE), 6000)
   await settle(400)
   check('the crew view opened over the chat', opened, m.lines().filter(line => line.includes('Mercury')).join(' | '))
@@ -173,7 +173,7 @@ section('§1 the crew view (/teammates through the click door) — open, esc bac
   check('the draft is still the composer text under the crew view', under === DRAFT, quoted(m))
   check('esc closed the crew view', await closeWith(m, () => !m.screen().includes(CREW_TITLE)))
   await settle(300)
-  record('crew view: /teammates open, esc back', pending.text(), composerRow(m))
+  record('crew view: /crewmates open, esc back', pending.text(), composerRow(m))
   check('back from the crew view the composer still reads the draft', pending.text() === DRAFT && composerRow(m).includes(DRAFT), quoted(m))
   keepFrame('01-crew-closed', m)
 }

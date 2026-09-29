@@ -8,7 +8,7 @@ process.chdir(resolve(import.meta.dir, '../..'))
 const scratch = mkdtempSync(join(tmpdir(), 'tool-concurrency-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(scratch, 'teams')
+process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })

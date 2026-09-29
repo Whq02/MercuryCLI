@@ -95,7 +95,7 @@ export function AttachmentMessage({
       if (isShutdownApproved(message.text)) return false
       try {
         const parsed = JSON.parse(message.text) as { type?: string }
-        if (parsed?.type === 'teammate_terminated') return false
+        if (parsed?.type === 'crewmate_terminated') return false
       } catch {
       }
       return true
@@ -456,10 +456,10 @@ export function AttachmentMessage({
       )
 
     case 'task_status': {
-      const isTeammate =
+      const isCrewmate =
         isAgentSwarmsEnabled() &&
-        (attachment.taskType as string) === 'in_process_teammate'
-      if (isTeammate) {
+        (attachment.taskType as string) === 'in_process_crewmate'
+      if (isCrewmate) {
         const color = toInkColor(undefined)
         return (
           <AttachmentLine>
@@ -495,10 +495,10 @@ export function AttachmentMessage({
       }
     }
 
-    case 'teammate_shutdown_batch':
+    case 'crewmate_shutdown_batch':
       return (
         <AttachmentLine>
-          {attachment.count} {plural(attachment.count, 'teammate')} shut down
+          {attachment.count} {plural(attachment.count, 'crewmate')} shut down
           cleanly
         </AttachmentLine>
       )

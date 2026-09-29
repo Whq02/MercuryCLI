@@ -9,7 +9,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'tool-round-totality-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'teams')
+process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'crews')
 delete process.env.MERCURY_HOME
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

@@ -71,7 +71,7 @@ function baseEnv(daemonDir: string): NodeJS.ProcessEnv {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: daemonDir,
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: api.url,

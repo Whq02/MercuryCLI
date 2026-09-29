@@ -74,14 +74,14 @@ export function validateHandoff(input: {
 }
 
 
-function getHandoffsPath(teamName?: string): string {
-  const crew = teamName || getCrewName() || 'default'
+function getHandoffsPath(crewName?: string): string {
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   return join(getCrewsDir(), safeCrew, 'handoffs.json')
 }
 
-async function readHandoffs(teamName?: string): Promise<Handoff[]> {
-  const path = getHandoffsPath(teamName)
+async function readHandoffs(crewName?: string): Promise<Handoff[]> {
+  const path = getHandoffsPath(crewName)
   try {
     const content = await readFile(path, 'utf-8')
     const parsed = jsonParse(content)
@@ -95,11 +95,11 @@ async function readHandoffs(teamName?: string): Promise<Handoff[]> {
 }
 
 async function mutateHandoffs(
-  teamName: string | undefined,
+  crewName: string | undefined,
   mutate: (handoffs: Handoff[]) => Handoff[],
 ): Promise<void> {
-  const path = getHandoffsPath(teamName)
-  const crew = teamName || getCrewName() || 'default'
+  const path = getHandoffsPath(crewName)
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   const dir = join(getCrewsDir(), safeCrew)
   await mkdir(dir, { recursive: true })
@@ -120,7 +120,7 @@ async function mutateHandoffs(
       lockfilePath: lockFilePath,
       ...LOCK_OPTIONS,
     })
-    const current = await readHandoffs(teamName)
+    const current = await readHandoffs(crewName)
     const next = mutate(current)
     await writeFile(path, jsonStringify(next, null, 2), 'utf-8')
   } catch (error) {
@@ -145,7 +145,7 @@ export async function recordHandoff(
     summary: string
     evidenceRefs?: EvidenceRef[]
   },
-  teamName?: string,
+  crewName?: string,
 ): Promise<HandoffVerdict> {
   const verdict = validateHandoff({
     status: h.status,
@@ -157,7 +157,7 @@ export async function recordHandoff(
       )
     : []
 
-  await mutateHandoffs(teamName, handoffs => {
+  await mutateHandoffs(crewName, handoffs => {
     const filtered = handoffs.filter(x => x.id !== h.id)
     filtered.push({
       id: h.id,
@@ -178,9 +178,9 @@ export async function recordHandoff(
 
 export async function listIncomingHandoffs(
   agentName: string,
-  teamName?: string,
+  crewName?: string,
 ): Promise<Handoff[]> {
-  const handoffs = await readHandoffs(teamName)
+  const handoffs = await readHandoffs(crewName)
   const me = (agentName ?? '').trim().toLowerCase()
   return handoffs.filter(
     h => (h.to ?? '').trim().toLowerCase() === me && !h.acknowledgedAt,
@@ -188,8 +188,8 @@ export async function listIncomingHandoffs(
 }
 
 export async function listAllOpenHandoffs(
-  teamName?: string,
+  crewName?: string,
 ): Promise<Handoff[]> {
-  const handoffs = await readHandoffs(teamName)
+  const handoffs = await readHandoffs(crewName)
   return handoffs.filter(h => !h.acknowledgedAt)
 }

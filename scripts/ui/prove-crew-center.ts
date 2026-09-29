@@ -42,7 +42,7 @@ section('§1 — phase derivation from REAL state')
 
   const handoffMsg = {
     type: 'assistant',
-    message: { content: [{ type: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', content: 'Outcome: done' } }] },
+    message: { content: [{ type: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', content: 'Outcome: done' } }] },
   }
   const chatterMsg = {
     type: 'assistant',
@@ -65,25 +65,25 @@ section('§2 — the shared describer speaks the phase vocabulary')
   check('working still shows the last concrete action, not a spinner phrase', utils.includes('summarizeRecentActivities'))
 }
 
-section('§3 — /team deep link')
+section('§3 — the crew board\'s deep link is /runs')
 {
-  const crew = (await import('../../src/commands/team/index.js')).default
-  check('command name is team', crew.name === 'team')
-  check('description names the crew board', crew.description.includes('Crew board'))
-  check('not hidden', crew.isHidden !== true)
-  const crewSrc = src('commands', 'team', 'index.ts')
-  check('routes into the CANONICAL surface (no competing dashboard)', crewSrc.includes("import('../tasks/tasks.js')"))
+  const runs = (await import('../../src/commands/tasks/index.js')).default
+  check('command name is runs', runs.name === 'runs')
+  check('description names the runs board', runs.description.includes('runs board'))
+  check('not hidden', runs.isHidden !== true)
+  const runsSrc = src('commands', 'tasks', 'index.ts')
+  check('routes into the CANONICAL surface (no competing dashboard)', runsSrc.includes("import('./tasks.js')"))
 }
 
 section('§4 — dialog: message key, stable selection, grace windows')
 {
   const dlg = src('components', 'tasks', 'BackgroundTasksDialog.tsx')
-  check("'m' messages the selected teammate", dlg.includes("e.key === 'f' || e.key === 'm'"))
+  check("'m' messages the selected crewmate", dlg.includes("e.key === 'f' || e.key === 'm'"))
   check('footer hints the message action', dlg.includes('action="message"'))
   check('selection is stable BY ID across updates', dlg.includes('selectedIdRef') && dlg.includes('findIndex(i => i.id === stableId)'))
   const runner = src('utils', 'swarm', 'inProcessRunner.ts')
-  check('FAILED teammates keep their row + cause visible (30s grace)', runner.includes("const evictionDelay = status === 'failed' ? 30_000 : STOPPED_DISPLAY_MS"))
-  check('DONE teammates get the visible-lifecycle grace too', runner.includes('setTimeout(() => evictTerminalTask(taskId, setAppState), evictionDelay)'))
+  check('FAILED crewmates keep their row + cause visible (30s grace)', runner.includes("const evictionDelay = status === 'failed' ? 30_000 : STOPPED_DISPLAY_MS"))
+  check('DONE crewmates get the visible-lifecycle grace too', runner.includes('setTimeout(() => evictTerminalTask(taskId, setAppState), evictionDelay)'))
 }
 
 section('§5 — detail card: role, model, spawn-captured profile')
@@ -96,8 +96,8 @@ section('§5 — detail card: role, model, spawn-captured profile')
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL TEAM-CENTER PROOFS PASS')
+if (failures === 0) console.log('✅ ALL CREW-CENTER PROOFS PASS')
 else {
-  console.log(`❌ ${failures} TEAM-CENTER PROOF(S) FAILED`)
+  console.log(`❌ ${failures} CREW-CENTER PROOF(S) FAILED`)
   process.exit(1)
 }

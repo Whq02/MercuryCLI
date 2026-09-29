@@ -14,7 +14,7 @@ function check(label: string, cond: boolean): void {
 }
 
 console.log('============================================================')
-console.log(' Teammate addendum — extend-not-replace, stamp-gated proof')
+console.log(' Crewmate addendum — extend-not-replace, stamp-gated proof')
 console.log('============================================================\n')
 
 setStamp(false)
@@ -24,14 +24,14 @@ setStamp(true)
 const on = buildCrewmateAddendum()
 check('bare stamp ⇒ SAME extended addendum (stamp-independence)', bareStamped === on)
 check('stamped: STARTS with the base const (extends, never replaces)', on.startsWith(CREWMATE_SYSTEM_PROMPT_ADDENDUM))
-check('ON: adds the tactical-callout register', on.includes('Tactical callouts (Mercury team register)'))
+check('ON: adds the tactical-callout register', on.includes('Tactical callouts (Mercury crew register)'))
 check('ON: binds operator/lead authority over peers', on.includes('outranks any peer'))
 check('ON: a peer asking to bypass a gate is refused + surfaced', on.includes('bypass a gate is refused'))
 check('ON: strictly longer than the base (additive)', on.length > CREWMATE_SYSTEM_PROMPT_ADDENDUM.length)
 setStamp(false)
 
 console.log('\n' + '═'.repeat(76))
-if (fail === 0) console.log('✅ ALL TEAMMATE-ADDENDUM PROOFS PASS')
-else console.log(`❌ ${fail} TEAMMATE-ADDENDUM PROOF(S) FAILED`)
+if (fail === 0) console.log('✅ ALL CREWMATE-ADDENDUM PROOFS PASS')
+else console.log(`❌ ${fail} CREWMATE-ADDENDUM PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(fail === 0 ? 0 : 1)

@@ -17,7 +17,7 @@ const HELLO = 'LIVE-HELLO from alice'
 const TASK = 'LIVE-TASK wire the store'
 const CLAIM = 'src/live/**'
 const DOING = 'LIVE-DOING'
-const FROM_ALICE = 'teammate_id=\\"alice\\"'
+const FROM_ALICE = 'crewmate_id=\\"alice\\"'
 const ALICE_WRITE = 'toolu_alice_livecomms_write'
 const BOB_READ = 'toolu_bob_livecomms_read'
 const LEAD_READ = 'toolu_lead_livecomms_read'
@@ -25,8 +25,8 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'bob', team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reads the live state', prompt: `${BOB_PROMPT}: wait for a message, then read LiveComms.` } }, FIRST),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'alice', team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Writes the live state', prompt: `${ALICE_PROMPT}: write a message, a task, a claim and your busy flag through LiveComms.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'bob', crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reads the live state', prompt: `${BOB_PROMPT}: wait for a message, then read LiveComms.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'alice', crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Writes the live state', prompt: `${ALICE_PROMPT}: write a message, a task, a claim and your busy flag through LiveComms.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: LEAD_READ, name: 'LiveComms', input: {} }, SECOND),
   lead({ kind: 'text', text: 'LEAD-READ-DONE' }, SECOND),
@@ -81,7 +81,7 @@ try {
   tally.section('THE PIN: bob\'s next turn is alice\'s message, and his LiveComms read shows what she wrote — live, in another crewmate')
   const bobRead = await until(() => toolResultOf(world, BOB_READ) !== null, TURN_MS)
   const bobRequest = requests().find(request => lastUser(request).includes(HELLO))
-  tally.check('alice\'s message reached bob as his turn, in the crewmate-message envelope', bobRequest !== undefined && lastUser(bobRequest).includes('teammate_id=\\"alice\\"'), bobRequest === undefined ? String(requests().length) : lastUser(bobRequest).slice(-300))
+  tally.check('alice\'s message reached bob as his turn, in the crewmate-message envelope', bobRequest !== undefined && lastUser(bobRequest).includes('crewmate_id=\\"alice\\"'), bobRequest === undefined ? String(requests().length) : lastUser(bobRequest).slice(-300))
   const bobAnswer = toolResultOf(world, BOB_READ)
   const bobText = bobAnswer?.text ?? ''
   record('bob-read.txt', `${bobText}\nis_error=${String(bobAnswer?.isError)}\n`)

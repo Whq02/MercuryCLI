@@ -50,7 +50,7 @@ export function getActiveAgentForInput(
 }
 
 
-export const VIEWABLE_TASK_TYPES = ['in_process_teammate', 'local_agent'] as const
+export const VIEWABLE_TASK_TYPES = ['in_process_crewmate', 'local_agent'] as const
 
 export const NON_VIEWABLE_TASK_TYPES = [
   'local_bash',
@@ -72,7 +72,7 @@ export type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskTyp
 
 
 export type ViewedAgent = {
-  kind: 'in_process_teammate' | 'local_agent'
+  kind: 'in_process_crewmate' | 'local_agent'
   taskId: string
   name: string
   color?: string
@@ -109,7 +109,7 @@ export function projectViewedAgent(
   if (isInProcessCrewmateTask(task)) {
     const running = task.status === 'running'
     return {
-      kind: 'in_process_teammate',
+      kind: 'in_process_crewmate',
       taskId: task.id,
       name: task.identity.agentName,
       color: task.identity.color,

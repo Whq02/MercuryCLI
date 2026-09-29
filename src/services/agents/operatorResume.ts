@@ -43,7 +43,7 @@ export function crewmateRespawnConfig(task: InProcessCrewmateTaskState): SpawnCr
   return {
     name: task.identity.agentName,
     prompt: task.prompt,
-    team_name: task.identity.teamName,
+    crew_name: task.identity.crewName,
     ...(agentType !== undefined ? { agent_type: agentType } : {}),
     ...(task.model !== undefined ? { model: task.model } : {}),
     plan_mode_required: task.identity.planModeRequired === true,
@@ -71,10 +71,10 @@ function releasePausedCrewmateRow(taskId: string, toolUseContext: ToolUseContext
   evictTerminalTask(taskId, setAppState)
 }
 
-async function dropStaleRosterRow(teamName: string, agentId: string): Promise<void> {
-  const roster = await readCrewFileAsync(teamName).catch(() => null)
+async function dropStaleRosterRow(crewName: string, agentId: string): Promise<void> {
+  const roster = await readCrewFileAsync(crewName).catch(() => null)
   const stale = roster?.members.find(member => member.agentId === agentId)
-  if (stale !== undefined && stale.backendType === 'in-process') await removeMemberByAgentId(teamName, agentId)
+  if (stale !== undefined && stale.backendType === 'in-process') await removeMemberByAgentId(crewName, agentId)
 }
 
 export async function resumeCrewmateFromTranscript(
@@ -94,13 +94,13 @@ export async function resumeCrewmateFromTranscript(
       : {
           name: meta!.name!,
           prompt: record!.prompt,
-          team_name: record!.teamName,
+          crew_name: record!.crewName,
           ...(record!.agentType !== undefined ? { agent_type: record!.agentType } : {}),
           ...(meta!.model !== undefined ? { model: meta!.model } : {}),
           plan_mode_required: record!.planModeRequired,
         }
-  const teamName = config.team_name!
-  const agentId = formatAgentId(config.name, teamName)
+  const crewName = config.crew_name!
+  const agentId = formatAgentId(config.name, crewName)
   if (resumingCrewmates.has(agentId)) return { outcome: 'refused', reason: `Crewmate "${config.name}" is already resuming` }
   resumingCrewmates.add(agentId)
   try {
@@ -123,7 +123,7 @@ export async function resumeCrewmateFromTranscript(
     }
     const effort = meta?.effortOverride ?? task?.effort
     if (effort !== undefined) config.effort = effort
-    await dropStaleRosterRow(teamName, agentId)
+    await dropStaleRosterRow(crewName, agentId)
     const spawn = ports.spawn ?? (await import('../../tools/shared/spawnMultiAgent.js')).spawnCrewmate
     const spawned = await spawn(config, respawnContextOf(context.toolUseContext))
     const row = findCrewmateTaskByAgentId(spawned.data.agent_id, context.getAppState().tasks) as InProcessCrewmateTaskState | undefined

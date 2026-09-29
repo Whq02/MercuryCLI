@@ -60,7 +60,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, '--resume', SID],
     sends: [
-      { data: '/teammates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
+      { data: '/crewmates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
     readyText: ['Sub-agents'], stableTicks: 5,
@@ -72,7 +72,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_OPERATOR: 'sam',
       MERCURY_TERMINAL_TITLE: '0',

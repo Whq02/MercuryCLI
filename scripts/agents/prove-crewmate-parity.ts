@@ -16,7 +16,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Teammate parity — one resolver, every backend')
+console.log(' Crewmate parity — one resolver, every backend')
 console.log('============================================================')
 
 delete process.env.MERCURY_EFFORT_LEVEL
@@ -61,7 +61,7 @@ section('§1 — one resolver for built-in + custom + legacy ids')
 
   const rolePacket = scout.rolePacket
   check('role packet derives mission from description', rolePacket.mission === 'auth recon')
-  check('role packet hands off to the synthesis owner', rolePacket.handoffTo === 'team-lead')
+  check('role packet hands off to the synthesis owner', rolePacket.handoffTo === 'crew-lead')
   check('behavior doctrine rides every resolution', scout.behavior.productName === 'Mercury')
 }
 
@@ -108,8 +108,8 @@ section('§7 — one shared doctrine: role discipline + the handoff packet')
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL TEAMMATE-PARITY PROOFS PASS')
+if (failures === 0) console.log('✅ ALL CREWMATE-PARITY PROOFS PASS')
 else {
-  console.log(`❌ ${failures} TEAMMATE-PARITY PROOF(S) FAILED`)
+  console.log(`❌ ${failures} CREWMATE-PARITY PROOF(S) FAILED`)
   process.exit(1)
 }

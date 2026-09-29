@@ -64,7 +64,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     ANTHROPIC_BASE_URL: DEAD,
     MERCURY_OPENAI_API_BASE: DEAD,

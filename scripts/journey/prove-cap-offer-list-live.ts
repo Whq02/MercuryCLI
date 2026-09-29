@@ -184,7 +184,7 @@ function baseEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_VERIFY_EVIDENCE: '0',
     MERCURY_DOCTOR_STATE_DIR: path.join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(home, 'daemon'),
-    MERCURY_CREWS_DIR: path.join(home, 'teams'),
+    MERCURY_CREWS_DIR: path.join(home, 'crews'),
     MERCURY_HOME: path.join(home, 'proof-home'),
   }
   delete env.NODE_ENV

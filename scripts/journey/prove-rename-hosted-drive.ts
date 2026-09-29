@@ -122,13 +122,13 @@ function bannerLaws(): void {
   check('a renamed cockpit has no destination banner', run(renamed, true) === null)
   check('a renamed inline session keeps its name and custom colour', same(run(renamed, false), { text: 'roomie', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
   check('a renamed inline session without a colour keeps its fallback', same(run({ standaloneAgentContext: { name: 'roomie' } }, false), { text: 'roomie', bgColor: 'suggestion' }))
-  const crewmate = { ...renamed, crewContext: { isLeader: false, selfAgentName: 'helper', teamName: 'project', selfAgentColor: 'blue' } }
-  const leader = { ...renamed, crewContext: { isLeader: true, teamName: 'project', crewmates: { helper: {} } }, viewedCrewmate: { identity: { agentName: 'helper', color: 'blue' } } }
+  const crewmate = { ...renamed, crewContext: { isLeader: false, selfAgentName: 'helper', crewName: 'project', selfAgentColor: 'blue' } }
+  const leader = { ...renamed, crewContext: { isLeader: true, crewName: 'project', crewmates: { helper: {} } }, viewedCrewmate: { identity: { agentName: 'helper', color: 'blue' } } }
   for (const cockpit of [false, true]) {
-    check(`teammate process banner survives with cockpit=${cockpit}`, same(run(crewmate, cockpit, false, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
+    check(`crewmate process banner survives with cockpit=${cockpit}`, same(run(crewmate, cockpit, false, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`leader attach banner survives with cockpit=${cockpit}`, same(run(leader, cockpit, false, 'tmux'), { text: 'attach: tmux -L fixture-socket attach', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
-    check(`leader viewed-teammate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit, true, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
-    check(`in-process viewed-teammate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
+    check(`leader viewed-crewmate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit, true, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
+    check(`in-process viewed-crewmate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`viewed local agent banner survives with cockpit=${cockpit}`, same(run({ ...renamed, viewedAgent: { name: 'helper', agentType: 'fixture' } }, cockpit), { text: '@helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.green }))
     check(`CLI agent banner survives with cockpit=${cockpit}`, same(run({ mainThreadAgentDefinition: { name: 'helper' } }, cockpit), { text: 'helper', bgColor: 'promptBorder' }))
   }

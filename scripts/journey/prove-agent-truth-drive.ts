@@ -413,7 +413,7 @@ function driveEnv(home: string, base: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: base,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -490,7 +490,7 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'agent-truth: fault\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
-        { data: '/teammates\r', awaitText: 'NOTED-1', requireAwait: true, minTick: 10, awaitSettleTicks: 6, mark: 'after-fault' },
+        { data: '/crewmates\r', awaitText: 'NOTED-1', requireAwait: true, minTick: 10, awaitSettleTicks: 6, mark: 'after-fault' },
         { data: '\x1b', awaitText: SEATS.foliage, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-fault' },
         { data: 'agent-truth: launch\r', afterPrevTicks: 4 },
         { data: '\x1b', awaitText: 'ACK-2', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'lantern-waiting' },
@@ -508,7 +508,7 @@ try {
         { data: '\r', afterPrevTicks: 8, mark: 'workflow-card' },
         { data: '', afterPrevTicks: 80, mark: 'after-workflow' },
         { data: '\x1b', afterPrevTicks: 2 },
-        { data: '/teammates\r', afterPrevTicks: 4 },
+        { data: '/crewmates\r', afterPrevTicks: 4 },
         { data: '\x1b', awaitText: SEATS.lantern, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-end' },
         { data: '', afterPrevTicks: 10, mark: 'end' },
       ],

@@ -26,6 +26,7 @@ import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import type { AllowedPrompt } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
+import { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'
 
 
 type ImmutablePrimitive =
@@ -114,7 +115,7 @@ export type CrewmateRecord = {
 }
 
 export type CrewContext = {
-  teamName: string
+  crewName: string
   crewFilePath: string
   leadAgentId: string
   selfAgentId?: string
@@ -137,7 +138,7 @@ export type ExtensionsState = {
 type AppStateImmutableHalf = {
   settings: Settings
   verbose: boolean
-  expandedView: 'none' | 'tasks' | 'teammates'
+  expandedView: 'none' | 'tasks' | 'crewmates'
   spinnerTip?: string
   showCrewmateMessagePreview?: boolean
   isAssistantMode: boolean
@@ -262,8 +263,8 @@ export type AppStateStore = Store<AppState>
 
 function rememberedExpandedView(): AppState['expandedView'] {
   try {
-    const remembered = getGlobalConfig().expandedView
-    return remembered === 'tasks' || remembered === 'teammates' ? remembered : 'none'
+    const remembered = readRetiredGlobalConfigValue('expandedView', getGlobalConfig().expandedView)
+    return remembered === 'tasks' || remembered === 'crewmates' ? remembered : 'none'
   } catch {
     return 'none'
   }
@@ -351,10 +352,10 @@ function computeInitialPermissionMode(): InternalPermissionMode {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crewmate = require('../utils/crewmate.js') as {
-      isTeammate?: () => boolean
+      isCrewmate?: () => boolean
       isPlanModeRequired?: () => boolean
     }
-    if (crewmate.isTeammate?.() && crewmate.isPlanModeRequired?.()) return 'strategy'
+    if (crewmate.isCrewmate?.() && crewmate.isPlanModeRequired?.()) return 'strategy'
   } catch {
   }
   return 'default'

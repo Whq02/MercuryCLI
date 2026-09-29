@@ -50,10 +50,10 @@ function baseInputs(): WorkbenchSourceInputs {
       {
         id: 'task-mate',
         kind: 'agent',
-        label: 'teammate bob',
+        label: 'crewmate bob',
         state: 'running',
         updatedAt: now - 2000,
-        metadata: { taskType: 'in_process_teammate' },
+        metadata: { taskType: 'in_process_crewmate' },
         outputRef: 'mercury://task/task-mate',
       },
       {
@@ -99,8 +99,8 @@ function baseInputs(): WorkbenchSourceInputs {
         'task-mate',
         {
           id: 'task-mate',
-          taskType: 'in_process_teammate',
-          description: 'teammate bob',
+          taskType: 'in_process_crewmate',
+          description: 'crewmate bob',
           status: 'running',
           isIdle: false,
           shutdownRequested: false,
@@ -151,8 +151,8 @@ section('(1) pure derivation — one root + three live children, owner-true rows
     agent?.changedPaths.length === 2 && agent?.verification === 'verified',
   )
   const mate = snap.threads.find(t => t.id === 'task-mate')
-  check('teammate phase from crewPhases (blocked, not invented)', mate?.kind === 'teammate' && mate?.phase === 'blocked')
-  check('teammate blocker surfaces', mate?.blocker === 'awaiting plan approval')
+  check('crewmate phase from crewPhases (blocked, not invented)', mate?.kind === 'crewmate' && mate?.phase === 'blocked')
+  check('crewmate blocker surfaces', mate?.blocker === 'awaiting plan approval')
   const wf = snap.threads.find(t => t.id === 'task-wf')
   check('workflow row: kind workflow', wf?.kind === 'workflow')
   check('no seat threads derive post-room (ratchet)', snap.threads.every(t => t.kind !== 'seat'))
@@ -173,7 +173,7 @@ section('(2) the next-action ladder')
 {
   const inputs = baseInputs()
   const snap = composeWorkbenchSnapshot(inputs, null)
-  check('blocked thread outranks handoff', snap.nextAction?.startsWith('answer teammate bob') === true, snap.nextAction ?? 'null')
+  check('blocked thread outranks handoff', snap.nextAction?.startsWith('answer crewmate bob') === true, snap.nextAction ?? 'null')
 
   const noBlock = baseInputs()
   noBlock.richTasks.get('task-mate')!.awaitingPlanApproval = false

@@ -16,7 +16,7 @@ import {
   type TaskStatus,
   TASK_STATUSES,
 } from '../../utils/tasks.js'
-import { getAgentName, getCrewName, getCrewmateColor, isTeammate } from '../../utils/crewmate.js'
+import { getAgentName, getCrewName, getCrewmateColor, isCrewmate } from '../../utils/crewmate.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
@@ -259,7 +259,7 @@ export const TaskUpdateTool = buildTool({
       }
     }
     let text = `Updated task ${output.taskId} (${output.updatedFields.join(', ')})`
-    if (output.statusChange?.to === 'completed' && isTeammate() && isAgentSwarmsEnabled()) {
+    if (output.statusChange?.to === 'completed' && isCrewmate() && isAgentSwarmsEnabled()) {
       text += `\nCall ${TASK_LIST_TOOL_NAME} now to find your next available task or see whether your work unblocked others.`
     }
     if (output.verificationNudgeNeeded) {

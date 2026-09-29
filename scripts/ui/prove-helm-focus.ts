@@ -25,11 +25,11 @@ const t = (name: string, ok: boolean, detail = '') => {
 
 t('cycle order', nextHelmPane('prompt') === 'lanes' && nextHelmPane('lanes') === 'telemetry' && nextHelmPane('telemetry') === 'prompt')
 
-const crew: HelmRow = { kind: 'teammate', id: 'task-7', label: 'scout' }
+const crew: HelmRow = { kind: 'crewmate', id: 'task-7', label: 'scout' }
 const cmd: HelmRow = { kind: 'command', command: '/trace', label: 'trace:0' }
 const a1 = helmRowAction(crew)
 const a2 = helmRowAction(cmd)
-t('teammate row → drill action', a1?.type === 'teammate' && a1.id === 'task-7')
+t('crewmate row → drill action', a1?.type === 'crewmate' && a1.id === 'task-7')
 t('command row → surface action', a2?.type === 'command' && a2.command === '/trace')
 t('no row → null action', helmRowAction(undefined) === null)
 

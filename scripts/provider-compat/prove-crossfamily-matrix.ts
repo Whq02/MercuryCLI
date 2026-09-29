@@ -35,7 +35,7 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'crossfamily-matrix-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'crossfamily-matrix-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'crossfamily-matrix-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'crossfamily-matrix-crews-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'crossfamily-matrix-crew-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

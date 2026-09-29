@@ -222,7 +222,7 @@ await (async () => {
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
   check(
-    'solo lease_list answers structured {ok:true, leases:[]} on the current era — leases work without a team',
+    'solo lease_list answers structured {ok:true, leases:[]} on the current era — leases work without a crew',
     !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0,
     JSON.stringify(sc ?? null),
   )

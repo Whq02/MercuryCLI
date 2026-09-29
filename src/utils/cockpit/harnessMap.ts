@@ -108,7 +108,7 @@ export function computeHarnessMapLines(): string[] {
       ? '- Long-lived project processes: the Service tool (start/wait/logs/stop with readiness conditions + cursored logs) — use it instead of backgrounded Bash for servers, watch builds, and local APIs; services are addressable as mercury://service/<name>.'
       : null,
     refsEnabledSafe()
-      ? "- The work graph is addressable: mercury://<kind>/<id> refs (runs, receipts, tasks, teams, workflows, services, lanes, artifacts, health) resolve through the Inspect tool — follow refs instead of replaying transcripts."
+      ? "- The work graph is addressable: mercury://<kind>/<id> refs (runs, receipts, tasks, crews, workflows, services, lanes, artifacts, health) resolve through the Inspect tool — follow refs instead of replaying transcripts."
       : null,
     projectIntelEnabledSafe() && refsEnabledSafe()
       ? '- Project intelligence is native: mercury://project/current resolves the generation-keyed snapshot (modules · changes · knowledge · checks), ?child=context&q=<task> assembles the EXPLAINED task working set, ?child=impact&q=<path> projects established impact, ?child=split&q=<a> || <b> proposes a two-operator division; a context_capsule reminder in your context IS the current working set (evidence-ranked refs — dereference to read); mercury://transcript/session|agent gives bounded concise transcript views; /orient pin|drop corrects the working set.'

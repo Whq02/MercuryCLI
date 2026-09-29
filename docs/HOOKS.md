@@ -83,8 +83,8 @@ Every hook input carries `hook_event_name`, `session_id`, `transcript_path`,
 | `SubagentStop` | when a sub-agent ends its turn | `stop_hook_active`, `agent_id`, `agent_transcript_path`, `agent_type`, `last_assistant_message` |
 | `PreCompact` | before a compaction | `trigger`, `custom_instructions` |
 | `PostCompact` | after a compaction | `trigger`, `compact_summary` |
-| `CrewmateIdle` | when a crewmate goes idle | `teammate_name`, `team_name` |
-| `TaskCreated` | when a task is created | `task_id`, `task_subject`, `task_description`, `teammate_name`, `team_name` |
+| `CrewmateIdle` | when a crewmate goes idle | `crewmate_name`, `crew_name` |
+| `TaskCreated` | when a task is created | `task_id`, `task_subject`, `task_description`, `crewmate_name`, `crew_name` |
 | `TaskCompleted` | when a task completes | the same fields as `TaskCreated` |
 | `Elicitation` | when an MCP server asks the operator something | `mcp_server_name`, `message`, `mode`, `url`, `elicitation_id` |
 | `ElicitationResult` | when that question is answered | `mcp_server_name`, `elicitation_id`, `mode`, `action`, `content` |

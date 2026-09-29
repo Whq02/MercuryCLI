@@ -24,7 +24,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-relia-'))
 const home = join(tmp, 'home')
-const crews = join(tmp, 'teams')
+const crews = join(tmp, 'crews')
 const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
 mkdirSync(crews, { recursive: true })
@@ -63,7 +63,7 @@ const runChild = (
   })
   const crewBefore = readFileSync(crewOut, 'utf8').trim()
   ok(before.signal === 'SIGKILL', 'FC1 child died abruptly before the roster rename')
-  ok(!existsSync(join(crews, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made team file')
+  ok(!existsSync(join(crews, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made crew file')
   ok(!existsSync(join(crews, '.journal')), 'FC1: no journal record — there is no create step to track')
   const after = runChild('crewFoundingKillChild.ts', {
     RELIA_OUT: crewOut,
@@ -77,7 +77,7 @@ const runChild = (
   } catch {
     members = []
   }
-  ok(after.signal === 'SIGKILL' && members.join(',') === 'team-lead,alpha', `FC1: a kill after the rename leaves the WHOLE roster — the lead and the member (${members.join(',') || 'none'})`)
+  ok(after.signal === 'SIGKILL' && members.join(',') === 'crew-lead,alpha', `FC1: a kill after the rename leaves the WHOLE roster — the lead and the member (${members.join(',') || 'none'})`)
   const rec = runChild('crewRecoverChild.ts', {})
   ok(rec.status === 0 && existsSync(rosterPath), 'FC1: recovery has nothing to do and removes nothing')
 }
@@ -98,18 +98,18 @@ const runChild = (
 
 
 {
-  const teamName = 'relia-fc4'
+  const crewName = 'relia-fc4'
   const actLog = join(tmp, 'fc4-acts.log')
   writeFileSync(actLog, '')
   const reqA = 'relia-req-fc4-a'
-  const sentA = runChild('mailboxSendChild.ts', { RELIA_TEAMNAME: teamName, RELIA_REQ: reqA })
+  const sentA = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqA })
   const lifeA1 = runChild('mailboxDrainChild.ts', {
-    RELIA_TEAMNAME: teamName,
+    RELIA_CREWNAME: crewName,
     RELIA_ACT_LOG: actLog,
     MERCURY_FAULT_INJECT: `bridge-after-complete@${reqA}:kill`,
   })
   const lifeA2 = runChild('mailboxDrainChild.ts', {
-    RELIA_TEAMNAME: teamName,
+    RELIA_CREWNAME: crewName,
     RELIA_ACT_LOG: actLog,
   })
   const actsA = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqA))
@@ -123,14 +123,14 @@ const runChild = (
   )
   writeFileSync(actLog, '')
   const reqB = 'relia-req-fc4-b'
-  const sentB = runChild('mailboxSendChild.ts', { RELIA_TEAMNAME: teamName, RELIA_REQ: reqB })
+  const sentB = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqB })
   const lifeB1 = runChild('mailboxDrainChild.ts', {
-    RELIA_TEAMNAME: teamName,
+    RELIA_CREWNAME: crewName,
     RELIA_ACT_LOG: actLog,
     RELIA_DIE_AFTER_ACT: '1',
   })
   const lifeB2 = runChild('mailboxDrainChild.ts', {
-    RELIA_TEAMNAME: teamName,
+    RELIA_CREWNAME: crewName,
     RELIA_ACT_LOG: actLog,
   })
   const actsB = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqB))

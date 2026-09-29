@@ -4,7 +4,7 @@ import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { isHumanTurn } from '../../utils/messagePredicates.js'
-import { isTeammate } from '../../utils/crewmate.js'
+import { isCrewmate } from '../../utils/crewmate.js'
 import type { Message } from '../../types/message.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
@@ -319,7 +319,7 @@ export function desktopPostureRefusal(context: {
   agentId?: string
   options?: { isNonInteractiveSession?: boolean }
 }): string | null {
-  if (isTeammate()) return CREWMATE_COMPUTER_REFUSAL
+  if (isCrewmate()) return CREWMATE_COMPUTER_REFUSAL
   if (typeof context.agentId === 'string' && context.agentId !== '') return AGENT_COMPUTER_REFUSAL
   if ((context.options?.isNonInteractiveSession === true || getIsNonInteractiveSession()) && !canAnswerAsks()) return HEADLESS_COMPUTER_REFUSAL
   return null

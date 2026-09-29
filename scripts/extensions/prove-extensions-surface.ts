@@ -53,7 +53,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const SRC = join(SCRATCH, 'src-team-tools')
+const SRC = join(SCRATCH, 'src-crew-tools')
 const ESC = '\u001b'
 const DOWN = `${ESC}[B`
 
@@ -66,7 +66,7 @@ function writeExtension(root: string, manifest: Manifest): void {
 const REVIEW_12: Manifest = {
   name: 'review-tools',
   version: '1.2.0',
-  description: 'code review hooks for the team',
+  description: 'code review hooks for the crew',
   contributes: {
     hooks: { PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: 'true', timeout: 30 }] }] },
   },
@@ -93,11 +93,11 @@ const SPARE: Manifest = {
 function catalogueJson(reviewVersion: string): string {
   return JSON.stringify(
     {
-      name: 'team-tools',
+      name: 'crew-tools',
       description: 'the surface prover source',
       extensions: [
-        { name: 'review-tools', version: reviewVersion, description: 'code review hooks for the team', path: './review-tools' },
-        { name: 'deploy-kit', version: '0.4.1', description: 'deploy runbooks for the platform team', path: './deploy-kit' },
+        { name: 'review-tools', version: reviewVersion, description: 'code review hooks for the crew', path: './review-tools' },
+        { name: 'deploy-kit', version: '0.4.1', description: 'deploy runbooks for the platform crew', path: './deploy-kit' },
         { name: 'notes-sync', version: '2.0.0', description: 'sync your notes folder', path: './notes-sync' },
         { name: 'quiet-notes', version: '1.0.0', description: 'quiet notes in the corner', path: './quiet-notes' },
         { name: 'docs-lint', version: '0.9.2', description: 'a prose linter', path: './docs-lint' },
@@ -116,7 +116,7 @@ async function seedTemplate(): Promise<void> {
   writeExtension(join(SRC, 'deploy-kit'), {
     name: 'deploy-kit',
     version: '0.4.1',
-    description: 'deploy runbooks for the platform team',
+    description: 'deploy runbooks for the platform crew',
     needs: { binaries: ['missing-bin-fx'] },
   })
   writeExtension(join(SRC, 'notes-sync'), { name: 'notes-sync', version: '2.0.0', description: 'sync your notes folder' })
@@ -433,7 +433,7 @@ for (const [cols, rows] of [
       has(id, text, '✕ unreach')
       has(id, text, '○ unchecked')
       has(id, text, 'host unreachable')
-      has(id, text, 'team-tools')
+      has(id, text, 'crew-tools')
       const header = lines.find(l => l.includes('source') && l.includes('kind') && l.includes('where'))
       check(`${id}: the sources column header paints`, header !== undefined)
       has(id, text, 'a add')
@@ -527,7 +527,7 @@ for (const [cols, rows] of [
           manifest: parsed.manifest,
           root: '/fixture-root',
           kind: 'install',
-          from: { label: 'team-tools', where: SRC },
+          from: { label: 'crew-tools', where: SRC },
           optionSet: () => false,
         })
         const gridFlat = text.replace(/\s+/g, ' ')
@@ -540,7 +540,7 @@ for (const [cols, rows] of [
       }
       has(id, text, 'approve spare-tool 0.3.0')
       has(id, text, 'from')
-      has(id, text, 'team-tools')
+      has(id, text, 'crew-tools')
       has(id, text, 'runs on your machine')
       has(id, text, 'reaches the model')
       has(id, text, 'needs')
@@ -596,7 +596,7 @@ for (const [cols, rows] of [
     ready: 'uninstall review-tools',
     assert: text => {
       const id = `uninstall-confirm-${sz}`
-      has(id, text, 'uninstall review-tools 1.2.0 (team-tools)')
+      has(id, text, 'uninstall review-tools 1.2.0 (crew-tools)')
       has(id, text, 'esc cancel')
       check(
         `${id}: offers ↵ (no data folder) or the y/k data pair`,
@@ -611,10 +611,10 @@ for (const [cols, rows] of [
     cols,
     rows,
     sends: [...openBoard, g('installed (8)', '\t'), g('↻ stale', DOWN), g('↻ stale', DOWN), g('↻ stale', DOWN), g('↻ stale', 'x')],
-    ready: 'remove team-tools?',
+    ready: 'remove crew-tools?',
     assert: text => {
       const id = `remove-source-confirm-${sz}`
-      has(id, text, 'remove team-tools?')
+      has(id, text, 'remove crew-tools?')
       has(id, text, 'installed from it')
       has(id, text, '↵ remove the source only')
       has(id, text, 'y also uninstall them')

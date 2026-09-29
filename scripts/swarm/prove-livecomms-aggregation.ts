@@ -23,19 +23,19 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const CREW = 'brief-team'
+const CREW = 'brief-crew'
 const ME = 'bob'
 
 console.log('============================================================')
 console.log(' LiveComms aggregation — proof (real tool, real writers)')
 console.log('============================================================')
 
-section('no team ⇒ the honest empty brief')
+section('no crew ⇒ the honest empty brief')
 {
   setDynamicCrewContext(null)
   const res = await LiveCommsTool.call({} as never, { getAppState: () => ({}) } as never)
-  const data = (res as { data: { teamName: string | null; openTasks: unknown[] } }).data
-  check('teamName is null outside a team', data.teamName === null)
+  const data = (res as { data: { crewName: string | null; openTasks: unknown[] } }).data
+  check('crewName is null outside a crew', data.crewName === null)
   check('no fabricated rows', data.openTasks.length === 0)
   const block = LiveCommsTool.mapToolResultToToolResultBlockParam!(data as never, 'tu1')
   check(
@@ -44,12 +44,12 @@ section('no team ⇒ the honest empty brief')
   )
 }
 
-section('fixture team — every reader feeds the one brief')
+section('fixture crew — every reader feeds the one brief')
 {
   setDynamicCrewContext({
     agentId: 'bob-1',
     agentName: ME,
-    teamName: CREW,
+    crewName: CREW,
     planModeRequired: false,
   })
 
@@ -75,7 +75,7 @@ section('fixture team — every reader feeds the one brief')
 
   const res = await LiveCommsTool.call({} as never, { getAppState: () => ({}) } as never)
   const data = (res as { data: Record<string, unknown> }).data as {
-    teamName: string | null
+    crewName: string | null
     openTasks: { id: string; subject: string; status: string }[]
     unreadMessages: { from: string; text: string }[]
     openQuestions: { request_id: string; from: string }[]
@@ -83,7 +83,7 @@ section('fixture team — every reader feeds the one brief')
     leases: { agentId: string; globs: string[] }[]
   }
 
-  check('brief carries the team name', data.teamName === CREW)
+  check('brief carries the crew name', data.crewName === CREW)
   check(
     'open task aggregated',
     data.openTasks.some(t => t.id === taskId && t.subject === 'wire the flux capacitor'),
@@ -98,7 +98,7 @@ section('fixture team — every reader feeds the one brief')
 
   const block = LiveCommsTool.mapToolResultToToolResultBlockParam!(data as never, 'tu2')
   const text = typeof block.content === 'string' ? block.content : ''
-  check('rendered brief names the team', text.includes(`# Crew: ${CREW}`))
+  check('rendered brief names the crew', text.includes(`# Crew: ${CREW}`))
   check('rendered brief lists the open task', /## Open tasks \(1\)/.test(text))
   check('rendered brief lists the unread message', /## Unread messages \(1\)/.test(text))
   check('rendered brief lists the open question + answer protocol', /## Open questions \(1\)/.test(text) && /"type":"answer"/.test(text))

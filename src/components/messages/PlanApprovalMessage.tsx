@@ -123,7 +123,7 @@ export function formatCrewmateMessageContent(content: string): string {
       type?: string
       message?: string
     }
-    if (parsed?.type === 'teammate_terminated' && parsed.message) {
+    if (parsed?.type === 'crewmate_terminated' && parsed.message) {
       return parsed.message
     }
   } catch {

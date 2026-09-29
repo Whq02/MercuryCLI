@@ -9,7 +9,7 @@ export type TaskType =
   | 'local_bash'
   | 'local_agent'
   | 'remote_agent'
-  | 'in_process_teammate'
+  | 'in_process_crewmate'
   | 'local_workflow'
   | 'monitor_mcp'
   | 'dream'
@@ -76,7 +76,7 @@ const TASK_ID_PREFIXES: Record<TaskType, string> = {
   local_bash: 'b',
   local_agent: 'a',
   remote_agent: 'r',
-  in_process_teammate: 't',
+  in_process_crewmate: 't',
   local_workflow: 'w',
   monitor_mcp: 'm',
   dream: 'd',

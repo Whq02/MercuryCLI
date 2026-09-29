@@ -1,5 +1,6 @@
 
 import type { Chord, KeybindingBlock, ParsedBinding, ParsedKeystroke } from './types.js'
+import { readRetiredKeybindingAction } from '../migrations/retiredCrewSpellings.js'
 
 const MODIFIER_TOKENS: Record<string, keyof Omit<ParsedKeystroke, 'key'>> = {
   ctrl: 'ctrl',
@@ -116,7 +117,7 @@ export function parseBindings(blocks: KeybindingBlock[]): ParsedBinding[] {
   const out: ParsedBinding[] = []
   for (const block of blocks) {
     for (const [pattern, value] of Object.entries(block.bindings)) {
-      out.push({ chord: parseChord(pattern), action: value, context: block.context })
+      out.push({ chord: parseChord(pattern), action: typeof value === 'string' ? readRetiredKeybindingAction(value) : value, context: block.context })
     }
   }
   return out

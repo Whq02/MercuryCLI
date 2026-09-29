@@ -26,7 +26,7 @@ import { isStructuredProtocolMessage } from '../crew/liveMessages.js'
 
 export const NOT_IN_CREW =
   'Not part of a crew — the coordination tools have nothing to act on. ' +
-  'Start or join a crew first (or launch with the --team-name identity arguments).'
+  'Start or join a crew first (or launch with the --crew-name identity arguments).'
 
 export interface CoordinationContext {
   crew: string
@@ -41,7 +41,7 @@ export interface NotInCrew {
 
 export const notInCrew = (): NotInCrew => ({ ok: false, reason: 'NOT_IN_CREW', message: NOT_IN_CREW })
 
-export function resolveCoordinationContext(crewContext?: { teamName: string } | null): CoordinationContext | null {
+export function resolveCoordinationContext(crewContext?: { crewName: string } | null): CoordinationContext | null {
   const crew = resolveLeadAwareCrewName(crewContext ?? undefined) ?? null
   if (!crew) return null
   return { crew, agentId: resolveCoordAgentId() }
@@ -81,7 +81,7 @@ export async function listCrewLeases(ctx: CoordinationContext): Promise<LeaseRow
 
 
 export interface CrewBrief {
-  teamName: string | null
+  crewName: string | null
   openTasks: Array<{ id: string; subject: string; status: string; owner?: string; blockedBy: string[] }>
   unreadMessages: Array<{ from: string; text: string; timestamp: string; summary?: string }>
   openQuestions: Array<{ request_id: string; from: string; text: string; summary?: string; askedAt: string }>
@@ -109,7 +109,7 @@ export interface CrewBrief {
 }
 
 export const EMPTY_BRIEF: CrewBrief = {
-  teamName: null,
+  crewName: null,
   openTasks: [],
   unreadMessages: [],
   openQuestions: [],
@@ -198,7 +198,7 @@ export async function crewBrief(ctx: CoordinationContext | null): Promise<CrewBr
   })
 
   return {
-    teamName: crew,
+    crewName: crew,
     openTasks,
     unreadMessages,
     openQuestions: openQs.map(q => ({

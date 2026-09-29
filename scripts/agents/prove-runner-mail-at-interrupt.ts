@@ -42,7 +42,7 @@ if (RUNTIME === 'bun' && process.env.RUNNER_MAIL_AT_INTERRUPT_ARM !== 'node') {
 const h = await import('./lib/runnerLifecycleHarness.ts')
 const { check, section, task, waitFor, settleWithin, drainInto, idleNotificationsFor, launch } = h
 
-section(`mail queued while working is delivered AT the interrupt; the teammate continues unnudged (${RUNTIME})`)
+section(`mail queued while working is delivered AT the interrupt; the crewmate continues unnudged (${RUNTIME})`)
 {
   const crew = 'own7b-s7'
   const s = await launch({
@@ -66,7 +66,7 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
   check('operator line 1 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-1 first operator line', s.store.setAppState as never))
   check('operator line 2 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-2 second operator line', s.store.setAppState as never))
   await h.sendLiveMessage(crew, { to: 'probe7', from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() })
-  await h.sendLiveMessage(crew, { to: 'probe7', from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() })
+  await h.sendLiveMessage(crew, { to: 'probe7', from: 'crew-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() })
   check('the mail is queued, unread, while the turn still hangs', (await h.liveMessagesFor(crew, 'probe7')).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
 
   const abortedAt = Date.now()
@@ -81,7 +81,7 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
     `requests=${s.api.messageRequests().length}`,
   )
   clearInterval(pulse)
-  check('…and the teammate settles idle, alive', await waitFor(() => task(s.store, s.taskId)?.isIdle === true && s.api.messageRequests().length === 5, 30_000))
+  check('…and the crewmate settles idle, alive', await waitFor(() => task(s.store, s.taskId)?.isIdle === true && s.api.messageRequests().length === 5, 30_000))
   const lastUserText = (req: { body: unknown }): string => {
     const msgs = (req.body as { messages?: Array<{ role: string; content: unknown }> }).messages ?? []
     const user = [...msgs].reverse().find(m => m.role === 'user')
@@ -101,7 +101,7 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
   s.lifecycle.abort()
   const result = await settleWithin(s.runPromise, s, 'mail-at-interrupt')
   drainInto()
-  check('the teammate terminalizes cleanly after the delivered mail', result.success === true && task(s.store, s.taskId).status === 'completed')
+  check('the crewmate terminalizes cleanly after the delivered mail', result.success === true && task(s.store, s.taskId).status === 'completed')
   check('all four replies made it into the conversation', ['S7 reply one.', 'S7 reply two.', 'S7 reply three.', 'S7 reply four.'].every(r => JSON.stringify(result.messages).includes(r)))
   await s.api.close()
 }

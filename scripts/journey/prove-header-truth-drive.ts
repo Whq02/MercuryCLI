@@ -390,7 +390,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -471,7 +471,7 @@ try {
         after(1, 'interrupting'),
         after(14, 'after-esc'),
         after(12, 'after-esc+'),
-        { data: '/teammates\r', afterPrevTicks: 2 },
+        { data: '/crewmates\r', afterPrevTicks: 2 },
         { data: 'x', awaitText: SEATS.one, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew' },
         { data: 'x', afterPrevTicks: 3 },
         after(12, 'x2', '\x1b[A'),

@@ -97,12 +97,12 @@ console.log('============================================================')
     !repl.includes('viewingAgentTaskId') && !/const tasks = useAppState\((state|s) => (state|s)\.tasks\)/.test(repl),
   )
   check(
-    'REPL derives no teammate-running truth of its own (the runner owns its teammates)',
+    'REPL derives no crewmate-running truth of its own (the runner owns its crewmates)',
     !repl.includes('getRunningCrewmatesSorted') && !repl.includes('anyTaskRunning'),
   )
   const spinner = src('src', 'components', 'Spinner.tsx')
   check(
-    'Spinner subscribes to primitives + the viewed teammate object only',
+    'Spinner subscribes to primitives + the viewed crewmate object only',
     !/useAppState\(state => state\.tasks\)/.test(spinner) &&
       !/useAppState\(state => state\)/.test(spinner) &&
       /const foregroundedCrewmate = useAppState\(state =>\s*getViewedCrewmateTask\(state\),?\s*\)/.test(spinner) &&

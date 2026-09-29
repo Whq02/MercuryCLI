@@ -9,7 +9,7 @@ import type { AgentPauseV1 } from '../LocalAgentTask/agentPause.js'
 export type CrewmateIdentity = {
   agentId: string
   agentName: string
-  teamName: string
+  crewName: string
   agentType?: string
   roleId?: string
   color?: string
@@ -18,7 +18,7 @@ export type CrewmateIdentity = {
 }
 
 export type InProcessCrewmateTaskState = TaskStateBase & {
-  type: 'in_process_teammate'
+  type: 'in_process_crewmate'
   identity: CrewmateIdentity
   prompt: string
   model?: string
@@ -54,7 +54,7 @@ export function isInProcessCrewmateTask(task: unknown): task is InProcessCrewmat
     typeof task === 'object' &&
     task !== null &&
     'type' in task &&
-    task.type === 'in_process_teammate'
+    task.type === 'in_process_crewmate'
   )
 }
 

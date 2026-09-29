@@ -8,7 +8,7 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'post-compact-guard-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'post-compact-guard-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'post-compact-guard-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'post-compact-guard-crews-'))
 for (const k of [
   'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_RELEVANT_RECALL', 'CLAUDE_CREW_NAME', 'CLAUDE_AGENT_NAME',

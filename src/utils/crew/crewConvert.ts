@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { crewStoreRoot } from '../../services/crew/identity.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../debug.js'
-import { getCrewsDir } from '../envUtils.js'
+import { getCrewsDir, getRetiredCrewsDir } from '../envUtils.js'
 import { CREW_LEAD_NAME } from '../swarm/constants.js'
 
 export const CREW_RECORD_SCHEMA = 1 as const
@@ -233,30 +233,37 @@ function sameSource(a: Record<string, string>, b: Record<string, string>): boole
 export async function convertSavedCrews(opts?: { crewsDir?: string; crewDir?: string }): Promise<ConvertSavedCrewsOutcome> {
   const crewsDir = opts?.crewsDir ?? getCrewsDir()
   const outcome: ConvertSavedCrewsOutcome = { crewsDir, converted: [], unchanged: [], skipped: [] }
-  let names: string[]
-  try {
-    names = (await readdir(crewsDir)).filter(name => !name.startsWith('.')).sort()
-  } catch {
-    return outcome
-  }
+  const retired = opts?.crewsDir === undefined ? getRetiredCrewsDir() : null
+  const folders = retired === null ? [crewsDir] : [retired, crewsDir]
   const read: Array<Omit<CrewRecordV1, 'convertedAt'>> = []
-  for (const name of names) {
-    let isDir = false
+  const seen = new Set<string>()
+  for (const folder of folders) {
+    let names: string[]
     try {
-      isDir = (await stat(join(crewsDir, name))).isDirectory()
+      names = (await readdir(folder)).filter(name => !name.startsWith('.')).sort()
     } catch {
-      isDir = false
-    }
-    if (!isDir) {
-      outcome.skipped.push(name)
       continue
     }
-    const record = await readSavedCrew(crewsDir, name)
-    if (record === null) {
-      outcome.skipped.push(name)
-      continue
+    for (const name of names) {
+      if (seen.has(name)) continue
+      let isDir = false
+      try {
+        isDir = (await stat(join(folder, name))).isDirectory()
+      } catch {
+        isDir = false
+      }
+      if (!isDir) {
+        outcome.skipped.push(name)
+        continue
+      }
+      const record = await readSavedCrew(folder, name)
+      if (record === null) {
+        outcome.skipped.push(name)
+        continue
+      }
+      seen.add(name)
+      read.push(record)
     }
-    read.push(record)
   }
   const store = crewsStore(opts?.crewDir)
   await store.update(current => {
@@ -299,7 +306,7 @@ export function bootCrewConversion(): Promise<void> {
       if (outcome.converted.length > 0) logForDebugging(`[crew] ${outcome.converted.length} saved crew(s) carried into the crew store: ${outcome.converted.join(', ')}`)
     })
     .catch(error => {
-      logForDebugging(`[crew] saved-team conversion failed (non-blocking, retried on the next boot): ${error instanceof Error ? error.message : String(error)}`)
+      logForDebugging(`[crew] saved-crew conversion failed (non-blocking, retried on the next boot): ${error instanceof Error ? error.message : String(error)}`)
       bootConversion = null
     })
   return bootConversion

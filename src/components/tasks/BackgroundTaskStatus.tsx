@@ -100,7 +100,7 @@ export function BackgroundTaskStatus({
   const tokens = useMercuryTokens()
   const tasks = useAppState((state: AppState) => state.tasks)
   const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'teammates',
+    (state: AppState) => state.expandedView === 'crewmates',
   )
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,

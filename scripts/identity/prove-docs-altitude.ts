@@ -125,7 +125,7 @@ function selfTest(): void {
     'bash scripts/<suite>/run-all.sh    # one suite; they sit side by side',
     'the in-code registry (`' + CONFIG_INDEX_SPELLING + '`; rendered on demand)',
     'launch receipts name the road; the fire lands as a receipt row',
-    'a teammate handoff is honesty-gated; the medical metaphor stays outside',
+    'a crewmate handoff is honesty-gated; the medical metaphor stays outside',
     'the session dispatches on the local lane',
     'the home lane earns every ride; a GPT specialist lane stays lowercase-named',
     'released 2026-08-16 as 9.9.9 (a plain date beside no decision verb)',

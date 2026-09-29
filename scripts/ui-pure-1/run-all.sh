@@ -3,7 +3,7 @@
 # gate-watch: scripts/ui/** scripts/ui-pure-1/** src/bootstrap/state*
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/team/index* src/components/** src/context/overlayContext*
+# gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
 # gate-watch: src/keybindings/KeybindingProviderSetup* src/services/claudeAiLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts

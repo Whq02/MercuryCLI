@@ -125,5 +125,21 @@
    "/repo/src/deep"
   ]
  },
- "getContextEfficiencyAttachment/fold-dead": []
+ "getContextEfficiencyAttachment/fold-dead": [],
+ "CREW_MESSAGES_KIND/value": "crew_messages",
+ "OLD_ATTACHMENT_KINDS/value": {
+  "teammate_mailbox": "crew_messages"
+ },
+ "currentAttachmentKind/samples": [
+  "crew_messages",
+  "crew_messages",
+  "crew_context",
+  "queued_command"
+ ],
+ "isCrewMessagesAttachment/samples": [
+  true,
+  true,
+  false,
+  false
+ ]
 }

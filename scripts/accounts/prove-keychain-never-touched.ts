@@ -104,7 +104,7 @@ if (existsSync(DIST) && nodeBin) {
       MERCURY_CONFIG_DIR: bootHome,
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_DAEMON_DIR: join(bootHome, 'daemon'),
-      MERCURY_CREWS_DIR: join(bootHome, 'teams'),
+      MERCURY_CREWS_DIR: join(bootHome, 'crews'),
     },
   })
   check('the artifact booted to a certificate (doctor --json emitted JSON)', (r.stdout ?? '').trimStart().startsWith('{'), (r.stderr ?? '').slice(0, 200))

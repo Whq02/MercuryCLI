@@ -88,7 +88,6 @@ import sandboxToggle from './commands/sandbox-toggle/index.js'
 import logout from './commands/logout/index.js'
 import loginFactory from './commands/login/index.js'
 import tasks from './commands/tasks/index.js'
-import team from './commands/team/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
 import subagents from './commands/subagents/index.js'
@@ -281,7 +280,6 @@ const COMMANDS = memoize((): Command[] => [
   logout,
   loginFactory(),
   tasks,
-  team,
   appearance,
   workflows,
   subagents,

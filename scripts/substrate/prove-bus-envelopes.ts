@@ -31,7 +31,7 @@ function section(t: string): void {
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const FROM = 'team-lead'
+const FROM = 'crew-lead'
 
 console.log('============================================================')
 console.log(' bus envelopes — proof')
@@ -88,7 +88,7 @@ section('non-envelopes are never misclassified')
 for (const [label, text] of [
   ['plain prose', 'please run the tests again'],
   ['JSON that is not an envelope', JSON.stringify({ type: 'permission_request', id: 'p1' })],
-  ['a teammate protocol message', JSON.stringify({ type: 'shutdown_request', request_id: 'r1', from: 'x' })],
+  ['a crewmate protocol message', JSON.stringify({ type: 'shutdown_request', request_id: 'r1', from: 'x' })],
   ['an envelope with an unknown kind', JSON.stringify({ type: BUS_PROTOCOL_TYPE, kind: 'teleport', request_id: 'r', from: 'x', timestamp: 't' })],
   ['an envelope without a sender', JSON.stringify({ type: BUS_PROTOCOL_TYPE, kind: 'dispatch', request_id: 'r', from: '', timestamp: 't', task: 't' })],
   ['a dispatch without its task', JSON.stringify({ type: BUS_PROTOCOL_TYPE, kind: 'dispatch', request_id: 'r', from: 'x', timestamp: 't' })],
@@ -104,7 +104,7 @@ const oldEnvelope = JSON.stringify({
   type: BUS_PROTOCOL_TYPE,
   kind: 'dispatch',
   request_id: 'x1',
-  from: 'team-lead',
+  from: 'crew-lead',
   timestamp: '2026-01-01T00:00:00Z',
   task: 't',
   route: { effort: 'high' },
@@ -128,15 +128,15 @@ check('plain prose mentioning the words never trips', !looksLikeHandSerializedBu
 check('unrelated JSON never trips', !looksLikeHandSerializedBusPayload(JSON.stringify({ type: 'question', content: 'x' })))
 
 section('resolveNoteSender: the verified mailbox sender wins')
-const n = buildNote('team-lead', 'ctx')
-check('verified sender that matches the in-body from ⇒ that sender', resolveNoteSender('team-lead', n, 'scout') === 'team-lead')
+const n = buildNote('crew-lead', 'ctx')
+check('verified sender that matches the in-body from ⇒ that sender', resolveNoteSender('crew-lead', n, 'scout') === 'crew-lead')
 check('no verified sender ⇒ dropped', resolveNoteSender(undefined, n, 'scout') === null)
 check('in-body from that spoofs another agent ⇒ dropped', resolveNoteSender('mallory', n, 'scout') === null)
 check('a note "from" the receiver itself ⇒ dropped', resolveNoteSender('scout', buildNote('scout', 'self'), 'scout') === null)
 
 section('the protocol type: writers emit the bus_protocol spelling; the compatibility spelling still decodes')
 check('a fresh envelope carries the bus_protocol type', dispatch.type === 'bus_protocol' && serializeBusEnvelope(note).includes('"type":"bus_protocol"'))
-const compatDispatch = JSON.stringify({ type: LEGACY_BUS_PROTOCOL_TYPE, kind: 'dispatch', request_id: 'compat-1', from: 'team-lead', timestamp: '2026-01-01T00:00:00Z', task: 't' })
+const compatDispatch = JSON.stringify({ type: LEGACY_BUS_PROTOCOL_TYPE, kind: 'dispatch', request_id: 'compat-1', from: 'crew-lead', timestamp: '2026-01-01T00:00:00Z', task: 't' })
 check(
   'a persisted envelope carrying the compatibility protocol type still parses as its kind',
   parseBusEnvelope(compatDispatch)?.kind === 'dispatch' && isBusProtocolMessage(compatDispatch) && isDispatchEnvelope(compatDispatch) !== null,

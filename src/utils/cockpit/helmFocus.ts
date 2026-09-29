@@ -5,20 +5,20 @@ import { refuseGestureWhileModal } from '../permissions/permissionFocus.js'
 export type HelmPane = 'prompt' | 'lanes' | 'telemetry'
 
 export type HelmRow =
-  | { kind: 'teammate'; id: string; label: string }
+  | { kind: 'crewmate'; id: string; label: string }
   | { kind: 'command'; command: string; label: string }
   | { kind: 'console'; label: string }
   | { kind: 'main'; label: string }
 
 export type HelmRowAction =
-  | { type: 'teammate'; id: string }
+  | { type: 'crewmate'; id: string }
   | { type: 'command'; command: string }
   | { type: 'console' }
   | { type: 'main' }
 
 export function helmRowSig(r: HelmRow): string {
   const head =
-    r.kind === 'teammate'
+    r.kind === 'crewmate'
       ? `t:${r.id}`
       : r.kind === 'command'
         ? `c:${r.command}`
@@ -74,7 +74,7 @@ export function nextHelmPane(p: HelmPane): HelmPane {
 
 export function helmRowAction(row: HelmRow | undefined): HelmRowAction | null {
   if (!row) return null
-  if (row.kind === 'teammate') return { type: 'teammate', id: row.id }
+  if (row.kind === 'crewmate') return { type: 'crewmate', id: row.id }
   if (row.kind === 'console') return { type: 'console' }
   if (row.kind === 'main') return { type: 'main' }
   return { type: 'command', command: row.command }

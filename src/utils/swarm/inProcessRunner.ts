@@ -84,7 +84,7 @@ export type InProcessRunnerConfig = {
   identity: {
     agentId: string
     agentName: string
-    teamName: string
+    crewName: string
     color?: string
     planModeRequired: boolean
     parentSessionId: string
@@ -171,13 +171,13 @@ async function claimNextAvailableTask(identity: InProcessRunnerConfig['identity'
     if (claimable === undefined) return null
     const outcome = await claimTask(taskListId, claimable.id, identity.agentName)
     if (!outcome.success) {
-      logForDebugging(`teammate ${identity.agentName}: task claim failed (${outcome.reason ?? 'unknown'})`)
+      logForDebugging(`crewmate ${identity.agentName}: task claim failed (${outcome.reason ?? 'unknown'})`)
       return null
     }
     await updateTask(taskListId, claimable.id, { status: 'in_progress' })
-    return `Complete all open tasks on the team task list, starting with task ${claimable.id}: ${claimable.subject}${claimable.description ? `\n\n${claimable.description}` : ''}`
+    return `Complete all open tasks on the crew task list, starting with task ${claimable.id}: ${claimable.subject}${claimable.description ? `\n\n${claimable.description}` : ''}`
   } catch (error) {
-    logForDebugging(`teammate ${identity.agentName}: task claim errored: ${errorMessage(error)}`)
+    logForDebugging(`crewmate ${identity.agentName}: task claim errored: ${errorMessage(error)}`)
     return null
   }
 }
@@ -205,7 +205,7 @@ async function waitForNextInput(
       wakePending = true
     }
   }
-  const unsubscribeMailbox = subscribeLiveMessagesFor(identity.teamName, identity.agentName, () => wake(), { immediate: false })
+  const unsubscribeMailbox = subscribeLiveMessagesFor(identity.crewName, identity.agentName, () => wake(), { immediate: false })
   const unsubscribeTasks = onTasksUpdated(() => wake())
   signal.addEventListener('abort', wake)
 
@@ -251,7 +251,7 @@ async function waitForNextInput(
       if (signal.aborted) return { kind: 'aborted' }
 
       try {
-        const messages = await liveMessagesFor(identity.teamName, identity.agentName)
+        const messages = await liveMessagesFor(identity.crewName, identity.agentName)
         const unread = messages.filter(message => !message.read)
 
         for (const message of unread) {
@@ -260,17 +260,17 @@ async function waitForNextInput(
           const sender = resolveShutdownRequestSender(message.from, parsed)
           if (sender === null) {
             logForDebugging(
-              `teammate ${identity.agentName}: skipped a shutdown request whose declared sender disagrees with its envelope`,
+              `crewmate ${identity.agentName}: skipped a shutdown request whose declared sender disagrees with its envelope`,
             )
             continue
           }
-          await markLiveMessageRead(identity.teamName, identity.agentName, message)
+          await markLiveMessageRead(identity.crewName, identity.agentName, message)
           return { kind: 'shutdown', request: parsed, text: message.text, sender }
         }
 
         const selected = unread.find(message => message.from === CREW_LEAD_NAME) ?? unread[0]
         if (selected !== undefined) {
-          await markLiveMessageRead(identity.teamName, identity.agentName, selected)
+          await markLiveMessageRead(identity.crewName, identity.agentName, selected)
           return {
             kind: 'message',
             text: selected.text,
@@ -281,7 +281,7 @@ async function waitForNextInput(
         }
       } catch (error) {
         logForDebugging(
-          `teammate ${identity.agentName}: mailbox poll failed: ${errorMessage(error)}`,
+          `crewmate ${identity.agentName}: mailbox poll failed: ${errorMessage(error)}`,
         )
       }
 
@@ -417,7 +417,7 @@ function buildCrewmatePermissionFn(
       workerId: identity.agentId,
       workerName: identity.agentName,
       ...(identity.color !== undefined ? { workerColor: identity.color } : {}),
-      teamName: identity.teamName,
+      crewName: identity.crewName,
     })
     return new Promise<PermissionDecision>(resolve => {
       let settled = false
@@ -469,18 +469,18 @@ function buildCrewmatePermissionFn(
               settle(refusal())
               return
             }
-            const messages = await liveMessagesFor(identity.teamName, identity.agentName)
+            const messages = await liveMessagesFor(identity.crewName, identity.agentName)
             for (const message of messages) {
               if (message.read) continue
               const response = isPermissionResponse(message.text)
               if (!response || response.request_id !== request.id) continue
               if (message.from !== CREW_LEAD_NAME) {
                 logForDebugging(
-                  `teammate ${identity.agentName}: ignored a permission response from non-lead sender ${message.from}`,
+                  `crewmate ${identity.agentName}: ignored a permission response from non-lead sender ${message.from}`,
                 )
                 continue
               }
-              await markLiveMessageRead(identity.teamName, identity.agentName, message)
+              await markLiveMessageRead(identity.crewName, identity.agentName, message)
               processMailboxPermissionResponse(
                 response.subtype === 'success'
                   ? {
@@ -499,7 +499,7 @@ function buildCrewmatePermissionFn(
             }
           } catch (error) {
             logForDebugging(
-              `teammate ${identity.agentName}: permission poll failed: ${errorMessage(error)}`,
+              `crewmate ${identity.agentName}: permission poll failed: ${errorMessage(error)}`,
             )
           }
         })()
@@ -525,7 +525,7 @@ async function sendIdleNotificationToLead(
         }
       : {}),
   })
-  await sendLiveMessage(identity.teamName, {
+  await sendLiveMessage(identity.crewName, {
     to: CREW_LEAD_NAME,
     from: identity.agentName,
     text: JSON.stringify(notification),
@@ -535,11 +535,11 @@ async function sendIdleNotificationToLead(
 }
 
 function noteMemberActive(identity: InProcessRunnerConfig['identity'], active: boolean): void {
-  setMemberActive(identity.teamName, identity.agentName, active).catch((error: unknown) => {
-    logForDebugging(`teammate ${identity.agentName}: active flag write failed: ${errorMessage(error)}`)
+  setMemberActive(identity.crewName, identity.agentName, active).catch((error: unknown) => {
+    logForDebugging(`crewmate ${identity.agentName}: active flag write failed: ${errorMessage(error)}`)
   })
-  setLiveBusy(identity.teamName, identity.agentName, active).catch((error: unknown) => {
-    logForDebugging(`teammate ${identity.agentName}: live busy write failed: ${errorMessage(error)}`)
+  setLiveBusy(identity.crewName, identity.agentName, active).catch((error: unknown) => {
+    logForDebugging(`crewmate ${identity.agentName}: live busy write failed: ${errorMessage(error)}`)
   })
 }
 
@@ -547,7 +547,7 @@ async function approveIdleShutdown(
   identity: InProcessRunnerConfig['identity'],
   request: ShutdownRequestMessage,
 ): Promise<void> {
-  const roster = await readCrewFileAsync(identity.teamName).catch(() => null)
+  const roster = await readCrewFileAsync(identity.crewName).catch(() => null)
   const member = roster?.members.find(candidate => candidate.agentId === identity.agentId) as
     | { tmuxPaneId?: string; backendType?: string }
     | undefined
@@ -557,14 +557,14 @@ async function approveIdleShutdown(
     paneId: member?.tmuxPaneId || undefined,
     backendType: member?.backendType || undefined,
   })
-  const delivered = await sendLiveMessage(identity.teamName, {
+  const delivered = await sendLiveMessage(identity.crewName, {
     to: CREW_LEAD_NAME,
     from: identity.agentName,
     text: JSON.stringify(approved),
     timestamp: new Date().toISOString(),
     ...(identity.color !== undefined ? { color: identity.color } : {}),
   })
-  if (!delivered) logForDebugging(`teammate ${identity.agentName}: the shutdown approval could not be written to the lead's mailbox`)
+  if (!delivered) logForDebugging(`crewmate ${identity.agentName}: the shutdown approval could not be written to the lead's mailbox`)
 }
 
 
@@ -583,15 +583,15 @@ export async function runInProcessCrewmate(
     try {
       config.onFirstDispatch?.(outcome)
     } catch (error) {
-      logForDebugging(`teammate ${identity.agentName}: first-dispatch listener failed: ${errorMessage(error)}`)
+      logForDebugging(`crewmate ${identity.agentName}: first-dispatch listener failed: ${errorMessage(error)}`)
     }
   }
 
   const agentContext: CrewmateAgentContext = {
-    agentType: 'teammate',
+    agentType: 'crewmate',
     agentId: identity.agentId,
     agentName: identity.agentName,
-    teamName: identity.teamName,
+    crewName: identity.crewName,
     ...(identity.color !== undefined ? { agentColor: identity.color } : {}),
     planModeRequired: identity.planModeRequired,
     parentSessionId: identity.parentSessionId,
@@ -849,7 +849,7 @@ export async function runInProcessCrewmate(
       noteMemberActive(identity, false)
 
       if (wasAlreadyIdle) {
-        logForDebugging(`teammate ${identity.agentName}: already idle — no idle notification`)
+        logForDebugging(`crewmate ${identity.agentName}: already idle — no idle notification`)
       } else {
         const lastAssistant = getLastAssistantMessage(turnMessages)
         const summary = getLastPeerDmSummary(allMessages)
@@ -929,7 +929,7 @@ export async function runInProcessCrewmate(
       failureReason: cause.message,
     }).catch(notifyError => {
       logForDebugging(
-        `teammate ${identity.agentName}: failure notification failed: ${errorMessage(notifyError)}`,
+        `crewmate ${identity.agentName}: failure notification failed: ${errorMessage(notifyError)}`,
       )
     })
     return { success: false, error: cause, messages: allMessages }
@@ -990,8 +990,8 @@ function terminalizeCrewmateRun(
     }
   })
   if (wasRunning && status === 'failed') {
-    removeMemberByAgentId(identity.teamName, identity.agentId).catch((error: unknown) => {
-      logForDebugging(`teammate ${identity.agentName}: roster removal after the failure failed: ${errorMessage(error)}`)
+    removeMemberByAgentId(identity.crewName, identity.agentId).catch((error: unknown) => {
+      logForDebugging(`crewmate ${identity.agentName}: roster removal after the failure failed: ${errorMessage(error)}`)
     })
   }
 
@@ -1062,14 +1062,14 @@ export function crewmatePausedWords(name: string, pause: AgentPauseV1, nowMs: nu
 }
 
 async function tellLeadPaused(identity: InProcessRunnerConfig['identity'], pause: AgentPauseV1): Promise<void> {
-  const delivered = await sendLiveMessage(identity.teamName, {
+  const delivered = await sendLiveMessage(identity.crewName, {
     to: CREW_LEAD_NAME,
     from: identity.agentName,
     text: crewmatePausedWords(identity.agentName, pause, Date.now()),
     timestamp: new Date().toISOString(),
     ...(identity.color !== undefined ? { color: identity.color } : {}),
   }).catch(() => false)
-  if (!delivered) logForDebugging(`teammate ${identity.agentName}: the pause notice could not be written to the lead's mailbox`)
+  if (!delivered) logForDebugging(`crewmate ${identity.agentName}: the pause notice could not be written to the lead's mailbox`)
 }
 
 const armedCrewmateResumes = new Map<string, () => void>()
@@ -1107,7 +1107,7 @@ function armCrewmatePauseResume(config: InProcessRunnerConfig, pause: AgentPause
       prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : AGENT_WINDOW_RESUME_NOTE,
     })
     if (receipt.outcome === 'refused') {
-      logForDebugging(`teammate ${identity.agentName}: the automatic resume after the pause was refused: ${receipt.reason}`)
+      logForDebugging(`crewmate ${identity.agentName}: the automatic resume after the pause was refused: ${receipt.reason}`)
       return
     }
     enqueueAgentReceiptRow({
@@ -1135,6 +1135,6 @@ export function startInProcessCrewmate(config: InProcessRunnerConfig): void {
   const life = (): Promise<InProcessRunnerResult> => runInProcessCrewmate(config)
   ;(config.cwd !== undefined ? runWithCwdOverride(config.cwd, life) : life()).catch((error: unknown) => {
     logError(error)
-    logForDebugging(`in-process teammate ${agentId} rejected: ${errorMessage(toError(error))}`)
+    logForDebugging(`in-process crewmate ${agentId} rejected: ${errorMessage(toError(error))}`)
   })
 }

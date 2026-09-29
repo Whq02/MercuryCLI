@@ -190,7 +190,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const concourseOnly = registry.filter(c => c.needsConcourse === true)
   const byName = (name: string) => registry.find(c => c.name === name)
   check('C6 the concourse-only set is declared: cockpit · crew · crewmates · fleet · live · monitor · workflows', JSON.stringify(concourseOnly.map(c => c.name).sort()) === JSON.stringify(['cockpit', 'crew', 'crewmates', 'fleet', 'live', 'monitor', 'workflows']), concourseOnly.map(c => c.name).sort().join(' '))
-  check("C6 the plain CLI's own commands are not gated with them (/sessions · /runs · /team · /resume) and /concourse stays the explicit door", ['sessions', 'runs', 'team', 'resume', 'concourse'].every(n => byName(n) !== undefined && byName(n)!.needsConcourse !== true))
+  check("C6 the plain CLI's own commands are not gated with them (/sessions · /runs · /crew · /resume) and /concourse stays the explicit door", ['sessions', 'runs', 'crew', 'resume', 'concourse'].every(n => byName(n) !== undefined && byName(n)!.needsConcourse !== true))
   const { findCommand, builtInCommandNames } = await import('../../src/commands.ts')
   const runs = registry.find(command => command.name === 'runs')
   check('the board is /runs and /tasks resolves to the very same command', runs !== undefined && findCommand('runs', registry) === runs && findCommand('tasks', registry) === runs)
