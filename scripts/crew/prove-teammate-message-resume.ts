@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { apiRefusalOf, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, type Frame } from './team-world.ts'
+import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, TURN_MS, type Frame } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const team = 'message-resume-team'
@@ -120,7 +120,7 @@ const refused = (text: string): boolean => /"success":false/.test(text) || /Cann
 try {
   tally.section('the lead spawns a worker that lands a tool result; the operator stops it from the crew view mid-turn')
   session.submit(`${FIRST}: create the team, spawn the worker, and park.`)
-  await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'))
+  await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const first = rowsOf()[0]
   tally.check('a real in-process teammate runs with a history-bearing tool result', first !== undefined && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
   if (first === undefined) throw new Error('the fixture has no teammate task id')
@@ -129,7 +129,7 @@ try {
   tally.check('the crew stop road stops the working teammate', stopped.subtype === 'success', JSON.stringify(stopped))
 
   tally.section('THE PIN: the stop notice wakes the lead, whose two messages to the stopped worker both land — one resumes it with the message as its next turn, the other is its turn after — same name, same row, and each reply comes back')
-  const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), 60_000)
+  const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), TURN_MS * 2 / 3)
   const answer1 = toolResultOf(world, SEND_1)
   const answer1B = toolResultOf(world, SEND_1B)
   const text1 = answer1?.text ?? ''
@@ -140,32 +140,32 @@ try {
   tally.check('the message is not refused as a dead seat (RED on the base: "that seat is not running")', answer1 !== null && !refused(text1), text1.slice(0, 300))
   tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text1), text1.slice(0, 300))
   tally.check('the second message of the same turn is accepted too, never refused as already resuming', answer1B !== null && !refused(text1B), text1B.slice(0, 300))
-  await until(() => requests().length > requestsBeforeStop, 30_000)
-  const continued1 = requests()[requestsBeforeStop]
+  await until(() => nextTurnCarrying(requestsBeforeStop, MESSAGE_1) !== undefined, TURN_MS / 3)
+  const continued1 = nextTurnCarrying(requestsBeforeStop, MESSAGE_1) ?? requests()[requestsBeforeStop]
   record('continued-request-1.json', JSON.stringify(continued1?.body ?? null, null, 2))
   const history1 = JSON.stringify(continued1?.body.messages ?? [])
   tally.check('the worker makes a new request (RED on the base: none)', continued1 !== undefined, String(requests().length))
   tally.check('its history keeps the tool result from before the stop', history1.includes('"tool_result"') && history1.includes('HISTORY-WITNESS'))
   tally.check('the message rides as its next turn, in the teammate-message envelope from the lead', envelope(continued1, MESSAGE_1), continued1 === undefined ? '' : lastUser(continued1).slice(-400))
   tally.check('the worker keeps its model', continued1?.body.model === peerModel)
-  const resumedRow = (await until(() => rowsOf().length >= 2, 30_000)) ? rowsOf()[1] : undefined
+  const resumedRow = (await until(() => rowsOf().length >= 2, TURN_MS / 3)) ? rowsOf()[1] : undefined
   tally.check('the same row: the roster keeps the name and the agent id, and the new row carries the name (RED on the base: no row)', sameRow() && resumedRow !== undefined && resumedRow.description.startsWith(`${worker}:`), JSON.stringify({ roster: workerRows(), rows: rowsOf() }))
-  const heard1 = await until(() => session.stdout().includes('LEAD-HEARD-1'), 60_000)
+  const heard1 = await until(() => session.stdout().includes('LEAD-HEARD-1'), TURN_MS * 2 / 3)
   tally.check('the worker\'s reply reaches the lead as a turn (RED on the base: no reply)', heard1, session.stdout().slice(-400))
-  const secondLanded = await until(() => nextTurnCarrying(requestsBeforeStop + 1, MESSAGE_1B) !== undefined, 45_000)
+  const secondLanded = await until(() => nextTurnCarrying(requestsBeforeStop + 1, MESSAGE_1B) !== undefined, TURN_MS / 2)
   const continued1B = nextTurnCarrying(requestsBeforeStop + 1, MESSAGE_1B)
   record('continued-request-1b.json', JSON.stringify(continued1B?.body ?? null, null, 2))
   tally.check('the second message reaches the worker as its turn after, in the lead\'s envelope, with the first message and its answer before it: one conversation', secondLanded && envelope(continued1B, MESSAGE_1B) && continued1B !== undefined && JSON.stringify(continued1B.body.messages).includes(MESSAGE_1) && JSON.stringify(continued1B.body.messages).includes('CONTINUED-1'), continued1B === undefined ? String(requests().length) : lastUser(continued1B).slice(-400))
-  const heard1B = await until(() => session.stdout().includes('LEAD-HEARD-1B'), 60_000)
+  const heard1B = await until(() => session.stdout().includes('LEAD-HEARD-1B'), TURN_MS * 2 / 3)
   tally.check('the second reply reaches the lead as a turn', heard1B, session.stdout().slice(-400))
-  const idle = await until(() => availableNotices() >= 1, 30_000)
+  const idle = await until(() => availableNotices() >= 1, TURN_MS / 3)
   tally.check('the resumed worker ran under a new row and went idle after its answers', resumedRow !== undefined && idle && sameRow(), JSON.stringify({ rows: rowsOf(), available: availableNotices(), roster: workerRows() }))
 
   tally.section('THE PIN, while the stopped row still stands: the lead stops the idle worker and messages it in the same turn, so the message meets the row before the eviction')
   const requestsBeforeStanding = requests().length
   const rowsBeforeStanding = rowsOf().length
   session.submit(`${STANDING}: stop the worker and message it at once.`)
-  const answered3 = await until(() => session.stdout().includes('LEAD-SENT-3'), 60_000)
+  const answered3 = await until(() => session.stdout().includes('LEAD-SENT-3'), TURN_MS * 2 / 3)
   const stop3 = toolResultOf(world, STOP_3)
   const answer3 = toolResultOf(world, SEND_3)
   const text3 = answer3?.text ?? ''
@@ -173,19 +173,19 @@ try {
   record('send-standing-row.txt', `${text3}\nis_error=${String(answer3?.isError)}\n`)
   tally.check('the lead\'s stop reached the running worker', answered3 && stop3 !== null && /Stopped task/.test(stop3.text) && stop3.text.includes('in_process_teammate'), stop3?.text.slice(0, 200) ?? '')
   tally.check('the message that follows the stop within its turn meets the row that still stands: the seat "was stopped", not "had left the list", and is resumed', answer3 !== null && resumedWords(text3) && /was stopped/.test(text3) && !/left the list/.test(text3), text3.slice(0, 300))
-  await until(() => requests().length > requestsBeforeStanding, 30_000)
-  const continued3 = requests()[requestsBeforeStanding]
+  await until(() => nextTurnCarrying(requestsBeforeStanding, MESSAGE_3) !== undefined, TURN_MS / 3)
+  const continued3 = nextTurnCarrying(requestsBeforeStanding, MESSAGE_3) ?? requests()[requestsBeforeStanding]
   record('continued-request-3.json', JSON.stringify(continued3?.body ?? null, null, 2))
   tally.check('the worker resumes with that message as its next turn and the whole earlier conversation in its context', envelope(continued3, MESSAGE_3) && continued3 !== undefined && JSON.stringify(continued3.body.messages).includes('CONTINUED-1B'), continued3 === undefined ? '' : lastUser(continued3).slice(-400))
-  const row3 = (await until(() => rowsOf().length > rowsBeforeStanding, 30_000)) ? rowsOf()[rowsBeforeStanding] : undefined
+  const row3 = (await until(() => rowsOf().length > rowsBeforeStanding, TURN_MS / 3)) ? rowsOf()[rowsBeforeStanding] : undefined
   tally.check('it runs on under a new row with its own name; the roster keeps the name and the agent id', row3 !== undefined && row3.description.startsWith(`${worker}:`) && sameRow(), JSON.stringify({ rows: rowsOf(), roster: workerRows() }))
-  const answered3Landed = await until(() => landedOnTranscript('CONTINUED-3'), 30_000)
+  const answered3Landed = await until(() => landedOnTranscript('CONTINUED-3'), TURN_MS / 3)
   tally.check('the resumed worker answers, and its answer lands on its transcript', answered3Landed, JSON.stringify(transcripts()))
 
   tally.section('THE PIN, after the row has left the list: a stop while a tool runs, the three-second eviction, then a message from a fresh turn resumes it from its record')
   const requestsBeforeLong = requests().length
   session.submit(`${LONG}: tell the worker to run the long command.`)
-  const longStarted = await until(() => requests().length > requestsBeforeLong && lastUser(requests().at(-1)!).includes(MESSAGE_4), 60_000)
+  const longStarted = await until(() => requests().length > requestsBeforeLong && lastUser(requests().at(-1)!).includes(MESSAGE_4), TURN_MS * 2 / 3)
   tally.check('the idle worker takes the message from its inbox and starts the long command', longStarted, String(requests().length))
   await sleep(1500)
   const running = rowsOf().at(-1)
@@ -196,15 +196,15 @@ try {
   tally.check('after the eviction the roster holds no row for the worker, and its one transcript stands on disk', workerRows().length === 0 && before.length === 1, JSON.stringify({ members: workerRows(), before }))
   const requestsBeforeSecond = requests().length
   session.submit(`${THIRD}: message the worker again.`)
-  const answered2 = await until(() => session.stdout().includes('LEAD-SENT-2'), 60_000)
+  const answered2 = await until(() => session.stdout().includes('LEAD-SENT-2'), TURN_MS * 2 / 3)
   const answer2 = toolResultOf(world, SEND_2)
   const text2 = answer2?.text ?? ''
   record('send-after-eviction.txt', `${text2}\nis_error=${String(answer2?.isError)}\n`)
   tally.check('the lead\'s message after the eviction was answered', answered2 && answer2 !== null, session.stdout().slice(-600))
   tally.check('the message is not refused as an unknown member (RED on the base: "no such member on team")', answer2 !== null && !refused(text2), text2.slice(0, 300))
   tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text2), text2.slice(0, 300))
-  await until(() => requests().length > requestsBeforeSecond, 30_000)
-  const continued2 = requests()[requestsBeforeSecond]
+  await until(() => nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) !== undefined, TURN_MS / 3)
+  const continued2 = nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) ?? requests()[requestsBeforeSecond]
   record('continued-request-2.json', JSON.stringify(continued2?.body ?? null, null, 2))
   const history2 = JSON.stringify(continued2?.body.messages ?? [])
   tally.check('the worker makes a new request from its record (RED on the base: none)', continued2 !== undefined, String(requests().length))
@@ -212,9 +212,9 @@ try {
   tally.check('the replayed history is one the API accepts: no tool_use without its result, no empty assistant turn', continued2 !== undefined && refusal === null, String(refusal))
   tally.check('its history keeps the tool result, every earlier message and its answers: one conversation across every resume', history2.includes('HISTORY-WITNESS') && history2.includes(MESSAGE_1) && history2.includes('CONTINUED-1') && history2.includes(MESSAGE_1B) && history2.includes(MESSAGE_3) && history2.includes(MESSAGE_4))
   tally.check('the message rides as its next turn', envelope(continued2, MESSAGE_2), continued2 === undefined ? '' : lastUser(continued2).slice(-400))
-  const heard2 = await until(() => session.stdout().includes('LEAD-HEARD-2'), 60_000)
+  const heard2 = await until(() => session.stdout().includes('LEAD-HEARD-2'), TURN_MS * 2 / 3)
   tally.check('the reply after the cut reaches the lead as a turn', heard2, session.stdout().slice(-400))
-  const landed = await until(() => landedOnTranscript(MESSAGE_2), 15_000)
+  const landed = await until(() => landedOnTranscript(MESSAGE_2), TURN_MS / 6)
   const after = transcripts()
   tally.check('every continuation lands on the one transcript file', landed && after.length === 1 && after[0] === before[0], JSON.stringify(after))
   tally.check('the roster holds the worker under the same name and agent id once more', sameRow(), JSON.stringify(workerRows()))
