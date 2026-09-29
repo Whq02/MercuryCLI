@@ -11,8 +11,9 @@ const ROOT = join(import.meta.dir, '..', '..')
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(ROOT, 'src')
 
-const CURRENT = { home: 'MERCURY_CREWS_DIR', surfaces: 'MERCURY_CREWMATES', command: 'MERCURY_CREWMATE_COMMAND' }
-const FORMER = { home: 'MERCURY_TEAMS_DIR', surfaces: 'MERCURY_TEAMMATES', command: 'MERCURY_TEAMMATE_COMMAND' }
+const CURRENT = { home: 'MERCURY_CREWS_DIR', surfaces: 'MERCURY_CREWMATES' }
+const FORMER = { home: 'MERCURY_TEAMS_DIR', surfaces: 'MERCURY_TEAMMATES' }
+const GONE = { current: 'MERCURY_CREWMATE_COMMAND', former: 'MERCURY_TEAMMATE_COMMAND' }
 
 function runWith(env: Record<string, string | undefined>, body: string): Record<string, unknown> {
   const src = `
@@ -28,7 +29,7 @@ function runWith(env: Record<string, string | undefined>, body: string): Record<
   `
   const merged: Record<string, string> = {}
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined) merged[k] = v
-  for (const name of [...Object.values(CURRENT), ...Object.values(FORMER)]) delete merged[name]
+  for (const name of [...Object.values(CURRENT), ...Object.values(FORMER), ...Object.values(GONE)]) delete merged[name]
   for (const [k, v] of Object.entries(env)) if (v !== undefined) merged[k] = v
   const r = spawnSync(BUN, ['-e', src], { encoding: 'utf8', env: merged, cwd: ROOT })
   const line = r.stdout.trim().split('\n').filter(l => l.startsWith('{')).pop()
@@ -37,7 +38,7 @@ function runWith(env: Record<string, string | undefined>, body: string): Record<
 }
 
 console.log('============================================================')
-console.log(' old env spellings are honoured: MERCURY_TEAMS_DIR, MERCURY_TEAMMATES, MERCURY_TEAMMATE_COMMAND')
+console.log(' old env spellings are honoured: MERCURY_TEAMS_DIR, MERCURY_TEAMMATES')
 console.log('============================================================')
 
 console.log('§1 the crew spellings are the registered flags and name their former spellings')
@@ -46,36 +47,33 @@ console.log('§1 the crew spellings are the registered flags and name their form
     console.log(JSON.stringify({
       home: spec(${JSON.stringify(CURRENT.home)}) ? { formerly: spec(${JSON.stringify(CURRENT.home)}).formerly ?? null, spellings: spellings(${JSON.stringify(CURRENT.home)}) } : null,
       surfaces: spec(${JSON.stringify(CURRENT.surfaces)}) ? { formerly: spec(${JSON.stringify(CURRENT.surfaces)}).formerly ?? null, spellings: spellings(${JSON.stringify(CURRENT.surfaces)}) } : null,
-      command: spec(${JSON.stringify(CURRENT.command)}) ? { formerly: spec(${JSON.stringify(CURRENT.command)}).formerly ?? null, spellings: spellings(${JSON.stringify(CURRENT.command)}) } : null,
-      oldRegistered: [${JSON.stringify(FORMER.home)}, ${JSON.stringify(FORMER.surfaces)}, ${JSON.stringify(FORMER.command)}].filter(n => spec(n) !== undefined),
+      gone: [${JSON.stringify(GONE.current)}, ${JSON.stringify(GONE.former)}].filter(n => spec(n) !== undefined),
+      oldRegistered: [${JSON.stringify(FORMER.home)}, ${JSON.stringify(FORMER.surfaces)}].filter(n => spec(n) !== undefined),
       crewDirReader: typeof envUtils.getCrewsDir === 'function',
     }))
   `)
   const home = v.home as { formerly: string | null; spellings: string[] } | null
   const surfaces = v.surfaces as { formerly: string | null; spellings: string[] } | null
-  const command = v.command as { formerly: string | null; spellings: string[] } | null
   check(`${CURRENT.home} is a registered flag whose former spelling is ${FORMER.home}`, home !== null && home.formerly === FORMER.home, JSON.stringify(v))
   check(`${CURRENT.surfaces} is a registered flag whose former spelling is ${FORMER.surfaces}`, surfaces !== null && surfaces.formerly === FORMER.surfaces)
-  check(`${CURRENT.command} is a registered flag whose former spelling is ${FORMER.command}`, command !== null && command.formerly === FORMER.command)
-  check('the spellings of each flag list the current one first and the former one second', [home, surfaces, command].every((s, i) => s !== null && s.spellings.length === 2 && s.spellings[0] === Object.values(CURRENT)[i] && s.spellings[1] === Object.values(FORMER)[i]))
+  check('the spellings of each flag list the current one first and the former one second', [home, surfaces].every((s, i) => s !== null && s.spellings.length === 2 && s.spellings[0] === Object.values(CURRENT)[i] && s.spellings[1] === Object.values(FORMER)[i]))
+  check(`the launch-command flag went with the pane option: neither ${GONE.current} nor ${GONE.former} is registered`, Array.isArray(v.gone) && (v.gone as string[]).length === 0, JSON.stringify(v.gone))
   check('the former spellings are not registered rows of their own', Array.isArray(v.oldRegistered) && (v.oldRegistered as string[]).length === 0)
   check('the saved-crews home reader is getCrewsDir', v.crewDirReader === true)
 }
 
 console.log('§2 a shell that sets only the old spellings is honoured')
 {
-  const v = runWith({ [FORMER.home]: '/private/tmp/mw/crew-rename-old-teams-home', [FORMER.surfaces]: '0', [FORMER.command]: '/private/tmp/mw/crew-rename-old-command' }, `
+  const v = runWith({ [FORMER.home]: '/private/tmp/mw/crew-rename-old-teams-home', [FORMER.surfaces]: '0' }, `
     console.log(JSON.stringify({
       home: read(${JSON.stringify(CURRENT.home)}),
       homeDir: typeof envUtils.getCrewsDir === 'function' ? envUtils.getCrewsDir() : null,
       surfaces: read(${JSON.stringify(CURRENT.surfaces)}),
       swarmsOn: (() => { try { return swarms.isAgentSwarmsEnabled() } catch (e) { return 'THROWS: ' + String(e.message ?? e) } })(),
-      command: read(${JSON.stringify(CURRENT.command)}),
     }))
   `)
   check(`${FORMER.home} alone sets the saved-crews home`, v.home === '/private/tmp/mw/crew-rename-old-teams-home' && v.homeDir === '/private/tmp/mw/crew-rename-old-teams-home', JSON.stringify(v))
   check(`${FORMER.surfaces}=0 alone turns the crewmate surfaces off`, v.surfaces === '0' && v.swarmsOn === false)
-  check(`${FORMER.command} alone names the crewmate launch command`, v.command === '/private/tmp/mw/crew-rename-old-command')
 }
 
 console.log('§3 the current spelling wins when both are set')
@@ -92,11 +90,11 @@ console.log('§4 a child env stamped through the registry carries both spellings
     const pair = reg.flagPair(${JSON.stringify(CURRENT.surfaces)}, '1')
     const child = {}
     reg.stampFlagOnEnv(child, ${JSON.stringify(CURRENT.home)}, '/x')
-    reg.setFlagEnv(${JSON.stringify(CURRENT.command)}, '/y')
-    const before = { current: process.env[${JSON.stringify(CURRENT.command)}] ?? null, former: process.env[${JSON.stringify(FORMER.command)}] ?? null }
-    process.env[${JSON.stringify(FORMER.command)}] = '/z'
-    reg.deleteFlagEnv(${JSON.stringify(CURRENT.command)})
-    const after = { current: process.env[${JSON.stringify(CURRENT.command)}] ?? null, former: process.env[${JSON.stringify(FORMER.command)}] ?? null }
+    reg.setFlagEnv(${JSON.stringify(CURRENT.surfaces)}, '/y')
+    const before = { current: process.env[${JSON.stringify(CURRENT.surfaces)}] ?? null, former: process.env[${JSON.stringify(FORMER.surfaces)}] ?? null }
+    process.env[${JSON.stringify(FORMER.surfaces)}] = '/z'
+    reg.deleteFlagEnv(${JSON.stringify(CURRENT.surfaces)})
+    const after = { current: process.env[${JSON.stringify(CURRENT.surfaces)}] ?? null, former: process.env[${JSON.stringify(FORMER.surfaces)}] ?? null }
     console.log(JSON.stringify({ pair, child, before, after }))
   `)
   const pair = v.pair as Record<string, string>

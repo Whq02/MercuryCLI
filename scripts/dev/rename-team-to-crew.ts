@@ -7,7 +7,7 @@ import { basename, dirname, extname, join, posix, resolve } from 'node:path'
 type Why = { why: string }
 type Rule = { name: string } & Why
 type Explicit = { from: string; to: string; re: RegExp } & Why
-type AliasPatch = { file: string; find: string; replace: string; already: string } & Why
+type AliasPatch = { file: string; find: string; replace: string; already: string; optional?: boolean } & Why
 type Generator = { command: string[]; touches: string[] } & Why
 
 const SELF = 'scripts/dev/rename-team-to-crew.ts'
@@ -142,10 +142,11 @@ const ALIAS_PATCHES: AliasPatch[] = [
   },
   {
     file: 'src/substrate/flagRegistry.ts',
-    why: 'the crewmate launch command flag honours the spelling saved shells and older builds set',
+    why: 'the crewmate launch command flag honours the spelling saved shells and older builds set (a row the pane-option removal may have taken away)',
     find: "  { env: 'MERCURY_CREWMATE_COMMAND', kind: 'value',",
     replace: "  { env: 'MERCURY_CREWMATE_COMMAND', formerly: 'MERCURY_TEAMMATE_COMMAND', kind: 'value',",
     already: "  { env: 'MERCURY_CREWMATE_COMMAND', formerly: 'MERCURY_TEAMMATE_COMMAND',",
+    optional: true,
   },
   {
     file: 'src/utils/sessionStorage/paths.ts',
@@ -734,6 +735,10 @@ function applyAliasPatches(root: string, renameMap: Map<string, string>, log: st
       continue
     }
     const at = text.indexOf(p.find)
+    if (at === -1 && p.optional === true) {
+      log.push(`  not needed in ${rel}: ${p.why}`)
+      continue
+    }
     if (at === -1 || text.indexOf(p.find, at + 1) !== -1) {
       missing.push(`${p.file}: anchor ${at === -1 ? 'absent' : 'ambiguous'} for: ${p.why}`)
       continue
@@ -821,7 +826,7 @@ function main(): void {
   say('## keys and flags')
   say('  settings.json: hooks.TeammateIdle → hooks.CrewmateIdle (a RETIRED_SETTINGS_KEYS row: the old key is read and rewritten once)')
   say('  global config: teammateMode → crewmateMode, teammateDefaultModel → crewmateDefaultModel (RETIRED_GLOBAL_CONFIG_KEYS rows: the old keys are read)')
-  say('  env: MERCURY_TEAMS_DIR → MERCURY_CREWS_DIR (MERCURY_CREW_DIR already names the crew store), MERCURY_TEAMMATES → MERCURY_CREWMATES, MERCURY_TEAMMATE_COMMAND → MERCURY_CREWMATE_COMMAND (the former spelling is read when the current one is unset; stamps carry both)')
+  say('  env: MERCURY_TEAMS_DIR → MERCURY_CREWS_DIR (MERCURY_CREW_DIR already names the crew store), MERCURY_TEAMMATES → MERCURY_CREWMATES, and MERCURY_TEAMMATE_COMMAND → MERCURY_CREWMATE_COMMAND where that row still exists (the former spelling is read when the current one is unset; stamps carry both)')
   say('## exclusions')
   for (const e of EXCLUDED_PATHS) say(`  never touched: ${e.prefix} — ${e.why}`)
   for (const f of FROZEN_FILES) say(`  content kept: ${f.path} — ${f.why}`)
