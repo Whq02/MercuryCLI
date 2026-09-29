@@ -156,8 +156,8 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - Releases: [releases/README.md](releases/README.md) keeps one page per
   tag — its state, the verdict it stands on, what shipped, its known gaps
   and the queue for the next one ([1.0.0-beta.23](releases/1.0.0-beta.23.md)
-  is the newest tag; [1.0.0-beta.24](releases/1.0.0-beta.24.md) is the
-  queue). The
+  is the newest tag; [1.0.0-beta.24](releases/1.0.0-beta.24.md) is ready
+  for the tag; [1.0.0-beta.25](releases/1.0.0-beta.25.md) is the queue). The
   notes themselves ride each release: `/update-notes` shows the running
   release's notes in the chat, with the earlier releases behind the
   transcript key, and a headless run prints every release.
