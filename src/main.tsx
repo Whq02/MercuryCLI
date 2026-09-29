@@ -657,12 +657,14 @@ async function run(): Promise<void> {
     await defaultAction(prompt, program.opts())
   })
 
+  const parseProgram = () => program.parseAsync(readRetiredCliFlags(process.argv))
+
   if (isPrintModeArgv()) {
     profileCheckpoint('run_before_parse')
     if (wantsStreamJsonEnvelope()) {
       program.exitOverride()
       try {
-        await program.parseAsync(readRetiredCliFlags(process.argv))
+        await parseProgram()
       } catch (error) {
         const commanderError = error as { code?: string; exitCode?: number; message?: string }
         if (
@@ -682,7 +684,7 @@ async function run(): Promise<void> {
         )
       }
     } else {
-      await program.parseAsync(process.argv)
+      await parseProgram()
     }
     profileCheckpoint('run_after_parse')
     return
@@ -691,7 +693,7 @@ async function run(): Promise<void> {
   await registerSubcommands(program)
 
   profileCheckpoint('run_before_parse')
-  await program.parseAsync(readRetiredCliFlags(process.argv))
+  await parseProgram()
   profileCheckpoint('run_after_parse')
   profileCheckpoint('run_complete')
   profileReport()

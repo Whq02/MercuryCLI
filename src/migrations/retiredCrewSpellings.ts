@@ -266,10 +266,11 @@ export function readRetiredCrewFile<T extends CrewFileLike>(file: T, currentLead
       if (!isRecord(member)) return member
       const name = readRetiredCrewIdentity(member.name, currentLeadName)
       const agentId = readRetiredCrewIdentity(member.agentId, currentLeadName)
+      const agentType = readRetiredCrewIdentity(member.agentType, currentLeadName)
       const role = readRetiredCrewMemberRole(member.role)
-      if (name === member.name && agentId === member.agentId && role === member.role) return member
+      if (name === member.name && agentId === member.agentId && agentType === member.agentType && role === member.role) return member
       changed = true
-      return { ...member, name, agentId, ...(role === undefined ? {} : { role }) }
+      return { ...member, name, agentId, ...(agentType === undefined ? {} : { agentType }), ...(role === undefined ? {} : { role }) }
     })
     if (changed) out = { ...out, members }
   }
