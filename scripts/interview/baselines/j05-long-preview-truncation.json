@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-29T11:57:07.047Z",
+ "capturedAt": "2026-09-29T13:10:45.761Z",
  "screens": [
   {
    "atMs": 12500,
@@ -37,7 +37,7 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-JJaXS4                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-HZvzMV                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -72,23 +72,23 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-JJaXS4                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-HZvzMV                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 13090,
-   "frame-recommit": 25,
+   "patches": 13561,
+   "frame-recommit": 28,
    "tail-publish": 2
   },
   "frames": {
-   "total": 41,
-   "window": 41,
-   "p50": 2.0012080000001333,
-   "p95": 12.442209000000048,
-   "p99": 35.80400000000009,
-   "maxMs": 35.80400000000009
+   "total": 47,
+   "window": 47,
+   "p50": 1.6585419999992155,
+   "p95": 31.078167000000576,
+   "p99": 273.8928329999999,
+   "maxMs": 273.8928329999999
   }
  },
  "requests": [
@@ -123,11 +123,11 @@
  ],
  "sends": [
   {
-   "atMs": 7734.2047691345215,
+   "atMs": 10628.512144088745,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 8534.204769134521,
+   "atMs": 11428.512144088745,
    "b64": "DQ=="
   }
  ]
