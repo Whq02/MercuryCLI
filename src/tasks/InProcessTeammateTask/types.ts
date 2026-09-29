@@ -21,6 +21,8 @@ export type InProcessTeammateTaskState = TaskStateBase & {
   identity: TeammateIdentity
   prompt: string
   model?: string
+  cwd?: string
+  worktree?: string
   effort?: string
   transcriptAgentId?: string
   agentDefinition?: AgentDefinition

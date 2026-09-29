@@ -174,6 +174,8 @@ export type DaemonRequest =
       auth?: string
       name: string
       model: string
+      cwd?: string
+      worktree?: true | { at?: string }
     }
   | {
       op: 'sessionAdmit'
@@ -378,6 +380,8 @@ export interface WireRosterEntry {
   busy?: boolean
   turnActive?: boolean
   turnElapsedMs?: number
+  cwd?: string
+  worktree?: string
 }
 
 export interface LeaseClient {

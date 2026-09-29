@@ -260,6 +260,7 @@ export type WorkRowV1 = {
   unreadNotices?: number
   command?: string
   cwd?: string
+  worktree?: string
   outputFile?: string
 }
 

@@ -194,12 +194,12 @@ tally.check("node_modules in the worktree is a link to the checkout's", new RegE
 tally.check('…and so is the vendored pack', new RegExp(`vendor/pack-a -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/vendor/pack-a`).test(build), build.split('\n').slice(1, 3).join(' | '))
 tally.check('bun run typecheck exits 0 there', /typecheck-ok rc=0/.test(build), build)
 tally.check('git status in the worktree shows nothing', /rc=0\nstatus-end/.test(build), build)
-tally.check('the isolated launch answered without error and the clean worktree was settled', seen.isolated !== undefined && !seen.isolated.isError && !/Worktree kept/.test(seen.isolated.text), seen.isolated?.text.slice(0, 300))
+tally.check('the isolated launch answered without error and its clean worktree is kept, the receipt reminding when the janitor takes it', seen.isolated !== undefined && !seen.isolated.isError && /Worktree kept: /.test(seen.isolated.text) && /seven-day janitor/.test(seen.isolated.text), seen.isolated?.text.slice(0, 300))
 const excludePath = join(repo, '.git', 'info', 'exclude')
 const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
 tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 tally.check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
-tally.check('no worktree is left behind', git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 1, git(repo, 'worktree', 'list', '--porcelain'))
+tally.check("the helper's worktree is left for the lead to decide on (the repository lists it; nothing is deleted automatically)", git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 2, git(repo, 'worktree', 'list', '--porcelain'))
 
 const firstLine = (r: SeenResult | undefined): string => (r?.text ?? '').split('\n')[0]?.trim() ?? ''
 const waitForFile = (file: string): string => `for i in $(seq 1 ${pollRounds(TURN_MS / 2)}); do [ -f "${file}" ] && break; sleep 0.2; done; cat "${file}" 2>/dev/null || echo no-flag`
@@ -329,7 +329,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   const effortContinuedFlag = join(scratch, 'effort-continued.flag')
   const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
   const readRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48)}); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
-  const readSettledRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48, 100)}); do ${findRecord}; [ -n "$f" ] && ! grep -q worktreePath "$f" && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
+  const readSettledRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48, 100)}); do ${findRecord}; [ -n "$f" ] && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
   let effortId = ''
   let preSettle = ''
   let continuedEffortPwd = ''
@@ -385,12 +385,12 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   show('the settled record', seen.effortSettled, effortTurn)
   show('the continuation by message', seen.effortContinued, effortTurn)
   show('the record after the continuation', seen.effortAfter, effortTurn)
-  tally.section('a settled isolated helper keeps its launch facts and its continuation uses the preserved effort')
-  tally.check('the isolated launch answered and its clean worktree settled (staging)', seen.effortLaunch !== undefined && !seen.effortLaunch.isError && !/Worktree kept/.test(seen.effortLaunch.text) && effortId !== '', seen.effortLaunch?.text.slice(0, 300))
-  tally.check('the helper read its worktree path and effort before settlement (staging)', pre !== null && typeof pre.worktreePath === 'string' && pre.effortOverride === 'max' && typeof pre.effort === 'string', preSettle.slice(0, 300))
-  tally.check('the settled record no longer names the worktree', post !== null && post.worktreePath === undefined, seen.effortSettled?.text.slice(0, 300))
-  tally.check('every other recorded fact survives the clear-write', pre !== null && post !== null && typeof post.model === 'string' && factsOf(post) === factsOf(pre), `before=${factsOf(pre)} after=${factsOf(post)}`)
-  tally.check('the message resumes in the checkout without a gone-worktree note', seen.effortContinued !== undefined && !seen.effortContinued.isError && !/worktree is gone/.test(seen.effortContinued.text) && continuedEffortPwd === repo, `${seen.effortContinued?.text.slice(0, 200)} pwd=${continuedEffortPwd}`)
+  tally.section('an ended isolated helper keeps its worktree and its launch facts, and its continuation uses the preserved effort in that worktree')
+  tally.check('the isolated launch answered and its clean worktree is kept with the reminder (staging)', seen.effortLaunch !== undefined && !seen.effortLaunch.isError && /Worktree kept: /.test(seen.effortLaunch.text) && effortId !== '', seen.effortLaunch?.text.slice(0, 300))
+  tally.check('the helper read its worktree path and effort while it ran (staging)', pre !== null && typeof pre.worktreePath === 'string' && pre.effortOverride === 'max' && typeof pre.effort === 'string', preSettle.slice(0, 300))
+  tally.check('the record after its end still names the kept worktree (nothing is deleted automatically)', post !== null && pre !== null && post.worktreePath === pre.worktreePath, seen.effortSettled?.text.slice(0, 300))
+  tally.check('every recorded fact is untouched at the end (no clear-write)', pre !== null && post !== null && typeof post.model === 'string' && factsOf(post) === factsOf(pre), `before=${factsOf(pre)} after=${factsOf(post)}`)
+  tally.check('the message resumes in the kept worktree without a gone-worktree note', seen.effortContinued !== undefined && !seen.effortContinued.isError && !/worktree is gone/.test(seen.effortContinued.text) && pre !== null && continuedEffortPwd === pre.worktreePath, `${seen.effortContinued?.text.slice(0, 200)} · pwd=${continuedEffortPwd}`)
   tally.check('the continued helper records the same effort pin and resolved effort', after !== null && after.effortOverride === 'max' && pre !== null && after.effort === pre.effort, `after=${factsOf(after)}`)
 }
 

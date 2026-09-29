@@ -21,6 +21,7 @@ import {
   type TeammateMessage,
 } from '../teammateMailbox.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
+import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'
 
 export const CREW_LEAD_INBOX = 'team-lead'
 
@@ -101,7 +102,7 @@ export async function spawnCrewTeammate(
   for (let attempt = 0; attempt < 15; attempt++) {
     try {
       const reply = await daemonControlRpc(
-        { op: 'crewSpawn', name, model: String(modelKey) } as DaemonRequest,
+        { op: 'crewSpawn', name, model: String(modelKey), cwd: projectDir } as DaemonRequest,
         { timeoutMs: 3000 },
       )
       if (reply.ok && reply.op === 'crewSpawn') return { ok: true, pid: reply.pid }
@@ -177,6 +178,8 @@ export interface CrewMemberInfo {
   name: string
   model?: string
   joinedAt: number
+  cwd?: string
+  worktree?: string
 }
 
 export async function listCrewMembers(): Promise<CrewMemberInfo[]> {
@@ -184,7 +187,35 @@ export async function listCrewMembers(): Promise<CrewMemberInfo[]> {
   if (!team) return []
   return team.members
     .filter(m => m.name !== CREW_LEAD_INBOX)
-    .map(m => ({ name: m.name, model: m.model, joinedAt: m.joinedAt }))
+    .map(m => ({
+      name: m.name,
+      model: m.model,
+      joinedAt: m.joinedAt,
+      ...(typeof m.cwd === 'string' && m.cwd !== '' ? { cwd: m.cwd } : {}),
+      ...(typeof m.worktreePath === 'string' && m.worktreePath !== '' ? { worktree: m.worktreePath } : {}),
+    }))
+}
+
+export async function crewSeatGlances(): Promise<CrewSeatGlanceV1[]> {
+  const members = await listCrewMembers()
+  if (members.length === 0) return []
+  const [status, unread] = await Promise.all([crewRosterStatus(members.map(m => m.name)), crewUnreadCounts()])
+  return members.map(m => {
+    const live = status.get(m.name)
+    return {
+      name: m.name,
+      ...(live?.model !== undefined && live.model !== '' ? { model: live.model } : m.model !== undefined ? { model: m.model } : {}),
+      online: live !== undefined,
+      unread: unread.get(m.name) ?? 0,
+      ...(live?.busy !== undefined ? { busy: live.busy } : {}),
+      ...(live?.pid !== undefined ? { pid: live.pid } : {}),
+      ...(live !== undefined ? { startedAt: live.startedAt } : {}),
+      joinedAt: m.joinedAt,
+      ...(live?.turnStartedAt !== undefined ? { turnStartedAt: live.turnStartedAt } : {}),
+      ...(live?.cwd !== undefined ? { cwd: live.cwd } : m.cwd !== undefined ? { cwd: m.cwd } : {}),
+      ...(live?.worktree !== undefined ? { worktree: live.worktree } : m.worktree !== undefined ? { worktree: m.worktree } : {}),
+    }
+  })
 }
 
 export interface CrewChatRow {
