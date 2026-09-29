@@ -46,8 +46,24 @@ export function getRoleSystemPrompt(
   }
 }
 
+export type CrewmateRoleRecord = {
+  id: string
+  name: string
+  kind: 'crewmate' | 'seat'
+  model?: string | null
+  cwd?: string | null
+  worktree?: string | null
+}
+
+function ownedByCrewmate(crewmate: CrewmateRoleRecord | undefined): string[] {
+  if (!crewmate) return []
+  const tree = crewmate.worktree ?? crewmate.cwd
+  return tree ? [tree] : []
+}
+
 export function deriveRolePacket(i: {
-  teammateName: string
+  teammateName?: string
+  crewmate?: CrewmateRoleRecord
   agentType: string
   prompt: string
   description?: string
@@ -59,10 +75,10 @@ export function deriveRolePacket(i: {
     (firstLine.length > 140 ? `${firstLine.slice(0, 137)}…` : firstLine) ||
     'as assigned by the lead'
   return {
-    teammateName: i.teammateName,
+    teammateName: i.crewmate?.name ?? i.teammateName ?? '',
     agentType: i.agentType,
     mission,
-    owns: [],
+    owns: ownedByCrewmate(i.crewmate),
     dependsOn: [],
     deliverable: 'what your task message specifies, with evidence',
     doneWhen: [],
@@ -84,7 +100,8 @@ export type ResolvedTeammateRole = {
 }
 
 export function resolveTeammateRole(i: {
-  teammateName: string
+  teammateName?: string
+  crewmate?: CrewmateRoleRecord
   requestedAgentType?: string
   agents: readonly AgentDefinition[]
   prompt: string
@@ -92,8 +109,9 @@ export function resolveTeammateRole(i: {
   charter?: TeamCharter | null
 }): ResolvedTeammateRole {
   const definition = findRoleDefinition(i.requestedAgentType, i.agents)
+  const crewmateName = i.crewmate?.name ?? i.teammateName ?? ''
   const agentType =
-    definition?.agentType ?? decodeAgentType(i.requestedAgentType) ?? i.teammateName
+    definition?.agentType ?? decodeAgentType(i.requestedAgentType) ?? crewmateName
   return {
     agentType,
     displayLabel: agentType,
@@ -104,7 +122,8 @@ export function resolveTeammateRole(i: {
     behavior: MERCURY_BEHAVIOR_PROFILE,
     charter: i.charter ?? null,
     rolePacket: deriveRolePacket({
-      teammateName: i.teammateName,
+      teammateName: crewmateName,
+      crewmate: i.crewmate,
       agentType,
       prompt: i.prompt,
       description: i.description,

@@ -17,6 +17,7 @@ import { logError } from './log.js'
 import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+import { listLiveCommsTasks, subscribeLiveCommsTasks, type LiveCommsTaskV1 } from '../services/crew/liveTasks.js'
 import { getTeamName } from './teammate.js'
 import { getTeammateContext, isInProcessTeammate } from './teammateContext.js'
 import { TEAM_LEAD_NAME } from './swarm/constants.js'
@@ -62,6 +63,43 @@ export function getTaskListId(): string {
   return getTeamName() || leaderTeamName || getSessionId()
 }
 
+const liveLedgerWatched = new Set<string>()
+
+function watchLiveLedger(crew: string): void {
+  if (liveLedgerWatched.has(crew)) return
+  liveLedgerWatched.add(crew)
+  try {
+    subscribeLiveCommsTasks(crew, () => notifyTasksUpdated())
+  } catch (error) {
+    liveLedgerWatched.delete(crew)
+    logForDebugging(`the live comms ledger watch for ${crew} could not start: ${String(error)}`)
+  }
+}
+
+const LIVE_LEDGER_PREFIX = 'livecomms:'
+
+async function listLiveLedger(crew: string): Promise<Task[]> {
+  watchLiveLedger(crew)
+  let live: LiveCommsTaskV1[] = []
+  try {
+    live = await listLiveCommsTasks(crew)
+  } catch (error) {
+    logForDebugging(`the live comms ledger for ${crew} could not be read: ${String(error)}`)
+    return []
+  }
+  const keyed = (taskId: string): string => `${LIVE_LEDGER_PREFIX}${taskId}`
+  const ids = new Set(live.map(t => t.id))
+  return live.map(t => ({
+    id: keyed(t.id),
+    subject: t.subject,
+    description: t.detail ?? '',
+    ...(t.owner !== undefined ? { owner: t.owner } : {}),
+    status: t.status,
+    blocks: live.filter(other => other.blockedBy.includes(t.id)).map(other => keyed(other.id)),
+    blockedBy: t.blockedBy.filter(id => ids.has(id)).map(keyed),
+  }))
+}
+
 export async function listSessionMission(): Promise<Task[]> {
   const own = String(getSessionId())
   const current = getTaskListId()
@@ -88,6 +126,11 @@ export async function listSessionMission(): Promise<Task[]> {
       seen.add(id)
       rows.push({ ...task, id, blocks: task.blocks.map(keyed), blockedBy: task.blockedBy.map(keyed) })
     }
+  }
+  for (const task of await listLiveLedger(current)) {
+    if (seen.has(task.id)) continue
+    seen.add(task.id)
+    rows.push(task)
   }
   return rows
 }
