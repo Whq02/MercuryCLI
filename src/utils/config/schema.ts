@@ -302,7 +302,6 @@ export type GlobalConfig = {
   githubRepoPaths?: Record<string, string[]>
 
   iterm2It2SetupComplete?: boolean
-  preferTmuxOverIterm2?: boolean
 
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
 
@@ -310,7 +309,6 @@ export type GlobalConfig = {
 
   permissionExplainerEnabled?: boolean
 
-  teammateMode?: 'auto' | 'tmux' | 'in-process'
   teammateDefaultModel?: string | null
 
   agents?: {

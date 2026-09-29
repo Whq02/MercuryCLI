@@ -131,7 +131,6 @@ import type { Props as REPLProps } from './screens/REPL.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { McpSdkServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js'
-import { setCliTeammateModeOverride } from './utils/swarm/backends/teammateModeSnapshot.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js'
@@ -587,7 +586,6 @@ async function run(): Promise<void> {
     program.addOption(new Option(flags, description).hideHelp())
   }
   program.addOption(new Option('--strategy-mode-required', 'Teammate requires strategy mode').hideHelp())
-  program.addOption(new Option('--teammate-mode <mode>', 'Teammate pane mode').choices(['auto', 'tmux', 'in-process']).hideHelp())
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
@@ -1177,7 +1175,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentColor = typedString(opts.agentColor)
   const planModeRequired = typedBoolean(opts.strategyModeRequired)
   const parentSessionId = typedString(opts.parentSessionId)
-  const teammateMode = typedString(opts.teammateMode)
   const agentTypeOpt = typedString(opts.agentType)
   const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
   if (isAgentSwarmsEnabled()) {
@@ -1366,9 +1363,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   const resolvedInitialModel = getMainLoopModel()
 
-  if (teammateMode === 'auto' || teammateMode === 'tmux' || teammateMode === 'in-process') {
-    setCliTeammateModeOverride(teammateMode)
-  }
   if (agentId && agentName && teamName && agentTypeOpt) {
     let rolePrompt: string | undefined
     const roleDefinition = findRoleDefinition(agentTypeOpt, activeAgents)

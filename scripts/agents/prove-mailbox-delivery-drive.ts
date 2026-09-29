@@ -44,7 +44,7 @@ script.push(...[
   { kind: 'paced', deltas: ['Workflow test done.'], gapMs: 0, startDelayMs: 5000, whenModel: 'opus-5' },
 ] as ScriptedTurn[])
 const fixture = await startFixtureApi(script)
-const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'Workflow', '--teammate-mode', 'in-process', '--session-id', sessionId], {
+const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'Workflow', '--session-id', sessionId], {
   cwd: project,
   env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],

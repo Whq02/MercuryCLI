@@ -38,7 +38,7 @@ type ScriptedTurnBody =
       signature?: string
       usage?: FixtureUsage
     }
-  | { kind: 'error'; status: number; errorType: string; message: string }
+  | { kind: 'error'; status: number; errorType: string; message: string; headers?: Record<string, string> }
   | { kind: 'hang'; deltas: string[] }
   | { kind: 'paced'; deltas: string[]; gapMs: number; stopReason?: string; startDelayMs?: number; settleDelayMs?: number }
   | { kind: 'die'; deltas: string[] }
@@ -589,7 +589,7 @@ export async function startFixtureApi(
         return
       }
       if (turn.kind === 'error') {
-        res.writeHead(turn.status, { 'content-type': 'application/json' })
+        res.writeHead(turn.status, { 'content-type': 'application/json', ...(turn.headers ?? {}) })
         res.end(
           JSON.stringify({
             type: 'error',

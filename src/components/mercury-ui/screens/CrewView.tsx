@@ -55,6 +55,7 @@ import { crewRosterOf } from '../../../services/crew/roster.js'
 import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
 import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewTeammate } from '../../../utils/crew/crewClient.js'
 import { getCwd } from '../../../utils/cwd.js'
+import { pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
 
 type Row =
@@ -432,19 +433,20 @@ function NamedRow({
   width: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const paused = facts.state === 'paused'
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
-        <Text color={member.online ? tokens.success : tokens.textMuted}>{member.online ? GLYPH.busy : GLYPH.idle}</Text>
+        <Text color={paused ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>{paused ? GLYPH.pending : member.online ? GLYPH.busy : GLYPH.idle}</Text>
         <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
           {' '}
           {padTo(truncateToWidth(`@${member.name}`, NAME_W), NAME_W)}
         </Text>
         <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={member.online ? tokens.success : tokens.textMuted}>
+        <Text color={paused ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>
           {' '}
-          {padTo(truncateToWidth(facts.status, STATUS_W), STATUS_W)}
+          {padTo(truncateToWidth(paused && facts.paused !== null ? pauseStatusWords(facts.paused, now) : facts.status, STATUS_W), STATUS_W)}
         </Text>
         <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
         <Text color={tokens.textMuted}> {member.online ? crewElapsedLabel(facts, now) : CREW_MODEL_UNKNOWN}</Text>

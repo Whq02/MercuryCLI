@@ -214,6 +214,7 @@ export async function crewSeatGlances(): Promise<CrewSeatGlanceV1[]> {
       ...(live?.turnStartedAt !== undefined ? { turnStartedAt: live.turnStartedAt } : {}),
       ...(live?.cwd !== undefined ? { cwd: live.cwd } : m.cwd !== undefined ? { cwd: m.cwd } : {}),
       ...(live?.worktree !== undefined ? { worktree: live.worktree } : m.worktree !== undefined ? { worktree: m.worktree } : {}),
+      ...(live?.paused !== undefined ? { paused: live.paused } : {}),
     }
   })
 }

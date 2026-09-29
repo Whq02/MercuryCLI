@@ -382,6 +382,7 @@ export interface WireRosterEntry {
   turnElapsedMs?: number
   cwd?: string
   worktree?: string
+  paused?: { why: string; words: string; resumesAtMs?: number }
 }
 
 export interface LeaseClient {

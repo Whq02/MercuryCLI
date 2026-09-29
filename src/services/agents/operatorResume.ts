@@ -12,6 +12,8 @@ import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import type { SpawnOutput, SpawnTeammateConfig } from '../../tools/shared/spawnMultiAgent.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
+import { evictTerminalTask } from '../../utils/task/framework.js'
+import { cancelCrewmatePauseResume } from '../../utils/swarm/inProcessRunner.js'
 
 export type OperatorRespawnReceipt =
   | { outcome: 'applied'; agentId: string; taskId: string; outputFile: string; name: string; description: string }
@@ -55,6 +57,19 @@ export function respawnContextOf(toolUseContext: ToolUseContext): ToolUseContext
 }
 
 const resumingTeammates = new Set<string>()
+
+function releasePausedTeammateRow(taskId: string, toolUseContext: ToolUseContext): void {
+  cancelCrewmatePauseResume(taskId)
+  const setAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
+  setAppState(prevState => {
+    const row = prevState.tasks[taskId]
+    if (!isInProcessTeammateTask(row) || row.paused === undefined) return prevState
+    const { paused: _lifted, ...rest } = row
+    void _lifted
+    return { ...prevState, tasks: { ...prevState.tasks, [taskId]: rest as InProcessTeammateTaskState } }
+  })
+  evictTerminalTask(taskId, setAppState)
+}
 
 async function dropStaleRosterRow(teamName: string, agentId: string): Promise<void> {
   const roster = await readTeamFileAsync(teamName).catch(() => null)
@@ -113,6 +128,7 @@ export async function resumeTeammateFromTranscript(
     const spawned = await spawn(config, respawnContextOf(context.toolUseContext))
     const row = findTeammateTaskByAgentId(spawned.data.agent_id, context.getAppState().tasks) as InProcessTeammateTaskState | undefined
     if (row === undefined || row.status !== 'running') return { outcome: 'refused', reason: `Crewmate "${config.name}" did not resume into a running row` }
+    if (task?.paused !== undefined) releasePausedTeammateRow(taskId, context.toolUseContext)
     return {
       outcome: 'applied',
       agentId: spawned.data.agent_id,

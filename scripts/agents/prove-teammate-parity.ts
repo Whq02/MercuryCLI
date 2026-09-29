@@ -69,7 +69,7 @@ section('§2 — every preparation path consumes the resolver')
 {
   const spawn = src('tools', 'shared', 'spawnMultiAgent.ts')
   const resolveCalls = spawn.match(/resolveTeammateRole\(\{/g) ?? []
-  check('all three spawn handlers resolve through the shared resolver', resolveCalls.length === 3, `${resolveCalls.length} call sites`)
+  check('the one spawn strategy (in-process) resolves through the shared resolver', resolveCalls.length === 1, `${resolveCalls.length} call sites`)
   check('the isCustomAgent-only filter is GONE', !spawn.includes('isCustomAgent'))
   const boot = src('main.tsx')
   check('the pane-child boot resolves through the shared resolver', boot.includes('findRoleDefinition(agentTypeOpt') && boot.includes('getRoleSystemPrompt(roleDefinition)'))
@@ -85,7 +85,7 @@ section('§3 — canonical role identity')
   check('runner identity: canonical agentType, display name only as last resort', launchPlan.includes('i.role?.agentType ?? i.agentDefinition?.agentType ?? i.displayName'))
   check('the runner consumes the shared definition product', src('utils', 'swarm', 'inProcessRunner.ts').includes('deriveRunnerAgentDefinition({'))
   const spawn = src('tools', 'shared', 'spawnMultiAgent.ts')
-  check('pane children receive the CANONICAL --agent-type', spawn.includes('canonicalAgentType ? `--agent-type ${quote([canonicalAgentType])}`'))
+  check('the in-process crewmate is registered under the CANONICAL agent type', spawn.includes('agentType: canonicalAgentType ?? teammateName'))
 }
 
 section('§7 — one shared doctrine: role discipline + the handoff packet')

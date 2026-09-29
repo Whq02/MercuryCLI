@@ -335,8 +335,7 @@ export const AGENT_RESUME_NOTE =
 export const AGENT_BUDGET_RESUME_NOTE =
   "The recovery budget's allowance is back and you were resumed by yourself after it was spent waiting on the provider. Continue from where your transcript ends — the work before the cut stands; do not redo it."
 
-export const AGENT_WINDOW_RESUME_NOTE =
-  'The usage window reset and you were resumed by yourself after it paused you. Continue from where your transcript ends — the work before the pause stands; do not redo it.'
+export { AGENT_WINDOW_RESUME_NOTE } from './agentPause.js'
 
 export function pauseAgentTask(
   taskId: string,

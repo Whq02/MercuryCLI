@@ -203,6 +203,15 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...startFoldersOf(task),
         ...agentCounters(task),
         ...unreadNoticesOf(task.id, task.identity.agentId),
+        ...(task.paused !== undefined
+          ? {
+              paused: {
+                why: task.paused.why,
+                words: clip(task.paused.words, MAX_ERROR),
+                ...(task.paused.resumesAtMs !== undefined ? { resumesAtMs: task.paused.resumesAtMs } : {}),
+              },
+            }
+          : {}),
       })
     } else if (isLocalShellTask(task)) {
       rows.push({

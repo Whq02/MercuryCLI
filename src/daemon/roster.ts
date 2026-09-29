@@ -9,10 +9,6 @@ import type { EffortValue } from '../utils/effort.js'
 import { validateSeatEffort } from '../utils/model/seatSlots.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import {
-  getTeammateExecutor,
-  isInProcessEnabled,
-} from '../utils/swarm/backends/registry.js'
-import {
   runTaskHeadless,
   buildHeadlessPrompt,
   spawnStreamJsonChild,
@@ -95,7 +91,10 @@ interface LongLivedSeat {
   stderrTail?: Buffer
   stormNotified?: boolean
   running?: { model: string; effort: string }
+  paused?: SeatPause
 }
+
+export type SeatPause = { why: string; words: string; resumesAtMs?: number }
 
 interface WorkerHandle {
   entry: RosterEntry
@@ -191,6 +190,7 @@ export class TaskRoster {
         if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
         e.respawns = h.longLived.respawns
         if (h.longLived.contextPct !== undefined) e.contextPct = h.longLived.contextPct
+        if (h.longLived.paused !== undefined && !h.entry.outcome) e.paused = { ...h.longLived.paused }
         if (!h.entry.outcome) {
           e.busy = !this.seatIsIdle(h.longLived)
           if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
@@ -351,6 +351,17 @@ export class TaskRoster {
     const h = this.handles.get(short)
     if (!h?.longLived) return false
     return !this.seatIsIdle(h.longLived)
+  }
+
+  setSeatPause(short: string, pause: SeatPause | undefined): boolean {
+    const ll = this.handles.get(short)?.longLived
+    if (!ll) return false
+    ll.paused = pause
+    return true
+  }
+
+  seatPause(short: string): SeatPause | undefined {
+    return this.handles.get(short)?.longLived?.paused
   }
 
   currentLongLivedEffort(short: string): string | undefined {
@@ -886,15 +897,6 @@ export class TaskRoster {
   }
 
   private async resolveVia(): Promise<string> {
-    try {
-      if (isInProcessEnabled()) {
-        await getTeammateExecutor(true).catch(() => null)
-        return 'headless'
-      }
-      await getTeammateExecutor(false).catch(() => null)
-      return 'headless'
-    } catch {
-      return 'headless'
-    }
+    return 'headless'
   }
 }
