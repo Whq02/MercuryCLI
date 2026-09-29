@@ -116,7 +116,7 @@ export function describeModeRoad(road: ModeTransitionRoad): string {
     case 'bypass-disabled':
       return "the organisation's bypass kill"
     case 'crew-lead':
-      return "the team lead's mode request"
+      return "the lead's mode request"
     case 'unnamed':
       return 'an unnamed road (no writer announced the change)'
   }

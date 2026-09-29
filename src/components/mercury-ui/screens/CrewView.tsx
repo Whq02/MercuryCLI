@@ -48,14 +48,18 @@ import { TeammateChatsView } from './TeammateChatsView.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
 import { enterTeammateView, setMainChat } from '../../../state/teammateViewHelpers.js'
 import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
-import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
+import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, CREW_SPAWN_DOOR, crewChatDoor, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
+import { crewRosterOf } from '../../../services/crew/roster.js'
+import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
+import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewTeammate } from '../../../utils/crew/crewClient.js'
+import { getCwd } from '../../../utils/cwd.js'
 
 
 type Row =
   | { kind: 'agent'; id: string; facts: CrewAgentFacts }
-  | { kind: 'named'; id: string; member: CrewGlanceMember }
+  | { kind: 'named'; id: string; member: CrewGlanceMember; facts: CrewAgentFacts }
 
 type Mode =
   | { view: 'list' }
@@ -95,12 +99,17 @@ export function CrewView({
   const namedOn = crewEnabled()
   const billed = hasFocusedSession() && getFocusedSessionConnector().identity().consoleBilling
   const rows = useMemo<Row[]>(
-    () => [
-      ...agents.map((facts): Row => ({ kind: 'agent', id: `a:${facts.id}`, facts })),
-      ...named.map((member): Row => ({ kind: 'named', id: `n:${member.name}`, member })),
-    ],
+    () =>
+      crewRosterOf(agents, named).map((record): Row => {
+        if (record.kind === 'seat') {
+          const member = named.find(m => m.name === record.name) ?? { name: record.name, online: false, unread: 0 }
+          return { kind: 'named', id: `n:${record.name}`, member, facts: record.facts }
+        }
+        return { kind: 'agent', id: `a:${record.id}`, facts: record.facts }
+      }),
     [agents, named],
   )
+  const crewmates = useMemo(() => rows.map(row => row.facts), [rows])
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
   const spawnGate = (): string | null =>
@@ -170,6 +179,16 @@ export function CrewView({
       setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
       return
     }
+    if (input === 'r' && target !== null && !target.running && target.id.startsWith(CREW_SEAT_ID_PREFIX)) {
+      const name = target.id.slice(CREW_SEAT_ID_PREFIX.length)
+      setStopArm(null)
+      setDoorNote({ tone: 'muted', text: crewResumingWords(name) })
+      void resumeCrewTeammate(name, target.model ?? undefined, getCwd()).then(receipt => {
+        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(name) } : { tone: 'warning', text: crewResumeRefusedWords(name, receipt.error) })
+        pokeTelemetry()
+      })
+      return
+    }
     if (input === 'r' && target !== null && !target.running) {
       setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
       void getFocusedSessionConnector()
@@ -181,6 +200,16 @@ export function CrewView({
               : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
           )
         })
+      return
+    }
+    if (input === 'r' && target === null && selected?.kind === 'named' && !selected.member.online) {
+      const member = selected.member
+      setStopArm(null)
+      setDoorNote({ tone: 'muted', text: crewResumingWords(member.name) })
+      void resumeCrewTeammate(member.name, member.model, getCwd()).then(receipt => {
+        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(member.name) } : { tone: 'warning', text: crewResumeRefusedWords(member.name, receipt.error) })
+        pokeTelemetry()
+      })
       return
     }
     if (!listMode) return
@@ -215,7 +244,7 @@ export function CrewView({
         return
       }
       onClose()
-      requestCommandDispatch(`/teammates ${row.member.name}`)
+      requestCommandDispatch(crewChatDoor(row.member.name))
       return
     }
     if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
@@ -233,7 +262,7 @@ export function CrewView({
       }
       if (popup) {
         onClose()
-        requestCommandDispatch('/teammates +new')
+        requestCommandDispatch(CREW_SPAWN_DOOR)
         return
       }
       setMode({ view: 'chat', spawn: true, fromDoor: false })
@@ -250,8 +279,8 @@ export function CrewView({
     )
   }
 
-  const doorKeys = (target: CrewAgentFacts | null): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+  const doorKeys = (target: CrewAgentFacts | null, offlineNamed = false): string[] =>
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? (offlineNamed ? ['r resume'] : []) : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
@@ -269,9 +298,8 @@ export function CrewView({
   }
 
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, Math.min((columns || 80) - 6, 120))
-  const visible = Math.max(4, (termRows || 24) - 12)
+  const visible = Math.max(4, (termRows || 24) - 9)
   const win = paneWindow(rows.length, sel, visible)
-  const firstNamedIx = rows.findIndex(r => r.kind === 'named')
   const selectedRow = rows[sel]
   const footer = (armedTarget !== null
     ? [crewStopHint(armedTarget.name), 'esc close']
@@ -279,7 +307,7 @@ export function CrewView({
         '↑↓ move',
         rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
         selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
-        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
+        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null, selectedRow?.kind === 'named' && !selectedRow.member.online),
         namedOn ? 'n new named agent' : undefined,
         'esc close',
       ])
@@ -287,7 +315,7 @@ export function CrewView({
     .join(' · ')
 
   return (
-    <CommandCenter elevated view="crew" subtitle={crewCountLabel(agents)} onClose={onClose} footer={footer} captureInput={false}>
+    <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} captureInput={false}>
       <Box marginTop={1} flexDirection="column">
         {presence === 'blank' ? (
           <Text color={tokens.textMuted}>no chat is focused — a session's sub-agents list here</Text>
@@ -300,10 +328,10 @@ export function CrewView({
             <Chip tone="warn">{pauseChip}</Chip>
           </Text>
         ) : null}
-        <SectionHeader marginTop={0} count={agents.length}>
+        <SectionHeader marginTop={0} count={rows.length}>
           Sub-agents
         </SectionHeader>
-        {agents.length === 0 ? (
+        {rows.length === 0 ? (
           <Text color={tokens.textMuted}>
             {workUnreported(roster) ? `· ${WORK_UNREPORTED_LINE}` : `· ${CREW_EMPTY_LINE} — ${CREW_EMPTY_DOOR}`}
           </Text>
@@ -314,27 +342,17 @@ export function CrewView({
           const on = gi === sel
           return (
             <React.Fragment key={row.id}>
-              {row.kind === 'named' && gi === firstNamedIx ? (
-                <SectionHeader count={named.length}>Named agents</SectionHeader>
-              ) : null}
               {row.kind === 'agent' ? (
                 <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} />
               ) : (
-                <NamedRow member={row.member} on={on} width={width} />
+                <NamedRow member={row.member} facts={row.facts} on={on} now={now} width={width} />
               )}
             </React.Fragment>
           )
         })}
         {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}
-        {named.length === 0 ? (
-          <>
-            <SectionHeader count={0}>Named agents</SectionHeader>
-            <Text color={tokens.textMuted}>
-              {namedOn
-                ? '· no named agents yet — press n to spawn one'
-                : '· crew is disabled (MERCURY_CREW=0) — no named agents can spawn'}
-            </Text>
-          </>
+        {!namedOn ? (
+          <Text color={tokens.textMuted}>· crew is disabled (MERCURY_CREW=0) — no named agents can spawn</Text>
         ) : null}
         {spawnNote !== null ? <Text color={tokens.warning} wrap="truncate-middle">· {spawnNote}</Text> : null}
         {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
@@ -391,6 +409,7 @@ function AgentRow({
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
           {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
           {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
+          {settled && facts.worktree !== null ? ` · ${crewWorktreeLeftWords(facts.worktree)}` : ''}
         </Text>
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
@@ -401,11 +420,15 @@ function AgentRow({
 
 function NamedRow({
   member,
+  facts,
   on,
+  now,
   width,
 }: {
   member: CrewGlanceMember
+  facts: CrewAgentFacts
   on: boolean
+  now: number
   width: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -418,13 +441,15 @@ function NamedRow({
           {' '}
           {padTo(truncateToWidth(`@${member.name}`, NAME_W), NAME_W)}
         </Text>
-        <Text color={tokens.textSecondary}> {padTo(truncateToWidth(member.model ?? CREW_MODEL_UNKNOWN, MODEL_W), MODEL_W)}</Text>
+        <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
         <Text color={member.online ? tokens.success : tokens.textMuted}>
           {' '}
-          {padTo(member.online ? 'online' : 'offline', STATUS_W)}
+          {padTo(truncateToWidth(facts.status, STATUS_W), STATUS_W)}
         </Text>
+        <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
+        <Text color={tokens.textMuted}> {member.online ? crewElapsedLabel(facts, now) : CREW_MODEL_UNKNOWN}</Text>
         <Text color={member.unread > 0 ? tokens.warning : tokens.textMuted}>
-          {' '}
+          {' · '}
           {member.unread > 0 ? `${member.unread} new` : 'chat'}
         </Text>
       </Text>

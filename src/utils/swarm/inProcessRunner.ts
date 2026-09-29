@@ -32,6 +32,7 @@ import {
 } from '../../hooks/useSwarmPermissionPoller.js'
 import { runWithAgentContext, type TeammateAgentContext } from '../agentContext.js'
 import { createChildAbortController } from '../abortController.js'
+import { runWithCwdOverride } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, toError } from '../errors.js'
 import { cloneFileStateCache } from '../fileStateCache.js'
@@ -104,6 +105,7 @@ export type InProcessRunnerConfig = {
   toolUseContext: ToolUseContext
   abortController: AbortController
   model?: string
+  cwd?: string
   effortOverride?: string
   transcriptAgentId?: string
   resume?: {
@@ -1015,7 +1017,8 @@ function terminalizeTeammateRun(
 
 export function startInProcessTeammate(config: InProcessRunnerConfig): void {
   const agentId = config.identity.agentId
-  runInProcessTeammate(config).catch((error: unknown) => {
+  const life = (): Promise<InProcessRunnerResult> => runInProcessTeammate(config)
+  ;(config.cwd !== undefined ? runWithCwdOverride(config.cwd, life) : life()).catch((error: unknown) => {
     logError(error)
     logForDebugging(`in-process teammate ${agentId} rejected: ${errorMessage(toError(error))}`)
   })

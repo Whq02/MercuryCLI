@@ -25,7 +25,7 @@ const DESC: Record<string, { effect: string; risk?: string }> = {
     effect: 'The searchable tool index the agent loads from on demand (ToolSearch).',
   },
   'File leases + lease-guard': {
-    effect: 'Stops two teammate agents editing the same file at once.',
+    effect: 'Stops two crewmates editing the same file at once.',
   },
   LiveComms: { effect: 'The crew\'s live board: messages, tasks, file claims, who is busy.' },
   'Agent-cap posture': {

@@ -74,7 +74,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     ],
   }
 
-  const teamHint = 'in a team'
+  const teamHint = 'in a crew'
   const coordination: SubstrateSection = {
     title: 'Coordination',
     rows: [

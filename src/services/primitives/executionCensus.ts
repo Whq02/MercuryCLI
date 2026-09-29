@@ -109,7 +109,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     adapter: 'src/utils/task/framework.ts',
     owner: 'processMainOwner()',
     resourceKind: 'task',
-    notes: 'Teammate governance (roster, bus) stays domain-owned.',
+    notes: 'Crewmate governance (roster, bus) stays domain-owned.',
   },
   {
     domain: 'task:local_workflow',

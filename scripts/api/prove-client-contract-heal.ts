@@ -488,7 +488,12 @@ check('the peek owner exists', typeof learnedModule?.startClientContractPeek ===
     const scripted = await learnedModule?.peekClientContract()
     delete process.env.MERCURY_SCRIPTED_STREAM
     check('a first-party lane whose model stream is scripted (no real wire) peeks nothing', scripted?.kind === 'skipped' && scripted.why === 'lane' && stubbed.length === 0, JSON.stringify(scripted))
+    const fenced = await learnedModule?.peekClientContract()
+    check('under the proof shape (MERCURY_LOCAL_PROBE_TARGETS set) a first-party lane with no loopback registry named peeks nothing', fenced?.kind === 'skipped' && fenced.why === 'lane' && stubbed.length === 0, JSON.stringify(fenced))
+    const savedProbeTargets = process.env.MERCURY_LOCAL_PROBE_TARGETS
+    delete process.env.MERCURY_LOCAL_PROBE_TARGETS
     const firstParty = await learnedModule?.peekClientContract()
+    process.env.MERCURY_LOCAL_PROBE_TARGETS = savedProbeTargets ?? 'none'
     check('the first-party Anthropic lane opens the peek against the public registry (answered here by a stub, never the network)', firstParty?.kind === 'read' && stubbed.length === 1 && stubbed[0] === 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest', `${JSON.stringify(firstParty)}; ${stubbed.join(' ')}`)
   } finally {
     globalThis.fetch = savedFetch

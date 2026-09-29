@@ -663,6 +663,7 @@
     "findRoleDefinition",
     "getRoleSystemPrompt",
     "resolveTeammateRole",
+    "type:CrewmateRoleRecord",
     "type:ResolvedTeammateRole"
    ],
    "src/utils/swarm/teamCharter.ts": [

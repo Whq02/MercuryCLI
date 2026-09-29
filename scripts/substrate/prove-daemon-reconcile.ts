@@ -269,12 +269,26 @@ check(
   'workers still carry the parent-death stamp (≤8s self-exit — the other half of teardown)',
   headlessTs.includes('WORKER_PARENT_PID_ENV, String(process.pid)'),
 )
+const controlSocketTs = src('src/daemon/controlSocket.ts')
+const oneWriterCalls = (mainTs.match(/await persistSupervisorRecord\(currentOwnerPid\)/g) || []).length
+const recordWriteSites = (mainTs.match(/writeSupervisorState\(/g) || []).length
+const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the supervisor record'/g) || []).length
 check(
-  'the daemon stamps its identity baseline on EVERY record write: the one writer at boot and at the plane heal, and the hand-over rewrite carries the stored baseline',
+  'the daemon stamps its identity baseline on EVERY record write: the one writer at boot, at the plane heal and at the take of the plane from a predecessor (a hand-over successor writes its record first, through the same writer)',
   (mainTs.match(/startToken: bootStartToken/g) || []).length === 1 &&
-    (mainTs.match(/await persistSupervisorRecord\(currentOwnerPid\)/g) || []).length === 2 &&
-    mainTs.includes('writeSupervisorState({ ...rec, ownerPid: next })') &&
+    oneWriterCalls === 3 &&
     mainTs.includes('await getProcessStartTokenAsync(process.pid)'),
+  `${oneWriterCalls} call(s) of the one writer`,
+)
+check(
+  'the rewrites carry the stored baseline whole: the owner hand-over in the daemon and the stopping mark in the record owner',
+  mainTs.includes('writeSupervisorState({ ...rec, ownerPid: next })') &&
+    controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
+)
+check(
+  'no record write stands beside them: the daemon writes the record only through the one writer and the owner rewrite, the record owner publishes it only from the writer and the stopping mark, and the hand-over module writes none',
+  recordWriteSites === 2 && rawRecordPublishes === 2 && !src('src/daemon/handover.ts').includes('writeSupervisorState('),
+  `${recordWriteSites} record write site(s) in the daemon, ${rawRecordPublishes} raw publish(es) in the record owner`,
 )
 check(
   'the record type declares the baseline in the one vocabulary',

@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
+import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, toolResultOf, TURN_MS } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
-const crew = 'live-crew'
+const sessionId = randomUUID()
+const crew = sessionId
 const peerModel = 'claude-opus-4-6'
 const FIRST = 'FIRST-TURN'
 const SECOND = 'SECOND-TURN'
@@ -23,7 +25,6 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: crew, description: 'Live communication' } }, FIRST),
   lead({ kind: 'tool_use', name: 'Agent', input: { name: 'bob', team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reads the live state', prompt: `${BOB_PROMPT}: wait for a message, then read LiveComms.` } }, FIRST),
   lead({ kind: 'tool_use', name: 'Agent', input: { name: 'alice', team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Writes the live state', prompt: `${ALICE_PROMPT}: write a message, a task, a claim and your busy flag through LiveComms.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
@@ -47,7 +48,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-livecomms-live')
 const world = await makeWorld('livecomms-live', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash', 'TeamCreate', 'SendMessage', 'LiveComms'])
+const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const lastUser = (request: Request): string => {
@@ -65,7 +66,7 @@ const storeJson = (): Record<string, unknown> => (existsSync(storeFile) ? (JSON.
 
 try {
   tally.section('the lead spawns bob and alice; alice writes a message, a task, a claim and her busy flag in one LiveComms call')
-  session.submit(`${FIRST}: create the crew, spawn bob and alice, and park.`)
+  session.submit(`${FIRST}: spawn bob and alice, and park.`)
   await session.waitFor('the lead never parked after the spawns', () => session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const written = await until(() => toolResultOf(world, ALICE_WRITE) !== null, TURN_MS)
   const aliceAnswer = toolResultOf(world, ALICE_WRITE)
@@ -85,7 +86,7 @@ try {
   const bobText = bobAnswer?.text ?? ''
   record('bob-read.txt', `${bobText}\nis_error=${String(bobAnswer?.isError)}\n`)
   tally.check('bob\'s LiveComms read was answered (RED on the base: unknown tool)', bobRead && bobAnswer !== null && !bobAnswer.isError, bobText.slice(0, 300))
-  tally.check('bob reads the crew by name, alice\'s open task, her claim and her busy word', /# Crew: live-crew/.test(bobText) && bobText.includes(TASK) && bobText.includes(`alice: ${CLAIM}`) && new RegExp(`alice[^\\n]*\\[busy: ${DOING}\\]`).test(bobText), bobText.slice(0, 600))
+  tally.check('bob reads the crew by name, alice\'s open task, her claim and her busy word', new RegExp(`# Crew: ${crew}`).test(bobText) && bobText.includes(TASK) && bobText.includes(`alice: ${CLAIM}`) && new RegExp(`alice[^\\n]*\\[busy: ${DOING}\\]`).test(bobText), bobText.slice(0, 600))
 
   tally.section('THE PIN: the lead\'s own read agrees')
   session.submit(`${SECOND}: read LiveComms.`)
@@ -104,7 +105,7 @@ try {
   const busy = (json.busy ?? {}) as Record<string, { busy: boolean; doing?: string }>
   tally.check('the store file exists (RED on the base: no crew/livecomms/)', existsSync(storeFile), storeFile)
   tally.check('it holds the task and the busy flag with her word (the claim lives in the claim store the read merges)', Object.values(tasks).some(t => t.subject === TASK) && busy.alice?.busy === true && busy.alice?.doing === DOING, JSON.stringify(json).slice(0, 400))
-  const files = existsSync(storeDir) ? readdirSync(storeDir) : []
+  const files = existsSync(storeDir) ? readdirSync(storeDir).filter(name => name.endsWith('.json')) : []
   tally.check('one file for the whole crew, none per member', files.length === 1 && files[0] === `${crew}.json`, JSON.stringify(files))
 } finally {
   await session.terminate()

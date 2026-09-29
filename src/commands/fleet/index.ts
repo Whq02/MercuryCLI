@@ -7,7 +7,7 @@ const fleet = {
   name: 'fleet',
   needsConcourse: true,
   description:
-    'Open the Mercury fleet command-center — missions, agents, leases for the team',
+    'Open the Mercury fleet command-center — missions, agents, leases for the crew',
   isEnabled: () => isAgentSwarmsEnabled(),
   load: () => import('./fleet.js'),
 } satisfies Command

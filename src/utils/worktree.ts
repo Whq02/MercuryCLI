@@ -907,9 +907,46 @@ export async function settleAgentWorktree(info: {
   }
 }
 
+export type WorktreeRemovalVerdict =
+  | { safe: true }
+  | { safe: false; state: 'uncommitted' | 'unreachable' | 'unowned'; detail: string }
 
+export async function worktreeUnreachableCommits(worktreePath: string, ownBranch?: string): Promise<number | null> {
+  const refs = await runGit(['for-each-ref', '--format=%(refname)'], worktreePath)
+  if (refs.code !== 0) return null
+  const others = refs.stdout
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '' && line !== `refs/heads/${ownBranch ?? ''}`)
+  const counted = await runGit(['rev-list', '--count', 'HEAD', '--not', ...others], worktreePath)
+  if (counted.code !== 0) return null
+  const parsed = parseInt(counted.stdout.trim(), 10)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: string): Promise<WorktreeRemovalVerdict> {
+  const owned = await resolveWorktreeAdminDir(worktreePath)
+  if (owned === null) return { safe: false, state: 'unowned', detail: 'git no longer owns it, so what it holds cannot be judged' }
+  const delta = await readWorktreeDelta(worktreePath)
+  if (delta.uncertainty !== null) return { safe: false, state: 'unowned', detail: `its state could not be read (${delta.uncertainty})` }
+  if (delta.tracked.length > 0 || delta.untrackedAuthored.length > 0) {
+    const parts: string[] = []
+    if (delta.tracked.length > 0) parts.push(`${delta.tracked.length} uncommitted change${delta.tracked.length === 1 ? '' : 's'} (${delta.tracked.slice(0, 3).join(', ')}${delta.tracked.length > 3 ? ', …' : ''})`)
+    if (delta.untrackedAuthored.length > 0) parts.push(`${delta.untrackedAuthored.length} untracked file${delta.untrackedAuthored.length === 1 ? '' : 's'} (${delta.untrackedAuthored.slice(0, 3).join(', ')}${delta.untrackedAuthored.length > 3 ? ', …' : ''})`)
+    return { safe: false, state: 'uncommitted', detail: parts.join(' · ') }
+  }
+  const unreachable = await worktreeUnreachableCommits(worktreePath, ownBranch)
+  if (unreachable === null) return { safe: false, state: 'unowned', detail: 'its commits could not be read' }
+  if (unreachable > 0) {
+    return { safe: false, state: 'unreachable', detail: `${unreachable} commit${unreachable === 1 ? '' : 's'} reachable from no other branch` }
+  }
+  return { safe: true }
+}
+
+
+const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
-  /^agent-a[0-9a-f]{7,32}$/,
+  AGENT_LANE_SLUG,
   /^parcel-[0-9a-f]{6,32}$/,
   /^wf_[0-9a-f]{8}-[0-9a-f]{3}-\d+$/,
   /^wf-\d+$/,
@@ -976,6 +1013,18 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
       continue
     }
     if (mtimeMs >= cutoffMs) continue
+
+    if (AGENT_LANE_SLUG.test(slug)) {
+      if (registryReadable && !registeredPaths.has(candidatePath) && (await isDisownedWorktree(candidatePath))) continue
+      const verdict = await worktreeRemovalSafe(candidatePath, worktreeBranchName(slug))
+      if (!verdict.safe) {
+        logForDebugging(`worktree janitor keeps ${candidatePath}: ${verdict.detail}`)
+        continue
+      }
+      const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot, false)
+      if (removed) removedCount++
+      continue
+    }
 
     if (registryReadable && !registeredPaths.has(candidatePath) && (await isDisownedWorktree(candidatePath))) {
       try {

@@ -162,7 +162,10 @@ try {
 
 section('daemon wiring (structural, src)')
 const main = src('daemon', 'main.ts')
-check('main arms the drain for every crew teammate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,900}armDispatchDrain\(r, \{[\s\S]{0,200}teamName: CREW_TEAM/.test(main))
+check('main arms the drain for every crew teammate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,200}armCrewDrain\(name\)/.test(main) && /const armCrewDrain = \(name: string\): void => \{[\s\S]{0,600}armDispatchDrain\([\s\S]{0,400}teamName: CREW_TEAM/.test(main))
+check('one drain per crew name for the daemon\'s life: a respawn never arms a second drain on the same inbox', /if \(!r \|\| crewDrains\.has\(name\)\) return/.test(main))
+check('a message to a stopped seat wakes it: the drain replies through the crew wake roster', /armDispatchDrain\(\s*makeCrewWakeRoster\(r,/.test(main))
+check('offline crew members are armed at boot, so a message wakes a seat the daemon was restarted under', /void armOfflineCrewDrains\(\)/.test(main))
 check('drains are disposed on shutdown', /dispatchDrains\.splice\(0\)[\s\S]{0,120}\.dispose\(\)/.test(main))
 
 console.log('\n' + '═'.repeat(76))

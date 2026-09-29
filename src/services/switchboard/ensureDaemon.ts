@@ -12,8 +12,10 @@ type Handshake = typeof import('../../daemon/handshake.js')
 
 let healing: Promise<boolean> | null = null
 
-function usable(v: DaemonHandshakeVerdict): boolean {
-  return v.state === 'matched' || v.state === 'rebuilt' || v.state === 'older' || v.state === 'newer'
+function usable(hs: Handshake, v: DaemonHandshakeVerdict): boolean {
+  if (v.state === 'matched') return true
+  if (v.state !== 'rebuilt' && v.state !== 'older' && v.state !== 'newer') return false
+  return !hs.handoverInFlightFor(v.daemon?.pid ?? null)
 }
 
 const USABLE_MEMO_TTL_MS = 5_000
@@ -44,7 +46,7 @@ function adoptIfOurs(v: DaemonHandshakeVerdict): void {
 async function awaitUsable(hs: Handshake, tries = ladderRounds()): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
-    if (usable(v)) {
+    if (usable(hs, v)) {
       adoptIfOurs(v)
       return rememberUsable()
     }
@@ -74,7 +76,7 @@ async function planeHold(): Promise<PlaneHold> {
 async function awaitUsableOrGone(hs: Handshake, tries = ladderRounds()): Promise<'usable' | 'gone' | 'timeout'> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
-    if (usable(v)) {
+    if (usable(hs, v)) {
       adoptIfOurs(v)
       rememberUsable()
       return 'usable'
@@ -91,7 +93,7 @@ async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'c
     if (hold === 'clear') return 'clear'
     if (hold === 'held') {
       const v = await hs.handshakeDaemon({ timeoutMs: 500 })
-      if (usable(v)) {
+      if (usable(hs, v)) {
         adoptIfOurs(v)
         rememberUsable()
         return 'usable'
@@ -105,7 +107,7 @@ async function awaitDeparture(hs: Handshake, tries = ladderRounds()): Promise<'c
 async function awaitSuccessor(hs: Handshake, oldPid: number | null, tries = 40): Promise<boolean> {
   for (let i = 0; i < tries; i++) {
     const v = await hs.handshakeDaemon({ timeoutMs: 500 })
-    if (usable(v) && (v.daemon?.pid ?? null) !== oldPid) {
+    if (usable(hs, v) && (v.daemon?.pid ?? null) !== oldPid) {
       adoptIfOurs(v)
       return rememberUsable()
     }
@@ -170,7 +172,7 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
     if (outcome === 'gone') return ensureOwnedDaemon()
     return false
   }
-  if (usable(first)) {
+  if (usable(hs, first)) {
     adoptIfOurs(first)
     if (first.state === 'matched') return rememberUsable()
     const heal = await hs.healDaemonVersion(first, { by: `screen ${process.pid}` })

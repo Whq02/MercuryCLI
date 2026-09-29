@@ -50,7 +50,7 @@ const makeStore = () => {
   }
 }
 
-section('DRIFT-LOCK — consumers + the TeamCreate seams stay wired')
+section('DRIFT-LOCK — consumers + the crew-birth seam stay wired')
 const mcpSrc = readFileSync(join(REPO, 'src/services/mcp/coordinationServer.ts'), 'utf8')
 check(
   'coordination server has ZERO bare getTeamName() calls',
@@ -65,10 +65,12 @@ check(
   'LiveComms resolves lead-aware with the AppState context (through the service)',
   briefSrc.includes('resolveCoordinationContext(context.getAppState().teamContext'),
 )
-const teamCreateSrc = readFileSync(join(REPO, 'src/tools/TeamCreateTool/TeamCreateTool.ts'), 'utf8')
-check('TeamCreate registers the lead team', teamCreateSrc.includes('setLeadTeamFallback(finalTeamName)'))
-const teamDeleteSrc = readFileSync(join(REPO, 'src/tools/TeamDeleteTool/TeamDeleteTool.ts'), 'utf8')
-check('TeamDelete clears the registration', teamDeleteSrc.includes('setLeadTeamFallback(null)'))
+const birthSrc = readFileSync(join(REPO, 'src/utils/crew/crewBirth.ts'), 'utf8')
+check('the crew birth registers the lead team from the first turn (every session has a crew from the moment it starts)', birthSrc.includes('setLeadTeamFallback(sessionCrewName(sessionId))'))
+check('the birth never overrides a led team the resume projection registered', birthSrc.includes('if (getLeadTeamFallback() === null) setLeadTeamFallback('))
+const runnerSrc = readFileSync(join(REPO, 'src/cli/print.ts'), 'utf8')
+const launcherSrc = readFileSync(join(REPO, 'src/replLauncher.tsx'), 'utf8')
+check('the headless runner and the REPL launcher both birth the crew once the session id is final', (runnerSrc.match(/birthSessionCrew\(/g) ?? []).length === 2 && launcherSrc.includes('birthSessionCrew(String(getSessionId()), update => {'))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL LEAD-TEAM-IDENTITY PROOFS PASS')

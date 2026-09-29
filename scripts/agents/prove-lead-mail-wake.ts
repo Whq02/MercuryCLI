@@ -30,12 +30,12 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const WAKE_WINDOW_MS = 8_000
 const model = 'claude-fable-5-1'
 const teammateModel = 'claude-opus-4-6'
-const team = 'wake-group'
+const sessionId = randomUUID()
+const team = sessionId
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model, whenModel: 'fable-5-1' } as ScriptedTurn)
 const water = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: teammateModel, whenModel: 'opus-4-6' } as ScriptedTurn)
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: team, description: 'Mail wake test' } }),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: team, model: teammateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once, after a pause.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: teammateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once, after a pause.' } }),
   lead({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 120', run_in_background: true, description: 'A pool that outlives the window' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   lead({ kind: 'paced_tool_use', whenBody: 'MIDTURN-CHECK', preDeltas: ['Working', '.', '.'], gapMs: 1000, tools: [{ name: 'Bash', input: { command: 'pwd', description: 'Reach a tool boundary' } }] }),
@@ -51,7 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const fixture = await startFixtureApi(script)
-const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'TeamCreate', 'Bash', '--teammate-mode', 'in-process', '--session-id', randomUUID()], {
+const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'Bash', '--teammate-mode', 'in-process', '--session-id', sessionId], {
   cwd: project,
   env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],
@@ -101,10 +101,10 @@ const blocksIn = (request: Request | undefined, needle: string): number => {
 
 console.log(`lead mail wake: world ${world} · bundle ${dist}`)
 try {
-  submit('START: create the team, spawn water, start the pool, then park.')
+  submit('START: spawn water, start the pool, then park.')
   const parked = await waitFor(() => stdout.includes('LEAD-PARKED'), 'the lead did not park')
   const parkedAt = Date.now()
-  check('the lead created the team, spawned water in-process, started a background shell and parked (its turn ended with the shell still running)', parked && existsSync(inboxPath), stdout.slice(-300))
+  check('the lead spawned water in-process into its crew, started a background shell and parked (its turn ended with the shell still running)', parked && existsSync(inboxPath), stdout.slice(-300))
   const waited = await waitFor(() => stdout.includes('"waiting_on_agents"'), 'the lead did not announce its wait', 5_000)
   check("the parked lead announces the background wait — the driver sits in its agent-wait loop, not idle", waited, stdout.split('\n').filter(line => line.includes('waiting_on_agents')).slice(0, 2).join(' | '))
 

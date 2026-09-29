@@ -400,6 +400,12 @@ export function countRequestImages(messages: readonly unknown[]): number {
   return count
 }
 
+function sizedImageKey(data: string, sidePx: number, limits: ImageLimits): string {
+  const ceiling = limits.maxBase64Bytes ?? limits.maxRequestBytes
+  const patches = limits.maxPatchesPerImage === null ? 'none' : `${limits.maxPatchesPerImage.patchPx}x${limits.maxPatchesPerImage.count}`
+  return `${sidePx}:${ceiling}:${patches}:${data.length}:${createHash('sha256').update(data).digest('hex')}`
+}
+
 function rememberSized(key: string, source: Base64ImageSource): void {
   if (source.data.length > SIZED_IMAGE_CACHE_BYTES) return
   while (sizedImageCacheBytes + source.data.length > SIZED_IMAGE_CACHE_BYTES && sizedImageCache.size > 0) {
@@ -421,7 +427,7 @@ async function sizedImageSource(
 ): Promise<Base64ImageSource | null> {
   const dims = imageDimensionsOfBase64(block.source.data)
   if (dims === null || Math.max(dims.width, dims.height) <= sidePx) return null
-  const key = `${sidePx}:${block.source.data.length}:${createHash('sha256').update(block.source.data).digest('hex')}`
+  const key = sizedImageKey(block.source.data, sidePx, limits)
   const remembered = sizedImageCache.get(key)
   if (remembered !== undefined) return remembered
   try {

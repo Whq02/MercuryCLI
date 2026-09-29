@@ -82,12 +82,14 @@ check('…and the engine allows the next launch there without a card', again.dec
 check('…and the resolver accepts it without the admission', agentTool.resolveAgentCwd(elsewhere, context) === elsewhere)
 check('a different folder is still a question', agentTool.agentCwdQuestion(another, context) !== null)
 const teammate = await agentTool.AgentTool.checkPermissions({ ...launch(another), team_name: 'crew', name: 'mate' }, seat('default'))
-check('a named teammate spawn asks no question (the launch refuses cwd typed)', teammate.behavior === 'allow')
+check('a named crewmate spawn into an untrusted folder is the same question, the folder named', teammate.behavior === 'ask' && JSON.stringify(teammate).includes(another), JSON.stringify(teammate))
 const teammateContext = await import('../../src/utils/teammate.ts')
 teammateContext.setDynamicTeamContext({ agentId: '', agentName: '', teamName: 'crew', planModeRequired: false })
 try {
   const named = await agentTool.AgentTool.checkPermissions({ ...launch(another), name: 'mate' }, seat('default'))
-  check('a name-only teammate launch uses the same team resolution before asking', named.behavior === 'allow')
+  check('a name-only crewmate launch asks the same question', named.behavior === 'ask')
+  const namedTrusted = await agentTool.AgentTool.checkPermissions({ ...launch(trusted), name: 'mate' }, seat('default'))
+  check('…and a trusted folder is no question for a named crewmate either', namedTrusted.behavior === 'allow')
 } finally {
   teammateContext.clearDynamicTeamContext()
 }

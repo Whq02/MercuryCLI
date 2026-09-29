@@ -10,6 +10,7 @@ import {
   getBootRecovery,
   subscribeBootRecovery,
 } from '../substrate/recoveryOrchestrator.js'
+import { isBornCrewWithoutCrewmates } from '../utils/crew/crewBirth.js'
 
 function LateBootProjectionSeed(): React.ReactNode {
   const store = useAppStateStore()
@@ -23,7 +24,7 @@ function LateBootProjectionSeed(): React.ReactNode {
       if (projection && !appliedRef.current) {
         appliedRef.current = true
         store.setState((prev: AppState) =>
-          prev.teamContext ? prev : {
+          prev.teamContext && !isBornCrewWithoutCrewmates(prev.teamContext) ? prev : {
             ...prev,
             teamContext: {
               teamName: projection.teamName,
