@@ -9,8 +9,8 @@ journaled (see [DURABILITY.md](DURABILITY.md)).
 ## Teams on disk
 
 A team lives at `<config home>/teams/<team>/`: `config.json` holds the roster
-(one truth, locked writers), `inboxes/` the per-agent mailboxes, and `dedup/`
-the consumption ledgers. A roster file that does not read as a roster is left
+(one truth, locked writers) and `dedup/` the consumption ledgers; the crew's
+messages live in LiveComms (below). A roster file that does not read as a roster is left
 as it is and named on the health report's store quarantines row (bytes left
 in place), and the team reads as absent until the file is repaired or
 removed. Task lists live beside it under
@@ -20,7 +20,7 @@ an interrupted create rolls forward or compensates at the next boot rather
 than leaving a half-team behind.
 
 A team outlives its lead's session. When the lead exits — a quit, a closed
-terminal, a signal — the team's config, inboxes and leases stay where they
+terminal, a signal — the team's config, messages and leases stay where they
 are; only its pane-backed teammates are closed. Resuming the lead's session
 finds the team on disk and the resumed session is part of it again, in the
 cockpit and headless alike: LiveComms names the crew and its roster, the
@@ -155,13 +155,13 @@ policy server-side, where a client bug cannot bypass it:
 
 `MERCURY_CREW=0` disables the board and refuses the spawn RPC.
 
-## The mailbox
+## Messages
 
-Each (team, agent) pair has one inbox file:
-`<teams>/<team>/inboxes/<agent>.json`, a bare JSON array of messages. Versioning is structural — every element is
-validated on read, unknown fields are tolerated, and no field may become
-required — because builds of different vintages run concurrently against the
-same inboxes.
+Every message rides LiveComms: one file per crew,
+`<config home>/crew/livecomms/<crew>.json`, holding the crew's messages (each
+addressed by name), its tasks and who is busy. There is no file per member.
+Every row is validated on read and unknown fields are tolerated, so a build of
+another vintage reads the same file.
 
 A send lands durably and exactly once: every message carries its own id and
 sequence, and a crash between delivery and acknowledgement replays as a

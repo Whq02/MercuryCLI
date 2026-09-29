@@ -5,6 +5,7 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import {
   bootLead,
   closeWorld,
+  crewMessagesTo,
   LEAD_GATE,
   LEAD_MODEL,
   makeTally,
@@ -60,7 +61,7 @@ const teamDir = join(world.teams, TEAM)
 const configPath = join(teamDir, 'config.json')
 type Roster = { name: string; leadSessionId?: string; members: Array<{ name: string }> }
 type InboxRow = { from: string; text: string }
-const inbox = (name: string): InboxRow[] => readJson<InboxRow[]>(join(teamDir, 'inboxes', `${name}.json`)) ?? []
+const inbox = (name: string): InboxRow[] => crewMessagesTo(world, TEAM, name)
 const idleNotices = (): number => inbox('team-lead').filter(row => row.text.includes('idle_notification')).length
 
 const tools = ['Agent', 'SendMessage', 'TeamCreate', 'TeamBrief']
@@ -68,7 +69,7 @@ const first = bootLead(world, ['--session-id', sessionId], tools)
 let before: string[] = []
 let after: string[] = []
 try {
-  tally.section('a team with a config, two inboxes with rows and a lease store, then the lead exits')
+  tally.section('a team with a config, two crewmates\' rows on the crew store and a lease store, then the lead exits')
   first.submit(`${FIRST}: create the team, spawn alpha and beta, leave alpha a note.`)
   await first.waitFor('the team never started', () => first.stdout().includes('TEAM-STARTED'), TURN_MS)
   const until = Date.now() + TURN_MS / 3
