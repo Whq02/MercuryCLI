@@ -3,7 +3,7 @@
  "note": "contract journey 6 (internal leg) — notes opened with n, typed, exited with Esc (external editor lands at Wave B)",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-29T02:09:42.153Z",
+ "capturedAt": "2026-09-29T04:22:31.049Z",
  "screens": [
   {
    "atMs": 13800,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:09:32 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:22:28 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:09:32 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend —             │ 05:22:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -44,14 +44,14 @@
     "                    │ | ttl | 300s    |                                         │",
     "                    └───────────────────────────────────────────────────────────┘",
     "",
-    "                    Notes: prefer the layered shape",
+    "                    Notes: press n to add notes",
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "  Chat about this",
     "",
-    "Enter to select · ↑/↓ to navigate · n to add notes · ctrl+g to edit in Nano · Esc to cancel",
+    "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-4hXBxt                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-9OENF8                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -66,9 +66,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:09:32 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:22:28 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:09:32 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend —             │ 05:22:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -93,14 +93,14 @@
     "                    │ | ttl | 300s    |                                         │",
     "                    └───────────────────────────────────────────────────────────┘",
     "",
-    "                    Notes: prefer the layered shape",
+    "                    Notes: press n to add notes",
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-4hXBxt                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-9OENF8                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:09:32 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:22:28 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:09:32 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend —             │ 05:22:29 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -142,29 +142,30 @@
     "                    │ | ttl | 300s    |                                         │",
     "                    └───────────────────────────────────────────────────────────┘",
     "",
-    "                    Notes: prefer the layered shape",
+    "                    Notes: press n to add notes",
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-4hXBxt                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-9OENF8                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 16002,
-   "frame-recommit": 25
+   "patches": 18434,
+   "frame-recommit": 37,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 45,
-   "window": 45,
-   "p50": 0.9406669999998485,
-   "p95": 11.65099999999984,
-   "p99": 21.624374999999986,
-   "maxMs": 21.624374999999986
+   "total": 67,
+   "window": 67,
+   "p50": 1.2023750000007567,
+   "p95": 65.36308300000019,
+   "p99": 539.6402499999995,
+   "maxMs": 539.6402499999995
   }
  },
  "requests": [
@@ -176,7 +177,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -199,23 +200,23 @@
  ],
  "sends": [
   {
-   "atMs": 6753.278970718384,
+   "atMs": 14538.208961486816,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7553.278970718384,
+   "atMs": 15338.208961486816,
    "b64": "DQ=="
   },
   {
-   "atMs": 11553.278970718384,
+   "atMs": 19338.208961486816,
    "b64": "bg=="
   },
   {
-   "atMs": 12053.278970718384,
+   "atMs": 19838.208961486816,
    "b64": "cHJlZmVyIHRoZSBsYXllcmVkIHNoYXBl"
   },
   {
-   "atMs": 12953.278970718384,
+   "atMs": 20738.208961486816,
    "b64": "Gw=="
   }
  ]

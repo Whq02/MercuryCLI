@@ -37,6 +37,12 @@ check "…and the line says how to run deliberately" "$(case "$out" in *"MERCURY
 out="$(clean MERCURY_CONFIG_DIR="$scratch/home" MERCURY_HOME="$scratch/home" MERCURY_CREDENTIAL_STORE=file MERCURY_GATE_PREBUILT=1 MERCURY_GATE_CORES=2 MERCURY_SUITE_TIMEOUT=3000 MERCURY_CI_SHARD_OUT="$scratch/out" MERCURY_VSHOT_BUDGET_SCALE=3 MERCURY_OPENAI_API_BASE=http://127.0.0.1:1 MERCURY_CUSTOM_OAUTH_URL=http://127.0.0.1:1 MERCURY_UPDATE_API_BASE_URL=http://127.0.0.1:1 MERCURY_DAEMON_DIR="$scratch/home" bash "$runner" 2>&1)"; rc=$?
 check "the pool's own environment line runs the suite" "$([ "$rc" = 0 ] && case "$out" in *"SYNTH RAN"*) echo 0;; *) echo 1;; esac || echo 1)" "rc=$rc $out"
 
+mkdir -p "$scratch/unit"
+clean MERCURY_CONFIG_DIR="$scratch/home" MERCURY_HOME="$scratch/home" MERCURY_CREDENTIAL_STORE=file bash "$root/scripts/gate/run-suite.sh" "$runner" 60 "$scratch/unit" >/dev/null 2>&1; rc=$?
+out="$(cat "$scratch/unit/synth.out" 2>/dev/null)"
+check "a suite run through the suite unit (run-suite.sh, the pool's and the drives' road) starts and runs its first proof — the unit's own process-ledger stamp is admitted as the runner's own" "$([ "$rc" = 0 ] && case "$out" in *"SYNTH RAN"*) echo 0;; *) echo 1;; esac || echo 1)" "rc=$rc $out"
+check "…and the ledger stamp alone never widens the guard: a foreign value beside it still refuses" "$(clean MERCURY_PROCESS_LEDGER_DIR="$scratch/unit" MERCURY_SEATS=2 bash "$runner" >/dev/null 2>&1; [ "$?" = 78 ] && echo 0 || echo 1)"
+
 out="$(clean MERCURY_SYNTH_KNOB=1 bash "$runner" 2>&1)"; rc=$?
 check "an explicitly declared input runs the suite" "$([ "$rc" = 0 ] && echo 0 || echo 1)" "rc=$rc $out"
 

@@ -92,8 +92,8 @@ export async function createCoordinationServer(): Promise<{
       capabilities: { tools: {} },
       instructions:
         'Mercury coordination substrate: typed tools for file leases, the ' +
-        'consolidated team brief, and team-mailbox messaging. Prefer these ' +
-        'over Bash for swarm coordination.',
+        'crew brief (the same live read LiveComms gives), and crew messaging. ' +
+        'Prefer these over Bash for swarm coordination.',
     },
   )
 
@@ -134,7 +134,7 @@ export async function createCoordinationServer(): Promise<{
     'lease_take',
     {
       title: 'Take project file leases',
-      description: 'Take exact project-local file paths for the current session and agent, with no team required. Another live holder is named and refused. Leases end with their holder session; live holders are never expired by age.',
+      description: 'Take exact project-local file paths for the current session and agent, with no crew required. Another live holder is named and refused. Leases end with their holder session; live holders are never expired by age.',
       inputSchema: { paths: z.array(z.string()).min(1).describe('Exact project-relative file paths, not globs.') },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
@@ -152,13 +152,14 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'Claim file leases',
       description:
-        'TEAM-ONLY — no-op when solo. ' +
+        'CREW-ONLY — no-op when solo. ' +
         'Claim a coordination lease over one or more repo-relative file paths ' +
-        '(a path may be a glob, e.g. "src/api/**") so other teammates avoid ' +
+        '(a path may be a glob, e.g. "src/api/**") so other crewmates avoid ' +
         'editing the same files. Pass them as paths; globs is accepted as the ' +
         'same argument. Returns the granted lease, or the first conflicting ' +
         '{agentId, glob} if another agent already holds an overlapping path. ' +
-        'Re-claiming renews your lease; claiming an empty set releases it.',
+        'Re-claiming renews your lease; claiming an empty set releases it. ' +
+        'The claim is the one LiveComms shows every crewmate.',
       inputSchema: {
         paths: z
           .array(z.string())
@@ -197,7 +198,7 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'Release your file leases',
       description:
-        'Release the current holder’s exact project leases when solo, or pass project:true or paths (globs is accepted as the same argument) for project leases on a team. With a team and no project arguments, release the existing team glob lease. No other holder can be released.',
+        'Release the current holder’s exact project leases when solo, or pass project:true or paths (globs is accepted as the same argument) for project leases on a crew. With a crew and no project arguments, release the existing crew glob lease. No other holder can be released.',
       inputSchema: {
         paths: z.array(z.string()).optional().describe('Exact project-relative file paths to release.'),
         globs: z.array(z.string()).optional().describe('The same list under its other name; paths is preferred.'),
@@ -233,7 +234,7 @@ export async function createCoordinationServer(): Promise<{
     {
       title: 'List current file leases',
       description:
-        'List exact project file leases with their session and agent holders, with no team required. On a team the existing glob leases remain in leases and exact leases appear in projectLeases; pass project:true for only exact leases. Dead processes are pruned; live holders never expire by age.',
+        'List exact project file leases with their session and agent holders, with no crew required. On a crew the existing glob leases remain in leases and exact leases appear in projectLeases; pass project:true for only exact leases. Dead processes are pruned; live holders never expire by age.',
       inputSchema: { project: z.boolean().optional() },
       outputSchema: {
         ok: z.boolean(),
@@ -266,13 +267,13 @@ export async function createCoordinationServer(): Promise<{
   server.registerTool(
     'brief',
     {
-      title: 'Consolidated team brief',
+      title: 'Consolidated crew brief',
       description:
-        'TEAM-ONLY — no-op when solo. ' +
-        'A consolidated read of the team state: open tasks, your unread ' +
-        'messages and open questions, the roster, current file leases, ' +
-        'derived agent health, tree conflicts, and handoffs to you. The same ' +
-        'brief the TeamBrief tool produces — read-only.',
+        'CREW-ONLY — no-op when solo. ' +
+        'A live read of the crew state as it stands now: open tasks, your unread ' +
+        'messages and open questions, the roster with who is busy, current file ' +
+        'claims, derived agent health, tree conflicts, and handoffs to you. The ' +
+        'same read the LiveComms tool gives — read-only.',
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
@@ -288,16 +289,16 @@ export async function createCoordinationServer(): Promise<{
   server.registerTool(
     'coord_say',
     {
-      title: 'Message a teammate or broadcast',
+      title: 'Message a crewmate or broadcast',
       description:
-        'TEAM-ONLY — no-op when solo. ' +
-        'Send a coordination message to a teammate by name, or broadcast to ' +
-        'all teammates with to="*". Writes to the team mailbox the same way ' +
-        'the SendMessage tool does, under the same broadcast governance.',
+        'CREW-ONLY — no-op when solo. ' +
+        'Send a coordination message to a crewmate by name, or broadcast to ' +
+        'all crewmates with to="*". Delivered the same way the SendMessage ' +
+        'tool delivers, under the same broadcast governance.',
       inputSchema: {
         to: z
           .string()
-          .describe('Recipient teammate name, or "*" to broadcast to all.'),
+          .describe('Recipient crewmate name, or "*" to broadcast to all.'),
         message: z.string().describe('The message text to deliver.'),
         summary: z
           .string()

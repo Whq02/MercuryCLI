@@ -44,11 +44,12 @@ console.log('§1 a hung gh spawn is killed by its own timeout, live (never a pro
   check('the hung gh child was reaped (SIGKILL landed — nothing lingers)', ghKids() === 0, `${ghKids()} still alive`)
 }
 
-console.log('\n§2 the spawn owner carries a bounded timeout and SIGKILL (source)')
+console.log('\n§2 the spawn owner wraps every gh in a deadline holder of its own and keeps a bounded belt with SIGKILL (source)')
 {
   const { readFileSync } = await import('node:fs')
   const src = readFileSync(join(REPO, 'src/services/privateChannel/ghRelease.ts'), 'utf8')
-  check('the one gh spawn passes a timeout and kills with SIGKILL', /timeout: timeoutMs/.test(src) && /killSignal: 'SIGKILL'/.test(src))
+  check('the one gh spawn rides the deadline holder and keeps a bounded belt that kills with SIGKILL', /GH_DEADLINE_HOLDER, String\(deadlineMs\)/.test(src) && /timeout: deadlineMs \+ 5_000/.test(src) && /killSignal: 'SIGKILL'/.test(src))
+  check('the holder ends gh at the deadline, when its parent dies, and on a termination signal', /setTimeout\(\(\) => end\(\$\{GH_DEADLINE_EXIT\}\)/.test(src) && /process\.stdin\.on\('end', \(\) => end\(129\)\)/.test(src) && /process\.on\('SIGTERM', \(\) => end\(143\)\)/.test(src))
   check('the default budget is bounded (two minutes), not unbounded', /GH_TIMEOUT_MS = 120_000/.test(src))
 }
 

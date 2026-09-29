@@ -720,6 +720,7 @@ export async function runHeadless(
     }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
+  if (!awaitingSessionClaim) (await import('../utils/crew/crewBirth.js')).birthSessionCrew(String(getSessionId()))
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -2208,6 +2209,7 @@ export async function runHeadless(
           await armSessionRunnerWiring(sid)
           if (typeof request.restart_reason === 'string') runnerRestartReason = request.restart_reason
           if (request.resume === true) await hydrateResumedRun()
+          ;(await import('../utils/crew/crewBirth.js')).birthSessionCrew(sid)
           awaitingSessionClaim = false
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
           respondSuccess(requestId, { session_id: sid })

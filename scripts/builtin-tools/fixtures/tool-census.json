@@ -1257,6 +1257,32 @@
       }
     },
     {
+      "name": "LiveComms",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "read and write the crew's live state"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
       "name": "LSP",
       "category": "read",
       "risk": "low",
@@ -2032,32 +2058,6 @@
         "conditions": [
           "an interactive session (a headless run needs MERCURY_TASKS=1)"
         ]
-      }
-    },
-    {
-      "name": "TeamBrief",
-      "category": "coord",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "brief a chartered team"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "resources": [
-          "team"
-        ],
-        "cancellation": "not-applicable",
-        "latency": "fast"
       }
     },
     {

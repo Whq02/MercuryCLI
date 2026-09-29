@@ -163,6 +163,12 @@ lead — with no restart. The coordination tools every session carries
 (`mcp__mercury__brief`, `mcp__mercury__coord_say` and the lease verbs) read
 and write the same live state.
 
+Every message rides LiveComms: one file per crew,
+`<config home>/crew/livecomms/<crew>.json`, holding the crew's messages (each
+addressed by name), its tasks and who is busy. There is no file per member.
+Every row is validated on read and unknown fields are tolerated, so a build of
+another vintage reads the same file.
+
 One delivery rule guards permission posture: inbound crewmate messages
 arriving while the session runs in a bypass-permissions mode are held,
 visibly, until the operator returns to a prompting mode

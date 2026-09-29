@@ -63,6 +63,10 @@ export interface ControlServerDeps {
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
   processSweep?: (request: { action: 'facts' | 'end'; expected?: ProcessSweepEntry }) => Promise<Extract<DaemonReply, { op: 'processSweep' }>>
+  handover?: {
+    roadOf: (op: string, raw: Record<string, unknown>) => 'here' | 'predecessor'
+    forward: (line: string) => Promise<DaemonReply>
+  }
   nudgeAgent?: (agentName: string) => void
   crewSpawn?: (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }>
   concourseAdmit?: (req: {
@@ -482,6 +486,7 @@ async function routeControlRequest(
       liveSessions: facts?.liveSessions ?? 0,
       warm: facts?.warm ?? 0,
       restartArmed: facts?.restartArmed ?? false,
+      predecessorPid: facts?.predecessorPid ?? null,
     })
   }
   if (op === 'nudge') {
@@ -534,6 +539,11 @@ async function routeControlRequest(
   }
 
   const auth = typeof raw.auth === 'string' ? raw.auth : undefined
+
+  if (deps.handover !== undefined && typeof op === 'string' && deps.handover.roadOf(op, raw) === 'predecessor') {
+    if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+    return answer(sock, await deps.handover.forward(line))
+  }
 
   switch (op) {
     case 'list':
