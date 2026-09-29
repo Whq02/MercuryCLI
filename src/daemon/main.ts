@@ -116,6 +116,7 @@ import {
   daemonDir,
   markSupervisorStoppingSync,
   mintControlKey,
+  readControlKey,
   readSupervisorState,
   reassertControlKey,
   supervisorExitTeardownSync,
@@ -125,6 +126,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
+import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
@@ -305,6 +307,9 @@ async function daemonRun(args: string[]): Promise<void> {
   let restartArmed = false
   let restartAfterTeardown = false
   let stopArmedBeat: (() => void) | null = null
+  let handoverPredecessor: number | null = null
+  let handover: HandoverStateV1 | null = null
+  let stopLockBeat: (() => void) | null = null
   let stopSaturnTicker: (() => void) | null = null
   let roster: TaskRoster | null = null
   const dispatchDrains: DispatchDrainHandle[] = []
@@ -325,8 +330,28 @@ async function daemonRun(args: string[]): Promise<void> {
   let releaseHeldReading: () => void = () => {}
 
   if (controlEnabled) {
+    const successorOf = flagEnv('MERCURY_DAEMON_SUCCESSOR_OF')
+    if (successorOf && (await planeServedByThisBuild(bootBuildTree))) {
+      // eslint-disable-next-line no-console
+      console.error(`[daemon] successor of pid ${successorOf}: the plane is already served by a daemon of this build — standing down`)
+      return
+    }
+    const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
+    if (handoverFrom !== null) {
+      const record = await readSupervisorState().catch(() => null)
+      if (record === null || record.pid !== handoverFrom || !isProcessAlive(handoverFrom)) {
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] handover from pid ${handoverFrom}: no live predecessor owns the plane — booting as an ordinary daemon`)
+      } else if (record.buildTree !== undefined && record.buildTree !== null && bootBuildTree !== null && record.buildTree.slice(0, 12) === bootBuildTree.slice(0, 12)) {
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] handover from pid ${handoverFrom}: the predecessor already runs this build — nothing to move; standing down`)
+        return
+      } else {
+        handoverPredecessor = handoverFrom
+      }
+    }
     supervisorLock = await acquireSupervisorLock()
-    const predecessorPid = flagEnv('MERCURY_DAEMON_SUCCESSOR_OF')
+    const predecessorPid = successorOf
     if (!supervisorLock && predecessorPid) {
       const deadline = Date.now() + SUCCESSOR_LOCK_WAIT_MS
       while (!supervisorLock && Date.now() < deadline) {
@@ -338,7 +363,10 @@ async function daemonRun(args: string[]): Promise<void> {
         console.error(`[daemon] successor of pid ${predecessorPid} took the plane over (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO})`)
       }
     }
-    if (!supervisorLock) {
+    if (!supervisorLock && handoverPredecessor !== null) {
+      // eslint-disable-next-line no-console
+      console.error(`[daemon] handover from pid ${handoverPredecessor}: it holds the supervisor lock — taken when it leaves`)
+    } else if (!supervisorLock) {
       // eslint-disable-next-line no-console
       console.error(
         `[daemon] another daemon already owns this config home (${daemonDir()}) — refusing to start so the live one is not clobbered`,
@@ -396,8 +424,8 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         },
       })
-      resetSeatProjections(dir)
-      const controlKey = await mintControlKey()
+      if (handoverPredecessor === null) resetSeatProjections(dir)
+      const controlKey = handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey()))
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {
@@ -449,9 +477,49 @@ async function daemonRun(args: string[]): Promise<void> {
           live++
           if (w.short.startsWith('concourse-w')) liveSessions++
         }
+        const held = handover?.heldRunners().size ?? 0
+        live += held
+        liveSessions += held
         return { live, liveSessions }
       }
+      const bootStartToken = await getProcessStartTokenAsync(process.pid)
+      const persistSupervisorRecord = (owner: number | null): Promise<void> =>
+        writeSupervisorState({
+          pid: process.pid,
+          version: currentVersion(),
+          origin: 'transient',
+          startedAt,
+          dir,
+          controlSock: controlSockPath(),
+          proto: MERCURY_DAEMON_PROTO,
+          buildTree: bootBuildTree,
+          ownerPid: owner,
+          foreground,
+          startToken: bootStartToken,
+          persist,
+        })
+      if (handoverPredecessor !== null) {
+        const rosterRef = roster
+        handover = handoverState(
+          handoverPredecessor,
+          short => rosterRef?.has(short).present ?? false,
+          () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
+        )
+        await persistSupervisorRecord(currentOwnerPid)
+        const moved = renameSocketForPredecessor(handoverPredecessor)
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners().size} live session(s) until they finish`)
+      }
+      const handoverRef = handover
       controlServer = await startControlServer({
+        ...(handoverRef !== null
+          ? {
+              handover: {
+                roadOf: (op, raw) => handoverRoadOf(op, raw, handoverRef),
+                forward: line => forwardFrame(handoverRef.sockPath, line),
+              },
+            }
+          : {}),
         roster,
         breaker,
         dir,
@@ -498,7 +566,7 @@ async function daemonRun(args: string[]): Promise<void> {
         concourseList: () => {
           if (!roster) return []
           const entries = roster.list().filter(j => !j.outcome)
-          const live = new Set(entries.map(j => j.short))
+          const live = new Set([...entries.map(j => j.short), ...(handover?.heldRunners() ?? [])])
           const livePid = new Map(entries.map(j => [j.short, j.pid]))
           return listConcourseWorkers(live).map(r => ({
             ...r,
@@ -837,6 +905,9 @@ async function daemonRun(args: string[]): Promise<void> {
               if (roster.kill(w.short)) workers.push(w)
             }
           }
+          if (handover !== null && handover.alive()) {
+            void forwardFrame(handover.sockPath, JSON.stringify({ op: 'shutdown', reapWorkers }), 3000).catch(() => undefined)
+          }
           setImmediate(() => requestShutdown('control:shutdown'))
           return { reaped: workers.length, workers }
         },
@@ -850,6 +921,7 @@ async function daemonRun(args: string[]): Promise<void> {
           ...liveWorkers(),
           warm: warmRunnerCount(),
           restartArmed,
+          predecessorPid: handover !== null && handover.alive() ? handover.predecessorPid : null,
         }),
         signIns: opts => {
           const view = composeSignInView(opts)
@@ -928,22 +1000,6 @@ async function daemonRun(args: string[]): Promise<void> {
           return refuse('only a daemon or a runner takes the daemon road', 'none')
         },
       })
-      const bootStartToken = await getProcessStartTokenAsync(process.pid)
-      const persistSupervisorRecord = (owner: number | null): Promise<void> =>
-        writeSupervisorState({
-          pid: process.pid,
-          version: currentVersion(),
-          origin: 'transient',
-          startedAt,
-          dir,
-          controlSock: controlSockPath(),
-          proto: MERCURY_DAEMON_PROTO,
-          buildTree: bootBuildTree,
-          ownerPid: owner,
-          foreground,
-          startToken: bootStartToken,
-          persist,
-        })
       await persistSupervisorRecord(currentOwnerPid)
       {
         let healInflight = false
@@ -1035,6 +1091,24 @@ async function daemonRun(args: string[]): Promise<void> {
         armedBeat.unref?.()
         stopArmedBeat = () => clearInterval(armedBeat)
       }
+      if (handoverPredecessor !== null && supervisorLock === null) {
+        const lockBeat = setInterval(() => {
+          void (async () => {
+            if (supervisorLock !== null) return
+            const taken = await acquireSupervisorLock()
+            if (taken === null) return
+            supervisorLock = taken
+            stopLockBeat?.()
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the supervisor lock — this daemon holds it now`)
+          })()
+        }, HANDOVER_LOCK_BEAT_MS)
+        lockBeat.unref?.()
+        stopLockBeat = () => {
+          clearInterval(lockBeat)
+          stopLockBeat = null
+        }
+      }
       ready = true
       wakeReady()
       // eslint-disable-next-line no-console
@@ -1042,7 +1116,7 @@ async function daemonRun(args: string[]): Promise<void> {
       stopSaturnTicker = startSaturnTicker(
         {
           now: () => Date.now(),
-          records: () => Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined),
+          records: () => Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && !(handover?.holds(r.runnerId) ?? false)),
           liveFacts: (account, sessionId) => {
             refreshSignInReads()
             return liveFactsForSessionFire(account, sessionId)
@@ -1161,6 +1235,7 @@ async function daemonRun(args: string[]): Promise<void> {
       shuttingDown = true
       stopPlaneHeal?.()
       stopArmedBeat?.()
+      stopLockBeat?.()
       stopSaturnTicker?.()
       if (controlEnabled) markSupervisorStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)
@@ -1324,6 +1399,16 @@ async function daemonRun(args: string[]): Promise<void> {
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
+const HANDOVER_LOCK_BEAT_MS = 2_000
+
+async function planeServedByThisBuild(bootBuildTree: string | null): Promise<boolean> {
+  if (bootBuildTree === null) return false
+  const reply = await daemonControlRpc(
+    { op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: bootBuildTree },
+    { timeoutMs: 1500, protoRetry: false },
+  )
+  return reply.ok && reply.op === 'hello' && reply.pid !== process.pid && reply.buildTree !== null && reply.buildTree.slice(0, 12) === bootBuildTree.slice(0, 12)
+}
 const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const RECONCILE_TICK_MS = 60_000
@@ -1331,6 +1416,7 @@ const RECONCILE_TICK_MS = 60_000
 function spawnSuccessorDaemon(): number | undefined {
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
+    delete env.MERCURY_DAEMON_HANDOVER_FROM
     stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
     if (hasStoredOAuthToken()) {
       const stripped: string[] = []
