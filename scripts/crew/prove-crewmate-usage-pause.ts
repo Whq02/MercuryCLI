@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, TURN_MS, type Frame } from './team-world.ts'
+import { bootLead, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, TURN_MS, type Frame } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
-const team = 'usage-pause-team'
+const sessionId = randomUUID()
+const team = sessionId
 const worker = 'worker'
 const scout = 'scout the window'
 const peerModel = 'claude-opus-4-6'
@@ -40,8 +42,7 @@ const spend1 = spent(MESSAGE_1)
 const spend2 = spent(MESSAGE_2)
 const spendScout = spent('SCOUT-ASK')
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: team, description: 'Usage pause' } }, FIRST),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: team, model: peerModel, subagent_type: 'mercury-general', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: 'toolu_send_one', name: 'SendMessage', input: { to: worker, message: MESSAGE_1, summary: 'first ask' } }, SPEND_1),
   lead({ kind: 'text', text: 'LEAD-SENT-1' }, SPEND_1),
@@ -60,8 +61,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-usage-pause')
 const world = await makeWorld('crewmate-usage-pause', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'TeamCreate', 'SendMessage'])
-const inboxPath = join(world.teams, team, 'inboxes', 'team-lead.json')
+const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
 const rosterPath = join(world.teams, team, 'config.json')
 let seq = 0
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
@@ -73,7 +73,6 @@ const control = async (request: Frame): Promise<Frame> => {
 }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 type WorkRow = { id: string; kind: string; name: string; status: string; error?: string; paused?: { why?: string; words?: string; resumes_at_ms?: number }; idle?: boolean }
-type InboxRow = { from: string; text: string }
 type Roster = { members: Array<{ name: string }> }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const bodyText = (request: Request): string => JSON.stringify(request.body.messages ?? [])
@@ -91,7 +90,7 @@ const rowsNamed = (rows: WorkRow[], name: string): WorkRow[] => rows.filter(row 
 const pausedRow = async (name: string): Promise<WorkRow | undefined> => rowsNamed(await facts(), name).find(row => row.paused?.why === 'usage limit' || row.paused?.why === 'provider busy')
 const rowsOf = (kind: string): Array<{ id: string; description: string }> =>
   session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === kind).map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
-const leadInboxFrom = (name: string): string[] => (readJson<InboxRow[]>(inboxPath) ?? []).filter(row => row.from === name).map(row => row.text)
+const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, team, 'team-lead').filter(row => row.from === name).map(row => row.text)
 const rosterHolds = (name: string): boolean => (readJson<Roster>(rosterPath)?.members ?? []).some(member => member.name === name)
 const until = async (test: () => boolean | Promise<boolean>, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
