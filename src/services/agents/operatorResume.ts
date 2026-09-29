@@ -59,7 +59,7 @@ const resumingTeammates = new Set<string>()
 async function dropStaleRosterRow(teamName: string, agentId: string): Promise<void> {
   const roster = await readTeamFileAsync(teamName).catch(() => null)
   const stale = roster?.members.find(member => member.agentId === agentId)
-  if (stale !== undefined && stale.backendType === 'in-process') removeMemberByAgentId(teamName, agentId)
+  if (stale !== undefined && stale.backendType === 'in-process') await removeMemberByAgentId(teamName, agentId)
 }
 
 export async function resumeTeammateFromTranscript(

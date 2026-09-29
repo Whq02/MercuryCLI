@@ -235,7 +235,9 @@ export function killInProcessTeammate(
   })
 
   if (capturedTeamName !== undefined && capturedAgentId !== undefined) {
-    removeMemberByAgentId(capturedTeamName, capturedAgentId)
+    removeMemberByAgentId(capturedTeamName, capturedAgentId).catch((error: unknown) => {
+      logForDebugging(`teammate ${capturedAgentId}: roster removal at the kill failed: ${errorMessage(error)}`)
+    })
   }
   if (killed) {
     void evictTaskOutput(taskId)
