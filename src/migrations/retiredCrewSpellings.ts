@@ -28,7 +28,6 @@ export const RETIRED_TOOL_NAMES: Readonly<Record<string, string | null>> = {
 }
 
 export const RETIRED_LIVE_COMMS_TOOL_NAME = 'TeamBrief'
-export const RETIRED_CREWMATES_COMMAND_NAME = 'teammates'
 
 export const RETIRED_AGENT_TOOL_FIELDS: Readonly<Record<string, string>> = {
   team_name: 'crew_name',
@@ -64,10 +63,6 @@ export const RETIRED_KEYBINDING_ACTIONS: Readonly<Record<string, string>> = {
 export const RETIRED_CLI_FLAGS: Readonly<Record<string, string>> = {
   '--team-name': '--crew-name',
   '--agent-teams': '--agent-crews',
-}
-
-export const RETIRED_COMMAND_NAMES: Readonly<Record<string, string>> = {
-  teammates: 'crewmates',
 }
 
 export const RETIRED_GLOBAL_CONFIG_VALUES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
