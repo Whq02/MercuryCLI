@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getInstructionBundle } from '../../services/instructions/engine.js'
 import { generateTaskId } from '../../Task.js'
@@ -34,7 +35,7 @@ export type SpawnCrewmateConfig = {
   agent_type?: string
   description?: string
   invokingRequestId?: string
-  resume?: InProcessRunnerConfig['resume']
+  resume?: InProcessRunnerConfig['resume'] & { worktree?: string }
 }
 
 export type SpawnOutput = {
@@ -163,6 +164,14 @@ function canonicalAgentTypeOf(
   return resolvedRole.definition ? resolvedRole.agentType : config.agent_type
 }
 
+function standingDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
 
 async function spawnInProcessStrategy(
   config: SpawnCrewmateConfig,
@@ -178,15 +187,20 @@ async function spawnInProcessStrategy(
   const instructionAtSpawn = { profile: bundle.resolution.resolved, digest: bundle.bundleDigest }
 
   const transcriptAgentId = config.resume?.transcriptAgentId ?? generateTaskId('local_agent')
-  const start = await resolveCrewStart(
-    {
-      name: crewmateName,
-      cwd: config.cwd ?? getCwd(),
-      ...(config.worktree !== undefined ? { worktree: config.worktree } : {}),
-      model: prepared.model,
-    },
-    { slug: crewWorktreeSlug(transcriptAgentId) },
-  )
+  const cwd = config.cwd ?? getCwd()
+  const kept = config.resume?.worktree
+  const start =
+    kept !== undefined && standingDirectory(kept)
+      ? { name: crewmateName, cwd, worktree: { path: kept }, runDir: kept, model: prepared.model }
+      : await resolveCrewStart(
+          {
+            name: crewmateName,
+            cwd,
+            ...(config.worktree !== undefined ? { worktree: config.worktree } : {}),
+            model: prepared.model,
+          },
+          { slug: crewWorktreeSlug(transcriptAgentId) },
+        )
 
   const spawnResult = await spawnInProcessCrewmate(
     {

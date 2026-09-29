@@ -44,6 +44,7 @@ export function crewmateRespawnConfig(task: InProcessCrewmateTaskState): SpawnCr
     name: task.identity.agentName,
     prompt: task.prompt,
     crew_name: task.identity.crewName,
+    ...(task.cwd !== undefined ? { cwd: task.cwd } : {}),
     ...(agentType !== undefined ? { agent_type: agentType } : {}),
     ...(task.model !== undefined ? { model: task.model } : {}),
     plan_mode_required: task.identity.planModeRequired === true,
@@ -95,6 +96,7 @@ export async function resumeCrewmateFromTranscript(
           name: meta!.name!,
           prompt: record!.prompt,
           crew_name: record!.crewName,
+          ...(meta!.cwd !== undefined ? { cwd: meta!.cwd } : {}),
           ...(record!.agentType !== undefined ? { agent_type: record!.agentType } : {}),
           ...(meta!.model !== undefined ? { model: meta!.model } : {}),
           plan_mode_required: record!.planModeRequired,
@@ -115,11 +117,13 @@ export async function resumeCrewmateFromTranscript(
     restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
     const messages = filterWhitespaceOnlyAssistantMessages(filterOrphanedThinkingOnlyMessages(filterUnresolvedToolUses(transcript.messages)))
     const contentReplacementState = reconstructForSubagentResume(context.toolUseContext.contentReplacementState, messages, transcript.contentReplacements)
+    const worktree = task?.worktree ?? meta?.worktreePath
     config.resume = {
       transcriptAgentId: transcriptAgentId!,
       prompt: context.prompt?.trim() || AGENT_RESUME_NOTE,
       messages,
       ...(contentReplacementState !== undefined ? { contentReplacementState } : {}),
+      ...(worktree !== undefined ? { worktree } : {}),
     }
     const effort = meta?.effortOverride ?? task?.effort
     if (effort !== undefined) config.effort = effort
