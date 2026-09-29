@@ -16,7 +16,7 @@ import {
   toolResultOf,
   TURN_MS,
   userTextsOf,
-} from './team-world.ts'
+} from './crew-world.ts'
 
 const SEAT = 'ghost'
 const SEAT_MODEL = 'claude-opus-4-6'

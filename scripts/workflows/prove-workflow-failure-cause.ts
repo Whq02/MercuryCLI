@@ -11,7 +11,7 @@ import {
   readJson,
   record,
   userTextsOf,
-} from '../crew/team-world.ts'
+} from '../crew/crew-world.ts'
 
 const LAUNCH = 'RUN-REVIEWS'
 const WORKFLOW_ID = 'toolu_two_reviews'

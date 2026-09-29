@@ -3,7 +3,7 @@
 # gate-watch: src/components/tasks/RunDetailPane* src/components/tasks/WorkflowDetailDialog*
 # gate-watch: src/daemon/workerRecon* src/tasks/LocalWorkflowTask/LocalWorkflowTask*
 # gate-watch: src/tools/WorkflowTool/** src/utils/evolution/evolutionLedger*
-# gate-watch: scripts/crew/team-world.ts scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts
+# gate-watch: scripts/crew/crew-world.ts scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts
 # gate-watch: src/components/HelmTelemetryRail.tsx src/components/MercuryFrame.tsx
 # gate-watch: src/services/capacity/governor.ts src/services/concourse/workerModels.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/openaiLimitState.ts

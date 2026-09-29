@@ -19,7 +19,7 @@ import {
   toolResultOf,
   treeOf,
   TURN_MS,
-} from './team-world.ts'
+} from './crew-world.ts'
 
 const scratchCrews = mkdtempSync(join(tmpdir(), 'crew-from-birth-crews-'))
 process.env.MERCURY_CREWS_DIR = scratchCrews

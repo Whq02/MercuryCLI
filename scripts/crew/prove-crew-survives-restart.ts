@@ -16,7 +16,7 @@ import {
   toolResultOf,
   treeOf,
   TURN_MS,
-} from './team-world.ts'
+} from './crew-world.ts'
 
 const SEAT_MODEL = 'claude-opus-4-6'
 const SEAT_GATE = 'opus-4-6'

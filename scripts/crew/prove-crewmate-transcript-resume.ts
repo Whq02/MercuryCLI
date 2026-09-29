@@ -2,7 +2,7 @@
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, treeOf, TURN_MS, type Frame } from './team-world.ts'
+import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, treeOf, TURN_MS, type Frame } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const peerModel = 'claude-opus-4-6'
