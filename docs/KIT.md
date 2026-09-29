@@ -58,7 +58,7 @@ reactivated session is re-stamped from the record with a `kit-restamp`
 receipt naming what was displaced; a transcript resumed with no record says
 so loudly on the same receipt road. An extension is live for a session only
 when both agree: its installed switch AND its per-repository master row. A kit
-narrows only the session it was stamped on — teammates, the daemon, and
+narrows only the session it was stamped on — crewmates, the daemon, and
 every non-session process are untouchable by construction.
 
 ## Presets
