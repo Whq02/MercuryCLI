@@ -70,7 +70,7 @@ export function computeAgentHealth(
         state: 'idle' as const,
         currentTasks: member.currentTasks,
         leaseAgeMs,
-        why: 'no open tasks owned',
+        why: member.status === 'stopped' ? 'stopped by the operator — its record stands until cleared' : 'no open tasks owned',
       }
     }
 

@@ -13,7 +13,7 @@ import { startInProcessCrewmate, type FirstDispatchOutcome, type InProcessRunner
 import { resolveCrewmateRole, type ResolvedCrewmateRole } from '../../utils/swarm/roleResolver.js'
 import { spawnInProcessCrewmate, unwindCrewmateSpawn } from '../../utils/swarm/spawnInProcess.js'
 import { parseCrewCharter } from '../../utils/swarm/crewCharter.js'
-import { appendCrewMember, readCrewFileAsync, removeCrewmateFromCrewFile, type CrewFile } from '../../utils/swarm/crewHelpers.js'
+import { appendCrewMember, crewmateStopped, readCrewFileAsync, removeCrewmateFromCrewFile, type CrewFile } from '../../utils/swarm/crewHelpers.js'
 import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import { getHardcodedCrewmateModelFallback } from '../../utils/swarm/crewmateModel.js'
 import { crewContextFor, resolveSpawnCrew } from '../../utils/crew/crewBirth.js'
@@ -85,7 +85,7 @@ export async function generateUniqueCrewmateName(
     return baseName
   }
   if (!crew) return baseName
-  const taken = new Set(crew.members.map(member => member.name.toLowerCase()))
+  const taken = new Set(crew.members.filter(member => !crewmateStopped(member)).map(member => member.name.toLowerCase()))
   if (!taken.has(baseName.toLowerCase())) return baseName
   let suffix = 2
   while (taken.has(`${baseName}-${suffix}`.toLowerCase())) suffix += 1

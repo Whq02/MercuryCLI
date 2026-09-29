@@ -47,6 +47,7 @@ type CrewMember = {
   subscriptions: string[]
   backendType?: BackendType
   isActive?: boolean
+  stoppedAt?: number
   mode?: PermissionMode
   role?: string
 }
@@ -338,12 +339,27 @@ export async function appendCrewMember(crewName: string, member: CrewMember): Pr
     if (roster === null) {
       throw new Error(`Crew "${crewName}" does not exist`)
     }
-    if (roster.members.length >= MAX_CREW_MEMBERS) {
+    const standing = roster.members.filter(candidate => candidate.agentId !== member.agentId || candidate.stoppedAt === undefined)
+    if (standing.length >= MAX_CREW_MEMBERS) {
       throw new Error(
-        `Crew "${crewName}" already has ${roster.members.length} members (max ${MAX_CREW_MEMBERS}) — shut down an idle crewmate before spawning another`,
+        `Crew "${crewName}" already has ${standing.length} members (max ${MAX_CREW_MEMBERS}) — shut down an idle crewmate before spawning another`,
       )
     }
-    return { next: { ...roster, members: [...roster.members, member] }, result: undefined }
+    return { next: { ...roster, members: [...standing, member] }, result: undefined }
+  })
+}
+
+export function crewmateStopped(member: Pick<CrewMember, 'stoppedAt'>): boolean {
+  return member.stoppedAt !== undefined
+}
+
+export async function markMemberStopped(crewName: string, agentId: string, stoppedAt: number): Promise<boolean> {
+  return withLockedCrewFile(crewName, current => {
+    if (current === null) return { next: null, result: false }
+    const member = current.members.find(candidate => candidate.agentId === agentId)
+    if (member === undefined) return { next: null, result: false }
+    const members = current.members.map(candidate => (candidate === member ? { ...candidate, isActive: false, stoppedAt } : candidate))
+    return { next: { ...current, members }, result: true }
   })
 }
 

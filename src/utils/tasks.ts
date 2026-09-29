@@ -21,7 +21,7 @@ import { listLiveCommsTasks, subscribeLiveCommsTasks, type LiveCommsTaskV1 } fro
 import { getCrewName } from './crewmate.js'
 import { getCrewmateContext, isInProcessCrewmate } from './crewmateContext.js'
 import { CREW_LEAD_NAME } from './swarm/constants.js'
-import { readCrewFileAsync } from './swarm/crewHelpers.js'
+import { crewmateStopped, readCrewFileAsync } from './swarm/crewHelpers.js'
 
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
@@ -553,7 +553,7 @@ export type AgentStatus = {
   agentId: string
   name: string
   agentType?: string
-  status: 'busy' | 'idle'
+  status: 'busy' | 'idle' | 'stopped'
   currentTasks: string[]
 }
 
@@ -565,9 +565,10 @@ export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] 
     name: String(member.name),
     agentType: member.agentType,
   }))
+  const stopped = new Set((crewFile.members ?? []).filter(crewmateStopped).map(member => String(member.agentId)))
   const working = new Set(
     (crewFile.members ?? [])
-      .filter(member => member.agentId !== crewFile.leadAgentId && member.name !== CREW_LEAD_NAME && member.isActive !== false)
+      .filter(member => member.agentId !== crewFile.leadAgentId && member.name !== CREW_LEAD_NAME && member.isActive !== false && !crewmateStopped(member))
       .map(member => String(member.agentId)),
   )
   const tasks = await listTasks(sanitizeCrewNameForListId(crewName))
@@ -578,7 +579,7 @@ export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] 
     )
     return {
       ...member,
-      status: ownedIds.length > 0 || working.has(member.agentId) ? ('busy' as const) : ('idle' as const),
+      status: stopped.has(member.agentId) ? ('stopped' as const) : ownedIds.length > 0 || working.has(member.agentId) ? ('busy' as const) : ('idle' as const),
       currentTasks: ownedIds,
     }
   })

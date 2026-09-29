@@ -23,7 +23,8 @@ import { asAgentId } from '../../types/ids.js'
 import { createCrewmateContext, type CrewmateContext } from '../crewmateContext.js'
 import { crewWorktreeLeftWords } from '../crew/crewWorktreeReminder.js'
 import { releaseAllForAgent } from './leaseGlob.js'
-import { removeMemberByAgentId } from './crewHelpers.js'
+import { markMemberStopped } from './crewHelpers.js'
+import { setLiveBusy } from '../../services/crew/liveComms.js'
 
 
 export type SpawnContext = {
@@ -190,6 +191,8 @@ export function killInProcessCrewmate(
   let capturedToolUseId: string | undefined
   let capturedDescription = ''
   let capturedWorktree: string | undefined
+  let capturedName: string | undefined
+  let capturedEndTime = Date.now()
 
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
@@ -199,6 +202,7 @@ export function killInProcessCrewmate(
     killed = true
     capturedCrewName = task.identity.crewName
     capturedAgentId = task.identity.agentId
+    capturedName = task.identity.agentName
     capturedToolUseId = task.toolUseId
     capturedDescription = task.description
     capturedWorktree = task.worktree
@@ -213,11 +217,12 @@ export function killInProcessCrewmate(
     }
 
     const lastMessage = task.messages?.[task.messages.length - 1]
+    capturedEndTime = Date.now()
     const nextTask: InProcessCrewmateTaskState = {
       ...task,
       status: 'killed',
       notified: true,
-      endTime: Date.now(),
+      endTime: capturedEndTime,
       onIdleCallbacks: [],
       ...(lastMessage !== undefined ? { messages: [lastMessage] } : { messages: undefined }),
       pendingUserMessages: [],
@@ -243,9 +248,12 @@ export function killInProcessCrewmate(
     }
   })
 
-  if (capturedCrewName !== undefined && capturedAgentId !== undefined) {
-    removeMemberByAgentId(capturedCrewName, capturedAgentId).catch((error: unknown) => {
-      logForDebugging(`crewmate ${capturedAgentId}: roster removal at the kill failed: ${errorMessage(error)}`)
+  if (capturedCrewName !== undefined && capturedAgentId !== undefined && capturedName !== undefined) {
+    markMemberStopped(capturedCrewName, capturedAgentId, capturedEndTime).catch((error: unknown) => {
+      logForDebugging(`crewmate ${capturedAgentId}: the roster's stop mark was not written: ${errorMessage(error)}`)
+    })
+    setLiveBusy(capturedCrewName, capturedName, false).catch((error: unknown) => {
+      logForDebugging(`crewmate ${capturedAgentId}: the live busy word was not cleared at the stop: ${errorMessage(error)}`)
     })
   }
   if (killed) {
