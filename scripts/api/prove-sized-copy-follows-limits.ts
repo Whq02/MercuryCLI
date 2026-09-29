@@ -29,7 +29,6 @@ watchdog.unref?.()
 
 const sharp = (await import('sharp')).default
 const { fitImagesToRequestCap, imageLimitsForModel, requestImageSidePx } = await import('../../src/utils/imageResizer.ts')
-const { imageProcessorState } = await import('../../src/tools/FileReadTool/imageProcessor.ts')
 
 const DIRECT = 'claude-opus-5-5'
 const RELAYED = 'glm-5'
@@ -83,8 +82,6 @@ section('§1 the two families a session can move between share the per-side cap 
   check(`${RELAYED} sizes to the generic table (a route without documented figures of its own)`, relayed.family === 'generic', relayed.family)
   check(`both tables cap a single image at the same side (${String(sidePx)} px)`, sidePx !== null && requestImageSidePx(relayed, 1) === sidePx, `${String(sidePx)} vs ${String(requestImageSidePx(relayed, 1))}`)
   check(`the generic ceiling is stricter than the anthropic one (${kb(relayedCeiling)} vs ${kb(directCeiling)} as base64)`, relayedCeiling < directCeiling)
-  const road = await imageProcessorState()
-  note(`image road: ${road.road}${road.road === 'javascript' ? ` (${road.reason})` : ''}`)
 }
 
 const source = await sharp(noise(WIDTH, HEIGHT, 7), { raw: { width: WIDTH, height: HEIGHT, channels: 3 } }).png({ compressionLevel: 6 }).toBuffer()
