@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-28T22:38:51.455Z",
+ "capturedAt": "2026-09-29T00:44:46.796Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0Fg8lJ · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-ApEGfX · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:38:43 [sam] ❯ design the cache layer",
+    "01:44:39 [sam] ❯ design the cache layer",
     "",
-    "23:38:44 [Mercury] Let me confirm the open",
+    "01:44:39 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0Fg8lJ · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-ApEGfX · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "23:38:43 [sam] ❯ design the cache layer",
+    "01:44:39 [sam] ❯ design the cache layer",
     "",
-    "23:38:44 [Mercury] Let me confirm the open",
+    "01:44:39 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5365,
-   "frame-recommit": 15
+   "patches": 5391,
+   "frame-recommit": 12
   },
   "frames": {
-   "total": 29,
-   "window": 29,
-   "p50": 1.1111250000003565,
-   "p95": 11.412333999999987,
-   "p99": 19.916584000000057,
-   "maxMs": 19.916584000000057
+   "total": 27,
+   "window": 27,
+   "p50": 0.8153330000000096,
+   "p95": 5.191499999999905,
+   "p99": 7.548790999999937,
+   "maxMs": 7.548790999999937
   }
  },
  "requests": [
@@ -127,7 +127,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-28.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-29.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6765.314102172852,
+   "atMs": 6533.426761627197,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7565.314102172852,
+   "atMs": 7333.426761627197,
    "b64": "DQ=="
   }
  ]
