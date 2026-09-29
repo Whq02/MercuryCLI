@@ -151,7 +151,7 @@ try {
   tally.check('the first message to the crewmate is delivered to its inbox', note !== null && note.isError === false && inbox('scout').some(row => row.text.includes('NOTE-FOR-SCOUT')), `${note?.text.slice(0, 200) ?? '(no result)'} inbox=${JSON.stringify(inbox('scout').map(row => row.text.slice(0, 40)))}`)
   const brief = toolResultOf(world, BRIEF_ID)
   record('first-brief.txt', `${brief?.text ?? ''}\n`)
-  tally.check('the first brief names the session\'s crew and lists scout', brief !== null && brief.text.includes(`# Team: ${sessionId}`) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
+  tally.check('the first brief names the session\'s crew and lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`).test(brief.text) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
   const until = Date.now() + TURN_MS / 3
   while (idleNotices() < 1 && Date.now() < until) await sleep(50)
   tally.check('the crewmate\'s idle notice reaches the lead\'s inbox of that crew', idleNotices() >= 1, `${idleNotices()} notice(s) in ${crewDir}`)
@@ -173,7 +173,7 @@ try {
   await second.waitFor('the resumed session never settled', () => second.stdout().includes('RESUME-DONE'), TURN_MS)
   const brief = toolResultOf(world, BRIEF_AGAIN_ID)
   record('resumed-brief.txt', `${brief?.text ?? ''}\n`)
-  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && brief.text.includes(`# Team: ${sessionId}`) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
+  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`).test(brief.text) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
   const gamma = toolResultOf(world, GAMMA_ID)
   record('resumed-gamma-result.txt', `${gamma?.text ?? ''}\nis_error=${String(gamma?.isError)}\n`)
   tally.check('a new crewmate joins the surviving crew', gamma !== null && gamma.isError === false && !/does not exist/.test(gamma.text), `${gamma?.text.slice(0, 200) ?? '(no result)'} is_error=${String(gamma?.isError)}`)

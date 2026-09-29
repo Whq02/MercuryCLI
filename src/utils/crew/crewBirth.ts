@@ -78,5 +78,6 @@ export function birthSessionCrew(sessionId: string, setAppState?: SetAppState): 
   if (isTeammate()) return null
   if (getLeadTeamFallback() === null) setLeadTeamFallback(sessionCrewName(sessionId))
   setAppState?.(prev => (prev.teamContext !== undefined ? prev : { ...prev, teamContext: bornCrewContext(sessionId) }))
+  void import('./crewConvert.js').then(convert => convert.bootCrewConversion())
   return getLeadTeamFallback()
 }

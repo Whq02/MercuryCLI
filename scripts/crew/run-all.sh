@@ -35,7 +35,7 @@
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/teammateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessTeammateTask/types.ts src/utils/swarm/inProcessRunner.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/utils/swarm/roomHealth.ts
-# gate-watch: src/utils/crew/crewBirth.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
+# gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
 # gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/teamOperations.ts
 set -u
