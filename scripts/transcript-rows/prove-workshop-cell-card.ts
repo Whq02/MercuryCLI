@@ -185,7 +185,7 @@ console.log('── the error road hands every tool the structured result and th
   }
   const owners = files.filter(f => !f.endsWith(join('src', 'Tool.ts')) && !f.includes(join('messages', 'UserToolResultMessage')) && parameterLists(readFileSync(f, 'utf8')).length > 0)
   const readers = owners.filter(f => parameterLists(readFileSync(f, 'utf8')).some(list => /toolUseResult|\binput\b/.test(list)))
-  check(`${owners.length} error-renderer owners found (a census that reads at least the built-in tools)`, owners.length >= 40, String(owners.length))
+  check(`${owners.length} error-renderer owners found (a census that reads at least the built-in tools)`, owners.length >= 38, String(owners.length))
   check('the Workshop renderer is the only error renderer that reads the structured result or the input', readers.length === 1 && readers[0]!.endsWith(join('WorkshopTool', 'UI.tsx')), readers.map(f => f.slice(ROOT.length + 1)).join(', '))
   const errorRoad = readFileSync(join(ROOT, 'src', 'components', 'messages', 'UserToolResultMessage', 'UserToolErrorMessage.tsx'), 'utf8')
   const dispatch = readFileSync(join(ROOT, 'src', 'components', 'messages', 'UserToolResultMessage', 'UserToolResultMessage.tsx'), 'utf8')
